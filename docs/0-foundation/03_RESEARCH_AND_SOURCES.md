@@ -1,4 +1,4 @@
-# Research Survey and Design Conclusions
+# Research Survey, Design Conclusions, and Sources
 
 Research reviewed: 2026-06-05.
 

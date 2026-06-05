@@ -23,35 +23,49 @@ This pack strengthens what was missing:
 - explicit LOD and performance strategy;
 - a vertical slice that includes recruiting companions and pursuing stale leads.
 
-## Reading order
+## Structure
 
-1. `01_PROJECT_CHARTER.md`
-2. `02_FOUNDATIONAL_INVARIANTS.md`
-3. `03_RESEARCH_SURVEY_AND_DESIGN_CONCLUSIONS.md`
-4. `04_WORLD_KERNEL_AND_EVENT_SOURCING.md`
-5. `05_AGENT_ARCHITECTURE.md`
-6. `06_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`
-7. `07_SOCIAL_INSTITUTIONS_AND_LAW.md`
-8. `08_QUESTLESS_CONTENT_AND_LEADS.md`
-9. `09_ORDINARY_LIFE_ECONOMY_AND_SETTLEMENTS.md`
-10. `10_SPATIAL_REGIONAL_AND_TRAVEL_MODEL.md`
-11. `11_PLAYER_MODEL_TUI_AND_UI.md`
-12. `12_LLM_DIALOGUE_AND_TEXT_BOUNDARY.md`
-13. `13_GENRE_AGNOSTIC_DOMAIN_MODEL.md`
-14. `14_WORLDGEN_HISTORY_AND_LONG_SIMULATION.md`
-15. `15_SIMULATION_LOD_TIME_AND_PERFORMANCE.md`
-16. `16_VERTICAL_SLICE_SPEC.md`
-17. `17_ENGINEERING_ROADMAP.md`
-18. `18_TESTING_VALIDATION_AND_DEBUGGING.md`
-19. `19_AUTHORING_GUIDE.md`
-20. `20_STARTER_DATA_SCHEMAS.md`
-21. `21_OPEN_DESIGN_DECISIONS_AND_RISKS.md`
-22. `22_GLOSSARY.md`
-23. `99_SOURCES.md`
+The docs are organized into four tiers by dependency and change rate. Read top to bottom; later tiers depend on earlier ones.
+
+### `0-foundation/` — the constitution and its rationale (rarely changes)
+
+1. `0-foundation/01_PROJECT_CHARTER.md`
+2. `0-foundation/02_FOUNDATIONAL_INVARIANTS.md`
+3. `0-foundation/03_RESEARCH_AND_SOURCES.md` — research survey, design conclusions, and the full citation list
+
+### `1-architecture/` — subsystem designs (evolve alongside the code)
+
+4. `1-architecture/04_WORLD_KERNEL_AND_EVENT_SOURCING.md`
+5. `1-architecture/05_AGENT_ARCHITECTURE.md`
+6. `1-architecture/06_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`
+7. `1-architecture/07_SOCIAL_INSTITUTIONS_AND_LAW.md`
+8. `1-architecture/08_QUESTLESS_CONTENT_AND_LEADS.md`
+9. `1-architecture/09_ORDINARY_LIFE_ECONOMY_AND_SETTLEMENTS.md`
+10. `1-architecture/10_SPATIAL_REGIONAL_AND_TRAVEL_MODEL.md`
+11. `1-architecture/11_PLAYER_MODEL_TUI_AND_UI.md`
+12. `1-architecture/12_LLM_DIALOGUE_AND_TEXT_BOUNDARY.md`
+13. `1-architecture/13_GENRE_AGNOSTIC_DOMAIN_MODEL.md`
+14. `1-architecture/14_WORLDGEN_HISTORY_AND_LONG_SIMULATION.md`
+15. `1-architecture/15_SIMULATION_LOD_TIME_AND_PERFORMANCE.md`
+
+### `2-execution/` — build, test, and authoring plans (change frequently during implementation)
+
+16. `2-execution/16_VERTICAL_SLICE_SPEC.md`
+17. `2-execution/17_ENGINEERING_ROADMAP.md`
+18. `2-execution/18_TESTING_VALIDATION_AND_DEBUGGING.md`
+19. `2-execution/19_AUTHORING_GUIDE.md`
+20. `2-execution/20_STARTER_DATA_SCHEMAS.md`
+
+### `3-reference/` — lookups and living logs
+
+21. `3-reference/21_OPEN_DESIGN_DECISIONS_AND_RISKS.md`
+22. `3-reference/22_GLOSSARY.md`
+
+File numbers are preserved as stable IDs; the tier folder, not the number, expresses dependency level.
 
 ## Replacement notes
 
-This is not a patch. It is a restructured replacement set. The old `AGENT_COGNITION`, `PLAYER_MODEL_AND_UI`, `ENGINEERING_ROADMAP_AND_RISKS`, and `OPEN_DESIGN_QUESTIONS` documents are split or expanded because those areas now carry more architectural weight.
+This is not a patch. It is a restructured replacement set. The old `AGENT_COGNITION`, `PLAYER_MODEL_AND_UI`, `ENGINEERING_ROADMAP_AND_RISKS`, and `OPEN_DESIGN_QUESTIONS` documents are split or expanded because those areas now carry more architectural weight. The former `03_RESEARCH_SURVEY_AND_DESIGN_CONCLUSIONS.md` and `99_SOURCES.md` are merged into `0-foundation/03_RESEARCH_AND_SOURCES.md`.
 
 ## First implementation posture
 
