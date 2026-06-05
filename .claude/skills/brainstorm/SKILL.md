@@ -159,7 +159,9 @@ Close with a recommendation: name the chosen option upfront, then justify in 1-3
 
 ### Triage brainstorms
 
-When the deliverable is a set of work items evaluated against a report, finding-set, or diagnostic question, replace the approaches step with a **triage recommendation**: which items warrant action, which are dismissed, and why. The user's approval of the triage serves the same gating purpose as choosing an approach. Render the Step 1 sub-step 8 post-exploration confidence sentence on its own line before the triage recommendation as the audit-trail anchor. Verdict types, per-item structure, verdict-bucket grouping, the out-of-report and no-source-report cases, and the closing structure live in `references/triage-and-deliverables.md` §Triage recommendation structure.
+When the deliverable is a set of work items evaluated against a report, finding-set, or diagnostic question, replace the approaches step with a **triage recommendation**: which items warrant action, which are dismissed, and why. The user's approval of the triage serves the same gating purpose as choosing an approach. Render the Step 1 sub-step 8 post-exploration confidence sentence on its own line before the triage recommendation as the audit-trail anchor.
+
+**Before producing the triage, read `references/triage-and-deliverables.md` §Triage recommendation structure** — the inline summary here is not enough to render a conforming triage. That file holds the verdict types, per-item structure, verdict-bucket grouping, the out-of-report and no-source-report cases, and the closing structure. Two conventions are the easiest to miss and must hold even if you skip the read: (1) **key findings `O<N>`** for out-of-report and no-source-report items (and `R<N>` for source-report items) — never ad-hoc prefixes like `F<N>`; (2) use the **closed verdict vocabulary** (`accept` / `accept-with-modification` / `reject` / `defer` / `already-resolved` / `refuted-by-verification`) — never coin labels like `ACT`/`DISMISS`.
 
 ## Step 4: Present design
 

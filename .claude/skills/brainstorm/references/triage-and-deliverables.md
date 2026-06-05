@@ -27,7 +27,7 @@ Each triage item has:
 | `already-resolved` | none | re-triage case: the item was actioned between the original pass and this one; cite the resolving artifact + date |
 | `refuted-by-verification` | `verification source` | the item's claimed gap or premise is disproved by codebase/contract verification at triage time; quote the file:line evidence |
 
-The seven-bucket vocabulary is closed — don't coin new verdicts. A user-elected skip ("skip the polish for now") is a `defer` whose trigger is the user's batch-scoping choice. An item whose premise is refuted but carries a valid residual best folded into another finding uses the dominant verdict plus a rationale cross-reference to the absorbing item's ID.
+The six-verdict vocabulary is closed — don't coin new verdicts. A user-elected skip ("skip the polish for now") is a `defer` whose trigger is the user's batch-scoping choice. An item whose premise is refuted but carries a valid residual best folded into another finding uses the dominant verdict plus a rationale cross-reference to the absorbing item's ID.
 
 ### Per-item identifiers
 
@@ -46,6 +46,7 @@ When the request is a diagnostic question or exploration prompt rather than a fo
 - **Omit the verdict-bucket section entirely** — the verdicts are defined against source-report items.
 - **Route all findings to the out-of-report sub-section**, keyed `O<N>`. The answers to the user's questions ARE the findings — emit them as `O1`, `O2`, …, not as synthetic `R<N>` items restating the questions.
 - **The closing structure still applies.**
+- **For an audit/health-check diagnostic** ("are there issues with X?", "is Y sound?"), add a brief **validated — no action** subsection (distinct from the `O<N>` findings) listing what was checked and found healthy. It makes the verdict's completeness legible — the user can see that an unmentioned aspect was *checked and clean*, not silently skipped — and lets a mostly-negative verdict ("no real issues") be trusted. Keep it to one line per checked aspect; it is not a verdict bucket and carries no `O<N>` keys.
 - **When the diagnostic resolves to a recommended *action* (not a set of independent work items)** — i.e. the question is "what should we do about X?" and the answer is one course of action weighed against alternatives — the `O<N>` findings carry the *answer* (the diagnosis), and the close borrows Step 3's recommendation shape in place of (or alongside) the deliverable-shape recommendation: name the recommended action upfront, then the rejected alternatives with their grounds, then any optional add-ons. This is the sanctioned blend for action-shaped diagnostics; don't force an action choice into the flat `O<N>` finding list.
 
 ### Closing structure
