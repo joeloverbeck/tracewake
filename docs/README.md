@@ -1,67 +1,91 @@
-# Tracewake Foundation Pack
+# Tracewake Documentation
 
-Status: current baseline. This pack is authoritative; any earlier numbered drafts are superseded.
+Tracewake's documentation is organized as layered authority. Read earlier layers before later layers.
 
-## North-star thesis
+```text
+0-foundation/   constitutional doctrine
+1-architecture/ subsystem design contracts
+2-execution/    implementation and validation planning
+3-reference/    compact lookup and active watchlists
+```
 
-Tracewake is a causality-first, ordinary-life simulation where agents act from partial beliefs, public adventures arise from world processes, and the human player is only a temporary controller attached to an ordinary actor.
+Later tiers depend on earlier tiers. If execution conflicts with architecture or foundation, execution is wrong. If implementation is more convenient than the accepted execution gates, implementation is wrong. Reference documents are lookup aids, not new doctrine.
 
-The player fantasy is to intervene, manipulate, and investigate: enter a town, talk to people, read notices, follow leads, hire companions, travel to sites, discover that information is stale or false, and adapt. The world must not know that a metaphysical player exists.
+Each folder restarts numbering at `01_`. File numbers are local to the folder.
 
-## Structure
+## 0-foundation/ — constitutional layer
 
-The docs are organized into four tiers by dependency and change rate. Read top to bottom; later tiers depend on earlier ones. The tier folder, not the file number, expresses dependency level.
+The foundation layer defines what Tracewake is and what it must not become. These documents control product identity, causality, epistemics, possession, TUI-first playability, no-scripting policy, scale posture, domain boundary, and acceptance doctrine.
 
-### `0-foundation/` — the constitution and its rationale (rarely changes)
+- `01_PROJECT_CHARTER.md` — product identity, priorities, first playable target, and non-negotiable direction.
+- `02_FOUNDATIONAL_INVARIANTS.md` — compact constitutional rules that later layers must preserve.
+- `03_CAUSAL_SIMULATION_CONTRACT.md` — causality, events, traces, consequences, replay, and forbidden causes.
+- `04_EPISTEMIC_MODEL_AND_INFORMATION_FLOW.md` — ground truth, belief, observation, memory, records, stale information, and knowledge filtering.
+- `05_AGENT_INTENTION_AND_PLANNING_DOCTRINE.md` — ordinary agents, needs, motives, projects, intentions, routines, symbolic planning, and LLM limits.
+- `06_INSTITUTIONS_NORMS_HOUSEHOLDS_AND_RECORDS.md` — households, norms, institutions, records, procedures, fallibility, and social machinery.
+- `07_TUI_FIRST_PLAYABILITY_CONTRACT.md` — TUI-first playability, embodied view models, debug separation, action menus, notebooks, and why-not UI.
+- `08_NO_SCRIPTING_AND_CAUSAL_AUTHORING_POLICY.md` — causal authoring versus authored outcome chains, quest relapse, and hidden director risks.
+- `09_SCALE_LOD_LONG_SIMULATION_AND_REGIONAL_PROCESSES.md` — scale staging, LOD, regional processes, long simulation, summaries, and ancestry preservation.
+- `10_DOMAIN_BOUNDARY_AND_FIRST_PLAYABLE_SCOPE.md` — genre-agnostic core, first neutral ordinary-life domain, and deferred domain ambitions.
+- `11_VALIDATION_REPLAY_AND_ACCEPTANCE_GATES.md` — no-human simulation, replay, TUI, epistemic filtering, acceptance gates, and failure as proof.
+- `12_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — research-derived foundation decisions and source notes.
 
-The same rules appear here in three escalating layers: the Charter pillars (vision form), the Invariants (`INV-NNN` hard rules), and the TUI/scripting contracts (04–05, worked policy). Edit them as a set — a change to one layer must be reflected in the others, and the pillars and contracts cite the invariants they expand.
+## 1-architecture/ — subsystem design layer
 
-1. `0-foundation/01_PROJECT_CHARTER.md` — Project Charter
-2. `0-foundation/02_FOUNDATIONAL_INVARIANTS.md` — Foundational Invariants (`INV-001` … `INV-052`)
-3. `0-foundation/03_RESEARCH_AND_SOURCES.md` — Research Survey, Design Conclusions, and Sources
-4. `0-foundation/04_TUI_FIRST_PLAYABILITY_CONTRACT.md` — TUI-First Playability Contract
-5. `0-foundation/05_NO_SCRIPTING_AND_CAUSAL_AUTHORING_POLICY.md` — No Scripting and Causal Authoring Policy
+The architecture layer translates foundation doctrine into subsystem contracts. It defines boundaries, data flows, validation responsibilities, and anti-patterns for the Rust-first implementation.
 
-### `1-architecture/` — subsystem designs (evolve alongside the code)
+- `01_ARCHITECTURE_CHARTER_AND_REPLACEMENT_DECISIONS.md` — architecture authority, priority order, first slice, deferrals, and document map.
+- `02_RUST_WORKSPACE_AND_SYSTEM_BOUNDARIES.md` — logical package boundaries, dependency direction, side-effect policy, storage stance, and forbidden architecture outcomes.
+- `03_COMMAND_ACTION_AND_AFFORDANCE_PIPELINE.md` — commands, actions, affordances, proposals, rejection, failure, validation, scheduling, traces, observations, and why-not.
+- `04_EVENT_SOURCING_CAUSAL_GRAPH_AND_PROJECTIONS.md` — event envelopes, streams, causal graph, projections, snapshots, compaction, schema evolution, and replay failure handling.
+- `05_STATE_MODEL_ENTITIES_COMPONENTS_AND_CONTENT_DATA.md` — entities, components, authored data, domain packs, actions, affordances, records, validation, and versioning.
+- `06_TIME_SCHEDULING_REPLAY_AND_RANDOMNESS.md` — discrete time, scheduling, durations, interruptions, reservations, deterministic replay, and random streams.
+- `07_EPISTEMIC_INFORMATION_TRACE_AND_MEMORY_ARCHITECTURE.md` — truth, subjective belief, public/institutional record, observation, interpretation, traces, search, rumor, memory, and stale information.
+- `08_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` — structured speech acts, deterministic rendering, future freeform parsing, LLM boundaries, validation, rejection, repair, and LLM-disabled operation.
+- `09_AGENT_COGNITION_PLANNING_AND_ROUTINES.md` — BDI-style cognition, needs, values, projects, intentions, HTN methods, bounded local planning, routines, replanning, planner traces, and agent LOD.
+- `10_INSTITUTIONS_NORMS_HOUSEHOLDS_AND_RECORDS.md` — households, local authority, roles, norms, constitutive facts, records, reports, notices, jurisdiction, bias, corruption, and procedure failure.
+- `11_ORDINARY_LIFE_ECONOMY_SETTLEMENT_AND_SPATIAL_MODEL.md` — village scale, ordinary life, rooms, doors, sound, homes, containers, ownership, sleep, food, work, economy, social actions, and routes.
+- `12_PLAYER_POSSESSION_VIEW_MODELS_TUI_AND_DEBUG.md` — human controller binding, possession, embodied/debug view models, actor notebook, human/debug notes, TUI action menus, why-not, and graphical boundary.
+- `13_QUESTLESS_LEADS_NOTICES_AND_STORY_SIFTING.md` — incidents, requests, contracts, notices, leads, lead projections, player-facing wording, story sifting, and questless completion replacements.
+- `14_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md` — simulation-scope tiers, promotion/demotion, summary events, low-LOD people, boundary events, world history, procedural generation stance, and scale policy.
+- `15_VALIDATION_TESTING_AND_ACCEPTANCE_ARCHITECTURE.md` — validation gates, test layers, canonical acceptance scenario, no-human gate, no-player privilege gate, actor-knowledge gate, replay gate, and regression artifacts.
+- `16_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — architecture-specific research decisions and source notes.
 
-6. `1-architecture/06_WORLD_KERNEL_AND_EVENT_SOURCING.md` — World Kernel and Event Sourcing
-7. `1-architecture/07_AGENT_COMPETENCE_AND_PLANNING_DECISION.md` — Agent Competence and Planning Decision
-8. `1-architecture/08_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md` — Information Ecology and Speech Acts
-9. `1-architecture/09_SOCIAL_INSTITUTIONS_AND_LAW.md` — Social Institutions and Law
-10. `1-architecture/10_ORDINARY_LIFE_ECONOMY_AND_SETTLEMENTS.md` — Ordinary Life, Economy, and Settlements
-11. `1-architecture/11_QUESTLESS_CONTENT_LEADS_AND_STORY_SIFTING.md` — Questless Content, Leads, and Story Sifting
-12. `1-architecture/12_SPATIAL_REGIONAL_AND_TRAVEL_MODEL.md` — Spatial, Regional, and Travel Model
-13. `1-architecture/13_PLAYER_MODEL_POSSESSION_AND_UI_VIEW_MODELS.md` — Player Model, Possession, and UI View Models
-14. `1-architecture/14_LLM_LANGUAGE_SURFACE_BOUNDARY.md` — LLM Language Surface Boundary
-15. `1-architecture/15_GENRE_AGNOSTIC_DOMAIN_MODEL.md` — Genre-Agnostic Domain Model
-16. `1-architecture/16_WORLDGEN_HISTORY_AND_LONG_SIMULATION.md` — World Generation, History, and Long Simulation
-17. `1-architecture/17_SIMULATION_LOD_TIME_AND_PERFORMANCE.md` — Simulation LOD, Time, and Performance
+## 2-execution/ — implementation and validation planning layer
 
-### `2-execution/` — build, test, and authoring plans (change frequently during implementation)
+The execution layer defines the order of work, phase gates, first proof, fixtures, validation expectations, and what must remain deferred. It does not replace foundation doctrine or architecture contracts.
 
-18. `2-execution/18_LIFE_POSSESSION_VERTICAL_SLICE_SPEC.md` — Life-Possession Vertical Slice Specification
-19. `2-execution/19_ENGINEERING_ROADMAP_TUI_FIRST.md` — Engineering Roadmap: TUI-First
-20. `2-execution/20_TESTING_VALIDATION_AND_DEBUGGING.md` — Testing, Validation, and Debugging
-21. `2-execution/21_AUTHORING_GUIDE.md` — Authoring Guide
-22. `2-execution/22_STARTER_DATA_SCHEMAS.md` — Starter Data Schemas
+- `01_EXECUTION_CHARTER_AND_SCOPE_DECISIONS.md` — execution authority, first proof, second proof, strict phase ladder, TUI-first policy, no-human policy, LLM deferral, data posture, and anti-scope-creep rules.
+- `02_STRICT_PHASE_LADDER_AND_IMPLEMENTATION_ORDER.md` — Phase 0 through Phase 4 dependency order, phase shape, gates, exit criteria, and second-proof unlock rules.
+- `03_FIRST_PROOF_THE_MISSING_PROPERTY_VILLAGE.md` — identity, target scale, first domain, map scope, actor roster, required systems, miracle chain, scenarios, definition of done, and failure conditions.
+- `04_PHASE_0_PAPER_ONTOLOGY_AND_FIXTURE_DESIGN.md` — paper ontology, primitive vocabularies, manual causal chains, TUI sketches, view-model contracts, no-scripting review, and fixture gates.
+- `05_PHASE_1_RUNNABLE_KERNEL_TUI_AND_EVENT_LOG.md` — runnable physical/event/action/TUI spine, event log, basic replay, local interaction, debug attach, and no-human advance.
+- `06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md` — observation, belief, expectation contradiction, actor-known filtering, embodied/debug view split, possession parity, and notebook projection.
+- `07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_DAILY_SIM.md` — hunger, fatigue, safety, sleep, eating, work, households, routines, intentions, interruptions, TUI time controls, no-human day, metrics, and planner traces.
+- `08_PHASE_4_INSTITUTIONS_RECORDS_AND_WRONG_SUSPICION.md` — households, local authority, roles, report action, incident ledger, norms, suspicion scoring, questioning/watch procedure, institution debug inspector, and first-proof final acceptance.
+- `09_DATA_AUTHORING_SCHEMAS_AND_GOLDEN_FIXTURES.md` — authoring posture, validation pipeline, content manifest, core schema shapes, and golden fixtures.
+- `10_TESTING_VALIDATION_DEBUGGING_AND_METRICS.md` — testing matrix, per-phase minimums, properties, golden scenarios, fuzzing, TUI/view-model tests, epistemic leakage tests, institution tests, replay tests, LLM-boundary tests, debug requirements, and metrics.
+- `11_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md` — post-first-proof notice lifecycle, stale leads, route travel, companion recruitment, proof/payment, regional expansion, and second-proof gates.
+- `12_RESEARCH_DECISIONS_AND_EXECUTION_SOURCE_NOTES.md` — execution-specific research decisions and source notes.
 
-### `3-reference/` — lookups and living logs
+## 3-reference/ — compact lookup and watchlist layer
 
-23. `3-reference/23_DESIGN_RISK_REGISTER.md` — Design Risk Register
-24. `3-reference/24_GLOSSARY.md` — Glossary
+The reference layer is deliberately small. It should help maintain consistency without duplicating the foundation, architecture, or execution layers.
 
-## First implementation posture
+- `01_DESIGN_RISK_REGISTER.md` — living watchlist of unresolved or recurring design risks that can threaten Tracewake's doctrine during implementation, authoring, validation, scaling, or presentation work.
+- `02_GLOSSARY.md` — canonical terminology-control document for domain, architecture, schema, test, TUI, prompt, and documentation vocabulary.
 
-Build a deterministic headless simulation core and a serious playable TUI before any graphical app. The TUI is not a throwaway debug console. It is the first real player interface and should be architected through reusable UI view models that a future desktop UI can consume.
+Reference documents should remain compact, stable, and low-duplication. Do not use the reference layer for essays, design constitutions, implementation plans, or new doctrine. If a reference document grows into policy, move the policy to the correct authority layer and leave only the lookup/watchlist material here.
 
-## First miracle
+## Maintenance rules
 
-A village that notices what happened, misunderstands some of it, records some of it, talks about it, and continues living.
+When adding or changing documents:
 
-## Long-term promise
+- preserve layer authority: foundation before architecture before execution before reference;
+- restart numbering inside each folder rather than continuing numbers across tiers;
+- avoid brittle cross-references to exact invariant numbers unless unavoidable;
+- avoid stale filenames in indexes and examples;
+- keep reference documents short enough to serve as lookup tools;
+- prefer source-bound concepts over synonyms that imply quests, protagonist privilege, omniscience, scripts, or LLM authority.
 
-A region that has lived before the player entered it.
-
-## Mantra
-
-No telepathy. No destiny. No quest giver ontology. No sacred player. No invisible author. No boredom director. No simulation fact born from prose.
+Tracewake's recurring test is simple: every feature must preserve event-sourced causality, subjective epistemics, ordinary agents, possession parity, fallible institutions, questless leads, TUI-first playability, validation/replay, and no simulation fact born from prose.
