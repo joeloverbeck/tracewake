@@ -47,7 +47,7 @@ The same rules appear here in three escalating layers: the Charter pillars (visi
 
 ### `3-reference/` — lookups and living logs
 
-23. `3-reference/23_OPEN_DESIGN_DECISIONS_AND_RISKS.md` — Open Design Decisions and Risks
+23. `3-reference/23_DESIGN_RISK_REGISTER.md` — Design Risk Register
 24. `3-reference/24_GLOSSARY.md` — Glossary
 
 ## First implementation posture
