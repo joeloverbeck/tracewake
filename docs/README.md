@@ -4,7 +4,7 @@ Status: current baseline. This pack is authoritative; any earlier numbered draft
 
 ## North-star thesis
 
-Tracewake is a causality-first regional life simulation where ordinary agents act from partial beliefs, public adventures arise from world processes, and the human player is only a temporary controller attached to an ordinary actor.
+Tracewake is a causality-first, ordinary-life simulation where agents act from partial beliefs, public adventures arise from world processes, and the human player is only a temporary controller attached to an ordinary actor.
 
 The player fantasy is to intervene, manipulate, and investigate: enter a town, talk to people, read notices, follow leads, hire companions, travel to sites, discover that information is stale or false, and adapt. The world must not know that a metaphysical player exists.
 
@@ -13,6 +13,8 @@ The player fantasy is to intervene, manipulate, and investigate: enter a town, t
 The docs are organized into four tiers by dependency and change rate. Read top to bottom; later tiers depend on earlier ones. The tier folder, not the file number, expresses dependency level.
 
 ### `0-foundation/` — the constitution and its rationale (rarely changes)
+
+The same rules appear here in three escalating layers: the Charter pillars (vision form), the Invariants (`INV-NNN` hard rules), and the TUI/scripting contracts (04–05, worked policy). Edit them as a set — a change to one layer must be reflected in the others, and the pillars and contracts cite the invariants they expand.
 
 1. `0-foundation/01_PROJECT_CHARTER.md` — Project Charter
 2. `0-foundation/02_FOUNDATIONAL_INVARIANTS.md` — Foundational Invariants (`INV-001` … `INV-052`)
@@ -45,8 +47,8 @@ The docs are organized into four tiers by dependency and change rate. Read top t
 
 ### `3-reference/` — lookups and living logs
 
-- `3-reference/21_OPEN_DESIGN_DECISIONS_AND_RISKS.md` — Open Design Decisions and Risks
-- `3-reference/22_GLOSSARY.md` — Glossary
+23. `3-reference/23_OPEN_DESIGN_DECISIONS_AND_RISKS.md` — Open Design Decisions and Risks
+24. `3-reference/24_GLOSSARY.md` — Glossary
 
 ## First implementation posture
 

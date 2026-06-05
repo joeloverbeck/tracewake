@@ -1,5 +1,7 @@
 # TUI-First Playability Contract
 
+This contract is the worked-policy expansion of the TUI hard rules `INV-001`–`INV-004`, together with the action-parity and UI-assistance rules `INV-009` and `INV-010`. The invariants are the testable summary; this document is the detailed obligation. Keep them in sync.
+
 ## Core claim
 
 The TUI is the first real Tracewake client. It is not a temporary console, not a debug afterthought, and not a placeholder until graphics arrive.

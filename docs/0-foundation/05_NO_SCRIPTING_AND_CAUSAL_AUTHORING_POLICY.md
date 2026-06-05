@@ -1,5 +1,7 @@
 # No Scripting and Causal Authoring Policy
 
+This policy is the worked-policy expansion of `INV-038` (no authored outcome chains), drawing on the questless-content and story-sifting rules `INV-035`–`INV-037` and `INV-039`, the trace rule `INV-013`, and the LLM boundary `INV-050`–`INV-051`. The invariants are the testable summary; this document is the detailed obligation. Keep them in sync.
+
 ## Core claim
 
 Tracewake forbids authored event sequences. Tracewake requires authored causal machinery.

@@ -32,17 +32,25 @@ Long simulation must not become lore prose. It must create inspectable causal an
 
 ## Product pillars
 
+Each pillar is the vision form of one or more hard rules in `02_FOUNDATIONAL_INVARIANTS.md`. The cited `INV-NNN` ranges are the testable version of the same commitment and must stay in sync with the prose here.
+
 ### 1. Causality before drama
 
 Events happen because prior state, actor intention, need pressure, belief, routine, environment, institution, regional process, or authored initial condition made them possible. No event exists because the player needs pacing.
+
+*Hard-rule form: `INV-011`–`INV-017`.*
 
 ### 2. Belief before truth
 
 Agents act from subjective beliefs, not ground truth. Wrong beliefs, stale information, rumor, lies, misidentification, inference, absence-as-evidence, and expectation contradiction are first-class mechanics.
 
+*Hard-rule form: `INV-018`–`INV-023`.*
+
 ### 3. Ordinary life before adventure
 
 Adventure is meaningful only when ordinary life exists to be disrupted. Hunger, fatigue, safety, sleep, eating, work, homes, storage, ownership, household routines, and basic social interaction are not background flavor. They are the substrate.
+
+*Hard-rule form: `INV-040`, `INV-042`, `INV-043`.*
 
 ### 4. The world has no sacred player entity
 
@@ -54,37 +62,55 @@ HumanController -> ActorId
 
 Possession changes input binding, not reality.
 
+*Hard-rule form: `INV-005`–`INV-007`.*
+
 ### 5. Every world-affecting player action must be agent-possible
 
 The current body has the same world-affecting actions an AI agent would have under equivalent physical, social, epistemic, resource, and institutional conditions. UI clarity is allowed. Exclusive player verbs are not.
+
+*Hard-rule form: `INV-009`, `INV-010`.*
 
 ### 6. Institutions are fallible social machines
 
 Law, guilds, households, temples, markets, offices, gangs, and companies act through people, roles, obligations, permissions, prohibitions, records, procedures, resources, delay, bias, jurisdiction, and failure. No guard, court, ledger, or notice board reads ground truth.
 
+*Hard-rule form: `INV-030`–`INV-034`.*
+
 ### 7. Quests are projections, not ontology
 
 The engine stores incidents, needs, requests, contracts, notices, obligations, promises, rumors, records, leads, investigations, sanctions, and opportunities. A player-facing objective is a view over world state, not an authoritative process.
+
+*Hard-rule form: `INV-035`–`INV-037`.*
 
 ### 8. Authored causal machinery is allowed; authored event sequences are forbidden
 
 Designers author actions, affordances, norms, roles, needs, routines, HTN methods, institution procedures, trace types, speech acts, initial conditions, scenario seeds, LOD rules, and test fixtures. Designers do not author outcome chains, quest beats, drama triggers, player-conditioned events, or guaranteed story arcs.
 
+*Hard-rule form: `INV-038`; expanded in `05_NO_SCRIPTING_AND_CAUSAL_AUTHORING_POLICY.md`.*
+
 ### 9. Symbolic agents first
 
 Tracewake v1 agents are inspectable symbolic/planner-driven agents: BDI-style beliefs/desires/intentions, durable projects, HTN routines and procedures, bounded local planning, event-driven replanning, budgets, and failure events. LLMs may later render language. LLMs do not decide truth, plan agents, create hidden facts, or mutate authoritative state.
+
+*Hard-rule form: `INV-024`–`INV-029` (and the LLM boundary `INV-050`–`INV-052`).*
 
 ### 10. TUI-first, playable always
 
 The TUI is not a disposable debug shell. It is the main product interface for a long while. The kernel and TUI harness grow together. Every runnable phase must have a playable TUI acceptance test. A mechanic that cannot be reached, inspected, or tested through the TUI is not done.
 
+*Hard-rule form: `INV-001`–`INV-004`; expanded in `04_TUI_FIRST_PLAYABILITY_CONTRACT.md`.*
+
 ### 11. Genre-agnostic core, neutral low-fantasy first domain
 
 The kernel must not contain fantasy assumptions. The first domain is restrained medieval-ish low fantasy because it provides intuitive homes, roads, taverns, offices, notices, imperfect evidence, and fallible institutions. Magic, species, religion, combat, procedural terrain, and graphical presentation are deferred.
 
+*Hard-rule form: `INV-044`–`INV-046` (and the deferral rules `INV-041`, `INV-042`).*
+
 ### 12. Story is observed, not directed
 
 Story recognition, salience, recap, notebooks, and “interesting event” surfacing are observer layers. They may sift what happened. They may not cause what happens.
+
+*Hard-rule form: `INV-039` (and simulation-before-narration `INV-016`).*
 
 ## Non-goals
 
