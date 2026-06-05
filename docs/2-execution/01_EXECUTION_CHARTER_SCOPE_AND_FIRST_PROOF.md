@@ -1,8 +1,8 @@
-# Execution Charter and Scope Decisions
+# Execution Charter, Scope, and First Proof
 
 ## Status
 
-This folder is the corrected execution-level replacement set for **Tracewake**.
+This document is part of the corrected execution-level replacement set for **Tracewake** at target commit `5f01f72e0d3f42243becd95160a98cf7565fdb1c`. See `00_EXECUTION_INDEX_AND_AUTHORITY.md` for the evidence ledger and exact-commit source policy.
 
 Execution documents define what gets built first, in what order, with which gates, fixtures, acceptance criteria, validation rules, and deferrals. They do not replace foundation doctrine or architecture contracts. They do not contain implementation tickets or Rust source code.
 

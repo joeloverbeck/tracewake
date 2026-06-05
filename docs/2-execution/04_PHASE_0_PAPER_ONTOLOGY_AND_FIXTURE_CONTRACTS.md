@@ -1,4 +1,4 @@
-# Phase 0: Paper Ontology and Fixture Design
+# Phase 0: Paper Ontology and Fixture Contracts
 
 ## Purpose
 

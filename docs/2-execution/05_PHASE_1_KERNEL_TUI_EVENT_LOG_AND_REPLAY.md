@@ -1,4 +1,4 @@
-# Phase 1: Runnable Kernel, TUI Harness, and Event Log
+# Phase 1: Kernel, TUI/View Models, Event Log, and Replay
 
 ## Purpose
 

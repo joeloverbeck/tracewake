@@ -1,4 +1,4 @@
-# Testing, Validation, Debugging, and Metrics
+# Testing, Debugging, Observability, and Metrics
 
 ## Core claim
 

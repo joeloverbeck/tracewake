@@ -1,10 +1,10 @@
-# First Proof: The Missing Property Village
+# First Proof: Missing Expected Property
 
 ## Identity
 
-The first proof is **The Missing Property Village**.
+The first proof is **Missing Expected Property**, with **The Missing Property Village** as the canonical first fixture.
 
-This name is intentionally plain. The proof is not the notice lifecycle. It is not a road-threat bounty. It is not a companion expedition. It is the ordinary-life causal chain that makes a missing object matter.
+This name is intentionally plain. The proof may use Tomas, Mara, Elena, Anna, Elias, the reeve, a strongbox, and coins, but it must not overfit to that object set. The proof is not the notice lifecycle. It is not a road-threat bounty. It is not a companion expedition. It is the ordinary-life causal chain that makes a missing object matter.
 
 ```text
 property expected somewhere
@@ -17,7 +17,7 @@ property expected somewhere
  -> debug explains truth, belief, traces, records, and consequences
 ```
 
-If a village cannot do this, it has not earned road threats, notice boards, companions, or regional travel.
+If a village cannot do this with an expected object, container, place, actor, or custody relation, it has not earned road threats, notice boards, companions, or regional travel.
 
 ## Target scale
 

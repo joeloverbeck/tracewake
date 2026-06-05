@@ -1,10 +1,10 @@
-# Second Proof: Notices, Travel, and Regional Expansion
+# Deferred Second Proof: Notices, Travel, and Regional Expansion
 
 ## Purpose
 
-The second proof preserves the deferred direction without hijacking the first proof.
+This document preserves the deferred direction without hijacking the first proof.
 
-It begins only after The Missing Property Village passes. It extends proven first-proof machinery into public artifacts, route risk, stale leads, companion recruitment, travel, proof/payment, and simple regional expansion.
+It begins only after Missing Expected Property / The Missing Property Village passes. It extends proven first-proof machinery into public artifacts, route risk, stale leads, companion recruitment, travel, proof/payment, and simple regional expansion.
 
 The second proof is still questless. It is not a bounty quest system. It is not an expedition script. It is not a drama director.
 

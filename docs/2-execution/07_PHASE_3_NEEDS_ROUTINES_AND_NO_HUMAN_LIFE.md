@@ -1,4 +1,4 @@
-# Phase 3: Needs, Routines, Work, and No-Human Daily Simulation
+# Phase 3: Needs, Routines, and No-Human Life
 
 ## Purpose
 

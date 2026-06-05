@@ -1,4 +1,4 @@
-# Data Authoring, Schemas, and Golden Fixtures
+# Data Authoring, Validation, and Golden Fixtures
 
 ## Core rule
 
