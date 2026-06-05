@@ -1,162 +1,177 @@
-# Tracewake Project Charter
+# Project Charter
 
 ## Name
 
 **Tracewake**.
 
-The name is doctrine. Actions leave wakes. Wakes become traces. Traces are observed, ignored, recorded, distorted, erased, remembered, forgotten, argued over, and institutionalized by ordinary agents.
+The name is doctrine. Actions leave wakes. Wakes become traces. Traces are observed, ignored, misunderstood, recorded, erased, remembered, forgotten, lied about, institutionalized, and acted upon by ordinary agents.
 
 ## One-sentence definition
 
-Tracewake is a causality-first, epistemic, TUI-first ordinary-life simulation where the human temporarily controls ordinary agents inside a world of needs, routines, beliefs, traces, records, institutions, travel, property, work, fallible memory, fallible causality, and consequences.
+Tracewake is a causality-first, epistemic, TUI-first ordinary-life simulation where ordinary agents live from needs, routines, beliefs, memory, records, institutions, households, traces, work, travel, weather, regional pressures, and long histories; the human temporarily controls one ordinary actor without becoming a privileged world entity.
 
-## Hard product priority
+## Product priority
 
 Tracewake is built in this order:
 
-1. **Playable TUI simulation first.**
-2. **Research-grade emergent simulation engine second.**
-3. **Future graphical presentation later.**
+1. Playable TUI simulation.
+2. Replayable causal simulation engine.
+3. Robust ordinary-life social substrate.
+4. Larger regions, domain packs, and richer presentation.
+5. Optional natural-language richness.
+6. Future graphical clients.
 
-A beautiful graphical shell without a playable causal village is failure. A research engine that cannot be played, inspected, and tested through the TUI is unfinished. A clever narrative system that bypasses ordinary-life causality is not Tracewake.
+A graphical shell without a playable causal village is failure. A research engine that cannot be played and inspected through the TUI is unfinished. An impressive language demo that lets prose invent facts is not Tracewake.
 
-## First implementation target
+## First target
 
-The first serious implementation target is a small, inspectable, TUI-playable ordinary-life village simulation.
+The first serious implementation target is a neutral medieval-ish ordinary-life village without magic.
 
-It is not:
+The early village should contain roughly 10-30 high-detail agents, or at most a few dozen, with homes, rooms, doors, containers, food, sleep, hunger, fatigue, work, wages/payment, money custody, ownership/access claims, households, local norms, simple speech, reports, rumors, lying, search, records, a notice board, a clerk/reeve/local authority, and travel within or near the village.
 
-- an expedition game;
+The first target is not:
+
 - a combat prototype;
+- an expedition game;
+- a road-threat bounty loop;
 - a quest board;
-- a Skyrim radiant-quest replacement;
-- a RimWorld-style drama-director game;
-- a Shadows-of-Doubt clone with omniscient case structure;
+- an omniscient detective UI;
+- a radiant quest generator;
+- a drama-directed colony sim;
 - an LLM NPC chatbot;
-- a graphical client waiting for simulation later.
+- a graphics-first client;
+- a large procedural region before the village works.
 
-The first target is a neutral medieval-ish village without magic. Ordinary agents sleep, eat, work, own things, store things, borrow, steal, notice absence, misremember, lie, gossip, report, read records, make promises, keep or break routines, and act through the same action pipeline as the human-controlled body. The world runs coherently with no human input.
+Ordinary life comes before adventure because adventure is only meaningful when ordinary life exists to be disrupted.
 
-## Implementation-language doctrine
+## Hard kernel identity
 
-Tracewake is **Rust-first**.
+Tracewake's authoritative world is not a story manager, UI state, a prose transcript, or an LLM answer. It is a deterministic causal simulation that commits meaningful events, preserves traces and ancestry, derives projections, carries subjective beliefs through modeled channels, and can replay/debug significant outcomes.
 
-The authoritative simulation core, event/replay machinery, action validation, actor-knowledge filtering, agent decision core, no-human simulation harness, and first TUI client must be implemented in Rust unless a later foundation-level decision explicitly replaces this doctrine.
+The world must run coherently with no human controller attached.
 
-Rust is a product constraint because Tracewake needs performance, determinism, memory safety, concurrency safety, long-term maintainability, and low-level control without adopting C++ as the project’s foundation. The foundation set does **not** freeze crates, persistence engines, UI libraries, ECS frameworks, scripting runtimes, serialization formats, or database choices. Those belong in later architecture decisions.
-
-Non-Rust tools may exist for documentation, import/export, analysis, optional language surfaces, content pipelines, or research notebooks. They may not become the authoritative simulation brain.
-
-## Product pillars
-
-### 1. Causality before drama
-
-Events happen because prior state, actor intention, need pressure, belief, routine, environment, institution, regional process, or authored initial condition made them possible. No event exists because the player needs pacing.
-
-### 2. Belief before truth
-
-Agents act from subjective beliefs, not authoritative truth. Wrong beliefs, stale information, rumor, lies, misidentification, inference, absence-as-evidence, expectation contradiction, forgetting, and memory distortion are core mechanics.
-
-### 3. Ordinary life before adventure
-
-Adventure is only meaningful when ordinary life exists to be disrupted. Hunger, fatigue, safety, sleep, eating, work, homes, rooms, doors, containers, storage, ownership, money, household routines, local norms, and basic social interaction are not background flavor. They are the substrate.
-
-### 4. The world has no sacred player entity
+## No sacred player
 
 The authoritative simulation contains no metaphysically special player character.
 
-Allowed doctrine:
+Allowed:
 
 ```text
 HumanController -> ActorId
 ```
 
-Possession changes input binding, not reality. The previous body remains an ordinary agent with its own beliefs, needs, intentions, relationships, obligations, memories, possessions, suspicions, and plans.
+Possession changes input binding, not reality. The previous body remains an ordinary agent with beliefs, needs, intentions, relationships, obligations, memories, possessions, suspicions, risks, and plans.
 
-### 5. Every world-affecting player action must be ordinary-agent possible
+Every world-affecting player action must be possible for an ordinary non-player actor under equivalent physical, social, epistemic, resource, skill, risk, and institutional conditions. UI convenience may clarify. It may not grant authority.
 
-The current body has the same world-affecting actions an AI agent would have under equivalent physical, social, epistemic, resource, and institutional conditions. UI kindness is allowed. Metaphysical privilege is forbidden.
+## Product pillars
 
-### 6. Institutions are fallible social machines
+### Causality before drama
 
-Law, households, workshops, offices, guilds, markets, gangs, companies, councils, courts, and future domain-specific religious institutions act through people, roles, obligations, permissions, prohibitions, records, procedure, resources, delay, bias, jurisdiction, fear, corruption, error, and forgetting. No guard, ledger, notice board, clerk, or office reads ground truth.
+Events happen because prior state, actor intention, need pressure, belief, routine, affordance, environment, institution, household, regional process, authored initial condition, or declared boundary input made them possible.
 
-### 7. Quests are projections, not ontology
+Forbidden causes include boredom, pacing, quest acceptance, objective completion, LLM prose, player proximity, and dramatic need.
 
-Tracewake stores incidents, needs, requests, contracts, notices, obligations, promises, rumors, records, leads, investigations, sanctions, opportunities, and claims. A player-facing objective is a view over source-bound world state. It is not the world process itself.
+### Belief before truth
 
-### 8. Authored causal machinery is allowed; authored outcome chains are forbidden
+Agents act from subjective beliefs, memories, observations, testimony, rumors, records, inferences, expectations, and misinterpretations. They may be wrong, stale, confident, contradictory, biased, deceived, or deceiving.
 
-Designers author actions, affordances, needs, routines, HTN methods, institution procedures, trace types, speech acts, initial conditions, scenario seeds, LOD rules, norms, and test fixtures. Designers do not author guaranteed story beats, player-conditioned events, outcome chains, quest progress, or drama triggers.
+Ground truth does not automatically correct minds, records, notices, or institutions.
 
-### 9. Symbolic, inspectable agents first
+### Ordinary life before adventure
 
-V1 agents are explicit symbolic agents: BDI-style beliefs/desires/intentions, durable projects, needs, duties, relationships, traits, HTN routines/procedures, bounded local planning, event-driven replanning, planner budgets, interruption points, and failure events.
+Agents sleep, eat, work, travel, store things, lose things, search, talk, lie, remember, forget, report, cooperate, refuse, and pursue goals from their own beliefs. Survival, storage, routine, household membership, property, social obligation, work, and travel are the substrate, not flavor.
 
-Utility scoring may help choose among explicit options. It may not become the whole mind.
+### Typed claims before prose
 
-### 10. TUI-first, playable always
+Typed claims/propositions are the core epistemic currency. The same substrate supports observations, beliefs, memories, testimony, lies, rumors, gossip, accusations, reports, notices, ledgers, ownership claims, debts, contracts, promises, institutional facts, household knowledge, actor-known leads, and source-bound notebook entries.
 
-The TUI is the first real Tracewake client. It is not disposable and not merely a debug shell. Every runnable phase must have TUI reachability, actor-knowledge filtering, why-not explanations, debug inspection, automated TUI or view-model tests, and no-human simulation tests.
+Raw prose may render claims. Raw prose must not be authoritative state.
 
-### 11. Genre-agnostic kernel; neutral no-magic village first
+### Institutions are fallible social machines
 
-The kernel must not assume medieval law, fantasy races, divine authority, magic, monsters, adventurers, combat classes, feudal obligation, or supernatural perception. The first domain is neutral medieval-ish ordinary life because it is legible: homes, roads, workshops, storage, taverns, offices, notices, local authority, travel, imperfect evidence, and public records.
+Institutions act through people, roles, records, procedures, norms, resources, delays, bias, jurisdiction, custody, authority, fear, corruption, absence, and failure. No clerk, reeve, guard, household, guild, court, office, ledger, notice board, or future institution reads ground truth.
 
-Strict fantasy elements belong to future domain packs. Granular combat and injury belong to future systems.
+### Records are artifacts, not UI flags
 
-### 12. Story is observed, not directed
+Records, notices, ledgers, letters, reports, warrants, debts, contracts, promises, accusations, rumors, and bounty letters are world artifacts or institutional/social state. After simulation start, they exist only because an actor, household, institution, or regional process had reason and means to create, carry, post, file, copy, alter, damage, lose, or destroy them.
 
-Story sifting, salience detection, recaps, summaries, notebooks, and debug explanations may highlight what happened. They may not cause what happens.
+A notice board is not a quest menu.
+
+### Quests are not ontology
+
+Tracewake stores incidents, requests, contracts, obligations, promises, records, rumors, notices, leads, debts, sanctions, opportunities, suspicions, reports, and institutional procedures.
+
+A player-facing objective is a projection over source-bound actor-known world state. It is not an authoritative process. Embodied mode has no culprit labels, ground-truth targets, completion flags, or guaranteed rewards.
+
+### Story is observed, not directed
+
+Story sifting, salience scoring, recaps, notebooks, summaries, and debug explanations may help a human perceive what happened. They may not cause what happens.
+
+### Symbolic, inspectable agents first
+
+V1 agents are explicit symbolic agents with BDI-style separation: beliefs; desires/values/goals/needs/duties; and intentions. They use durable intentions/projects, HTN-style routines and procedures, bounded local planning for concrete means, bounded utility heuristics for choosing among explicit options, event-driven replanning at meaningful interruption points, and debug-inspectable decision traces.
+
+LLMs are not agent brains.
+
+### TUI-first, playable always
+
+The TUI is the first real client. Every runnable phase must expose new mechanics through the TUI or the same actor-filtered view models, provide why-not explanations, preserve embodied/debug separation, and support automated view-model or terminal tests.
+
+### LLM-disabled operation is mandatory
+
+LLMs may later enrich language. They may render utterances, paraphrase records, summarize actor-known state, or parse freeform text into candidate structured speech acts. They may not decide truth, mutate state, create hidden facts, grant knowledge, generate quests, recognize completion, plan authoritative agents, or make tests depend on live nondeterminism.
+
+The simulation, first TUI, structured speech acts, records, reports, routines, agents, tests, and canonical scenarios must work with LLMs disabled or deterministic mocks.
+
+### Rust-first implementation discipline
+
+Tracewake is Rust-first for the authoritative simulation core, event/replay machinery, action validation, actor-knowledge filtering, agent decision core, no-human simulation harness, and first TUI client unless a later foundation-level decision explicitly replaces this doctrine.
+
+This does not freeze crates, persistence engines, ECS/database architecture, terminal libraries, serialization formats, async runtimes, or module layout. Those are architecture decisions.
+
+Non-Rust tooling may support docs, import/export, analysis, optional language surfaces, content pipelines, or visualization. It may not become the authoritative simulation brain.
 
 ## The required first miracle
 
-The canonical early proof is a missing-property incident that emerges from ordinary life:
+The canonical early proof is missing property/theft, but it is only a proof, not Tracewake's whole identity.
+
+The proof must show:
 
 1. An actor stores or expects property somewhere.
-2. Another actor, driven by modeled needs, beliefs, opportunity, risk, relationships, values, or obligation, takes or moves it.
-3. The victim later discovers the absence through expectation contradiction or search.
-4. A witness may have uncertain, partial, stale, or misinterpreted observations.
-5. Testimony, rumor, gossip, or report can propagate.
-6. A clerk, reeve, or other authority may open a record from partial information.
-7. Wrong suspicion can arise for legible reasons.
-8. Notices, reports, and public artifacts can become stale.
-9. The human can possess different ordinary actors in debug mode and verify that no knowledge leaks between bodies.
-10. Debug inspection can explain what happened, why it was possible, what traces exist, who knows what, who is wrong, and which later events became possible.
+2. Another actor takes, moves, hides, borrows, or steals it because of modeled need, belief, opportunity, risk, access, motive, routine, relationship, or obligation.
+3. The victim discovers absence only through expectation contradiction, perception, instruction, or search.
+4. Witnesses may perceive partial, uncertain, stale, or misinterpreted traces.
+5. Testimony, lies, gossip, rumor, or report propagates typed claims.
+6. A clerk, reeve, household, or local authority may open, refuse, delay, misclassify, misfile, or ignore a record from partial information.
+7. Wrong suspicion arises for legible reasons.
+8. Notices and records can become stale.
+9. The same chain can occur with no human present.
+10. Debug possession proves no knowledge transfer.
+11. Deterministic replay and debug inspection explain what happened, what traces exist, who knows what, who is wrong, and which later events became possible.
 
-This is not an authored mystery script. It is a proof that physical state, belief state, social information, institutional procedure, memory, records, and traces are one causal system.
+This is not an authored mystery script. It is proof that physical state, belief state, social information, institutions, records, memory, and traces are one causal system.
 
 ## First playable loop
 
-The first serious loop is a **life-possession sandbox**:
+The first serious loop is a life-possession sandbox:
 
-1. Enter a TUI village as an ordinary body.
+1. Enter a TUI village as one ordinary actor.
 2. Inspect actor-known needs, location, possessions, beliefs, intentions, obligations, relationships, and available actions.
-3. Sleep, eat, work, talk, open doors, use containers, buy food, read notices, report observations, lie, gossip, search, store, hide, take, or steal.
-4. Wait and watch routines continue without the human.
-5. Switch possession in debug mode and verify that knowledge, suspicion, obligations, consequences, and memories stay with bodies and institutions rather than the human.
+3. Sleep, eat, work, move, open doors, use containers, store, hide, take, steal, buy food, read notices, search, report, lie, gossip, accuse, refuse, and talk through structured speech acts.
+4. Wait while ordinary routines continue without human attention.
+5. Switch possession in debug mode and verify that knowledge, suspicion, obligations, consequences, and memories remain with bodies and institutions.
 6. Inspect causal chains in debug mode.
 7. Follow or ignore stale public leads only after ordinary life, belief, records, storage, travel, and action parity already work.
 
-## Prototype success criteria
+## Long-term posture
 
-A successful prototype demonstrates:
+Tracewake should eventually support travel, expeditions, companions, parties, trade routes, disease, animals, weather, disasters, migration, corruption, inheritance, organizations, guilds, gangs, courts, armies, councils, religions, companies, politics, settlement conquest, detailed combat and injury, fantasy packs, and science-fiction packs.
 
-- a village running for days with no human input;
-- roughly 10-30 high-detail agents, or at most a few dozen, with inspectable lives;
-- homes, rooms, doors, containers, storage, ownership, custody, money, food, sleep, work, routines, travel, and basic social interaction;
-- actor beliefs, actor-known leads, source-bound notebooks, memory staleness, and actor-knowledge-filtered TUI views;
-- a theft or missing-property incident discovered through expectation contradiction;
-- uncertain testimony and rumor propagation;
-- a clerk/reeve/authority opening, refusing, delaying, misfiling, or misclassifying a record from partial information;
-- wrong suspicion for legible reasons;
-- stale public artifacts;
-- debug possession switching with no knowledge leakage;
-- deterministic replay and causal ancestry inspection;
-- LLM-disabled operation.
+These are not exceptions. They are future expansions built from the same machinery.
 
-Combat, full expedition play, procedural world generation, fantasy, open-ended LLM conversation, macroeconomics, and graphical presentation are not prototype success criteria.
+Gathering an army must eventually arise from recruitment, belief, loyalty, fear, pay, command, logistics, morale, food, travel, supply, wounds, desertion, records, rumor, authority, negotiation, territorial control, and consequence. It must not be a conquest quest.
 
 ## Strong decision
 
-Build a village whose people can be wrong for the right reasons. Do not build a world that flatters the player, waits for the player, reads the player’s mind, scripts outcomes for the player, or lets language invent reality.
+Build a village whose people can be wrong for the right reasons. Do not build a world that flatters the player, waits for the player, reads the player's mind, scripts outcomes for the player, or lets language invent reality.
