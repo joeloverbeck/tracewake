@@ -1,5 +1,7 @@
 # Authoring Guide
 
+This guide is the worked how-to of the `0-foundation/05_NO_SCRIPTING_AND_CAUSAL_AUTHORING_POLICY.md` policy (itself the expansion of `INV-038` and `INV-035`–`INV-037`). The policy says what authored machinery is allowed versus forbidden; this guide shows how to write it. Where the two diverge, the policy governs.
+
 ## Core rule
 
 Author causes, affordances, norms, procedures, traces, and artifacts. Do not author quests.

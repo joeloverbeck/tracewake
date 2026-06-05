@@ -2,6 +2,8 @@
 
 These are provisional vocabulary, not final engine formats. They exist to keep doctrine concrete enough to resist wrong architecture.
 
+Each schema below is a concrete instantiation of a model whose canonical home is in the `1-architecture/` tier: `Event` → `06_WORLD_KERNEL_AND_EVENT_SOURCING.md`; `Belief`, `Observation`, `SpeechAct`, `Trace` → `08_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`; `Intention`, `Project` → `07_AGENT_COMPETENCE_AND_PLANNING_DECISION.md`; `Institution`, `Role`, `Norm`, `Procedure` → `09_SOCIAL_INSTITUTIONS_AND_LAW.md`; `Place`, `Route` → `12_SPATIAL_REGIONAL_AND_TRAVEL_MODEL.md`; the UI view models → `13_PLAYER_MODEL_POSSESSION_AND_UI_VIEW_MODELS.md`; `DomainPack` → `15_GENRE_AGNOSTIC_DOMAIN_MODEL.md`. Where a field set drifts from its canonical model, the canonical model wins.
+
 Every schema should support:
 
 ```text
@@ -150,7 +152,7 @@ Observation:
 ```yaml
 SpeechAct:
   id: speech_act_id
-  kind: tell | ask | answer | report | accuse | deny | lie | confess | promise | threaten | bargain | recruit | refuse | warn | gossip | instruct | command | testify | withhold | apologize
+  kind: tell | ask | answer | report | accuse | deny | lie | confess | promise | threaten | bargain | recruit | refuse | warn | gossip | instruct | command | testify | joke | deflect | withhold | apologize
   speaker: actor_id
   listeners: [actor_id]
   propositions: [proposition]
@@ -162,6 +164,8 @@ SpeechAct:
     status: proposed | committed | rejected | downgraded
     reason: optional_string
 ```
+
+The `kind` enum mirrors the canonical speech-act vocabulary in `08_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`; keep them in sync.
 
 ## Trace
 

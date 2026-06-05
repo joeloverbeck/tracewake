@@ -263,6 +263,8 @@ Pass conditions:
 
 ## Required metrics
 
+This is the slice-scoped subset of the canonical metrics catalog in `20_TESTING_VALIDATION_AND_DEBUGGING.md`; that document owns the full list and definitions.
+
 Track:
 
 - significant events/day;
