@@ -2,370 +2,204 @@
 
 ## Purpose
 
-The world kernel is the authoritative machine that decides what is true. It should be small, deterministic where practical, event-sourced, and hostile to shortcuts.
+The world kernel is the authoritative machine that decides what is true. It must be deterministic where practical, event-sourced, inspectable, and hostile to shortcuts.
 
-Everything else — agent memory, rumor, records, UI cards, summaries, dialogue, save files, analytics — should be projected from world state and events.
+Everything else is a projection: inventories, beliefs, memories, rumors, records, case files, UI views, generated prose, world history summaries, save files, and analytics.
 
 ## Kernel responsibilities
 
-The kernel owns:
+The kernel owns entity identity, component state, primitive action definitions, action proposals, precondition checks, effects, event creation, event ordering, simulation time, random stream discipline, spatial occupancy, ownership, permissions, norm hooks, perception hooks, trace generation, causal links, replay, snapshots, and LOD promotion events.
 
-- entity identity;
-- component state;
-- primitive actions;
-- preconditions;
-- effects;
-- event creation;
-- event ordering;
-- simulation time;
-- random stream discipline;
-- spatial occupancy and reservations;
-- ownership and permissions;
-- perception hooks;
-- trace generation;
-- causal links;
-- replay and snapshot support.
-
-The kernel does not own:
-
-- prose;
-- dramatic pacing;
-- quest arcs;
-- authorial intent;
-- player importance;
-- omniscient interpretation.
+The kernel does not own prose, dramatic pacing, quest arcs, authorial intent, player importance, boredom detection, or omniscient interpretation.
 
 ## Core entities
-
-### Entity
-
-A stable identity in the world.
 
 Examples:
 
 - actor;
+- body;
 - item;
 - container;
-- building;
 - room;
+- road segment;
+- settlement;
+- region;
 - notice;
 - record;
 - institution;
-- trail segment;
+- trace;
 - corpse;
 - fire;
-- debt;
-- contract.
+- contract;
+- disease outbreak;
+- caravan;
+- animal group;
+- rumor packet;
+- external influence process.
 
-### Component
-
-A structured state slice attached to an entity.
-
-Examples:
+## Component examples
 
 ```yaml
 Position:
-  location: room_blacksmith_home
+  place: room_tomas_bedroom
 
 Ownership:
   legal_owner: actor_tomas
   possessor: actor_mara
+  expected_location: strongbox_tomas
   permitted_users: [actor_tomas, actor_elena]
 
 Container:
   locked: true
-  lock_id: lock_strongbox_01
-  contents: [item_coin_stack_01]
+  contents: [coin_stack_01]
+  lock_state: intact
 
 ActorBody:
-  health: 78
-  fatigue: 42
-  hunger: 20
+  hunger: 22
+  fatigue: 63
+  pain: 0
+  injuries: []
 
-Mind:
-  beliefs_ref: belief_store_actor_tomas
-  intentions_ref: intention_stack_actor_tomas
+MindRef:
+  belief_store: belief_store_tomas
+  intention_stack: intention_stack_tomas
 ```
 
-### Action
+## Action model
 
-A proposed state transition with preconditions and effects.
+An action is a proposed state transition with actor, parameters, physical preconditions, social preconditions, knowledge preconditions, institutional preconditions, cost, duration, outcomes, effects, traces, observation hooks, and norm implications.
 
-Actions should be explicit enough to leave traces and support belief updates.
-
-Example action:
+Example:
 
 ```yaml
-action_type: RemoveItemFromContainer
+Action: RemoveItemFromContainer
 actor: actor_mara
 parameters:
-  container: item_strongbox_01
-  item: item_coin_stack_01
+  container: strongbox_tomas
+  item: coin_stack_01
 preconditions:
-  - actor is at same location as container
-  - container is open or actor can open it
-  - actor has free carrying capacity
-  - actor believes taking item is acceptable or is willing to violate norm
-primary_effects:
-  - item possessor becomes actor_mara
-  - item removed from container contents
-trace_effects:
-  - container last_opened_at changes
-  - possible noise event
-  - possible witness observation
-  - possible disturbed-dust trace
+  physical:
+    - actor_at_container_location
+    - container_open_or_actor_can_open
+    - item_present
+    - actor_can_carry
+  social:
+    - actor_has_permission OR actor_willing_to_violate_property_norm
+  knowledge:
+    - actor_perceives_item OR actor_searching_container
+effects:
+  - possession_changes_to_actor
+  - item_removed_from_container
+traces:
+  - disturbed_container
+  - possible_noise
+norm_checks:
+  - theft
 ```
 
-### Event
+## Event model
 
-The immutable record of something that happened or failed to happen.
-
-Minimum event fields:
+An event is an immutable record of something that happened, was attempted, failed, was observed, was inferred, was recorded, or was communicated.
 
 ```yaml
-event_id: evt_018239
-world_tick: 81230
-time: 12 Rainwane 142, 02:13
-kind: ItemRemovedFromContainer
-actor: actor_mara
-participants:
-  container: item_strongbox_01
-  item: item_coin_stack_01
-location: room_tomas_bedroom
-causes:
-  - evt_018232 # chest opened
-  - intention_778 # mara intends to steal coins
-preconditions_checked:
-  - same_location: true
-  - container_open: true
-  - item_present: true
-effects:
-  - path: item_coin_stack_01.Possession.possessor
-    old: item_strongbox_01
-    new: actor_mara
-traces_created:
-  - trace_disturbed_dust_44
-  - trace_faint_noise_12
-observers:
-  direct: []
-  indirect:
-    - actor_elena # heard faint noise, confidence low
-visibility:
-  public: false
+Event:
+  id: evt_018239
+  kind: ItemRemovedFromContainer
+  world_tick: 81230
+  sim_time: 142-08-12T02:13
+  actor: actor_mara
+  participants:
+    container: strongbox_tomas
+    item: coin_stack_01
+  place: room_tomas_bedroom
+  causes:
+    - intention_778
+    - evt_018232
+  effects:
+    - path: coin_stack_01.Ownership.possessor
+      old: strongbox_tomas
+      new: actor_mara
+  traces_created:
+    - trace_disturbed_container_44
+    - trace_faint_noise_12
+  observations_created:
+    - obs_elena_heard_noise_12
 ```
 
-## Event sourcing
+## Event streams
 
-The project should use an append-only event store for meaningful state changes.
-
-Current state is a projection of event history plus snapshots. Agent beliefs, institutional records, and UI summaries are separate projections, not replacements for the event log.
-
-### Why event sourcing fits this game
-
-Event sourcing is not just an engineering pattern here. It is the game’s moral skeleton.
-
-It gives the project:
-
-- forensic replay;
-- “why did this happen?” tools;
-- debugging for emergent weirdness;
-- belief generation from observation events;
-- rumor generation from testimony events;
-- institutional records from report events;
-- historical chronicles from event streams;
-- player-facing investigation surfaces.
-
-### Event streams
-
-Use multiple related streams:
+Use related streams:
 
 ```text
-WorldStream              all globally ordered significant events
+WorldStream              globally ordered significant events
 EntityStream(entity)     events involving one entity
-ActorStream(actor)       events perceived, caused, or believed by an actor
-InstitutionStream(inst)  reports, records, decisions, orders, sanctions
-LocationStream(location) events and traces at a place
-ItemStream(item)         ownership, possession, damage, custody, movement
+ActorStream(actor)       caused/perceived/believed events
+PlaceStream(place)       events and traces at a place
+InstitutionStream(inst)  records, reports, orders, sanctions
+ItemStream(item)         possession, custody, damage, movement
+RouteStream(route)       travel, attacks, closures, patrols
+RegionStream(region)     migration, disease, trade, politics
+RumorStream(topic)       rumor propagation and mutations
 ```
-
-The world stream provides total ordering. Derived streams provide efficient queries.
 
 ## Action pipeline
 
-All meaningful actions should pass through the same pipeline:
+1. proposal;
+2. authority check;
+3. physical precondition check;
+4. social/normative precondition check;
+5. knowledge/belief precondition check;
+6. reservation check;
+7. cost/risk check;
+8. execution;
+9. outcome resolution;
+10. state mutation;
+11. trace generation;
+12. observation pass;
+13. belief update;
+14. institutional hooks;
+15. consequence scheduling;
+16. event commit.
 
-1. **Proposal** — an actor, institution, process, or environment proposes an action.
-2. **Authority check** — is the proposer allowed to attempt this kind of action?
-3. **Precondition check** — evaluate physical, social, knowledge, and resource preconditions.
-4. **Reservation check** — prevent impossible simultaneous use of space or objects.
-5. **Cost check** — time, fatigue, materials, risk, money, attention.
-6. **Execution** — action may succeed, fail, partially succeed, or be interrupted.
-7. **State mutation** — authoritative state changes.
-8. **Trace generation** — physical/social/institutional traces are created or erased.
-9. **Observation pass** — nearby agents, sensors, records, or institutions may perceive the event.
-10. **Belief update** — observers update subjective knowledge.
-11. **Trigger consequences** — plans may interrupt, institutions may receive reports, routines may change.
-12. **Event commit** — event and linked subevents become durable.
-
-## Preconditions should include social state
-
-Many games treat action preconditions as physical only. This project needs richer preconditions.
-
-Example: entering a home.
-
-```yaml
-physical:
-  - door is open or actor can open it
-  - actor can reach doorway
-social:
-  - actor owns home OR actor is invited OR actor is willing to trespass
-knowledge:
-  - actor believes this is the right home OR is exploring/searching
-risk:
-  - actor believes chance of being seen is acceptable
-institutional:
-  - actor has warrant OR local law allows entry OR actor is violating law
-```
-
-An action may remain physically possible while socially forbidden. That is how crimes happen.
+Player and NPC actions use the same pipeline.
 
 ## Causal graph
 
-Events should link to causes where possible.
+Cause types include enabling condition, actor intention, direct physical cause, information cause, institutional procedure, relationship motive, environmental process, regional process, exogenous boundary process, random seed branch, and prior event creating motive or opportunity.
 
-Cause types:
-
-- enabling condition;
-- actor intention;
-- direct physical cause;
-- institutional procedure;
-- information cause;
-- environmental process;
-- random seed branch;
-- prior event that created motive.
-
-Example chain:
+Example:
 
 ```text
 bandits_attack_traveler
-  -> survivor_observes_attack
-  -> survivor_reports_to_reeve
-  -> reeve_believes_road_threat
-  -> reeve_allocates_bounty_funds
-  -> clerk_writes_notice
-  -> guard_posts_notice
-  -> adventurer_reads_notice
-  -> adventurer_forms_intention_to_hunt_bandits
+ -> survivor_observes_attack
+ -> survivor_reports_to_clerk
+ -> clerk_records_report
+ -> reeve_believes_road_threat
+ -> reeve_reserves_bounty_funds
+ -> clerk_writes_notice
+ -> guard_posts_notice
+ -> oren_reads_notice
+ -> oren_forms_intention_to_recruit_help
 ```
 
-## Traces
+## Snapshots and compaction
 
-A trace is a stateful artifact produced by events and later observed by agents.
+Long simulations need snapshots. Preserve detailed events for significant chains, traces, belief changes, records, and active leads. Compact low-salience routine spans into summary events with causal links.
 
-Trace examples:
-
-```yaml
-Trace:
-  id: trace_blood_001
-  kind: bloodstain
-  created_by: evt_stabbing_44
-  location: alley_west
-  visibility: medium
-  decay_rate: slow
-  can_be_cleaned_by: [CleanSurface, Rainfall]
-  evidential_links:
-    possible_causes: [wound, butchery, animal_kill]
-```
-
-Important: traces are not always conclusive. A footprint suggests, a lock scratch implies, a missing item contradicts expectation.
-
-## Snapshots
-
-The event log is authoritative, but long simulations need snapshots.
-
-Snapshots should be:
-
-- deterministic products of events;
-- versioned by schema;
-- invalidatable;
-- usable for replay from checkpoint;
-- never a replacement for recent event history.
-
-A useful policy:
-
-```text
-Full snapshot every simulated day.
-Rolling event replay for current day.
-Permanent archive for significant event chains.
-Compressed summaries for low-salience routine events.
-```
+A meal that created the last sighting of a murder victim is no longer routine.
 
 ## Determinism
 
-Perfect determinism may not be possible forever, but deterministic replay should be a goal for the headless core.
+Target deterministic replay:
 
-Guidelines:
-
-- seeded random streams per subsystem;
+- seeded random streams;
 - stable iteration order;
 - explicit event ordering;
-- no wall-clock-dependent decisions;
+- no wall-clock decisions;
 - no uncontrolled LLM calls in authoritative simulation;
-- record random draws in debug builds.
+- random draws recorded in debug builds;
+- versioned data files.
 
-## Level of detail
+## Forbidden shortcuts
 
-Do not simulate the entire world at full fidelity.
-
-Use LOD tiers:
-
-### Tier 0 — Active local simulation
-
-Full action/event/perception/traces/planning.
-
-### Tier 1 — Nearby social simulation
-
-Routine actions batched, major events detailed, beliefs partially updated.
-
-### Tier 2 — Regional institutional simulation
-
-Trade, reports, incidents, travel, rumors, and threats summarized as events.
-
-### Tier 3 — Historical abstraction
-
-Civilization-level or region-level changes produce summary events and artifacts.
-
-Rule: any process can be promoted to higher fidelity when the player, an investigation, or a causal chain brings it into focus.
-
-## Forbidden kernel shortcuts
-
-- Mutating inventory without an event.
-- Guards learning crimes from global state.
-- Notices appearing without author, funds, and posting event.
-- Agents using exact locations of threats they only heard rumors about.
-- Player-only actions.
-- Text output that secretly creates facts.
-- “Quest complete” as source of truth.
-- Despawning inconvenient actors or evidence without cause.
-
-## Minimal kernel for the vertical slice
-
-The first build needs only:
-
-- entities and components;
-- rooms and paths;
-- actors;
-- containers and items;
-- ownership/possession;
-- lock/open/close/take/place actions;
-- primitive speech/report actions;
-- sleeping/working/eating routines;
-- notices as physical objects;
-- event log;
-- perception hooks;
-- belief store projection;
-- trace creation for theft and violence;
-- institution record projection;
-- replay/debug viewer.
-
-Everything else is secondary.
+No inventory mutation without event. No guard knowledge from global truth. No notices without author, issuer, funds, and posting event. No objective markers to true locations from rumors. No player-only actions. No generated prose creating facts. No quest completion as truth.

@@ -1,67 +1,70 @@
-# Causality-First Living World — Foundation Pack
+# Tracewake Foundation Pack v2
 
-Research reviewed: 2026-06-05.
-
-This folder is the project canon for a game whose world does not know who the player is, whose agents act from partial beliefs, and whose “quests” are visible consequences of simulated problems rather than authored content packets.
+Status: replacement foundation pack. Adopt this set as the new baseline and treat the earlier files as superseded drafts.
 
 ## North-star thesis
 
-> Build a world where every event can be interrogated as causality, every character acts from partial belief, every institution is made of fallible procedures, and every “quest” is merely a visible scar left by the world trying to solve its own problems.
+Tracewake is a causality-first regional life simulation where ordinary agents act from partial beliefs, public adventures arise from world processes, and the human player is only a temporary controller attached to an ordinary actor.
 
-The player is a controller temporarily attached to one actor. The player is not the metaphysical center of the world.
+The player fantasy is to intervene, manipulate, and investigate: enter a town, talk to people, read notices, follow leads, hire companions, travel to sites, discover that information is stale or false, and adapt. The world must not know that a metaphysical player exists.
 
-## The major design decision
+## What v2 changes
 
-The project should not be designed around procedural storytelling. It should be designed around **epistemic causality**:
+The first pack had the correct philosophical center: no sacred player, no telepathy, no quest ontology, event-sourced causality, belief-before-truth, fallible institutions, and ordinary life as substrate.
 
-- what happened;
-- who observed it;
-- what traces it left;
-- who believes what;
-- who is wrong;
-- who has authority, motive, fear, or duty to act;
-- what public artifacts are produced;
-- what later decisions depend on those artifacts.
+This pack strengthens what was missing:
 
-Most games simulate events. This one must simulate the **life of consequences**.
+- a concrete agent competence architecture;
+- a validated speech-act and LLM boundary;
+- a TUI-first player interface plan;
+- a spatial, regional, route, and travel model;
+- long-running history simulation;
+- genre/domain pack separation;
+- explicit LOD and performance strategy;
+- a vertical slice that includes recruiting companions and pursuing stale leads.
 
-## Recommended reading order
+## Reading order
 
-1. `01_PROJECT_CHARTER.md` — the compact statement of what the project is and is not.
-2. `02_FOUNDATIONAL_INVARIANTS.md` — hard rules that prevent the design from collapsing into normal RPG logic.
-3. `03_RESEARCH_SURVEY.md` — precedents, papers, and what to borrow or reject.
-4. `04_WORLD_KERNEL_AND_EVENT_SOURCING.md` — the authoritative simulation core.
-5. `05_AGENT_COGNITION.md` — beliefs, desires, intentions, planning, emotion, and interruption.
-6. `06_INFORMATION_ECOLOGY_AND_TRACES.md` — observation, rumor, lies, evidence, and stale knowledge.
-7. `07_SOCIAL_INSTITUTIONS_AND_LAW.md` — law, authority, offices, records, jurisdiction, and sanctions.
-8. `08_QUESTLESS_CONTENT_MODEL.md` — replacing quests with incidents, needs, contracts, and notices.
-9. `09_ORDINARY_LIFE_AND_ECONOMY.md` — why eating, sleeping, working, trade, and domestic routines come first.
-10. `10_PLAYER_MODEL_AND_UI.md` — possession, player knowledge, salience, journals, and causal inspection.
-11. `11_VERTICAL_SLICE_SPEC.md` — the first playable village and its required tests.
-12. `12_ENGINEERING_ROADMAP_AND_RISKS.md` — build order, architecture, performance strategy, and traps.
-13. `13_TESTING_VALIDATION_AND_DEBUGGING.md` — invariant tests, scenario tests, fuzzing, and forensic replay.
-14. `14_AUTHORING_GUIDE.md` — how to author causal materials without writing quests.
-15. `15_GLOSSARY.md` — shared terminology.
-16. `99_SOURCES.md` — bibliography and research notes.
+1. `01_PROJECT_CHARTER.md`
+2. `02_FOUNDATIONAL_INVARIANTS.md`
+3. `03_RESEARCH_SURVEY_AND_DESIGN_CONCLUSIONS.md`
+4. `04_WORLD_KERNEL_AND_EVENT_SOURCING.md`
+5. `05_AGENT_ARCHITECTURE.md`
+6. `06_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`
+7. `07_SOCIAL_INSTITUTIONS_AND_LAW.md`
+8. `08_QUESTLESS_CONTENT_AND_LEADS.md`
+9. `09_ORDINARY_LIFE_ECONOMY_AND_SETTLEMENTS.md`
+10. `10_SPATIAL_REGIONAL_AND_TRAVEL_MODEL.md`
+11. `11_PLAYER_MODEL_TUI_AND_UI.md`
+12. `12_LLM_DIALOGUE_AND_TEXT_BOUNDARY.md`
+13. `13_GENRE_AGNOSTIC_DOMAIN_MODEL.md`
+14. `14_WORLDGEN_HISTORY_AND_LONG_SIMULATION.md`
+15. `15_SIMULATION_LOD_TIME_AND_PERFORMANCE.md`
+16. `16_VERTICAL_SLICE_SPEC.md`
+17. `17_ENGINEERING_ROADMAP.md`
+18. `18_TESTING_VALIDATION_AND_DEBUGGING.md`
+19. `19_AUTHORING_GUIDE.md`
+20. `20_STARTER_DATA_SCHEMAS.md`
+21. `21_OPEN_DESIGN_DECISIONS_AND_RISKS.md`
+22. `22_GLOSSARY.md`
+23. `99_SOURCES.md`
 
-## What this foundation pack assumes
+## Replacement notes
 
-The first version should be a **headless causal simulation** with a minimal UI, not a beautiful RPG. The correct first milestone is not combat, not dialogue, not terrain, and not world generation. The correct first milestone is a village that can notice something happened.
+This is not a patch. It is a restructured replacement set. The old `AGENT_COGNITION`, `PLAYER_MODEL_AND_UI`, `ENGINEERING_ROADMAP_AND_RISKS`, and `OPEN_DESIGN_QUESTIONS` documents are split or expanded because those areas now carry more architectural weight.
 
-## What this foundation pack forbids
+## First implementation posture
 
-The following shortcuts should be treated as project-threatening:
+Build a deterministic headless simulation core and a serious playable TUI before any graphical app. The TUI is not a throwaway debug console. It is the first real player interface and should be architected through reusable UI view models that a future desktop UI can consume.
 
-- a quest table that generates tasks directly for the player;
-- omniscient guards;
-- event triggers that exist because the player is nearby;
-- NPCs who query global truth rather than belief state;
-- scripted investigation outcomes;
-- dramatic pacing directors;
-- LLM output that mutates world state without simulation validation;
-- schedules that override reality;
-- fake notice boards that are merely UI menus.
+## First miracle
 
-## Project mantra
+A village that notices what happened, misunderstands some of it, records some of it, talks about it, and continues living.
 
-> No telepathy. No destiny. No quest giver ontology. No sacred player. No invisible author.
+## Long-term promise
+
+A region that has lived before the player entered it.
+
+## Mantra
+
+No telepathy. No destiny. No quest giver ontology. No sacred player. No invisible author. No boredom director. No simulation fact born from prose.

@@ -2,119 +2,68 @@
 
 ## Working title
 
-**Causality-First Living World**
+Tracewake.
 
-This is a placeholder title, not a brand. The important phrase is “causality-first.”
+The name points to the project’s real subject: actions leave wakes, wakes leave traces, and agents later interpret those traces through partial belief.
 
 ## One-sentence pitch
 
-A living-world simulation where every character acts from partial beliefs, every institution is fallible, and every adventure hook is an artifact produced by the world attempting to solve its own problems.
+Tracewake is a causality-first regional life simulation where the player intervenes by temporarily controlling ordinary agents inside a fallible world of beliefs, records, routines, institutions, travel, and stale information.
 
 ## Product fantasy
 
-The player enters a village. People are sleeping, working, drinking, arguing, storing valuables, lying, gossiping, worshipping, guarding roads, delivering grain, cheating customers, tending children, and hiding secrets. The player steals coins from a house, leaves, switches to another character, and later watches the owner discover the loss, search the room, question the household, report the matter, and perhaps accuse the wrong person.
+You walk into a town. People are sleeping, working, hiring help, gossiping, guarding roads, lying to spouses, delivering flour, hiding evidence, tending wounds, posting notices, reading rumors, and pursuing plans unrelated to you.
 
-A bounty appears on the notice board not because a quest generator fired, but because bandits attacked travelers, testimony reached an authority, the authority allocated funds, a clerk wrote the notice, and someone physically posted it. If the bandits were already killed by unrelated adventurers, the notice remains stale until that information reaches the office.
+You learn from a notice board that something has been killing livestock north of the road. You ask locals. You hire two adventurers. You travel with them. When you arrive, the creature is gone. Maybe it migrated. Maybe someone else killed it. Maybe the notice was wrong. Maybe the locals lied. You are not given a quest correction. You investigate, adapt, exploit, or walk away.
 
-## North-star experience
+## Long-term fantasy
 
-The player should often think:
-
-> “This was not written for me, but I can see why it happened.”
-
-The game should reward investigation, opportunism, patience, social manipulation, planning, and curiosity more than completionism.
+Tracewake eventually supports a region that can be simulated for years before play. People age, die, migrate, marry, feud, inherit, lose work, join institutions, abandon homes, build shops, spread disease, change routes, distort rumors, and leave public records. The player enters the current state of that region.
 
 ## Design pillars
 
-### 1. Causality before drama
-
-No event should happen because a story arc demands it. Events happen because local conditions, actors, processes, institutions, or environmental forces made them happen.
-
-A dramatic arc may emerge in hindsight. It must never be an invisible input.
-
-### 2. Belief before truth
-
-Agents do not act from ground truth. They act from beliefs, suspicions, habits, fears, obligations, desires, and memories.
-
-This means mistaken action is first-class design, not a bug.
-
-### 3. Institutions are simulated actors
-
-Law, commerce, religion, guilds, households, and governments are not menus. They are systems made of people, roles, records, budgets, procedures, norms, jurisdiction, corruption, and delay.
-
-### 4. Quests are projections
-
-A quest is not an engine primitive. A “quest” is a player-facing view over an incident, request, contract, threat, obligation, debt, rumor, or opportunity.
-
-### 5. Ordinary life is the substrate
-
-Adventure only matters if ordinary life is real enough to be disrupted. Homes, work, sleep, property, meals, trade, kinship, reputation, and routine are the foundation of the simulation.
-
-### 6. The player is not special
-
-The world should not contain a privileged `PlayerCharacter` concept. The human is attached to an actor through a controller binding. That binding can move.
-
-### 7. Language renders; simulation decides
-
-LLMs may paraphrase, summarize, produce surface dialogue, or write notices from structured facts. They may not invent hidden truth, bypass preconditions, decide outcomes, or mutate authoritative state.
+1. **Causality before drama.** Events happen because state, actors, institutions, environment, or regional processes made them happen.
+2. **Belief before truth.** Agents act from subjective beliefs, not ground truth.
+3. **The player is not special.** The human is a controller binding, not a privileged world entity.
+4. **Every player action is agent-possible.** UI clarity is allowed; exclusive verbs are not.
+5. **Institutions are fallible machines.** Law, commerce, guilds, households, temples, gangs, and offices act through roles, procedures, records, resources, delay, bias, and failure.
+6. **Ordinary life is the substrate.** Adventure matters only if normal life is real enough to be disrupted.
+7. **Quests are projections.** The engine stores incidents, requests, contracts, obligations, records, notices, rumors, and opportunities.
+8. **Language is a surface.** LLMs may render and propose. The kernel validates and decides.
+9. **The first UI is a serious TUI.** It must be playable, truthful, and reusable in architecture.
+10. **Scale grows by honest abstraction.** LOD summaries preserve causality; they do not hide a drama director.
 
 ## Non-goals
 
-This project is not:
-
-- a procedural quest generator;
-- a storylet engine;
-- RimWorld with deeper pawns;
-- Skyrim with better radiant quests;
-- a generative-AI NPC chat demo;
-- an authored narrative RPG;
-- a general-purpose civilization simulator at launch;
-- a complete medieval economy at launch;
-- a game where the player is secretly the chosen causal center.
+Tracewake is not a procedural quest generator, a RimWorld-like storyteller, a Skyrim radiant quest replacement, a generic LLM NPC demo, an authored narrative RPG, a colony sim centered on a player faction, or a large map full of fake schedules.
 
 ## Required first miracle
 
-The first miracle is not scale. The first miracle is **forensic intelligibility**.
+For any surprising event, the system should answer:
 
-Given any surprising event, a player or developer should be able to ask:
+- what happened;
+- why it was possible;
+- who caused it;
+- who observed it;
+- what traces it left;
+- who believes what;
+- who is wrong;
+- what institution recorded or ignored it;
+- what later events became possible because of it.
 
-- What happened?
-- Why was it possible?
-- Who caused it?
-- Who observed it?
-- What did it change?
-- What traces did it leave?
-- Who now believes what?
-- What later events became possible because of it?
+## Prototype success
 
-If the engine cannot answer those questions, it is not yet the target game.
+A successful prototype runs a small village for several simulated days in a playable TUI and produces:
 
-## Definition of success for the prototype
-
-A successful prototype can run a small village for several simulated days and produce non-authored situations such as:
-
-- a theft discovered after a delay;
-- an authority investigating with incomplete information;
-- a notice posted for a threat;
-- a stale notice remaining after the threat is gone;
-- a wrong accusation based on partial observation;
-- a character failing to work because ordinary preconditions broke;
-- a player switching bodies without resetting the world’s interpretation of events.
-
-## Strategic bet
-
-The bet is that players do not need the world to produce perfect stories. They need the world to produce **legible consequences**.
-
-The entertainment loop is not “receive quest, complete quest, collect reward.” It is:
-
-1. notice an artifact;
-2. infer a chain;
-3. intervene;
-4. cause consequences;
-5. watch the world misunderstand, adapt, punish, reward, or exploit those consequences.
+- theft discovered through expectation violation;
+- uncertain testimony becoming rumor;
+- an authority opening a case from partial information;
+- a public notice posted for a threat;
+- a stale notice acted on by someone;
+- a wrong suspect questioned for legible reasons;
+- a work routine disrupted by modeled causes;
+- possession switching without knowledge leakage.
 
 ## Strong opinion
 
-Do not begin with map generation, combat depth, writing, magic, kingdoms, or dialogue. Begin with a small social machine that can be wrong.
-
-A village that can falsely accuse an innocent person from partial evidence is closer to the desired game than a continent with a thousand content templates.
+Do not build combat, terrain, magic, world generation, full LLM chat, or a graphical UI first. Build a town whose people can be wrong for the right reasons.
