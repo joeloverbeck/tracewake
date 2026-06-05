@@ -222,10 +222,10 @@ Do NOT commit the file. Leave it for user review.
 | Deliverable category | Step 6 action |
 |---|---|
 | Plan mode active (any category) | Call `ExitPlanMode` — skip the menu |
-| Spec / ticket / triage / proposal — or any deliverable whose options describe NEXT phases (reassess / decompose / implement / done) | **Menu MANDATORY**, even when written this same turn — writing the file is pre-implementation, and skipping the menu strips the user's named next-phase options |
+| Spec / ticket / triage producing specs/tickets/deferred items / proposal — or any deliverable whose options describe NEXT phases (reassess / decompose / implement / done) | **Menu MANDATORY**, even when written this same turn — writing the file is pre-implementation, and skipping the menu strips the user's named next-phase options |
 | Inline-completion (skill design; port external skill; small inline ops/setup; new dev-tooling/CI/config files; new or in-place-edited project-doc / root-instruction files — `README.md`, `docs/*.md`, `CLAUDE.md`, `AGENTS.md`; in-place edits to existing spec/ticket/docs where the edit IS the completed work) | Skip the menu; summarize what was done |
 
-Categorize by the middle row first; the inline-completion skip fires only when the deliverable falls outside it. For a mandatory menu, present options like:
+Categorize by the middle row first; the inline-completion skip fires only when the deliverable falls outside it. A triage whose verdict resolves entirely into inline-completed edits (no specs/tickets/deferred items, e.g. an action-audit that deletes/merges/corrects docs in place) takes the inline-completion skip row, not the mandatory-menu row — see `references/triage-and-deliverables.md` §No-source-report diagnostic case. For a mandatory menu, present options like:
 
 ```
 Design doc written to docs/plans/YYYY-MM-DD-<topic>-design.md
