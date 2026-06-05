@@ -124,6 +124,8 @@ NeedPressure:
     desperate_methods: [flee_region, arm_self]
 ```
 
+This `NeedPressure` block is the canonical needs model; `10_ORDINARY_LIFE_ECONOMY_AND_SETTLEMENTS.md` re-presents the same needs as ordinary-life action menus, not as a competing model.
+
 ## Expectations and surprise
 
 Discovery often requires expectation.
@@ -303,6 +305,8 @@ Required speech/social acts include:
 
 Choices depend on relationship, trust, fear, status, role, motive, risk, norms, setting, and current beliefs.
 
+The canonical speech-act vocabulary lives in `08_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`; the list above is a working subset scoped to agent cognition.
+
 ## Emotion
 
 Emotion modulates planning. It does not author outcomes.
@@ -337,6 +341,8 @@ Tier D — background population:
 ```
 
 Lower LOD is not nonexistence. Promotion must restore enough detail for causality and current relevance.
+
+These agent-detail tiers (A–D) are orthogonal to the simulation-scope tiers (0–3) in `17_SIMULATION_LOD_TIME_AND_PERFORMANCE.md`: a Tier-A embodied agent runs inside Tier-0 simulation, while Tier-D background population is carried by the Tier-2/Tier-3 scope.
 
 ## Minimal vertical-slice cognition
 

@@ -92,6 +92,8 @@ Needs:
 
 Needs create pressure. They do not write scripts.
 
+The canonical needs model is `NeedPressure` in `07_AGENT_COMPETENCE_AND_PLANNING_DECISION.md`; this block re-presents the same needs as ordinary-life action menus.
+
 ## Homes
 
 Homes are not decorative.
@@ -242,6 +244,8 @@ The first slice needs only enough social action to support ordinary life and epi
 - promise payment;
 - accuse/suspect with actor-known basis;
 - apologize.
+
+These are a scoped subset of the canonical speech-act vocabulary in `08_INFORMATION_ECOLOGY_AND_SPEECH_ACTS.md`.
 
 ## Roads as ordinary life
 

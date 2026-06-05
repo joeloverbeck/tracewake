@@ -190,6 +190,8 @@ threaten, bargain, recruit, refuse, warn, gossip, instruct, command,
 testify, joke, deflect, withhold, apologize
 ```
 
+This is the canonical speech-act vocabulary; the subsets in `07_AGENT_COMPETENCE_AND_PLANNING_DECISION.md` and `10_ORDINARY_LIFE_ECONOMY_AND_SETTLEMENTS.md` are scoped views of it.
+
 ## Lies
 
 A lie is intentional communication that the speaker does not believe, or does not believe at the asserted confidence.

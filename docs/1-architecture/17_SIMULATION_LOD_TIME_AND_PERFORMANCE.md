@@ -42,6 +42,8 @@ Agents act or reconsider when:
 
 ## LOD tiers
 
+These tiers (0–3) describe simulation scope and are orthogonal to the per-agent detail tiers (A–D) in `07_AGENT_COMPETENCE_AND_PLANNING_DECISION.md`: an embodied Tier-A agent runs inside Tier 0 here, while Tier-D background population is carried by Tier 2 / Tier 3.
+
 ### Tier 0 — Embodied local simulation
 
 Current actor location, active scenes, high-salience investigations, immediate danger.
