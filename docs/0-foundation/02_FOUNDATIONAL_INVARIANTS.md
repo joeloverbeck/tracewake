@@ -1,10 +1,28 @@
 # Foundational Invariants
 
-These are hard rules. If Tracewake violates them often, it becomes a conventional RPG, colony sim, procedural quest system, or LLM fiction toy.
+These are hard rules. They are not preferences, moods, or phase-specific aspirations. If Tracewake violates them routinely, it stops being Tracewake.
+
+## TUI and playability
+
+### INV-001 — The TUI is a primary product interface
+
+The TUI is not a throwaway debug shell. It must remain playable, legible, and architecturally reusable.
+
+### INV-002 — Every runnable phase has a playable TUI gate
+
+A phase is not complete unless the new mechanic can be reached, used, inspected, and regression-tested through the TUI.
+
+### INV-003 — Mechanics hidden from play are not progress
+
+A system that exists only in headless tests is unfinished unless the phase is explicitly pre-runnable ontology work. Once the kernel can run, playability and inspectability advance together.
+
+### INV-004 — Embodied mode preserves actor knowledge
+
+Normal play shows the current actor's perceived world, not ground truth. Debug mode may reveal truth, event graphs, hidden beliefs, and planner state, but it must be visibly separate.
 
 ## Player ontology
 
-### INV-001 — No sacred player entity
+### INV-005 — No sacred player entity
 
 The authoritative simulation must not contain a metaphysically special player character.
 
@@ -21,160 +39,226 @@ World.GenerateQuestFor(PlayerCharacter)
 Guard.KnowsCrimesOf(PlayerCharacter)
 NPCs.IgnoreNeedsNearPlayer()
 Threat.SpawnBecausePlayerIsBored()
+Reward.SpawnForPlayerCompletion()
 ```
 
-### INV-002 — Possession changes input, not reality
+### INV-006 — Possession changes input, not reality
 
-Switching bodies changes only the controller binding. The previous body remains an agent with beliefs, needs, intentions, injuries, relationships, possessions, obligations, suspicions, and plans.
+Switching bodies changes only the controller binding. The previous body remains an ordinary agent with beliefs, needs, intentions, injuries, relationships, possessions, obligations, suspicions, memories, and plans.
 
-### INV-003 — Every player action must be NPC-possible
+### INV-007 — Body-switching is foundational and debug-first
 
-The UI may help the human understand options, but every world-affecting action must correspond to an action a non-player agent could attempt under equivalent physical, social, knowledge, and resource conditions.
+Possession is currently a testing/debugging tool and an architectural proof of actor parity. It may later become diegetic in a domain pack, but the kernel must not depend on possession metaphysics.
 
-### INV-004 — Player knowledge is not actor knowledge
+### INV-008 — Player knowledge is not actor knowledge
 
-The human may know facts the current actor does not. The actor may not assert, accuse, testify, claim reward, persuade, or institutionally act from facts that have not reached that actor through modeled channels.
+The human may remember what happened while controlling another actor. The current actor may not assert, accuse, testify, claim payment, persuade, report, or institutionally act from facts that have not reached that actor through modeled channels.
 
-### INV-005 — UI assistance is not world privilege
+### INV-009 — Every world-affecting player action must be NPC-possible
 
-Action lists, why-not explanations, sorting, and notebooks are allowed if final actions still pass the same action pipeline used by NPCs.
+UI affordances may help the human understand options, but every committed world action must correspond to an action a non-player agent could attempt under equivalent physical, social, epistemic, resource, and institutional conditions.
 
-## Causality
+### INV-010 — UI assistance is not world privilege
 
-### INV-006 — Meaningful state changes require events
+Action lists, why-not explanations, sorting, notebooks, maps, filters, and debug overlays may clarify. They must not bypass preconditions, create facts, grant unearned knowledge, or alter institutional recognition.
 
-If a change can affect gameplay, history, belief, traces, reputation, law, economy, or later reasoning, it must be represented by events.
+## Causality and events
 
-### INV-007 — Every event needs a cause model
+### INV-011 — Meaningful state changes require events
 
-Events must be explainable through preceding state, actor intention, environmental process, institutional procedure, regional process, or exogenous boundary input.
+If a change can affect gameplay, history, belief, traces, reputation, law, economy, memory, UI leads, replay, or later reasoning, it must be represented by one or more events.
 
-### INV-008 — Events leave traces
+### INV-012 — Every event needs a cause model
 
-Every meaningful event leaves physical, mental, social, institutional, economic, environmental, spatial, procedural, or erased traces. A clean crime includes successful trace-removal events.
+Events must be explainable through preceding state, actor intention, need pressure, belief, routine, environmental process, institutional procedure, regional process, authored initial condition, or explicit exogenous boundary input.
 
-### INV-009 — Absence can be evidence
+### INV-013 — Events leave traces
 
-A missing item, absent guard, closed shop, unposted notice, quiet road, uncollected tax, or empty bed can be evidence if an agent expected otherwise.
+Every meaningful event leaves physical, mental, social, institutional, economic, environmental, spatial, procedural, or erasure traces. A clean crime includes successful trace-removal events.
 
-### INV-010 — Failure is an event
+### INV-014 — Failure is an event
 
-Failed attempts often matter: refused reports, interrupted routines, missed meetings, botched accusations, failed searches, failed payments, or failed travel.
+Failed attempts matter. Refused reports, interrupted routines, missed meetings, failed searches, botched accusations, failed payments, failed travel, rejected speech acts, and invalid plans produce events when they can affect future reasoning.
 
-### INV-011 — Simulation first, narration second
+### INV-015 — Absence can be evidence
 
-No prose, dialogue, notice text, UI summary, or LLM output may define authoritative world reality.
+A missing item, absent guard, closed shop, unposted notice, quiet road, uncollected debt, empty bed, unlit hearth, or missing witness can be evidence if an agent expected otherwise.
 
-## Belief and information
+### INV-016 — Simulation first, narration second
 
-### INV-012 — Ground truth and belief are separate
+No prose, dialogue, notice text, UI summary, story sift, or LLM output defines authoritative reality. Text renders or proposes structured state; it does not create truth.
 
-Agents act from subjective beliefs, not omniscient state.
+### INV-017 — Replay is a design requirement
 
-### INV-013 — No telepathy
+The engine must support reconstruction, audit, causal debugging, and temporal query for significant events. Determinism is not optional theater; it is a foundation for trust.
 
-Information reaches agents only through modeled channels: perception, testimony, rumor, reading, records, inference, instruction, memory, magic, sensors, or institutional notification.
+## Epistemics
 
-### INV-014 — Wrong beliefs are first-class state
+### INV-018 — Ground truth, subjective belief, and public record are separate
 
-Mistakes, stale information, false rumors, lies, confabulations, misidentifications, biased inferences, and contradictory hypotheses are required features.
+The engine must distinguish what happened, what each agent believes, and what an institution, group, ledger, rumor network, or public artifact treats as known.
 
-### INV-015 — Beliefs need provenance
+### INV-019 — No telepathy
 
-Important beliefs record source, acquisition time, believed event time, confidence, and channel.
+Information reaches agents only through modeled channels: perception, testimony, rumor, reading, records, inference, instruction, memory, domain-defined special senses, or institutional notification.
 
-### INV-016 — Discovery requires expectations
+### INV-020 — Wrong beliefs are first-class state
 
-An agent cannot notice coins are missing unless the agent expected coins to be present or had reason to check.
+Mistakes, stale information, false rumors, lies, confabulations, misidentifications, biased inferences, contradictory hypotheses, and partial memories are required mechanics.
+
+### INV-021 — Important beliefs need provenance
+
+Important beliefs record holder, proposition, confidence, source, channel, acquisition time, believed event time when available, and contradiction links.
+
+### INV-022 — Discovery requires expectation or search
+
+An agent cannot notice coins are missing unless the agent expected coins to be present, had reason to check, or searched the relevant place.
+
+### INV-023 — Staleness is not automatically corrected
+
+Notices, maps, reports, rumors, memories, and institutional records remain stale until updated through modeled channels.
 
 ## Agents
 
-### INV-017 — Agents need durable intentions
+### INV-024 — Agents are symbolic and inspectable in v1
 
-Agents need commitments that persist across small fluctuations and can be interrupted by stronger causes.
+V1 agents use explicit beliefs, values, needs, goals, projects, intentions, HTN methods, bounded local planning, budgets, and failure events. Their decisions must be explainable.
 
-### INV-018 — Needs are not personality
+### INV-025 — Agents need durable intentions
 
-Hunger, fatigue, safety, shame, greed, loyalty, affection, duty, and ambition influence choices but must not flatten characters into meter machines.
+Agents need commitments that persist across small fluctuations and can be interrupted by stronger modeled causes. Avoid utility jitter.
 
-### INV-019 — Routines are defeasible intentions
+### INV-026 — Routines are defeasible intentions
 
-A blacksmith works because she believes it is a workday, has obligations, needs income, has tools, can reach the forge, and has no stronger interruption.
+A blacksmith works because she believes it is a workday, has obligations, needs income, can reach the forge, has tools, and has no stronger interruption. Schedules are not teleports.
 
-### INV-020 — Competence must be bounded and inspectable
+### INV-027 — Needs are pressures, not puppet strings
 
-Agents should be resourceful and humanly competent, but every plan must be explainable through beliefs, goals, methods, resources, and time.
+Hunger, fatigue, safety, warmth, shame, greed, loyalty, affection, duty, ambition, fear, and curiosity influence choice without flattening characters into meter machines.
 
-## Institutions
+### INV-028 — Competence must be bounded
 
-### INV-021 — Institutions are not omniscient
+Agents should be resourceful enough to be interesting but limited by beliefs, skill, cost, time, risk, social position, resources, and planner budget.
 
-Authorities act from reports, records, testimony, procedures, jurisdiction, manpower, budgets, delay, politics, fear, bias, and corruption.
+### INV-029 — No LLM brains
 
-### INV-022 — Law is a social machine
+LLMs may not be authoritative agent planners in v1. They may later render language, paraphrase structured records, or parse proposed speech acts behind validation.
 
-A norm violation becomes actionable through observation, report, evidence, record, investigation, institutional belief, or procedure.
+## Institutions and norms
 
-### INV-023 — Records are world artifacts
+### INV-030 — Institutions are not omniscient
 
-Bounties, warrants, ledgers, contracts, tax records, case files, and notices must have provenance.
+Authorities, guilds, households, markets, temples, gangs, and offices act from reports, records, testimony, observations, procedures, jurisdiction, manpower, budgets, delay, fear, bias, corruption, and relationships.
 
-### INV-024 — Procedure can fail
+### INV-031 — Law is a social machine
 
-The law may ignore the poor, protect the powerful, lose a report, arrest the wrong person, or fail to pay because reserves were looted.
+A norm violation becomes actionable through observation, trace, report, evidence, record, investigation, institutional belief, or procedure. Violation and detection are separate.
 
-## Questlessness
+### INV-032 — Norms are explicit
 
-### INV-025 — No quest as primary data type
+Obligations, permissions, prohibitions, constitutive norms, roles, sanctions, and institutional facts must be represented explicitly enough to inspect and test.
 
-Store incidents, needs, requests, contracts, obligations, notices, rumors, threats, opportunities, records, promises, and investigations.
+### INV-033 — Records are world artifacts
 
-### INV-026 — Tasks are projections
+Bounties, warrants, ledgers, contracts, tax records, case files, orders, and notices have authors, issuers, custody, timestamps, claims, and provenance.
 
-A player-facing objective is a view over a world process, not the process itself.
+### INV-034 — Procedure can fail
 
-### INV-027 — Rewards require custody and verification
+The law may ignore the poor, protect the powerful, lose a report, run out of funds, arrest the wrong person, fail to pay, or never learn the relevant fact.
 
-Payment depends on who promised it, whether funds exist, what proof is accepted, who verifies it, and whether someone contests the claim.
+## Questlessness and story
 
-## UI and salience
+### INV-035 — No quest as primary data type
 
-### INV-028 — UI may curate, not author
+The engine stores incidents, needs, requests, contracts, promises, obligations, notices, rumors, records, threats, opportunities, investigations, sanctions, and leads.
 
-The UI can highlight accessible patterns. It cannot cause events because the player needs content.
+### INV-036 — Tasks are projections
 
-### INV-029 — No boredom detector
+A player-facing objective or notebook card is a view over source-bound world state. It is not the process itself.
 
-The simulation must not inject incidents because pacing feels low. Exogenous events must come from modeled weather, ecology, migration, disease, politics, trade, or outside-region processes.
+### INV-037 — Rewards require custody and verification
 
-### INV-030 — No objective markers to truth
+Payment depends on who promised it, whether funds exist, what proof is accepted, who verifies it, whether the payer remains able and willing, and whether anyone disputes the claim.
 
-Markers represent beliefs, reports, rumors, maps, records, or observations.
+### INV-038 — No authored outcome chains
 
-## LLM use
+Forbidden: quest beats, scenario scripts, drama directors, boredom detectors, “when player does X, make Y happen,” NPC behavior that exists only to serve the player, content that waits indefinitely, and objective markers to ground truth.
 
-### INV-031 — LLMs may not mutate authoritative state directly
+### INV-039 — Story sifting may curate only
+
+Story recognition, salience, recaps, notebooks, and event summaries may highlight what happened. They may not cause events or repair pacing.
+
+## Ordinary life and scope
+
+### INV-040 — Ordinary life comes before adventure
+
+Sleep, eating, work, homes, storage, ownership, doors, rooms, routines, needs, basic social interaction, belief, traces, and TUI embodied play are earlier than expeditions, investigation depth, combat, magic, worldgen, or graphics.
+
+### INV-041 — No detailed combat in the first serious vertical slice
+
+Early threats may appear through travel risk, injury/death events, aftermath traces, fear, reports, route avoidance, and institutional response. Detailed combat is deferred.
+
+### INV-042 — Start small enough to inspect
+
+A tiny village with deep causality is better than a large opaque region.
+
+### INV-043 — The world continues without the human
+
+No-player simulations must produce ordinary life, reports, wrong beliefs, stale records, trade, routine interruption, social propagation, and institutional action or failure.
+
+## Domain boundary
+
+### INV-044 — No fantasy leakage into the kernel
+
+The core must not assume monsters, magic, species, feudal law, medieval technology, divine authority, adventurer classes, or combat categories.
+
+### INV-045 — Domain packs own flavor
+
+Domain packs own species/body types, technology, magic/metaphysics, threats, domain institutions, occupations, items, affordances, unique traces, diseases, speech/culture tags, terrain/place types, scenario seeds, and domain-specific laws.
+
+### INV-046 — Special powers are causal channels
+
+Magic, sensors, dreams, psychic impressions, radios, rituals, or alien technology are modeled as channels or actions with costs, reliability, distortion, provenance, traces, counters, and failure modes.
+
+## LOD and scale
+
+### INV-047 — Scale through honest abstraction
+
+Low-fidelity processes produce inspectable summary events and preserve causal ancestry. They do not hide a director.
+
+### INV-048 — Low-LOD agents are still people
+
+Lower detail is dormant or summarized detail, not permission to turn citizens into props.
+
+### INV-049 — Promotion is relevance-based, not pacing-based
+
+Promote simulation detail when an event becomes causally, spatially, institutional, social, or debug-relevant. Never promote because the player is bored.
+
+## LLM boundary
+
+### INV-050 — LLMs may not mutate authoritative state directly
 
 Any state change implied by language must be represented as a typed, validated action or speech act.
 
-### INV-032 — LLM dialogue must be grounded
+### INV-051 — LLMs may not invent hidden evidence or ground truth
 
-Outputs must map to structured propositions, questions, lies, refusals, promises, threats, or other speech acts before they affect beliefs.
+No LLM output may determine guilt, create a clue, correct stale information, bypass preconditions, create a quest, or grant NPCs unearned knowledge.
 
-## Scope
+### INV-052 — Core mechanics must work with LLMs disabled
 
-### INV-033 — Start small enough to inspect
+Tests use deterministic mocks. LLM calls are optional surfaces, not dependencies.
 
-A tiny village with deep causality is better than a huge opaque region.
+## Review rule
 
-### INV-034 — Scale through LOD, not dishonesty
+Any proposed feature must answer:
 
-Low-fidelity processes produce inspectable summary events and can be promoted when relevant.
-
-### INV-035 — Long simulation must preserve causal ancestry
-
-Simulating years may use abstraction, but important current-state facts must retain enough ancestry to interrogate.
-
-### INV-036 — The world continues without the human
-
-No-player simulations must produce ordinary life, incidents, reports, wrong beliefs, stale records, migrations, trades, and disruptions.
+```text
+What caused it?
+Who knows it?
+How can they be wrong?
+What traces exist?
+What institution or norm cares?
+Can an NPC do the same kind of thing?
+Can it be played and inspected through the TUI?
+Does it leak player privilege, ground truth, genre assumptions, scripting, or LLM authority?
+```
