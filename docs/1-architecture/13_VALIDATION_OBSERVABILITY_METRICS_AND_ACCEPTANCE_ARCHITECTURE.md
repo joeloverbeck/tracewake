@@ -1,14 +1,40 @@
-# Validation, Testing, and Acceptance Architecture
+# Validation, Observability, Metrics, and Acceptance Architecture
 
 ## Status
 
-This document defines validation and testing gates for every runnable Tracewake phase.
+This document defines validation gates, observability contracts, metrics, review artifacts, and acceptance levels for runnable Tracewake phases.
 
-Validation is not a late QA activity. It is architecture. Tracewake's premise fails without deterministic replay, actor-knowledge filtering, no-player parity, event causality, and TUI playability.
+Validation is architecture, not late QA. Tracewake fails without deterministic replay, actor-knowledge filtering, no-player parity, event causality, no-human simulation, and TUI playability.
 
 ## Core rule
 
-Every feature must be testable in no-human simulation, embodied TUI play, replay, and debug inspection unless explicitly marked as debug-only or future-only.
+Every feature must be testable in no-human simulation, embodied TUI play, deterministic replay, projection rebuild, and debug inspection unless explicitly marked as debug-only or future-only.
+
+A manual demo is not acceptance.
+
+## Authority
+
+This subsystem owns:
+
+- required validation gates;
+- test layer categories;
+- no-human run requirements;
+- deterministic replay checks;
+- actor-knowledge gates;
+- no-player privilege gates;
+- content validation gates;
+- observability artifact contracts;
+- metrics and review reports;
+- acceptance level definitions.
+
+It is denied:
+
+- accepting systems with no replay;
+- accepting TUI that reads truth;
+- accepting live-LLM-dependent behavior;
+- accepting content validated only by syntax;
+- accepting phase claims without review artifacts;
+- turning execution tickets into architecture.
 
 ## Required gates for every runnable phase
 
@@ -30,7 +56,7 @@ Each runnable phase must include gates for:
 - LLM-disabled operation;
 - action registry parity;
 - data/schema validation;
-- event schema migration/upcaster tests;
+- event schema migration/upcaster tests where events persist;
 - automated regression tests;
 - TUI/view-model tests.
 
@@ -42,13 +68,13 @@ Before acceptance, every feature must answer:
 - Who knows it?
 - How can they be wrong?
 - What traces exist?
-- What institution, norm, household, role, or record cares?
+- What institution, norm, household, role, record, public artifact, or relationship cares?
 - Can an NPC do the same kind of thing?
+- Can it run in no-human simulation?
 - Can it be played and inspected through the TUI?
-- Can it run in a no-human simulation?
 - Can debug mode explain it?
-- Does it leak player privilege, ground truth, genre assumptions, scripting, or LLM authority?
-- Can it replay and rebuild projections deterministically?
+- Can replay and projection rebuild reconstruct it deterministically?
+- Does it avoid player privilege, ground truth leakage, genre leakage, scripting, hidden drama direction, quest ontology, and LLM authority?
 
 ## Test layers
 
@@ -59,6 +85,7 @@ Validate:
 - syntax and schema;
 - stable IDs;
 - references;
+- deterministic loading order;
 - action definitions;
 - affordance exposure;
 - norms/procedures;
@@ -69,7 +96,8 @@ Validate:
 - no outcome chains;
 - no player-only verbs;
 - domain pack boundary compliance;
-- content version manifest.
+- content version manifest;
+- fixture coverage.
 
 ### Kernel/action tests
 
@@ -89,20 +117,40 @@ Validate:
 - trace and observation hooks;
 - projection update.
 
+### Scheduler/replay/save-package tests
+
+Validate:
+
+- discrete time;
+- stable ordering;
+- no wall-clock decisions;
+- scheduled action completion;
+- interruption windows;
+- reservation release;
+- scoped seeded random streams;
+- meaningful random draw records;
+- save-package manifests;
+- content/schema mismatch failure;
+- replay checksum;
+- projection rebuild;
+- snapshot load;
+- event schema upcasting;
+- migration failure handling.
+
 ### Epistemic tests
 
 Validate:
 
-- observation vs interpretation;
-- belief source/confidence;
+- observation versus interpretation;
+- typed belief source/confidence;
 - expectation contradiction;
 - absence-as-evidence;
 - rumor mutation;
 - stale information;
 - record-derived beliefs;
-- lies vs hallucinations;
+- lies versus hallucinations;
 - actor notebook filtering;
-- debug truth/belief mismatch.
+- debug truth/belief/record mismatch.
 
 ### Agent tests
 
@@ -117,7 +165,8 @@ Validate:
 - replanning triggers;
 - failure handling;
 - no ground-truth planning;
-- planner trace output.
+- planner trace output;
+- agent LOD promotion honesty.
 
 ### Institution tests
 
@@ -126,7 +175,7 @@ Validate:
 - roles/permissions/obligations;
 - household access/privacy;
 - norm classification;
-- detection vs violation;
+- detection versus violation;
 - report lifecycle;
 - ledger/record artifact;
 - evidence thresholds;
@@ -135,30 +184,12 @@ Validate:
 - bias/corruption as causal events if modeled;
 - institutional knowledge filtering.
 
-### Scheduler/replay tests
-
-Validate:
-
-- discrete time;
-- stable ordering;
-- no wall-clock decisions;
-- scheduled action completion;
-- interruption windows;
-- reservation release;
-- seeded random streams;
-- meaningful random draw records;
-- replay checksum;
-- projection rebuild;
-- snapshot load;
-- event schema upcasting;
-- migration failure handling.
-
 ### TUI/view-model tests
 
 Validate:
 
 - embodied view hides truth;
-- debug view shows truth;
+- debug view shows truth visibly;
 - action menus derive from affordances;
 - why-not explanations derive from validation;
 - actor notebook source filtering;
@@ -169,7 +200,7 @@ Validate:
 
 ### LLM/language tests
 
-For v1 deterministic templates:
+For deterministic templates:
 
 - structured speech acts commit;
 - templates preserve uncertainty;
@@ -210,7 +241,7 @@ The test passes only if:
 - no actor receives hidden truth;
 - theft/movement uses typed object affordances;
 - action duration/reservation/interruption are modeled where relevant;
-- traces are created or explicitly not created for causal reasons;
+- traces are created or explicitly absent for causal reasons;
 - witnesses have partial observations;
 - belief provenance exists;
 - institution records partial claims, not truth;
@@ -220,9 +251,9 @@ The test passes only if:
 
 ## No-human simulation gate
 
-A no-human gate should run for at least several simulated days once ordinary routines exist.
+No-human simulation is normal simulation with no human controller bound.
 
-It must produce meaningful ordinary-life events:
+Once ordinary routines exist, no-human gates should run for at least several simulated days and produce meaningful ordinary-life events:
 
 - meals;
 - sleep;
@@ -232,27 +263,15 @@ It must produce meaningful ordinary-life events:
 - storage use;
 - expectation checks;
 - reports/notices if warranted;
-- wrong beliefs/stale information where circumstances create them;
+- wrong beliefs or stale information where circumstances create them;
+- planner failures/recoveries;
 - no protagonist gravity.
 
-Metrics to capture:
-
-- significant events;
-- routine events;
-- action rejections/failures;
-- belief updates;
-- contradictions;
-- reports/records/notices;
-- trace creation/discovery;
-- planner failures;
-- stuck actors;
-- replay failures;
-- projection rebuild time;
-- player-conditioned event rate in embodied runs.
+A no-human run that produces only idle loops fails architecture validation.
 
 ## No-player privilege gate
 
-For every world-affecting action exposed to the TUI:
+For every world-affecting action exposed to TUI:
 
 - an AI actor under equivalent conditions can propose it;
 - the same action definition is used;
@@ -261,7 +280,7 @@ For every world-affecting action exposed to the TUI:
 - the same traces/observations/norm hooks apply;
 - rejection/failure is equivalent.
 
-If a player-only action is necessary for debugging, it must live in debug tooling and be impossible in embodied play.
+Debug-only actions must be visibly non-diegetic and impossible in embodied play.
 
 ## Actor-knowledge gate
 
@@ -273,7 +292,7 @@ Example:
 - possess Mara after hiding coins;
 - possess Elena after hearing noise;
 - possess clerk after receiving report;
-- inspect actor notebook for each;
+- inspect each notebook;
 - verify no notebook contains another actor's private knowledge;
 - verify debug view can show mismatch.
 
@@ -285,10 +304,11 @@ Required checks:
 - replay from snapshot equals replay from genesis for covered state;
 - projection rebuild is deterministic;
 - random stream positions match;
-- event schema version fixtures replay;
-- upcaster tests cover old event examples;
+- event schema fixtures replay;
+- upcaster tests cover old events;
 - unknown event version fails loudly;
-- content version mismatch fails or migrates explicitly.
+- content version mismatch fails or migrates explicitly;
+- save-package manifests identify all required versions and checksums.
 
 ## No-script compliance gate
 
@@ -314,23 +334,89 @@ Allowed:
 - authored records and starting beliefs;
 - summary events with causal ancestry.
 
-## Regression artifacts
+## Observability artifacts
 
 Automated runs should produce artifacts useful for review:
 
 - event log segment;
+- save-package manifest;
 - replay checksum report;
 - projection rebuild report;
 - causal graph excerpt;
 - actor belief diffs;
+- actor notebook snapshots;
 - TUI transcript;
 - why-not log;
 - content validation report;
-- scheduler queue snapshots;
+- scheduler queue/reservation snapshots;
 - planner trace samples;
+- institution procedure trace;
+- LOD transition report;
+- story-sifter debug summary;
+- leakage audit;
 - LLM validation report if applicable.
 
-These artifacts should be inspectable without a graphical client.
+Artifacts must be inspectable without a graphical client.
+
+## Metrics
+
+Metrics are not game scores. They are review instruments.
+
+Useful metric families:
+
+```text
+event_counts_by_type
+routine_event_rate
+significant_event_rate
+action_rejection_rate_by_reason
+action_failure_rate_by_type
+belief_update_count
+contradiction_count
+trace_created_discovered_decayed_counts
+reports_records_notices_counts
+stale_artifact_count
+planner_failure_count
+stuck_actor_count
+no_human_activity_coverage
+replay_duration_and_checksum_status
+projection_rebuild_duration
+random_draws_by_stream
+actor_knowledge_leakage_findings
+player_conditioned_event_rate
+```
+
+Metrics must not drive hidden drama. They expose behavior for humans and tests to judge.
+
+## Review report contract
+
+A runnable phase should emit a review report like:
+
+```yaml
+RunReviewReport:
+  run_id: no_human_village_day_003
+  content_manifest: neutral_village@0.1
+  seed: first_village_seed_07
+  sim_interval: 142-08-12T05:30/142-08-15T05:30
+  event_count: 4812
+  significant_events: 143
+  replay:
+    authoritative: pass
+    checksums: pass
+  projections:
+    rebuild: pass
+  actor_knowledge:
+    leakage_audit: pass
+    notebooks_checked: [actor_tomas, actor_mara, actor_elena, actor_anna_clerk]
+  no_player_privilege:
+    action_registry_parity: pass
+  issues:
+    - actor_evan_guard_idle_18h_due_missing_patrol_method
+  artifacts:
+    - event_log_excerpt
+    - causal_graph_missing_property
+    - tui_transcript_tomas
+    - planner_trace_mara
+```
 
 ## Acceptance levels
 
@@ -344,7 +430,7 @@ The feature runs in deterministic fixture tests and exposes debug inspection.
 
 ### First-slice accepted
 
-The feature runs in no-human simulation, TUI embodied play, replay, projection rebuild, and actor-knowledge tests.
+The feature runs in no-human simulation, embodied TUI play, replay, projection rebuild, and actor-knowledge tests.
 
 ### Research-grade accepted
 
@@ -359,6 +445,7 @@ The feature supports metrics, reproducible runs, stress tests, LOD/replay where 
 - Projection drift ignored.
 - Fixture bypasses action pipeline for normal behavior.
 - Actor planner has no trace output.
-- Institution tests assert truth instead of institutional belief.
+- Institution test asserts truth instead of institutional belief.
 - Content validation stops at syntax.
 - Debug tools cannot explain why an event happened.
+- Metrics become a hidden pacing director.

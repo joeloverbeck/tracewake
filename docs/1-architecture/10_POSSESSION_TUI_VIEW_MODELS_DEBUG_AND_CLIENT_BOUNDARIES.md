@@ -1,8 +1,8 @@
-# Player Possession, View Models, TUI, and Debug
+# Possession, TUI View Models, Debug, and Client Boundaries
 
 ## Status
 
-This document defines the human controller, possession, TUI, embodied view model, debug view model, actor notebook, human/debug notes, why-not, and future graphical client boundary.
+This document defines human controller binding, possession, actor-filtered view models, TUI play, actor notebooks, human/debug notes, why-not display, debug inspection, testable TUI harnesses, and future graphical client boundaries.
 
 Tracewake has no sacred player character in the authoritative simulation.
 
@@ -17,6 +17,29 @@ HumanController -> ActorId
 Possession changes input binding only. The possessed actor remains an ordinary actor with body, beliefs, needs, intentions, memories, possessions, relationships, obligations, suspicions, and plans.
 
 The simulation does not contain a privileged `Player` entity.
+
+## Authority
+
+This subsystem owns:
+
+- controller binding metadata;
+- embodied actor-filtered view models;
+- TUI presentation and input;
+- actor-known notebook display;
+- why-not display;
+- debug view models and commands;
+- TUI transcript/replay harness;
+- future graphical client boundary.
+
+It is denied:
+
+- world-rule validation except display sanity;
+- direct state mutation;
+- player-only verbs;
+- ground-truth embodied display;
+- knowledge merge across possessions;
+- graphical-client rule forks;
+- debug truth leakage.
 
 ## Possession state
 
@@ -33,25 +56,26 @@ ControllerBinding:
   event_stream: ControllerStream
 ```
 
-Possession may be recorded for replay/debugging, but it does not grant knowledge or alter agent state except through ordinary actions performed while bound.
+Possession may be recorded for replay/debugging. It grants input authority only.
 
 ## Possession rules
 
-- Binding to an actor does not erase that actor's intentions.
+- Binding to an actor does not erase intentions.
 - Unbinding from an actor does not freeze that actor forever.
 - The actor may resume autonomy according to scheduler/agent policy.
-- The human can only choose actor-available actions in embodied mode.
+- The human can choose only actor-available actions in embodied mode.
 - The current actor's knowledge is not merged with other possessed actors.
 - Debug possession may switch freely but must mark non-diegetic context.
 - No world mutation occurs solely because possession changed.
 
 ## Embodied view model
 
-The embodied TUI consumes actor-filtered view models.
+Embodied TUI consumes actor-filtered view models.
 
 ```yaml
 EmbodiedViewModel:
   viewer: actor_tomas
+  mode: embodied
   place_view:
     known_place: bedroom
     visible_entities:
@@ -75,11 +99,110 @@ EmbodiedViewModel:
   why_not_available_on_request: true
 ```
 
-Embodied view models must not query ground truth directly.
+Embodied view models must not query hidden truth.
+
+## View-model versioning and derivation
+
+View models are projections. They declare:
+
+- projection version;
+- viewer/knowledge context;
+- source event range or projection checkpoint;
+- content/domain version;
+- hidden-truth policy;
+- stale-risk policy;
+- affordance registry version.
+
+A TUI or future client may format the same view differently. It may not change semantics.
+
+## Actor-known notebook
+
+The actor-known notebook is a projection of what the current actor knows, believes, remembers, heard, read, inferred, suspects, or wrote as an actor.
+
+It includes:
+
+- source-bound claims;
+- confidence/uncertainty indicators;
+- last verification;
+- stale risk if actor has basis;
+- records/notices read by actor;
+- conversations heard by actor;
+- unresolved contradictions;
+- actor's own notes if note-taking is modeled;
+- actor-known leads.
+
+It excludes:
+
+- hidden truth;
+- debug annotations;
+- knowledge from previously possessed actors;
+- player memory outside the actor;
+- unsupported LLM-generated facts.
+
+## Human/debug notes
+
+Human/debug notes are separate and non-diegetic.
+
+```yaml
+HumanDebugNote:
+  controller: human_01
+  text: "I saw in debug that Mara hid coins under her mattress."
+  visibility: debug_only
+  actor_knowledge_effect: none
+```
+
+A human may remember debug truth. The embodied UI must not convert that into actor knowledge. If the human commands an actor using out-of-character knowledge, the action pipeline still enforces actor knowledge preconditions or classifies the action as valid guess/speculation/search where appropriate.
+
+## TUI action menus
+
+TUI action menus are generated from actor-visible affordances and why-not-capable proposals.
+
+Menu entries expose:
+
+- stable semantic action ID;
+- label;
+- target;
+- actor-known requirements;
+- actor-known uncertainty;
+- estimated duration/cost if actor can estimate;
+- social risk if actor understands it;
+- why-not details on rejection;
+- debug expansion in debug mode.
+
+Example:
+
+```text
+[1] Search strongbox
+[2] Ask Elena what she heard
+[3] Go to reeve's office
+[4] Report missing coins to clerk
+[5] Wait until morning office hours
+[6] Accuse someone... (requires selecting basis or making reckless accusation)
+```
+
+The menu must not offer “recover coins from true hiding place” unless the actor learned that location.
+
+## Why-not display
+
+Why-not comes from action validation and is filtered by mode.
+
+Embodied example:
+
+```text
+You cannot report this now: the office is closed and you do not see a clerk or guard here.
+Possible alternatives: wait, go home, leave a written note if you have paper, ask a nearby person.
+```
+
+Debug expansion:
+
+```text
+Rejected at procedure check: no valid receiver with report-intake role in current place.
+Scheduler: clerk asleep at home; guard on south patrol route.
+```
 
 ## Debug view model
 
-Debug view models are non-diegetic.
+Debug view models are visibly non-diegetic.
 
 They may show:
 
@@ -99,104 +222,39 @@ They may show:
 - content validation errors;
 - LLM prompt/output validation if enabled.
 
-Debug views must be visibly separated from embodied play. Debug truth must not write into actor notebooks unless a modeled action transfers it.
+Debug truth must never write to actor notebooks without a modeled action.
 
-## Actor-known notebook
+## Debug commands
 
-The actor-known notebook is a projection of what the current actor knows, believes, remembers, heard, read, inferred, or suspects.
+Debug commands may exist for testing and diagnosis. They must be explicit.
 
-It includes:
+Categories:
 
-- source-bound claims;
-- confidence/uncertainty indicators;
-- last verification;
-- stale-risk if actor has basis;
-- records/notices read by actor;
-- conversations heard by actor;
-- unresolved contradictions;
-- actor's own notes if note-taking is modeled;
-- actor-known leads.
+- inspect truth;
+- inspect event log;
+- inspect causal graph;
+- inspect actor beliefs;
+- inspect planner trace;
+- inspect scheduler/reservations;
+- force replay/projection rebuild;
+- validate content;
+- switch possession;
+- inject test fixture event only in test/debug mode with explicit debug classification.
 
-It excludes:
-
-- hidden truth;
-- debug annotations;
-- knowledge from previously possessed actors;
-- player memory outside the actor;
-- LLM-generated unsupported facts.
-
-## Human/debug notes
-
-Human/debug notes are separate.
-
-```yaml
-HumanDebugNote:
-  controller: human_01
-  text: "I saw in debug that Mara hid coins under her mattress."
-  visibility: debug_only
-  actor_knowledge_effect: none
-```
-
-A human may remember debug truth, but embodied UI must not convert that into actor knowledge. If the human uses out-of-character knowledge to command an actor, the action pipeline still enforces actor knowledge preconditions or classifies the action as guess/speculation/search where valid.
-
-## TUI action menus
-
-TUI action menus are generated from actor-visible affordances and why-not-capable proposals.
-
-Menu entries should expose:
-
-- action label;
-- target;
-- known requirements;
-- actor-known uncertainty;
-- estimated duration/cost if actor can estimate;
-- social risk if actor understands it;
-- why-not explanation on rejection;
-- debug expansion if in debug mode.
-
-Example embodied menu:
-
-```text
-[1] Search strongbox
-[2] Ask Elena what she heard
-[3] Go to reeve's office
-[4] Report missing coins to clerk
-[5] Wait until morning office hours
-[6] Accuse someone...  (requires selecting basis or making reckless accusation)
-```
-
-The menu must not offer "recover coins from true hiding place" unless the actor learned that location.
-
-## Why-not explanations
-
-Why-not is produced by the action pipeline and displayed according to view mode.
-
-Embodied example:
-
-```text
-You cannot report this now: the office is closed and you do not see a clerk or guard here.
-Possible alternatives: wait, go home, leave a written note if you have paper, ask a nearby person.
-```
-
-Debug expansion:
-
-```text
-Rejected at social/procedure check: no valid receiver with report intake role in current place.
-Scheduler: clerk asleep at home, guard on patrol route south.
-```
+Debug injection must never be confused with ordinary play.
 
 ## TUI acceptance harness
 
-The TUI must be testable as architecture, not merely manually inspected.
+The TUI must be testable, not merely manually inspected.
 
-Test harness capabilities:
+Harness capabilities:
 
 - load deterministic fixture;
 - bind controller to actor;
 - inspect embodied view model;
 - select action by stable semantic ID, not screen coordinates;
 - advance scheduler;
-- assert events committed;
+- assert committed events;
 - assert actor notebook updates;
 - assert hidden truth absent from embodied view;
 - switch to debug view and assert truth/causal graph available;
@@ -204,9 +262,7 @@ Test harness capabilities:
 
 ## TUI-first implications
 
-Every feature in the first slice must be playable through the TUI.
-
-A system is not first-slice ready if it only works through debug commands, tests, prose, or a planned graphical interface.
+Every first-slice feature must be playable through the TUI.
 
 The TUI must support:
 
@@ -222,9 +278,11 @@ The TUI must support:
 - event/causal inspection in debug;
 - possession switching in debug.
 
-## Future graphical boundary
+A system is not first-slice ready if it only works through debug commands, tests, prose, or a planned graphical client.
 
-A graphical client may later consume:
+## Future graphical client boundary
+
+A graphical client may consume:
 
 - actor-filtered embodied view models;
 - debug view models;
@@ -236,7 +294,7 @@ A graphical client may later consume:
 It may not:
 
 - implement world rules;
-- read ground truth in embodied mode;
+- read hidden truth in embodied mode;
 - mutate world state directly;
 - add player-only verbs;
 - drive dramatic pacing;
@@ -245,24 +303,6 @@ It may not:
 
 Graphical rendering is a client, not a second simulation.
 
-## Debug commands
-
-Debug commands may exist for testing and diagnosis. They must be explicit.
-
-Categories:
-
-- inspect truth;
-- inspect event log;
-- inspect causal graph;
-- inspect actor beliefs;
-- inspect planner trace;
-- force replay/projection rebuild;
-- validate content;
-- switch possession;
-- inject test fixture event only in test/debug mode with explicit debug event classification.
-
-Debug injection must never be confused with ordinary play.
-
 ## Acceptance implications
 
 Player/TUI features must test:
@@ -270,8 +310,8 @@ Player/TUI features must test:
 - no `Player` entity in simulation state;
 - human command uses same action pipeline as AI proposal;
 - possession switch does not transfer knowledge;
-- embodied view model hides ground truth;
-- debug view model reveals truth visibly;
+- embodied view hides hidden truth;
+- debug view reveals truth visibly;
 - actor notebook source filtering;
 - why-not generated from validation checks;
 - no player-only actions in action registry;
@@ -285,8 +325,8 @@ Player/TUI features must test:
 - Possession resets needs/intentions.
 - Actor notebook includes debug truth.
 - Human notes become actor beliefs.
-- Embodied map markers point to hidden truth.
+- Embodied map marker points to hidden truth.
 - Debug view visually indistinguishable from embodied view.
-- TUI duplicates action preconditions.
-- Graphical client becomes a second rules engine.
+- TUI duplicates action preconditions as a second rule engine.
+- Graphical client becomes simulation authority.
 - NPCs freeze when not possessed without modeled reason.

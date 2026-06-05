@@ -1,10 +1,10 @@
-# Questless Leads, Notices, and Story Sifting
+# Incidents, Leads, and Story-Sifting Projections
 
 ## Status
 
-This document defines questless content architecture, lead projections, notices, records, incidents, opportunities, and observer-only story sifting.
+This document defines questless incident architecture, requests, obligations, actor-known leads, observer summaries, and story-sifting projections.
 
-A quest is not an engine object in Tracewake.
+Notice and record lifecycle authority lives primarily in `08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md`. TUI display authority lives in `10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md`. This document owns the projection layer that prevents those artifacts from turning into quests.
 
 ## Core rule
 
@@ -31,7 +31,29 @@ Engine ontology includes:
 
 It does not include objective quest progress, quest targets, quest completion flags, or player-exclusive objectives.
 
-## Why quests are forbidden as ontology
+## Authority
+
+This subsystem owns:
+
+- incident projection contracts;
+- lead-card projection contracts;
+- actor-known suggested-action projections;
+- unresolved/salient chain summaries;
+- story-sifting as observer/debug projection;
+- no-quest anti-drift rules.
+
+It is denied:
+
+- event creation;
+- culprit selection;
+- clue spawning;
+- objective completion;
+- reward spawning;
+- hidden pacing direction;
+- making NPCs wait for player acceptance;
+- embodied hidden-truth summaries.
+
+## Why quest ontology is forbidden
 
 Traditional quest ontology implies:
 
@@ -42,7 +64,7 @@ Traditional quest ontology implies:
 - targets exist for the quest;
 - completion is globally recognized;
 - quest state outranks simulation state;
-- NPCs exist to serve the player's arc.
+- NPCs serve the player's arc.
 
 Tracewake rejects all of these.
 
@@ -83,11 +105,11 @@ Request:
   status: received_or_refused_or_ignored
 ```
 
-Requests can be refused, misunderstood, delayed, fulfilled by someone else, or become stale.
+Requests can be refused, misunderstood, delayed, fulfilled by someone else, become stale, or be forgotten.
 
-## Contracts and obligations
+## Obligations, debts, and contracts
 
-A contract or obligation is a social/institutional artifact with parties, terms, authority, proof/payment rules if any, and lifecycle events.
+An obligation is a social or institutional artifact with parties, terms, authority, proof/payment rules where applicable, and lifecycle events.
 
 First slice may need simple promises or debts. Bounties/rewards are second-proof material.
 
@@ -102,29 +124,9 @@ Obligation:
   enforcement: social_pressure
 ```
 
-## Notices
+An obligation can motivate action without scripting the outcome.
 
-A notice is a public artifact.
-
-```yaml
-Notice:
-  id: notice_missing_property_01
-  kind: public_notice
-  written_by: actor_anna_clerk
-  authorized_by: reeves_office
-  structured_claims:
-    - TomasReportsMissingCoins
-    - LastExpectedInStrongbox
-    - AnyoneWithInformationMaySpeakToClerk
-  posted_at: notice_board_village_square
-  posted_event: evt_notice_posted_001
-  last_verified: 142-08-12T10:00
-  status: posted
-```
-
-A notice can be stale, forged, ignored, destroyed, contradicted, copied, removed, misread, solved by someone else, or never acted on.
-
-## Leads
+## Lead cards
 
 A lead is a UI projection over actor-known, source-bound information.
 
@@ -138,20 +140,20 @@ LeadCard:
   title: Missing coins from strongbox
   actor_known_claims:
     - coins should have been in strongbox
-    - strongbox is now empty
+    - strongbox was empty when checked
     - Elena says she heard a noise near the room
   uncertainty:
-    - no direct witness
+    - no direct witness known
     - coins may have been moved by someone permitted
-    - memory could be wrong
+    - Tomas's memory could be wrong
   suggested_actions:
-    - search room
-    - ask household
-    - report to clerk
-    - inspect for traces
+    - search_room
+    - ask_household
+    - report_to_clerk
+    - inspect_for_traces
 ```
 
-Suggested actions are actor-possible action projections. They do not create objectives or progress bars.
+Suggested actions are actor-possible proposal projections. They do not create objectives or progress bars.
 
 ## Lead projection rules
 
@@ -162,8 +164,8 @@ Lead cards must be:
 - uncertainty-preserving;
 - stale-aware;
 - non-authoritative;
-- rebuildable from events/beliefs/records;
-- removable when actor forgets, loses access, contradicts, resolves, or no longer cares;
+- rebuildable from events, beliefs, records, traces, and content versions;
+- removable when actor forgets, loses access, resolves, contradicts, or stops caring;
 - inspectable in debug.
 
 Lead cards must not:
@@ -212,25 +214,23 @@ Allowed early use:
 - identifying unresolved incidents;
 - explaining stale notices;
 - helping developers inspect emergent behavior;
-- later supporting actor-filtered summaries.
+- later actor-filtered summaries.
 
-Forbidden uses:
+Forbidden use:
 
 - spawning incidents;
 - selecting culprits;
 - creating clues;
 - repairing pacing;
 - moving NPCs for drama;
-- making NPCs wait for the player;
+- making NPCs wait;
 - revealing hidden truth in embodied mode;
 - converting incidents into quests;
 - altering probabilities because the player is bored.
 
-Story sifting answers, "what pattern occurred?" It never answers, "what must happen next?"
+Story sifting asks, “what pattern occurred?” It never asks, “what must happen next?”
 
 ## Minimal observer sifter
-
-Include a minimal observer/debug sifter early if useful.
 
 Input:
 
@@ -275,13 +275,11 @@ The first proof may generate leads from:
 - discovered hidden property;
 - apology/confession/lie.
 
-Each lead must name its source and uncertainty.
+Each lead names its source and uncertainty.
 
 ## Road-threat/bounty as second proof
 
-Road-threat/bounty/expedition flow is valuable but deferred.
-
-When implemented, the flow is:
+When implemented later, the flow is:
 
 ```text
 harm or threat process
@@ -300,7 +298,7 @@ At no point is this a quest primitive.
 
 ## Completion replacement
 
-Replace quest completion with domain state.
+Replace quest completion with layered domain state.
 
 ```yaml
 MissingPropertyResolution:
@@ -321,7 +319,7 @@ Questless/lead features must test:
 
 - no quest state drives truth;
 - lead source exists and is actor-known;
-- lead suggested actions are action-registry proposals;
+- suggested actions are action-registry proposals;
 - stale notices remain stale until updated;
 - someone else can resolve or change situation;
 - story sifter cannot create events;

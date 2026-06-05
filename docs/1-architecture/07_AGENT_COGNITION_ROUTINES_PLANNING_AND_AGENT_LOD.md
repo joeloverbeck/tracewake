@@ -1,10 +1,10 @@
-# Agent Cognition, Planning, and Routines
+# Agent Cognition, Routines, Planning, and Agent LOD
 
 ## Status
 
 This document defines the symbolic, inspectable agent cognition architecture for Tracewake.
 
-V1 agents are not LLM brains. They are ordinary agents with bodies, needs, beliefs, memories, relationships, values, roles, routines, projects, intentions, and bounded planning.
+V1 agents are not LLM brains. They are ordinary actors with bodies, needs, beliefs, memories, relationships, values, roles, routines, projects, intentions, and bounded planning.
 
 ## Core architecture
 
@@ -22,13 +22,33 @@ body and needs
  -> observation, surprise, failure, learning, replanning
 ```
 
-This architecture should produce ordinary competence: eating, sleeping, working, storing property, asking, reporting, lying, refusing, gossiping, searching, hiding, traveling, obeying, violating, and adapting to partial information.
+The target is ordinary competence: eating, sleeping, working, storing property, asking, reporting, lying, refusing, gossiping, searching, hiding, traveling, obeying, violating, adapting to partial information, and failing legibly.
 
-## Why not LLM agents
+## Authority
 
-Tracewake requires deterministic replay, actor-knowledge filtering, causality inspection, planner traces, validation, no-human simulation, and institutional fallibility. LLM-driven agent brains are stochastic, opaque, difficult to validate, prone to unsupported facts, and poor as authoritative planners.
+This subsystem owns:
 
-LLMs may later render or parse language behind validation. They do not decide agent actions.
+- agent mind shape;
+- needs and pressures;
+- traits, values, relationships, and roles as choice influences;
+- candidate goal generation;
+- project and durable intention lifecycle;
+- HTN/routine/procedure selection;
+- bounded local planning;
+- action proposal generation;
+- event-driven replanning;
+- planner traces;
+- per-agent detail tiers and promotion requirements.
+
+It is denied:
+
+- event commit;
+- state mutation outside the action pipeline;
+- ground-truth planning;
+- LLM agent brains;
+- schedule teleportation;
+- protagonist gravity;
+- utility scores as the whole mind.
 
 ## Agent mind shape
 
@@ -65,57 +85,47 @@ AgentMind:
   planner_budget_profile: local_ordinary_agent
 ```
 
-This is a conceptual data shape, not final implementation code.
+This is a conceptual contract, not final implementation code.
 
-## Belief store interface
+## Belief-store interface
 
-Agent cognition reads from actor-specific beliefs, not ground truth.
+Agent cognition reads actor-specific beliefs, not ground truth.
 
 Required belief queries:
 
-- what does the actor believe about current location?
-- what does the actor believe about owned/expected items?
-- what routes/places does the actor know?
-- what institutions or roles does the actor believe can help?
-- who does the actor trust or fear?
-- what rumors or records has the actor heard/read?
-- what contradictions are salient?
-- what beliefs are private, shameful, speakable, or admissible?
+- current believed location and visible context;
+- believed owned/expected items;
+- known routes and places;
+- known institutions/roles that can help;
+- trusted, feared, loved, resented, or credible people;
+- heard rumors and read records;
+- salient contradictions;
+- private, shameful, speakable, admissible, or risky beliefs;
+- actor-known affordances and uncertainty.
 
 The belief store must return source and confidence enough for action proposals and debug explanations.
 
 ## Needs and pressures
 
-Start with hunger, fatigue, and safety.
-
-Needs create pressures and candidate goals. They do not hard-script behavior.
+Start with hunger, fatigue, and safety. Needs create pressure and candidate goals. They do not hard-script behavior.
 
 ```yaml
 NeedPressurePolicy:
   hunger:
-    ordinary_methods: [eat_at_home, buy_food, eat_at_tavern]
+    ordinary_methods: [eat_at_home, buy_food, eat_at_public_place]
     desperate_methods: [beg, steal_food]
-    affects:
-      - attention
-      - irritability
-      - willingness_to_delay
+    affects: [attention, irritability, willingness_to_delay]
   fatigue:
     ordinary_methods: [sleep_at_home, nap]
     desperate_methods: [sleep_in_public, collapse]
-    affects:
-      - perception
-      - planning_budget
-      - work_quality
+    affects: [perception, planning_budget, work_quality]
   safety:
     ordinary_methods: [avoid_threat, seek_guard, stay_home, travel_with_companion]
     desperate_methods: [flee_region, hide, arm_self]
-    affects:
-      - route_choice
-      - risk_tolerance
-      - social_disclosure
+    affects: [route_choice, risk_tolerance, social_disclosure]
 ```
 
-Needs should interact with routines and projects. A hungry clerk may still receive a report if duty, reputation, and office hours outweigh the hunger pressure.
+A hungry clerk may still receive a report if duty, reputation, office hours, and social pressure outweigh hunger.
 
 ## Values, traits, and relationships
 
@@ -127,11 +137,11 @@ Examples:
 - high risk tolerance lowers avoidance;
 - high family value increases household aid;
 - low trust reduces belief uptake;
-- fear increases avoidance and seeking safety;
+- fear increases avoidance and safety-seeking;
 - resentment increases hostile interpretation;
 - shame increases concealment or confession depending on traits.
 
-Every major emotional or relationship shift should have a causal source.
+Major relationship shifts require causal events or summary ancestry.
 
 ## Projects and durable intentions
 
@@ -177,8 +187,6 @@ Candidate goals arise from:
 - memory salience;
 - LOD promotion.
 
-Candidate goals include source, urgency, expected cost, risk, and reason.
-
 ```yaml
 CandidateGoal:
   kind: RecoverMissingProperty
@@ -189,28 +197,30 @@ CandidateGoal:
   possible_methods: [private_search, ask_household, report_to_authority]
 ```
 
+Each candidate goal includes source, urgency, expected cost, risk, and reason.
+
 ## Intention selection
 
-Intention selection considers:
+Selection considers:
 
 - current durable intention;
 - need pressure;
 - project importance;
-- role obligation;
-- household obligation;
+- role/household obligations;
 - social cost;
 - physical feasibility;
 - believed opportunity;
 - danger;
 - time windows;
+- relationship consequences;
 - planner budget;
 - LOD tier.
 
-Utility scoring may be used as a bounded heuristic. It must not be the whole mind and must not create action without causal motive.
+Utility scoring may be used as a bounded heuristic. It must not create causeless behavior or replace beliefs/motives/intentions.
 
-## HTN methods
+## HTN methods and routines
 
-HTN methods handle high-level routines and procedures.
+HTN methods handle high-level ordinary routines and procedures.
 
 Examples:
 
@@ -230,7 +240,7 @@ Examples:
 - VisitMarket;
 - CloseShop.
 
-Example method:
+Example:
 
 ```yaml
 HTNMethod:
@@ -253,41 +263,7 @@ HTNMethod:
     - social_cost_too_high
 ```
 
-HTN methods select possible behavior. They do not guarantee outcomes.
-
-## Bounded local planning
-
-Local planning solves concrete action sequences:
-
-- reach a room;
-- open a door;
-- obtain food;
-- use bed;
-- fetch key/tool;
-- inspect container;
-- search room;
-- carry item;
-- speak to target;
-- avoid witness;
-- travel to office;
-- wait for office hours.
-
-Planner budgets must be explicit:
-
-```yaml
-PlannerBudget:
-  max_nodes: 200
-  max_depth: 12
-  max_simulated_duration: 2h
-  max_world_queries: bounded
-  allowed_action_categories: [movement, object_use, speech, wait]
-  fallback_actions: [wait, reconsider, ask_for_help, abandon_intention]
-  on_exhaustion_event: PlanningFailed
-```
-
-A local planner proposes actions through the shared pipeline. It does not mutate world state.
-
-## Routines as defeasible intentions
+Routines are defeasible intentions, not teleports.
 
 Bad:
 
@@ -303,20 +279,34 @@ has orders, needs income, can reach the forge, has tools/fuel, is not too exhaus
 and no stronger interruption dominates.
 ```
 
-Routines should fail or change when:
+## Bounded local planning
 
-- food is missing;
-- fatigue is too high;
-- door is locked;
-- workplace is unsafe;
-- child is sick;
-- clerk summons actor;
-- route is believed dangerous;
-- theft discovery interrupts;
-- tool is unavailable;
-- social conflict erupts.
+Local planning solves concrete action sequences:
 
-Schedules create expectations. They are not teleports.
+- reach a room;
+- open a door;
+- obtain food;
+- use bed;
+- fetch key/tool;
+- inspect/search container;
+- carry item;
+- speak to target;
+- avoid witness;
+- travel to office;
+- wait for office hours.
+
+```yaml
+PlannerBudget:
+  max_nodes: 200
+  max_depth: 12
+  max_simulated_duration: 2h
+  max_world_queries: bounded
+  allowed_action_categories: [movement, object_use, speech, wait]
+  fallback_actions: [wait, reconsider, ask_for_help, abandon_intention]
+  on_exhaustion_event: PlanningFailed
+```
+
+A local planner proposes actions through the shared pipeline. It does not mutate world state.
 
 ## Event-driven replanning
 
@@ -334,13 +324,13 @@ Agents reconsider on:
 - social request;
 - institutional procedure;
 - LOD promotion/demotion;
-- possession attachment only when needed to expose controls, not to reset mind.
+- possession attachment only as input exposure, not mind reset.
 
-Replanning should leave inspectable traces when it changes important intentions.
+Important intention changes produce inspectable planner traces or events.
 
 ## Planner trace/debug output
 
-Debug output must answer:
+Debug must answer:
 
 - what did the actor believe?
 - what needs/pressures were active?
@@ -351,9 +341,7 @@ Debug output must answer:
 - what precondition failed?
 - what action proposal was submitted?
 - what event or observation caused replanning?
-- what hidden truth, if any, differs from the actor's belief?
-
-Example:
+- what hidden truth differs from the actor's belief?
 
 ```yaml
 PlannerTrace:
@@ -369,11 +357,11 @@ PlannerTrace:
     - accuse_mara: actor_lacks_specific_basis
 ```
 
-Embodied why-not explanations are actor-filtered. Debug can show all validation details.
+Embodied why-not explanations are actor-filtered. Debug may show all validation details.
 
-## Agent LOD
+## Agent detail tiers
 
-Per-agent detail tiers are separate from simulation-scope tiers.
+Per-agent detail tiers are separate from simulation-scope LOD.
 
 ```text
 Agent Detail A: possessed/high-salience
@@ -389,14 +377,14 @@ Agent Detail D: background/promotable
   summary events, compressed projects, minimal needs, promotable ancestry
 ```
 
-Lower detail is not nonexistence. Promotion must restore enough ancestry, beliefs, relationships, and current obligations for causal honesty.
+Lower detail is not nonexistence. Promotion must restore enough ancestry, beliefs, relationships, obligations, possessions, and projects for causal honesty.
 
 ## First-slice cognition
 
 Minimum serious first slice:
 
-- hunger/fatigue/safety;
-- direct observation and sound observation;
+- hunger, fatigue, safety;
+- direct sight and sound observation;
 - belief store with source/confidence;
 - expectation contradiction;
 - simple memory salience;
@@ -406,22 +394,37 @@ Minimum serious first slice:
 - routine HTN for sleep/eat/work/social;
 - property storage and missing-item recovery methods;
 - report/record/notice methods;
-- bounded local planning for movement/object use/speech;
+- bounded planning for movement/object use/speech;
 - lying/refusal;
 - interruption;
 - no-human autonomy;
 - planner debug output;
 - deterministic tests.
 
+## Acceptance implications
+
+Agent features must test:
+
+- no ground-truth planning;
+- needs affect candidate goals;
+- routines are defeasible;
+- durable intentions persist without jitter;
+- HTN methods do not force outcomes;
+- local planner submits proposals only;
+- failure/rejection triggers legible replanning;
+- possession does not reset mind;
+- no-human simulation produces ordinary life;
+- planner trace explains choices and mismatches.
+
 ## Anti-patterns
 
 - LLM chooses agent action.
 - GOAP is the whole mind.
-- Utility scores produce causeless behavior.
+- Utility score produces causeless behavior.
 - Schedule teleports actors.
 - NPC exists only to react to player.
 - Player possession erases prior intentions.
-- Agent knows ground truth because it is convenient.
+- Agent knows ground truth because convenient.
 - Planner mutates state directly.
 - HTN method is a hidden plot script.
 - Every actor replans every tick.

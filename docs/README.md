@@ -11,45 +11,46 @@ Tracewake's documentation is organized as layered authority. Read earlier layers
 
 Later tiers depend on earlier tiers. If execution conflicts with architecture or foundation, execution is wrong. If implementation is more convenient than the accepted execution gates, implementation is wrong. Reference documents are lookup aids, not new doctrine.
 
-Each folder restarts numbering at `01_`. File numbers are local to the folder.
+The foundation and architecture folders open with a `00_` index document; execution and reference start at `01_`. File numbers are local to each folder.
 
 ## 0-foundation/ — constitutional layer
 
-The foundation layer defines what Tracewake is and what it must not become. These documents control product identity, causality, epistemics, possession, TUI-first playability, no-scripting policy, scale posture, domain boundary, and acceptance doctrine.
+The foundation layer defines what Tracewake is and what it must not become. These documents control product identity, causality, claims and epistemics, ordinary agents and action, possession and TUI-first playability, no-scripting policy, scale posture, the LLM/language boundary, and acceptance doctrine.
 
-- `01_PROJECT_CHARTER.md` — product identity, priorities, first playable target, and non-negotiable direction.
-- `02_FOUNDATIONAL_INVARIANTS.md` — compact constitutional rules that later layers must preserve.
-- `03_CAUSAL_SIMULATION_CONTRACT.md` — causality, events, traces, consequences, replay, and forbidden causes.
-- `04_EPISTEMIC_MODEL_AND_INFORMATION_FLOW.md` — ground truth, belief, observation, memory, records, stale information, and knowledge filtering.
-- `05_AGENT_INTENTION_AND_PLANNING_DOCTRINE.md` — ordinary agents, needs, motives, projects, intentions, routines, symbolic planning, and LLM limits.
-- `06_INSTITUTIONS_NORMS_HOUSEHOLDS_AND_RECORDS.md` — households, norms, institutions, records, procedures, fallibility, and social machinery.
-- `07_TUI_FIRST_PLAYABILITY_CONTRACT.md` — TUI-first playability, embodied view models, debug separation, action menus, notebooks, and why-not UI.
-- `08_NO_SCRIPTING_AND_CAUSAL_AUTHORING_POLICY.md` — causal authoring versus authored outcome chains, quest relapse, and hidden director risks.
-- `09_SCALE_LOD_LONG_SIMULATION_AND_REGIONAL_PROCESSES.md` — scale staging, LOD, regional processes, long simulation, summaries, and ancestry preservation.
-- `10_DOMAIN_BOUNDARY_AND_FIRST_PLAYABLE_SCOPE.md` — genre-agnostic core, first neutral ordinary-life domain, and deferred domain ambitions.
-- `11_VALIDATION_REPLAY_AND_ACCEPTANCE_GATES.md` — no-human simulation, replay, TUI, epistemic filtering, acceptance gates, and failure as proof.
-- `12_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — research-derived foundation decisions and source notes.
+- `00_FOUNDATION_INDEX.md` — map, authority, reading order, and anti-drift rules.
+- `01_PROJECT_CHARTER.md` — identity, product priorities, first village, long-term posture, and hard direction.
+- `02_CONSTITUTIONAL_INVARIANTS.md` — compact non-negotiable rules later layers must satisfy.
+- `03_CAUSAL_EVENT_TRACE_AND_REPLAY_CONTRACT.md` — event authority, traces, replay, snapshots, compaction, boundary inputs, and forensic causality.
+- `04_CLAIMS_BELIEFS_MEMORY_AND_INFORMATION_FLOW.md` — typed claims/propositions, beliefs, memories, observations, testimony, lies, rumors, records, and knowledge flow.
+- `05_AGENTS_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` — symbolic agents, BDI separation, durable intentions, HTN procedures, bounded local planning, utility boundaries, and debug traces.
+- `06_ACTIONS_AFFORDANCES_ORDINARY_LIFE_AND_SURVIVAL.md` — ordinary action parity, affordances, survival substrate, search, storage, work, travel, and basic economy.
+- `07_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_ARTIFACTS.md` — households, roles, norms, records, notices, ownership/custody/access, institutional fallibility, and future organizations.
+- `08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md` — TUI-first playability, actor-filtered view models, possession, notebooks, why-not explanations, and debug separation.
+- `09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md` — causal authoring, forbidden authored outcome chains, seeds, authored prehistory, records, notices, and no director logic.
+- `10_SCALE_LOD_REGIONAL_BOUNDARIES_AND_LONG_SIMULATION.md` — honest multi-resolution simulation, promotion/demotion, regional processes, long history, and future scale.
+- `11_LLM_SPEECH_ACTS_AND_LANGUAGE_BOUNDARY.md` — structured speech acts, optional LLM rendering/parsing, validated extraction, prompt boundaries, and LLM-disabled operation.
+- `12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md` — first village scope, missing-property proof, no-human gates, replay gates, TUI gates, and canonical regression seeds.
+- `13_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — decisions drawn from research and precedent, recorded as design constraints.
 
 ## 1-architecture/ — subsystem design layer
 
 The architecture layer translates foundation doctrine into subsystem contracts. It defines boundaries, data flows, validation responsibilities, and anti-patterns for the Rust-first implementation.
 
-- `01_ARCHITECTURE_CHARTER_AND_REPLACEMENT_DECISIONS.md` — architecture authority, priority order, first slice, deferrals, and document map.
-- `02_RUST_WORKSPACE_AND_SYSTEM_BOUNDARIES.md` — logical package boundaries, dependency direction, side-effect policy, storage stance, and forbidden architecture outcomes.
-- `03_COMMAND_ACTION_AND_AFFORDANCE_PIPELINE.md` — commands, actions, affordances, proposals, rejection, failure, validation, scheduling, traces, observations, and why-not.
-- `04_EVENT_SOURCING_CAUSAL_GRAPH_AND_PROJECTIONS.md` — event envelopes, streams, causal graph, projections, snapshots, compaction, schema evolution, and replay failure handling.
-- `05_STATE_MODEL_ENTITIES_COMPONENTS_AND_CONTENT_DATA.md` — entities, components, authored data, domain packs, actions, affordances, records, validation, and versioning.
-- `06_TIME_SCHEDULING_REPLAY_AND_RANDOMNESS.md` — discrete time, scheduling, durations, interruptions, reservations, deterministic replay, and random streams.
-- `07_EPISTEMIC_INFORMATION_TRACE_AND_MEMORY_ARCHITECTURE.md` — truth, subjective belief, public/institutional record, observation, interpretation, traces, search, rumor, memory, and stale information.
-- `08_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` — structured speech acts, deterministic rendering, future freeform parsing, LLM boundaries, validation, rejection, repair, and LLM-disabled operation.
-- `09_AGENT_COGNITION_PLANNING_AND_ROUTINES.md` — BDI-style cognition, needs, values, projects, intentions, HTN methods, bounded local planning, routines, replanning, planner traces, and agent LOD.
-- `10_INSTITUTIONS_NORMS_HOUSEHOLDS_AND_RECORDS.md` — households, local authority, roles, norms, constitutive facts, records, reports, notices, jurisdiction, bias, corruption, and procedure failure.
-- `11_ORDINARY_LIFE_ECONOMY_SETTLEMENT_AND_SPATIAL_MODEL.md` — village scale, ordinary life, rooms, doors, sound, homes, containers, ownership, sleep, food, work, economy, social actions, and routes.
-- `12_PLAYER_POSSESSION_VIEW_MODELS_TUI_AND_DEBUG.md` — human controller binding, possession, embodied/debug view models, actor notebook, human/debug notes, TUI action menus, why-not, and graphical boundary.
-- `13_QUESTLESS_LEADS_NOTICES_AND_STORY_SIFTING.md` — incidents, requests, contracts, notices, leads, lead projections, player-facing wording, story sifting, and questless completion replacements.
-- `14_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md` — simulation-scope tiers, promotion/demotion, summary events, low-LOD people, boundary events, world history, procedural generation stance, and scale policy.
-- `15_VALIDATION_TESTING_AND_ACCEPTANCE_ARCHITECTURE.md` — validation gates, test layers, canonical acceptance scenario, no-human gate, no-player privilege gate, actor-knowledge gate, replay gate, and regression artifacts.
-- `16_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — architecture-specific research decisions and source notes.
+- `00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` — folder map, foundation conformance, universal feature questions, and architecture-layer maintenance rules.
+- `01_SYSTEM_AUTHORITY_RUST_WORKSPACE_AND_BOUNDARIES.md` — Rust-first authority boundaries, logical subsystem seams, dependency direction, side-effect rules, and forbidden authority inversions.
+- `02_ACTION_AFFORDANCE_SCHEDULING_AND_PROPOSAL_PIPELINE.md` — unified command/proposal/action/affordance/scheduler contract for all world-affecting behavior.
+- `03_EVENT_LOG_REPLAY_PROJECTIONS_AND_SAVE_PACKAGES.md` — event log, causal graph, replay, projection rebuild, snapshots, event schema migration, random streams, and save-package contract.
+- `04_STATE_CONTENT_AUTHORING_DOMAIN_PACKS_AND_SCHEMA_VALIDATION.md` — entity/component state model, authored content, domain packs, scenario seeds, schemas, fixtures, and content validation.
+- `05_CLAIMS_BELIEFS_TRACES_MEMORY_AND_INFORMATION_FLOW.md` — typed claims, observation, belief, memory, traces, rumors, stale information, absence-as-evidence, and actor-knowledge filtering.
+- `06_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` — structured speech acts, deterministic templates, optional future LLM parsing/rendering, and validation boundary.
+- `07_AGENT_COGNITION_ROUTINES_PLANNING_AND_AGENT_LOD.md` — symbolic agent cognition, needs, values, projects, durable intentions, HTN routines, bounded local planning, planner traces, and agent detail tiers.
+- `08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md` — households, roles, norms, records, reports, notices, institutional facts, evidence thresholds, procedure failure, bias, and jurisdiction.
+- `09_ORDINARY_LIFE_ECONOMY_SETTLEMENT_AND_SPATIAL_MODEL.md` — first-slice village, homes, rooms, doors, containers, sleep, food, work, simple economy, travel, and settlement causality.
+- `10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` — human controller binding, possession, actor-filtered embodied view models, actor notebook, TUI harness, debug views, and future graphical boundary.
+- `11_INCIDENTS_LEADS_AND_STORY_SIFTING_PROJECTIONS.md` — questless incidents, requests, obligations, leads, actor-known summaries, and observer-only story sifting.
+- `12_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md` — dynamic level of detail, regional processes, boundary events, promotion/demotion, summary events, world history, and scale staging.
+- `13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md` — validation gates, no-human runs, deterministic replay checks, observability artifacts, metrics, and acceptance levels.
+- `14_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — architecture-relevant research decisions and source notes.
 
 ## 2-execution/ — implementation and validation planning layer
 

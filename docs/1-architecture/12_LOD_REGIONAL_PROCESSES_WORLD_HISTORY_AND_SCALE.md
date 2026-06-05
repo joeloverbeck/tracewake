@@ -2,7 +2,7 @@
 
 ## Status
 
-This document defines explicit level of detail, regional processes, long simulation, world history, boundary events, and scale staging.
+This document defines dynamic level of detail, regional processes, boundary events, long simulation, world history, promotion/demotion, summary ancestry, and scale staging.
 
 Long simulation matters, but it must be staged. Do not generate a vast world before the village can explain a stolen coin.
 
@@ -11,6 +11,29 @@ Long simulation matters, but it must be staged. Do not generate a vast world bef
 LOD may reduce fidelity. It may not turn people into props, erase active causal ancestry, hide a drama director, or make the world wait for the player.
 
 Human proximity, possession, viewport, or debug focus may influence rendering, inspection, scheduler attention, or detail promotion. They must not create events, guarantee outcomes, alter probabilities for drama, or pause ordinary causality.
+
+## Authority
+
+This subsystem owns:
+
+- simulation-scope detail tiers;
+- per-region and process abstraction policy;
+- promotion and demotion triggers;
+- LOD transition events/metadata;
+- summary event requirements;
+- low-LOD person minimums;
+- boundary event contracts;
+- world history summary contracts;
+- procedural generation boundary.
+
+It is denied:
+
+- hidden pacing direction;
+- player-proximity probability changes;
+- summary erasure of active evidence;
+- crowd props;
+- prose-only history;
+- variety injections without causal source.
 
 ## Staging order
 
@@ -27,7 +50,7 @@ The first proof remains missing property/theft. Road-threat/bounty/expedition is
 
 ## Simulation-scope tiers
 
-These are simulation-scope tiers, separate from per-agent detail tiers.
+These tiers are separate from per-agent detail tiers.
 
 ```text
 Tier 0: embodied/local detailed simulation
@@ -54,7 +77,7 @@ Full detail:
 
 ### Tier 1 — active settlement simulation
 
-Used for village life outside current local scene.
+Used for village life outside the current local scene.
 
 Includes:
 
@@ -145,7 +168,7 @@ LODTransitionEvent:
   target: actor_mara
   from_tier: AgentDetailC
   to_tier: AgentDetailA
-  reason: debug_possession_or_active_investigation
+  reason: active_investigation
   ancestry_sources:
     - summary_mara_week_routine_03
     - debt_project_mara_01
@@ -177,7 +200,7 @@ SummaryEvent:
     - argument_about_debt_became_salient
 ```
 
-If a summarized event later becomes important, debug must show the summary's retained causal facts and limits.
+If a summarized event later matters, debug must show retained facts and limits.
 
 ## Low-LOD people are still people
 
@@ -204,14 +227,14 @@ Outside the active region exists through boundary processes.
 Examples:
 
 - caravan arrives with goods and rumors;
-- family migrates in because of famine elsewhere;
+- family migrates because of famine elsewhere;
 - tax order arrives from superior authority;
 - disease enters through travelers;
 - deserter group enters route network;
-- market price pressure changes local work;
+- market pressure changes local work;
 - relative dies elsewhere and inheritance claim arrives.
 
-Boundary events require summarized causes. They are not variety injections for pacing.
+Boundary events require summarized causes.
 
 ```yaml
 BoundaryEvent:
@@ -301,8 +324,6 @@ A bad first region:
 
 ## No hidden drama director
 
-LOD systems must not become pacing systems.
-
 Forbidden:
 
 - spawn incident because the player has seen nothing interesting;
@@ -319,20 +340,20 @@ Allowed:
 - promote chain because institution opened a record;
 - summarize routine day with causal links;
 - run regional process that changes route risk for modeled reasons;
-- observer sifter highlights interesting events after they occur.
+- observer sifter highlights events after they occur.
 
 ## Acceptance implications
 
 LOD/history features must test:
 
-- promotion/demotion events or metadata are replay-visible;
+- promotion/demotion replay visibility;
 - summary events preserve active causal ancestry;
 - low-LOD actors are promotable;
-- no-human simulation runs across LOD tiers;
+- no-human simulation across tiers;
 - player proximity does not create events;
 - boundary events have summarized causes;
 - public history differs from truth when appropriate;
-- debug can explain what detail was lost and retained;
+- debug explains retained/lost detail;
 - projections rebuild after compaction/snapshot;
 - active leads/records/traces prevent unsafe compaction.
 

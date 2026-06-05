@@ -2,7 +2,7 @@
 
 ## Status
 
-This document defines the first-slice ordinary-life, economy, settlement, and spatial architecture.
+This document defines first-slice ordinary life, simple economy, settlement graph, spatial causality, local movement, and the neutral first domain.
 
 Tracewake begins with a small, deep, inspectable village. Adventure systems build on ordinary life; they do not replace it.
 
@@ -12,30 +12,50 @@ Ordinary life must be mechanically real before disruption matters.
 
 A theft matters because homes, locks, storage, expectations, households, sleep, privacy, work, records, neighbors, traces, and fallible authority exist.
 
-A road threat matters later because roads move people, food, work, rumors, fear, patrols, witnesses, and money. It is not the first proof.
+A road threat matters later because roads move people, food, work, rumors, fear, witnesses, and money. It is not the first proof.
+
+## Authority
+
+This subsystem owns:
+
+- first-slice ordinary-life domain shape;
+- settlement graph semantics;
+- rooms, doors, visibility, sound, access, and privacy;
+- homes, beds, storage, food, work, simple economy, and local routes;
+- ownership/possession/custody/expected-location distinctions;
+- first proof settlement requirements.
+
+It is denied:
+
+- combat-first gravity;
+- huge hollow worldgen;
+- ordinary life as static backdrop;
+- map markers from ground truth;
+- low-LOD people as props;
+- genre identity in the kernel.
 
 ## First-slice scale
 
 Target:
 
 - 10-30 high-detail agents;
-- optional low-LOD background population only if causally honest and promotable;
-- 4-8 households to start, not a huge town;
+- optional low-LOD background population only when causally honest and promotable;
+- 4-8 households initially;
 - homes with rooms, doors, beds, storage, food, and privacy;
 - one or two workplaces;
-- a small public area with notice board;
-- a reeve/clerk office;
-- simple routes only as needed for ordinary movement;
+- small public area with notice board;
+- reeve/clerk office;
+- simple local routes only as needed;
 - no-human daily simulation;
 - embodied TUI play.
 
-The earlier temptation to start with dozens of agents, nearby threats, expedition sites, and bounties should be resisted until the missing-property miracle works.
+Resist starting with dozens of systems, distant threats, expeditions, and bounties until the missing-property miracle works.
 
 ## First domain
 
 The first domain is neutral medieval-ish ordinary life without magic.
 
-Use this domain because it supports:
+Use it because it supports:
 
 - visible labor;
 - slow information;
@@ -48,16 +68,7 @@ Use this domain because it supports:
 - food and storage;
 - room/door/container causality.
 
-Do not overbuild:
-
-- magic;
-- religion;
-- species;
-- detailed combat;
-- large kingdoms;
-- procedural terrain;
-- full trade simulation;
-- graphical presentation.
+Do not overbuild magic, religion, species, detailed combat, kingdoms, procedural terrain, market realism, or graphical presentation.
 
 ## Settlement graph
 
@@ -87,9 +98,7 @@ Places define affordances, visibility, sound, privacy, access, traces, and juris
 
 ## Rooms, doors, and sound
 
-Rooms and doors are epistemic architecture.
-
-They answer:
+Rooms and doors are epistemic architecture. They answer:
 
 - who can see what;
 - who can hear what;
@@ -173,7 +182,7 @@ NPCs must sleep in no-human simulation unless their state, role, or situation gi
 
 ## Food and hunger
 
-Food is a physical/economic/social object.
+Food is a physical, economic, and social object.
 
 Start simple:
 
@@ -198,11 +207,11 @@ Work produces consequences:
 - relationships;
 - records;
 - routine expectations;
-- opportunities for theft;
+- theft opportunities;
 - fatigue and hunger changes;
 - social interactions.
 
-Example work routine:
+Example routine:
 
 ```text
 wake -> eat if possible -> travel to workplace -> open workplace if responsible
@@ -210,7 +219,7 @@ wake -> eat if possible -> travel to workplace -> open workplace if responsible
  -> close or leave -> return home or social stop
 ```
 
-Work can fail because of missing tools, illness, fear, locked door, office summons, food shortage, fatigue, or changed beliefs.
+Work can fail because tools are missing, actor is ill/tired/afraid, door is locked, office summons interrupts, food is unavailable, or beliefs changed.
 
 ## Minimal economy
 
@@ -225,7 +234,7 @@ Initial goods:
 - keys;
 - paper/ink/ledger materials;
 - ordinary valuables;
-- simple weapons as objects only, not detailed combat system;
+- simple weapons as objects only;
 - bandages/medicine only if injury is modeled.
 
 Initial flows:
@@ -253,9 +262,9 @@ Minimum social actions:
 - lie;
 - promise;
 - accuse/suspect with actor-known basis;
-- apologize if needed.
+- apologize where useful.
 
-Social actions are speech acts and must use the speech pipeline.
+Social actions are speech acts and use the speech pipeline.
 
 ## Roads and routes
 
@@ -272,7 +281,7 @@ Routes move:
 - fear;
 - disease later.
 
-Travel is an event chain, not teleportation:
+Travel is an event chain:
 
 ```text
 form destination intention
@@ -290,13 +299,13 @@ Road-threat/bounty/expedition flow is second proof after ordinary life, institut
 
 The missing-property miracle exercises:
 
-- property stored in a household container;
+- property stored in household container;
 - household privacy/access;
-- actor motive and opportunity;
+- motive and opportunity;
 - door/container affordances;
 - scheduled action and interruption windows;
 - sound/visibility traces;
-- expected location contradiction;
+- expected-location contradiction;
 - search action;
 - speech report;
 - institutional record;
@@ -305,43 +314,6 @@ The missing-property miracle exercises:
 - TUI possession and debug inspection.
 
 The proof should work in no-human simulation before it becomes a player-facing scenario.
-
-## First village content checklist
-
-Required:
-
-- named actors with homes, needs, relationships, roles, and beliefs;
-- households with beds, food, storage, privacy;
-- rooms and doors with access/sound/visibility;
-- containers with ownership/expected contents/affordances;
-- simple work routines;
-- eating and sleeping;
-- basic speech acts;
-- one local authority office;
-- incident ledger;
-- notice board as artifact;
-- simple money/custody;
-- no-human scheduler run;
-- TUI embodied view;
-- debug event/causal/belief inspection.
-
-Optional early:
-
-- tavern/public food place;
-- one local route;
-- low-LOD background people;
-- basic price/debt record;
-- simple route rumor.
-
-Deferred:
-
-- bounties as central proof;
-- expeditions;
-- detailed combat;
-- large market economy;
-- procedural worldgen;
-- magic;
-- graphical map.
 
 ## Spatial data shape
 
@@ -364,6 +336,21 @@ Place:
 
 Map markers in embodied mode represent actor knowledge, not ground truth.
 
+## Acceptance implications
+
+Ordinary-life features must test:
+
+- no-human daily life;
+- TUI movement and object use;
+- homes with privacy, storage, beds, and expectations;
+- food/hunger and sleep/fatigue consequences;
+- work routines that can fail;
+- ownership/possession/custody distinctions;
+- search/absence/traces;
+- report to institution;
+- replay/debug explanation;
+- no combat/adventure dependency.
+
 ## Anti-patterns
 
 - Ordinary life as static backdrop.
@@ -371,8 +358,8 @@ Map markers in embodied mode represent actor knowledge, not ground truth.
 - Shops that never close.
 - Needs that never affect action.
 - Schedules that ignore belief and interruption.
-- Road threat becomes the first architecture gravity well.
-- A huge village that cannot explain a stolen coin.
+- Road threat becomes first architecture gravity well.
+- Huge village that cannot explain a stolen coin.
 - Containers as abstract inventory lists.
 - Combat-first prototype.
 - Objective map markers from rumors.
