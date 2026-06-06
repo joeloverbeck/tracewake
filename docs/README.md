@@ -11,7 +11,7 @@ Tracewake's documentation is organized as layered authority. Read earlier layers
 
 Later tiers depend on earlier tiers. If execution conflicts with architecture or foundation, execution is wrong. If implementation is more convenient than the accepted execution gates, implementation is wrong. Reference documents are lookup aids, not new doctrine.
 
-The foundation and architecture folders open with a `00_` index document; execution and reference start at `01_`. File numbers are local to each folder.
+Each folder opens with a `00_` index document, and file numbers restart inside each folder.
 
 ## 0-foundation/ — constitutional layer
 
@@ -56,23 +56,25 @@ The architecture layer translates foundation doctrine into subsystem contracts. 
 
 The execution layer defines the order of work, phase gates, first proof, fixtures, validation expectations, and what must remain deferred. It does not replace foundation doctrine or architecture contracts.
 
-- `01_EXECUTION_CHARTER_AND_SCOPE_DECISIONS.md` — execution authority, first proof, second proof, strict phase ladder, TUI-first policy, no-human policy, LLM deferral, data posture, and anti-scope-creep rules.
-- `02_STRICT_PHASE_LADDER_AND_IMPLEMENTATION_ORDER.md` — Phase 0 through Phase 4 dependency order, phase shape, gates, exit criteria, and second-proof unlock rules.
-- `03_FIRST_PROOF_THE_MISSING_PROPERTY_VILLAGE.md` — identity, target scale, first domain, map scope, actor roster, required systems, miracle chain, scenarios, definition of done, and failure conditions.
-- `04_PHASE_0_PAPER_ONTOLOGY_AND_FIXTURE_DESIGN.md` — paper ontology, primitive vocabularies, manual causal chains, TUI sketches, view-model contracts, no-scripting review, and fixture gates.
-- `05_PHASE_1_RUNNABLE_KERNEL_TUI_AND_EVENT_LOG.md` — runnable physical/event/action/TUI spine, event log, basic replay, local interaction, debug attach, and no-human advance.
+- `00_EXECUTION_INDEX_AND_AUTHORITY.md` — execution-layer map, authority order, source policy, and what execution does not define.
+- `01_EXECUTION_CHARTER_SCOPE_AND_FIRST_PROOF.md` — execution authority order, scope decisions, first-proof framing, data posture, and anti-scope-creep rules.
+- `02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md` — strict Phase 0 through Phase 4 ladder, phase shape, gates, exit criteria, and second-proof unlock rules.
+- `03_FIRST_PROOF_MISSING_EXPECTED_PROPERTY.md` — the Missing Expected Property proof, the Missing Property Village fixture, required systems, scenarios, definition of done, and failure conditions.
+- `04_PHASE_0_PAPER_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` — paper ontology, primitive vocabularies, manual causal chains, TUI sketches, view-model contracts, no-scripting review, and fixture contracts.
+- `05_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY.md` — runnable physical/action/event/TUI spine, event log, basic replay, local interaction, debug attach, and no-human advance.
 - `06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md` — observation, belief, expectation contradiction, actor-known filtering, embodied/debug view split, possession parity, and notebook projection.
-- `07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_DAILY_SIM.md` — hunger, fatigue, safety, sleep, eating, work, households, routines, intentions, interruptions, TUI time controls, no-human day, metrics, and planner traces.
+- `07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md` — hunger, fatigue, safety, sleep, eating, work, households, routines, intentions, interruptions, TUI time controls, no-human day, metrics, and planner traces.
 - `08_PHASE_4_INSTITUTIONS_RECORDS_AND_WRONG_SUSPICION.md` — households, local authority, roles, report action, incident ledger, norms, suspicion scoring, questioning/watch procedure, institution debug inspector, and first-proof final acceptance.
-- `09_DATA_AUTHORING_SCHEMAS_AND_GOLDEN_FIXTURES.md` — authoring posture, validation pipeline, content manifest, core schema shapes, and golden fixtures.
-- `10_TESTING_VALIDATION_DEBUGGING_AND_METRICS.md` — testing matrix, per-phase minimums, properties, golden scenarios, fuzzing, TUI/view-model tests, epistemic leakage tests, institution tests, replay tests, LLM-boundary tests, debug requirements, and metrics.
-- `11_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md` — post-first-proof notice lifecycle, stale leads, route travel, companion recruitment, proof/payment, regional expansion, and second-proof gates.
-- `12_RESEARCH_DECISIONS_AND_EXECUTION_SOURCE_NOTES.md` — execution-specific research decisions and source notes.
+- `09_DATA_AUTHORING_VALIDATION_AND_GOLDEN_FIXTURES.md` — authoring posture, validation pipeline, content manifest, core schema shapes, and golden fixtures.
+- `10_TESTING_DEBUGGING_OBSERVABILITY_AND_METRICS.md` — testing matrix, per-phase minimums, properties, golden scenarios, fuzzing, TUI/view-model tests, epistemic leakage tests, institution tests, replay tests, LLM-boundary tests, debug requirements, and metrics.
+- `11_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md` — deferred notice lifecycle, stale leads, route travel, companion recruitment, proof/payment, regional expansion, and second-proof gates.
+- `12_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — execution-specific research decisions and source notes.
 
 ## 3-reference/ — compact lookup and watchlist layer
 
 The reference layer is deliberately small. It should help maintain consistency without duplicating the foundation, architecture, or execution layers.
 
+- `00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md` — session-start source discipline, compact review checklist, deferred-term handling, and phase-exit review prompts.
 - `01_DESIGN_RISK_REGISTER.md` — living watchlist of unresolved or recurring design risks that can threaten Tracewake's doctrine during implementation, authoring, validation, scaling, or presentation work.
 - `02_GLOSSARY.md` — canonical terminology-control document for domain, architecture, schema, test, TUI, prompt, and documentation vocabulary.
 
