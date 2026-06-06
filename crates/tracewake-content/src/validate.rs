@@ -1,0 +1,1040 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use tracewake_core::actions::{ActionEffect, ActionRegistry};
+use tracewake_core::ids::PlaceId;
+use tracewake_core::location::Location;
+use tracewake_core::state::PhysicalState;
+
+use crate::schema::{ActionAffordanceSchema, FixtureSchema};
+use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InitialWorld {
+    pub fixture: FixtureSchema,
+    pub physical_state: PhysicalState,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContentValidationReport {
+    pub status: ValidationStatus,
+    pub errors: Vec<ContentValidationError>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ValidationStatus {
+    Accepted,
+    Rejected,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ValidationPhase {
+    ParseSchema = 1,
+    Canonicalization = 2,
+    Id = 3,
+    Referential = 4,
+    Location = 5,
+    PhysicalTopology = 6,
+    State = 7,
+    ActionRegistryParity = 8,
+    SemanticView = 9,
+    NoPlayer = 10,
+    NoScript = 11,
+    DeterminismHazard = 12,
+    FixtureContract = 13,
+    Serialization = 14,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContentValidationError {
+    pub phase: ValidationPhase,
+    pub path: String,
+    pub code: &'static str,
+    pub message: String,
+}
+
+impl ContentValidationError {
+    fn new(
+        phase: ValidationPhase,
+        path: impl Into<String>,
+        code: &'static str,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            phase,
+            path: path.into(),
+            code,
+            message: message.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContentValidationFailure {
+    pub report: ContentValidationReport,
+}
+
+impl ContentValidationFailure {
+    fn from_errors(mut errors: Vec<ContentValidationError>) -> Self {
+        errors.sort_by(|left, right| {
+            (left.phase, &left.path, left.code, &left.message).cmp(&(
+                right.phase,
+                &right.path,
+                right.code,
+                &right.message,
+            ))
+        });
+        Self {
+            report: ContentValidationReport {
+                status: ValidationStatus::Rejected,
+                errors,
+            },
+        }
+    }
+}
+
+pub fn validate_fixture_bytes(
+    bytes: &[u8],
+    registry: &ActionRegistry,
+) -> Result<InitialWorld, ContentValidationFailure> {
+    let mut errors = validate_raw_lines(bytes);
+    let fixture = match deserialize_fixture(bytes) {
+        Ok(fixture) => fixture,
+        Err(error) => {
+            errors.push(serialization_error(error));
+            return Err(ContentValidationFailure::from_errors(errors));
+        }
+    };
+    errors.extend(validate_fixture_errors(&fixture, registry));
+    if errors.is_empty() {
+        Ok(accepted_world(fixture))
+    } else {
+        Err(ContentValidationFailure::from_errors(errors))
+    }
+}
+
+pub fn validate_fixture(
+    fixture: &FixtureSchema,
+    registry: &ActionRegistry,
+) -> Result<InitialWorld, ContentValidationFailure> {
+    let errors = validate_fixture_errors(fixture, registry);
+    if errors.is_empty() {
+        Ok(accepted_world(fixture.clone()))
+    } else {
+        Err(ContentValidationFailure::from_errors(errors))
+    }
+}
+
+fn accepted_world(mut fixture: FixtureSchema) -> InitialWorld {
+    fixture.canonicalize();
+    let physical_state = fixture.to_physical_state();
+    InitialWorld {
+        fixture,
+        physical_state,
+    }
+}
+
+fn validate_fixture_errors(
+    fixture: &FixtureSchema,
+    registry: &ActionRegistry,
+) -> Vec<ContentValidationError> {
+    let mut errors = Vec::new();
+    validate_ids(fixture, &mut errors);
+    validate_references(fixture, &mut errors);
+    validate_locations(fixture, &mut errors);
+    validate_topology(fixture, &mut errors);
+    validate_state(fixture, &mut errors);
+    validate_action_registry_parity(fixture, registry, &mut errors);
+    validate_semantic_ids(fixture, &mut errors);
+    validate_no_player(fixture, &mut errors);
+    validate_no_script(fixture, &mut errors);
+    validate_determinism(fixture, &mut errors);
+    validate_fixture_contract(fixture, &mut errors);
+    validate_serialization_roundtrip(fixture, &mut errors);
+    errors
+}
+
+fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
+    let mut errors = Vec::new();
+    let text = match std::str::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(_) => {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::ParseSchema,
+                "fixture",
+                "non_utf8",
+                "fixture source must be UTF-8",
+            ));
+            return errors;
+        }
+    };
+
+    for (index, line) in text.lines().enumerate() {
+        let line_no = index + 1;
+        let tag = line.split('|').next().unwrap_or_default();
+        if is_forbidden_key(tag) {
+            let phase = if is_player_key(tag) {
+                ValidationPhase::NoPlayer
+            } else {
+                ValidationPhase::NoScript
+            };
+            errors.push(ContentValidationError::new(
+                phase,
+                format!("line[{line_no}].{tag}"),
+                "forbidden_form",
+                format!("forbidden content form {tag}"),
+            ));
+        } else if !matches!(
+            tag,
+            "fixture" | "schema" | "actor" | "place" | "door" | "container" | "item" | "affordance"
+        ) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::ParseSchema,
+                format!("line[{line_no}].{tag}"),
+                "unknown_field",
+                format!("unknown content section {tag}"),
+            ));
+        }
+
+        let parts = line.split('|').collect::<Vec<_>>();
+        if matches!(
+            tag,
+            "fixture" | "schema" | "actor" | "place" | "door" | "container" | "item" | "affordance"
+        ) && parts.get(1).is_some_and(|value| value.is_empty())
+        {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::Id,
+                format!("line[{line_no}].{tag}.id"),
+                "missing_stable_id",
+                "stable ID field must not be empty",
+            ));
+        }
+    }
+    errors
+}
+
+fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    let mut seen: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    seen.entry(fixture.fixture_id.as_str().to_string())
+        .or_default()
+        .push("fixture.fixture_id".to_string());
+    seen.entry(fixture.schema_version.as_str().to_string())
+        .or_default()
+        .push("fixture.schema_version".to_string());
+
+    for (index, actor) in fixture.actors.iter().enumerate() {
+        push_id(
+            &mut seen,
+            actor.actor_id.as_str(),
+            format!("actors[{index}].actor_id"),
+        );
+        reject_reserved_or_display(
+            actor.actor_id.as_str(),
+            format!("actors[{index}].actor_id"),
+            errors,
+        );
+    }
+    for (index, place) in fixture.places.iter().enumerate() {
+        push_id(
+            &mut seen,
+            place.place_id.as_str(),
+            format!("places[{index}].place_id"),
+        );
+        reject_reserved_or_display(
+            place.place_id.as_str(),
+            format!("places[{index}].place_id"),
+            errors,
+        );
+    }
+    for (index, door) in fixture.doors.iter().enumerate() {
+        push_id(
+            &mut seen,
+            door.door_id.as_str(),
+            format!("doors[{index}].door_id"),
+        );
+        reject_reserved_or_display(
+            door.door_id.as_str(),
+            format!("doors[{index}].door_id"),
+            errors,
+        );
+    }
+    for (index, container) in fixture.containers.iter().enumerate() {
+        push_id(
+            &mut seen,
+            container.container_id.as_str(),
+            format!("containers[{index}].container_id"),
+        );
+        reject_reserved_or_display(
+            container.container_id.as_str(),
+            format!("containers[{index}].container_id"),
+            errors,
+        );
+    }
+    for (index, item) in fixture.items.iter().enumerate() {
+        push_id(
+            &mut seen,
+            item.item_id.as_str(),
+            format!("items[{index}].item_id"),
+        );
+        reject_reserved_or_display(
+            item.item_id.as_str(),
+            format!("items[{index}].item_id"),
+            errors,
+        );
+    }
+
+    for (id, paths) in seen {
+        if paths.len() > 1 {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::Id,
+                paths.join(","),
+                "duplicate_id",
+                format!("duplicate stable ID {id} at {}", paths.join(",")),
+            ));
+        }
+    }
+}
+
+fn push_id(seen: &mut BTreeMap<String, Vec<String>>, id: &str, path: String) {
+    seen.entry(id.to_string()).or_default().push(path);
+}
+
+fn reject_reserved_or_display(id: &str, path: String, errors: &mut Vec<ContentValidationError>) {
+    if matches!(
+        id,
+        "player" | "protagonist" | "quest" | "objective" | "reward" | "culprit" | "director"
+    ) {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::NoPlayer,
+            path,
+            "reserved_player_or_story_id",
+            format!("reserved player/story ID {id} is forbidden"),
+        ));
+    } else if id.contains(' ') {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::Id,
+            path,
+            "display_name_as_id",
+            "stable IDs must not be display names",
+        ));
+    }
+}
+
+fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    let actors = fixture
+        .actors
+        .iter()
+        .map(|actor| actor.actor_id.clone())
+        .collect::<BTreeSet<_>>();
+    let places = fixture
+        .places
+        .iter()
+        .map(|place| place.place_id.clone())
+        .collect::<BTreeSet<_>>();
+    let containers = fixture
+        .containers
+        .iter()
+        .map(|container| container.container_id.clone())
+        .collect::<BTreeSet<_>>();
+    let items = fixture
+        .items
+        .iter()
+        .map(|item| item.item_id.clone())
+        .collect::<BTreeSet<_>>();
+
+    for (index, actor) in fixture.actors.iter().enumerate() {
+        if !places.contains(&actor.current_place_id) {
+            missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("actors[{index}].current_place_id"),
+                actor.current_place_id.as_str(),
+                "place",
+            );
+        }
+    }
+    for (index, place) in fixture.places.iter().enumerate() {
+        for adjacent in &place.adjacent_place_ids {
+            if !places.contains(adjacent) {
+                missing(
+                    errors,
+                    ValidationPhase::Referential,
+                    format!("places[{index}].adjacent_place_ids"),
+                    adjacent.as_str(),
+                    "place",
+                );
+            }
+        }
+    }
+    for (index, container) in fixture.containers.iter().enumerate() {
+        if !places.contains(&container.place_id) {
+            missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("containers[{index}].place_id"),
+                container.place_id.as_str(),
+                "place",
+            );
+        }
+        for item_id in &container.contents {
+            if !items.contains(item_id) {
+                missing(
+                    errors,
+                    ValidationPhase::Referential,
+                    format!("containers[{index}].contents"),
+                    item_id.as_str(),
+                    "item",
+                );
+            }
+        }
+    }
+    for (index, item) in fixture.items.iter().enumerate() {
+        match &item.location {
+            Location::AtPlace(place_id) if !places.contains(place_id) => missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("items[{index}].location"),
+                place_id.as_str(),
+                "place",
+            ),
+            Location::InContainer(container_id) if !containers.contains(container_id) => missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("items[{index}].location"),
+                container_id.as_str(),
+                "container",
+            ),
+            Location::CarriedBy(actor_id) if !actors.contains(actor_id) => missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("items[{index}].location"),
+                actor_id.as_str(),
+                "actor",
+            ),
+            _ => {}
+        }
+    }
+}
+
+fn validate_locations(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    let item_locations = fixture
+        .items
+        .iter()
+        .map(|item| (item.item_id.clone(), item.location.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut listed_contents = BTreeSet::new();
+    for (container_index, container) in fixture.containers.iter().enumerate() {
+        let mut local_contents = BTreeSet::new();
+        for item_id in &container.contents {
+            if !local_contents.insert(item_id.clone()) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::DeterminismHazard,
+                    format!("containers[{container_index}].contents"),
+                    "duplicate_contents",
+                    format!("container contents duplicate item {}", item_id.as_str()),
+                ));
+            }
+            if !listed_contents.insert(item_id.clone()) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::Location,
+                    format!("containers[{container_index}].contents"),
+                    "item_double_location",
+                    format!(
+                        "item {} is listed by more than one container",
+                        item_id.as_str()
+                    ),
+                ));
+            }
+            if item_locations.get(item_id)
+                != Some(&Location::InContainer(container.container_id.clone()))
+            {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::Location,
+                    format!("containers[{container_index}].contents"),
+                    "container_item_mismatch",
+                    format!(
+                        "container {} lists item {} but item holder disagrees",
+                        container.container_id.as_str(),
+                        item_id.as_str()
+                    ),
+                ));
+            }
+        }
+    }
+
+    for (item_index, item) in fixture.items.iter().enumerate() {
+        if let Location::InContainer(container_id) = &item.location {
+            let Some(container) = fixture
+                .containers
+                .iter()
+                .find(|container| &container.container_id == container_id)
+            else {
+                continue;
+            };
+            if !container.contents.contains(&item.item_id) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::Location,
+                    format!("items[{item_index}].location"),
+                    "container_item_mismatch",
+                    format!(
+                        "item {} is in container {} but container contents omit it",
+                        item.item_id.as_str(),
+                        container_id.as_str()
+                    ),
+                ));
+            }
+        }
+    }
+}
+
+fn validate_topology(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    let places = fixture
+        .places
+        .iter()
+        .map(|place| place.place_id.clone())
+        .collect::<BTreeSet<_>>();
+    let adjacency = fixture
+        .places
+        .iter()
+        .map(|place| (place.place_id.clone(), place.adjacent_place_ids.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for (index, door) in fixture.doors.iter().enumerate() {
+        if !places.contains(&door.endpoint_a) {
+            missing(
+                errors,
+                ValidationPhase::PhysicalTopology,
+                format!("doors[{index}].endpoint_a"),
+                door.endpoint_a.as_str(),
+                "place",
+            );
+        }
+        if !places.contains(&door.endpoint_b) {
+            missing(
+                errors,
+                ValidationPhase::PhysicalTopology,
+                format!("doors[{index}].endpoint_b"),
+                door.endpoint_b.as_str(),
+                "place",
+            );
+        }
+        let a_to_b = adjacency
+            .get(&door.endpoint_a)
+            .is_some_and(|ids| ids.contains(&door.endpoint_b));
+        let b_to_a = adjacency
+            .get(&door.endpoint_b)
+            .is_some_and(|ids| ids.contains(&door.endpoint_a));
+        if a_to_b != b_to_a {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::PhysicalTopology,
+                format!("doors[{index}]"),
+                "door_adjacency_inconsistency",
+                format!(
+                    "door {} endpoints must have symmetric adjacency",
+                    door.door_id.as_str()
+                ),
+            ));
+        }
+    }
+}
+
+fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    for (index, door) in fixture.doors.iter().enumerate() {
+        if door.is_locked && door.is_open {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("doors[{index}]"),
+                "locked_open_state",
+                "locked doors must not start open in Phase 1 fixtures",
+            ));
+        }
+    }
+    for (index, container) in fixture.containers.iter().enumerate() {
+        if container.is_locked && container.is_open {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("containers[{index}]"),
+                "locked_open_state",
+                "locked containers must not start open in Phase 1 fixtures",
+            ));
+        }
+    }
+}
+
+fn validate_action_registry_parity(
+    fixture: &FixtureSchema,
+    registry: &ActionRegistry,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    for (index, affordance) in fixture.affordances.iter().enumerate() {
+        let Some(definition) = registry.get(&affordance.action_id) else {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::ActionRegistryParity,
+                format!("affordances[{index}].action_id"),
+                "unknown_action",
+                format!("action {} is not registered", affordance.action_id.as_str()),
+            ));
+            continue;
+        };
+        if target_kind(fixture, affordance.target_id.as_str()).is_none() {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::Referential,
+                format!("affordances[{index}].target_id"),
+                "bad_reference",
+                format!("affordance target {} does not exist", affordance.target_id),
+            ));
+            continue;
+        }
+        if !supports_target_kind(definition.effect.clone(), fixture, affordance) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::ActionRegistryParity,
+                format!("affordances[{index}].target_id"),
+                "unsupported_action_target",
+                format!(
+                    "action {} does not support target {}",
+                    affordance.action_id.as_str(),
+                    affordance.target_id
+                ),
+            ));
+        }
+    }
+}
+
+fn supports_target_kind(
+    effect: ActionEffect,
+    fixture: &FixtureSchema,
+    affordance: &ActionAffordanceSchema,
+) -> bool {
+    match effect {
+        ActionEffect::Move => {
+            parse_place_target(&affordance.target_id).is_some()
+                && fixture
+                    .places
+                    .iter()
+                    .any(|place| place.place_id.as_str() == affordance.target_id)
+        }
+        ActionEffect::Open | ActionEffect::Close => {
+            fixture
+                .doors
+                .iter()
+                .any(|door| door.door_id.as_str() == affordance.target_id)
+                || fixture
+                    .containers
+                    .iter()
+                    .any(|container| container.container_id.as_str() == affordance.target_id)
+        }
+        ActionEffect::Take | ActionEffect::Place => fixture
+            .items
+            .iter()
+            .any(|item| item.item_id.as_str() == affordance.target_id),
+        ActionEffect::QueryOnly => {
+            affordance.action_id.as_str() == "inspect_entity"
+                || affordance.action_id.as_str() == "inspect_place"
+                || affordance.action_id.as_str() == "look"
+        }
+        ActionEffect::Wait => false,
+    }
+}
+
+fn parse_place_target(value: &str) -> Option<PlaceId> {
+    PlaceId::new(value).ok()
+}
+
+fn target_kind(fixture: &FixtureSchema, target_id: &str) -> Option<&'static str> {
+    if fixture
+        .actors
+        .iter()
+        .any(|actor| actor.actor_id.as_str() == target_id)
+    {
+        Some("actor")
+    } else if fixture
+        .places
+        .iter()
+        .any(|place| place.place_id.as_str() == target_id)
+    {
+        Some("place")
+    } else if fixture
+        .doors
+        .iter()
+        .any(|door| door.door_id.as_str() == target_id)
+    {
+        Some("door")
+    } else if fixture
+        .containers
+        .iter()
+        .any(|container| container.container_id.as_str() == target_id)
+    {
+        Some("container")
+    } else if fixture
+        .items
+        .iter()
+        .any(|item| item.item_id.as_str() == target_id)
+    {
+        Some("item")
+    } else {
+        None
+    }
+}
+
+fn validate_semantic_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    for (index, affordance) in fixture.affordances.iter().enumerate() {
+        if affordance.action_id.as_str().parse::<u64>().is_ok() {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::SemanticView,
+                format!("affordances[{index}].action_id"),
+                "menu_position_action_id",
+                "fixture action IDs must be semantic IDs, not menu positions",
+            ));
+        }
+    }
+}
+
+fn validate_no_player(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    for (index, affordance) in fixture.affordances.iter().enumerate() {
+        if is_player_key(affordance.action_id.as_str()) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::NoPlayer,
+                format!("affordances[{index}].action_id"),
+                "player_only_verb",
+                format!(
+                    "player-only action {} is forbidden",
+                    affordance.action_id.as_str()
+                ),
+            ));
+        }
+    }
+}
+
+fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    for (index, affordance) in fixture.affordances.iter().enumerate() {
+        if is_script_key(affordance.action_id.as_str()) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::NoScript,
+                format!("affordances[{index}].action_id"),
+                "authored_outcome_chain",
+                format!(
+                    "script action {} is forbidden",
+                    affordance.action_id.as_str()
+                ),
+            ));
+        }
+    }
+}
+
+fn validate_determinism(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    for (index, place) in fixture.places.iter().enumerate() {
+        if !is_sorted_unique(&place.adjacent_place_ids) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::DeterminismHazard,
+                format!("places[{index}].adjacent_place_ids"),
+                "non_canonical_ordering",
+                "adjacent place IDs must be canonical sorted without duplicates",
+            ));
+        }
+    }
+    for (index, container) in fixture.containers.iter().enumerate() {
+        if !is_sorted_unique(&container.contents) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::DeterminismHazard,
+                format!("containers[{index}].contents"),
+                "non_canonical_ordering",
+                "container contents must be canonical sorted without duplicates",
+            ));
+        }
+    }
+}
+
+fn is_sorted_unique<T: Ord>(values: &[T]) -> bool {
+    values.windows(2).all(|window| window[0] < window[1])
+}
+
+fn validate_fixture_contract(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    if fixture.actors.is_empty() || fixture.places.is_empty() {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::FixtureContract,
+            "fixture",
+            "missing_golden_assertions",
+            "Phase 1 fixtures must declare at least one actor and one place",
+        ));
+    }
+}
+
+fn validate_serialization_roundtrip(
+    fixture: &FixtureSchema,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    let bytes = serialize_fixture(fixture);
+    match deserialize_fixture(&bytes) {
+        Ok(roundtrip)
+            if roundtrip == {
+                let mut expected = fixture.clone();
+                expected.canonicalize();
+                expected
+            } => {}
+        Ok(_) => errors.push(ContentValidationError::new(
+            ValidationPhase::Serialization,
+            "fixture",
+            "serialization_drift",
+            "fixture serialization changed canonical content",
+        )),
+        Err(error) => errors.push(ContentValidationError::new(
+            ValidationPhase::Serialization,
+            "fixture",
+            "serialization_error",
+            format!("fixture serialization failed: {error:?}"),
+        )),
+    }
+}
+
+fn missing(
+    errors: &mut Vec<ContentValidationError>,
+    phase: ValidationPhase,
+    path: String,
+    value: &str,
+    expected: &str,
+) {
+    errors.push(ContentValidationError::new(
+        phase,
+        path,
+        "bad_reference",
+        format!("missing {expected} reference {value}"),
+    ));
+}
+
+fn serialization_error(error: SerializationError) -> ContentValidationError {
+    let (path, code, message) = match error {
+        SerializationError::MissingField(field) => (
+            format!("fixture.{field}"),
+            "missing_field",
+            format!("missing required field {field}"),
+        ),
+        SerializationError::BadLine(line) => (
+            "fixture.line".to_string(),
+            "bad_line",
+            format!("bad fixture line {line}"),
+        ),
+        SerializationError::BadBool(value) => (
+            "fixture.bool".to_string(),
+            "bad_bool",
+            format!("bad bool value {value}"),
+        ),
+        SerializationError::Id(error) => (
+            "fixture.id".to_string(),
+            "bad_stable_id",
+            format!("{error}"),
+        ),
+        SerializationError::EventLog(error) => (
+            "fixture.event_log".to_string(),
+            "event_log_error",
+            format!("{error:?}"),
+        ),
+    };
+    ContentValidationError::new(ValidationPhase::ParseSchema, path, code, message)
+}
+
+fn is_forbidden_key(value: &str) -> bool {
+    is_player_key(value) || is_script_key(value)
+}
+
+fn is_player_key(value: &str) -> bool {
+    matches!(
+        value,
+        "player"
+            | "player_character"
+            | "player_only"
+            | "protagonist"
+            | "quest"
+            | "objective"
+            | "reward"
+    )
+}
+
+fn is_script_key(value: &str) -> bool {
+    matches!(
+        value,
+        "on_enter"
+            | "on_open"
+            | "on_tick"
+            | "force_event"
+            | "complete_objective"
+            | "story_beat"
+            | "director"
+            | "culprit"
+            | "branch"
+            | "selector"
+            | "llm_prompt"
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::schema::{
+        ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, ItemSchema, PlaceSchema,
+    };
+    use tracewake_core::ids::{
+        ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    };
+
+    fn registry() -> ActionRegistry {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_movement_open_close();
+        registry.register_phase1_take_place();
+        registry.register_phase1_inspect_wait();
+        registry
+    }
+
+    fn fixture() -> FixtureSchema {
+        FixtureSchema {
+            fixture_id: FixtureId::new("strongbox_001").unwrap(),
+            schema_version: SchemaVersion::new("schema_v1").unwrap(),
+            actors: vec![ActorSchema {
+                actor_id: ActorId::new("actor_tomas").unwrap(),
+                current_place_id: PlaceId::new("shop_front").unwrap(),
+            }],
+            places: vec![
+                PlaceSchema {
+                    place_id: PlaceId::new("back_room").unwrap(),
+                    display_label: "Back room".to_string(),
+                    adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
+                },
+                PlaceSchema {
+                    place_id: PlaceId::new("shop_front").unwrap(),
+                    display_label: "Shop front".to_string(),
+                    adjacent_place_ids: vec![PlaceId::new("back_room").unwrap()],
+                },
+            ],
+            doors: vec![DoorSchema {
+                door_id: DoorId::new("door_shop_back").unwrap(),
+                endpoint_a: PlaceId::new("shop_front").unwrap(),
+                endpoint_b: PlaceId::new("back_room").unwrap(),
+                is_open: false,
+                is_locked: false,
+            }],
+            containers: vec![ContainerSchema {
+                container_id: ContainerId::new("strongbox_tomas").unwrap(),
+                place_id: PlaceId::new("shop_front").unwrap(),
+                is_open: false,
+                is_locked: false,
+                contents: vec![ItemId::new("coin_stack_01").unwrap()],
+                contents_visible_when_closed: false,
+            }],
+            items: vec![ItemSchema {
+                item_id: ItemId::new("coin_stack_01").unwrap(),
+                portable: true,
+                location: Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
+            }],
+            affordances: vec![
+                ActionAffordanceSchema {
+                    action_id: ActionId::new("open").unwrap(),
+                    target_id: "strongbox_tomas".to_string(),
+                },
+                ActionAffordanceSchema {
+                    action_id: ActionId::new("move").unwrap(),
+                    target_id: "back_room".to_string(),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn valid_fixture_produces_initial_world() {
+        let world = validate_fixture(&fixture(), &registry()).unwrap();
+        assert!(world
+            .physical_state
+            .places
+            .contains_key(&PlaceId::new("shop_front").unwrap()));
+    }
+
+    #[test]
+    fn missing_duplicate_bad_reference_wrong_target_and_double_location_are_rejected() {
+        let mut fixture = fixture();
+        fixture.actors[0].current_place_id = PlaceId::new("missing_place").unwrap();
+        fixture.places.push(PlaceSchema {
+            place_id: PlaceId::new("shop_front").unwrap(),
+            display_label: "Duplicate".to_string(),
+            adjacent_place_ids: Vec::new(),
+        });
+        fixture.affordances.push(ActionAffordanceSchema {
+            action_id: ActionId::new("open").unwrap(),
+            target_id: "coin_stack_01".to_string(),
+        });
+        fixture.containers.push(ContainerSchema {
+            container_id: ContainerId::new("crate_01").unwrap(),
+            place_id: PlaceId::new("shop_front").unwrap(),
+            is_open: true,
+            is_locked: false,
+            contents: vec![ItemId::new("coin_stack_01").unwrap()],
+            contents_visible_when_closed: true,
+        });
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+        let codes = report
+            .errors
+            .iter()
+            .map(|error| error.code)
+            .collect::<BTreeSet<_>>();
+        assert!(codes.contains("duplicate_id"));
+        assert!(codes.contains("bad_reference"));
+        assert!(codes.contains("unsupported_action_target"));
+        assert!(codes.contains("item_double_location"));
+    }
+
+    #[test]
+    fn forbidden_player_and_script_forms_are_rejected_from_raw_content() {
+        let raw = b"fixture|bad_fixture\nschema|schema_v1\nplayer|actor_tomas\non_open|force_event";
+        let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
+        assert!(report
+            .errors
+            .iter()
+            .any(|error| error.phase == ValidationPhase::NoPlayer));
+        assert!(report
+            .errors
+            .iter()
+            .any(|error| error.phase == ValidationPhase::NoScript));
+    }
+
+    #[test]
+    fn deterministic_ordering_hazards_sort_errors() {
+        let mut fixture = fixture();
+        fixture.places[0].adjacent_place_ids = vec![
+            PlaceId::new("shop_front").unwrap(),
+            PlaceId::new("back_room").unwrap(),
+        ];
+        fixture.containers[0]
+            .contents
+            .push(ItemId::new("coin_stack_01").unwrap());
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+        let sorted = {
+            let mut errors = report.errors.clone();
+            errors.sort_by(|left, right| {
+                (left.phase, &left.path, left.code, &left.message).cmp(&(
+                    right.phase,
+                    &right.path,
+                    right.code,
+                    &right.message,
+                ))
+            });
+            errors
+        };
+        assert_eq!(report.errors, sorted);
+        assert!(report
+            .errors
+            .iter()
+            .any(|error| error.code == "non_canonical_ordering"));
+    }
+
+    #[test]
+    fn action_affordances_must_resolve_to_known_action_and_supported_target() {
+        let mut fixture = fixture();
+        fixture.affordances.push(ActionAffordanceSchema {
+            action_id: ActionId::new("steal").unwrap(),
+            target_id: "coin_stack_01".to_string(),
+        });
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+        assert!(report
+            .errors
+            .iter()
+            .any(|error| error.code == "unknown_action"));
+    }
+}

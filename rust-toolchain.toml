@@ -1,0 +1,7 @@
+[toolchain]
+# Pinned for reproducible builds, formatting, and clippy lints across CI and
+# all contributor machines. Bump deliberately (clippy lints tighten between
+# releases) and re-run the CI gates locally before committing the change.
+channel = "1.93.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
