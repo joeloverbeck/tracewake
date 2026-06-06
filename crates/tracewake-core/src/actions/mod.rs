@@ -1,3 +1,4 @@
+pub mod defs;
 pub mod pipeline;
 pub mod proposal;
 pub mod registry;

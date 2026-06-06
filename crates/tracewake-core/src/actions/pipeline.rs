@@ -1,6 +1,10 @@
+use crate::actions::defs::movement::build_move_event;
+use crate::actions::defs::openclose::build_open_close_event;
+use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
+use crate::events::apply::apply_event;
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContentManifestId, EventId, ValidationReportId};
@@ -125,7 +129,82 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
 
     checked_facts.push(CheckedFact::new("pipeline_slots_8_11", "inert"));
 
-    let would_mutate = definition.effect == ActionEffect::WorldMutationDeferred;
+    let mut appended_events = Vec::new();
+    let would_mutate = !matches!(definition.effect, ActionEffect::QueryOnly);
+    if would_mutate {
+        let event_result = match definition.effect {
+            ActionEffect::Move => build_move_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            ),
+            ActionEffect::Open => build_open_close_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+                true,
+            ),
+            ActionEffect::Close => build_open_close_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+                false,
+            ),
+            ActionEffect::QueryOnly => unreachable!("would_mutate checked above"),
+        };
+
+        let event = match event_result {
+            Ok(event) => event,
+            Err(rejection) => return reject_action(context, proposal, rejection),
+        };
+
+        let mut dry_run = context.state.clone();
+        if apply_event(&mut dry_run, &event).is_err() {
+            return reject(
+                context,
+                proposal,
+                PipelineStage::EventApplication,
+                vec![ReasonCode::WorldStateMismatch],
+                checked_facts,
+                "The world state did not match that action.",
+                "dry-run event application rejected the constructed event",
+            );
+        }
+
+        let appended = match context.log.append(event) {
+            Ok(appended) => appended,
+            Err(_) => {
+                return reject(
+                    context,
+                    proposal,
+                    PipelineStage::EventAppend,
+                    vec![ReasonCode::WorldStateMismatch],
+                    checked_facts,
+                    "The event could not be recorded.",
+                    "append-only log rejected the constructed event",
+                )
+            }
+        };
+        if apply_event(context.state, &appended).is_err() {
+            return reject(
+                context,
+                proposal,
+                PipelineStage::EventApplication,
+                vec![ReasonCode::WorldStateMismatch],
+                checked_facts,
+                "The world state did not match that action.",
+                "event application rejected an event that passed dry-run",
+            );
+        }
+        appended_events.push(appended);
+    }
+    let event_ids = appended_events
+        .iter()
+        .map(|event| event.event_id.clone())
+        .collect();
     let report = ValidationReport {
         validation_report_id: report_id(proposal),
         proposal_id: proposal.proposal_id.clone(),
@@ -139,15 +218,31 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         actor_visible_summary: "Accepted.".to_string(),
         debug_summary: "proposal accepted by shared pipeline".to_string(),
         would_mutate,
-        event_ids: Vec::new(),
+        event_ids,
         checksum_before: None,
         checksum_after: None,
     };
 
     PipelineResult {
         report,
-        appended_events: Vec::new(),
+        appended_events,
     }
+}
+
+fn reject_action(
+    context: &mut PipelineContext<'_>,
+    proposal: &Proposal,
+    rejection: ActionRejection,
+) -> PipelineResult {
+    reject(
+        context,
+        proposal,
+        rejection.failed_stage,
+        vec![rejection.reason_code],
+        rejection.checked_facts,
+        rejection.actor_visible_summary,
+        rejection.debug_summary,
+    )
 }
 
 fn reject(
@@ -217,9 +312,10 @@ fn rejection_event_id(proposal: &Proposal) -> EventId {
 mod tests {
     use super::*;
     use crate::actions::{ActionDefinition, ProposalOrigin};
+    use crate::events::apply::apply_event;
     use crate::ids::{ActionId, ActorId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::ActorBody;
+    use crate::state::{ActorBody, DoorState, PlaceState};
     use crate::time::SimTick;
 
     fn action_id(value: &str) -> ActionId {
@@ -261,6 +357,28 @@ mod tests {
                 crate::ids::PlaceId::new("shop_front").unwrap(),
             ),
         );
+        state
+    }
+
+    fn door_state() -> PhysicalState {
+        let mut state = PhysicalState::default();
+        let actor_id = actor_id("actor_tomas");
+        let shop = crate::ids::PlaceId::new("shop_front").unwrap();
+        let back = crate::ids::PlaceId::new("back_room").unwrap();
+        let mut shop_state = PlaceState::new(shop.clone(), "Shop front");
+        shop_state.adjacent_place_ids.insert(back.clone());
+        state.places.insert(shop.clone(), shop_state);
+        state
+            .places
+            .insert(back.clone(), PlaceState::new(back.clone(), "Back room"));
+        state.actors.insert(
+            actor_id.clone(),
+            ActorBody::new(actor_id.clone(), shop.clone()),
+        );
+        let door_id = crate::ids::DoorId::new("door_shop_back").unwrap();
+        state
+            .doors
+            .insert(door_id.clone(), DoorState::new(door_id, shop, back));
         state
     }
 
@@ -342,5 +460,64 @@ mod tests {
         assert!(stages.contains(&PipelineStage::CostDurationCheck));
         assert!(stages.contains(&PipelineStage::ReservationConflictCheck));
         assert_eq!(stages.len(), 19);
+    }
+
+    #[test]
+    fn open_then_move_log_replays_to_same_state() {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_movement_open_close();
+        let initial = door_state();
+        let mut live_state = initial.clone();
+        let mut live_log = EventLog::new();
+
+        let mut open = Proposal::new(
+            ProposalId::new("proposal_open").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            action_id("open"),
+            SimTick::ZERO,
+        );
+        open.target_ids.push("door_shop_back".to_string());
+        let mut open_context = PipelineContext {
+            registry: &registry,
+            state: &mut live_state,
+            log: &mut live_log,
+            content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
+            ordering_key: ordering_key(),
+        };
+        let open_result = run_pipeline(&mut open_context, &open);
+        assert_eq!(open_result.report.status, ReportStatus::Accepted);
+        assert_eq!(
+            open_result.appended_events[0].event_type,
+            EventKind::DoorOpened
+        );
+
+        let mut move_proposal = Proposal::new(
+            ProposalId::new("proposal_move").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            action_id("move"),
+            SimTick::ZERO,
+        );
+        move_proposal.target_ids.push("back_room".to_string());
+        let mut move_context = PipelineContext {
+            registry: &registry,
+            state: &mut live_state,
+            log: &mut live_log,
+            content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
+            ordering_key: ordering_key(),
+        };
+        let move_result = run_pipeline(&mut move_context, &move_proposal);
+        assert_eq!(move_result.report.status, ReportStatus::Accepted);
+        assert_eq!(
+            move_result.appended_events[0].event_type,
+            EventKind::ActorMoved
+        );
+
+        let mut replay_state = initial;
+        for event in live_log.events() {
+            apply_event(&mut replay_state, event).unwrap();
+        }
+        assert_eq!(replay_state, live_state);
     }
 }

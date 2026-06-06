@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-009: move / open / close action definitions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — registers the `move`, `open`, `close` action definitions in `tracewake-core`'s action registry; emits `ActorMoved`, `DoorOpened`, `DoorClosed`, `ContainerOpened`, `ContainerClosed`.
@@ -80,3 +80,23 @@ Register all three in `actions/registry.rs`.
 1. `cargo test -p tracewake-core actions::defs`
 2. `cargo build --workspace`
 3. Unit scope is correct here; the end-to-end `door_access_001` scenario is exercised in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `move`, `open`, and `close` action definitions under `actions::defs`.
+- Extended the shared action registry with one Phase 1 registration path for movement/open/close verbs.
+- Wired the shared pipeline to construct, dry-run, append, and apply accepted world events through the strict event applier.
+- Added replay-style coverage for an open-then-move sequence by reapplying the logged world events to a fresh initial state.
+
+Deviations from original plan:
+- None.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core actions::defs` passed: 6 tests.
+- `cargo test -p tracewake-core actions` passed: 11 tests.
+- `cargo build --workspace` passed.
+- Registry grep confirmed the three verbs are registered through the shared registry path.

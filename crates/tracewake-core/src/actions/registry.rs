@@ -5,7 +5,9 @@ use crate::ids::ActionId;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ActionEffect {
     QueryOnly,
-    WorldMutationDeferred,
+    Move,
+    Open,
+    Close,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,6 +23,14 @@ impl ActionDefinition {
             action_id,
             phase1_implemented: true,
             effect: ActionEffect::QueryOnly,
+        }
+    }
+
+    pub fn world_action(action_id: ActionId, effect: ActionEffect) -> Self {
+        Self {
+            action_id,
+            phase1_implemented: true,
+            effect,
         }
     }
 }
@@ -48,5 +58,20 @@ impl ActionRegistry {
 
     pub fn definitions(&self) -> impl Iterator<Item = &ActionDefinition> {
         self.definitions.values()
+    }
+
+    pub fn register_phase1_movement_open_close(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("move").unwrap(),
+            ActionEffect::Move,
+        ));
+        self.register(ActionDefinition::world_action(
+            ActionId::new("open").unwrap(),
+            ActionEffect::Open,
+        ));
+        self.register(ActionDefinition::world_action(
+            ActionId::new("close").unwrap(),
+            ActionEffect::Close,
+        ));
     }
 }

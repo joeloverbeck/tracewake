@@ -18,7 +18,7 @@ impl EventLog {
         Self { events: Vec::new() }
     }
 
-    pub fn append(&mut self, mut event: EventEnvelope) -> Result<(), EventLogError> {
+    pub fn append(&mut self, mut event: EventEnvelope) -> Result<EventEnvelope, EventLogError> {
         if !event.has_supported_schema_version() {
             return Err(EventLogError::UnsupportedSchemaVersion(
                 event.event_schema_version.as_str().to_string(),
@@ -31,8 +31,8 @@ impl EventLog {
             .iter()
             .filter(|existing| existing.stream == event.stream)
             .count() as u64;
-        self.events.push(event);
-        Ok(())
+        self.events.push(event.clone());
+        Ok(event)
     }
 
     pub fn events(&self) -> &[EventEnvelope] {
