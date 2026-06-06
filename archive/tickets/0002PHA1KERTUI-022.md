@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-022: Capstone — golden scenarios, testing matrix, and Phase 1 acceptance gates
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the integration test suite (and any shared golden-test harness) exercising the full Phase 1 slice; flips the Spec 0002 `Status` once gates pass.
@@ -87,3 +87,20 @@ Add a gate-checklist test enumerating the §19.2 / §21 gates. On green, flip `s
 1. `cargo test --workspace`
 2. `cargo test --workspace -- --nocapture replay no_human possession leakage llm_disabled`
 3. A workspace-wide test run is the correct boundary: the capstone's purpose is to prove the whole Phase 1 slice composes, so it must exercise all three crates together.
+
+## Outcome (2026-06-06)
+
+Added the Phase 1 capstone integration suite across all three crates:
+
+1. `crates/tracewake-core/tests/golden_scenarios.rs` covers accepted versioned events, projection rebuild, replay checksum match, replay drift detection, item-location debug provenance, rejection debug provenance, controller/possession non-world state, and no-human advance.
+2. `crates/tracewake-core/tests/acceptance_gates.rs` covers shared human/non-human validation path, blocked movement why-not, closed-container take rejection, and deterministic event append order.
+3. `crates/tracewake-content/tests/golden_fixtures_run.rs` covers all seven fixtures loading deterministically, validating, declaring contracts, and rejecting missing IDs, unsupported targets, ordering hazards, player-only forms, quest/script forms, and LLM-disabled operation.
+4. `crates/tracewake-tui/tests/tui_acceptance.rs` covers semantic action identity, transcript determinism, debug non-leakage, why-not, wait, and debug panels through the TUI facade.
+
+Flipped Spec 0002 status from `Implementable Phase 1 specification` to `Phase 1 landed`.
+
+Verification:
+
+1. `cargo test --workspace` passed.
+2. `cargo test --workspace -- --nocapture replay no_human possession leakage llm_disabled` passed and exercised all named gate filters.
+3. `cargo build --workspace` passed.
