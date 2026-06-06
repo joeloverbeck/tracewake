@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-021: TUI debug panels and deterministic transcript harness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds `debug_panels` and `transcript` modules to `tracewake-tui`.
@@ -79,3 +79,17 @@ Declare `debug_panels` and `transcript` in `crates/tracewake-tui/src/lib.rs`.
 1. `cargo test -p tracewake-tui transcript_snapshot debug_panels`
 2. `cargo build --workspace`
 3. TUI-crate scope is correct; the cross-cutting debug-leakage regression over all panels runs in ticket 022.
+
+## Outcome (2026-06-06)
+
+Implemented `tracewake-tui::debug_panels` for item location, action rejection, event log, controller binding, projection rebuild, and replay report panels. Each panel asserts/render-checks `debug_only` input and is visibly marked `DEBUG NON-DIEGETIC`.
+
+Extended `TuiApp` with read-only debug render accessors and checksum/context helpers. Opening debug panels renders core debug reports without feeding data back into embodied view models or mutating physical state. Added `tracewake-tui::transcript` with a deterministic representative session covering view, rejected semantic action, why-not, wait, and debug panels.
+
+Verification:
+
+1. `cargo test -p tracewake-tui transcript_snapshot debug_panels` failed because Cargo accepts only one test filter.
+2. `cargo test -p tracewake-tui transcript_snapshot` passed.
+3. `cargo test -p tracewake-tui debug_panels` passed.
+4. `cargo test -p tracewake-tui` passed.
+5. `cargo build --workspace` passed.

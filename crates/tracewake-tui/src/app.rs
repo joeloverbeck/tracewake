@@ -4,12 +4,21 @@ use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, PipelineResult, Proposal, ProposalOrigin,
     ReportStatus, ValidationReport,
 };
+use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::controller::ControllerBindings;
+use tracewake_core::debug_reports::{
+    action_rejection_report, controller_binding_report, item_location_report,
+    projection_rebuild_debug_report, replay_debug_report,
+};
 use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, ProposalId, SemanticActionId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
+    ProposalId, SemanticActionId,
 };
-use tracewake_core::projections::{build_embodied_view_model, ProjectionError};
+use tracewake_core::projections::{
+    build_debug_event_log_view, build_embodied_view_model, ProjectionError,
+};
+use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::{
     DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId,
 };
@@ -17,6 +26,10 @@ use tracewake_core::state::PhysicalState;
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{EmbodiedViewModel, SemanticActionEntry};
 
+use crate::debug_panels::{
+    render_action_rejection_panel, render_controller_binding_panel, render_event_log_panel,
+    render_item_location_panel, render_projection_rebuild_panel, render_replay_panel,
+};
 use crate::render::render_embodied_view;
 
 #[derive(Debug)]
@@ -42,12 +55,15 @@ impl From<ProjectionError> for AppError {
 
 pub struct TuiApp {
     registry: ActionRegistry,
+    initial_state: PhysicalState,
     state: PhysicalState,
     log: EventLog,
     controller_bindings: ControllerBindings,
     controller_id: ControllerId,
     bound_actor_id: Option<ActorId>,
     content_manifest_id: ContentManifestId,
+    fixture_id: FixtureId,
+    content_version: ContentVersion,
     scheduler: DeterministicScheduler,
     last_rejection: Option<ValidationReport>,
 }
@@ -70,12 +86,15 @@ impl TuiApp {
         registry.register_phase1_inspect_wait();
         Ok(Self {
             registry,
+            initial_state: loaded.canonical_world.clone(),
             state: loaded.canonical_world,
             log: EventLog::new(),
             controller_bindings: ControllerBindings::new(),
             controller_id: ControllerId::new("controller_human").unwrap(),
             bound_actor_id: None,
             content_manifest_id: loaded.manifest.manifest_id,
+            fixture_id: loaded.manifest.fixture_id,
+            content_version: loaded.manifest.content_version,
             scheduler: DeterministicScheduler::new(SimTick::ZERO),
             last_rejection: None,
         })
@@ -185,6 +204,80 @@ impl TuiApp {
 
     pub fn event_count(&self) -> usize {
         self.log.events().len()
+    }
+
+    pub fn physical_checksum(&self) -> PhysicalChecksum {
+        compute_physical_checksum(&self.state, &self.checksum_context()).checksum
+    }
+
+    pub fn checksum_context(&self) -> ChecksumContext {
+        ChecksumContext {
+            fixture_id: self.fixture_id.clone(),
+            content_version: self.content_version.clone(),
+            sim_tick: self.scheduler.current_tick,
+            world_stream_position_applied: self
+                .log
+                .events()
+                .iter()
+                .filter(|event| event.stream == tracewake_core::events::EventStream::World)
+                .count()
+                .saturating_sub(1) as u64,
+        }
+    }
+
+    pub fn render_debug_event_log_panel(&self) -> String {
+        render_event_log_panel(&build_debug_event_log_view(&self.log))
+    }
+
+    pub fn render_debug_controller_binding_panel(&self) -> String {
+        let report = controller_binding_report(
+            DebugReportId::new("debug.controller_bindings").unwrap(),
+            &self.controller_bindings,
+        );
+        render_controller_binding_panel(&report)
+    }
+
+    pub fn render_debug_item_location_panel(&self, item_id: &ItemId) -> String {
+        let report =
+            item_location_report(&self.state, &self.log, item_id, &self.checksum_context());
+        render_item_location_panel(&report)
+    }
+
+    pub fn render_debug_action_rejection_panel(&self) -> Option<String> {
+        let report = self.last_rejection.as_ref()?;
+        Some(render_action_rejection_panel(&action_rejection_report(
+            report,
+            &self.state,
+            &self.checksum_context(),
+        )))
+    }
+
+    pub fn render_debug_projection_rebuild_panel(&self) -> String {
+        let report = rebuild_projection(
+            &self.initial_state,
+            &self.log,
+            &self.checksum_context(),
+            Some(&self.state),
+        );
+        render_projection_rebuild_panel(&projection_rebuild_debug_report(
+            DebugReportId::new("debug.projection_rebuild").unwrap(),
+            report,
+        ))
+    }
+
+    pub fn render_debug_replay_panel(&self) -> String {
+        let expected_checksum = self.physical_checksum();
+        let report = run_replay(
+            &self.initial_state,
+            &self.log,
+            &self.checksum_context(),
+            Some(&self.state),
+            Some(expected_checksum),
+        );
+        render_replay_panel(&replay_debug_report(
+            DebugReportId::new("debug.replay").unwrap(),
+            report,
+        ))
     }
 }
 
