@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-005: Event envelope v1, streams, and event-kind registry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `events` module (envelope, streams, kind registry) to `tracewake-core`.
@@ -79,3 +79,21 @@ Add `pub mod events;` to `crates/tracewake-core/src/lib.rs`.
 1. `cargo test -p tracewake-core events`
 2. `cargo build --workspace`
 3. Unit scope is correct: the schema has no cross-crate behavior until application (006) and replay (013).
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::events` with a versioned v1 event envelope carrying the Phase 1 envelope field set.
+- Added the four event streams and a closed Phase 1 event-kind registry with stream and physical-mutation metadata.
+- Added canonical dependency-free byte serialization/deserialization for the envelope schema surface.
+- Registered `pub mod events;` in the core crate.
+
+Deviations from original plan:
+- Kept the implementation to the envelope, stream taxonomy, and event-kind registry. The append-only log remains with ticket 006, matching this ticket's explicit out-of-scope note.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core events` passed: 4 tests.
+- `cargo build --workspace` passed.
