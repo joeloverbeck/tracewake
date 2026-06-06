@@ -91,7 +91,7 @@ Before acting, this skill MUST read:
 - `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` — the constitution (`INV-NNN`). Skip only if read earlier this session and unmodified.
 - Every file path, skill directory, and sibling-spec reference extracted at Step 2 — read as part of Step 3.
 
-Reading scope: anything under `specs/`, `docs/4-specs/`, `.claude/skills/`, `docs/`, `reports/`, and — once a Rust workspace lands — the crate/module tree. Tracewake is currently a paper-spec + doctrine repo with no code tree yet; this skill reasons about specs that plan future implementation, against current doctrine.
+Reading scope: anything under `specs/`, `docs/4-specs/`, `.claude/skills/`, `docs/`, `reports/`, and the crate/module tree (`crates/`). Tracewake is partially implemented: completed phases have a landed Rust workspace (`crates/tracewake-{core,content,tui}` + a root `Cargo.toml`), while specs for future phases may still be paper. Do not assume a fixed repo state — for current implementation status consult `docs/4-specs/SPEC_LEDGER.md` (landed phases) and `find crates -name '*.rs'`. Validate any surface that already exists against code, and reason about not-yet-built surfaces against doctrine.
 
 ## Worktree & Plan-Mode Awareness
 

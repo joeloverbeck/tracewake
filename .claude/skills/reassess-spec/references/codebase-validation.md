@@ -23,12 +23,12 @@ Substep applicability by Pre-Process classification:
 
 For specs with >10 references, consider parallel Explore agents organized by theme (max 3). Spot-check agent claims with direct Grep/Read before including in findings — agent results are leads, not facts; trust a direct tool result over an agent claim.
 
-**Greenfield / paper-spec specs (the current default for Tracewake)**: the repo has no Rust code tree yet — every spec is a paper plan for future implementation, so the consumer-grep substeps have nothing in *code* to grep. This is the normal case here, not the exception. Handle it explicitly rather than skipping silently:
+**Specs whose surfaces aren't implemented yet**: Tracewake is partially implemented — completed phases have a landed Rust workspace (`crates/tracewake-{core,content,tui}`), but a spec for a future phase, or a future-phase deliverable inside an otherwise-landed area, may have no code to grep yet. When a deliverable's surfaces are unbuilt, the consumer-grep substeps have nothing in *code* to grep. Confirm the surface is actually unbuilt (`find crates -name '*.rs'`, grep the crate tree) rather than assuming it — then handle the unbuilt case explicitly instead of skipping silently:
 
-- **3.6 Downstream Consumers**: record `N/A — no code tree yet; consumers are planned future phases` instead of an empty grep. There are no existing call sites because there is no implementation yet. (Once a workspace lands, this substep greps the crate/module tree normally.)
-- **3.9 New-Deliverable Consumer Verification**: the deliverables' consumers are **planned**, not present — the later phases named in `docs/2-execution/02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md`, the per-phase docs (`docs/2-execution/03–08`), the `docs/4-specs/SPEC_LEDGER.md` "next allowed spec", and the spec's own Relationship-to-prior-spec / Phase-entry sections. That satisfies the "explicitly planned" branch; do NOT fire the zero-consumer HIGH Issue for a paper spec whose consumers are unbuilt-but-sequenced future phases. Record the planned consumers (the phase ladder entries) for the audit trail.
+- **3.6 Downstream Consumers**: when the modified surface is unbuilt, record `N/A — surface not yet implemented; consumers are planned future phases` instead of an empty grep, since there are no call sites yet. When the surface *has* landed, grep the crate/module tree (`crates/`) normally for real call sites.
+- **3.9 New-Deliverable Consumer Verification**: the deliverables' consumers are **planned**, not present — the later phases named in `docs/2-execution/02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md`, the per-phase docs (`docs/2-execution/03–08`), the `docs/4-specs/SPEC_LEDGER.md` "next allowed spec", and the spec's own Relationship-to-prior-spec / Phase-entry sections. That satisfies the "explicitly planned" branch; do NOT fire the zero-consumer HIGH Issue for an unbuilt deliverable whose consumers are unbuilt-but-sequenced future phases. Record the planned consumers (the phase ladder entries) for the audit trail.
 
-This is distinct from `SKILL.md`'s "no greenfield approach proposals" guardrail, which is about not proposing alternative designs — here "greenfield" means the *repo* (or the relevant module tree) has no code yet.
+This is distinct from `SKILL.md`'s "no greenfield approach proposals" guardrail, which is about not proposing alternative designs — the unbuilt-surface case here is about a *spec surface* (or module) that is not yet implemented, not about proposing new designs.
 
 ## 3.0 Cross-File Scope Establishment
 
@@ -83,7 +83,7 @@ Match the conventions of the repo's existing skills (`brainstorm`, `skill-audit`
 
 ## 3.6 Downstream Consumers
 
-For types, records, functions, schemas, fixtures, or contracts the spec modifies, grep all usage points across the repo — the doc pack (`docs/*`), sibling specs (`specs/*`, `docs/4-specs/*`), `.claude/skills/*`, and (once it lands) the code tree. Record blast radius. Until a code tree exists, the consumers are doctrine/spec/fixture references, not call sites (see the greenfield note above).
+For types, records, functions, schemas, fixtures, or contracts the spec modifies, grep all usage points across the repo — the doc pack (`docs/*`), sibling specs (`specs/*`, `docs/4-specs/*`), `.claude/skills/*`, and the code tree (`crates/`) for any landed surface. Record blast radius. For a surface that is not yet implemented, the consumers are doctrine/spec/fixture references rather than call sites (see the unbuilt-surface note above).
 
 For **new, retired, or changed** string-enum values (a new/retired event kind, claim family, visibility scope, view-model field, or dispatch token), grep each affected value across all consumer sites — new values need a new arm at every dispatch/projection site; retired values need every consumer updated (or retired alongside); changed values need both. Surface the consumer count explicitly. (A spec that ONLY retires values is the common case the literal "new enum" framing would steer past — the broadened scope closes that gap.)
 
@@ -115,7 +115,7 @@ For each proposed new deliverable (new module, new CLI tool, new validator, new 
 
 **Outcome**:
 - **≥1 consumer found**: deliverable justified — record the consumers in Step 6 for audit-trail visibility.
-- **Zero consumers AND no pending consumer named**: HIGH Issue → present at Step 6 as a Question with three options: (a) drop per YAGNI; (b) keep with explicit rationale naming a near-term consumer; (c) defer to a separate consumer-driven spec/phase. Defer the decision to the user — do not silently drop at Step 3. (Paper specs whose consumers are sequenced future phases are **not** zero-consumer cases — see the greenfield note above the substep sections.)
+- **Zero consumers AND no pending consumer named**: HIGH Issue → present at Step 6 as a Question with three options: (a) drop per YAGNI; (b) keep with explicit rationale naming a near-term consumer; (c) defer to a separate consumer-driven spec/phase. Defer the decision to the user — do not silently drop at Step 3. (Deliverables whose consumers are sequenced but not-yet-built future phases are **not** zero-consumer cases — see the unbuilt-surface note above the substep sections.)
 
 **Structurally-wired deliverables** (e.g. a fixture registered in a fixture manifest, a module registered in a workspace members list) have a structural consumer model — registration *is* the wiring. Confirm the registration site rather than name-grepping for callers; flagging "zero consumers" there is a false positive.
 

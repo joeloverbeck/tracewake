@@ -78,9 +78,19 @@ Spec 0002 turns Phase 1 of the execution ladder into an implementable contract, 
 
 Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, suspicion, LLM surfaces); it preserves only inert, validated placeholders where Phase 0 fixture shape requires them.
 
+### Spec 0003 — Phase 1A Executable TUI Command Loop and Documentation Alignment
+
+- **Status:** proposed / required corrective Phase 1 continuation.
+- **Spec file:** `docs/4-specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`
+- **Target reassessment commit:** `1d27a01e0a5ae6018e9207acff9eed131b06ce1d`
+- **Phase:** Phase 1A; Phase 1 continuation, not Phase 2.
+- **Correction carried forward:** Spec 0002 landed the Phase 1 kernel, content fixtures, replay/debug surface, view models, TUI facade, renderer, input helpers, and deterministic transcript harness. It did not complete the executable TUI command loop that Phase 1 doctrine and Ticket 020 required.
+- **Required result:** `cargo run -p tracewake-tui` must become a genuinely operable stdin/stdout command loop supporting actor binding, embodied view rendering, semantic action submission by stable ID and numeric selection, wait, why-not, debug panels, replay/projection reports, and clean quit.
+- **Phase 2 dependency:** Phase 2 must not begin until Spec 0003 acceptance gates pass.
+
 ## Next allowed spec
 
-With Spec 0002 produced, the next allowed spec is a Phase 2 epistemics / actor-known view-model / possession-parity specification, following `docs/2-execution/06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md`. That future spec should use Spec 0001 and Spec 0002 as input and should not re-litigate the first-proof identity, roster baseline, core place/container/item contracts, primitive vocabularies, fixture names, the Phase 1 kernel/event/replay contracts, or forbidden shortcuts.
+The next implementation spec is Spec 0003, a narrow Phase 1A corrective spec. Phase 2 may be opened only after Spec 0003 lands and its executable TUI acceptance gates pass. This corrective work must not be represented as Phase 2.
 
 ## Retread warning
 

@@ -64,37 +64,73 @@ directories are cached for the clippy and test jobs.
 
 ## Running the TUI
 
-```sh
+Run the Phase 1 executable TUI with:
+
+```text
 cargo run -p tracewake-tui
 ```
 
-**Today** the binary loads the `strongbox_001` golden fixture, binds the default actor
-(`actor_tomas`), prints a readiness line (`tracewake-tui ready`), renders **one** embodied
-frame of that actor's place, and exits. The frame shows the actor and tick, the current
-place, any "why-not" rejection summary, and the visible exits, doors, containers, items,
-local actors, and the numbered list of available semantic actions.
+The binary loads the default `strongbox_001` fixture, binds `actor_tomas`, prints `tracewake-tui ready`, renders the initial embodied view, and enters a simple stdin/stdout command loop.
 
-### Command vocabulary and debug panels (implemented, not yet wired into the binary)
+This is intentionally plain text. It is the Phase 1 operating surface for the current kernel and view-model slice, not a graphical client.
 
-The interactive operating surface is implemented and tested at the library level
-(`crates/tracewake-tui/src/`), but `main.rs` does not yet drive an input loop — it renders
-a single frame. The pieces ready to be wired up are:
+### Commands
 
-Command parser (`input.rs`):
+```text
+help                         show command help
+view                         re-render the current embodied view
+bind <actor_id>              bind the controller to an actor
+<n>                          submit the action at the 1-based menu position from the current view
+do <semantic_action_id>      submit a stable semantic action ID shown in the action menu
+wait                         wait one tick through the ordinary action pipeline
+w                            alias for wait
+debug log                    show the non-diegetic event log panel
+debug bindings               show non-diegetic controller bindings
+debug item <item_id>         show a non-diegetic item-location report
+debug rejection              show the latest non-diegetic rejection report, if any
+debug projection             rebuild projection from the event log and show the debug report
+debug replay                 replay the log and show the debug report
+quit                         exit
+q                            exit
+```
 
-| Input | Effect |
-|---|---|
-| `bind <actor_id>` | Bind the controller to an actor |
-| `do <semantic_action_id>` | Submit a stable semantic action by id |
-| `<n>` | Submit the action at 1-based menu position `n` (resolves to its stable semantic id) |
-| `wait` / `w` | Advance one tick |
-| `quit` / `q` | Exit |
+The numbered menu position is never an action identity. Numeric input resolves through the current view to the stable semantic action ID printed beside the action.
 
-Selections resolve to the action's *stable semantic id*, never the menu index, so a menu
-re-order never changes which action a given command performs.
+Debug panels are marked non-diegetic. They may reveal debug truth, but returning to `view` shows only the actor-filtered embodied view.
 
-Six debug panels (`debug_panels.rs`, surfaced via `TuiApp::render_debug_*`): event log,
-controller binding, item location, action rejection, projection rebuild, and replay.
+### Example session shape
+
+Exact action order and labels may change as fixtures evolve, but the command loop supports this shape:
+
+```text
+$ cargo run -p tracewake-tui
+tracewake-tui ready
+Actor: actor_tomas | Tick: 0
+Place: ...
+Actions:
+1. ... [open.container.strongbox_tomas]
+2. ... [wait.1_tick]
+tracewake> 1
+Accepted.
+Actor: actor_tomas | Tick: ...
+...
+tracewake> view
+Actor: actor_tomas | Tick: ...
+...
+tracewake> do wait.1_tick
+Accepted.
+Actor: actor_tomas | Tick: ...
+...
+tracewake> debug log
+DEBUG NON-DIEGETIC: Event Log
+...
+tracewake> debug item coin_stack_01
+DEBUG NON-DIEGETIC: Item Location
+...
+tracewake> quit
+```
+
+All ordinary world changes go through the shared semantic action/proposal/pipeline path. The TUI does not directly mutate world state.
 
 ## Where to go next
 
