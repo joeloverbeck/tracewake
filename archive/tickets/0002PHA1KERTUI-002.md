@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-002: Stable ID newtypes and canonical serialization
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds the `ids` module to `tracewake-core`.
@@ -77,3 +77,21 @@ Add `pub mod ids;` to `crates/tracewake-core/src/lib.rs`.
 1. `cargo test -p tracewake-core ids`
 2. `cargo build --workspace`
 3. A core-crate unit-test scope is correct here because IDs have no cross-crate behavior to exercise yet.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::ids` with stable checked newtypes for fixture, entity, action, event, validation, controller, content, schema, proposal, debug, projection, and view-model IDs.
+- Added canonical string and byte serialization/deserialization helpers.
+- Added a documented deterministic UUID-shaped derivation helper for stable content path + parent ID + ordinal sources.
+- Exposed `pub mod ids;` from `tracewake-core`.
+
+Deviations from original plan:
+- Used standard library serialization helpers instead of adding an external serialization dependency, keeping the Phase 1 core dependency-free after this ticket.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core ids` passed: 5 tests.
+- `cargo build --workspace` passed.
