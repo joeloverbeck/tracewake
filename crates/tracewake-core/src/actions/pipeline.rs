@@ -4,8 +4,10 @@ use crate::actions::defs::takeplace::build_take_place_event;
 use crate::actions::defs::wait::build_wait_event;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
+use crate::actions::proposal::ProposalOrigin;
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
+use crate::controller::{ControllerBindings, ControllerError};
 use crate::events::apply::apply_event;
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField};
@@ -66,6 +68,7 @@ pub struct PipelineContext<'a> {
     pub registry: &'a ActionRegistry,
     pub state: &'a mut PhysicalState,
     pub log: &'a mut EventLog,
+    pub controller_bindings: Option<&'a ControllerBindings>,
     pub content_manifest_id: ContentManifestId,
     pub ordering_key: OrderingKey,
 }
@@ -77,10 +80,11 @@ pub struct PipelineResult {
 }
 
 pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> PipelineResult {
-    let mut checked_facts = vec![
-        CheckedFact::new("origin", format!("{:?}", proposal.origin)),
-        CheckedFact::new("action_id", proposal.action_id.as_str()),
-    ];
+    let mut checked_facts = vec![CheckedFact::new("action_id", proposal.action_id.as_str())];
+
+    if let Some(result) = controller_binding_check(context, proposal, checked_facts.clone()) {
+        return result;
+    }
 
     // Stages 8-11 are deliberately inert architectural slots for later
     // epistemic, norm, cost/duration, and reservation systems.
@@ -251,6 +255,78 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
     }
 }
 
+fn controller_binding_check(
+    context: &mut PipelineContext<'_>,
+    proposal: &Proposal,
+    checked_facts: Vec<CheckedFact>,
+) -> Option<PipelineResult> {
+    if proposal.origin != ProposalOrigin::Human {
+        return None;
+    }
+
+    let Some(actor_id) = proposal.actor_id.as_ref() else {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::ControllerBindingCheck,
+            vec![ReasonCode::ControllerUnbound],
+            checked_facts,
+            "No controller is bound to that actor.",
+            "human-origin proposal did not name an actor for authorization",
+        ));
+    };
+
+    let Some(controller_id_value) = proposal.parameters.get("controller_id") else {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::ControllerBindingCheck,
+            vec![ReasonCode::ControllerUnbound],
+            checked_facts,
+            "No controller is bound to that actor.",
+            "human-origin proposal did not include controller_id metadata",
+        ));
+    };
+    let Ok(controller_id) = crate::ids::ControllerId::new(controller_id_value.clone()) else {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::ControllerBindingCheck,
+            vec![ReasonCode::ControllerUnbound],
+            checked_facts,
+            "No controller is bound to that actor.",
+            "human-origin controller_id was not a stable ID",
+        ));
+    };
+
+    match context.controller_bindings.and_then(|bindings| {
+        Some(match bindings.authorize(&controller_id, actor_id) {
+            Ok(()) => Ok(()),
+            Err(error) => Err(error),
+        })
+    }) {
+        Some(Ok(())) => None,
+        Some(Err(ControllerError::ControllerActorMismatch { .. })) => Some(reject(
+            context,
+            proposal,
+            PipelineStage::ControllerBindingCheck,
+            vec![ReasonCode::ControllerActorMismatch],
+            checked_facts,
+            "That controller is bound to another actor.",
+            "human-origin controller binding did not match proposal actor",
+        )),
+        Some(Err(ControllerError::ControllerUnbound(_))) | None => Some(reject(
+            context,
+            proposal,
+            PipelineStage::ControllerBindingCheck,
+            vec![ReasonCode::ControllerUnbound],
+            checked_facts,
+            "No controller is bound to that actor.",
+            "human-origin controller was not bound",
+        )),
+    }
+}
+
 fn reject_action(
     context: &mut PipelineContext<'_>,
     proposal: &Proposal,
@@ -334,6 +410,7 @@ fn rejection_event_id(proposal: &Proposal) -> EventId {
 mod tests {
     use super::*;
     use crate::actions::{ActionDefinition, ProposalOrigin};
+    use crate::controller::ControllerBindings;
     use crate::events::apply::apply_event;
     use crate::ids::{ActionId, ActorId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -411,14 +488,29 @@ mod tests {
 
         let mut human_state = state();
         let mut human_log = EventLog::new();
+        let mut bindings = ControllerBindings::new();
+        let mut binding_log = EventLog::new();
+        bindings.attach(
+            crate::ids::ControllerId::new("controller_human").unwrap(),
+            actor_id("actor_tomas"),
+            crate::state::ControllerMode::Embodied,
+            SimTick::ZERO,
+            &mut binding_log,
+            ContentManifestId::new("phase1_manifest").unwrap(),
+        );
+        let mut human_proposal = proposal(ProposalOrigin::Human);
+        human_proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
         let mut human_context = PipelineContext {
             registry: &registry,
             state: &mut human_state,
             log: &mut human_log,
+            controller_bindings: Some(&bindings),
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
-        let human = run_pipeline(&mut human_context, &proposal(ProposalOrigin::Human));
+        let human = run_pipeline(&mut human_context, &human_proposal);
 
         let mut scheduler_state = state();
         let mut scheduler_log = EventLog::new();
@@ -426,6 +518,7 @@ mod tests {
             registry: &registry,
             state: &mut scheduler_state,
             log: &mut scheduler_log,
+            controller_bindings: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -448,6 +541,7 @@ mod tests {
             registry: &registry,
             state: &mut state,
             log: &mut log,
+            controller_bindings: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -504,6 +598,7 @@ mod tests {
             registry: &registry,
             state: &mut live_state,
             log: &mut live_log,
+            controller_bindings: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -526,6 +621,7 @@ mod tests {
             registry: &registry,
             state: &mut live_state,
             log: &mut live_log,
+            controller_bindings: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };

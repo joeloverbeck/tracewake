@@ -2,6 +2,7 @@
 
 pub mod actions;
 pub mod checksum;
+pub mod controller;
 pub mod events;
 pub mod ids;
 pub mod location;

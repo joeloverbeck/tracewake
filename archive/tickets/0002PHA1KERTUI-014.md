@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-014: Controller binding and possession parity
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `controller` module to `tracewake-core`; emits `ControllerAttached`/`ControllerDetached` on the `controller` stream.
@@ -79,3 +79,22 @@ Add `pub mod controller;` to `crates/tracewake-core/src/lib.rs`.
 1. `cargo test -p tracewake-core controller`
 2. `cargo build --workspace`
 3. Unit scope is correct; the full `debug_attach_001` possession-parity scenario runs in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::controller` with runtime controller binding lifecycle stored outside authoritative physical state.
+- Added deterministic `ControllerAttached`/`ControllerDetached` events on the non-world `controller` stream.
+- Wired the shared pipeline's human-origin binding check through optional controller metadata while leaving non-human/test/scheduler proposals on the same validation path after authorization.
+- Verified binding changes do not alter actor components, physical checksums, or ordinary semantic actions.
+
+Deviations from original plan:
+- Existing non-controller tests now pass `controller_bindings: None` explicitly to make the authorization boundary visible at each pipeline call site.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core controller` passed: 5 matching tests.
+- `cargo test -p tracewake-core` passed: 62 tests.
+- `cargo build --workspace` passed.
