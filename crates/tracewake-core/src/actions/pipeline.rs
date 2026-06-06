@@ -1,6 +1,7 @@
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
 use crate::actions::defs::takeplace::build_take_place_event;
+use crate::actions::defs::wait::build_wait_event;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
 use crate::actions::registry::{ActionEffect, ActionRegistry};
@@ -167,6 +168,12 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 &context.ordering_key,
                 &context.content_manifest_id,
                 false,
+            ),
+            ActionEffect::Wait => build_wait_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
             ),
             ActionEffect::QueryOnly => unreachable!("would_mutate checked above"),
         };

@@ -10,6 +10,7 @@ pub enum ActionEffect {
     Close,
     Take,
     Place,
+    Wait,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -85,6 +86,20 @@ impl ActionRegistry {
         self.register(ActionDefinition::world_action(
             ActionId::new("place").unwrap(),
             ActionEffect::Place,
+        ));
+    }
+
+    pub fn register_phase1_inspect_wait(&mut self) {
+        self.register(ActionDefinition::query_only(ActionId::new("look").unwrap()));
+        self.register(ActionDefinition::query_only(
+            ActionId::new("inspect_place").unwrap(),
+        ));
+        self.register(ActionDefinition::query_only(
+            ActionId::new("inspect_entity").unwrap(),
+        ));
+        self.register(ActionDefinition::world_action(
+            ActionId::new("wait").unwrap(),
+            ActionEffect::Wait,
         ));
     }
 }

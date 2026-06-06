@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-011: inspect (query) and wait/advance action definitions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — registers `look`/`inspect_place`, `inspect_entity`, and `wait` action definitions; emits `ActorWaited`/`TimeAdvanced` for wait only.
@@ -80,3 +80,23 @@ Register all three in `actions/registry.rs`.
 1. `cargo test -p tracewake-core actions::defs::inspect actions::defs::wait`
 2. `cargo build --workspace`
 3. Unit scope is correct; embodied-view leakage is additionally regression-tested end-to-end in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added inspect visibility helpers and registered `look`, `inspect_place`, and `inspect_entity` as query-only actions.
+- Added `wait` action event construction and registry/pipeline wiring.
+- Verified inspect uses the Phase 1 visibility query, appends no world event, and writes no actor state.
+- Verified wait records deterministic tick advancement through an `ActorWaited` world event.
+
+Deviations from original plan:
+- The documented combined Cargo filter `cargo test -p tracewake-core actions::defs::inspect actions::defs::wait` is not accepted by Cargo as written, so verification used separate filters.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core actions::defs::inspect` passed: 2 tests.
+- `cargo test -p tracewake-core actions::defs::wait` passed: 2 tests.
+- `cargo test -p tracewake-core actions` passed: 21 tests.
+- `cargo build --workspace` passed.
