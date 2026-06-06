@@ -57,9 +57,9 @@ Spec 0001 does not settle:
 ## Spec 0002
 
 **Title:** Phase 1: Kernel, TUI, Event Log, and Replay Implementation Specification  
-**Status:** Implementable Phase 1 specification.  
+**Status:** Phase 1 landed.
 **Phase covered:** Phase 1 runnable kernel, TUI/view-model harness, event log, and replay.  
-**Spec file:** `specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md` (intended home `docs/4-specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md`).  
+**Spec file:** `archive/specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md` (intended home `docs/4-specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md`).
 **Source commit analyzed:** `841deeb6fc73f8006ed2548530c062067d4f5250`.  
 **Freshness claim:** user-supplied target commit only; not independently verified as latest `main`.
 
