@@ -96,7 +96,7 @@ pub enum DebugViewModel {
     ControllerBinding(DebugControllerBindingView),
     EventLog(DebugEventLogView),
     ItemLocation(DebugItemLocationView),
-    ActionRejection(DebugActionRejectionView),
+    ActionRejection(Box<DebugActionRejectionView>),
     ProjectionRebuild(DebugProjectionRebuildView),
     ReplayReport(DebugReplayReportView),
 }

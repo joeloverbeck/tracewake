@@ -299,12 +299,10 @@ fn controller_binding_check(
         ));
     };
 
-    match context.controller_bindings.and_then(|bindings| {
-        Some(match bindings.authorize(&controller_id, actor_id) {
-            Ok(()) => Ok(()),
-            Err(error) => Err(error),
-        })
-    }) {
+    match context
+        .controller_bindings
+        .map(|bindings| bindings.authorize(&controller_id, actor_id))
+    {
         Some(Ok(())) => None,
         Some(Err(ControllerError::ControllerActorMismatch { .. })) => Some(reject(
             context,

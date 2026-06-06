@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn ordering_is_by_stable_string_value() {
-        let mut ids = vec![
+        let mut ids = [
             ItemId::new("coin_stack_10").unwrap(),
             ItemId::new("coin_stack_02").unwrap(),
             ItemId::new("coin_stack_01").unwrap(),
