@@ -1,517 +1,336 @@
 # Phase 0: Paper Ontology and Fixture Contracts
 
-## Purpose
+## Status
 
-Phase 0 is a design proof, not an executable milestone.
+Phase 0 is a design-proof phase, not a coding phase.
 
-It exists to prevent the first implementation from smuggling in quests, hidden scripts, omniscient records, player privilege, or LLM authority. The team must manually trace the missing-property village from cause to consequence before writing the runnable kernel.
+Its purpose is to force the first proof into explicit ontology, fixture, action, event, proposition, and validation contracts before implementation can hide missing doctrine behind code.
 
-Phase 0 answers:
+Phase 0 exists to prevent:
 
-```text
-Can the first proof be described as ordinary actions, events, traces,
-observations, beliefs, reports, records, suspicion, replay, and debug views?
-```
-
-If the answer requires a quest object, plot flag, player identity, hidden culprit script, or LLM reasoning, Phase 0 fails.
+- quest flags;
+- hidden scripts;
+- omniscient culprit knowledge;
+- abstract balances where physical custody is required;
+- protagonist-only actions;
+- LLM-authored state;
+- untestable emergent claims;
+- playable-TUI postponement.
 
 ## Entry requirements
 
-Phase 0 may begin when:
+Phase 0 may begin only when:
 
-- the execution charter is accepted;
-- The Missing Property Village is accepted as the first proof;
-- road-threat/travel/companion systems are marked second-proof;
-- the current foundation and architecture authority set is identified;
-- the uploaded manifest has been used as inventory;
-- the old execution docs are treated as source material, not final truth.
+- the foundation, architecture, and execution documents have been reviewed in layer order;
+- **The Missing Property Village** is accepted as the first proof;
+- notices, roads, beasts, caravans, companions, combat, and regional travel are explicitly deferred to the second proof;
+- no implementation work depends on unresolved ontology or fixture contracts;
+- any repository-audit evidence ledger or exact-commit source inventory has been kept outside committed product doctrine.
 
-## Deliverables
+Phase 0 must not begin from branch names, repository metadata, connector labels, or prior chat memory as product authority. Those may be audit inputs only when the audit explicitly permits them.
 
-### Primitive action vocabulary
+## Required Phase 0 outputs
 
-Define about 20 primitive action families. These are vocabulary contracts, not implementation code.
+Phase 0 produces complete paper contracts for:
 
-Required first list:
+1. actor roster;
+2. place and container roster;
+3. physical item/value-token roster;
+4. ownership, access, and custody model;
+5. first-proof action vocabulary;
+6. first-proof event vocabulary;
+7. first-proof proposition and claim vocabulary;
+8. belief, memory, and observation contracts;
+9. speech/report contracts;
+10. institution and record contracts;
+11. first-proof fixtures;
+12. no-scripting review;
+13. acceptance tests and debug/provenance expectations.
 
-```text
-Look
-MoveToAdjacentPlace
-OpenDoor
-CloseDoor
-LockDoor
-UnlockDoor
-InspectObject
-OpenContainer
-CloseContainer
-SearchContainer
-SearchPlace
-TakeItem
-PlaceItem
-HideItem
-Eat
-Sleep
-Wait
-BeginWorkBlock
-ContinueRoutine
-InterruptRoutine
-SpeakStructuredAct
-Ask
-Answer
-Tell
-Report
-Gossip
-Refuse
-Lie
-AccuseOrSuspect
-ReadRecordOrNotice
-WriteRecordEntry
-```
+These are paper artifacts. They are not implementation tickets.
 
-This list may be trimmed or split, but the first proof must support movement, door/container use, item handling, sleep/eat/work/wait, structured speech, report, and record writing.
+## Mandatory actor roster contract
 
-Each action card must include:
+The first-proof actor roster must include enough ordinary people to make missing property socially and institutionally meaningful without broadening the scope.
+
+The roster must define, at minimum:
+
+- actor ID and display name;
+- household or residence;
+- ordinary role or work routine;
+- access rights;
+- relationships and trust edges relevant to the first proof;
+- known debts, obligations, or needs relevant to the first proof;
+- initial beliefs and expectations;
+- initial memories that can later matter;
+- speech/report capabilities;
+- institution role, if any;
+- whether the actor is a valid possession target.
+
+The roster should start around 10-20 high-detail named actors. It may expand toward 10-30 only if the first-proof behaviors remain inspectable.
+
+No actor may exist only as a quest giver, culprit, witness token, reward dispenser, or protagonist foil.
+
+## Mandatory place and container contract
+
+The first-proof map must be small and ordinary.
+
+It must define:
+
+- rooms;
+- homes;
+- workplaces;
+- public/common areas;
+- a local authority or clerk office;
+- containers;
+- doors or access boundaries;
+- ordinary paths between local places.
+
+Each container relevant to the first proof must define:
+
+- physical location;
+- owner or responsible actor/household/institution;
+- access affordances;
+- expected contents by relevant actors, if any;
+- visible state affordances;
+- whether absence can be observed directly or only through search.
+
+The map must not include roads, wilderness sites, beast lairs, caravan routes, battlefields, or expedition targets in the first proof.
+
+## Mandatory physical property contract
+
+Money or valuable property relevant to the first proof must be physical/custody-tracked.
+
+The contract must define:
+
+- item or value-token identity;
+- physical location or holder;
+- ownership claim;
+- custody history expectations;
+- transfer actions;
+- taking/moving/hiding actions;
+- search/discovery actions;
+- observation and trace possibilities;
+- records or expectations referring to the item;
+- how absence becomes evidence only through an observation, failed retrieval, or search event.
+
+Abstract balances may exist later for other economic layers, but they cannot replace physical custody when the proof requires “I expected the coins to be in the chest, but they are gone.”
+
+## Mandatory action vocabulary
+
+Phase 0 must define first-proof actions as ordinary agent actions, not player verbs or quest commands.
+
+Required action families include:
+
+- move locally;
+- inspect visible contents;
+- open/close or access a container when permitted or physically possible;
+- take item;
+- place item;
+- hide or move item;
+- search location/container;
+- ask actor;
+- answer actor;
+- tell/report claim;
+- refuse or withhold answer;
+- lie or make uncertain report if the actor has a modeled reason and capability;
+- go to local authority;
+- file report;
+- create or update institutional record;
+- question an actor under institutional procedure;
+- delay payment or update plan after expected property is missing.
+
+Each action must specify:
 
 - actor requirements;
-- physical preconditions;
-- knowledge requirements;
-- social/normative checks;
-- cost/duration;
-- reservations if any;
-- possible outcomes;
-- traces;
-- observation hooks;
-- norm hooks;
-- event kinds;
-- TUI label;
-- why-not reason classes;
-- failure modes.
+- physical or social preconditions;
+- belief/expectation inputs, where applicable;
+- affordance visibility to the actor;
+- event or events emitted on success;
+- failure modes;
+- traces or observations generated;
+- deterministic randomness, if any;
+- why an AI-controlled and human-controlled actor can both perform it under equivalent conditions.
 
-### Primitive event vocabulary
+## Mandatory event vocabulary
 
-Define event kinds for the first proof.
+Phase 0 must define events for all meaningful world changes.
 
-Required first list:
+Required event families include:
 
-```text
-ActorMoved
-DoorOpened
-DoorClosed
-ContainerOpened
-ContainerClosed
-ItemRemovedFromContainer
-ItemPlacedInContainer
-ItemHidden
-ItemPossessionChanged
-ActionRejected
-ActionStarted
-ActionInterrupted
-ActionFailed
-ObservationCreated
-BeliefUpdated
-ExpectationContradicted
-TraceCreated
-TraceAltered
-SpeechActCommitted
-ReportReceived
-LedgerEntryCreated
-RecordRead
-RoutineStarted
-RoutineInterrupted
-NeedChanged
-SleepStarted
-SleepCompleted
-WorkBlockStarted
-WorkBlockCompleted
-ControllerAttached
-ReplayCheckpointCreated
-```
+- actor moved;
+- container accessed;
+- item transferred or relocated;
+- item observed present;
+- expected item observed absent;
+- search performed;
+- trace observed;
+- claim spoken;
+- belief formed, updated, contradicted, weakened, or discarded;
+- memory recorded or recalled;
+- report received;
+- institutional record opened or amended;
+- suspicion formed;
+- plan/intention delayed or updated.
 
-Meaningful changes require event ancestry. Current-state mutation without event is forbidden for proof-relevant changes.
+Each event must specify:
 
-### Primitive proposition vocabulary
+- event type;
+- actor or institution responsible;
+- cause model;
+- referenced prior event IDs, beliefs, records, traces, or authored seed facts;
+- world state mutation;
+- projection effects;
+- replay requirements;
+- whether the event is visible to an actor, an institution, debug only, or global truth only.
 
-Define proposition shapes that beliefs and records may hold.
+Events may not cite “quest accepted,” “story needs escalation,” “player should learn this,” “director chose culprit,” or “LLM said so” as causes.
 
-Required first list:
+## Mandatory proposition and claim contract
 
-```text
-ItemLocatedInContainer(item, container)
-ItemMissing(item)
-ItemLastExpectedAt(item, place_or_container)
-ActorAtPlace(actor, place)
-ActorNearPlace(actor, place, time_range)
-ContainerOpenedRecently(container)
-SoundHeardNear(place, time_range)
-ActorHadAccess(actor, place_or_container)
-ActorHadMotive(actor, motive_claim)
-ActorOwnsItem(actor, item)
-ActorPossessesItem(actor, item)
-ActorPermittedToUse(actor, object)
-ReportClaimsMissingItem(report, item)
-InstitutionOpenedRecord(institution, record)
-ActorSuspectedBy(actor_or_institution, suspect, reason)
-RecordContainsClaim(record, proposition)
-```
+Phase 0 must define typed propositions for first-proof epistemics.
 
-Propositions are claims, not truth flags. They need holder, source, confidence, and acquisition time when believed.
+Required proposition families include:
 
-### Primitive trace vocabulary
+- item is at location;
+- actor possesses item;
+- actor owns item;
+- actor may access container/location;
+- actor saw another actor at place/time;
+- actor saw item present/absent;
+- actor heard claim from source;
+- report was filed;
+- record says X;
+- actor may be responsible;
+- actor needs or intends something;
+- payment is delayed or obligation unmet.
 
-Define trace types.
+Claims must be source-bound. A claim is not global truth.
 
-Required first list:
+Beliefs must record, at minimum:
 
-```text
-absence_marker
-disturbed_container
-open_or_closed_state_anomaly
-lock_scratch
-noise_trace
-partial_glimpse
-moved_object
-footprint_or_mud_if_supported
-record_entry
-rumor_packet
-erased_trace
-nervous_behavior_observation
-```
+- holder;
+- proposition;
+- confidence or strength;
+- source;
+- channel;
+- timestamp or event reference;
+- provenance;
+- contradiction links;
+- stale/uncertain/rumor/lie markers where applicable.
 
-Traces must define possible interpretations. Avoid perfect clues.
+## Mandatory speech and report contract
 
-### Primitive speech-act vocabulary
+Speech in the first proof is structured speech-act transmission, not freeform simulation authority.
 
-First proof speech acts:
+Required speech acts include:
 
-```text
-greet
-ask
-answer
-tell
-report
-gossip
-refuse
-lie
-accuse_or_suspect
-testify_or_statement
-withhold_or_deflect
-promise_if_needed
-command_or_instruct_if_role_permits
-```
+- ask about item/location/actor/event;
+- answer sincerely from belief;
+- answer uncertainly;
+- deny knowledge;
+- lie or mislead from modeled motive/capability;
+- report missing property;
+- repeat rumor or testimony;
+- institutional intake acknowledgment.
 
-Each speech act must specify:
+Each speech act must define:
 
 - speaker;
-- listeners;
-- propositions;
-- source beliefs;
-- asserted confidence;
-- whether truthful, lie, speculation, report, hearsay, or question;
-- validation checks;
-- listener interpretation;
-- possible refusal/failure.
+- listener;
+- structured content;
+- source attribution;
+- sincerity or lie marker where known to debug/provenance;
+- listener belief-update rule;
+- trust/source effects;
+- generated event(s);
+- deterministic rendering/mocking rule.
 
-### Actor roster
+Natural-language text is a rendering of the structured act. It is not authoritative state.
 
-Create first-proof actor cards for:
+## Mandatory institution and record contract
 
-- Tomas;
-- Mara;
-- Elena;
-- Anna;
-- Elias;
-- Reeve;
-- 4–10 supporting locals.
+The first-proof institution may be tiny, but it must be fallible.
 
-Each card must include:
+The contract must define:
 
-```text
-home
-work or survival strategy
-household
-needs profile
-durable concern/project
-relationships
-initial beliefs with sources
-routine sketch
-property/custody/access facts
-possible role in wrong suspicion
-```
+- institutional role(s), such as clerk or local authority;
+- jurisdiction or practical scope;
+- intake procedure;
+- report record schema;
+- evidence threshold for suspicion or questioning;
+- delay and workload behavior, if modeled;
+- bias, trust, access, or procedural failure modes;
+- how records can be true, false, partial, stale, missing, or forged;
+- how institutional action uses institutional knowledge rather than ground truth.
 
-No actor exists solely to serve the player.
+Wrong suspicion must be possible for legible reasons. It must not be guaranteed by script.
 
-### Places and object inventory
+## Mandatory fixture contracts
 
-Define:
+Phase 0 must define named fixtures for later phases.
 
-- homes and rooms;
-- doors and access;
-- containers and locks;
-- beds;
-- food storage;
-- workplace;
-- local authority office;
-- incident ledger artifact;
-- simple money/custody object;
-- optional public food/social place.
+At minimum:
 
-Each object must expose affordances, not outcomes.
+### Baseline Physical Custody Fixture
 
-### Required manual chains
+A simple local map, a container, an actor who owns or expects property, and physical value tokens located where expected.
 
-Deliver paper traces for:
+### Missing Expected Property Fixture
 
-1. strongbox/missing-property chain;
-2. ordinary workday chain;
-3. report/record chain;
-4. wrong suspicion chain;
-5. possession parity chain;
-6. no-human daily chain.
+A deterministic seed in which property is moved or taken by modeled action and the victim later discovers absence through ordinary expectation or search.
 
-Each chain must include events, cause links, observations, beliefs, records, debug visibility, TUI visibility, and failure cases.
+### Partial Witness Fixture
 
-## TUI screen sketches
+A deterministic seed in which a witness has partial or ambiguous information and can form or report an uncertain belief.
 
-Phase 0 must sketch these screens as view-model contracts:
+### Wrong Suspicion Fixture
 
-### Embodied local view
+A deterministic seed in which partial evidence, trust, access, timing, or bias can produce wrong suspicion without omniscient accusation.
 
-Shows:
+### Possession Parity Fixture
 
-- current actor;
-- actor-known place;
-- visible/perceived entities;
-- known exits;
-- actor-known status;
-- actor-filtered action menu;
-- why-not request path;
-- actor-known notebook excerpt;
-- actor-perceived recent events.
+A deterministic seed in which the same actor action can be chosen under AI control or human possession, with the same affordances and actor-grounded knowledge.
 
-Must not show:
+### No-Human Daily Life Fixture
 
-- hidden culprit;
-- true item location;
-- other actors' private beliefs;
-- debug event log;
-- hidden traces.
-
-### Object/container view
-
-Shows:
-
-- actor-known object identity;
-- perceived state;
-- visible contents if opened/searched and perceivable;
-- actor-available affordances;
-- actor-known ownership/privacy risk;
-- why-not reasons.
-
-### Actor-known notebook
-
-Shows:
-
-- source-bound beliefs;
-- confidence/uncertainty;
-- last verification;
-- contradictions;
-- conversations heard;
-- reports made/read;
-- actor-known leads.
-
-### Structured speech/report view
-
-Shows:
-
-- possible speech acts;
-- target listener;
-- source beliefs used;
-- uncertainty;
-- social risk;
-- validation failures.
-
-### Debug event/causal view
-
-Shows:
-
-- ground truth;
-- event log;
-- causal graph;
-- projection diffs;
-- hidden beliefs;
-- hidden traces;
-- planner traces;
-- possession history;
-- replay diagnostics.
-
-Debug must be visibly non-diegetic.
-
-## View-model contracts
-
-Every view-model sketch must specify:
-
-```text
-input projections
-knowledge context
-allowed truth source
-forbidden truth source
-stable semantic action IDs
-why-not source
-test assertions
-debug counterpart
-```
-
-Bad contract:
-
-```text
-TUI queries world state and hides fields manually.
-```
-
-Good contract:
-
-```text
-EmbodiedViewModel(actor_tomas) is produced by actor-knowledge projection
-and contains no unobserved event-log truth.
-```
+A deterministic seed in which ordinary routines proceed with no human input and can produce or fail to produce the missing-property chain from modeled causes.
 
 ## No-scripting review
 
-Review all Phase 0 chains against these forbidden patterns:
+Phase 0 must explicitly reject any fixture or contract that:
 
-- `Quest`;
-- `PlayerCharacter`;
-- `ObjectiveMarker.true_location`;
-- `NPC.knows_truth`;
-- `scripted culprit`;
-- `scripted accusation`;
-- `scripted report acceptance`;
-- `Reward.spawn_on_completion`;
-- `LLM_mutated_state`;
-- direct content inventory mutation;
-- guaranteed outcome sequence;
-- NPC waiting for player;
-- institution reading true culprit;
-- debug knowledge as actor knowledge.
+- guarantees future theft by hidden script;
+- guarantees discovery;
+- guarantees accusation;
+- guarantees institutional closure;
+- spawns evidence for pacing;
+- repairs a stalled chain for drama;
+- creates a quest objective;
+- uses player knowledge as actor knowledge;
+- gives institutions ground truth;
+- lets LLM text mutate state;
+- uses abstract balances instead of physical property when absence matters;
+- hides missing causality behind “emergence.”
 
-If any appear, rewrite the fixture as causal possibility.
+## Phase 0 exit gate
 
-## TUI/view-model gate
-
-Phase 0 passes the TUI gate only if a reviewer can follow the first proof through proposed embodied and debug screens and see exactly where hidden truth is excluded.
-
-The gate must include paper assertions for:
-
-- Tomas before checking strongbox;
-- Tomas after checking strongbox;
-- Mara after taking/hiding item;
-- Elena after hearing uncertain sound;
-- Anna after receiving report;
-- Elias after reading record;
-- debug observer after all events.
-
-## No-human simulation gate
-
-The paper no-human chain must show:
-
-- scheduler decision points;
-- routines proceeding;
-- Mara's motive/opportunity emerging without human input;
-- Tomas discovering or failing to discover absence;
-- report/record path if conditions warrant;
-- no event referencing player identity.
-
-If the chain needs a human click to begin, Phase 0 fails.
-
-## Deterministic replay gate
-
-Each chain must list replay-critical data:
-
-- event order;
-- stable IDs;
-- content version;
-- random streams if any;
-- meaningful random draw purposes;
-- projection rebuild targets;
-- debug explanation queries.
-
-## Test gate
-
-Define at least these golden scenario sketches:
-
-- `strongbox_001`;
-- `expectation_contradiction_001`;
-- `possession_parity_001`;
-- `report_record_001`;
-- `wrong_suspicion_001`;
-- `no_human_day_001`;
-- `view_filtering_001`;
-- `replay_rebuild_001`.
-
-Each sketch must include expected occurrence and expected non-occurrence.
-
-## Data/fixture gate
-
-The paper fixture must specify:
-
-- stable IDs;
-- actor roster;
-- place graph;
-- object inventory;
-- initial beliefs with provenance;
-- expectations;
-- needs/pressures;
-- routine skeletons;
-- relationships;
-- household memberships;
-- institution roles;
-- norms;
-- record schemas;
-- scenario seed constraints;
-- no forced outcomes.
-
-## Debug/inspection gate
-
-For each manual chain, define debug answers to:
+Phase 0 is accepted only when reviewers can trace the first-proof chain on paper:
 
 ```text
-What happened?
-Why was it possible?
-What action pipeline checks passed or failed?
-What traces exist?
-Who observed what?
-Who believes what?
-Which beliefs are wrong?
-What record claims exist?
-What institution knows what?
-What later events became possible?
-What would replay rebuild?
+initial physical custody
+-> authored expectation or belief source
+-> modeled opportunity/need/routine
+-> item moved/taken by ordinary action
+-> absence discovered through observation/search
+-> belief contradiction recorded
+-> search/question/report actions become plausible
+-> speech/report transmits claim, not truth
+-> institution records partial information
+-> wrong suspicion can arise for legible reasons
+-> possession parity holds
+-> no-human run is possible
+-> replay/provenance requirements are clear
 ```
 
-## Forbidden shortcuts
-
-- finalizing crates before ontology;
-- writing Rust code before action/event vocabulary;
-- choosing data syntax before validation contracts;
-- designing a notice-board UI as first proof;
-- treating "The Village That Notices" as road-threat play;
-- authoring a culprit sequence;
-- using LLM text as social simulation;
-- accepting fixture prose that cannot become events.
-
-## Exit checklist
-
-Phase 0 exits only when all are true:
-
-- first-proof chain manually traces from cause to consequence;
-- action/event/proposition/trace/speech-act vocabularies exist;
-- first village actor roster exists;
-- place/object/household/institution inventory exists;
-- view-model contracts exist;
-- TUI sketches separate embodied and debug truth;
-- golden scenario sketches exist;
-- no-scripting review passes;
-- no-human chain exists;
-- replay-critical data is identified;
-- deferrals are explicit.
-
-Do not proceed to Phase 1 without this checklist.
+If this chain requires a hidden script, quest flag, omniscient knowledge, player privilege, abstract money shortcut, LLM authority, or director intervention, Phase 0 fails.
