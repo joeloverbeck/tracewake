@@ -1,0 +1,273 @@
+use crate::ids::{ContentVersion, FixtureId};
+use crate::location::Location;
+use crate::state::PhysicalState;
+use crate::time::SimTick;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChecksumContext {
+    pub fixture_id: FixtureId,
+    pub content_version: ContentVersion,
+    pub sim_tick: SimTick,
+    pub world_stream_position_applied: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PhysicalChecksum(String);
+
+impl PhysicalChecksum {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn from_canonical_lines(lines: &[String]) -> Self {
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for line in lines {
+            for byte in line.as_bytes().iter().copied().chain([b'\n']) {
+                hash ^= u64::from(byte);
+                hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+        Self(format!("twc1-{hash:016x}"))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PhysicalChecksumReport {
+    pub checksum: PhysicalChecksum,
+    pub canonical_input: Vec<String>,
+}
+
+impl PhysicalChecksumReport {
+    pub fn recompute_from_canonical_input(&self) -> PhysicalChecksum {
+        PhysicalChecksum::from_canonical_lines(&self.canonical_input)
+    }
+}
+
+pub fn compute_physical_checksum(
+    state: &PhysicalState,
+    context: &ChecksumContext,
+) -> PhysicalChecksumReport {
+    let mut lines = vec![
+        format!("fixture_id={}", context.fixture_id.as_str()),
+        format!("content_version={}", context.content_version.as_str()),
+        format!("sim_tick={}", context.sim_tick.value()),
+        format!(
+            "world_stream_position_applied={}",
+            context.world_stream_position_applied
+        ),
+    ];
+
+    for (actor_id, actor) in &state.actors {
+        lines.push(format!(
+            "actor|id={}|place={}|enabled={}|carried={}",
+            actor_id.as_str(),
+            actor.current_place_id.as_str(),
+            actor.enabled,
+            join_ids(actor.carried_item_ids.iter().map(|id| id.as_str()))
+        ));
+    }
+
+    for (place_id, place) in &state.places {
+        lines.push(format!(
+            "place|id={}|label={}|adjacent={}|doors={}|containers={}|items={}|actors={}",
+            place_id.as_str(),
+            place.display_label,
+            join_ids(place.adjacent_place_ids.iter().map(|id| id.as_str())),
+            join_ids(place.connected_door_ids.iter().map(|id| id.as_str())),
+            join_ids(place.local_container_ids.iter().map(|id| id.as_str())),
+            join_ids(place.local_item_ids.iter().map(|id| id.as_str())),
+            join_ids(place.local_actor_ids.iter().map(|id| id.as_str()))
+        ));
+    }
+
+    for (door_id, door) in &state.doors {
+        lines.push(format!(
+            "door|id={}|a={}|b={}|open={}|locked={}|key={}|blocks_closed={}",
+            door_id.as_str(),
+            door.endpoint_a.as_str(),
+            door.endpoint_b.as_str(),
+            door.is_open,
+            door.is_locked,
+            door.access_key_item_id
+                .as_ref()
+                .map(|id| id.as_str())
+                .unwrap_or(""),
+            door.blocks_movement_when_closed
+        ));
+    }
+
+    for (container_id, container) in &state.containers {
+        lines.push(format!(
+            "container|id={}|location={}|open={}|locked={}|contents={}|visible_when_closed={}",
+            container_id.as_str(),
+            location_key(&container.location),
+            container.is_open,
+            container.is_locked,
+            join_ids(container.contents.iter().map(|id| id.as_str())),
+            container.contents_visible_when_closed
+        ));
+    }
+
+    for (item_id, item) in &state.items {
+        lines.push(format!(
+            "item|id={}|portable={}|carry_cost={}|location={}|value={}",
+            item_id.as_str(),
+            item.portable,
+            item.carry_cost,
+            location_key(&item.location),
+            item.value_token
+                .as_ref()
+                .map(|value| format!("{}:{}", value.denomination, value.quantity))
+                .unwrap_or_default()
+        ));
+    }
+
+    let checksum = PhysicalChecksum::from_canonical_lines(&lines);
+    PhysicalChecksumReport {
+        checksum,
+        canonical_input: lines,
+    }
+}
+
+fn join_ids<'a>(ids: impl Iterator<Item = &'a str>) -> String {
+    ids.collect::<Vec<_>>().join(",")
+}
+
+fn location_key(location: &Location) -> String {
+    match location {
+        Location::AtPlace(id) => format!("at_place:{}", id.as_str()),
+        Location::InContainer(id) => format!("in_container:{}", id.as_str()),
+        Location::CarriedBy(id) => format!("carried_by:{}", id.as_str()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ids::{ActorId, ContainerId, ControllerId, ItemId, PlaceId};
+    use crate::location::Location;
+    use crate::state::{
+        ActorBody, ContainerState, ControllerBinding, ItemState, PhysicalState, PlaceState,
+    };
+
+    fn actor_id(value: &str) -> ActorId {
+        ActorId::new(value).unwrap()
+    }
+
+    fn place_id(value: &str) -> PlaceId {
+        PlaceId::new(value).unwrap()
+    }
+
+    fn item_id(value: &str) -> ItemId {
+        ItemId::new(value).unwrap()
+    }
+
+    fn container_id(value: &str) -> ContainerId {
+        ContainerId::new(value).unwrap()
+    }
+
+    fn context() -> ChecksumContext {
+        ChecksumContext {
+            fixture_id: FixtureId::new("strongbox_001").unwrap(),
+            content_version: ContentVersion::new("content_v1").unwrap(),
+            sim_tick: SimTick::new(2),
+            world_stream_position_applied: 7,
+        }
+    }
+
+    fn state_with_insert_order(reversed: bool) -> PhysicalState {
+        let mut state = PhysicalState::default();
+        let mut actor = ActorBody::new(actor_id("actor_tomas"), place_id("shop_front"));
+        actor.carried_item_ids.insert(item_id("coin_stack_02"));
+        actor.carried_item_ids.insert(item_id("coin_stack_01"));
+
+        let mut place = PlaceState::new(place_id("shop_front"), "Shop front");
+        place.local_actor_ids.insert(actor_id("actor_tomas"));
+
+        let mut container =
+            ContainerState::fixed_at_place(container_id("strongbox_tomas"), place_id("shop_front"));
+        container.contents.insert(item_id("coin_stack_10"));
+        container.contents.insert(item_id("coin_stack_03"));
+
+        let item_a = ItemState::new(
+            item_id("coin_stack_03"),
+            Location::InContainer(container_id("strongbox_tomas")),
+        );
+        let item_b = ItemState::new(
+            item_id("coin_stack_10"),
+            Location::InContainer(container_id("strongbox_tomas")),
+        );
+
+        if reversed {
+            state.items.insert(item_b.item_id.clone(), item_b);
+            state.items.insert(item_a.item_id.clone(), item_a);
+            state
+                .containers
+                .insert(container.container_id.clone(), container);
+            state.places.insert(place.place_id.clone(), place);
+            state.actors.insert(actor.actor_id.clone(), actor);
+        } else {
+            state.actors.insert(actor.actor_id.clone(), actor);
+            state.places.insert(place.place_id.clone(), place);
+            state
+                .containers
+                .insert(container.container_id.clone(), container);
+            state.items.insert(item_a.item_id.clone(), item_a);
+            state.items.insert(item_b.item_id.clone(), item_b);
+        }
+
+        state
+    }
+
+    #[test]
+    fn same_physical_state_checksums_identically() {
+        let state = state_with_insert_order(false);
+        let first = compute_physical_checksum(&state, &context());
+        let second = compute_physical_checksum(&state, &context());
+
+        assert_eq!(first.checksum, second.checksum);
+        assert_eq!(first.canonical_input, second.canonical_input);
+    }
+
+    #[test]
+    fn canonical_input_recomputes_to_same_checksum_after_reload() {
+        let report = compute_physical_checksum(&state_with_insert_order(true), &context());
+        let serialized = report.canonical_input.join("\n").into_bytes();
+        let reloaded_lines = String::from_utf8(serialized)
+            .unwrap()
+            .lines()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            PhysicalChecksum::from_canonical_lines(&reloaded_lines),
+            report.checksum
+        );
+        assert_eq!(report.recompute_from_canonical_input(), report.checksum);
+    }
+
+    #[test]
+    fn insertion_order_does_not_change_checksum() {
+        let first = compute_physical_checksum(&state_with_insert_order(false), &context());
+        let second = compute_physical_checksum(&state_with_insert_order(true), &context());
+
+        assert_eq!(first.checksum, second.checksum);
+        assert_eq!(first.canonical_input, second.canonical_input);
+    }
+
+    #[test]
+    fn controller_and_debug_metadata_are_excluded() {
+        let state = state_with_insert_order(false);
+        let binding_a = ControllerBinding::detached(ControllerId::new("controller_a").unwrap(), 0);
+        let binding_b = ControllerBinding::detached(ControllerId::new("controller_b").unwrap(), 99);
+        let debug_panel_a = "closed";
+        let debug_panel_b = "item_location";
+
+        let checksum_a = compute_physical_checksum(&state, &context()).checksum;
+        let checksum_b = compute_physical_checksum(&state, &context()).checksum;
+
+        assert_ne!(binding_a.controller_id, binding_b.controller_id);
+        assert_ne!(debug_panel_a, debug_panel_b);
+        assert_eq!(checksum_a, checksum_b);
+    }
+}

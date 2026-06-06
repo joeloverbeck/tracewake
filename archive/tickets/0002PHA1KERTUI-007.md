@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-007: Canonical physical-state checksum
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds the `checksum` module to `tracewake-core`.
@@ -73,3 +73,21 @@ Add `pub mod checksum;` to `crates/tracewake-core/src/lib.rs`.
 1. `cargo test -p tracewake-core checksum`
 2. `cargo build --workspace`
 3. Unit scope is correct: the checksum is a pure function over in-crate state; cross-run equality under replay is exercised in ticket 013.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::checksum` with `ChecksumContext`, `PhysicalChecksum`, and `PhysicalChecksumReport`.
+- Implemented canonical physical-state line serialization over fixture/content version, tick, applied world-stream position, actors, places, doors, containers, and items.
+- Implemented a stable dependency-free checksum over the canonical input.
+- Registered `pub mod checksum;` in the core crate.
+
+Deviations from original plan:
+- The reload test recomputes from the canonical serialized checksum input rather than a full fixture loader, which remains out of scope until the content/replay tickets.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core checksum` passed: 4 tests.
+- `cargo build --workspace` passed.
