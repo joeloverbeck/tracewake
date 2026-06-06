@@ -1,6 +1,6 @@
 # 0003PHA1AEXETUI-004: Reconcile README, spec ledger, and specs index with the executable binary
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — docs (`README.md`, `docs/4-specs/SPEC_LEDGER.md`, `docs/4-specs/README.md`) plus a new README-fidelity test.
@@ -82,3 +82,27 @@ Drive the binary with the README sample commands (or representative fragments) a
 
 1. `cargo test -p tracewake-tui --test readme_sample_session`
 2. `test -f "$(grep -oE 'specs/0003_[A-Z0-9_]+\.md' docs/4-specs/SPEC_LEDGER.md | head -1)" && cargo test --workspace`
+
+## Outcome
+
+Completion date: 2026-06-06
+
+What changed:
+
+- Reconciled the README example session with the implemented stdout shape: prompt lines are rendered as `tracewake>`, and accepted actions print `Accepted: <semantic_action_id>`.
+- Corrected the Spec 0003 ledger path to the actual canonical `specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md` file.
+- Added Spec 0003 to `docs/4-specs/README.md` under Current specs.
+- Added `crates/tracewake-tui/tests/readme_sample_session.rs`, which launches the real binary and exercises representative README-documented command forms.
+
+Deviations from original plan:
+
+- The README liveness test uses a representative command script rather than scraping and replaying the prose sample verbatim, because the sample intentionally contains ellipses and illustrative output.
+
+Verification results:
+
+- `cargo test -p tracewake-tui --test readme_sample_session` — passed.
+- `grep -n "specs/0003_PHASE_1A" docs/4-specs/SPEC_LEDGER.md` — showed the corrected path.
+- `grep -n "0003" docs/4-specs/README.md` — showed the Current-specs entry.
+- `test -f "$(grep -oE 'specs/0003_[A-Z0-9_]+\.md' docs/4-specs/SPEC_LEDGER.md | head -1)"` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.

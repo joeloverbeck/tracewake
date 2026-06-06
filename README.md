@@ -110,24 +110,30 @@ Place: ...
 Actions:
 1. ... [open.container.strongbox_tomas]
 2. ... [wait.1_tick]
-tracewake> 1
-Accepted.
+tracewake>
+1
+Accepted: open.container.strongbox_tomas
 Actor: actor_tomas | Tick: ...
 ...
-tracewake> view
+tracewake>
+view
 Actor: actor_tomas | Tick: ...
 ...
-tracewake> do wait.1_tick
-Accepted.
+tracewake>
+do wait.1_tick
+Accepted: wait.1_tick
 Actor: actor_tomas | Tick: ...
 ...
-tracewake> debug log
+tracewake>
+debug log
 DEBUG NON-DIEGETIC: Event Log
 ...
-tracewake> debug item coin_stack_01
+tracewake>
+debug item coin_stack_01
 DEBUG NON-DIEGETIC: Item Location
 ...
-tracewake> quit
+tracewake>
+quit
 ```
 
 All ordinary world changes go through the shared semantic action/proposal/pipeline path. The TUI does not directly mutate world state.

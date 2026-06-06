@@ -81,7 +81,7 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 ### Spec 0003 — Phase 1A Executable TUI Command Loop and Documentation Alignment
 
 - **Status:** proposed / required corrective Phase 1 continuation.
-- **Spec file:** `docs/4-specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`
+- **Spec file:** `specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`
 - **Target reassessment commit:** `1d27a01e0a5ae6018e9207acff9eed131b06ce1d`
 - **Phase:** Phase 1A; Phase 1 continuation, not Phase 2.
 - **Correction carried forward:** Spec 0002 landed the Phase 1 kernel, content fixtures, replay/debug surface, view models, TUI facade, renderer, input helpers, and deterministic transcript harness. It did not complete the executable TUI command loop that Phase 1 doctrine and Ticket 020 required.
