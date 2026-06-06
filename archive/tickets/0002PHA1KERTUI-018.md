@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-018: Content validation — phases, required failures, forbidden forms
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `validate` module to `tracewake-content`.
@@ -80,3 +80,17 @@ Declare `validate` in `crates/tracewake-content/src/lib.rs`.
 1. `cargo test -p tracewake-content validate forbidden_content`
 2. `cargo build --workspace`
 3. Content-crate scope is correct: validation is a pure gate over content+registry; full golden-fixture acceptance runs in ticket 022.
+
+## Outcome (2026-06-06)
+
+Implemented the deterministic `tracewake-content::validate` gate with ordered validation phases, blocking validation reports, and accepted `InitialWorld` construction only on success. The validator rejects missing/duplicate IDs, bad references, container/item mismatches, item double-location, topology/state issues, unknown or unsupported action affordances, menu-position action IDs, forbidden player/quest/reward forms, behavior-looking script triggers, non-canonical ordering hazards, missing fixture contract basics, and serialization drift.
+
+Added fixture-declared `ActionAffordanceSchema` to content schema/serialization so action-registry parity can be validated against the Phase 1 action registry. `load_fixture_package` now validates before returning a loaded canonical world and reports either serialization or validation failure.
+
+Verification:
+
+1. `cargo test -p tracewake-content validate forbidden_content` failed because Cargo accepts only one test filter.
+2. `cargo test -p tracewake-content validate` passed.
+3. `cargo test -p tracewake-content --test forbidden_content` passed.
+4. `cargo test -p tracewake-content` passed.
+5. `cargo build --workspace` passed.

@@ -3,6 +3,25 @@ use tracewake_core::ids::{ContentManifestId, ContentVersion};
 use crate::manifest::ContentManifest;
 use crate::schema::FixtureSchema;
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
+use crate::validate::{validate_fixture, ContentValidationFailure};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LoadError {
+    Serialization(SerializationError),
+    Validation(ContentValidationFailure),
+}
+
+impl From<SerializationError> for LoadError {
+    fn from(value: SerializationError) -> Self {
+        Self::Serialization(value)
+    }
+}
+
+impl From<ContentValidationFailure> for LoadError {
+    fn from(value: ContentValidationFailure) -> Self {
+        Self::Validation(value)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceFile {
@@ -21,13 +40,18 @@ pub fn load_fixture_package(
     manifest_id: ContentManifestId,
     content_version: ContentVersion,
     mut files: Vec<SourceFile>,
-) -> Result<LoadedFixture, SerializationError> {
+) -> Result<LoadedFixture, LoadError> {
     files.sort_by(|left, right| left.path.cmp(&right.path));
     let primary = files
         .first()
         .ok_or(SerializationError::MissingField("source_file"))?;
     let mut fixture = deserialize_fixture(&primary.bytes)?;
     fixture.canonicalize();
+    let mut registry = tracewake_core::actions::ActionRegistry::new();
+    registry.register_phase1_movement_open_close();
+    registry.register_phase1_take_place();
+    registry.register_phase1_inspect_wait();
+    let accepted_world = validate_fixture(&fixture, &registry)?;
     let canonical_bytes = serialize_fixture(&fixture);
     let manifest = ContentManifest::new(
         manifest_id,
@@ -37,7 +61,7 @@ pub fn load_fixture_package(
         files.iter().map(|file| file.path.clone()).collect(),
         &canonical_bytes,
     );
-    let canonical_world = fixture.to_physical_state();
+    let canonical_world = accepted_world.physical_state;
     Ok(LoadedFixture {
         fixture,
         manifest,
@@ -80,6 +104,7 @@ mod tests {
                 portable: true,
                 location: Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
             }],
+            affordances: Vec::new(),
         }
     }
 

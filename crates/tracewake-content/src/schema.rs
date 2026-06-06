@@ -1,5 +1,5 @@
 use tracewake_core::ids::{
-    ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::{
@@ -15,6 +15,7 @@ pub struct FixtureSchema {
     pub doors: Vec<DoorSchema>,
     pub containers: Vec<ContainerSchema>,
     pub items: Vec<ItemSchema>,
+    pub affordances: Vec<ActionAffordanceSchema>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,6 +57,12 @@ pub struct ItemSchema {
     pub location: Location,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActionAffordanceSchema {
+    pub action_id: ActionId,
+    pub target_id: String,
+}
+
 impl FixtureSchema {
     pub fn canonicalize(&mut self) {
         self.actors
@@ -68,6 +75,9 @@ impl FixtureSchema {
             .sort_by(|left, right| left.container_id.cmp(&right.container_id));
         self.items
             .sort_by(|left, right| left.item_id.cmp(&right.item_id));
+        self.affordances.sort_by(|left, right| {
+            (&left.action_id, &left.target_id).cmp(&(&right.action_id, &right.target_id))
+        });
         for place in &mut self.places {
             place.adjacent_place_ids.sort();
         }

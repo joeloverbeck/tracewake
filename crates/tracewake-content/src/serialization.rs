@@ -1,11 +1,12 @@
 use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::ids::{
-    ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
 };
 use tracewake_core::location::Location;
 
 use crate::schema::{
-    ActorSchema, ContainerSchema, DoorSchema, FixtureSchema, ItemSchema, PlaceSchema,
+    ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema, ItemSchema,
+    PlaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -74,6 +75,13 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             serialize_location(&item.location)
         ));
     }
+    for affordance in fixture.affordances {
+        lines.push(format!(
+            "affordance|{}|{}",
+            affordance.action_id.as_str(),
+            affordance.target_id
+        ));
+    }
     lines.join("\n").into_bytes()
 }
 
@@ -87,6 +95,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     let mut doors = Vec::new();
     let mut containers = Vec::new();
     let mut items = Vec::new();
+    let mut affordances = Vec::new();
 
     for line in text.lines() {
         let parts = line.split('|').collect::<Vec<_>>();
@@ -126,6 +135,10 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                 portable: parse_bool(portable)?,
                 location: deserialize_location(location)?,
             }),
+            ["affordance", action_id, target_id] => affordances.push(ActionAffordanceSchema {
+                action_id: ActionId::new(*action_id)?,
+                target_id: (*target_id).to_string(),
+            }),
             _ => return Err(SerializationError::BadLine(line.to_string())),
         }
     }
@@ -138,6 +151,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         doors,
         containers,
         items,
+        affordances,
     };
     fixture.canonicalize();
     Ok(fixture)
@@ -259,6 +273,7 @@ mod tests {
                 portable: true,
                 location: Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
             }],
+            affordances: Vec::new(),
         }
     }
 
