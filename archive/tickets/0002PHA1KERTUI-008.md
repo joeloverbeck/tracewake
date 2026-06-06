@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-008: Shared proposal/validation/commit pipeline and action registry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `actions` module (registry, proposal, pipeline, mutation plan, validation reports, reason codes) to `tracewake-core`.
@@ -88,3 +88,23 @@ Add `pub mod actions;` to `crates/tracewake-core/src/lib.rs`; the registry start
 1. `cargo test -p tracewake-core actions`
 2. `cargo build --workspace`
 3. Core-crate scope is correct: the pipeline operates on in-crate state/events; full human-vs-no-human parity over a fixture is exercised in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::actions` with the proposal contract, ordinary action registry, validation reports, stable reason codes, and a 19-stage shared pipeline skeleton.
+- Added explicit inert pipeline slots for knowledge/perception, social/norm, cost/duration, and reservation/conflict checks.
+- Added structured rejection reporting for unknown actions, including a diagnostic `ActionRejected` envelope and no world mutation.
+- Registered `pub mod actions;` in the core crate.
+
+Deviations from original plan:
+- Concrete mutation-plan execution remains deferred to tickets 009-011 as planned; this ticket accepts query-only registered actions and rejects unsupported/unknown actions through the shared pipeline.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core actions` passed: 4 tests.
+- `cargo build --workspace` passed.
+- Grep confirmed all four inert slots are present in `crates/tracewake-core/src/actions`.
+- Grep found no direct physical-state mutation in the actions module for this framework ticket.
