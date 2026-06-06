@@ -1,6 +1,6 @@
 # 0003PHA1AEXETUI-003: Binary-level integration and no-mutation/no-leak regressions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new `crates/tracewake-tui/tests/command_loop_session.rs`; modifies `crates/tracewake-tui/tests/embodied_flow.rs`.
@@ -78,3 +78,25 @@ Either extend `command_loop_session.rs` or add a focused test mirroring `tui_acc
 
 1. `cargo test -p tracewake-tui --test command_loop_session --test embodied_flow`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completion date: 2026-06-06
+
+What changed:
+
+- Added `crates/tracewake-tui/tests/command_loop_session.rs`, which launches the actual `tracewake-tui` binary with scripted stdin/stdout.
+- Covered the executable loop startup, prompt, accepted action output, why-not rejection output, `debug log`, and clean exit.
+- Added a binary-level numeric selection proof that bare `1` executes the stable semantic action ID from the rendered menu rather than treating `"1"` as identity.
+- Added a binary-level debug non-leakage regression for `debug item coin_stack_01`, a following `view`, and unchanged debug/projection checksum output.
+- Extended `embodied_flow.rs`'s no-direct-`apply_event` guard to include `main.rs` and `run.rs`.
+
+Deviations from original plan:
+
+- The debug non-mutation proof compares checksum output from `debug item` and `debug projection` in the same binary session, because embodied views intentionally do not print physical checksums.
+
+Verification results:
+
+- `cargo test -p tracewake-tui --test command_loop_session --test embodied_flow` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.
