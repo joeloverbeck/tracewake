@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-006: Append-only event log and strict event application
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the append-only log and event-application path to `tracewake-core`'s `events` module.
@@ -81,3 +81,23 @@ Re-export `log` and `apply` from `events/mod.rs`.
 1. `cargo test -p tracewake-core events::apply events::log`
 2. `cargo build --workspace`
 3. Core-crate scope is correct: application operates on in-crate `state` + `events` types; cross-crate replay is exercised in ticket 013's tests.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `events::apply` with the single strict physical-state application path for world events and no-op behavior for non-world streams.
+- Added old-state checks for actor movement, door/container open state changes, and item location changes.
+- Added `events::log` with append-only committed event storage, monotonic stream/global position assignment, read-only access, and canonical serialization round-trip.
+- Added a minimal `PhysicalState` aggregate over the Phase 1 state maps.
+
+Deviations from original plan:
+- The documented combined Cargo filter `cargo test -p tracewake-core events::apply events::log` is not accepted by Cargo as written, so verification used separate `events::apply` and `events::log` filters.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core events::apply` passed: 4 tests.
+- `cargo test -p tracewake-core events::log` passed: 2 tests.
+- `cargo build --workspace` passed.
+- Mutation-surface grep found physical-state mutation in `crates/tracewake-core/src/events/apply.rs` only in the current core surface.

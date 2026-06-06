@@ -1,8 +1,10 @@
+pub mod apply;
 mod envelope;
+pub mod log;
 
 pub use envelope::{
-    EventCause, EventEnvelope, EventKind, EventKindMetadata, EventStream, PayloadField,
-    RandomDrawRef,
+    EventCause, EventEnvelope, EventEnvelopeParseError, EventKind, EventKindMetadata, EventStream,
+    PayloadField, RandomDrawRef,
 };
 
 #[cfg(test)]

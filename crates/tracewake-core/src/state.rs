@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ids::{
     ActorId, ContainerId, ControllerId, DoorId, ExitId, ItemId, PlaceId, SchemaVersion,
@@ -104,6 +104,15 @@ pub struct PlaceState {
     pub local_item_ids: BTreeSet<ItemId>,
     pub local_actor_ids: BTreeSet<ActorId>,
     pub visibility_default: VisibilityDefault,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PhysicalState {
+    pub actors: BTreeMap<ActorId, ActorBody>,
+    pub places: BTreeMap<PlaceId, PlaceState>,
+    pub doors: BTreeMap<DoorId, DoorState>,
+    pub containers: BTreeMap<ContainerId, ContainerState>,
+    pub items: BTreeMap<ItemId, ItemState>,
 }
 
 impl PlaceState {
