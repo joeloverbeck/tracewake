@@ -1,6 +1,6 @@
 # Spec 0003 — Phase 1A Executable TUI Command Loop and Documentation Alignment
 
-Status: proposed corrective Phase 1 continuation  
+Status: COMPLETED  
 Repository: `joeloverbeck/tracewake`  
 Target commit analyzed: `1d27a01e0a5ae6018e9207acff9eed131b06ce1d`  
 Spec filename: `0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`  
@@ -406,3 +406,30 @@ Spec 0003 is complete only when all of the following are true:
 ## Phase boundary
 
 Do not start Phase 2 from this commit state. Finish Spec 0003 first. Once Spec 0003 lands, Phase 1 can honestly be described as having a crude but real executable TUI surface backed by the existing facade and kernel.
+
+## Outcome
+
+Completion date: 2026-06-06
+
+What changed:
+
+- `cargo run -p tracewake-tui` now starts a deterministic stdin/stdout command loop after loading `strongbox_001`, binding `actor_tomas`, printing `tracewake-tui ready`, rendering the initial embodied view, and prompting for commands.
+- The executable loop supports `help`, `view`, `bind <actor_id>`, `do <semantic_action_id>`, bare numeric selection, `wait` / `w`, `debug log`, `debug bindings`, `debug item <item_id>`, `debug rejection`, `debug projection`, `debug replay`, and `quit` / `q`.
+- Numeric selection is parsed as a menu position and resolved through the current view to a stable semantic action ID before submission.
+- Ordinary world changes route through `TuiApp::submit_semantic_action` and the shared proposal/pipeline path; TUI loop code does not call `apply_event` or edit `PhysicalState` directly.
+- Binary integration tests launch the actual `tracewake-tui` executable with scripted stdin for startup, action acceptance, why-not rejection, debug panels, numeric selection, debug non-leakage, checksum stability, and README command liveness.
+- README, `docs/4-specs/SPEC_LEDGER.md`, and `docs/4-specs/README.md` were reconciled with the landed executable surface.
+
+Deviations from original plan:
+
+- The implemented prompt is a deterministic `tracewake>` line, which keeps scripted stdout assertions simple while still clearly awaiting commands.
+- README liveness is tested with representative command fragments rather than a byte-for-byte prose sample because the README sample intentionally uses ellipses.
+
+Verification results:
+
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `printf 'view\nquit\n' | cargo run -q -p tracewake-tui` — passed.
+- `rg -n "apply_event|PhysicalState" crates/tracewake-tui/src/run.rs crates/tracewake-tui/src/main.rs` — no matches.

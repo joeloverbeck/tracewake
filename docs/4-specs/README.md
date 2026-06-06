@@ -10,7 +10,10 @@ Specs are not replacement constitutions. They are reviewable contracts that turn
 - `0001_PHASE_0_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` — Phase 0 ontology and fixture contracts for the Missing Expected Property first proof.
 - `0001_RESEARCH_NOTES.md` — focused external research used for Spec 0001.
 - `0001_FOUNDATIONAL_DOC_AMENDMENTS.md` — amendment decision for foundation, architecture, execution, and reference docs.
-- `specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md` — Phase 1A corrective executable TUI command loop and documentation alignment spec.
+
+## Archived specs
+
+- `archive/specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md` — completed Phase 1A corrective executable TUI command loop and documentation alignment spec.
 
 ## Authority
 

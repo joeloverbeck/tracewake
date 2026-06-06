@@ -80,17 +80,17 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 
 ### Spec 0003 — Phase 1A Executable TUI Command Loop and Documentation Alignment
 
-- **Status:** proposed / required corrective Phase 1 continuation.
-- **Spec file:** `specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`
+- **Status:** Landed (2026-06-06).
+- **Spec file:** `archive/specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`
 - **Target reassessment commit:** `1d27a01e0a5ae6018e9207acff9eed131b06ce1d`
 - **Phase:** Phase 1A; Phase 1 continuation, not Phase 2.
 - **Correction carried forward:** Spec 0002 landed the Phase 1 kernel, content fixtures, replay/debug surface, view models, TUI facade, renderer, input helpers, and deterministic transcript harness. It did not complete the executable TUI command loop that Phase 1 doctrine and Ticket 020 required.
 - **Required result:** `cargo run -p tracewake-tui` must become a genuinely operable stdin/stdout command loop supporting actor binding, embodied view rendering, semantic action submission by stable ID and numeric selection, wait, why-not, debug panels, replay/projection reports, and clean quit.
-- **Phase 2 dependency:** Phase 2 must not begin until Spec 0003 acceptance gates pass.
+- **Phase 2 dependency:** Satisfied by the landed Spec 0003 acceptance gates.
 
 ## Next allowed spec
 
-The next implementation spec is Spec 0003, a narrow Phase 1A corrective spec. Phase 2 may be opened only after Spec 0003 lands and its executable TUI acceptance gates pass. This corrective work must not be represented as Phase 2.
+Spec 0003 has landed. The next implementation spec may open Phase 2 work, but the Phase 1A corrective work must not be represented as Phase 2.
 
 ## Retread warning
 

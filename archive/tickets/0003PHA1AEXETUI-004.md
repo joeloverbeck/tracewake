@@ -87,11 +87,13 @@ Drive the binary with the README sample commands (or representative fragments) a
 
 Completion date: 2026-06-06
 
+Outcome amended: 2026-06-06
+
 What changed:
 
 - Reconciled the README example session with the implemented stdout shape: prompt lines are rendered as `tracewake>`, and accepted actions print `Accepted: <semantic_action_id>`.
 - Corrected the Spec 0003 ledger path to the actual canonical `specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md` file.
-- Added Spec 0003 to `docs/4-specs/README.md` under Current specs.
+- Added Spec 0003 to `docs/4-specs/README.md`; during final spec closeout, the entry moved from Current specs to Archived specs and now points at `archive/specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md`.
 - Added `crates/tracewake-tui/tests/readme_sample_session.rs`, which launches the real binary and exercises representative README-documented command forms.
 
 Deviations from original plan:
