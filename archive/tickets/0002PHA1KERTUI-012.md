@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-012: Projection builders and embodied/debug view models
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `projections` and `view_models` modules to `tracewake-core`.
@@ -80,3 +80,22 @@ Add `pub mod projections;` and `pub mod view_models;` to `crates/tracewake-core/
 1. `cargo test -p tracewake-core projections view_models`
 2. `cargo build --workspace`
 3. Unit scope is correct; the full no-leak regression across an embodied↔debug round trip is exercised in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::view_models` with embodied view-model, semantic-action, and separate debug view-model structures.
+- Added `tracewake_core::projections` with an embodied view builder using the Phase 1 visibility query and a separate debug event-log view builder.
+- Registered `pub mod projections;` and `pub mod view_models;` in the core crate.
+
+Deviations from original plan:
+- The documented combined Cargo filter `cargo test -p tracewake-core projections view_models` is not accepted by Cargo as written, so verification used separate filters.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core projections` passed: 2 tests.
+- `cargo test -p tracewake-core view_models` passed: 2 tests.
+- `cargo build --workspace` passed.
+- Grep confirmed the embodied view-model builder is distinct from debug builders and has no debug/truth input parameter.

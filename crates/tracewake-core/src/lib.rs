@@ -5,6 +5,8 @@ pub mod checksum;
 pub mod events;
 pub mod ids;
 pub mod location;
+pub mod projections;
 pub mod scheduler;
 pub mod state;
 pub mod time;
+pub mod view_models;
