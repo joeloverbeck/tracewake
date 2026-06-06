@@ -1,6 +1,6 @@
 # 0003PHA1AEXETUI-001: Extend command parser for help, view, numeric, and debug commands
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — extends `tracewake-tui` `input.rs` (`UiCommand`, `parse_command`, `InputError`) and adds a `DebugCommand` enum; in-file unit tests only.
@@ -76,3 +76,23 @@ e.g. `BadDebugCommand(String)` for an unrecognized debug subcommand, keeping err
 
 1. `cargo test -p tracewake-tui --lib`
 2. `cargo fmt --all --check && cargo clippy -p tracewake-tui --all-targets -- -D warnings`
+
+## Outcome
+
+Completion date: 2026-06-06
+
+What changed:
+
+- Extended `tracewake-tui` input parsing with `Help`, `View`, `SelectByMenuIndex`, and structured `DebugCommand` variants for `debug log`, `debug bindings`, `debug item <item_id>`, `debug rejection`, `debug projection`, and `debug replay`.
+- Kept bare numeric input as a 1-based menu position and left stable semantic action identity resolution to `semantic_id_for_selection`.
+- Added in-file parser tests covering the new command vocabulary, invalid numeric selection, invalid debug subcommands, and malformed item IDs.
+
+Deviations from original plan:
+
+- Added explicit `BadMenuIndex` and `BadItemId` error variants in addition to `BadDebugCommand` so malformed numeric overflow and malformed debug item IDs remain typed and actor-safe.
+
+Verification results:
+
+- `cargo test -p tracewake-tui --lib input` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy -p tracewake-tui --all-targets -- -D warnings` — passed.
