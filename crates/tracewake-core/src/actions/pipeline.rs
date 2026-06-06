@@ -1,5 +1,6 @@
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
+use crate::actions::defs::takeplace::build_take_place_event;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
 use crate::actions::registry::{ActionEffect, ActionRegistry};
@@ -147,6 +148,20 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 true,
             ),
             ActionEffect::Close => build_open_close_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+                false,
+            ),
+            ActionEffect::Take => build_take_place_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+                true,
+            ),
+            ActionEffect::Place => build_take_place_event(
                 context.state,
                 proposal,
                 &context.ordering_key,

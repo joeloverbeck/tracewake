@@ -1,5 +1,6 @@
 pub mod movement;
 pub mod openclose;
+pub mod takeplace;
 
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::report::{CheckedFact, ReasonCode};

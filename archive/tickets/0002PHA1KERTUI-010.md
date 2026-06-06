@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-010: take / place action definitions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — registers the `take`, `place` action definitions; emits `ItemRemovedFromContainer`, `ItemTakenFromPlace`, `ItemPlacedInContainer`, `ItemPlacedInPlace`.
@@ -75,3 +75,22 @@ Register both in `actions/registry.rs`.
 1. `cargo test -p tracewake-core actions::defs::takeplace`
 2. `cargo build --workspace`
 3. Unit scope is correct; `replay_item_location_001`'s replay-derived-location proof is exercised in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `take` and `place` action definitions under `actions::defs::takeplace`.
+- Registered `take`/`place` through the shared action registry and wired them into the shared pipeline.
+- Added validation for closed containers, wrong sources, carried-item requirements, closed destinations, portability, and carry capacity.
+- Emitted the four item movement event kinds through the existing strict event application path.
+
+Deviations from original plan:
+- None.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core actions::defs::takeplace` passed: 6 tests.
+- `cargo test -p tracewake-core actions` passed: 17 tests.
+- `cargo build --workspace` passed.

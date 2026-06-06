@@ -8,6 +8,8 @@ pub enum ActionEffect {
     Move,
     Open,
     Close,
+    Take,
+    Place,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,6 +74,17 @@ impl ActionRegistry {
         self.register(ActionDefinition::world_action(
             ActionId::new("close").unwrap(),
             ActionEffect::Close,
+        ));
+    }
+
+    pub fn register_phase1_take_place(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("take").unwrap(),
+            ActionEffect::Take,
+        ));
+        self.register(ActionDefinition::world_action(
+            ActionId::new("place").unwrap(),
+            ActionEffect::Place,
         ));
     }
 }
