@@ -39,6 +39,11 @@ impl EventLog {
         &self.events
     }
 
+    #[cfg(test)]
+    pub(crate) fn from_ordered_events_for_replay_tests(events: Vec<EventEnvelope>) -> Self {
+        Self { events }
+    }
+
     pub fn serialize_canonical(&self) -> Vec<u8> {
         self.events
             .iter()

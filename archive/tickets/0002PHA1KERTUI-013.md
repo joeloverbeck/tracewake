@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-013: Projection rebuild and replay runner/report
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `replay` module (projection rebuild + replay runner + report) to `tracewake-core`.
@@ -81,3 +81,22 @@ Add `pub mod replay;` to `crates/tracewake-core/src/lib.rs`.
 1. `cargo test -p tracewake-core replay`
 2. `cargo build --workspace`
 3. Core-crate scope is correct: replay operates on in-crate fixtures/logs; the seven golden scenarios run in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::replay` with projection rebuild and replay report APIs.
+- Rebuild starts from an initial physical state and ordered world events, reusing the strict event applier.
+- Replay reports initial/final checksums, world and non-world event counts, unsupported versions, application errors, match status, and ordered state diffs.
+- Added drift and unsupported-version tests that fail replay rather than treating mismatches as warnings.
+
+Deviations from original plan:
+- Fixture loading remains out of scope as planned; tests construct accepted initial states directly until the content fixture tickets land.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core replay` passed: 6 matching tests.
+- `cargo test -p tracewake-core` passed: 58 tests.
+- `cargo build --workspace` passed.

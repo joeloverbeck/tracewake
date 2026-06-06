@@ -6,6 +6,7 @@ pub mod events;
 pub mod ids;
 pub mod location;
 pub mod projections;
+pub mod replay;
 pub mod scheduler;
 pub mod state;
 pub mod time;
