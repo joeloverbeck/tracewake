@@ -1,5 +1,6 @@
 //! Content loading and validation for Tracewake fixtures.
 
+pub mod fixtures;
 pub mod load;
 pub mod manifest;
 pub mod schema;

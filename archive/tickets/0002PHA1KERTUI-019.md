@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-019: Seven golden fixture definitions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `fixtures` module and the seven golden fixtures to `tracewake-content`.
@@ -81,3 +81,15 @@ Register all seven in `crates/tracewake-content/src/lib.rs` (declare the `fixtur
 1. `cargo test -p tracewake-content fixtures_load`
 2. `cargo build --workspace`
 3. Content-crate load/validate scope is correct here; the executable scenario assertions (events, replay, why-not, debug) run in ticket 022.
+
+## Outcome (2026-06-06)
+
+Implemented `tracewake-content::fixtures` with all seven required golden fixture constructors: `strongbox_001`, `container_item_move_001`, `door_access_001`, `debug_attach_001`, `no_human_advance_001`, `replay_item_location_001`, and `view_model_local_actions_001`. Each fixture is typed initial-state content with stable IDs, validated action affordances, and an explicit scenario contract containing setup, allowed actions, expected events/reports, and acceptance assertions.
+
+`strongbox_001` preserves the Spec-0001 roster required by this ticket: `actor_tomas`, `actor_elena`, `house_tomas`, `strongbox_tomas`, and physical `coin_stack_01` initially located in `strongbox_tomas`.
+
+Verification:
+
+1. `cargo test -p tracewake-content fixtures_load` passed.
+2. `cargo test -p tracewake-content` passed.
+3. `cargo build --workspace` passed.
