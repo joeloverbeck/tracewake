@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-020: TUI shell — app loop, render, semantic input
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — populates `tracewake-tui` with `app`, `render`, `input` modules and the binary entry.
@@ -82,3 +82,15 @@ Wire `crates/tracewake-tui/src/main.rs` to load a Phase 1 fixture and start the 
 1. `cargo test -p tracewake-tui`
 2. `cargo build --workspace`
 3. TUI-crate scope is correct; the full `view_model_local_actions_001` transcript determinism runs in ticket 021/022.
+
+## Outcome (2026-06-06)
+
+Implemented the Phase 1 TUI shell with `app`, `input`, and `render` modules. `TuiApp` loads a validated golden fixture, binds a controller to an ordinary actor, builds embodied view models through the kernel projection API, maps selected semantic actions to `Proposal`s, submits them through the shared action pipeline, and renders updated embodied views plus why-not summaries from retained validation reports.
+
+The renderer is intentionally string/stdout based for this ticket rather than adding a terminal dependency: it keeps the crate offline-buildable and still establishes the required app/render/input boundary. The binary now loads `strongbox_001`, binds to `actor_tomas`, and prints an initial embodied screen.
+
+Verification:
+
+1. `cargo test -p tracewake-tui` passed.
+2. `cargo build --workspace` passed.
+3. A source regression test verifies `tracewake-tui` does not call the core event applier; state mutation is routed through `run_pipeline`.
