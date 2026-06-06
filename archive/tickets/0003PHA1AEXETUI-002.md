@@ -1,6 +1,6 @@
 # 0003PHA1AEXETUI-002: Executable stdin/stdout command loop runner and thin main
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new `crates/tracewake-tui/src/run.rs` (runner + in-file test module), rewrites `crates/tracewake-tui/src/main.rs`, registers the module in `crates/tracewake-tui/src/lib.rs`.
@@ -80,3 +80,27 @@ Add `pub mod run;` to `crates/tracewake-tui/src/lib.rs`.
 1. `cargo test -p tracewake-tui run`
 2. `printf 'view\nquit\n' | cargo run -q -p tracewake-tui` (manual loop smoke)
 3. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completion date: 2026-06-06
+
+What changed:
+
+- Added `tracewake-tui::run::run_command_loop`, a shared stdin/stdout command runner over `BufRead` and `Write`.
+- Reworked `main.rs` into a thin wrapper that loads the default fixture, binds `actor_tomas`, prints `tracewake-tui ready`, and enters the shared command loop.
+- Added in-file runner tests for scripted command dispatch, numeric selection, accepted and rejected action output, debug panel rendering, invalid input, prompt output, and help vocabulary.
+
+Deviations from original plan:
+
+- The runner prints the initial embodied view and prompt; `main.rs` remains responsible for the readiness line, matching the binary startup contract without duplicating that line in library tests.
+- The prompt is emitted as a deterministic `tracewake>` line so scripted stdin/stdout output remains easy to assert.
+
+Verification results:
+
+- `cargo test -p tracewake-tui run` — passed.
+- `cargo fmt --all --check` — passed.
+- `printf 'view\nquit\n' | cargo run -q -p tracewake-tui` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `rg -n "apply_event|PhysicalState" crates/tracewake-tui/src/run.rs crates/tracewake-tui/src/main.rs` — no matches.

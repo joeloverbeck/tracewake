@@ -3,8 +3,10 @@ fn main() {
     app.bind_actor("actor_tomas".parse().expect("default actor ID"))
         .expect("default actor exists");
     println!("{}", tracewake_tui::startup_message());
-    println!(
-        "{}",
-        app.render_current_view().expect("default view renders")
-    );
+    tracewake_tui::run::run_command_loop(
+        &mut app,
+        std::io::stdin().lock(),
+        std::io::stdout().lock(),
+    )
+    .expect("command loop runs");
 }
