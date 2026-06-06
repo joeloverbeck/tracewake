@@ -135,6 +135,7 @@ stable_id_type!(EventId);
 stable_id_type!(EventTypeId);
 stable_id_type!(ValidationReportId);
 stable_id_type!(ControllerId);
+stable_id_type!(ProcessId);
 stable_id_type!(ContentManifestId);
 stable_id_type!(ContentVersion);
 stable_id_type!(SchemaVersion);

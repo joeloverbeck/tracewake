@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-004: Deterministic time and scheduler primitives
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `time` and `scheduler` modules to `tracewake-core`.
@@ -80,3 +80,23 @@ Add `pub mod time;` and `pub mod scheduler;` to `crates/tracewake-core/src/lib.r
 1. `cargo test -p tracewake-core scheduler time`
 2. `cargo build --workspace`
 3. Unit scope is correct: ordering is a pure function of the key tuple, fully exercisable in-crate.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::time::SimTick` with deterministic tick construction and advance helpers.
+- Added `tracewake_core::scheduler` with schedule phases, scheduler source IDs, proposal sequence assignment, ordering keys, sorted scheduled payloads, and a minimal deterministic scheduler.
+- Added `ProcessId` to the stable ID vocabulary for process-origin scheduler keys.
+- Registered `pub mod time;` and `pub mod scheduler;` in the core crate.
+
+Deviations from original plan:
+- The documented combined Cargo filter `cargo test -p tracewake-core scheduler time` is not accepted by Cargo as written, so verification used separate `scheduler` and `time` filters.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core scheduler` passed: 3 tests.
+- `cargo test -p tracewake-core time` passed: 1 test.
+- `cargo build --workspace` passed.
+- `rg 'std::time|Instant::now|SystemTime::now' crates/tracewake-core/src/time.rs crates/tracewake-core/src/scheduler.rs` returned no matches.
