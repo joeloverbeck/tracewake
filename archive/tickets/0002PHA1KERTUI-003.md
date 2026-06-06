@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-003: Entity/component state model and single-source location
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `state` and `location` modules to `tracewake-core`.
@@ -84,3 +84,21 @@ Add `pub mod state;` and `pub mod location;` to `crates/tracewake-core/src/lib.r
 1. `cargo test -p tracewake-core state location`
 2. `cargo build --workspace`
 3. Core-crate unit scope is correct: state records have no cross-crate behavior until events apply to them (ticket 006).
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::state` with typed entity headers, entity kinds, actor/place/door/container/item records, ownership/custody placeholders, controller binding metadata, and deterministic ordered collections.
+- Added `tracewake_core::location` with the single-source `Location` holder enum, validation for exactly one asserted holder, and a read-only Phase 1 visibility query.
+- Registered `pub mod state;` and `pub mod location;` in the core crate.
+
+Deviations from original plan:
+- The documented combined Cargo filter `cargo test -p tracewake-core state location` is not accepted by Cargo as written, so verification used separate `state` and `location` filters.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core state` passed: 3 tests.
+- `cargo test -p tracewake-core location` passed: 3 tests.
+- `cargo build --workspace` passed.
