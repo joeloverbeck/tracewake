@@ -40,8 +40,12 @@ fn tui_does_not_call_event_applier() {
     let app_source = include_str!("../src/app.rs");
     let render_source = include_str!("../src/render.rs");
     let input_source = include_str!("../src/input.rs");
+    let main_source = include_str!("../src/main.rs");
+    let run_source = include_str!("../src/run.rs");
 
     assert!(!app_source.contains("apply_event"));
     assert!(!render_source.contains("apply_event"));
     assert!(!input_source.contains("apply_event"));
+    assert!(!main_source.contains("apply_event"));
+    assert!(!run_source.contains("apply_event"));
 }

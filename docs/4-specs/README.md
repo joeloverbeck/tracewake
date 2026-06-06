@@ -11,6 +11,10 @@ Specs are not replacement constitutions. They are reviewable contracts that turn
 - `0001_RESEARCH_NOTES.md` — focused external research used for Spec 0001.
 - `0001_FOUNDATIONAL_DOC_AMENDMENTS.md` — amendment decision for foundation, architecture, execution, and reference docs.
 
+## Archived specs
+
+- `archive/specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.md` — completed Phase 1A corrective executable TUI command loop and documentation alignment spec.
+
 ## Authority
 
 The authority order remains:

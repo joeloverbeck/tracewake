@@ -1,12 +1,26 @@
-use tracewake_core::ids::{ActorId, SemanticActionId};
+use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
 use tracewake_core::view_models::EmbodiedViewModel;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UiCommand {
+    Help,
+    View,
     BindActor(ActorId),
     SelectSemanticAction(SemanticActionId),
+    SelectByMenuIndex(usize),
     WaitOneTick,
+    Debug(DebugCommand),
     Quit,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DebugCommand {
+    EventLog,
+    ControllerBindings,
+    ItemLocation(ItemId),
+    Rejection,
+    ProjectionRebuild,
+    Replay,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -15,6 +29,9 @@ pub enum InputError {
     UnknownCommand(String),
     BadActorId(String),
     BadSemanticActionId(String),
+    BadMenuIndex(String),
+    BadDebugCommand(String),
+    BadItemId(String),
     SelectionOutOfRange(usize),
 }
 
@@ -26,8 +43,23 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
     if trimmed == "quit" || trimmed == "q" {
         return Ok(UiCommand::Quit);
     }
+    if trimmed == "help" {
+        return Ok(UiCommand::Help);
+    }
+    if trimmed == "view" {
+        return Ok(UiCommand::View);
+    }
     if trimmed == "wait" || trimmed == "w" {
         return Ok(UiCommand::WaitOneTick);
+    }
+    if trimmed.chars().all(|ch| ch.is_ascii_digit()) {
+        let one_based_selection = trimmed
+            .parse::<usize>()
+            .map_err(|_| InputError::BadMenuIndex(trimmed.to_string()))?;
+        if one_based_selection == 0 {
+            return Err(InputError::SelectionOutOfRange(one_based_selection));
+        }
+        return Ok(UiCommand::SelectByMenuIndex(one_based_selection));
     }
     if let Some(actor_id) = trimmed.strip_prefix("bind ") {
         return ActorId::new(actor_id.to_string())
@@ -39,7 +71,29 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
             .map(UiCommand::SelectSemanticAction)
             .map_err(|_| InputError::BadSemanticActionId(semantic_action_id.to_string()));
     }
+    if let Some(debug_command) = trimmed.strip_prefix("debug ") {
+        return parse_debug_command(debug_command).map(UiCommand::Debug);
+    }
     Err(InputError::UnknownCommand(trimmed.to_string()))
+}
+
+fn parse_debug_command(input: &str) -> Result<DebugCommand, InputError> {
+    let trimmed = input.trim();
+    match trimmed {
+        "log" => Ok(DebugCommand::EventLog),
+        "bindings" => Ok(DebugCommand::ControllerBindings),
+        "rejection" => Ok(DebugCommand::Rejection),
+        "projection" => Ok(DebugCommand::ProjectionRebuild),
+        "replay" => Ok(DebugCommand::Replay),
+        _ => {
+            if let Some(item_id) = trimmed.strip_prefix("item ") {
+                return ItemId::new(item_id.to_string())
+                    .map(DebugCommand::ItemLocation)
+                    .map_err(|_| InputError::BadItemId(item_id.to_string()));
+            }
+            Err(InputError::BadDebugCommand(trimmed.to_string()))
+        }
+    }
 }
 
 pub fn semantic_id_for_selection(
@@ -111,6 +165,66 @@ mod tests {
         assert_eq!(
             parse_command("do wait.1_tick").unwrap(),
             UiCommand::SelectSemanticAction(SemanticActionId::new("wait.1_tick").unwrap())
+        );
+    }
+
+    #[test]
+    fn parser_recognizes_help_view_and_wait_commands() {
+        assert_eq!(parse_command("help").unwrap(), UiCommand::Help);
+        assert_eq!(parse_command("view").unwrap(), UiCommand::View);
+        assert_eq!(parse_command("wait").unwrap(), UiCommand::WaitOneTick);
+        assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);
+    }
+
+    #[test]
+    fn parser_classifies_numeric_selection_as_menu_index() {
+        assert_eq!(parse_command("1").unwrap(), UiCommand::SelectByMenuIndex(1));
+        assert_ne!(
+            parse_command("1").unwrap(),
+            UiCommand::SelectSemanticAction(SemanticActionId::new("1").unwrap())
+        );
+        assert_eq!(parse_command("0"), Err(InputError::SelectionOutOfRange(0)));
+    }
+
+    #[test]
+    fn parser_recognizes_debug_commands() {
+        assert_eq!(
+            parse_command("debug log").unwrap(),
+            UiCommand::Debug(DebugCommand::EventLog)
+        );
+        assert_eq!(
+            parse_command("debug bindings").unwrap(),
+            UiCommand::Debug(DebugCommand::ControllerBindings)
+        );
+        assert_eq!(
+            parse_command("debug item coin_stack_01").unwrap(),
+            UiCommand::Debug(DebugCommand::ItemLocation(
+                ItemId::new("coin_stack_01").unwrap()
+            ))
+        );
+        assert_eq!(
+            parse_command("debug rejection").unwrap(),
+            UiCommand::Debug(DebugCommand::Rejection)
+        );
+        assert_eq!(
+            parse_command("debug projection").unwrap(),
+            UiCommand::Debug(DebugCommand::ProjectionRebuild)
+        );
+        assert_eq!(
+            parse_command("debug replay").unwrap(),
+            UiCommand::Debug(DebugCommand::Replay)
+        );
+    }
+
+    #[test]
+    fn parser_rejects_bad_debug_command() {
+        assert_eq!(
+            parse_command("debug bogus"),
+            Err(InputError::BadDebugCommand("bogus".to_string()))
+        );
+        assert_eq!(
+            parse_command("debug item BAD"),
+            Err(InputError::BadItemId("BAD".to_string()))
         );
     }
 }
