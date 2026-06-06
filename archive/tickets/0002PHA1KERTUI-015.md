@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-015: No-human advance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds the no-human advance command to `tracewake-core`'s scheduler; emits `NoHumanAdvanceStarted`/`NoHumanAdvanceCompleted`.
@@ -68,3 +68,22 @@ Add the no-human advance entry point in `crates/tracewake-core/src/scheduler.rs`
 1. `cargo test -p tracewake-core scheduler::no_human`
 2. `cargo build --workspace`
 3. Unit scope is correct; the `no_human_advance_001` fixture replay runs end-to-end in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `scheduler::no_human::advance_no_human`, a no-controller advance entry point over the deterministic scheduler.
+- Added diagnostic `NoHumanAdvanceStarted` and `NoHumanAdvanceCompleted` process markers.
+- Routed scheduled ordinary proposals through the shared action pipeline with `controller_bindings: None`.
+- Verified no-human markers are physical no-ops under replay and contain no player-specific world fact.
+
+Deviations from original plan:
+- No autonomous routine logic was introduced; Phase 1 no-human remains the allowed no-op/time-advance proof with optional scheduled proposals.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core scheduler::no_human` passed: 3 tests.
+- `cargo test -p tracewake-core` passed: 68 tests.
+- `cargo build --workspace` passed.

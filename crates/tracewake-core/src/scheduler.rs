@@ -113,9 +113,255 @@ impl DeterministicScheduler {
     }
 }
 
+pub mod no_human {
+    use crate::actions::pipeline::{run_pipeline, PipelineContext};
+    use crate::actions::proposal::Proposal;
+    use crate::actions::registry::ActionRegistry;
+    use crate::events::log::EventLog;
+    use crate::events::{EventEnvelope, EventKind, PayloadField};
+    use crate::ids::{ActionId, ContentManifestId, EventId, ProcessId};
+    use crate::scheduler::{
+        DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+    };
+    use crate::state::PhysicalState;
+    use crate::time::SimTick;
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct NoHumanAdvanceReport {
+        pub start_tick: SimTick,
+        pub final_tick: SimTick,
+        pub tick_count: u64,
+        pub marker_event_ids: Vec<EventId>,
+        pub ordinary_pipeline_events: usize,
+    }
+
+    pub fn advance_no_human(
+        state: &mut PhysicalState,
+        log: &mut EventLog,
+        registry: &ActionRegistry,
+        content_manifest_id: ContentManifestId,
+        start_tick: SimTick,
+        tick_count: u64,
+        scheduled_proposals: Vec<Proposal>,
+    ) -> NoHumanAdvanceReport {
+        let process_id = ProcessId::new("no_human_advance").unwrap();
+        let mut scheduler = DeterministicScheduler::new(start_tick);
+        let started = append_marker(
+            log,
+            EventKind::NoHumanAdvanceStarted,
+            &process_id,
+            scheduler.current_tick,
+            0,
+            tick_count,
+            content_manifest_id.clone(),
+        );
+
+        let mut ordinary_pipeline_events = 0;
+        let mut sorted = scheduled_proposals
+            .into_iter()
+            .map(|proposal| {
+                let key = OrderingKey::new(
+                    proposal.requested_tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Process(process_id.clone()),
+                    scheduler.assign_proposal_sequence(),
+                    proposal.action_id.clone(),
+                    proposal.target_ids.clone(),
+                    proposal.proposal_id.as_str().to_string(),
+                );
+                (key, proposal)
+            })
+            .collect::<Vec<_>>();
+        sorted.sort_by(|left, right| left.0.cmp(&right.0));
+
+        for (ordering_key, proposal) in sorted {
+            let before = log.events().len();
+            let mut context = PipelineContext {
+                registry,
+                state,
+                log,
+                controller_bindings: None,
+                content_manifest_id: content_manifest_id.clone(),
+                ordering_key,
+            };
+            run_pipeline(&mut context, &proposal);
+            ordinary_pipeline_events += log.events().len().saturating_sub(before);
+        }
+
+        for _ in 0..tick_count {
+            scheduler.advance_one_tick();
+        }
+
+        let completed = append_marker(
+            log,
+            EventKind::NoHumanAdvanceCompleted,
+            &process_id,
+            scheduler.current_tick,
+            1,
+            tick_count,
+            content_manifest_id,
+        );
+
+        NoHumanAdvanceReport {
+            start_tick,
+            final_tick: scheduler.current_tick,
+            tick_count,
+            marker_event_ids: vec![started.event_id, completed.event_id],
+            ordinary_pipeline_events,
+        }
+    }
+
+    fn append_marker(
+        log: &mut EventLog,
+        kind: EventKind,
+        process_id: &ProcessId,
+        tick: SimTick,
+        sequence: u64,
+        tick_count: u64,
+        content_manifest_id: ContentManifestId,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.{}.{}.{}",
+                kind.stable_id(),
+                process_id.as_str(),
+                sequence
+            ))
+            .unwrap(),
+            kind,
+            0,
+            0,
+            tick,
+            OrderingKey::new(
+                tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(sequence),
+                ActionId::new(kind.stable_id()).unwrap(),
+                vec![tick_count.to_string()],
+                "no_human_advance",
+            ),
+            content_manifest_id,
+        );
+        event.process_id = Some(process_id.clone());
+        event.payload = vec![PayloadField::new("tick_count", tick_count.to_string())];
+        event.effects_summary = "no-human advance process marker".to_string();
+        log.append(event).expect("no-human marker is versioned")
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::actions::proposal::{Proposal, ProposalOrigin};
+        use crate::events::apply::apply_event;
+        use crate::events::EventStream;
+        use crate::ids::{ActorId, ProposalId};
+        use crate::state::ActorBody;
+
+        fn content_manifest_id() -> ContentManifestId {
+            ContentManifestId::new("phase1_manifest").unwrap()
+        }
+
+        fn actor_id() -> ActorId {
+            ActorId::new("actor_tomas").unwrap()
+        }
+
+        #[test]
+        fn advance_runs_without_controller_and_marks_diagnostic_stream() {
+            let mut state = PhysicalState::default();
+            let mut log = EventLog::new();
+            let registry = ActionRegistry::new();
+
+            let report = advance_no_human(
+                &mut state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                SimTick::ZERO,
+                2,
+                Vec::new(),
+            );
+
+            assert_eq!(report.final_tick, SimTick::new(2));
+            assert_eq!(log.events().len(), 2);
+            assert!(log
+                .events()
+                .iter()
+                .all(|event| event.stream == EventStream::Diagnostic));
+        }
+
+        #[test]
+        fn diagnostic_markers_are_physical_noops_under_replay() {
+            let mut state = PhysicalState::default();
+            let before = state.clone();
+            let mut log = EventLog::new();
+            let registry = ActionRegistry::new();
+
+            advance_no_human(
+                &mut state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                SimTick::ZERO,
+                1,
+                Vec::new(),
+            );
+            let mut replay = before.clone();
+            for event in log.events() {
+                apply_event(&mut replay, event).unwrap();
+            }
+
+            assert_eq!(replay, before);
+        }
+
+        #[test]
+        fn scheduled_proposal_uses_shared_pipeline() {
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id(),
+                ActorBody::new(actor_id(), crate::ids::PlaceId::new("shop_front").unwrap()),
+            );
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+            let proposal = Proposal::new(
+                ProposalId::new("proposal_wait").unwrap(),
+                ProposalOrigin::Scheduler,
+                Some(actor_id()),
+                ActionId::new("wait").unwrap(),
+                SimTick::ZERO,
+            );
+
+            let report = advance_no_human(
+                &mut state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                SimTick::ZERO,
+                1,
+                vec![proposal],
+            );
+
+            assert_eq!(report.ordinary_pipeline_events, 1);
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ActorWaited));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::actions::pipeline::{run_pipeline, PipelineContext};
+    use crate::actions::proposal::{Proposal, ProposalOrigin};
+    use crate::actions::registry::ActionRegistry;
+    use crate::events::apply::apply_event;
+    use crate::events::log::EventLog;
+    use crate::events::{EventKind, EventStream};
+    use crate::ids::{ContentManifestId, ProposalId};
+    use crate::state::{ActorBody, PhysicalState};
 
     fn action_id(value: &str) -> ActionId {
         ActionId::new(value).unwrap()
@@ -127,6 +373,10 @@ mod tests {
 
     fn process_id(value: &str) -> ProcessId {
         ProcessId::new(value).unwrap()
+    }
+
+    fn content_manifest_id() -> ContentManifestId {
+        ContentManifestId::new("phase1_manifest").unwrap()
     }
 
     fn key(
@@ -243,5 +493,132 @@ mod tests {
             scheduler.assign_proposal_sequence(),
             ProposalSequence::new(1)
         );
+    }
+
+    #[test]
+    fn no_human_advance_requires_no_controller_and_emits_diagnostic_markers() {
+        let mut state = PhysicalState::default();
+        let mut log = EventLog::new();
+        let registry = ActionRegistry::new();
+
+        let report = no_human::advance_no_human(
+            &mut state,
+            &mut log,
+            &registry,
+            content_manifest_id(),
+            SimTick::new(2),
+            3,
+            Vec::new(),
+        );
+
+        assert_eq!(report.start_tick, SimTick::new(2));
+        assert_eq!(report.final_tick, SimTick::new(5));
+        assert_eq!(report.marker_event_ids.len(), 2);
+        assert_eq!(log.events().len(), 2);
+        assert!(log
+            .events()
+            .iter()
+            .all(|event| event.stream == EventStream::Diagnostic));
+        assert_eq!(
+            log.events()
+                .iter()
+                .map(|event| event.event_type)
+                .collect::<Vec<_>>(),
+            [
+                EventKind::NoHumanAdvanceStarted,
+                EventKind::NoHumanAdvanceCompleted
+            ]
+        );
+        assert!(!format!("{:?}", log.events()).contains("PlayerCharacter"));
+    }
+
+    #[test]
+    fn no_human_markers_replay_as_physical_noops() {
+        let mut state = PhysicalState::default();
+        let before = state.clone();
+        let mut log = EventLog::new();
+        let registry = ActionRegistry::new();
+
+        no_human::advance_no_human(
+            &mut state,
+            &mut log,
+            &registry,
+            content_manifest_id(),
+            SimTick::ZERO,
+            1,
+            Vec::new(),
+        );
+        let mut replay = before.clone();
+        for event in log.events() {
+            apply_event(&mut replay, event).unwrap();
+        }
+
+        assert_eq!(replay, before);
+    }
+
+    #[test]
+    fn no_human_scheduled_actions_use_shared_pipeline() {
+        let mut state = PhysicalState::default();
+        state.actors.insert(
+            actor_id("actor_tomas"),
+            ActorBody::new(
+                actor_id("actor_tomas"),
+                crate::ids::PlaceId::new("shop_front").unwrap(),
+            ),
+        );
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_inspect_wait();
+        let proposal = Proposal::new(
+            ProposalId::new("proposal_wait").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id("actor_tomas")),
+            action_id("wait"),
+            SimTick::ZERO,
+        );
+
+        let report = no_human::advance_no_human(
+            &mut state,
+            &mut log,
+            &registry,
+            content_manifest_id(),
+            SimTick::ZERO,
+            1,
+            vec![proposal.clone()],
+        );
+
+        assert_eq!(report.ordinary_pipeline_events, 1);
+        assert!(log
+            .events()
+            .iter()
+            .any(|event| event.event_type == EventKind::ActorWaited));
+
+        let mut direct_state = PhysicalState::default();
+        direct_state.actors.insert(
+            actor_id("actor_tomas"),
+            ActorBody::new(
+                actor_id("actor_tomas"),
+                crate::ids::PlaceId::new("shop_front").unwrap(),
+            ),
+        );
+        let mut direct_log = EventLog::new();
+        let mut context = PipelineContext {
+            registry: &registry,
+            state: &mut direct_state,
+            log: &mut direct_log,
+            controller_bindings: None,
+            content_manifest_id: content_manifest_id(),
+            ordering_key: OrderingKey::new(
+                SimTick::ZERO,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id("no_human_advance")),
+                ProposalSequence::new(0),
+                action_id("wait"),
+                Vec::new(),
+                "proposal_wait",
+            ),
+        };
+        let direct = run_pipeline(&mut context, &proposal);
+        assert_eq!(direct.appended_events.len(), 1);
     }
 }
