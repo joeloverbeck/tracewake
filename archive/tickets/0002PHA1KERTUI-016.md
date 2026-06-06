@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-016: Structured debug provenance reports
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `debug_reports` module to `tracewake-core`.
@@ -74,3 +74,22 @@ Add `pub mod debug_reports;` to `crates/tracewake-core/src/lib.rs`.
 1. `cargo test -p tracewake-core debug_reports`
 2. `cargo build --workspace`
 3. Unit scope is correct; the embodied↔debug non-leakage round-trip regression runs in ticket 022.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added `tracewake_core::debug_reports` with `debug_only` item-location, rejection, projection rebuild, replay, and controller-binding report structures.
+- Implemented item-location provenance from current state plus ordered item-location events.
+- Implemented action-rejection debug reports from validation reports with mutation-attempted false and matching before/after checksums.
+- Added a read-only controller binding accessor for debug reporting.
+
+Deviations from original plan:
+- Replay/projection debug reports wrap the existing ticket-013 report types rather than recomputing them, as intended by the ticket's reuse requirement.
+
+Verification results:
+- `cargo fmt` passed.
+- `cargo test -p tracewake-core debug_reports` passed: 3 tests.
+- `cargo test -p tracewake-core` passed: 71 tests.
+- `cargo build --workspace` passed.

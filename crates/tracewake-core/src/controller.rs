@@ -103,6 +103,10 @@ impl ControllerBindings {
         self.bindings.get(controller_id)
     }
 
+    pub fn debug_bindings(&self) -> Vec<&RuntimeControllerBinding> {
+        self.bindings.values().collect()
+    }
+
     pub fn authorize(
         &self,
         controller_id: &ControllerId,
