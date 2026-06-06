@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/tracewake-core",
+    "crates/tracewake-content",
+    "crates/tracewake-tui",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"

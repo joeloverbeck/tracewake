@@ -1,6 +1,6 @@
 # 0002PHA1KERTUI-001: Cargo workspace scaffold and crate boundaries
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — introduces the `tracewake-core`, `tracewake-content`, `tracewake-tui` crates and the workspace root `Cargo.toml`.
@@ -79,3 +79,21 @@ Create each crate's `Cargo.toml` and a minimal `src/lib.rs` (and `src/main.rs` f
 1. `cargo build --workspace`
 2. `cargo metadata --format-version 1 | rg -q 'tracewake-core' && cargo tree -p tracewake-core`
 3. A build + metadata check is the correct verification boundary because the deliverable is the crate graph itself, which Cargo resolves and enforces.
+
+## Outcome
+
+Completed: 2026-06-06
+
+What changed:
+- Added the root Cargo workspace with `tracewake-core`, `tracewake-content`, and `tracewake-tui` members.
+- Added minimal crate manifests and crate roots.
+- Wired dependencies so content depends on core, and TUI depends on content plus core.
+- Added a thin `tracewake-tui` binary entry.
+
+Deviations from original plan:
+- None.
+
+Verification results:
+- `cargo build --workspace` passed.
+- `cargo metadata --format-version 1` showed `tracewake-core` with no dependencies.
+- `cargo tree -p tracewake-core` showed only `tracewake-core`, with no terminal, network, LLM, or time crate.
