@@ -27,7 +27,7 @@ Steps 1–7 are the audit. Step 8 (follow-up implementation) fires only if the u
 1. **Read the target skill.** Read its `SKILL.md` and parse name, description, and content. If it ships a `references/` or `templates/` directory, list that directory first so per-finding suggestions can cite exact file paths. (A Read is satisfied by in-context content from earlier this session; re-read only after compaction, or if the skill was modified this session.)
 
 2. **Read alignment documents.**
-   - Read `docs/0-foundation/02_FOUNDATIONAL_INVARIANTS.md` — skip only if it's already in this session's context, and when skipping, name the load mechanism explicitly (e.g., "already in context via direct Read at message N"). It is the constitution: the hard rules `INV-001` … `INV-087`.
+   - Read `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` — skip only if it's already in this session's context, and when skipping, name the load mechanism explicitly (e.g., "already in context via direct Read at message N"). It is the constitution: the hard rules `INV-001` … `INV-098`.
    - If a root `CLAUDE.md` exists, read it too; if absent, treat that as normal and skip the CLAUDE.md alignment check.
    - **Meta-tooling carve-out**: when the target is itself a process/tooling skill (e.g., `brainstorm`, `skill-audit`), invariants alignment is N/A — these skills don't touch product behavior. The read may be skipped for such targets.
 
@@ -42,7 +42,7 @@ Steps 1–7 are the audit. Step 8 (follow-up implementation) fires only if the u
    **Self-audit** (target is `skill-audit` itself): use evidence from any prior audit invocation(s) this session. If there were none, report "No session evidence available — self-audit with no prior invocations" and skip steps 3–6.
 
 4. **Cross-check alignment.** For each finding, check whether the skill contradicts or fails to implement:
-   - Invariants from `docs/0-foundation/02_FOUNDATIONAL_INVARIANTS.md` (reference by `INV-NNN`)
+   - Invariants from `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (reference by `INV-NNN`)
    - Conventions from `CLAUDE.md` (by section name) — skip if `CLAUDE.md` is absent
 
 5. **Classify each finding** into one bucket:
@@ -131,7 +131,7 @@ After the report, the user may ask you to implement specific findings (or all of
 
 ## Cross-skill note
 
-This repo currently has one sibling skill, `brainstorm`. A cross-skill check matters only when a follow-up edit introduces or changes terminology, a convention, or an output path that `brainstorm` also relies on — in that case, grep `brainstorm` for the affected token and record the outcome (`Scanned brainstorm via grep for <token> — no inconsistencies`, or name what was adjusted). When no edit touches a shared surface, omit any cross-skill section entirely. As the skill ecosystem grows, extend the scan to the relevant siblings.
+This repo currently has sibling skills `brainstorm` and `reassess-spec`. A cross-skill check matters only when a follow-up edit introduces or changes terminology, a convention, or an output path that a sibling skill also relies on — in that case, grep the relevant sibling(s) for the affected token and record the outcome (`Scanned <sibling> via grep for <token> — no inconsistencies`, or name what was adjusted). When no edit touches a shared surface, omit any cross-skill section entirely. As the skill ecosystem grows, extend the scan to whichever siblings share the affected surface.
 
 ## Auxiliary investigation and announcements
 

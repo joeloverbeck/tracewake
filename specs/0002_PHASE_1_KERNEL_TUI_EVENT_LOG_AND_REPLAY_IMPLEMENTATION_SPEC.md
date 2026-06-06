@@ -245,41 +245,41 @@ Phase 1 also must not define a `PlayerCharacter`, a player inventory, player-exc
 
 The following invariants are binding for Phase 1. They are not suggestions.
 
-### 6.1 The world ignores the human
+### 6.1 The world ignores the human (INV-004, INV-006)
 
 The authoritative world state must not contain a sacred player entity. A human controller may be bound to an ordinary actor, but the world must not know or care whether that actor is controlled by a human.
 
 Controller binding is runtime/control metadata. It is not a physical fact, social fact, mental fact, or epistemic fact in the simulation. Possession must not transfer knowledge. Possession must not mark the actor as special. Possession must not unlock verbs that non-human actors cannot use.
 
-### 6.2 Every player world action must be NPC-possible
+### 6.2 Every player world action must be NPC-possible (INV-007)
 
 If the human can move, open, close, take, place, inspect, or wait through the TUI, the same action definition must be available to a non-human proposal under the same physical preconditions. The only human-specific operations are non-world controller/debug operations, such as attaching the controller or opening a debug panel.
 
-### 6.3 Meaningful state changes require events
+### 6.3 Meaningful state changes require events (INV-009)
 
 Phase 1 may not mutate authoritative physical state directly as a side effect of a command, UI callback, fixture script, debug command, test helper, or projection rebuild. Accepted physical changes must be represented as ordered, versioned event envelopes and applied through the event application path.
 
-### 6.4 Replay is foundational
+### 6.4 Replay is foundational (INV-018)
 
 Replay determinism is not a later optimization. Phase 1 fails if it cannot rebuild physical state and projections from the initial fixture plus ordered events and produce a matching checksum/report.
 
-### 6.5 TUI-first means runnable phases are playable
+### 6.5 TUI-first means runnable phases are playable (INV-065, INV-066)
 
 A passing Phase 1 must expose the slice through the TUI. A test-only or debug-command-only kernel is not sufficient. The TUI does not need beauty, prose, or convenience. It does need stable semantic actions, local view models, why-not, wait/advance, debug access, and transcript/snapshot coverage.
 
-### 6.6 Why-not is mandatory
+### 6.6 Why-not is mandatory (INV-070)
 
 Invalid actions must produce structured rejections. A failed action that returns only “no,” silently ignores input, or prints an unstructured string does not satisfy Phase 1.
 
-### 6.7 Debug is non-diegetic
+### 6.7 Debug is non-diegetic (INV-068)
 
 Debug truth must be visibly non-diegetic and must not enter embodied actor state. Debug reports may show actual item location, event ancestry, validation internals, and projection checksums. Actor views may not inherit those facts merely because debug was opened or the controller was rebound.
 
-### 6.8 LLMs have no Phase 1 authority
+### 6.8 LLMs have no Phase 1 authority (INV-042, INV-077)
 
 No Phase 1 behavior may require an LLM. No LLM may validate actions, interpret commands, author events, mutate state, generate canonical descriptions, fill data, decide outcomes, or repair content. LLM-disabled acceptance tests must pass.
 
-### 6.9 No authored outcome chain
+### 6.9 No authored outcome chain (INV-060)
 
 Content may define initial causal possibilities. It may not define ordinary playable outcomes such as “when Tomas opens the strongbox, make the coins missing,” “after three waits, move the coins,” or “if the human enters the room, trigger suspicion.” Such content is scripting and must be rejected.
 
@@ -287,7 +287,7 @@ Content may define initial causal possibilities. It may not define ordinary play
 
 ## 7. Binding architecture constraints
 
-### 7.1 Kernel authority
+### 7.1 Kernel authority (INV-008; docs/1-architecture/01)
 
 The Rust kernel owns authoritative world rules. The TUI, fixture loader, debug tools, replay runner, projections, and tests are clients of kernel APIs. They must not contain duplicate action rules or hidden state mutation paths.
 
@@ -301,11 +301,11 @@ Required boundary:
 - TUI renders view models and submits semantic commands;
 - debug reads state, events, validation reports, and replay reports without mutating world facts.
 
-### 7.2 Dependency direction
+### 7.2 Dependency direction (docs/1-architecture/01)
 
 The workspace must enforce dependency direction. The kernel may expose domain types, state, validation, events, replay, projections, and debug report builders. The TUI may depend on the kernel and content loader. The kernel must not depend on terminal libraries, command-line UI libraries, fixture file paths, wall-clock time, network services, or LLM clients.
 
-### 7.3 Deterministic side-effect policy
+### 7.3 Deterministic side-effect policy (INV-017, INV-018; docs/1-architecture/03)
 
 Outcome-affecting code may not use:
 
@@ -321,19 +321,19 @@ Outcome-affecting code may not use:
 - display order as an implicit semantic target;
 - debug UI state as simulation input.
 
-### 7.4 Event-sourced mutation
+### 7.4 Event-sourced mutation (INV-009, INV-011; docs/1-architecture/03)
 
 State mutation must be routed through event application. The implementation may maintain an in-memory current state for playability, but that state must be reproducible from fixture plus ordered events. Projection rebuild must not depend on a saved current-state snapshot.
 
-### 7.5 Content is possibility, not script
+### 7.5 Content is possibility, not script (INV-060, INV-061; docs/1-architecture/04)
 
 Content defines entities, relationships, initial state, permitted physical affordances, and fixture setup. Content must not encode authored outcomes. Domain packs and fixtures must be validated before play or tests.
 
-### 7.6 TUI/view-model separation
+### 7.6 TUI/view-model separation (INV-069; docs/1-architecture/10)
 
 The TUI must render view models produced by the kernel/projection layer. The TUI may format, paginate, highlight, and dispatch selected semantic action IDs. It may not infer rules, discover hidden entities, mutate state, or create action availability independent of the action registry/view model.
 
-### 7.7 Debug separation
+### 7.7 Debug separation (INV-068; docs/1-architecture/10)
 
 Debug surfaces may expose truth. They must be marked as debug, routed through debug APIs, and tested for non-leakage into embodied state. Debug commands that affect controller binding or replay/projection tools are not ordinary world actions.
 
@@ -783,6 +783,8 @@ Phase 1 must preserve the distinction among:
 - expected location stub;
 - permitted access.
 
+The *current physical holder* in this list is modeled by the single-source `Location` component (§12.3) together with `ActorBody.carried` / `ContainerState.contents`, not by a `possessor` field on `OwnershipCustody`. This deliberately diverges from the `OwnershipCustody.possessor` field sketched in `docs/2-execution/05_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY.md`: holding the physical location in exactly one place preserves the single-location invariant of §12.3 and prevents two records disagreeing about where an item is. `OwnershipCustody` therefore carries only the legal/social facts (owner, custodian, permitted access, expected-location stub).
+
 However, Phase 1 must not implement legal procedure, suspicion, sanctions, or belief contradiction. Access may be used only as a physical validation fact if the fixture explicitly makes a door/container locked or permission-gated. If access denial is not implemented, ownership/custody still must validate and remain available to debug/future systems.
 
 ### 12.6 State mutation rule
@@ -905,14 +907,20 @@ The shared validation/commit pipeline must run these stages, even if some are tr
 5. **Target binding:** resolve targets and verify expected target kinds.
 6. **Locality/reachability validation:** confirm actor can physically interact with targets.
 7. **Physical precondition validation:** door/container state, item holder, carrying state, capacity, locks/access if implemented.
-8. **Phase boundary validation:** reject action definitions not implemented in Phase 1.
-9. **Mutation plan construction:** produce canonical state delta plan for accepted actions.
-10. **Validation report creation:** store accepted/rejected status, checked facts, reason codes, and stage results.
-11. **Event envelope construction:** for accepted meaningful changes, create versioned world event(s); for required diagnostic rejections, create diagnostic `ActionRejected` event.
-12. **Event append:** append events in deterministic order.
-13. **Event application:** mutate state only by applying world events.
-14. **Projection/view update:** rebuild or incrementally update projections from state/events.
-15. **Debug linkage:** link proposal, validation report, event IDs, and resulting checksums.
+8. **Knowledge/perception placeholder check:** architectural slot for later epistemic gating. Inert in Phase 1 — Phase 1 has only physical local visibility (§12.4) and must not implement belief/perception checks. The slot exists so Phase 2 epistemics attach here rather than bolting on a parallel rule path.
+9. **Social/norm placeholder check:** architectural slot for later norm/permission gating. Inert in Phase 1 except where a fixture makes a door/container locked or permission-gated as a *physical* validation fact (§12.5); no institutional, suspicion, or sanction logic.
+10. **Cost/duration check:** architectural slot for later action cost/duration. Inert in Phase 1, which prefers immediate actions (§14.6); present so durational actions later attach here.
+11. **Reservation/conflict check:** architectural slot for later concurrent-proposal reservation. Inert in Phase 1 immediate-action play; when scheduled/durational actions exist, a target already reserved by an in-flight proposal yields a `target_reserved` rejection (§14.5).
+12. **Phase boundary validation:** reject action definitions not implemented in Phase 1.
+13. **Mutation plan construction:** produce canonical state delta plan for accepted actions.
+14. **Validation report creation:** store accepted/rejected status, checked facts, reason codes, and stage results.
+15. **Event envelope construction:** for accepted meaningful changes, create versioned world event(s); for required diagnostic rejections, create diagnostic `ActionRejected` event.
+16. **Event append:** append events in deterministic order.
+17. **Event application:** mutate state only by applying world events.
+18. **Projection/view update:** rebuild or incrementally update projections from state/events.
+19. **Debug linkage:** link proposal, validation report, event IDs, and resulting checksums.
+
+Stages 8–11 are deliberately inert architectural slots required by `docs/2-execution/05_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY.md` ("they must exist as architectural slots so later phases do not bolt on parallel rules"). They must be present in the pipeline structure even though Phase 1 leaves them vacuous; later phases attach epistemic, norm, cost/duration, and reservation logic at these slots.
 
 ### 14.4 Required Phase 1 ordinary action definitions
 
@@ -978,11 +986,12 @@ Required stable reason codes include at least:
 - `already_open`;
 - `already_closed`;
 - `invalid_parameter`;
-- `world_state_mismatch`.
+- `world_state_mismatch`;
+- `target_reserved`.
 
 ### 14.6 Rejection versus failure
 
-A **rejection** means the action did not pass validation and produced no world mutation. A **failure** means an accepted scheduled/durational action later failed during execution. Phase 1 should prefer immediate actions and rejections. If it introduces scheduled action starts, it must test `ActionStarted` and `ActionFailed` separately.
+A **rejection** means the action did not pass validation and produced no world mutation. A **failure** means an accepted scheduled/durational action later failed during execution. Phase 1 should prefer immediate actions and rejections. If it introduces scheduled action starts, it must test `ActionStarted` and `ActionFailed` separately. A target already reserved by an in-flight proposal is a `target_reserved` rejection at the reservation/conflict slot (§14.3, stage 11), not a post-acceptance failure; with Phase 1's immediate-only actions that slot is inert and the "item already reserved" failure case is exercised only once scheduled/durational actions exist.
 
 ### 14.7 Action registry parity
 

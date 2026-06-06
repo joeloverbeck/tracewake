@@ -5,7 +5,7 @@ This ledger is not foundation doctrine. It records produced specification packag
 ## Spec 0001
 
 **Title:** Phase 0: Missing Property Village Ontology and Fixture Contracts  
-**Status:** Proposed for review and acceptance.  
+**Status:** Accepted (2026-06-06).  
 **Phase covered:** Phase 0 paper ontology and fixture contracts.  
 **Source commit analyzed:** `3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e`.  
 **Freshness claim:** user-supplied target commit only; not independently verified as latest `main`.
@@ -54,9 +54,33 @@ Spec 0001 does not settle:
 - road travel, notices as a product feature, route threat, wilderness/quarry spaces, bounties, companion recruitment, combat, beasts, monsters, magic, graphical client, large-region simulation, procedural town generation, or quest/objective ontology;
 - live/freeform LLM dialogue.
 
+## Spec 0002
+
+**Title:** Phase 1: Kernel, TUI, Event Log, and Replay Implementation Specification  
+**Status:** Implementable Phase 1 specification.  
+**Phase covered:** Phase 1 runnable kernel, TUI/view-model harness, event log, and replay.  
+**Spec file:** `specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md` (intended home `docs/4-specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md`).  
+**Source commit analyzed:** `841deeb6fc73f8006ed2548530c062067d4f5250`.  
+**Freshness claim:** user-supplied target commit only; not independently verified as latest `main`.
+
+## What Spec 0002 settles
+
+Spec 0002 turns Phase 1 of the execution ladder into an implementable contract, using Spec 0001 as input. It settles, for Phase 1:
+
+- the compact Rust workspace shape (`tracewake-core` / `tracewake-content` / `tracewake-tui`, optional `tracewake-cli`) and module boundaries;
+- the deterministic simulation core, determinism contract, and canonical physical-state checksum;
+- the one shared command/proposal/action validation pipeline (including the inert architectural slots that later phases attach to);
+- versioned event envelopes, event streams, the append-only log, projection rebuild, and the replay report;
+- the minimal entity/component/state model with single-source item location;
+- fixture/content validation phases and required validation failures;
+- the TUI/view-model contract, controller-binding/possession parity, and debug/provenance reports;
+- the seven required Phase 1 golden fixtures: `strongbox_001`, `container_item_move_001`, `door_access_001`, `debug_attach_001`, `no_human_advance_001`, `replay_item_location_001`, `view_model_local_actions_001`.
+
+Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, suspicion, LLM surfaces); it preserves only inert, validated placeholders where Phase 0 fixture shape requires them.
+
 ## Next allowed spec
 
-After Spec 0001 is accepted, the next allowed spec is a Phase 1 kernel/TUI/event-log/replay specification. That future spec should use Spec 0001 as input and should not re-litigate the first-proof identity, roster baseline, core place/container/item contracts, primitive vocabularies, fixture names, or forbidden shortcuts.
+With Spec 0002 produced, the next allowed spec is a Phase 2 epistemics / actor-known view-model / possession-parity specification, following `docs/2-execution/06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md`. That future spec should use Spec 0001 and Spec 0002 as input and should not re-litigate the first-proof identity, roster baseline, core place/container/item contracts, primitive vocabularies, fixture names, the Phase 1 kernel/event/replay contracts, or forbidden shortcuts.
 
 ## Retread warning
 
