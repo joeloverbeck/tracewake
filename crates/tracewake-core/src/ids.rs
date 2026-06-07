@@ -144,6 +144,13 @@ stable_id_type!(ObservationId);
 stable_id_type!(BeliefId);
 stable_id_type!(ContradictionId);
 stable_id_type!(EpistemicProjectionVersion);
+stable_id_type!(IntentionId);
+stable_id_type!(RoutineTemplateId);
+stable_id_type!(RoutineExecutionId);
+stable_id_type!(CandidateGoalId);
+stable_id_type!(DecisionTraceId);
+stable_id_type!(StuckDiagnosticId);
+stable_id_type!(AgentProjectionVersion);
 stable_id_type!(ProposalId);
 stable_id_type!(DebugReportId);
 stable_id_type!(ProjectionId);
@@ -290,6 +297,46 @@ mod tests {
 
         let ordered: Vec<_> = ids.iter().map(PropositionId::as_str).collect();
         assert_eq!(ordered, ["prop_01", "prop_02", "prop_10"]);
+    }
+
+    #[test]
+    fn cognition_ids_reject_display_names_and_order_by_value() {
+        assert_eq!(IntentionId::new("").unwrap_err(), IdError::Empty);
+        assert_eq!(
+            RoutineTemplateId::new("Morning Wake").unwrap_err(),
+            IdError::InvalidStart { found: 'M' }
+        );
+        assert_eq!(
+            RoutineExecutionId::new("routine execution").unwrap_err(),
+            IdError::InvalidCharacter { found: ' ' }
+        );
+        assert_eq!(
+            CandidateGoalId::new("goal:breakfast").unwrap_err(),
+            IdError::InvalidCharacter { found: ':' }
+        );
+        assert_eq!(
+            DecisionTraceId::new("decisionTrace").unwrap_err(),
+            IdError::InvalidCharacter { found: 'T' }
+        );
+        assert_eq!(
+            StuckDiagnosticId::new("stuck diagnostic").unwrap_err(),
+            IdError::InvalidCharacter { found: ' ' }
+        );
+        assert_eq!(
+            AgentProjectionVersion::new("Agent Projection").unwrap_err(),
+            IdError::InvalidStart { found: 'A' }
+        );
+
+        let mut ids = [
+            IntentionId::new("intention_10").unwrap(),
+            IntentionId::new("intention_02").unwrap(),
+            IntentionId::new("intention_01").unwrap(),
+        ];
+
+        ids.sort();
+
+        let ordered: Vec<_> = ids.iter().map(IntentionId::as_str).collect();
+        assert_eq!(ordered, ["intention_01", "intention_02", "intention_10"]);
     }
 
     #[test]

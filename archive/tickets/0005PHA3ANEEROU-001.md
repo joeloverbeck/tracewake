@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-001: Agent-cognition module scaffold, stable IDs, and need model
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — creates the `agent` cognition module in `tracewake-core`, extends `ids.rs` with cognition ID newtypes, and adds the bounded `NeedKind` / `NeedState` / `NeedPressure` model.
@@ -86,3 +86,21 @@ Add `crates/tracewake-core/src/agent/mod.rs` declaring `pub mod need;` and re-ex
 1. `cargo test -p tracewake-core agent::need`
 2. `cargo test -p tracewake-core ids`
 3. A core-crate unit-test scope is correct here because the need model has no cross-crate consumers until tickets 005/007/015 land.
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added the `tracewake-core::agent` module with `NeedKind`, bounded `NeedState`, `NeedBand`, threshold-crossing detection, clamped delta mutation with `NeedChangeCause`, and derived `NeedPressure`.
+- Added cognition stable ID newtypes: `IntentionId`, `RoutineTemplateId`, `RoutineExecutionId`, `CandidateGoalId`, `DecisionTraceId`, `StuckDiagnosticId`, and `AgentProjectionVersion`.
+- Registered the module in `tracewake-core` and added unit coverage for canonical need round-trip, band boundaries, clamping, transitions, pressure derivation, and cognition ID validation/ordering.
+
+Deviations from original plan:
+- Used explicit Tracewake-style canonical string parsing/formatting instead of serde, matching existing core ID and epistemic canonicalization patterns.
+- `NeedState::initial` requires an ancestry cause tag for initial construction; later event wiring remains deferred to the planned Phase 3A event/effect tickets.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core agent::need` passed.
+- `cargo test -p tracewake-core ids` passed.
