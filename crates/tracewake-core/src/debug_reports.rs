@@ -4,10 +4,11 @@ use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecks
 use crate::controller::ControllerBindings;
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
-use crate::ids::{DebugReportId, EventId, ItemId, ProposalId, ValidationReportId};
+use crate::ids::{ActorId, DebugReportId, EventId, ItemId, ProposalId, ValidationReportId};
 use crate::location::Location;
+use crate::projections::{no_human_day_metrics, NoHumanDayMetrics};
 use crate::replay::{ProjectionRebuildReport, ReplayReport};
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ItemLocationDebugReport {
@@ -61,6 +62,22 @@ pub struct ReplayDebugReport {
 pub struct ControllerBindingDebugReport {
     pub report_id: DebugReportId,
     pub bindings: Vec<String>,
+    pub debug_only: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Phase3ADebugReport {
+    pub report_id: DebugReportId,
+    pub title: String,
+    pub rows: Vec<String>,
+    pub debug_only: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NoHumanDayDebugReport {
+    pub report_id: DebugReportId,
+    pub metrics: NoHumanDayMetrics,
+    pub canonical_summary: String,
     pub debug_only: bool,
 }
 
@@ -200,6 +217,181 @@ pub fn controller_binding_report(
     }
 }
 
+pub fn phase3a_needs_report(agent_state: &AgentState) -> Phase3ADebugReport {
+    let mut rows = Vec::new();
+    rows.push(format!(
+        "actor_count={}",
+        agent_state.needs_by_actor.keys().count()
+    ));
+    for (actor_id, needs) in &agent_state.needs_by_actor {
+        for need in needs.values() {
+            rows.push(format!(
+                "actor={} need={} value={} band={} cause={}",
+                actor_id.as_str(),
+                need.kind().stable_id(),
+                need.value(),
+                need.band().stable_id(),
+                need.last_change_cause().stable_id()
+            ));
+        }
+    }
+    phase3a_report("debug.phase3a.needs", "Needs", rows)
+}
+
+pub fn phase3a_routines_report(agent_state: &AgentState) -> Phase3ADebugReport {
+    let mut rows = vec![
+        format!("intention_count={}", agent_state.intentions.len()),
+        format!(
+            "active_intention_count={}",
+            agent_state.active_intention_by_actor.len()
+        ),
+        format!("routine_count={}", agent_state.routine_executions.len()),
+    ];
+    rows.extend(
+        agent_state
+            .active_intention_by_actor
+            .iter()
+            .map(|(actor_id, intention_id)| {
+                format!(
+                    "active actor={} intention={}",
+                    actor_id.as_str(),
+                    intention_id.as_str()
+                )
+            }),
+    );
+    rows.extend(agent_state.intentions.values().map(|intention| {
+        format!(
+            "intention={} actor={} status={:?} goal={} method={} step={}",
+            intention.intention_id.as_str(),
+            intention.actor_id.as_str(),
+            intention.status,
+            intention.selected_goal_id.as_str(),
+            intention
+                .selected_routine_method
+                .as_ref()
+                .map(|id| id.as_str())
+                .unwrap_or("none"),
+            intention.current_step.as_deref().unwrap_or("none")
+        )
+    }));
+    rows.extend(agent_state.routine_executions.values().map(|execution| {
+        format!(
+            "routine={} actor={} template={} step_index={} status={:?} next_tick={} deadline={} fallback_attempts={}",
+            execution.execution_id.as_str(),
+            execution.actor_id.as_str(),
+            execution.template_id.as_str(),
+            execution.current_step_index,
+            execution.step_status,
+            execution
+                .expected_next_progress_tick
+                .map(|tick| tick.value().to_string())
+                .unwrap_or_else(|| "none".to_string()),
+            execution
+                .deadline_tick
+                .map(|tick| tick.value().to_string())
+                .unwrap_or_else(|| "none".to_string()),
+            execution.fallback_attempts
+        )
+    }));
+    phase3a_report("debug.phase3a.routines", "Routines", rows)
+}
+
+pub fn phase3a_actor_report(agent_state: &AgentState, actor_id: &ActorId) -> Phase3ADebugReport {
+    let mut rows = vec![format!("actor={}", actor_id.as_str())];
+    if let Some(needs) = agent_state.needs_by_actor.get(actor_id) {
+        rows.extend(needs.values().map(|need| {
+            format!(
+                "need={} value={} band={}",
+                need.kind().stable_id(),
+                need.value(),
+                need.band().stable_id()
+            )
+        }));
+    } else {
+        rows.push("needs=none".to_string());
+    }
+    let active_intention_id = agent_state.active_intention_by_actor.get(actor_id);
+    rows.push(format!(
+        "active_intention={}",
+        active_intention_id.map(|id| id.as_str()).unwrap_or("none")
+    ));
+    rows.extend(
+        agent_state
+            .routine_executions
+            .values()
+            .filter(|execution| execution.actor_id == *actor_id)
+            .map(|execution| {
+                format!(
+                    "routine={} template={} status={:?}",
+                    execution.execution_id.as_str(),
+                    execution.template_id.as_str(),
+                    execution.step_status
+                )
+            }),
+    );
+    rows.extend(trace_rows_for_actor(agent_state, actor_id));
+    rows.extend(stuck_rows_for_actor(agent_state, actor_id));
+    phase3a_report(
+        &format!("debug.phase3a.actor.{}", actor_id.as_str()),
+        "Actor",
+        rows,
+    )
+}
+
+pub fn phase3a_planner_report(agent_state: &AgentState, actor_id: &ActorId) -> Phase3ADebugReport {
+    let mut rows = vec![
+        format!("actor={}", actor_id.as_str()),
+        "candidate_goals=canonical_trace_rows".to_string(),
+        "selected_method=canonical_trace_rows".to_string(),
+        "rejected_reasons=canonical_trace_rows".to_string(),
+        "blocked_preconditions=canonical_stuck_rows".to_string(),
+        "hidden_truth_audit=canonical_trace_rows".to_string(),
+    ];
+    let trace_rows = trace_rows_for_actor(agent_state, actor_id);
+    if trace_rows.is_empty() {
+        rows.push("trace=none".to_string());
+    } else {
+        rows.extend(trace_rows);
+    }
+    let stuck_rows = stuck_rows_for_actor(agent_state, actor_id);
+    if stuck_rows.is_empty() {
+        rows.push("blocked=none".to_string());
+    } else {
+        rows.extend(stuck_rows);
+    }
+    phase3a_report(
+        &format!("debug.phase3a.planner.{}", actor_id.as_str()),
+        "Planner",
+        rows,
+    )
+}
+
+pub fn phase3a_stuck_report(agent_state: &AgentState) -> Phase3ADebugReport {
+    let mut rows = vec![format!(
+        "stuck_diagnostic_count={}",
+        agent_state.stuck_diagnostics.len()
+    )];
+    for (diagnostic_id, diagnostic) in &agent_state.stuck_diagnostics {
+        rows.push(format!(
+            "stuck={} {}",
+            diagnostic_id.as_str(),
+            summarize_stuck_canonical(diagnostic)
+        ));
+    }
+    phase3a_report("debug.phase3a.stuck", "Stuck", rows)
+}
+
+pub fn no_human_day_debug_report(log: &EventLog) -> NoHumanDayDebugReport {
+    let metrics = no_human_day_metrics(log);
+    let canonical_summary = metrics.serialize_canonical();
+    NoHumanDayDebugReport {
+        report_id: DebugReportId::new("debug.phase3a.no_human_day").unwrap(),
+        metrics,
+        canonical_summary,
+        debug_only: true,
+    }
+}
+
 fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
     matches!(
         event.event_type,
@@ -211,6 +403,55 @@ fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
         .payload
         .iter()
         .any(|field| field.key == "item_id" && field.value == item_id.as_str())
+}
+
+fn phase3a_report(report_id: &str, title: &str, rows: Vec<String>) -> Phase3ADebugReport {
+    Phase3ADebugReport {
+        report_id: DebugReportId::new(report_id).unwrap(),
+        title: title.to_string(),
+        rows,
+        debug_only: true,
+    }
+}
+
+fn trace_rows_for_actor(agent_state: &AgentState, actor_id: &ActorId) -> Vec<String> {
+    agent_state
+        .decision_traces
+        .iter()
+        .filter(|(_, trace)| trace_mentions_actor(trace, actor_id))
+        .map(|(trace_id, trace)| format!("trace={} {}", trace_id.as_str(), trace))
+        .collect()
+}
+
+fn stuck_rows_for_actor(agent_state: &AgentState, actor_id: &ActorId) -> Vec<String> {
+    agent_state
+        .stuck_diagnostics
+        .iter()
+        .filter(|(_, diagnostic)| diagnostic.contains(actor_id.as_str()))
+        .map(|(diagnostic_id, diagnostic)| {
+            format!(
+                "stuck={} {}",
+                diagnostic_id.as_str(),
+                summarize_stuck_canonical(diagnostic)
+            )
+        })
+        .collect()
+}
+
+fn trace_mentions_actor(trace: &str, actor_id: &ActorId) -> bool {
+    trace.split('|').nth(2) == Some(actor_id.as_str()) || trace.contains(actor_id.as_str())
+}
+
+fn summarize_stuck_canonical(diagnostic: &str) -> String {
+    let fields = diagnostic.split('|').collect::<Vec<_>>();
+    if fields.first() == Some(&"stuck_diagnostic_v1") && fields.len() >= 18 {
+        format!(
+            "actor={} blocker_category={} outcome={} concrete_blocker={} actor_known={} debug_detail={}",
+            fields[2], fields[12], fields[17], fields[13], fields[14], fields[15]
+        )
+    } else {
+        diagnostic.to_string()
+    }
 }
 
 fn location_summary(state: &PhysicalState, location: &Location) -> String {
@@ -243,11 +484,17 @@ mod tests {
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
-    use crate::ids::{
-        ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, FixtureId, PlaceId,
-        ProposalId,
+    use crate::agent::{
+        Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
     };
-    use crate::state::{ActorBody, ContainerState, ItemState, PhysicalState, PlaceState};
+    use crate::ids::{
+        ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
+        DecisionTraceId, FixtureId, IntentionId, PlaceId, ProposalId, RoutineExecutionId,
+        RoutineTemplateId, StuckDiagnosticId,
+    };
+    use crate::state::{
+        ActorBody, AgentState, ContainerState, ItemState, PhysicalState, PlaceState,
+    };
     use crate::time::SimTick;
 
     fn actor_id() -> ActorId {
@@ -405,5 +652,134 @@ mod tests {
             "fixture_origin.coin_stack_01"
         );
         assert_eq!(state, before);
+    }
+
+    #[test]
+    fn debug_reports_phase3a_surfaces_are_deterministic_and_read_only() {
+        let actor_mara = ActorId::new("actor_mara").unwrap();
+        let trace_id = DecisionTraceId::new("trace_mara_food").unwrap();
+        let intention_id = IntentionId::new("intention_mara_eat").unwrap();
+        let routine_execution_id = RoutineExecutionId::new("routine_exec_mara_eat").unwrap();
+        let routine_template_id = RoutineTemplateId::new("routine_mara_food_unavailable").unwrap();
+        let mut agent_state = AgentState::default();
+        agent_state.needs_by_actor.insert(
+            actor_mara.clone(),
+            [(
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 810, NeedChangeCause::FixtureInitial),
+            )]
+            .into(),
+        );
+        agent_state.intentions.insert(
+            intention_id.clone(),
+            Intention::adopt(
+                intention_id.clone(),
+                actor_mara.clone(),
+                IntentionSource::RoutineDuty,
+                CandidateGoalId::new("goal_mara_eat").unwrap(),
+                Some(routine_template_id.clone()),
+                Some("consume_accessible_food".to_string()),
+                3,
+                SimTick::new(4),
+                trace_id.clone(),
+            ),
+        );
+        agent_state
+            .active_intention_by_actor
+            .insert(actor_mara.clone(), intention_id);
+        agent_state.routine_executions.insert(
+            routine_execution_id.clone(),
+            RoutineExecution::new(
+                routine_execution_id,
+                actor_mara.clone(),
+                routine_template_id,
+                SimTick::new(4),
+                Some(SimTick::new(5)),
+                Some(SimTick::new(10)),
+                None,
+                trace_id.clone(),
+            ),
+        );
+        agent_state.decision_traces.insert(
+            trace_id,
+            "decision_trace_v1|trace_mara_food|actor_mara|4|10|failed|2|true|candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only"
+                .to_string(),
+        );
+        agent_state.stuck_diagnostics.insert(
+            StuckDiagnosticId::new("stuck_mara_food").unwrap(),
+            "stuck_diagnostic_v1|stuck_mara_food|actor_mara|4|10|hunger|goal_mara_eat|intention_mara_eat|routine_mara_food_unavailable|routine_exec_mara_eat|none|eat.food_empty_pantry_mara|resource|empty_pantry|Mara knows no reachable food|blocked precondition: no actor-known serving|fallback_to_find_food|replanning"
+                .to_string(),
+        );
+        let before = agent_state.clone();
+
+        let needs = phase3a_needs_report(&agent_state);
+        let routines = phase3a_routines_report(&agent_state);
+        let planner = phase3a_planner_report(&agent_state, &actor_mara);
+        let stuck = phase3a_stuck_report(&agent_state);
+        let actor = phase3a_actor_report(&agent_state, &actor_mara);
+
+        for report in [&needs, &routines, &planner, &stuck, &actor] {
+            assert!(report.debug_only);
+        }
+        assert!(needs
+            .rows
+            .iter()
+            .any(|row| row.contains("need=hunger value=810 band=severe")));
+        assert!(routines
+            .rows
+            .iter()
+            .any(|row| row.contains("routine_exec_mara_eat")));
+        assert!(planner
+            .rows
+            .iter()
+            .any(|row| row.contains("candidate_goals")));
+        assert!(planner
+            .rows
+            .iter()
+            .any(|row| row.contains("hidden_truth_audit")));
+        assert!(stuck
+            .rows
+            .iter()
+            .any(|row| row.contains("blocker_category=resource")));
+        assert!(stuck
+            .rows
+            .iter()
+            .any(|row| row.contains("outcome=replanning")));
+        assert!(actor
+            .rows
+            .iter()
+            .any(|row| row.contains("actor=actor_mara")));
+        assert_eq!(agent_state, before);
+        assert_eq!(phase3a_planner_report(&agent_state, &actor_mara), planner);
+
+        let report_source = include_str!("debug_reports.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .expect("module source has non-test section");
+        for forbidden in [
+            ".apply_delta(",
+            ".insert_belief(",
+            ".insert_observation(",
+            ".append(",
+            "run_pipeline(",
+        ] {
+            assert!(
+                !report_source.contains(forbidden),
+                "debug report generation must not call {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn debug_reports_no_human_day_summary_is_debug_only_and_read_only() {
+        let log = EventLog::new();
+        let before = log.clone();
+
+        let report = no_human_day_debug_report(&log);
+
+        assert!(report.debug_only);
+        assert_eq!(report.metrics.projection_version, "no_human_day_metrics_v1");
+        assert!(report.canonical_summary.contains("no_human_day_metrics_v1"));
+        assert_eq!(log, before);
     }
 }

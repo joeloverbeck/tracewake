@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-023: Debug surface — needs, routines, planner traces, candidate goals, stuck, no-human day
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends debug reports and TUI debug panels to expose full Phase 3A cognition state and the no-human day summary, non-authoritatively.
@@ -77,3 +77,18 @@ Extend `crates/tracewake-tui/src/debug_panels.rs` (and `app.rs`/`input.rs`) to r
 1. `cargo test -p tracewake-tui --test tui_acceptance`
 2. `cargo test -p tracewake-core debug_reports`
 3. TUI + core-projection scope is the correct debug boundary; the full no-human-day explainability gate is the capstone (025).
+
+## Outcome
+
+Completed: 2026-06-07
+
+Added read-only Phase 3A debug reports for needs, routines, actor state, planner traces, stuck diagnostics, and no-human-day metrics. Wired TUI commands for `debug needs`, `debug routines`, `debug planner <actor_id>`, `debug stuck`, `debug no-human-day`, and `debug actor <actor_id>`, rendering them through the existing non-diegetic debug panel discipline.
+
+Deviation: planner and stuck panels render the canonical trace/diagnostic rows currently stored in `AgentState`; they do not invent extra authority beyond those replayable trace strings.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core debug_reports`
+3. `cargo test -p tracewake-tui --test tui_acceptance`
+4. `cargo test -p tracewake-tui`

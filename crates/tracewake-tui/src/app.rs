@@ -8,7 +8,9 @@ use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, Physi
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{
     action_rejection_report, controller_binding_report, item_location_report,
-    projection_rebuild_debug_report, replay_debug_report,
+    no_human_day_debug_report, phase3a_actor_report, phase3a_needs_report, phase3a_planner_report,
+    phase3a_routines_report, phase3a_stuck_report, projection_rebuild_debug_report,
+    replay_debug_report,
 };
 use tracewake_core::epistemics::belief::HolderKind;
 use tracewake_core::epistemics::observation::SourceRef;
@@ -36,7 +38,8 @@ use tracewake_core::view_models::{
 
 use crate::debug_panels::{
     render_action_rejection_panel, render_controller_binding_panel, render_event_log_panel,
-    render_item_location_panel, render_projection_rebuild_panel, render_replay_panel,
+    render_item_location_panel, render_no_human_day_panel, render_phase3a_debug_panel,
+    render_projection_rebuild_panel, render_replay_panel,
 };
 use crate::render::render_embodied_view;
 
@@ -307,6 +310,30 @@ impl TuiApp {
             DebugReportId::new("debug.replay").unwrap(),
             report,
         ))
+    }
+
+    pub fn render_debug_needs_panel(&self) -> String {
+        render_phase3a_debug_panel(&phase3a_needs_report(&self.agent_state))
+    }
+
+    pub fn render_debug_routines_panel(&self) -> String {
+        render_phase3a_debug_panel(&phase3a_routines_report(&self.agent_state))
+    }
+
+    pub fn render_debug_planner_panel(&self, actor_id: &ActorId) -> String {
+        render_phase3a_debug_panel(&phase3a_planner_report(&self.agent_state, actor_id))
+    }
+
+    pub fn render_debug_stuck_panel(&self) -> String {
+        render_phase3a_debug_panel(&phase3a_stuck_report(&self.agent_state))
+    }
+
+    pub fn render_debug_no_human_day_panel(&self) -> String {
+        render_no_human_day_panel(&no_human_day_debug_report(&self.log))
+    }
+
+    pub fn render_debug_actor_panel(&self, actor_id: &ActorId) -> String {
+        render_phase3a_debug_panel(&phase3a_actor_report(&self.agent_state, actor_id))
     }
 
     pub fn notebook_view(&self) -> Result<NotebookView, AppError> {
