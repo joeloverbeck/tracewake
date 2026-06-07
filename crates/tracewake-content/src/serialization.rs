@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use tracewake_core::events::log::{EventLog, EventLogError};
 
-use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
 };
@@ -180,8 +180,20 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             "routine_template|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             template.template_id.as_str(),
             template.family.stable_id(),
-            join_encoded(&template.applicability_conditions),
-            join_encoded(&template.preconditions),
+            join_encoded(
+                &template
+                    .applicability_conditions
+                    .iter()
+                    .map(|condition| condition.stable_id().to_string())
+                    .collect::<Vec<_>>()
+            ),
+            join_encoded(
+                &template
+                    .preconditions
+                    .iter()
+                    .map(|condition| condition.stable_id().to_string())
+                    .collect::<Vec<_>>()
+            ),
             join_encoded(
                 &template
                     .steps
@@ -343,8 +355,14 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                 routine_templates.push(RoutineTemplateSchema {
                     template_id: RoutineTemplateId::new(*template_id)?,
                     family: parse_routine_family(family)?,
-                    applicability_conditions: split_encoded(applicability_conditions)?,
-                    preconditions: split_encoded(preconditions)?,
+                    applicability_conditions: split_encoded(applicability_conditions)?
+                        .into_iter()
+                        .map(parse_routine_condition)
+                        .collect::<Result<Vec<_>, _>>()?,
+                    preconditions: split_encoded(preconditions)?
+                        .into_iter()
+                        .map(parse_routine_condition)
+                        .collect::<Result<Vec<_>, _>>()?,
                     steps: split_encoded(steps)?
                         .into_iter()
                         .map(|step| {
@@ -540,6 +558,11 @@ fn parse_routine_family(value: &str) -> Result<RoutineFamily, SerializationError
             "bad routine family {value}"
         ))),
     }
+}
+
+fn parse_routine_condition(value: String) -> Result<RoutineCondition, SerializationError> {
+    RoutineCondition::parse(&value)
+        .ok_or_else(|| SerializationError::BadLine(format!("bad routine condition {value}")))
 }
 
 fn source_id(source: &SourceRef) -> String {

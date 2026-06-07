@@ -61,6 +61,21 @@ fn dispatch_command<W: Write>(
             let semantic_action_id = SemanticActionId::new(WAIT_ACTION_ID).expect("valid wait ID");
             submit_and_render(app, &semantic_action_id, writer)
         }
+        UiCommand::RunNoHumanDay => {
+            let report = app.run_no_human_day();
+            writeln!(
+                writer,
+                "Ran no-human day: start={} final={} actors={} windows={} ordinary_events={} stuck_diagnostics={}",
+                report.start_tick.value(),
+                report.final_tick.value(),
+                report.actor_decision_order.len(),
+                report.window_ids.len(),
+                report.ordinary_pipeline_events,
+                report.stuck_diagnostic_event_ids.len()
+            )?;
+            writeln!(writer, "{}", app.render_debug_no_human_day_panel())?;
+            writeln!(writer, "{}", app_result(app.render_current_view())?)
+        }
         UiCommand::Debug(debug_command) => render_debug(app, debug_command, writer),
         UiCommand::Quit => Ok(()),
     }
@@ -167,7 +182,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug actor <actor_id>, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, run no-human-day, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug actor <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -213,6 +228,7 @@ mod tests {
             "<n>",
             "wait",
             "w",
+            "run no-human-day",
             "debug log",
             "debug bindings",
             "debug item <item_id>",

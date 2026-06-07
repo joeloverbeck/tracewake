@@ -10,6 +10,7 @@ pub enum UiCommand {
     SelectSemanticAction(SemanticActionId),
     SelectByMenuIndex(usize),
     WaitOneTick,
+    RunNoHumanDay,
     Debug(DebugCommand),
     Quit,
 }
@@ -64,6 +65,9 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
     }
     if trimmed == "wait" || trimmed == "w" {
         return Ok(UiCommand::WaitOneTick);
+    }
+    if trimmed == "run no-human-day" {
+        return Ok(UiCommand::RunNoHumanDay);
     }
     if trimmed.chars().all(|ch| ch.is_ascii_digit()) {
         let one_based_selection = trimmed
@@ -217,6 +221,10 @@ mod tests {
         assert_eq!(parse_command("notebook").unwrap(), UiCommand::Notebook);
         assert_eq!(parse_command("wait").unwrap(), UiCommand::WaitOneTick);
         assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);
+        assert_eq!(
+            parse_command("run no-human-day").unwrap(),
+            UiCommand::RunNoHumanDay
+        );
     }
 
     #[test]

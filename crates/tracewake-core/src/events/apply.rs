@@ -21,6 +21,44 @@ pub enum ApplyOutcome {
     WorldNoOp,
 }
 
+#[derive(Debug)]
+pub struct EventApplicationContext<'a> {
+    pub physical_state: &'a mut PhysicalState,
+    pub agent_state: &'a mut AgentState,
+    pub epistemic_projection: Option<&'a mut EpistemicProjection>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EventApplicationError {
+    World(ApplyError),
+    Agent(ApplyError),
+    Epistemic(EpistemicApplyError),
+}
+
+pub fn apply_event_stream(
+    context: &mut EventApplicationContext<'_>,
+    event: &EventEnvelope,
+) -> Result<ApplyOutcome, EventApplicationError> {
+    match event.stream {
+        EventStream::World => {
+            apply_event(context.physical_state, event).map_err(EventApplicationError::World)
+        }
+        EventStream::Agent => {
+            apply_agent_event(context.agent_state, event).map_err(EventApplicationError::Agent)
+        }
+        EventStream::Epistemic => {
+            if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                apply_epistemic_event(projection, event).map_err(EventApplicationError::Epistemic)
+            } else {
+                Ok(ApplyOutcome::NonWorldNoOp)
+            }
+        }
+        EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {
+            Ok(ApplyOutcome::NonWorldNoOp)
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApplyError {
     UnsupportedSchemaVersion(String),

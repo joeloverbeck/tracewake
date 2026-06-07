@@ -4,6 +4,7 @@ use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
 use tracewake_tui::app::TuiApp;
 use tracewake_tui::input::semantic_id_for_selection;
 use tracewake_tui::render::render_notebook;
+use tracewake_tui::run::run_command_loop;
 use tracewake_tui::transcript::capture_representative_transcript;
 
 #[test]
@@ -100,6 +101,57 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
             "debug panel rendering must not call {forbidden}"
         );
     }
+}
+
+#[test]
+fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
+    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let before_events = app.event_count();
+
+    let report = app.run_no_human_day();
+    let embodied = app.render_current_view().unwrap();
+    let after_run_events = app.event_count();
+    let before_debug_checksum = app.physical_checksum();
+    let metrics = app.render_debug_no_human_day_panel();
+    let planner = app.render_debug_planner_panel(&ActorId::new("actor_mara").unwrap());
+    let stuck = app.render_debug_stuck_panel();
+    let after_debug_events = app.event_count();
+
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(after_run_events > before_events);
+    assert!(embodied.contains("Needs:"));
+    assert!(embodied.contains("Intention:"));
+    assert!(!embodied.contains("food_hidden_pantry"));
+    assert!(metrics.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(metrics.contains("no_human_day_metrics_v1"));
+    let events_line = metrics
+        .lines()
+        .find(|line| line.starts_with("events="))
+        .unwrap();
+    assert_ne!(events_line, "events=0");
+    assert!(planner.contains("DEBUG NON-DIEGETIC: Planner"));
+    assert!(planner.contains("candidate_goals"));
+    assert!(stuck.contains("DEBUG NON-DIEGETIC: Stuck"));
+    assert_eq!(app.event_count(), after_debug_events);
+    assert_eq!(app.physical_checksum(), before_debug_checksum);
+
+    let mut command_app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    command_app
+        .bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let script = b"run no-human-day\ndebug no-human-day\nview\nquit\n";
+    let mut output = Vec::new();
+
+    run_command_loop(&mut command_app, &script[..], &mut output).unwrap();
+
+    let rendered = String::from_utf8(output).unwrap();
+    assert!(rendered.contains("Ran no-human day:"));
+    assert!(rendered.contains("ordinary_events="));
+    assert!(rendered.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(rendered.contains("Actor: actor_tomas"));
+    assert!(!rendered.contains("food_hidden_pantry"));
 }
 
 #[test]

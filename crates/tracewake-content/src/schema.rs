@@ -1,12 +1,16 @@
-use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{
+    Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineCondition,
+    RoutineExecution, RoutineFamily, RoutineStep, RoutineStepProposal,
+};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Belief, Channel, Confidence, HolderKind, PrivacyScope, Proposition, SourceRef, Stance,
 };
 use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
-    ActionId, ActorId, BeliefId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
-    RoutineTemplateId, SchemaVersion, WorkplaceId,
+    ActionId, ActorId, BeliefId, CandidateGoalId, ContainerId, DecisionTraceId, DoorId, FixtureId,
+    FoodSupplyId, IntentionId, ItemId, PlaceId, RoutineExecutionId, RoutineTemplateId,
+    SchemaVersion, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::{
@@ -143,8 +147,8 @@ pub struct WorkplaceSchema {
 pub struct RoutineTemplateSchema {
     pub template_id: RoutineTemplateId,
     pub family: RoutineFamily,
-    pub applicability_conditions: Vec<String>,
-    pub preconditions: Vec<String>,
+    pub applicability_conditions: Vec<RoutineCondition>,
+    pub preconditions: Vec<RoutineCondition>,
     pub steps: Vec<RoutineStep>,
     pub min_duration_ticks: u64,
     pub max_duration_ticks: u64,
@@ -406,7 +410,92 @@ impl FixtureSchema {
                     ),
                 );
         }
+        for actor in &self.actors {
+            let needs = state
+                .needs_by_actor
+                .entry(actor.actor_id.clone())
+                .or_default();
+            for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+                needs.entry(kind).or_insert_with(|| {
+                    NeedState::initial(kind, 100, NeedChangeCause::FixtureInitial)
+                });
+            }
+        }
+        for assignment in &self.routine_assignments {
+            let Some(template) = self
+                .routine_templates
+                .iter()
+                .find(|template| template.template_id == assignment.template_id)
+            else {
+                continue;
+            };
+            let actor_suffix = assignment
+                .actor_id
+                .as_str()
+                .strip_prefix("actor_")
+                .unwrap_or(assignment.actor_id.as_str());
+            let family_suffix = routine_family_assignment_suffix(template.family);
+            let intention_id =
+                IntentionId::new(format!("intention_{actor_suffix}_{family_suffix}")).unwrap();
+            let routine_execution_id =
+                RoutineExecutionId::new(format!("routine_exec_{actor_suffix}_{family_suffix}"))
+                    .unwrap();
+            let trace_id =
+                DecisionTraceId::new(format!("trace_{actor_suffix}_{family_suffix}")).unwrap();
+            let goal_id =
+                CandidateGoalId::new(format!("goal_{actor_suffix}_{family_suffix}")).unwrap();
+            let current_step = template.steps.first().map(|step| match step.proposed() {
+                RoutineStepProposal::Action(action_id) => action_id.as_str().to_string(),
+                RoutineStepProposal::Wait(reason) => reason.to_string(),
+                RoutineStepProposal::Diagnostic(diagnostic) => diagnostic.to_string(),
+            });
+            let intention = Intention::adopt(
+                intention_id.clone(),
+                assignment.actor_id.clone(),
+                IntentionSource::FixtureRoutineAssignment,
+                goal_id,
+                Some(template.template_id.clone()),
+                current_step,
+                8,
+                assignment.start_tick,
+                trace_id.clone(),
+            );
+            state
+                .active_intention_by_actor
+                .entry(assignment.actor_id.clone())
+                .or_insert_with(|| intention_id.clone());
+            state.intentions.entry(intention_id).or_insert(intention);
+            state
+                .routine_executions
+                .entry(routine_execution_id.clone())
+                .or_insert_with(|| {
+                    RoutineExecution::new(
+                        routine_execution_id,
+                        assignment.actor_id.clone(),
+                        template.template_id.clone(),
+                        assignment.start_tick,
+                        Some(assignment.start_tick.next()),
+                        Some(assignment.end_tick),
+                        template.reservable_resource.clone(),
+                        trace_id,
+                    )
+                });
+        }
         state
+    }
+}
+
+fn routine_family_assignment_suffix(family: RoutineFamily) -> &'static str {
+    match family {
+        RoutineFamily::MorningWake => "wake",
+        RoutineFamily::EatMeal => "eat",
+        RoutineFamily::GoToWork => "go_work",
+        RoutineFamily::WorkBlock => "work",
+        RoutineFamily::ReturnHome => "return_home",
+        RoutineFamily::SleepNight => "sleep",
+        RoutineFamily::FindFood => "find_food",
+        RoutineFamily::ContinueCurrentIntention => "continue",
+        RoutineFamily::Wait | RoutineFamily::IdleWithReason => "wait",
     }
 }
 

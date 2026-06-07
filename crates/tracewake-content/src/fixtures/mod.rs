@@ -21,7 +21,7 @@ mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
 
-use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
@@ -115,6 +115,12 @@ pub fn all() -> Vec<GoldenFixture> {
         no_hidden_truth_planning_001(),
         no_human_day_001(),
     ]
+}
+
+pub fn by_id(fixture_id: &str) -> Option<GoldenFixture> {
+    all()
+        .into_iter()
+        .find(|golden| golden.fixture.fixture_id.as_str() == fixture_id)
 }
 
 fn fixture_id(value: &str) -> FixtureId {
@@ -324,8 +330,8 @@ fn routine_template_schema(
     RoutineTemplateSchema {
         template_id: routine_template(template_id),
         family,
-        applicability_conditions: vec!["fixture_authored_possibility".to_string()],
-        preconditions: vec!["shared_pipeline_preconditions".to_string()],
+        applicability_conditions: vec![RoutineCondition::FixtureAuthoredPossibility],
+        preconditions: vec![RoutineCondition::SharedPipelinePreconditions],
         steps,
         min_duration_ticks: 1,
         max_duration_ticks: 12,
@@ -410,5 +416,22 @@ fn sound_lead_seed(
         last_verified_tick: None,
         privacy_scope: PrivacyScope::ActorPrivate(actor(holder_actor_id)),
         schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn by_id_returns_matching_golden() {
+        let golden = by_id("strongbox_001").unwrap();
+
+        assert_eq!(golden.fixture.fixture_id.as_str(), "strongbox_001");
+    }
+
+    #[test]
+    fn by_id_returns_none_for_unknown_id() {
+        assert!(by_id("missing_fixture").is_none());
     }
 }

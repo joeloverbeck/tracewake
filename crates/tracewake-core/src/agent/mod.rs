@@ -16,7 +16,9 @@ pub use candidate::{
 };
 pub use decision::{select_goal_and_trace, DecisionInput, DecisionSelection};
 pub use generation::{
-    generate_candidate_goals, CandidateGenerationInput, CandidateGenerationOutput,
+    generate_candidate_goals, generate_candidate_goals_from_agent_state,
+    need_crossing_triggers_candidate_reevaluation, CandidateGenerationInput,
+    CandidateGenerationOutput, LiveCandidateGenerationInput,
 };
 pub use htn::{
     mark_mid_method_failure, select_method_from_templates, select_phase3a_method, MethodSelection,
@@ -31,12 +33,13 @@ pub use need::{
     NeedThresholdCrossing, ThresholdDirection,
 };
 pub use planner::{
-    plan_local_actions, ActorKnownPlanningState, LocalPlan, LocalPlanFailure, LocalPlanRequest,
-    LocalPlanTrace, PlannedProposal, PlannerGoal, DEFAULT_PLANNER_BUDGET,
+    build_actor_known_planning_state, plan_local_actions, ActorKnownPlanningState, LocalPlan,
+    LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
+    VisibleLocalPlanningState, DEFAULT_PLANNER_BUDGET,
 };
 pub use routine::{
-    RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError, RoutineStepProposal,
-    RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
+    RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError,
+    RoutineStepProposal, RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
 };
 pub use trace::{
     BlockerCategory, DecisionOutcome, DecisionTrace, HiddenTruthAudit, RejectedDecisionItem,

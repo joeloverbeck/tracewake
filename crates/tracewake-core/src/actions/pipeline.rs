@@ -19,12 +19,14 @@ use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
 use crate::controller::{ControllerBindings, ControllerError};
 use crate::epistemics::{detect_expected_absences, Confidence, EpistemicProjection};
-use crate::events::apply::{apply_epistemic_event, apply_event};
+use crate::events::apply::{
+    apply_epistemic_event, apply_event, apply_event_stream, EventApplicationContext,
+};
 use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PipelineStage {
@@ -78,6 +80,7 @@ impl PipelineStage {
 pub struct PipelineContext<'a> {
     pub registry: &'a ActionRegistry,
     pub state: &'a mut PhysicalState,
+    pub agent_state: &'a mut AgentState,
     pub log: &'a mut EventLog,
     pub controller_bindings: Option<&'a ControllerBindings>,
     pub epistemic_projection: Option<&'a mut EpistemicProjection>,
@@ -200,7 +203,12 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 )
             }
         };
-        if apply_event(context.state, &appended).is_err() {
+        let mut application_context = EventApplicationContext {
+            physical_state: context.state,
+            agent_state: context.agent_state,
+            epistemic_projection: context.epistemic_projection.as_deref_mut(),
+        };
+        if apply_event_stream(&mut application_context, &appended).is_err() {
             return reject_committed(
                 context,
                 proposal,
@@ -1204,6 +1212,7 @@ mod tests {
         let mut context = PipelineContext {
             registry,
             state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut log,
             controller_bindings: None,
             epistemic_projection: Some(&mut projection),
@@ -1237,6 +1246,7 @@ mod tests {
         let mut human_context = PipelineContext {
             registry: &registry,
             state: &mut human_state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut human_log,
             controller_bindings: Some(&bindings),
             epistemic_projection: None,
@@ -1250,6 +1260,7 @@ mod tests {
         let mut scheduler_context = PipelineContext {
             registry: &registry,
             state: &mut scheduler_state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut scheduler_log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -1393,6 +1404,7 @@ mod tests {
         let mut context = PipelineContext {
             registry: &registry,
             state: &mut state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -1449,6 +1461,7 @@ mod tests {
         let mut context = PipelineContext {
             registry: &registry,
             state: &mut state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -1490,6 +1503,7 @@ mod tests {
         let mut open_context = PipelineContext {
             registry: &registry,
             state: &mut live_state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut live_log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -1514,6 +1528,7 @@ mod tests {
         let mut move_context = PipelineContext {
             registry: &registry,
             state: &mut live_state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut live_log,
             controller_bindings: None,
             epistemic_projection: None,

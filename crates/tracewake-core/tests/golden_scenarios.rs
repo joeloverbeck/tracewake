@@ -2,7 +2,10 @@ use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReasonCode,
     ReportStatus,
 };
-use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
+use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+use tracewake_core::checksum::{
+    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{action_rejection_report, item_location_report};
 use tracewake_core::epistemics::{
@@ -20,10 +23,12 @@ use tracewake_core::ids::{
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_notebook_view, no_human_day_metrics};
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::scheduler::no_human::advance_no_human;
+use tracewake_core::scheduler::no_human::{
+    advance_no_human, run_no_human_day, DayWindow, NoHumanDayConfig, NoHumanStateMut,
+};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
-    ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
+    ActorBody, AgentState, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -33,6 +38,15 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
     registry.register_phase2a_epistemics();
+    registry
+}
+
+fn phase3a_registry() -> ActionRegistry {
+    let mut registry = registry();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
     registry
 }
 
@@ -162,6 +176,30 @@ fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
     state
 }
 
+fn phase3a_agent_state() -> AgentState {
+    let mut state = AgentState::default();
+    state.needs_by_actor.insert(
+        actor_id(),
+        [
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 100, NeedChangeCause::FixtureInitial),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 820, NeedChangeCause::FixtureInitial),
+            ),
+            (
+                NeedKind::Safety,
+                NeedState::initial(NeedKind::Safety, 100, NeedChangeCause::FixtureInitial),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    state
+}
+
 fn proposal(action: &str, targets: &[&str], sequence: u64) -> Proposal {
     let mut proposal = Proposal::new(
         ProposalId::new(format!("proposal_{action}_{sequence}")).unwrap(),
@@ -195,6 +233,7 @@ fn run_action(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: None,
@@ -239,6 +278,7 @@ fn run_check_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -275,6 +315,7 @@ fn run_scheduler_check_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -314,6 +355,7 @@ fn run_probe_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -378,6 +420,7 @@ fn run_mara_take_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -643,7 +686,13 @@ fn projection_rebuild_matches_live_state() {
     run_action(&mut live, &mut log, "take", &["coin_stack_01"], 0);
     run_action(&mut live, &mut log, "place", &["coin_stack_01"], 1);
 
-    let report = rebuild_projection(&initial, &log, &context(&log), Some(&live));
+    let report = rebuild_projection(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        Some(&live),
+    );
 
     assert!(report.state_diff.is_empty());
     assert!(report.invariant_violations.is_empty());
@@ -658,7 +707,14 @@ fn replay_checksum_matches() {
     run_action(&mut live, &mut log, "take", &["coin_stack_01"], 0);
 
     let expected = compute_physical_checksum(&live, &context(&log)).checksum;
-    let report = run_replay(&initial, &log, &context(&log), Some(&live), Some(expected));
+    let report = run_replay(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        Some(&live),
+        Some(expected),
+    );
 
     assert!(report.matches_expected);
     assert!(report.state_diff.is_empty());
@@ -679,6 +735,7 @@ fn replay_detects_missing_or_reordered_event() {
     let expected = compute_physical_checksum(&live, &context(&full_log)).checksum;
     let report = run_replay(
         &initial,
+        &tracewake_core::state::AgentState::default(),
         &missing_log,
         &context(&missing_log),
         Some(&live),
@@ -718,8 +775,20 @@ fn phase3a_agent_state_replay_projection_is_deterministic() {
     ))
     .unwrap();
 
-    let first = rebuild_projection(&initial, &log, &context(&log), None);
-    let second = rebuild_projection(&initial, &log, &context(&log), None);
+    let first = rebuild_projection(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        None,
+    );
+    let second = rebuild_projection(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        None,
+    );
 
     assert_eq!(first.final_agent_checksum, second.final_agent_checksum);
     assert_eq!(
@@ -793,7 +862,10 @@ fn no_human_advance_requires_no_controller() {
     let mut state = initial_state(true, true);
     let mut log = EventLog::new();
     let report = advance_no_human(
-        &mut state,
+        NoHumanStateMut {
+            physical: &mut state,
+            agent: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
+        },
         &mut log,
         &registry(),
         manifest_id(),
@@ -808,40 +880,53 @@ fn no_human_advance_requires_no_controller() {
 
 #[test]
 fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
+    let initial = initial_state(true, true);
+    let mut live = initial.clone();
+    let initial_agent = phase3a_agent_state();
+    let mut live_agent = initial_agent.clone();
     let mut log = EventLog::new();
-    for (sequence, kind, payload) in [
-        (0, EventKind::NoHumanDayStarted, Vec::new()),
-        (1, EventKind::RoutineStepStarted, Vec::new()),
-        (
-            2,
-            EventKind::FoodConsumed,
-            hunger_delta_payload(-200, "eat"),
-        ),
-        (
-            3,
-            EventKind::NeedThresholdCrossed,
-            hunger_delta_payload(50, "wait"),
-        ),
-        (4, EventKind::WorkBlockFailed, Vec::new()),
-        (5, EventKind::StuckDiagnosticRecorded, Vec::new()),
-        (6, EventKind::NoHumanDayCompleted, Vec::new()),
-    ] {
-        log.append(agent_event(
-            &format!("event_phase3a_metric_{sequence}"),
-            kind,
-            sequence,
-            payload,
-        ))
-        .unwrap();
-    }
+    let report = run_no_human_day(
+        &mut live,
+        &mut live_agent,
+        &mut log,
+        &phase3a_registry(),
+        manifest_id(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "fatigue_sleep".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
 
     let canonical = log.serialize_canonical();
     let replayed = EventLog::deserialize_canonical(&canonical).unwrap();
     let first_metrics = no_human_day_metrics(&log).serialize_canonical();
     let replayed_metrics = no_human_day_metrics(&replayed).serialize_canonical();
+    let replay = run_replay(
+        &initial,
+        &initial_agent,
+        &log,
+        &context(&log),
+        Some(&live),
+        Some(compute_physical_checksum(&live, &context(&log)).checksum),
+    );
+    let live_agent_checksum = compute_agent_state_checksum(&live_agent, &context(&log)).checksum;
 
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepStarted));
     assert_eq!(replayed.serialize_canonical(), canonical);
     assert_eq!(replayed_metrics, first_metrics);
+    assert_eq!(
+        replay.final_checksum,
+        compute_physical_checksum(&live, &context(&log)).checksum
+    );
+    assert_eq!(replay.final_agent_checksum, live_agent_checksum);
     assert!(first_metrics.contains("no_human_day_metrics_v1"));
     let canonical_text = String::from_utf8(canonical).unwrap().to_ascii_lowercase();
     assert!(!canonical_text.contains("player"));

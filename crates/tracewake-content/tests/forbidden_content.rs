@@ -61,7 +61,7 @@ fn forbidden_content_shortcut_truth_fields_are_blocking_errors() {
 
 #[test]
 fn forbidden_content_phase3a_teleport_and_refill_shortcuts_are_blocking_errors() {
-    let raw = b"fixture|bad_fixture\nschema|schema_v1\nappear_at|actor_tomas|workshop\nforce_location_at_tick|actor_tomas|10|workshop\nscripted_absence|actor_elena\nstory_beat|work_succeeds\nhunger_refill_without_food|actor_tomas\ninstant_sleep_refill|actor_tomas\nwork_always_succeeds|actor_tomas\nteleport_actor|actor_tomas|home\nmove_item_to|coin_stack_01|strongbox_tomas\nset_need|actor_tomas|hunger|0\nhidden_true_item_location|coin_stack_01|strongbox_tomas";
+    let raw = b"fixture|bad_fixture\nschema|schema_v1\nappear_at|actor_tomas|workshop\nforce_location_at_tick|actor_tomas|10|workshop\nscripted_absence|actor_elena\nstory_beat|work_succeeds\nhunger_refill_without_food|actor_tomas\ninstant_sleep_refill|actor_tomas\nwork_always_succeeds|actor_tomas\nteleport_actor|actor_tomas|home\nmove_item_to|coin_stack_01|strongbox_tomas\nset_need|actor_tomas|hunger|0\nhidden_true_item_location|coin_stack_01|strongbox_tomas\nfinal_event|SleepStarted\nexpected_final_event|FoodConsumed\nscripted_outcome|work_done\nhidden_planner_input|food_hidden_pantry\nactor_known_hidden_input|food_hidden_pantry";
     let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
 
     for forbidden in [
@@ -76,6 +76,11 @@ fn forbidden_content_phase3a_teleport_and_refill_shortcuts_are_blocking_errors()
         "move_item_to",
         "set_need",
         "hidden_true_item_location",
+        "final_event",
+        "expected_final_event",
+        "scripted_outcome",
+        "hidden_planner_input",
+        "actor_known_hidden_input",
     ] {
         assert!(
             report
@@ -86,6 +91,23 @@ fn forbidden_content_phase3a_teleport_and_refill_shortcuts_are_blocking_errors()
             "missing forbidden error for {forbidden}: {report:?}"
         );
     }
+}
+
+#[test]
+fn forbidden_content_hidden_truth_source_cannot_seed_actor_known_planner_input() {
+    let mut fixture = fixtures::strongbox_001().fixture;
+    let mut seed = valid_seed("belief_tomas_actor_known_hidden_food");
+    seed.source = SourceRef::Event(EventId::new("event_hidden_true_item_location").unwrap());
+    fixture.initial_beliefs.push(seed);
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.code == "shortcut_truth_field"
+            && error.path.contains("source_id")
+    }));
 }
 
 #[test]

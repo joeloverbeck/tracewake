@@ -1,17 +1,23 @@
 use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReportStatus,
 };
+use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+use tracewake_core::checksum::{compute_agent_state_checksum, ChecksumContext};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventKind, EventStream};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ControllerId, ItemId, PlaceId, ProposalId,
+    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId, FixtureId,
+    FoodSupplyId, ItemId, PlaceId, ProposalId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::projections::no_human_day_metrics;
+use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
-    ActorBody, ContainerState, ControllerMode, DoorState, ItemState, PhysicalState, PlaceState,
+    ActorBody, AgentState, ContainerState, ControllerMode, DoorState, FoodSupplyState, ItemState,
+    PhysicalState, PlaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -64,6 +70,58 @@ fn state(container_open: bool, door_open: bool) -> PhysicalState {
     state
 }
 
+fn agent_state() -> AgentState {
+    let mut state = AgentState::default();
+    state.needs_by_actor.insert(
+        actor_id(),
+        [
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 100, NeedChangeCause::FixtureInitial),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 100, NeedChangeCause::FixtureInitial),
+            ),
+            (
+                NeedKind::Safety,
+                NeedState::initial(NeedKind::Safety, 100, NeedChangeCause::FixtureInitial),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    state
+}
+
+fn phase3a_registry() -> ActionRegistry {
+    let mut registry = registry();
+    registry.register_phase3a_eat();
+    registry
+}
+
+fn agent_need(agent_state: &AgentState, need: NeedKind) -> u16 {
+    agent_state.needs_by_actor[&actor_id()][&need].value()
+}
+
+fn agent_checksum_context(log: &EventLog) -> ChecksumContext {
+    ChecksumContext {
+        fixture_id: FixtureId::new("ticket_0006_agent_live_pipeline").unwrap(),
+        content_version: ContentVersion::new("phase3a_manifest").unwrap(),
+        sim_tick: log
+            .events()
+            .last()
+            .map(|event| event.sim_tick)
+            .unwrap_or(SimTick::ZERO),
+        world_stream_position_applied: log
+            .events()
+            .iter()
+            .filter(|event| event.stream == EventStream::World)
+            .count()
+            .saturating_sub(1) as u64,
+    }
+}
+
 fn run(
     state: &mut PhysicalState,
     log: &mut EventLog,
@@ -72,6 +130,7 @@ fn run(
     targets: &[&str],
     sequence: u64,
 ) -> tracewake_core::actions::PipelineResult {
+    let mut agent_state = agent_state();
     let mut proposal = Proposal::new(
         ProposalId::new(format!("proposal_{action}_{sequence}")).unwrap(),
         origin,
@@ -93,6 +152,7 @@ fn run(
         &mut PipelineContext {
             registry: &registry(),
             state,
+            agent_state: &mut agent_state,
             log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -109,6 +169,7 @@ fn run_sleep(
     origin: ProposalOrigin,
     sequence: u64,
 ) -> tracewake_core::actions::PipelineResult {
+    let mut agent_state = agent_state();
     let mut registry = registry();
     registry.register_phase3a_sleep();
     let is_human_origin = origin == ProposalOrigin::Human;
@@ -153,6 +214,7 @@ fn run_sleep(
         &mut PipelineContext {
             registry: &registry,
             state,
+            agent_state: &mut agent_state,
             log,
             controller_bindings: bindings.as_ref(),
             epistemic_projection: None,
@@ -161,6 +223,111 @@ fn run_sleep(
         },
         &proposal,
     )
+}
+
+#[test]
+fn phase3a_agent_events_apply_live_and_replay_to_same_agent_checksum() {
+    let mut world = state(true, true);
+    world.food_supplies.insert(
+        FoodSupplyId::new("food_supply_home").unwrap(),
+        FoodSupplyState::new(
+            FoodSupplyId::new("food_supply_home").unwrap(),
+            Location::AtPlace(PlaceId::new("shop_front").unwrap()),
+            2,
+            40,
+        ),
+    );
+    let initial_agent_state = agent_state();
+    let initial_world = world.clone();
+    let mut live_agent_state = initial_agent_state.clone();
+    let mut log = EventLog::new();
+    let registry = phase3a_registry();
+
+    let mut eat = Proposal::new(
+        ProposalId::new("proposal_eat_live_agent").unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id()),
+        ActionId::new("eat").unwrap(),
+        SimTick::ZERO,
+    );
+    eat.target_ids.push("food_supply_home".to_string());
+    let eat_key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(0),
+        eat.action_id.clone(),
+        eat.target_ids.clone(),
+        eat.proposal_id.as_str().to_string(),
+    );
+    let hunger_before_eat = agent_need(&live_agent_state, NeedKind::Hunger);
+    let eat_result = run_pipeline(
+        &mut PipelineContext {
+            registry: &registry,
+            state: &mut world,
+            agent_state: &mut live_agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+            ordering_key: eat_key,
+        },
+        &eat,
+    );
+    assert_eq!(eat_result.report.status, ReportStatus::Accepted);
+    assert!(eat_result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::NeedDeltaApplied));
+    assert!(agent_need(&live_agent_state, NeedKind::Hunger) < hunger_before_eat);
+
+    let mut wait = Proposal::new(
+        ProposalId::new("proposal_wait_live_agent").unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id()),
+        ActionId::new("wait").unwrap(),
+        SimTick::new(1),
+    );
+    wait.parameters.insert("ticks".to_string(), "3".to_string());
+    wait.parameters.insert(
+        "current_hunger".to_string(),
+        agent_need(&live_agent_state, NeedKind::Hunger).to_string(),
+    );
+    wait.parameters.insert(
+        "current_fatigue".to_string(),
+        agent_need(&live_agent_state, NeedKind::Fatigue).to_string(),
+    );
+    let wait_key = OrderingKey::new(
+        SimTick::new(1),
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(1),
+        wait.action_id.clone(),
+        wait.target_ids.clone(),
+        wait.proposal_id.as_str().to_string(),
+    );
+    let fatigue_before_wait = agent_need(&live_agent_state, NeedKind::Fatigue);
+    let wait_result = run_pipeline(
+        &mut PipelineContext {
+            registry: &registry,
+            state: &mut world,
+            agent_state: &mut live_agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+            ordering_key: wait_key,
+        },
+        &wait,
+    );
+    assert_eq!(wait_result.report.status, ReportStatus::Accepted);
+    assert!(agent_need(&live_agent_state, NeedKind::Fatigue) > fatigue_before_wait);
+
+    let context = agent_checksum_context(&log);
+    let live_checksum = compute_agent_state_checksum(&live_agent_state, &context).checksum;
+    let replay = rebuild_projection(&initial_world, &initial_agent_state, &log, &context, None);
+    assert!(replay.agent_application_errors.is_empty());
+    assert_eq!(replay.final_agent_checksum, live_checksum);
 }
 
 #[test]
@@ -221,11 +388,23 @@ fn sleep_proposals_share_pipeline_across_human_and_nonhuman_origins() {
 #[test]
 fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
     let mut world = state(true, true);
+    let mut agent_state = agent_state();
+    agent_state
+        .needs_by_actor
+        .entry(actor_id())
+        .or_default()
+        .insert(
+            NeedKind::Fatigue,
+            NeedState::initial(NeedKind::Fatigue, 820, NeedChangeCause::TickDelta),
+        );
+    let mut registry = registry();
+    registry.register_phase3a_sleep();
     let mut log = EventLog::new();
     let report = run_no_human_day(
         &mut world,
+        &mut agent_state,
         &mut log,
-        &registry(),
+        &registry,
         ContentManifestId::new("phase3a_manifest").unwrap(),
         NoHumanDayConfig {
             actor_ids: vec![actor_id()],
@@ -251,6 +430,10 @@ fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
     assert!(!rendered.contains("controller"));
     assert!(!rendered.contains("player"));
     assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepStarted));
+    assert!(!log
         .events()
         .iter()
         .any(|event| event.event_type == EventKind::ActorWaited));
@@ -376,4 +559,64 @@ fn phase3a_event_kinds_are_streamed_versioned_and_replay_visible() {
             .any(|metadata| metadata.kind == kind && metadata.stream == kind.stream()));
         assert_ne!(kind.stream(), EventStream::Controller);
     }
+}
+
+#[test]
+fn continue_routine_marker_alone_is_not_behavioral_progress() {
+    let mut registry = registry();
+    registry.register_phase3a_continue_routine();
+    let mut state = state(true, true);
+    let mut agent_state = agent_state();
+    let mut log = EventLog::new();
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_continue_marker_only").unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id()),
+        ActionId::new("continue_routine").unwrap(),
+        SimTick::new(5),
+    );
+    proposal.parameters.insert(
+        "active_intention_id".to_string(),
+        "intention_workday".to_string(),
+    );
+    proposal
+        .parameters
+        .insert("next_action_id".to_string(), "move".to_string());
+
+    let result = run_pipeline(
+        &mut PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: ContentManifestId::new("acceptance_manifest").unwrap(),
+            ordering_key: OrderingKey::new(
+                SimTick::new(5),
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor_id()),
+                ProposalSequence::new(0),
+                ActionId::new("continue_routine").unwrap(),
+                Vec::new(),
+                "continue_marker_only",
+            ),
+        },
+        &proposal,
+    );
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    assert!(!log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorMoved));
+    let metrics = no_human_day_metrics(&log);
+    assert_eq!(metrics.routine_event_count, 0);
+    assert_eq!(metrics.meals_completed, 0);
+    assert_eq!(metrics.sleep_completed, 0);
+    assert_eq!(metrics.work_blocks_completed, 0);
 }

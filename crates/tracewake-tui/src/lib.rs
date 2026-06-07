@@ -3,6 +3,7 @@
 pub mod app;
 pub mod debug_panels;
 pub mod input;
+pub mod launch;
 pub mod render;
 pub mod run;
 pub mod transcript;

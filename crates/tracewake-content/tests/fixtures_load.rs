@@ -10,7 +10,7 @@ use tracewake_content::schema::{
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::ids::{
@@ -100,8 +100,8 @@ fn phase3a_fixture() -> FixtureSchema {
         routine_templates: vec![RoutineTemplateSchema {
             template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
             family: RoutineFamily::WorkBlock,
-            applicability_conditions: vec!["assigned_workplace_known".to_string()],
-            preconditions: vec!["at_workplace".to_string()],
+            applicability_conditions: vec![RoutineCondition::AssignedWorkplaceKnown],
+            preconditions: vec![RoutineCondition::AtWorkplace],
             steps: vec![RoutineStep::StartWorkBlock {
                 action_id: SemanticActionId::new("work_block.workplace_shop").unwrap(),
             }],
@@ -367,6 +367,45 @@ fn every_fixture_declares_contract_actions_reports_and_assertions() {
         assert!(!golden.contract.allowed_actions.is_empty());
         assert!(!golden.contract.expected_events_or_reports.is_empty());
         assert!(!golden.contract.acceptance_assertions.is_empty());
+    }
+}
+
+#[test]
+fn no_human_day_fixture_declares_validated_acceptance_contract() {
+    let golden = fixtures::no_human_day_001();
+
+    assert_eq!(golden.contract.fixture_id, "no_human_day_001");
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("NoHumanDayStarted")));
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("NoHumanDayCompleted")));
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
+    for required in [
+        "player",
+        "roster actor",
+        "movement",
+        "food",
+        "workplace",
+        "metrics",
+    ] {
+        assert!(
+            golden
+                .contract
+                .acceptance_assertions
+                .iter()
+                .any(|assertion| assertion.contains(required)),
+            "missing no-human contract assertion containing {required}"
+        );
     }
 }
 

@@ -3,7 +3,7 @@ use crate::checksum::{
     AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
 };
 use crate::epistemics::{EpistemicProjection, EpistemicProjectionChecksum};
-use crate::events::apply::{apply_agent_event, apply_epistemic_event, apply_event};
+use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApplicationError};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ContentManifestId, EventId};
@@ -44,12 +44,13 @@ pub struct Phase3AReplayFailure {
 
 pub fn rebuild_projection(
     initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
     log: &EventLog,
     context: &ChecksumContext,
     expected_final_state: Option<&PhysicalState>,
 ) -> ProjectionRebuildReport {
     let mut rebuilt = initial_state.clone();
-    let mut rebuilt_agent = AgentState::default();
+    let mut rebuilt_agent = initial_agent_state.clone();
     let mut event_count_applied = 0;
     let mut last_event_id = None;
     let mut last_stream_position = None;
@@ -82,20 +83,19 @@ pub fn rebuild_projection(
             continue;
         }
 
-        match event.stream {
-            EventStream::World => match apply_event(&mut rebuilt, event) {
-                Ok(_) => {
+        let mut application_context = EventApplicationContext {
+            physical_state: &mut rebuilt,
+            agent_state: &mut rebuilt_agent,
+            epistemic_projection: Some(&mut epistemic_projection),
+        };
+        match apply_event_stream(&mut application_context, event) {
+            Ok(_) => match event.stream {
+                EventStream::World => {
                     event_count_applied += 1;
                     last_event_id = Some(event.event_id.clone());
                     last_stream_position = Some(event.stream_position);
                 }
-                Err(error) => {
-                    invariant_violations.push(format!("{}: {:?}", event.event_id.as_str(), error))
-                }
-            },
-            EventStream::Epistemic => match apply_epistemic_event(&mut epistemic_projection, event)
-            {
-                Ok(_) => {
+                EventStream::Epistemic => {
                     epistemic_projection.event_range.event_count += 1;
                     if epistemic_projection.event_range.first_event_id.is_none() {
                         epistemic_projection.event_range.first_event_id =
@@ -103,27 +103,28 @@ pub fn rebuild_projection(
                     }
                     epistemic_projection.event_range.last_event_id = Some(event.event_id.clone());
                 }
-                Err(error) => {
-                    epistemic_application_errors.push(format!(
-                        "event_position={} event_id={}: {:?}",
-                        event.global_order,
-                        event.event_id.as_str(),
-                        error
-                    ));
-                }
-            },
-            EventStream::Agent => match apply_agent_event(&mut rebuilt_agent, event) {
-                Ok(_) => {
+                EventStream::Agent => {
                     last_event_id = Some(event.event_id.clone());
                     last_stream_position = Some(event.stream_position);
                 }
-                Err(error) => {
-                    let mut failure = phase3a_failure(event, "agent_application_error");
-                    failure.issue = format!("agent_application_error:{error:?}");
-                    agent_application_errors.push(failure);
-                }
+                EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
             },
-            EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
+            Err(EventApplicationError::World(error)) => {
+                invariant_violations.push(format!("{}: {:?}", event.event_id.as_str(), error))
+            }
+            Err(EventApplicationError::Epistemic(error)) => {
+                epistemic_application_errors.push(format!(
+                    "event_position={} event_id={}: {:?}",
+                    event.global_order,
+                    event.event_id.as_str(),
+                    error
+                ));
+            }
+            Err(EventApplicationError::Agent(error)) => {
+                let mut failure = phase3a_failure(event, "agent_application_error");
+                failure.issue = format!("agent_application_error:{error:?}");
+                agent_application_errors.push(failure);
+            }
         }
     }
 
@@ -377,6 +378,7 @@ mod tests {
         let mut open_context = PipelineContext {
             registry: &registry,
             state: &mut live,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -396,6 +398,7 @@ mod tests {
         let mut move_context = PipelineContext {
             registry: &registry,
             state: &mut live,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -410,7 +413,13 @@ mod tests {
     #[test]
     fn rebuild_from_fixture_and_events_equals_live_run() {
         let (initial, log, live) = live_run();
-        let report = rebuild_projection(&initial, &log, &context(), Some(&live));
+        let report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            Some(&live),
+        );
 
         assert_eq!(report.final_state, live);
         assert_eq!(report.event_count_applied, 2);
@@ -426,8 +435,20 @@ mod tests {
             belief_payload(),
         )]);
 
-        let first = rebuild_projection(&initial, &log, &context(), None);
-        let second = rebuild_projection(&initial, &log, &context(), None);
+        let first = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
+        let second = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
 
         assert_eq!(
             first.final_epistemic_checksum,
@@ -451,7 +472,13 @@ mod tests {
         event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
         let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
 
-        let report = rebuild_projection(&initial, &log, &context(), None);
+        let report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
 
         assert!(report.final_epistemic_projection.beliefs_by_id.is_empty());
         assert_eq!(
@@ -488,9 +515,27 @@ mod tests {
             ),
         ]);
 
-        let first = rebuild_projection(&initial, &log, &context(), None);
-        let second = rebuild_projection(&initial, &log, &context(), None);
-        let changed = rebuild_projection(&initial, &changed_log, &context(), None);
+        let first = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
+        let second = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
+        let changed = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &changed_log,
+            &context(),
+            None,
+        );
 
         assert_eq!(first.final_agent_checksum, second.final_agent_checksum);
         assert_eq!(
@@ -518,7 +563,13 @@ mod tests {
         event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
         let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
 
-        let report = rebuild_projection(&initial, &log, &context(), None);
+        let report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
 
         assert!(report.final_agent_state.routine_executions.is_empty());
         assert_eq!(report.unsupported_agent_versions.len(), 1);
@@ -567,8 +618,20 @@ mod tests {
             ),
         ]);
 
-        let unbatched_report = rebuild_projection(&initial, &unbatched, &context(), None);
-        let batched_report = rebuild_projection(&initial, &batched, &context(), None);
+        let unbatched_report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &unbatched,
+            &context(),
+            None,
+        );
+        let batched_report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &batched,
+            &context(),
+            None,
+        );
 
         assert_eq!(
             unbatched_report.final_agent_checksum,

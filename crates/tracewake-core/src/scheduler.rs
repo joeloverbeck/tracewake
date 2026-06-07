@@ -201,25 +201,28 @@ impl DeterministicScheduler {
 }
 
 pub mod no_human {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
-        generate_candidate_goals, plan_local_actions, select_goal_and_trace, select_phase3a_method,
-        ActorKnownPlanningState, BlockerCategory, CandidateGenerationInput, DecisionInput,
-        LocalPlanRequest, PlannerGoal, StuckDiagnostic, StuckResultingStatus,
+        build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
+        plan_local_actions, select_goal_and_trace, select_phase3a_method, BlockerCategory,
+        DecisionInput, LiveCandidateGenerationInput, LocalPlanRequest, PlannerGoal,
+        StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
+    use crate::epistemics::EpistemicProjection;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
         ActionId, ActorId, ContentManifestId, EventId, ProcessId, ProposalId, StuckDiagnosticId,
     };
+    use crate::location::Location;
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use crate::state::PhysicalState;
+    use crate::state::{AgentState, PhysicalState};
     use crate::time::SimTick;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -229,6 +232,11 @@ pub mod no_human {
         pub tick_count: u64,
         pub marker_event_ids: Vec<EventId>,
         pub ordinary_pipeline_events: usize,
+    }
+
+    pub struct NoHumanStateMut<'a> {
+        pub physical: &'a mut PhysicalState,
+        pub agent: &'a mut AgentState,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -274,6 +282,7 @@ pub mod no_human {
 
     pub fn run_no_human_day(
         state: &mut PhysicalState,
+        agent_state: &mut AgentState,
         log: &mut EventLog,
         registry: &ActionRegistry,
         content_manifest_id: ContentManifestId,
@@ -322,8 +331,14 @@ pub mod no_human {
                 if !state.actors.contains_key(actor_id) {
                     continue;
                 }
-                let Some(proposal) = build_agent_wait_proposal(state, actor_id, window, registry)
-                else {
+                let Some(proposal) = build_agent_proposal(
+                    state,
+                    agent_state,
+                    actor_id,
+                    window,
+                    registry,
+                    &content_manifest_id,
+                ) else {
                     continue;
                 };
                 let ordering_key = OrderingKey::new(
@@ -347,6 +362,7 @@ pub mod no_human {
             let mut context = PipelineContext {
                 registry,
                 state,
+                agent_state,
                 log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -407,27 +423,48 @@ pub mod no_human {
         }
     }
 
-    fn build_agent_wait_proposal(
+    fn build_agent_proposal(
         state: &PhysicalState,
+        agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
         registry: &ActionRegistry,
+        content_manifest_id: &ContentManifestId,
     ) -> Option<Proposal> {
-        registry.get(&ActionId::new("wait").unwrap())?;
         let actor = state.actors.get(actor_id)?;
+        if let Some(proposal) =
+            build_routine_or_need_proposal(state, agent_state, actor_id, window, registry)
+        {
+            return Some(proposal);
+        }
+        registry.get(&ActionId::new("wait").unwrap())?;
         let actor_known_inputs = vec![
             "reason_available".to_string(),
             "reevaluation_scheduled".to_string(),
             format!("day_window:{}", window.window_id),
         ];
-        let generated = generate_candidate_goals(&CandidateGenerationInput {
+        let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
+        let actor_known_state = build_actor_known_planning_state(
+            actor_id,
+            &epistemic_projection,
+            agent_state,
+            &VisibleLocalPlanningState {
+                current_place_id: actor.current_place_id.clone(),
+                visible_edges: BTreeMap::new(),
+                visible_closed_doors: BTreeMap::new(),
+                visible_containers_by_place: BTreeMap::new(),
+                visible_food_sources: BTreeSet::new(),
+            },
+        );
+        let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
-            needs: Vec::new(),
+            agent_state,
             active_intention: None,
             actor_known_inputs: actor_known_inputs.clone(),
             routine_window_goal: None,
         });
+        let candidate_fallbacks = generated.candidates.clone();
         let selection = select_goal_and_trace(DecisionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
@@ -437,20 +474,31 @@ pub mod no_human {
         })?;
         let method = select_phase3a_method(
             &selection.selected_goal,
+            &actor_known_state,
             &actor_known_inputs,
             window.start_tick,
         )
+        .or_else(|_| {
+            candidate_fallbacks
+                .iter()
+                .find(|candidate| candidate.goal_kind == crate::agent::GoalKind::IdleWithReason)
+                .ok_or(crate::agent::MethodSelectionFailure::NoApplicableMethod {
+                    family: crate::agent::RoutineFamily::Wait,
+                    reason: "idle fallback candidate missing".to_string(),
+                })
+                .and_then(|candidate| {
+                    select_phase3a_method(
+                        candidate,
+                        &actor_known_state,
+                        &actor_known_inputs,
+                        window.start_tick,
+                    )
+                })
+        })
         .ok()?;
         let wait_reason = format!("no_human_day:{}", window.window_id);
         let plan = plan_local_actions(
-            &ActorKnownPlanningState {
-                actor_id: actor_id.clone(),
-                current_place_id: actor.current_place_id.clone(),
-                known_edges: BTreeMap::new(),
-                known_closed_doors: BTreeMap::new(),
-                known_containers_by_place: BTreeMap::new(),
-                known_food_sources: Default::default(),
-            },
+            &actor_known_state,
             &LocalPlanRequest {
                 routine_step: method.template.steps.first().cloned().unwrap_or(
                     crate::agent::RoutineStep::WaitUntil {
@@ -482,8 +530,175 @@ pub mod no_human {
         Some(proposal)
     }
 
+    fn build_routine_or_need_proposal(
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        let template_id = agent_state
+            .routine_executions
+            .values()
+            .filter(|execution| &execution.actor_id == actor_id)
+            .filter(|execution| execution.start_tick <= window.end_tick)
+            .min_by(|left, right| left.start_tick.cmp(&right.start_tick))
+            .map(|execution| execution.template_id.as_str().to_string());
+        if let Some(template_id) = template_id {
+            if template_id.contains("sleep") {
+                return sleep_proposal(state, actor_id, window, registry);
+            }
+            if template_id.contains("food") || template_id.contains("eat") {
+                return eat_proposal(state, actor_id, window, registry);
+            }
+            if template_id.contains("work") {
+                return work_or_move_proposal(state, agent_state, actor_id, window, registry);
+            }
+        }
+
+        let needs = agent_state.needs_by_actor.get(actor_id);
+        let hunger = needs
+            .and_then(|needs| needs.get(&crate::agent::NeedKind::Hunger))
+            .map_or(0, crate::agent::NeedState::value);
+        let fatigue = needs
+            .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
+            .map_or(0, crate::agent::NeedState::value);
+        if hunger >= 500 {
+            if let Some(proposal) = eat_proposal(state, actor_id, window, registry) {
+                return Some(proposal);
+            }
+        }
+        if fatigue >= 500 {
+            if let Some(proposal) = sleep_proposal(state, actor_id, window, registry) {
+                return Some(proposal);
+            }
+        }
+        None
+    }
+
+    fn eat_proposal(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        registry.get(&ActionId::new("eat").unwrap())?;
+        let actor = state.actors.get(actor_id)?;
+        let food = state.food_supplies.values().find(|food| {
+            matches!(&food.location, Location::AtPlace(place_id) if place_id == &actor.current_place_id)
+        })?;
+        let mut proposal =
+            ordinary_proposal("eat", actor_id, window, ActionId::new("eat").unwrap());
+        proposal
+            .target_ids
+            .push(food.food_supply_id.as_str().to_string());
+        Some(proposal)
+    }
+
+    fn sleep_proposal(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        registry.get(&ActionId::new("sleep").unwrap())?;
+        let actor = state.actors.get(actor_id)?;
+        let mut proposal =
+            ordinary_proposal("sleep", actor_id, window, ActionId::new("sleep").unwrap());
+        proposal
+            .target_ids
+            .push(actor.current_place_id.as_str().to_string());
+        proposal.parameters.insert(
+            "sleep_place_id".to_string(),
+            actor.current_place_id.as_str().to_string(),
+        );
+        Some(proposal)
+    }
+
+    fn work_or_move_proposal(
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        let actor = state.actors.get(actor_id)?;
+        let workplace = state
+            .workplaces
+            .values()
+            .find(|workplace| workplace.assigned_actor_ids.contains(actor_id))?;
+        if actor.current_place_id != workplace.place_id {
+            registry.get(&ActionId::new("move").unwrap())?;
+            let current_place = state.places.get(&actor.current_place_id)?;
+            let destination = if current_place
+                .adjacent_place_ids
+                .contains(&workplace.place_id)
+            {
+                workplace.place_id.as_str().to_string()
+            } else {
+                current_place
+                    .adjacent_place_ids
+                    .iter()
+                    .next()
+                    .map(|place_id| place_id.as_str().to_string())?
+            };
+            let mut proposal =
+                ordinary_proposal("move", actor_id, window, ActionId::new("move").unwrap());
+            proposal.target_ids.push(destination);
+            return Some(proposal);
+        }
+
+        registry.get(&ActionId::new("work_block").unwrap())?;
+        let mut proposal = ordinary_proposal(
+            "work",
+            actor_id,
+            window,
+            ActionId::new("work_block").unwrap(),
+        );
+        proposal
+            .target_ids
+            .push(workplace.workplace_id.as_str().to_string());
+        let needs = agent_state.needs_by_actor.get(actor_id);
+        proposal.parameters.insert(
+            "current_fatigue".to_string(),
+            needs
+                .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
+                .map_or(0, crate::agent::NeedState::value)
+                .to_string(),
+        );
+        proposal.parameters.insert(
+            "current_hunger".to_string(),
+            needs
+                .and_then(|needs| needs.get(&crate::agent::NeedKind::Hunger))
+                .map_or(0, crate::agent::NeedState::value)
+                .to_string(),
+        );
+        Some(proposal)
+    }
+
+    fn ordinary_proposal(
+        label: &str,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        action_id: ActionId,
+    ) -> Proposal {
+        Proposal::new(
+            ProposalId::new(format!(
+                "proposal_no_human_day_{}_{}_{}",
+                actor_id.as_str(),
+                window.window_id,
+                label
+            ))
+            .unwrap(),
+            ProposalOrigin::Agent,
+            Some(actor_id.clone()),
+            action_id,
+            window.start_tick,
+        )
+    }
+
     pub fn advance_no_human(
-        state: &mut PhysicalState,
+        state: NoHumanStateMut<'_>,
         log: &mut EventLog,
         registry: &ActionRegistry,
         content_manifest_id: ContentManifestId,
@@ -491,6 +706,8 @@ pub mod no_human {
         tick_count: u64,
         scheduled_proposals: Vec<Proposal>,
     ) -> NoHumanAdvanceReport {
+        let physical_state = state.physical;
+        let agent_state = state.agent;
         let process_id = ProcessId::new("no_human_advance").unwrap();
         let mut scheduler = DeterministicScheduler::new(start_tick);
         let started = append_marker(
@@ -525,7 +742,8 @@ pub mod no_human {
             let before = log.events().len();
             let mut context = PipelineContext {
                 registry,
-                state,
+                state: physical_state,
+                agent_state,
                 log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -681,7 +899,43 @@ pub mod no_human {
         use crate::events::apply::apply_event;
         use crate::events::EventStream;
         use crate::ids::{ActorId, ProposalId};
-        use crate::state::ActorBody;
+        use crate::state::{ActorBody, AgentState};
+
+        fn agent_state(actor_id: &ActorId) -> AgentState {
+            let mut state = AgentState::default();
+            state.needs_by_actor.insert(
+                actor_id.clone(),
+                [
+                    (
+                        crate::agent::NeedKind::Hunger,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Hunger,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                    (
+                        crate::agent::NeedKind::Fatigue,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Fatigue,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                    (
+                        crate::agent::NeedKind::Safety,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Safety,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            );
+            state
+        }
 
         fn content_manifest_id() -> ContentManifestId {
             ContentManifestId::new("phase1_manifest").unwrap()
@@ -698,7 +952,10 @@ pub mod no_human {
             let registry = ActionRegistry::new();
 
             let report = advance_no_human(
-                &mut state,
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: Box::leak(Box::new(crate::state::AgentState::default())),
+                },
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -723,7 +980,10 @@ pub mod no_human {
             let registry = ActionRegistry::new();
 
             advance_no_human(
-                &mut state,
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: Box::leak(Box::new(crate::state::AgentState::default())),
+                },
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -749,6 +1009,7 @@ pub mod no_human {
             let mut log = EventLog::new();
             let mut registry = ActionRegistry::new();
             registry.register_phase1_inspect_wait();
+            let mut agent_state = agent_state(&actor_id());
             let proposal = Proposal::new(
                 ProposalId::new("proposal_wait").unwrap(),
                 ProposalOrigin::Scheduler,
@@ -758,7 +1019,10 @@ pub mod no_human {
             );
 
             let report = advance_no_human(
-                &mut state,
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: &mut agent_state,
+                },
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -804,6 +1068,7 @@ pub mod no_human {
 
             let report = run_no_human_day(
                 &mut state,
+                Box::leak(Box::new(crate::state::AgentState::default())),
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -872,6 +1137,7 @@ pub mod no_human {
 
             let report = run_no_human_day(
                 &mut state,
+                Box::leak(Box::new(crate::state::AgentState::default())),
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -911,7 +1177,7 @@ mod tests {
     use crate::events::log::EventLog;
     use crate::events::{EventKind, EventStream};
     use crate::ids::{ContentManifestId, ProposalId};
-    use crate::state::{ActorBody, PhysicalState};
+    use crate::state::{ActorBody, AgentState, PhysicalState};
 
     fn action_id(value: &str) -> ActionId {
         ActionId::new(value).unwrap()
@@ -919,6 +1185,42 @@ mod tests {
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
+    }
+
+    fn seeded_agent_state(actor_id: ActorId) -> AgentState {
+        let mut state = AgentState::default();
+        state.needs_by_actor.insert(
+            actor_id,
+            [
+                (
+                    crate::agent::NeedKind::Hunger,
+                    crate::agent::NeedState::initial(
+                        crate::agent::NeedKind::Hunger,
+                        100,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                ),
+                (
+                    crate::agent::NeedKind::Fatigue,
+                    crate::agent::NeedState::initial(
+                        crate::agent::NeedKind::Fatigue,
+                        100,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                ),
+                (
+                    crate::agent::NeedKind::Safety,
+                    crate::agent::NeedState::initial(
+                        crate::agent::NeedKind::Safety,
+                        100,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        state
     }
 
     fn process_id(value: &str) -> ProcessId {
@@ -1130,7 +1432,10 @@ mod tests {
         let registry = ActionRegistry::new();
 
         let report = no_human::advance_no_human(
-            &mut state,
+            no_human::NoHumanStateMut {
+                physical: &mut state,
+                agent: Box::leak(Box::new(crate::state::AgentState::default())),
+            },
             &mut log,
             &registry,
             content_manifest_id(),
@@ -1168,7 +1473,10 @@ mod tests {
         let registry = ActionRegistry::new();
 
         no_human::advance_no_human(
-            &mut state,
+            no_human::NoHumanStateMut {
+                physical: &mut state,
+                agent: Box::leak(Box::new(crate::state::AgentState::default())),
+            },
             &mut log,
             &registry,
             content_manifest_id(),
@@ -1197,6 +1505,7 @@ mod tests {
         let mut log = EventLog::new();
         let mut registry = ActionRegistry::new();
         registry.register_phase1_inspect_wait();
+        let mut agent_state = seeded_agent_state(actor_id("actor_tomas"));
         let proposal = Proposal::new(
             ProposalId::new("proposal_wait").unwrap(),
             ProposalOrigin::Scheduler,
@@ -1206,7 +1515,10 @@ mod tests {
         );
 
         let report = no_human::advance_no_human(
-            &mut state,
+            no_human::NoHumanStateMut {
+                physical: &mut state,
+                agent: &mut agent_state,
+            },
             &mut log,
             &registry,
             content_manifest_id(),
@@ -1237,9 +1549,11 @@ mod tests {
             ),
         );
         let mut direct_log = EventLog::new();
+        let mut direct_agent_state = seeded_agent_state(actor_id("actor_tomas"));
         let mut context = PipelineContext {
             registry: &registry,
             state: &mut direct_state,
+            agent_state: &mut direct_agent_state,
             log: &mut direct_log,
             controller_bindings: None,
             epistemic_projection: None,
