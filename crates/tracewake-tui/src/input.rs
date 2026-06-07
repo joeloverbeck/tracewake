@@ -148,6 +148,8 @@ mod tests {
                 ),
             ],
             last_rejection_summary: None,
+            knowledge_context_id: None,
+            notebook: None,
             debug_available: true,
         }
     }

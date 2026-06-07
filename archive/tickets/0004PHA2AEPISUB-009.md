@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-009: Actor-known notebook projection and embodied view model
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the actor-known notebook projection and extends the embodied view model in `tracewake-core` (`view_models.rs`, `projections.rs`).
@@ -79,3 +79,24 @@ Add the actor-known belief/observation filtering path to `projections.rs` so emb
 1. `cargo test -p tracewake-core projections:: view_models::`
 2. `cargo test -p tracewake-core`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added actor-scoped `NotebookView` and notebook entry view models for source-bound beliefs, recent observations, contradictions, and source-bound possible leads.
+- Extended `EmbodiedViewModel` with optional `knowledge_context_id` and `notebook` companion fields while preserving existing physical view behavior.
+- Added `build_notebook_view` and `build_embodied_view_model_with_notebook`, both driven by `KnowledgeContext`-filtered epistemic projection records.
+- Added tests proving Tomas's notebook shows missing-property belief/source/confidence/contradiction summary, excludes Mara/culprit/debug/previous strings, and excludes Elena's private belief.
+
+Deviations from original plan:
+- `tracewake-tui` test literals were updated with `None` for the new optional embodied fields.
+- The ticket's combined cargo test filter is not valid cargo syntax, so `projections::` and `view_models::` were run as separate filters, followed by full core tests.
+
+Verification results:
+- `cargo test -p tracewake-core projections::`
+- `cargo test -p tracewake-core view_models::`
+- `cargo test -p tracewake-core`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

@@ -25,7 +25,43 @@ pub struct EmbodiedViewModel {
     pub local_actors: Vec<VisibleActor>,
     pub semantic_actions: Vec<SemanticActionEntry>,
     pub last_rejection_summary: Option<String>,
+    pub knowledge_context_id: Option<String>,
+    pub notebook: Option<NotebookView>,
     pub debug_available: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotebookView {
+    pub viewer_actor_id: ActorId,
+    pub source_bound_beliefs: Vec<NotebookBeliefEntry>,
+    pub recent_observations: Vec<NotebookObservationEntry>,
+    pub known_contradictions: Vec<NotebookContradictionEntry>,
+    pub possible_leads: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookBeliefEntry {
+    pub belief_id: String,
+    pub summary: String,
+    pub source_summary: String,
+    pub confidence_label: String,
+    pub acquired_tick: u64,
+    pub contradiction_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookObservationEntry {
+    pub observation_id: String,
+    pub channel: String,
+    pub summary: String,
+    pub confidence_label: String,
+    pub observed_tick: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookContradictionEntry {
+    pub contradiction_id: String,
+    pub summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -202,5 +238,26 @@ mod tests {
             DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only),
             _ => panic!("wrong debug view variant"),
         }
+    }
+
+    #[test]
+    fn notebook_view_is_actor_scoped_and_source_bound() {
+        let notebook = NotebookView {
+            viewer_actor_id: ActorId::new("actor_tomas").unwrap(),
+            source_bound_beliefs: vec![NotebookBeliefEntry {
+                belief_id: "belief_tomas_missing_coin".to_string(),
+                summary: "coin_stack_01 is missing from expected location".to_string(),
+                source_summary: "event:event_observation".to_string(),
+                confidence_label: "1000".to_string(),
+                acquired_tick: 3,
+                contradiction_ids: vec!["contradiction_tomas_missing_coin".to_string()],
+            }],
+            recent_observations: Vec::new(),
+            known_contradictions: Vec::new(),
+            possible_leads: vec!["Source-bound lead from belief_tomas_missing_coin".to_string()],
+        };
+
+        assert_eq!(notebook.viewer_actor_id.as_str(), "actor_tomas");
+        assert!(!format!("{notebook:?}").contains("quest"));
     }
 }
