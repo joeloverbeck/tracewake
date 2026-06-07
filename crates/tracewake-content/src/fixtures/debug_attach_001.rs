@@ -29,6 +29,14 @@ pub fn debug_attach_001() -> GoldenFixture {
             affordance("inspect_entity", "lantern_01"),
         ],
         initial_beliefs: Vec::new(),
+        initial_needs: Vec::new(),
+        homes: Vec::new(),
+        sleep_places: Vec::new(),
+        food_supplies: Vec::new(),
+        workplaces: Vec::new(),
+        routine_templates: Vec::new(),
+        routine_assignments: Vec::new(),
+        day_windows: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

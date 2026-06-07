@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-015: Phase 3A content schema additions
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends the content schema/loader to parse Phase 3A fixture data: initial needs, homes/sleep/food/work entities, routine templates/assignments, and day windows.
@@ -78,3 +78,20 @@ Extend `crates/tracewake-content/src/load.rs` (and `manifest.rs`/`serialization.
 1. `cargo test -p tracewake-content fixtures_load`
 2. `cargo test -p tracewake-content`
 3. Content-crate scope is correct; the validation-rule rejections are ticket 016 and the golden fixtures are tickets 019–021.
+
+## Outcome
+
+Completed 2026-06-07.
+
+Added additive Phase 3A content schema sections for initial needs, home assignments, sleep places, food supplies, workplaces, routine templates, routine assignments, and day windows. Serialization/deserialization now round-trips the new sections canonically while omitting empty Phase 3A sections, so existing fixtures remain additive defaults. The loader registers Phase 3A actions for content validation, exposes initial agent state from authored needs, and records actor roster plus no-human day windows in the manifest.
+
+Validation now rejects duplicate Phase 3A stable IDs, duplicate per-actor initial needs, dangling actor/place/food/work/routine references, and unsupported Phase 3A affordance targets. Unknown fixture sections still fail closed through the raw-line gate.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-content fixtures_load`
+3. `cargo test -p tracewake-content`
+4. `git diff --check`
+
+Deviations: ticket 016 still owns behavior-rule rejections such as teleport/refill/scripting semantics; this ticket only adds the parsed schema surface, core-shape conversion, and referential/canonical checks.

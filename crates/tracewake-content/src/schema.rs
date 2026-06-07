@@ -1,14 +1,17 @@
+use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Belief, Channel, Confidence, HolderKind, PrivacyScope, Proposition, SourceRef, Stance,
 };
 use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
-    ActionId, ActorId, BeliefId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    ActionId, ActorId, BeliefId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
+    RoutineTemplateId, SchemaVersion, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::{
-    ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
+    ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, PhysicalState,
+    PlaceState, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -23,6 +26,14 @@ pub struct FixtureSchema {
     pub items: Vec<ItemSchema>,
     pub affordances: Vec<ActionAffordanceSchema>,
     pub initial_beliefs: Vec<InitialBeliefSchema>,
+    pub initial_needs: Vec<InitialNeedSchema>,
+    pub homes: Vec<HomeSchema>,
+    pub sleep_places: Vec<SleepPlaceSchema>,
+    pub food_supplies: Vec<FoodSupplySchema>,
+    pub workplaces: Vec<WorkplaceSchema>,
+    pub routine_templates: Vec<RoutineTemplateSchema>,
+    pub routine_assignments: Vec<RoutineAssignmentSchema>,
+    pub day_windows: Vec<DayWindowSchema>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -86,6 +97,79 @@ pub struct InitialBeliefSchema {
     pub schema_version: SchemaVersion,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InitialNeedSchema {
+    pub actor_id: ActorId,
+    pub kind: NeedKind,
+    pub value: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HomeSchema {
+    pub actor_id: ActorId,
+    pub place_id: PlaceId,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SleepPlaceSchema {
+    pub actor_id: ActorId,
+    pub place_id: PlaceId,
+    pub sleep_place_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FoodSupplySchema {
+    pub food_supply_id: FoodSupplyId,
+    pub location: Location,
+    pub servings: u32,
+    pub hunger_reduction_per_serving: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkplaceSchema {
+    pub workplace_id: WorkplaceId,
+    pub place_id: PlaceId,
+    pub assigned_actor_ids: Vec<ActorId>,
+    pub work_duration_ticks: u64,
+    pub fatigue_delta_per_tick: i32,
+    pub hunger_delta_per_tick: i32,
+    pub max_fatigue_to_start: i32,
+    pub max_hunger_to_start: i32,
+    pub access_open: bool,
+    pub output_tag: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RoutineTemplateSchema {
+    pub template_id: RoutineTemplateId,
+    pub family: RoutineFamily,
+    pub applicability_conditions: Vec<String>,
+    pub preconditions: Vec<String>,
+    pub steps: Vec<RoutineStep>,
+    pub min_duration_ticks: u64,
+    pub max_duration_ticks: u64,
+    pub interruption_points: Vec<usize>,
+    pub failure_modes: Vec<String>,
+    pub fallback_rules: Vec<String>,
+    pub debug_labels: Vec<String>,
+    pub reservable_resource: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RoutineAssignmentSchema {
+    pub actor_id: ActorId,
+    pub template_id: RoutineTemplateId,
+    pub start_tick: SimTick,
+    pub end_tick: SimTick,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DayWindowSchema {
+    pub actor_id: ActorId,
+    pub start_tick: SimTick,
+    pub end_tick: SimTick,
+}
+
 impl InitialBeliefSchema {
     pub fn to_belief(&self) -> Belief {
         let mut belief = Belief::new(
@@ -146,11 +230,49 @@ impl FixtureSchema {
         });
         self.initial_beliefs
             .sort_by(|left, right| left.belief_id.cmp(&right.belief_id));
+        self.initial_needs
+            .sort_by(|left, right| (&left.actor_id, left.kind).cmp(&(&right.actor_id, right.kind)));
+        self.homes
+            .sort_by(|left, right| left.actor_id.cmp(&right.actor_id));
+        self.sleep_places.sort_by(|left, right| {
+            (&left.actor_id, &left.sleep_place_id).cmp(&(&right.actor_id, &right.sleep_place_id))
+        });
+        self.food_supplies
+            .sort_by(|left, right| left.food_supply_id.cmp(&right.food_supply_id));
+        self.workplaces
+            .sort_by(|left, right| left.workplace_id.cmp(&right.workplace_id));
+        self.routine_templates
+            .sort_by(|left, right| left.template_id.cmp(&right.template_id));
+        self.routine_assignments.sort_by(|left, right| {
+            (&left.actor_id, &left.template_id, left.start_tick).cmp(&(
+                &right.actor_id,
+                &right.template_id,
+                right.start_tick,
+            ))
+        });
+        self.day_windows.sort_by(|left, right| {
+            (&left.actor_id, left.start_tick, left.end_tick).cmp(&(
+                &right.actor_id,
+                right.start_tick,
+                right.end_tick,
+            ))
+        });
         for place in &mut self.places {
             place.adjacent_place_ids.sort();
         }
         for container in &mut self.containers {
             container.contents.sort();
+        }
+        for workplace in &mut self.workplaces {
+            workplace.assigned_actor_ids.sort();
+        }
+        for template in &mut self.routine_templates {
+            template.applicability_conditions.sort();
+            template.preconditions.sort();
+            template.failure_modes.sort();
+            template.fallback_rules.sort();
+            template.debug_labels.sort();
+            template.interruption_points.sort();
         }
     }
 
@@ -233,6 +355,79 @@ impl FixtureSchema {
             state.items.insert(item.item_id.clone(), item_state);
         }
 
+        for food in &self.food_supplies {
+            state.food_supplies.insert(
+                food.food_supply_id.clone(),
+                FoodSupplyState::new(
+                    food.food_supply_id.clone(),
+                    food.location.clone(),
+                    food.servings,
+                    food.hunger_reduction_per_serving,
+                ),
+            );
+        }
+
+        for workplace in &self.workplaces {
+            let mut workplace_state = WorkplaceState::new(
+                workplace.workplace_id.clone(),
+                workplace.place_id.clone(),
+                workplace.output_tag.clone(),
+            );
+            workplace_state
+                .assigned_actor_ids
+                .extend(workplace.assigned_actor_ids.iter().cloned());
+            workplace_state.work_duration_ticks = workplace.work_duration_ticks;
+            workplace_state.fatigue_delta_per_tick = workplace.fatigue_delta_per_tick;
+            workplace_state.hunger_delta_per_tick = workplace.hunger_delta_per_tick;
+            workplace_state.max_fatigue_to_start = workplace.max_fatigue_to_start;
+            workplace_state.max_hunger_to_start = workplace.max_hunger_to_start;
+            workplace_state.access_open = workplace.access_open;
+            state
+                .workplaces
+                .insert(workplace.workplace_id.clone(), workplace_state);
+        }
+
         state
+    }
+
+    pub fn to_agent_state(&self) -> AgentState {
+        let mut state = AgentState::default();
+        for need in &self.initial_needs {
+            state
+                .needs_by_actor
+                .entry(need.actor_id.clone())
+                .or_default()
+                .insert(
+                    need.kind,
+                    NeedState::initial(
+                        need.kind,
+                        i32::from(need.value),
+                        NeedChangeCause::FixtureInitial,
+                    ),
+                );
+        }
+        state
+    }
+}
+
+impl RoutineTemplateSchema {
+    pub fn to_template(
+        &self,
+    ) -> Result<tracewake_core::agent::RoutineTemplate, tracewake_core::agent::RoutineTemplateError>
+    {
+        tracewake_core::agent::RoutineTemplate::new(
+            self.template_id.clone(),
+            self.family,
+            self.applicability_conditions.clone(),
+            self.preconditions.clone(),
+            self.steps.clone(),
+            self.min_duration_ticks,
+            self.max_duration_ticks,
+            self.interruption_points.clone(),
+            self.failure_modes.clone(),
+            self.fallback_rules.clone(),
+            self.debug_labels.clone(),
+            self.reservable_resource.clone(),
+        )
     }
 }

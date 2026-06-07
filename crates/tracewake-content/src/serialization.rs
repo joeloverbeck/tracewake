@@ -1,20 +1,23 @@
 use std::str::FromStr;
 use tracewake_core::events::log::{EventLog, EventLogError};
 
+use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
 };
 use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
-    ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, ItemId, PlaceId,
-    SchemaVersion,
+    ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, FoodSupplyId, ItemId,
+    PlaceId, RoutineTemplateId, SchemaVersion, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
 
 use crate::schema::{
-    ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema,
-    InitialBeliefSchema, ItemSchema, PlaceSchema,
+    ActionAffordanceSchema, ActorSchema, ContainerSchema, DayWindowSchema, DoorSchema,
+    FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema, InitialNeedSchema,
+    ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema,
+    WorkplaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -125,6 +128,97 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             belief.schema_version.as_str(),
         ));
     }
+    for need in fixture.initial_needs {
+        lines.push(format!(
+            "initial_need|{}|{}|{}",
+            need.actor_id.as_str(),
+            need.kind.stable_id(),
+            need.value
+        ));
+    }
+    for home in fixture.homes {
+        lines.push(format!(
+            "home|{}|{}",
+            home.actor_id.as_str(),
+            home.place_id.as_str()
+        ));
+    }
+    for sleep_place in fixture.sleep_places {
+        lines.push(format!(
+            "sleep_place|{}|{}|{}",
+            sleep_place.actor_id.as_str(),
+            sleep_place.place_id.as_str(),
+            encode(&sleep_place.sleep_place_id)
+        ));
+    }
+    for food in fixture.food_supplies {
+        lines.push(format!(
+            "food_supply|{}|{}|{}|{}",
+            food.food_supply_id.as_str(),
+            serialize_location(&food.location),
+            food.servings,
+            food.hunger_reduction_per_serving
+        ));
+    }
+    for workplace in fixture.workplaces {
+        lines.push(format!(
+            "workplace|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            workplace.workplace_id.as_str(),
+            workplace.place_id.as_str(),
+            join(workplace.assigned_actor_ids.iter().map(|id| id.as_str())),
+            workplace.work_duration_ticks,
+            workplace.fatigue_delta_per_tick,
+            workplace.hunger_delta_per_tick,
+            workplace.max_fatigue_to_start,
+            workplace.max_hunger_to_start,
+            workplace.access_open,
+            encode(&workplace.output_tag)
+        ));
+    }
+    for template in fixture.routine_templates {
+        lines.push(format!(
+            "routine_template|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            template.template_id.as_str(),
+            template.family.stable_id(),
+            join_encoded(&template.applicability_conditions),
+            join_encoded(&template.preconditions),
+            join_encoded(
+                &template
+                    .steps
+                    .iter()
+                    .map(RoutineStep::serialize_canonical)
+                    .collect::<Vec<_>>()
+            ),
+            template.min_duration_ticks,
+            template.max_duration_ticks,
+            join_usize(&template.interruption_points),
+            join_encoded(&template.failure_modes),
+            join_encoded(&template.fallback_rules),
+            join_encoded(&template.debug_labels),
+            template
+                .reservable_resource
+                .as_ref()
+                .map(|value| encode(value))
+                .unwrap_or_default()
+        ));
+    }
+    for assignment in fixture.routine_assignments {
+        lines.push(format!(
+            "routine_assignment|{}|{}|{}|{}",
+            assignment.actor_id.as_str(),
+            assignment.template_id.as_str(),
+            assignment.start_tick.value(),
+            assignment.end_tick.value()
+        ));
+    }
+    for window in fixture.day_windows {
+        lines.push(format!(
+            "day_window|{}|{}|{}",
+            window.actor_id.as_str(),
+            window.start_tick.value(),
+            window.end_tick.value()
+        ));
+    }
     lines.join("\n").into_bytes()
 }
 
@@ -140,6 +234,14 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     let mut items = Vec::new();
     let mut affordances = Vec::new();
     let mut initial_beliefs = Vec::new();
+    let mut initial_needs = Vec::new();
+    let mut homes = Vec::new();
+    let mut sleep_places = Vec::new();
+    let mut food_supplies = Vec::new();
+    let mut workplaces = Vec::new();
+    let mut routine_templates = Vec::new();
+    let mut routine_assignments = Vec::new();
+    let mut day_windows = Vec::new();
 
     for line in text.lines() {
         let parts = line.split('|').collect::<Vec<_>>();
@@ -199,6 +301,83 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                     schema_version: SchemaVersion::new(*schema_version)?,
                 })
             }
+            ["initial_need", actor_id, kind, value] => initial_needs.push(InitialNeedSchema {
+                actor_id: ActorId::new(*actor_id)?,
+                kind: parse_need_kind(kind)?,
+                value: parse_u16(value)?,
+            }),
+            ["home", actor_id, place_id] => homes.push(HomeSchema {
+                actor_id: ActorId::new(*actor_id)?,
+                place_id: PlaceId::new(*place_id)?,
+            }),
+            ["sleep_place", actor_id, place_id, sleep_place_id] => {
+                sleep_places.push(SleepPlaceSchema {
+                    actor_id: ActorId::new(*actor_id)?,
+                    place_id: PlaceId::new(*place_id)?,
+                    sleep_place_id: decode(sleep_place_id)?,
+                })
+            }
+            ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] => {
+                food_supplies.push(FoodSupplySchema {
+                    food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+                    location: deserialize_location(location)?,
+                    servings: parse_u32(servings)?,
+                    hunger_reduction_per_serving: parse_i32(hunger_reduction_per_serving)?,
+                })
+            }
+            ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, output_tag] => {
+                workplaces.push(WorkplaceSchema {
+                    workplace_id: WorkplaceId::new(*workplace_id)?,
+                    place_id: PlaceId::new(*place_id)?,
+                    assigned_actor_ids: split_ids(assigned_actor_ids, |part| ActorId::new(part))?,
+                    work_duration_ticks: parse_u64(work_duration_ticks)?,
+                    fatigue_delta_per_tick: parse_i32(fatigue_delta_per_tick)?,
+                    hunger_delta_per_tick: parse_i32(hunger_delta_per_tick)?,
+                    max_fatigue_to_start: parse_i32(max_fatigue_to_start)?,
+                    max_hunger_to_start: parse_i32(max_hunger_to_start)?,
+                    access_open: parse_bool(access_open)?,
+                    output_tag: decode(output_tag)?,
+                })
+            }
+            ["routine_template", template_id, family, applicability_conditions, preconditions, steps, min_duration_ticks, max_duration_ticks, interruption_points, failure_modes, fallback_rules, debug_labels, reservable_resource] => {
+                routine_templates.push(RoutineTemplateSchema {
+                    template_id: RoutineTemplateId::new(*template_id)?,
+                    family: parse_routine_family(family)?,
+                    applicability_conditions: split_encoded(applicability_conditions)?,
+                    preconditions: split_encoded(preconditions)?,
+                    steps: split_encoded(steps)?
+                        .into_iter()
+                        .map(|step| {
+                            RoutineStep::deserialize_canonical(step.as_bytes())
+                                .map_err(|error| SerializationError::BadLine(format!("{error}")))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                    min_duration_ticks: parse_u64(min_duration_ticks)?,
+                    max_duration_ticks: parse_u64(max_duration_ticks)?,
+                    interruption_points: split_usize(interruption_points)?,
+                    failure_modes: split_encoded(failure_modes)?,
+                    fallback_rules: split_encoded(fallback_rules)?,
+                    debug_labels: split_encoded(debug_labels)?,
+                    reservable_resource: if reservable_resource.is_empty() {
+                        None
+                    } else {
+                        Some(decode(reservable_resource)?)
+                    },
+                })
+            }
+            ["routine_assignment", actor_id, template_id, start_tick, end_tick] => {
+                routine_assignments.push(RoutineAssignmentSchema {
+                    actor_id: ActorId::new(*actor_id)?,
+                    template_id: RoutineTemplateId::new(*template_id)?,
+                    start_tick: parse_tick(start_tick)?,
+                    end_tick: parse_tick(end_tick)?,
+                })
+            }
+            ["day_window", actor_id, start_tick, end_tick] => day_windows.push(DayWindowSchema {
+                actor_id: ActorId::new(*actor_id)?,
+                start_tick: parse_tick(start_tick)?,
+                end_tick: parse_tick(end_tick)?,
+            }),
             _ => return Err(SerializationError::BadLine(line.to_string())),
         }
     }
@@ -213,6 +392,14 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         items,
         affordances,
         initial_beliefs,
+        initial_needs,
+        homes,
+        sleep_places,
+        food_supplies,
+        workplaces,
+        routine_templates,
+        routine_assignments,
+        day_windows,
     };
     fixture.canonicalize();
     Ok(fixture)
@@ -291,10 +478,7 @@ fn parse_confidence(value: &str) -> Result<Confidence, SerializationError> {
 }
 
 fn parse_tick(value: &str) -> Result<SimTick, SerializationError> {
-    value
-        .parse::<u64>()
-        .map(SimTick::new)
-        .map_err(|_| SerializationError::BadU64(value.to_string()))
+    parse_u64(value).map(SimTick::new)
 }
 
 fn parse_optional_tick(value: &str) -> Result<Option<SimTick>, SerializationError> {
@@ -302,6 +486,59 @@ fn parse_optional_tick(value: &str) -> Result<Option<SimTick>, SerializationErro
         Ok(None)
     } else {
         parse_tick(value).map(Some)
+    }
+}
+
+fn parse_u16(value: &str) -> Result<u16, SerializationError> {
+    value
+        .parse::<u16>()
+        .map_err(|_| SerializationError::BadU64(value.to_string()))
+}
+
+fn parse_u32(value: &str) -> Result<u32, SerializationError> {
+    value
+        .parse::<u32>()
+        .map_err(|_| SerializationError::BadU64(value.to_string()))
+}
+
+fn parse_u64(value: &str) -> Result<u64, SerializationError> {
+    value
+        .parse::<u64>()
+        .map_err(|_| SerializationError::BadU64(value.to_string()))
+}
+
+fn parse_i32(value: &str) -> Result<i32, SerializationError> {
+    value
+        .parse::<i32>()
+        .map_err(|_| SerializationError::BadU64(value.to_string()))
+}
+
+fn parse_need_kind(value: &str) -> Result<NeedKind, SerializationError> {
+    match value {
+        "hunger" => Ok(NeedKind::Hunger),
+        "fatigue" => Ok(NeedKind::Fatigue),
+        "safety" => Ok(NeedKind::Safety),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad need kind {value}"
+        ))),
+    }
+}
+
+fn parse_routine_family(value: &str) -> Result<RoutineFamily, SerializationError> {
+    match value {
+        "morning_wake" => Ok(RoutineFamily::MorningWake),
+        "eat_meal" => Ok(RoutineFamily::EatMeal),
+        "go_to_work" => Ok(RoutineFamily::GoToWork),
+        "work_block" => Ok(RoutineFamily::WorkBlock),
+        "return_home" => Ok(RoutineFamily::ReturnHome),
+        "sleep_night" => Ok(RoutineFamily::SleepNight),
+        "find_food" => Ok(RoutineFamily::FindFood),
+        "continue_current_intention" => Ok(RoutineFamily::ContinueCurrentIntention),
+        "wait" => Ok(RoutineFamily::Wait),
+        "idle_with_reason" => Ok(RoutineFamily::IdleWithReason),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad routine family {value}"
+        ))),
     }
 }
 
@@ -376,6 +613,44 @@ fn join<'a>(values: impl Iterator<Item = &'a str>) -> String {
     values.collect::<Vec<_>>().join(",")
 }
 
+fn join_encoded(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|value| encode(value))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn split_encoded(value: &str) -> Result<Vec<String>, SerializationError> {
+    if value.is_empty() {
+        Ok(Vec::new())
+    } else {
+        value.split(',').map(decode).collect()
+    }
+}
+
+fn join_usize(values: &[usize]) -> String {
+    values
+        .iter()
+        .map(usize::to_string)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn split_usize(value: &str) -> Result<Vec<usize>, SerializationError> {
+    if value.is_empty() {
+        Ok(Vec::new())
+    } else {
+        value
+            .split(',')
+            .map(|part| {
+                part.parse::<usize>()
+                    .map_err(|_| SerializationError::BadU64(part.to_string()))
+            })
+            .collect()
+    }
+}
+
 fn parse_bool(value: &str) -> Result<bool, SerializationError> {
     match value {
         "true" => Ok(true),
@@ -448,6 +723,14 @@ mod tests {
             }],
             affordances: Vec::new(),
             initial_beliefs: Vec::new(),
+            initial_needs: Vec::new(),
+            homes: Vec::new(),
+            sleep_places: Vec::new(),
+            food_supplies: Vec::new(),
+            workplaces: Vec::new(),
+            routine_templates: Vec::new(),
+            routine_assignments: Vec::new(),
+            day_windows: Vec::new(),
         }
     }
 

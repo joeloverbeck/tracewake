@@ -2,13 +2,21 @@ use std::collections::BTreeSet;
 
 use tracewake_content::fixtures;
 use tracewake_content::load::load_fixture_package;
-use tracewake_content::schema::InitialBeliefSchema;
+use tracewake_content::schema::{
+    ActorSchema, DayWindowSchema, FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
+    InitialNeedSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
+    SleepPlaceSchema, WorkplaceSchema,
+};
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
-use tracewake_content::validate::validate_fixture;
+use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
+use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
-use tracewake_core::ids::{BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId};
+use tracewake_core::ids::{
+    ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
+    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
+};
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
 
@@ -18,7 +26,105 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
     registry.register_phase2a_epistemics();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
     registry
+}
+
+fn phase3a_fixture() -> FixtureSchema {
+    FixtureSchema {
+        fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
+        schema_version: SchemaVersion::new("schema_v1").unwrap(),
+        actors: vec![ActorSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            current_place_id: PlaceId::new("home_tomas").unwrap(),
+        }],
+        places: vec![
+            PlaceSchema {
+                place_id: PlaceId::new("workshop").unwrap(),
+                display_label: "Workshop".to_string(),
+                adjacent_place_ids: vec![PlaceId::new("home_tomas").unwrap()],
+            },
+            PlaceSchema {
+                place_id: PlaceId::new("home_tomas").unwrap(),
+                display_label: "Tomas home".to_string(),
+                adjacent_place_ids: vec![PlaceId::new("workshop").unwrap()],
+            },
+        ],
+        doors: Vec::new(),
+        containers: Vec::new(),
+        items: Vec::new(),
+        affordances: Vec::new(),
+        initial_beliefs: Vec::new(),
+        initial_needs: vec![
+            InitialNeedSchema {
+                actor_id: ActorId::new("actor_tomas").unwrap(),
+                kind: NeedKind::Fatigue,
+                value: 120,
+            },
+            InitialNeedSchema {
+                actor_id: ActorId::new("actor_tomas").unwrap(),
+                kind: NeedKind::Hunger,
+                value: 350,
+            },
+        ],
+        homes: vec![HomeSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            place_id: PlaceId::new("home_tomas").unwrap(),
+        }],
+        sleep_places: vec![SleepPlaceSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            place_id: PlaceId::new("home_tomas").unwrap(),
+            sleep_place_id: "bed_tomas".to_string(),
+        }],
+        food_supplies: vec![FoodSupplySchema {
+            food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
+            location: Location::AtPlace(PlaceId::new("home_tomas").unwrap()),
+            servings: 3,
+            hunger_reduction_per_serving: 180,
+        }],
+        workplaces: vec![WorkplaceSchema {
+            workplace_id: WorkplaceId::new("workplace_shop").unwrap(),
+            place_id: PlaceId::new("workshop").unwrap(),
+            assigned_actor_ids: vec![ActorId::new("actor_tomas").unwrap()],
+            work_duration_ticks: 4,
+            fatigue_delta_per_tick: 8,
+            hunger_delta_per_tick: 4,
+            max_fatigue_to_start: 800,
+            max_hunger_to_start: 850,
+            access_open: true,
+            output_tag: "service_completed_placeholder".to_string(),
+        }],
+        routine_templates: vec![RoutineTemplateSchema {
+            template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+            family: RoutineFamily::WorkBlock,
+            applicability_conditions: vec!["assigned_workplace_known".to_string()],
+            preconditions: vec!["at_workplace".to_string()],
+            steps: vec![RoutineStep::StartWorkBlock {
+                action_id: SemanticActionId::new("work_block.workplace_shop").unwrap(),
+            }],
+            min_duration_ticks: 4,
+            max_duration_ticks: 6,
+            interruption_points: vec![0],
+            failure_modes: vec!["access".to_string()],
+            fallback_rules: vec!["wait".to_string()],
+            debug_labels: vec!["phase3a_schema_sample".to_string()],
+            reservable_resource: Some("body".to_string()),
+        }],
+        routine_assignments: vec![RoutineAssignmentSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+            start_tick: SimTick::new(10),
+            end_tick: SimTick::new(20),
+        }],
+        day_windows: vec![DayWindowSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            start_tick: SimTick::new(0),
+            end_tick: SimTick::new(100),
+        }],
+    }
 }
 
 #[test]
@@ -72,6 +178,83 @@ fn all_fixtures_load_deterministically_and_validate() {
             second.manifest.content_fingerprint
         );
     }
+}
+
+#[test]
+fn fixtures_load_phase3a_fixture_into_core_shapes_with_canonical_ordering() {
+    let fixture = phase3a_fixture();
+    let bytes = serialize_fixture(&fixture);
+    let loaded = load_fixture_package(
+        ContentManifestId::new("manifest_phase3a_schema").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "phase3a_schema_001.twf".to_string(),
+            bytes,
+        }],
+    )
+    .unwrap();
+
+    assert!(loaded
+        .canonical_world
+        .food_supplies
+        .contains_key(&FoodSupplyId::new("food_soup_pot").unwrap()));
+    assert!(loaded
+        .canonical_world
+        .workplaces
+        .contains_key(&WorkplaceId::new("workplace_shop").unwrap()));
+    assert_eq!(
+        loaded.canonical_agent_state.needs_by_actor[&ActorId::new("actor_tomas").unwrap()]
+            [&NeedKind::Hunger]
+            .value(),
+        350
+    );
+    assert_eq!(loaded.manifest.actor_roster, ["actor_tomas".to_string()]);
+    assert_eq!(
+        loaded.manifest.no_human_day_windows,
+        ["actor_tomas:0-100".to_string()]
+    );
+    assert_eq!(loaded.fixture.places[0].place_id.as_str(), "home_tomas");
+    assert_eq!(loaded.fixture.routine_templates[0].steps.len(), 1);
+
+    let round_tripped = deserialize_fixture(&serialize_fixture(&loaded.fixture)).unwrap();
+    assert_eq!(loaded.fixture, round_tripped);
+}
+
+#[test]
+fn fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected() {
+    let mut fixture = phase3a_fixture();
+    fixture.food_supplies.push(FoodSupplySchema {
+        food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
+        location: Location::AtPlace(PlaceId::new("missing_place").unwrap()),
+        servings: 1,
+        hunger_reduction_per_serving: 100,
+    });
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("actor_tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_missing").unwrap(),
+        start_tick: SimTick::new(21),
+        end_tick: SimTick::new(30),
+    });
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    let codes = report
+        .errors
+        .iter()
+        .map(|error| error.code)
+        .collect::<BTreeSet<_>>();
+    assert!(codes.contains("duplicate_id"));
+    assert!(codes.contains("bad_reference"));
+}
+
+#[test]
+fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
+    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|\nteleport_actor|actor_tomas|workshop";
+    let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "unknown_field"));
 }
 
 #[test]
