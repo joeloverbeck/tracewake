@@ -562,4 +562,66 @@ mod tests {
             EventKind::WorkBlockStarted
         );
     }
+
+    #[test]
+    fn overlapping_body_exclusive_action_is_reservation_conflict() {
+        let mut state = state();
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_work();
+        registry.register_phase3a_sleep();
+
+        let first = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal(),
+        );
+        assert_eq!(first.report.status, ReportStatus::Accepted);
+
+        let sleep = Proposal::new(
+            ProposalId::new("proposal_sleep_overlap").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id()),
+            ActionId::new("sleep").unwrap(),
+            SimTick::new(21),
+        );
+        let sleep_key = OrderingKey::new(
+            SimTick::new(21),
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id()),
+            ProposalSequence::new(1),
+            ActionId::new("sleep").unwrap(),
+            Vec::new(),
+            "sleep_overlap",
+        );
+        let second = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: sleep_key,
+            },
+            &sleep,
+        );
+
+        assert_eq!(second.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            second.report.reason_codes,
+            vec![ReasonCode::ReservationConflict]
+        );
+        assert_eq!(
+            second.report.failed_stage,
+            Some(PipelineStage::ReservationConflictCheck)
+        );
+    }
 }

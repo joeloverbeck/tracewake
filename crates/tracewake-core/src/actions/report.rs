@@ -34,6 +34,10 @@ pub enum ReasonCode {
     WorldStateMismatch,
     TargetReserved,
     KnowledgePreconditionNotMet,
+    NoCurrentIntention,
+    IntentionTerminal,
+    RoutineStepBlocked,
+    ReservationConflict,
 }
 
 impl ReasonCode {
@@ -65,6 +69,10 @@ impl ReasonCode {
             ReasonCode::WorldStateMismatch => "world_state_mismatch",
             ReasonCode::TargetReserved => "target_reserved",
             ReasonCode::KnowledgePreconditionNotMet => "knowledge_precondition_not_met",
+            ReasonCode::NoCurrentIntention => "no_current_intention",
+            ReasonCode::IntentionTerminal => "intention_terminal",
+            ReasonCode::RoutineStepBlocked => "routine_step_blocked",
+            ReasonCode::ReservationConflict => "reservation_conflict",
         }
     }
 }
@@ -118,6 +126,14 @@ mod tests {
         assert_eq!(
             ReasonCode::KnowledgePreconditionNotMet.stable_id(),
             "knowledge_precondition_not_met"
+        );
+        assert_eq!(
+            ReasonCode::NoCurrentIntention.stable_id(),
+            "no_current_intention"
+        );
+        assert_eq!(
+            ReasonCode::ReservationConflict.stable_id(),
+            "reservation_conflict"
         );
     }
 }

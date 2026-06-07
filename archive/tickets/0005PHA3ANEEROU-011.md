@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-011: continue_routine action and body-exclusive reservation
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `continue_routine` action and a body-exclusive reservation/conflict check in the pipeline's reservation slot.
@@ -83,3 +83,26 @@ Extend `crates/tracewake-core/src/actions/report.rs` with the `NoCurrentIntentio
 1. `cargo test -p tracewake-core actions::defs::continue_routine`
 2. `cargo test -p tracewake-core actions::pipeline`
 3. Core-crate scope is correct; possession-parity end-to-end is exercised by ticket 020 and the capstone (025).
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed:
+- Added `continue_routine` as a Phase 3A registry action.
+- `continue_routine` now rejects missing active intentions, terminal intentions, and blocked next steps with typed why-not reason codes.
+- Continue proposals emit `ContinueRoutineProposed` with next ordinary action metadata, shared-pipeline routing marker, and `intention_mutated=false`.
+- Added Human-vs-Scheduler pipeline parity coverage using normal controller binding for Human origin.
+- Activated the pipeline reservation slot for active body-exclusive duration starts recorded in the event log.
+- Added `ReservationConflict`, `NoCurrentIntention`, `IntentionTerminal`, and `RoutineStepBlocked` reason codes.
+
+Deviations:
+- The bounded planner and direct routine-execution state lookup remain deferred to their scoped follow-up tickets; this ticket accepts next-step routine metadata supplied by the runner/planner boundary and does not mutate cognition state.
+- Resource-level bed/workstation exclusivity remains honest and unenforced beyond the minimum actor body-exclusive overlap check.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core actions::defs::continue_routine`
+- `cargo test -p tracewake-core actions::pipeline`
+- `cargo test -p tracewake-core actions::defs::work::tests::overlapping_body_exclusive_action_is_reservation_conflict`
+- `cargo test -p tracewake-core actions`

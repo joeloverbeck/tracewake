@@ -15,6 +15,7 @@ pub enum ActionEffect {
     Sleep,
     Eat,
     Work,
+    ContinueRoutine,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -135,6 +136,13 @@ impl ActionRegistry {
         self.register(ActionDefinition::world_action(
             ActionId::new("work_block").unwrap(),
             ActionEffect::Work,
+        ));
+    }
+
+    pub fn register_phase3a_continue_routine(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("continue_routine").unwrap(),
+            ActionEffect::ContinueRoutine,
         ));
     }
 }

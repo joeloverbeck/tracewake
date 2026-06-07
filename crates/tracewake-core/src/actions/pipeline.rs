@@ -2,6 +2,7 @@ use crate::actions::defs::accuseprobe::validate_truthful_accuse_probe;
 use crate::actions::defs::checkcontainer::{
     build_check_container_event, build_observation_recorded_event,
 };
+use crate::actions::defs::continue_routine::build_continue_routine_event;
 use crate::actions::defs::eat::build_eat_events;
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
@@ -20,7 +21,7 @@ use crate::controller::{ControllerBindings, ControllerError};
 use crate::epistemics::{detect_expected_absences, Confidence, EpistemicProjection};
 use crate::events::apply::{apply_epistemic_event, apply_event};
 use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::PhysicalState;
@@ -167,6 +168,21 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         .registry
         .get(&proposal.action_id)
         .expect("accepted decision must have an action definition");
+
+    if let Some(active_event_id) = body_exclusive_reservation_conflict(context, &candidate_events) {
+        return reject_committed(
+            context,
+            proposal,
+            PipelineStage::ReservationConflictCheck,
+            vec![ReasonCode::ReservationConflict],
+            checked_facts,
+            "That actor is already in a body-exclusive action.",
+            format!(
+                "scheduling/reservation conflict with active body-exclusive event {}",
+                active_event_id.as_str()
+            ),
+        );
+    }
 
     let mut appended_events = Vec::new();
     for event in candidate_events {
@@ -352,6 +368,60 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         report,
         appended_events,
     }
+}
+
+fn body_exclusive_reservation_conflict(
+    context: &PipelineContext<'_>,
+    candidate_events: &[EventEnvelope],
+) -> Option<EventId> {
+    let actor_id = candidate_events.iter().find_map(|event| {
+        is_body_exclusive_start(event)
+            .then(|| event.actor_id.clone())
+            .flatten()
+    })?;
+    if !candidate_events.iter().any(is_body_exclusive_start) {
+        return None;
+    }
+
+    let closed_starts = context
+        .log
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.event_type,
+                EventKind::SleepCompleted
+                    | EventKind::SleepInterrupted
+                    | EventKind::WorkBlockCompleted
+            )
+        })
+        .flat_map(|event| event.causes.iter())
+        .filter_map(|cause| match cause {
+            EventCause::Event(event_id) => Some(event_id.clone()),
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+
+    context
+        .log
+        .events()
+        .iter()
+        .find(|event| {
+            event.actor_id.as_ref() == Some(&actor_id)
+                && is_body_exclusive_start(event)
+                && !closed_starts.contains(&event.event_id)
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn is_body_exclusive_start(event: &EventEnvelope) -> bool {
+    matches!(
+        event.event_type,
+        EventKind::SleepStarted | EventKind::WorkBlockStarted
+    ) && event
+        .payload
+        .iter()
+        .any(|field| field.key == "body_exclusive" && field.value == "true")
 }
 
 fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> PipelineDecision {
@@ -571,6 +641,12 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
                     would_mutate,
                 };
             }
+            ActionEffect::ContinueRoutine => build_continue_routine_event(
+                context.state,
+                proposal,
+                context.ordering_key,
+                context.content_manifest_id,
+            ),
             ActionEffect::QueryOnly => unreachable!("would_mutate checked above"),
         };
 
