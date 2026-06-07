@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-006: Agent-state replay rebuild, checksum, and projection comparison
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends replay rebuild, the checksum/agent-state projection, and the replay report to reconstruct and verify Phase 3A cognition state.
@@ -83,3 +83,23 @@ Extend `crates/tracewake-core/src/replay/report.rs` with the §15.3 failure fiel
 1. `cargo test -p tracewake-core replay`
 2. `cargo test -p tracewake-core --test golden_scenarios`
 3. Core-crate + golden-scenario scope is the correct determinism boundary; the end-to-end `no_human_day_001` replay gate is the capstone (025).
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added deterministic agent-state checksum reporting for `AgentState` while leaving the physical checksum unchanged.
+- Extended replay rebuild to apply `Agent` stream events into an agent-state slice and expose final agent state/checksum.
+- Added Phase 3A replay failure records carrying event position, kind, schema version, actor ID, routine ID, and trace ID where available.
+- Extended replay reports with agent checksum/projection version and Agent-stream failure fields.
+- Added unit and golden coverage for deterministic agent replay, checksum divergence on changed need deltas, unsupported Agent-event schema reporting, and windowed need-delta batching equivalence.
+
+Deviations from original plan:
+- The agent-state projection is implemented as a checksum report over canonical agent-state lines rather than a separate view-model style projection module; this follows the spec allowance for a complementary agent-state checksum.
+- Behavior-specific Agent events that do not yet mutate the agent-state slice are processed as supported no-op events until their emitters/state effects land in later tickets.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core replay` passed.
+- `cargo test -p tracewake-core --test golden_scenarios` passed.

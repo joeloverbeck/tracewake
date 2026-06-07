@@ -639,6 +639,13 @@ fn apply_need_delta(
     let need_kind = parse_need_kind(payload)?;
     let delta = parse_i32(payload, "delta")?;
     let cause = parse_need_change_cause(payload)?;
+    if matches!(cause, NeedChangeCause::FixtureInitial) {
+        let needs = state.needs_by_actor.entry(actor_id.clone()).or_default();
+        needs
+            .entry(need_kind)
+            .or_insert_with(|| crate::agent::NeedState::initial(need_kind, 0, cause.clone()));
+    }
+
     let need_state = state
         .needs_by_actor
         .get_mut(&actor_id)

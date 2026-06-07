@@ -1,9 +1,11 @@
-use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
+use crate::checksum::{
+    compute_physical_checksum, AgentStateChecksum, ChecksumContext, PhysicalChecksum,
+};
 use crate::epistemics::EpistemicProjectionChecksum;
 use crate::events::log::EventLog;
 use crate::events::EventStream;
 use crate::ids::{ContentManifestId, FixtureId};
-use crate::replay::rebuild::{diff_physical_state, rebuild_projection};
+use crate::replay::rebuild::{diff_physical_state, rebuild_projection, Phase3AReplayFailure};
 use crate::state::PhysicalState;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -15,11 +17,15 @@ pub struct ReplayReport {
     pub diagnostic_event_count: usize,
     pub unsupported_versions: Vec<String>,
     pub unsupported_epistemic_versions: Vec<String>,
+    pub unsupported_agent_versions: Vec<Phase3AReplayFailure>,
     pub application_errors: Vec<String>,
     pub epistemic_application_errors: Vec<String>,
+    pub agent_application_errors: Vec<Phase3AReplayFailure>,
     pub final_checksum: PhysicalChecksum,
     pub final_epistemic_checksum: EpistemicProjectionChecksum,
     pub epistemic_projection_version: String,
+    pub final_agent_checksum: AgentStateChecksum,
+    pub agent_projection_version: String,
     pub expected_checksum: Option<PhysicalChecksum>,
     pub matches_expected: bool,
     pub state_diff: Vec<String>,
@@ -55,8 +61,10 @@ pub fn run_replay(
         && state_diff.is_empty()
         && rebuild.unsupported_versions.is_empty()
         && rebuild.unsupported_epistemic_versions.is_empty()
+        && rebuild.unsupported_agent_versions.is_empty()
         && rebuild.invariant_violations.is_empty()
-        && rebuild.epistemic_application_errors.is_empty();
+        && rebuild.epistemic_application_errors.is_empty()
+        && rebuild.agent_application_errors.is_empty();
     let epistemic_projection_version = rebuild
         .final_epistemic_projection
         .projection_version
@@ -73,9 +81,17 @@ pub fn run_replay(
         unsupported_epistemic_versions: rebuild.unsupported_epistemic_versions,
         application_errors: rebuild.invariant_violations,
         epistemic_application_errors: rebuild.epistemic_application_errors,
+        unsupported_agent_versions: rebuild.unsupported_agent_versions,
+        agent_application_errors: rebuild.agent_application_errors,
         final_checksum: rebuild.final_checksum,
         final_epistemic_checksum: rebuild.final_epistemic_checksum,
         epistemic_projection_version,
+        final_agent_checksum: rebuild.final_agent_checksum,
+        agent_projection_version: rebuild
+            .final_agent_checksum_report
+            .projection_version
+            .as_str()
+            .to_string(),
         expected_checksum,
         matches_expected,
         state_diff,
