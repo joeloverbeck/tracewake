@@ -1,5 +1,7 @@
-use crate::ids::{ActionId, ActorId, ControllerId, ProcessId};
-use crate::time::SimTick;
+use crate::agent::NeedKind;
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
+use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, ProcessId};
+use crate::time::{passive_awake_need_deltas, SimTick};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SchedulePhase {
@@ -87,6 +89,74 @@ pub struct Scheduled<T> {
 
 pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
     scheduled.sort_by(|left, right| left.ordering_key.cmp(&right.ordering_key));
+}
+
+pub fn build_passive_need_delta_events(
+    actor_ids: impl IntoIterator<Item = ActorId>,
+    process_id: &ProcessId,
+    start_tick: SimTick,
+    elapsed_ticks: u64,
+    content_manifest_id: &ContentManifestId,
+) -> Vec<EventEnvelope> {
+    let deltas = passive_awake_need_deltas(elapsed_ticks);
+    actor_ids
+        .into_iter()
+        .flat_map(|actor_id| {
+            [
+                (NeedKind::Hunger, deltas.hunger_delta),
+                (NeedKind::Fatigue, deltas.fatigue_delta),
+            ]
+            .into_iter()
+            .map(move |(need_kind, delta)| {
+                let mut event = EventEnvelope::new_caused_v1(
+                    EventId::new(format!(
+                        "event.passive_need_delta.{}.{}.{}.{}",
+                        need_kind.stable_id(),
+                        actor_id.as_str(),
+                        start_tick.value(),
+                        elapsed_ticks
+                    ))
+                    .unwrap(),
+                    EventKind::NeedDeltaApplied,
+                    0,
+                    0,
+                    start_tick.advance_by(elapsed_ticks),
+                    OrderingKey::new(
+                        start_tick.advance_by(elapsed_ticks),
+                        SchedulePhase::NoHumanProcess,
+                        SchedulerSourceId::Process(process_id.clone()),
+                        ProposalSequence::new(0),
+                        ActionId::new("passive_need_delta").unwrap(),
+                        vec![
+                            actor_id.as_str().to_string(),
+                            need_kind.stable_id().to_string(),
+                        ],
+                        format!("{}:{}", actor_id.as_str(), need_kind.stable_id()),
+                    ),
+                    content_manifest_id.clone(),
+                    vec![EventCause::Process(process_id.clone())],
+                )
+                .unwrap();
+                event.actor_id = Some(actor_id.clone());
+                event.process_id = Some(process_id.clone());
+                event.participants = vec![actor_id.to_string()];
+                event.payload = vec![
+                    PayloadField::new("actor_id", actor_id.as_str()),
+                    PayloadField::new("need_kind", need_kind.stable_id()),
+                    PayloadField::new("delta", delta.to_string()),
+                    PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
+                    PayloadField::new("cause_kind", "tick_delta"),
+                ];
+                event.effects_summary = format!(
+                    "{} rose by {} over {} elapsed ticks",
+                    need_kind.stable_id(),
+                    delta,
+                    elapsed_ticks
+                );
+                event
+            })
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -343,11 +413,18 @@ pub mod no_human {
                 vec![proposal],
             );
 
-            assert_eq!(report.ordinary_pipeline_events, 1);
+            assert_eq!(report.ordinary_pipeline_events, 3);
             assert!(log
                 .events()
                 .iter()
                 .any(|event| event.event_type == EventKind::ActorWaited));
+            assert_eq!(
+                log.events()
+                    .iter()
+                    .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+                    .count(),
+                2
+            );
         }
     }
 }
@@ -497,6 +574,84 @@ mod tests {
     }
 
     #[test]
+    fn passive_need_delta_emission_is_deterministic_over_advancement() {
+        let process = process_id("ambient_tick");
+        let actors = vec![actor_id("actor_mara"), actor_id("actor_tomas")];
+
+        let first = build_passive_need_delta_events(
+            actors.clone(),
+            &process,
+            SimTick::new(4),
+            3,
+            &content_manifest_id(),
+        );
+        let second = build_passive_need_delta_events(
+            actors,
+            &process,
+            SimTick::new(4),
+            3,
+            &content_manifest_id(),
+        );
+
+        assert_eq!(first, second);
+        assert_eq!(first.len(), 4);
+        assert!(first
+            .iter()
+            .all(|event| event.event_type == EventKind::NeedDeltaApplied));
+        assert!(first.iter().any(|event| event
+            .payload
+            .iter()
+            .any(|field| field.key == "delta" && field.value == "15")));
+        assert!(first.iter().any(|event| event
+            .payload
+            .iter()
+            .any(|field| field.key == "delta" && field.value == "9")));
+    }
+
+    #[test]
+    fn scheduled_completion_at_wait_target_tick_is_not_dropped_by_wait_continuation() {
+        let mut scheduled = [
+            Scheduled {
+                ordering_key: key(
+                    5,
+                    SchedulePhase::DeferredProcess,
+                    SchedulerSourceId::Process(process_id("sleep_completion")),
+                    0,
+                    "sleep_completed",
+                    &["actor_tomas"],
+                    "completion",
+                ),
+                payload: "completion",
+            },
+            Scheduled {
+                ordering_key: key(
+                    5,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Process(process_id("wait_continue")),
+                    1,
+                    "wait",
+                    &["actor_tomas"],
+                    "wait",
+                ),
+                payload: "wait",
+            },
+        ];
+
+        sort_scheduled(&mut scheduled);
+
+        let payloads = scheduled
+            .iter()
+            .map(|entry| entry.payload)
+            .collect::<Vec<_>>();
+        assert_eq!(payloads.len(), 2);
+        assert!(payloads.contains(&"wait"));
+        assert!(payloads.contains(&"completion"));
+        assert!(scheduled
+            .iter()
+            .all(|entry| entry.ordering_key.sim_tick == SimTick::new(5)));
+    }
+
+    #[test]
     fn no_human_advance_requires_no_controller_and_emits_diagnostic_markers() {
         let mut state = PhysicalState::default();
         let mut log = EventLog::new();
@@ -588,11 +743,18 @@ mod tests {
             vec![proposal.clone()],
         );
 
-        assert_eq!(report.ordinary_pipeline_events, 1);
+        assert_eq!(report.ordinary_pipeline_events, 3);
         assert!(log
             .events()
             .iter()
             .any(|event| event.event_type == EventKind::ActorWaited));
+        assert_eq!(
+            log.events()
+                .iter()
+                .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+                .count(),
+            2
+        );
 
         let mut direct_state = PhysicalState::default();
         direct_state.actors.insert(
@@ -621,6 +783,14 @@ mod tests {
             ),
         };
         let direct = run_pipeline(&mut context, &proposal);
-        assert_eq!(direct.appended_events.len(), 1);
+        assert_eq!(direct.appended_events.len(), 3);
+        assert_eq!(
+            direct
+                .appended_events
+                .iter()
+                .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+                .count(),
+            2
+        );
     }
 }

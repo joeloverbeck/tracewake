@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-007: Need effects and extended wait action
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — wires passive/active need deltas into time advancement and extends the existing `wait` action so it interacts with needs, reasons, and threshold-crossing reevaluation.
@@ -82,3 +82,24 @@ Ensure `wait` does not run concurrently with a body-exclusive action (the full r
 1. `cargo test -p tracewake-core actions::defs::wait`
 2. `cargo test -p tracewake-core scheduler`
 3. Core-crate scope is correct; cross-pipeline integration (autonomous mandatory-reason wait) is exercised by tickets 012/017 and the capstone.
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added deterministic passive awake need deltas in `time.rs`: hunger +5/tick and fatigue +3/tick, with no reduction path.
+- Extended `wait` to carry a debug reason, body-exclusive/interruptible flags, passive need-delta Agent events, threshold-crossing Agent events, and candidate-goal reevaluation metadata.
+- Updated the shared pipeline so wait actions append all derived wait/need events through the same event log.
+- Added a scheduler helper for deterministic passive need-delta event emission over advancement windows.
+- Updated scheduler tests to account for wait now producing the base wait event plus hunger/fatigue need-delta events.
+
+Deviations from original plan:
+- Live `AgentState` is not threaded into the action pipeline in this ticket; wait emits reconstructible Agent events, and replay rebuild applies them into `AgentState`. Live autonomous consumers remain deferred to later behavior tickets.
+- Autonomous mandatory wait reasons remain deferred to ticket 012/017 as planned; this ticket records the reason when supplied and defaults to `unspecified_wait`.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core actions::defs::wait` passed.
+- `cargo test -p tracewake-core scheduler` passed.
+- `cargo test -p tracewake-core` passed as an additional regression check.
