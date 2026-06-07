@@ -423,6 +423,20 @@ mod tests {
     fn eat_runs_through_shared_pipeline_and_decrements_servings() {
         let mut state = state(2);
         let mut log = EventLog::new();
+        let mut agent_state = crate::state::AgentState::default();
+        agent_state.needs_by_actor.insert(
+            actor_id(),
+            [(
+                crate::agent::NeedKind::Hunger,
+                crate::agent::NeedState::initial(
+                    crate::agent::NeedKind::Hunger,
+                    200,
+                    crate::agent::NeedChangeCause::FixtureInitial,
+                ),
+            )]
+            .into_iter()
+            .collect(),
+        );
         let mut registry = ActionRegistry::new();
         registry.register_phase3a_eat();
 
@@ -430,6 +444,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
+                agent_state: &mut agent_state,
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,

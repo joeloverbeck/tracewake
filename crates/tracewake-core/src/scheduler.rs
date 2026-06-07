@@ -219,7 +219,7 @@ pub mod no_human {
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use crate::state::PhysicalState;
+    use crate::state::{AgentState, PhysicalState};
     use crate::time::SimTick;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -229,6 +229,11 @@ pub mod no_human {
         pub tick_count: u64,
         pub marker_event_ids: Vec<EventId>,
         pub ordinary_pipeline_events: usize,
+    }
+
+    pub struct NoHumanStateMut<'a> {
+        pub physical: &'a mut PhysicalState,
+        pub agent: &'a mut AgentState,
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -274,6 +279,7 @@ pub mod no_human {
 
     pub fn run_no_human_day(
         state: &mut PhysicalState,
+        agent_state: &mut AgentState,
         log: &mut EventLog,
         registry: &ActionRegistry,
         content_manifest_id: ContentManifestId,
@@ -347,6 +353,7 @@ pub mod no_human {
             let mut context = PipelineContext {
                 registry,
                 state,
+                agent_state,
                 log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -483,7 +490,7 @@ pub mod no_human {
     }
 
     pub fn advance_no_human(
-        state: &mut PhysicalState,
+        state: NoHumanStateMut<'_>,
         log: &mut EventLog,
         registry: &ActionRegistry,
         content_manifest_id: ContentManifestId,
@@ -491,6 +498,8 @@ pub mod no_human {
         tick_count: u64,
         scheduled_proposals: Vec<Proposal>,
     ) -> NoHumanAdvanceReport {
+        let physical_state = state.physical;
+        let agent_state = state.agent;
         let process_id = ProcessId::new("no_human_advance").unwrap();
         let mut scheduler = DeterministicScheduler::new(start_tick);
         let started = append_marker(
@@ -525,7 +534,8 @@ pub mod no_human {
             let before = log.events().len();
             let mut context = PipelineContext {
                 registry,
-                state,
+                state: physical_state,
+                agent_state,
                 log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -681,7 +691,43 @@ pub mod no_human {
         use crate::events::apply::apply_event;
         use crate::events::EventStream;
         use crate::ids::{ActorId, ProposalId};
-        use crate::state::ActorBody;
+        use crate::state::{ActorBody, AgentState};
+
+        fn agent_state(actor_id: &ActorId) -> AgentState {
+            let mut state = AgentState::default();
+            state.needs_by_actor.insert(
+                actor_id.clone(),
+                [
+                    (
+                        crate::agent::NeedKind::Hunger,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Hunger,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                    (
+                        crate::agent::NeedKind::Fatigue,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Fatigue,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                    (
+                        crate::agent::NeedKind::Safety,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Safety,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            );
+            state
+        }
 
         fn content_manifest_id() -> ContentManifestId {
             ContentManifestId::new("phase1_manifest").unwrap()
@@ -698,7 +744,10 @@ pub mod no_human {
             let registry = ActionRegistry::new();
 
             let report = advance_no_human(
-                &mut state,
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: Box::leak(Box::new(crate::state::AgentState::default())),
+                },
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -723,7 +772,10 @@ pub mod no_human {
             let registry = ActionRegistry::new();
 
             advance_no_human(
-                &mut state,
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: Box::leak(Box::new(crate::state::AgentState::default())),
+                },
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -749,6 +801,7 @@ pub mod no_human {
             let mut log = EventLog::new();
             let mut registry = ActionRegistry::new();
             registry.register_phase1_inspect_wait();
+            let mut agent_state = agent_state(&actor_id());
             let proposal = Proposal::new(
                 ProposalId::new("proposal_wait").unwrap(),
                 ProposalOrigin::Scheduler,
@@ -758,7 +811,10 @@ pub mod no_human {
             );
 
             let report = advance_no_human(
-                &mut state,
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: &mut agent_state,
+                },
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -804,6 +860,7 @@ pub mod no_human {
 
             let report = run_no_human_day(
                 &mut state,
+                Box::leak(Box::new(crate::state::AgentState::default())),
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -872,6 +929,7 @@ pub mod no_human {
 
             let report = run_no_human_day(
                 &mut state,
+                Box::leak(Box::new(crate::state::AgentState::default())),
                 &mut log,
                 &registry,
                 content_manifest_id(),
@@ -911,7 +969,7 @@ mod tests {
     use crate::events::log::EventLog;
     use crate::events::{EventKind, EventStream};
     use crate::ids::{ContentManifestId, ProposalId};
-    use crate::state::{ActorBody, PhysicalState};
+    use crate::state::{ActorBody, AgentState, PhysicalState};
 
     fn action_id(value: &str) -> ActionId {
         ActionId::new(value).unwrap()
@@ -919,6 +977,42 @@ mod tests {
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
+    }
+
+    fn seeded_agent_state(actor_id: ActorId) -> AgentState {
+        let mut state = AgentState::default();
+        state.needs_by_actor.insert(
+            actor_id,
+            [
+                (
+                    crate::agent::NeedKind::Hunger,
+                    crate::agent::NeedState::initial(
+                        crate::agent::NeedKind::Hunger,
+                        100,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                ),
+                (
+                    crate::agent::NeedKind::Fatigue,
+                    crate::agent::NeedState::initial(
+                        crate::agent::NeedKind::Fatigue,
+                        100,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                ),
+                (
+                    crate::agent::NeedKind::Safety,
+                    crate::agent::NeedState::initial(
+                        crate::agent::NeedKind::Safety,
+                        100,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        state
     }
 
     fn process_id(value: &str) -> ProcessId {
@@ -1130,7 +1224,10 @@ mod tests {
         let registry = ActionRegistry::new();
 
         let report = no_human::advance_no_human(
-            &mut state,
+            no_human::NoHumanStateMut {
+                physical: &mut state,
+                agent: Box::leak(Box::new(crate::state::AgentState::default())),
+            },
             &mut log,
             &registry,
             content_manifest_id(),
@@ -1168,7 +1265,10 @@ mod tests {
         let registry = ActionRegistry::new();
 
         no_human::advance_no_human(
-            &mut state,
+            no_human::NoHumanStateMut {
+                physical: &mut state,
+                agent: Box::leak(Box::new(crate::state::AgentState::default())),
+            },
             &mut log,
             &registry,
             content_manifest_id(),
@@ -1197,6 +1297,7 @@ mod tests {
         let mut log = EventLog::new();
         let mut registry = ActionRegistry::new();
         registry.register_phase1_inspect_wait();
+        let mut agent_state = seeded_agent_state(actor_id("actor_tomas"));
         let proposal = Proposal::new(
             ProposalId::new("proposal_wait").unwrap(),
             ProposalOrigin::Scheduler,
@@ -1206,7 +1307,10 @@ mod tests {
         );
 
         let report = no_human::advance_no_human(
-            &mut state,
+            no_human::NoHumanStateMut {
+                physical: &mut state,
+                agent: &mut agent_state,
+            },
             &mut log,
             &registry,
             content_manifest_id(),
@@ -1237,9 +1341,11 @@ mod tests {
             ),
         );
         let mut direct_log = EventLog::new();
+        let mut direct_agent_state = seeded_agent_state(actor_id("actor_tomas"));
         let mut context = PipelineContext {
             registry: &registry,
             state: &mut direct_state,
+            agent_state: &mut direct_agent_state,
             log: &mut direct_log,
             controller_bindings: None,
             epistemic_projection: None,

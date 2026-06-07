@@ -406,6 +406,17 @@ impl FixtureSchema {
                     ),
                 );
         }
+        for actor in &self.actors {
+            let needs = state
+                .needs_by_actor
+                .entry(actor.actor_id.clone())
+                .or_default();
+            for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+                needs.entry(kind).or_insert_with(|| {
+                    NeedState::initial(kind, 100, NeedChangeCause::FixtureInitial)
+                });
+            }
+        }
         state
     }
 }

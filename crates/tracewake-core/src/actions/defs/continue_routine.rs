@@ -331,6 +331,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
+                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
                 log: &mut log,
                 controller_bindings: bindings.as_ref(),
                 epistemic_projection: None,

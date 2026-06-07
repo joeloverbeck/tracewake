@@ -20,7 +20,7 @@ use tracewake_core::ids::{
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_notebook_view, no_human_day_metrics};
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::scheduler::no_human::advance_no_human;
+use tracewake_core::scheduler::no_human::{advance_no_human, NoHumanStateMut};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
     ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
@@ -195,6 +195,7 @@ fn run_action(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: None,
@@ -239,6 +240,7 @@ fn run_check_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -275,6 +277,7 @@ fn run_scheduler_check_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -314,6 +317,7 @@ fn run_probe_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -378,6 +382,7 @@ fn run_mara_take_with_projection(
     let mut pipeline_context = PipelineContext {
         registry: &registry,
         state,
+        agent_state: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
         log,
         controller_bindings: None,
         epistemic_projection: Some(projection),
@@ -643,7 +648,13 @@ fn projection_rebuild_matches_live_state() {
     run_action(&mut live, &mut log, "take", &["coin_stack_01"], 0);
     run_action(&mut live, &mut log, "place", &["coin_stack_01"], 1);
 
-    let report = rebuild_projection(&initial, &log, &context(&log), Some(&live));
+    let report = rebuild_projection(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        Some(&live),
+    );
 
     assert!(report.state_diff.is_empty());
     assert!(report.invariant_violations.is_empty());
@@ -658,7 +669,14 @@ fn replay_checksum_matches() {
     run_action(&mut live, &mut log, "take", &["coin_stack_01"], 0);
 
     let expected = compute_physical_checksum(&live, &context(&log)).checksum;
-    let report = run_replay(&initial, &log, &context(&log), Some(&live), Some(expected));
+    let report = run_replay(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        Some(&live),
+        Some(expected),
+    );
 
     assert!(report.matches_expected);
     assert!(report.state_diff.is_empty());
@@ -679,6 +697,7 @@ fn replay_detects_missing_or_reordered_event() {
     let expected = compute_physical_checksum(&live, &context(&full_log)).checksum;
     let report = run_replay(
         &initial,
+        &tracewake_core::state::AgentState::default(),
         &missing_log,
         &context(&missing_log),
         Some(&live),
@@ -718,8 +737,20 @@ fn phase3a_agent_state_replay_projection_is_deterministic() {
     ))
     .unwrap();
 
-    let first = rebuild_projection(&initial, &log, &context(&log), None);
-    let second = rebuild_projection(&initial, &log, &context(&log), None);
+    let first = rebuild_projection(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        None,
+    );
+    let second = rebuild_projection(
+        &initial,
+        &tracewake_core::state::AgentState::default(),
+        &log,
+        &context(&log),
+        None,
+    );
 
     assert_eq!(first.final_agent_checksum, second.final_agent_checksum);
     assert_eq!(
@@ -793,7 +824,10 @@ fn no_human_advance_requires_no_controller() {
     let mut state = initial_state(true, true);
     let mut log = EventLog::new();
     let report = advance_no_human(
-        &mut state,
+        NoHumanStateMut {
+            physical: &mut state,
+            agent: Box::leak(Box::new(tracewake_core::state::AgentState::default())),
+        },
         &mut log,
         &registry(),
         manifest_id(),

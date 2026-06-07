@@ -67,6 +67,7 @@ impl From<ProjectionError> for AppError {
 pub struct TuiApp {
     registry: ActionRegistry,
     initial_state: PhysicalState,
+    initial_agent_state: AgentState,
     state: PhysicalState,
     agent_state: AgentState,
     log: EventLog,
@@ -110,6 +111,7 @@ impl TuiApp {
         Ok(Self {
             registry,
             initial_state: loaded.canonical_world.clone(),
+            initial_agent_state: loaded.canonical_agent_state.clone(),
             state: loaded.canonical_world,
             agent_state: loaded.canonical_agent_state,
             log: EventLog::new(),
@@ -216,6 +218,7 @@ impl TuiApp {
         let mut context = PipelineContext {
             registry: &self.registry,
             state: &mut self.state,
+            agent_state: &mut self.agent_state,
             log: &mut self.log,
             controller_bindings: Some(&self.controller_bindings),
             epistemic_projection: Some(&mut self.epistemic_projection),
@@ -287,6 +290,7 @@ impl TuiApp {
     pub fn render_debug_projection_rebuild_panel(&self) -> String {
         let report = rebuild_projection(
             &self.initial_state,
+            &self.initial_agent_state,
             &self.log,
             &self.checksum_context(),
             Some(&self.state),
@@ -301,6 +305,7 @@ impl TuiApp {
         let expected_checksum = self.physical_checksum();
         let report = run_replay(
             &self.initial_state,
+            &self.initial_agent_state,
             &self.log,
             &self.checksum_context(),
             Some(&self.state),

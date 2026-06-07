@@ -17,7 +17,7 @@ use tracewake_core::agent::{
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
-use tracewake_core::events::apply::apply_event;
+use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventEnvelope, EventKind};
 use tracewake_core::ids::{
@@ -29,7 +29,7 @@ use tracewake_core::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig,
 };
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
-use tracewake_core::state::{ControllerMode, PhysicalState};
+use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -45,7 +45,7 @@ fn registry() -> ActionRegistry {
     registry
 }
 
-fn load(golden: GoldenFixture) -> (PhysicalState, ContentManifestId) {
+fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId) {
     let manifest_id =
         ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
     let loaded = load_fixture_package(
@@ -54,7 +54,11 @@ fn load(golden: GoldenFixture) -> (PhysicalState, ContentManifestId) {
         vec![golden.source_file()],
     )
     .unwrap();
-    (loaded.canonical_world, manifest_id)
+    (
+        loaded.canonical_world,
+        loaded.canonical_agent_state,
+        manifest_id,
+    )
 }
 
 fn proposal(id: &str, actor_id: &str, action_id: &str, target_ids: &[&str], tick: u64) -> Proposal {
@@ -83,6 +87,7 @@ fn ordering_key(proposal: &Proposal, sequence: u64) -> OrderingKey {
 
 fn run(
     state: &mut PhysicalState,
+    agent_state: &mut AgentState,
     log: &mut EventLog,
     manifest_id: &ContentManifestId,
     proposal: &Proposal,
@@ -92,6 +97,7 @@ fn run(
     let mut context = PipelineContext {
         registry: &registry,
         state,
+        agent_state,
         log,
         controller_bindings: None,
         epistemic_projection: None,
@@ -101,10 +107,20 @@ fn run(
     run_pipeline(&mut context, proposal).appended_events
 }
 
-fn append_and_apply(state: &mut PhysicalState, log: &mut EventLog, events: Vec<EventEnvelope>) {
+fn append_and_apply(
+    state: &mut PhysicalState,
+    agent_state: &mut AgentState,
+    log: &mut EventLog,
+    events: Vec<EventEnvelope>,
+) {
     for event in events {
         let appended = log.append(event).unwrap();
-        apply_event(state, &appended).unwrap();
+        let mut application_context = EventApplicationContext {
+            physical_state: state,
+            agent_state,
+            epistemic_projection: None,
+        };
+        apply_event_stream(&mut application_context, &appended).unwrap();
     }
 }
 
@@ -146,7 +162,7 @@ fn loads_fixtures_deterministically() {
 
 #[test]
 fn ordinary_workday_fixture_moves_before_work_completion() {
-    let (mut state, manifest_id) = load(fixtures::ordinary_workday_001());
+    let (mut state, mut agent_state, manifest_id) = load(fixtures::ordinary_workday_001());
     let mut log = EventLog::new();
 
     let move_to_work = proposal(
@@ -156,7 +172,14 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
         &["workshop_tomas"],
         4,
     );
-    run(&mut state, &mut log, &manifest_id, &move_to_work, 0);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &move_to_work,
+        0,
+    );
     let work = proposal(
         "proposal_workday_work",
         "actor_tomas",
@@ -164,7 +187,14 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
         &["workplace_tomas"],
         8,
     );
-    let work_events = run(&mut state, &mut log, &manifest_id, &work, 1);
+    let work_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        1,
+    );
     let work_started = work_events
         .iter()
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
@@ -172,6 +202,7 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
         .clone();
     append_and_apply(
         &mut state,
+        &mut agent_state,
         &mut log,
         build_work_completion_events(
             &work_started,
@@ -193,7 +224,7 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
 
 #[test]
 fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
-    let (mut state, manifest_id) = load(fixtures::sleep_eat_work_001());
+    let (mut state, mut agent_state, manifest_id) = load(fixtures::sleep_eat_work_001());
     let initial_state = state.clone();
     let mut log = EventLog::new();
 
@@ -204,7 +235,14 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
     sleep
         .parameters
         .insert("sleep_place_id".to_string(), "home_tomas".to_string());
-    let sleep_events = run(&mut state, &mut log, &manifest_id, &sleep, 0);
+    let sleep_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &sleep,
+        0,
+    );
     let sleep_started = sleep_events
         .iter()
         .find(|event| event.event_type == EventKind::SleepStarted)
@@ -212,6 +250,7 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         .clone();
     append_and_apply(
         &mut state,
+        &mut agent_state,
         &mut log,
         build_sleep_completion_events(
             &sleep_started,
@@ -228,7 +267,14 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         &["food_breakfast_tomas"],
         5,
     );
-    run(&mut state, &mut log, &manifest_id, &eat, 2);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &eat,
+        2,
+    );
     let move_to_work = proposal(
         "proposal_sleep_eat_work_move",
         "actor_tomas",
@@ -236,7 +282,14 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         &["workshop_tomas"],
         6,
     );
-    run(&mut state, &mut log, &manifest_id, &move_to_work, 3);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &move_to_work,
+        3,
+    );
     let work = proposal(
         "proposal_sleep_eat_work_work",
         "actor_tomas",
@@ -244,7 +297,14 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         &["workplace_tomas"],
         8,
     );
-    let work_events = run(&mut state, &mut log, &manifest_id, &work, 4);
+    let work_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        4,
+    );
     let work_started = work_events
         .iter()
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
@@ -252,6 +312,7 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         .clone();
     append_and_apply(
         &mut state,
+        &mut agent_state,
         &mut log,
         build_work_completion_events(
             &work_started,
@@ -283,7 +344,7 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
 
 #[test]
 fn food_unavailable_fixture_records_typed_failure_without_refill() {
-    let (mut state, manifest_id) = load(fixtures::food_unavailable_replan_001());
+    let (mut state, mut agent_state, manifest_id) = load(fixtures::food_unavailable_replan_001());
     let mut log = EventLog::new();
 
     let eat = proposal(
@@ -293,7 +354,14 @@ fn food_unavailable_fixture_records_typed_failure_without_refill() {
         &["food_empty_pantry_mara"],
         1,
     );
-    run(&mut state, &mut log, &manifest_id, &eat, 0);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &eat,
+        0,
+    );
 
     assert!(has_event(&log, EventKind::EatFailed));
     assert!(!has_event(&log, EventKind::FoodConsumed));
@@ -315,7 +383,8 @@ fn food_unavailable_fixture_records_typed_failure_without_refill() {
 
 #[test]
 fn routine_blocked_fixture_records_access_failure_without_silent_loop() {
-    let (mut state, manifest_id) = load(fixtures::routine_blocked_diagnostic_001());
+    let (mut state, mut agent_state, manifest_id) =
+        load(fixtures::routine_blocked_diagnostic_001());
     let mut log = EventLog::new();
 
     let work = proposal(
@@ -325,7 +394,14 @@ fn routine_blocked_fixture_records_access_failure_without_silent_loop() {
         &["workplace_elena"],
         1,
     );
-    run(&mut state, &mut log, &manifest_id, &work, 0);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        0,
+    );
 
     assert!(has_event(&log, EventKind::WorkBlockFailed));
     assert!(!has_event(&log, EventKind::WorkBlockStarted));
@@ -388,7 +464,7 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
 
 #[test]
 fn routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry() {
-    let (mut state, manifest_id) = load(fixtures::routine_no_teleport_001());
+    let (mut state, mut agent_state, manifest_id) = load(fixtures::routine_no_teleport_001());
     let mut log = EventLog::new();
 
     let work = proposal(
@@ -398,7 +474,14 @@ fn routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry() {
         &["workplace_remote"],
         1,
     );
-    run(&mut state, &mut log, &manifest_id, &work, 0);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        0,
+    );
 
     assert!(has_event(&log, EventKind::WorkBlockFailed));
     assert!(!has_event(&log, EventKind::ActorMoved));
@@ -512,7 +595,14 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
     continue_proposal
         .parameters
         .insert("next_action_id".to_string(), "work_block".to_string());
-    run(&mut state, &mut log, &manifest_id, &continue_proposal, 1);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &continue_proposal,
+        1,
+    );
 
     assert!(has_event(&log, EventKind::ContinueRoutineProposed));
     assert_eq!(agent_state, before_agent_state);
@@ -520,7 +610,7 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
 
 #[test]
 fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
-    let (mut state, manifest_id) = load(fixtures::no_hidden_truth_planning_001());
+    let (mut state, mut agent_state, manifest_id) = load(fixtures::no_hidden_truth_planning_001());
     let hidden_food_id: FoodSupplyId = "food_hidden_pantry".parse().unwrap();
     assert!(state.food_supplies.contains_key(&hidden_food_id));
 
@@ -589,7 +679,14 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
         &["food_hidden_pantry"],
         2,
     );
-    run(&mut state, &mut log, &manifest_id, &eat, 0);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &eat,
+        0,
+    );
     assert!(has_event(&log, EventKind::EatFailed));
     assert!(!has_event(&log, EventKind::FoodConsumed));
 }
@@ -612,10 +709,11 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .iter()
         .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
 
-    let (mut state, manifest_id) = load(golden);
+    let (mut state, mut agent_state, manifest_id) = load(golden);
     let mut log = EventLog::new();
     let report = run_no_human_day(
         &mut state,
+        &mut agent_state,
         &mut log,
         &registry(),
         manifest_id.clone(),
@@ -642,7 +740,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &["food_stew_home_tomas"],
         33,
     );
-    run(&mut state, &mut log, &manifest_id, &eat_tomas, 100);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &eat_tomas,
+        100,
+    );
     let eat_mara = proposal(
         "proposal_day_mara_empty_food",
         "actor_mara",
@@ -650,7 +755,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &["food_empty_pantry_mara"],
         34,
     );
-    run(&mut state, &mut log, &manifest_id, &eat_mara, 101);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &eat_mara,
+        101,
+    );
 
     let mut sleep_elena = proposal(
         "proposal_day_elena_sleep",
@@ -665,7 +777,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     sleep_elena
         .parameters
         .insert("sleep_place_id".to_string(), "home_elena".to_string());
-    let sleep_events = run(&mut state, &mut log, &manifest_id, &sleep_elena, 102);
+    let sleep_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &sleep_elena,
+        102,
+    );
     let sleep_started = sleep_events
         .iter()
         .find(|event| event.event_type == EventKind::SleepStarted)
@@ -673,6 +792,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .clone();
     append_and_apply(
         &mut state,
+        &mut agent_state,
         &mut log,
         build_sleep_completion_events(
             &sleep_started,
@@ -689,7 +809,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &["commons"],
         40,
     );
-    run(&mut state, &mut log, &manifest_id, &move_tomas_commons, 104);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &move_tomas_commons,
+        104,
+    );
     let move_tomas_workshop = proposal(
         "proposal_day_tomas_move_workshop",
         "actor_tomas",
@@ -699,6 +826,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     );
     run(
         &mut state,
+        &mut agent_state,
         &mut log,
         &manifest_id,
         &move_tomas_workshop,
@@ -711,7 +839,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &["workplace_tomas"],
         42,
     );
-    let work_events = run(&mut state, &mut log, &manifest_id, &work_tomas, 106);
+    let work_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work_tomas,
+        106,
+    );
     let work_started = work_events
         .iter()
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
@@ -719,6 +854,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .clone();
     append_and_apply(
         &mut state,
+        &mut agent_state,
         &mut log,
         build_work_completion_events(
             &work_started,
@@ -735,7 +871,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &["workplace_anna_closed"],
         47,
     );
-    run(&mut state, &mut log, &manifest_id, &work_anna, 108);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work_anna,
+        108,
+    );
 
     let mut continue_tomas = proposal(
         "proposal_day_tomas_continue",
@@ -754,7 +897,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     continue_tomas
         .parameters
         .insert("intention_status".to_string(), "active".to_string());
-    run(&mut state, &mut log, &manifest_id, &continue_tomas, 109);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &continue_tomas,
+        109,
+    );
 
     let mut wait_anna = proposal(
         "proposal_day_anna_wait_crossing",
@@ -773,7 +923,14 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         "reason".to_string(),
         "canonical metrics crossing".to_string(),
     );
-    run(&mut state, &mut log, &manifest_id, &wait_anna, 110);
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &wait_anna,
+        110,
+    );
 
     assert!(has_event(&log, EventKind::NoHumanDayStarted));
     assert!(has_event(&log, EventKind::NoHumanDayCompleted));

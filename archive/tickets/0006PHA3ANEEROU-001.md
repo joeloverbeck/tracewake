@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-001: Unified event application — live pipeline applies AgentState
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` event-application path (`actions/pipeline.rs`, `events/apply.rs`, `state.rs`); all `run_pipeline` call sites in core/TUI; replay rebuild
@@ -92,3 +92,27 @@ Ensure `replay/rebuild.rs` applies all three streams through the same dispatch u
 1. `cargo test -p tracewake-core --test acceptance_gates`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings` — full-pipeline gate (CI treats warnings as errors).
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Added a shared event-stream application dispatcher and threaded live `AgentState` through `PipelineContext`.
+- Updated live pipeline, scheduler, TUI, content fixture harnesses, and replay rebuild/reporting so physical, agent, and epistemic streams use the same application path.
+- Replay rebuild now starts from an explicit initial `AgentState`, matching its existing initial physical-state input.
+- Fixture loading now supplies default hunger/fatigue/safety rows for actors that do not author initial needs, so ordinary wait deltas have modeled live state.
+- Added acceptance coverage proving live agent need changes from pipeline actions and matching live/replay agent checksums.
+
+Deviations from original plan:
+
+- `advance_no_human` now takes a small `NoHumanStateMut` bundle to keep the API under clippy's argument-count gate after adding agent state.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --test acceptance_gates`
+- `cargo test -p tracewake-content --test golden_fixtures_run`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`

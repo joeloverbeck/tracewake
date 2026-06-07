@@ -547,6 +547,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
+                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -575,6 +576,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
+                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -605,6 +607,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
+                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,

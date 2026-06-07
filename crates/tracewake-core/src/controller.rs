@@ -329,6 +329,7 @@ mod tests {
         let mut human_context = PipelineContext {
             registry: &registry,
             state: &mut human_state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut human_log,
             controller_bindings: Some(&bindings),
             epistemic_projection: None,
@@ -349,6 +350,7 @@ mod tests {
         let mut scheduler_context = PipelineContext {
             registry: &registry,
             state: &mut scheduler_state,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut scheduler_log,
             controller_bindings: None,
             epistemic_projection: None,

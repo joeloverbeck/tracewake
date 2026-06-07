@@ -6,7 +6,7 @@ use crate::events::log::EventLog;
 use crate::events::EventStream;
 use crate::ids::{ContentManifestId, FixtureId};
 use crate::replay::rebuild::{diff_physical_state, rebuild_projection, Phase3AReplayFailure};
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReplayReport {
@@ -33,13 +33,20 @@ pub struct ReplayReport {
 
 pub fn run_replay(
     initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
     log: &EventLog,
     context: &ChecksumContext,
     expected_final_state: Option<&PhysicalState>,
     expected_checksum: Option<PhysicalChecksum>,
 ) -> ReplayReport {
     let initial_checksum = compute_physical_checksum(initial_state, context).checksum;
-    let rebuild = rebuild_projection(initial_state, log, context, expected_final_state);
+    let rebuild = rebuild_projection(
+        initial_state,
+        initial_agent_state,
+        log,
+        context,
+        expected_final_state,
+    );
     let diagnostic_event_count = log
         .events()
         .iter()
@@ -184,6 +191,7 @@ mod tests {
         let mut context = PipelineContext {
             registry: &registry,
             state: &mut live,
+            agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
             log: &mut log,
             controller_bindings: None,
             epistemic_projection: None,
@@ -201,6 +209,7 @@ mod tests {
 
         let report = run_replay(
             &initial,
+            &crate::state::AgentState::default(),
             &log,
             &context(),
             Some(&live),
@@ -220,6 +229,7 @@ mod tests {
 
         let report = run_replay(
             &initial,
+            &crate::state::AgentState::default(),
             &empty_log,
             &context(),
             Some(&live),
@@ -238,7 +248,14 @@ mod tests {
         event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
         let bad_log = event_log_from_events(vec![event]);
 
-        let report = run_replay(&initial, &bad_log, &context(), Some(&live), None);
+        let report = run_replay(
+            &initial,
+            &crate::state::AgentState::default(),
+            &bad_log,
+            &context(),
+            Some(&live),
+            None,
+        );
 
         assert!(!report.matches_expected);
         assert_eq!(report.unsupported_versions, ["event_schema_v999"]);
