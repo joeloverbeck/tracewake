@@ -87,7 +87,271 @@ pub struct PipelineResult {
     pub appended_events: Vec<EventEnvelope>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum PipelineDecision {
+    Accepted {
+        candidate_events: Vec<EventEnvelope>,
+        checked_facts: Vec<CheckedFact>,
+        would_mutate: bool,
+    },
+    Rejected(Box<ValidationReport>),
+}
+
+#[derive(Clone, Copy)]
+struct PipelineReadContext<'a> {
+    registry: &'a ActionRegistry,
+    state: &'a PhysicalState,
+    controller_bindings: Option<&'a ControllerBindings>,
+    epistemic_projection: Option<&'a EpistemicProjection>,
+    content_manifest_id: &'a ContentManifestId,
+    ordering_key: &'a OrderingKey,
+}
+
+pub fn validate_proposal(
+    registry: &ActionRegistry,
+    state: &PhysicalState,
+    controller_bindings: Option<&ControllerBindings>,
+    epistemic_projection: Option<&EpistemicProjection>,
+    content_manifest_id: &ContentManifestId,
+    ordering_key: &OrderingKey,
+    proposal: &Proposal,
+) -> ValidationReport {
+    let context = PipelineReadContext {
+        registry,
+        state,
+        controller_bindings,
+        epistemic_projection,
+        content_manifest_id,
+        ordering_key,
+    };
+    match decide_proposal(context, proposal) {
+        PipelineDecision::Accepted {
+            candidate_events,
+            checked_facts,
+            would_mutate,
+        } => accepted_report(proposal, checked_facts, would_mutate, candidate_events),
+        PipelineDecision::Rejected(report) => *report,
+    }
+}
+
 pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> PipelineResult {
+    let read_context = PipelineReadContext {
+        registry: context.registry,
+        state: context.state,
+        controller_bindings: context.controller_bindings,
+        epistemic_projection: context.epistemic_projection.as_deref(),
+        content_manifest_id: &context.content_manifest_id,
+        ordering_key: &context.ordering_key,
+    };
+    let decision = decide_proposal(read_context, proposal);
+    let (candidate_events, checked_facts, would_mutate) = match decision {
+        PipelineDecision::Accepted {
+            candidate_events,
+            checked_facts,
+            would_mutate,
+        } => (candidate_events, checked_facts, would_mutate),
+        PipelineDecision::Rejected(report) => {
+            let report = *report;
+            let event = append_rejection_event(context, proposal, &report);
+            return PipelineResult {
+                report,
+                appended_events: vec![event],
+            };
+        }
+    };
+
+    let definition = context
+        .registry
+        .get(&proposal.action_id)
+        .expect("accepted decision must have an action definition");
+
+    let mut appended_events = Vec::new();
+    for event in candidate_events {
+        let appended = match context.log.append(event) {
+            Ok(appended) => appended,
+            Err(_) => {
+                return reject_committed(
+                    context,
+                    proposal,
+                    PipelineStage::EventAppend,
+                    vec![ReasonCode::WorldStateMismatch],
+                    checked_facts,
+                    "The event could not be recorded.",
+                    "append-only log rejected the constructed event",
+                )
+            }
+        };
+        if apply_event(context.state, &appended).is_err() {
+            return reject_committed(
+                context,
+                proposal,
+                PipelineStage::EventApplication,
+                vec![ReasonCode::WorldStateMismatch],
+                checked_facts,
+                "The world state did not match that action.",
+                "event application rejected an event that passed dry-run",
+            );
+        }
+        if definition.effect == ActionEffect::CheckContainer {
+            let observation_event = build_observation_recorded_event(
+                &appended,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            );
+            let appended_observation = match context.log.append(observation_event) {
+                Ok(appended) => appended,
+                Err(_) => {
+                    return reject_committed(
+                        context,
+                        proposal,
+                        PipelineStage::KnowledgePerceptionPlaceholder,
+                        vec![ReasonCode::WorldStateMismatch],
+                        checked_facts,
+                        "The observation could not be recorded.",
+                        "append-only log rejected the epistemic observation event",
+                    )
+                }
+            };
+            appended_events.push(appended.clone());
+            appended_events.push(appended_observation.clone());
+            if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                if apply_epistemic_event(projection, &appended_observation).is_err() {
+                    return reject_committed(
+                        context,
+                        proposal,
+                        PipelineStage::KnowledgePerceptionPlaceholder,
+                        vec![ReasonCode::WorldStateMismatch],
+                        checked_facts,
+                        "The observation could not be applied.",
+                        "epistemic projection rejected the observation event",
+                    );
+                }
+                for event in build_absence_detection_events(
+                    projection,
+                    context.state,
+                    &appended,
+                    &appended_observation,
+                    &context.ordering_key,
+                    &context.content_manifest_id,
+                ) {
+                    let appended_detection = match context.log.append(event) {
+                        Ok(appended) => appended,
+                        Err(_) => {
+                            return reject_committed(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be recorded.",
+                                "append-only log rejected a contradiction/belief event",
+                            )
+                        }
+                    };
+                    if apply_epistemic_event(projection, &appended_detection).is_err() {
+                        return reject_committed(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The derived belief could not be applied.",
+                            "epistemic projection rejected a contradiction/belief event",
+                        );
+                    }
+                    appended_events.push(appended_detection);
+                }
+            }
+        } else if matches!(definition.effect, ActionEffect::Take | ActionEffect::Place) {
+            appended_events.push(appended.clone());
+            if let Some(sound_observation) = build_sound_observation_event(
+                context.state,
+                &appended,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            ) {
+                let appended_observation = match context.log.append(sound_observation) {
+                    Ok(appended) => appended,
+                    Err(_) => {
+                        return reject_committed(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The observation could not be recorded.",
+                            "append-only log rejected the sound observation event",
+                        )
+                    }
+                };
+                if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                    if apply_epistemic_event(projection, &appended_observation).is_err() {
+                        return reject_committed(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The observation could not be applied.",
+                            "epistemic projection rejected the sound observation event",
+                        );
+                    }
+                }
+                appended_events.push(appended_observation.clone());
+                if let Some(sound_belief) = build_sound_belief_event(
+                    &appended_observation,
+                    &context.ordering_key,
+                    &context.content_manifest_id,
+                ) {
+                    let appended_belief = match context.log.append(sound_belief) {
+                        Ok(appended) => appended,
+                        Err(_) => {
+                            return reject_committed(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be recorded.",
+                                "append-only log rejected the sound belief event",
+                            )
+                        }
+                    };
+                    if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                        if apply_epistemic_event(projection, &appended_belief).is_err() {
+                            return reject_committed(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be applied.",
+                                "epistemic projection rejected the sound belief event",
+                            );
+                        }
+                    }
+                    appended_events.push(appended_belief);
+                }
+            }
+        } else {
+            appended_events.push(appended);
+        }
+    }
+
+    let report = accepted_report(
+        proposal,
+        checked_facts,
+        would_mutate,
+        appended_events.clone(),
+    );
+
+    PipelineResult {
+        report,
+        appended_events,
+    }
+}
+
+fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> PipelineDecision {
     let mut checked_facts = vec![CheckedFact::new("action_id", proposal.action_id.as_str())];
 
     if let Some(result) = controller_binding_check(context, proposal, checked_facts.clone()) {
@@ -153,13 +417,12 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
     ));
     checked_facts.push(CheckedFact::new("pipeline_slots_9_11", "inert"));
 
-    let mut appended_events = Vec::new();
     let would_mutate = !matches!(definition.effect, ActionEffect::QueryOnly);
     if definition.effect == ActionEffect::QueryOnly
         && proposal.action_id.as_str() == "truthful_accuse_probe"
     {
-        let projection = context.epistemic_projection.as_deref();
-        if let Err(rejection) = validate_truthful_accuse_probe(context.state, projection, proposal)
+        if let Err(rejection) =
+            validate_truthful_accuse_probe(context.state, context.epistemic_projection, proposal)
         {
             return reject_action(context, proposal, rejection);
         }
@@ -169,48 +432,48 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
             ActionEffect::Move => build_move_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
             ),
             ActionEffect::Open => build_open_close_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
                 true,
             ),
             ActionEffect::Close => build_open_close_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
                 false,
             ),
             ActionEffect::Take => build_take_place_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
                 true,
             ),
             ActionEffect::Place => build_take_place_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
                 false,
             ),
             ActionEffect::Wait => build_wait_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
             ),
             ActionEffect::CheckContainer => build_check_container_event(
                 context.state,
                 proposal,
-                &context.ordering_key,
-                &context.content_manifest_id,
+                context.ordering_key,
+                context.content_manifest_id,
             ),
             ActionEffect::QueryOnly => unreachable!("would_mutate checked above"),
         };
@@ -232,182 +495,28 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 "dry-run event application rejected the constructed event",
             );
         }
-
-        let appended = match context.log.append(event) {
-            Ok(appended) => appended,
-            Err(_) => {
-                return reject(
-                    context,
-                    proposal,
-                    PipelineStage::EventAppend,
-                    vec![ReasonCode::WorldStateMismatch],
-                    checked_facts,
-                    "The event could not be recorded.",
-                    "append-only log rejected the constructed event",
-                )
-            }
+        return PipelineDecision::Accepted {
+            candidate_events: vec![event],
+            checked_facts,
+            would_mutate,
         };
-        if apply_event(context.state, &appended).is_err() {
-            return reject(
-                context,
-                proposal,
-                PipelineStage::EventApplication,
-                vec![ReasonCode::WorldStateMismatch],
-                checked_facts,
-                "The world state did not match that action.",
-                "event application rejected an event that passed dry-run",
-            );
-        }
-        if definition.effect == ActionEffect::CheckContainer {
-            let observation_event = build_observation_recorded_event(
-                &appended,
-                &context.ordering_key,
-                &context.content_manifest_id,
-            );
-            let appended_observation = match context.log.append(observation_event) {
-                Ok(appended) => appended,
-                Err(_) => {
-                    return reject(
-                        context,
-                        proposal,
-                        PipelineStage::KnowledgePerceptionPlaceholder,
-                        vec![ReasonCode::WorldStateMismatch],
-                        checked_facts,
-                        "The observation could not be recorded.",
-                        "append-only log rejected the epistemic observation event",
-                    )
-                }
-            };
-            appended_events.push(appended.clone());
-            appended_events.push(appended_observation.clone());
-            if let Some(projection) = context.epistemic_projection.as_deref_mut() {
-                if apply_epistemic_event(projection, &appended_observation).is_err() {
-                    return reject(
-                        context,
-                        proposal,
-                        PipelineStage::KnowledgePerceptionPlaceholder,
-                        vec![ReasonCode::WorldStateMismatch],
-                        checked_facts,
-                        "The observation could not be applied.",
-                        "epistemic projection rejected the observation event",
-                    );
-                }
-                for event in build_absence_detection_events(
-                    projection,
-                    context.state,
-                    &appended,
-                    &appended_observation,
-                    &context.ordering_key,
-                    &context.content_manifest_id,
-                ) {
-                    let appended_detection = match context.log.append(event) {
-                        Ok(appended) => appended,
-                        Err(_) => {
-                            return reject(
-                                context,
-                                proposal,
-                                PipelineStage::KnowledgePerceptionPlaceholder,
-                                vec![ReasonCode::WorldStateMismatch],
-                                checked_facts,
-                                "The derived belief could not be recorded.",
-                                "append-only log rejected a contradiction/belief event",
-                            )
-                        }
-                    };
-                    if apply_epistemic_event(projection, &appended_detection).is_err() {
-                        return reject(
-                            context,
-                            proposal,
-                            PipelineStage::KnowledgePerceptionPlaceholder,
-                            vec![ReasonCode::WorldStateMismatch],
-                            checked_facts,
-                            "The derived belief could not be applied.",
-                            "epistemic projection rejected a contradiction/belief event",
-                        );
-                    }
-                    appended_events.push(appended_detection);
-                }
-            }
-        } else if matches!(definition.effect, ActionEffect::Take | ActionEffect::Place) {
-            appended_events.push(appended.clone());
-            if let Some(sound_observation) = build_sound_observation_event(
-                context.state,
-                &appended,
-                &context.ordering_key,
-                &context.content_manifest_id,
-            ) {
-                let appended_observation = match context.log.append(sound_observation) {
-                    Ok(appended) => appended,
-                    Err(_) => {
-                        return reject(
-                            context,
-                            proposal,
-                            PipelineStage::KnowledgePerceptionPlaceholder,
-                            vec![ReasonCode::WorldStateMismatch],
-                            checked_facts,
-                            "The observation could not be recorded.",
-                            "append-only log rejected the sound observation event",
-                        )
-                    }
-                };
-                if let Some(projection) = context.epistemic_projection.as_deref_mut() {
-                    if apply_epistemic_event(projection, &appended_observation).is_err() {
-                        return reject(
-                            context,
-                            proposal,
-                            PipelineStage::KnowledgePerceptionPlaceholder,
-                            vec![ReasonCode::WorldStateMismatch],
-                            checked_facts,
-                            "The observation could not be applied.",
-                            "epistemic projection rejected the sound observation event",
-                        );
-                    }
-                }
-                appended_events.push(appended_observation.clone());
-                if let Some(sound_belief) = build_sound_belief_event(
-                    &appended_observation,
-                    &context.ordering_key,
-                    &context.content_manifest_id,
-                ) {
-                    let appended_belief = match context.log.append(sound_belief) {
-                        Ok(appended) => appended,
-                        Err(_) => {
-                            return reject(
-                                context,
-                                proposal,
-                                PipelineStage::KnowledgePerceptionPlaceholder,
-                                vec![ReasonCode::WorldStateMismatch],
-                                checked_facts,
-                                "The derived belief could not be recorded.",
-                                "append-only log rejected the sound belief event",
-                            )
-                        }
-                    };
-                    if let Some(projection) = context.epistemic_projection.as_deref_mut() {
-                        if apply_epistemic_event(projection, &appended_belief).is_err() {
-                            return reject(
-                                context,
-                                proposal,
-                                PipelineStage::KnowledgePerceptionPlaceholder,
-                                vec![ReasonCode::WorldStateMismatch],
-                                checked_facts,
-                                "The derived belief could not be applied.",
-                                "epistemic projection rejected the sound belief event",
-                            );
-                        }
-                    }
-                    appended_events.push(appended_belief);
-                }
-            }
-        } else {
-            appended_events.push(appended);
-        }
     }
-    let event_ids = appended_events
-        .iter()
-        .map(|event| event.event_id.clone())
-        .collect();
-    let report = ValidationReport {
+
+    PipelineDecision::Accepted {
+        candidate_events: Vec::new(),
+        checked_facts,
+        would_mutate,
+    }
+}
+
+fn accepted_report(
+    proposal: &Proposal,
+    checked_facts: Vec<CheckedFact>,
+    would_mutate: bool,
+    events: Vec<EventEnvelope>,
+) -> ValidationReport {
+    let event_ids = events.iter().map(|event| event.event_id.clone()).collect();
+    ValidationReport {
         validation_report_id: report_id(proposal),
         proposal_id: proposal.proposal_id.clone(),
         actor_id: proposal.actor_id.clone(),
@@ -423,19 +532,14 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         event_ids,
         checksum_before: None,
         checksum_after: None,
-    };
-
-    PipelineResult {
-        report,
-        appended_events,
     }
 }
 
 fn controller_binding_check(
-    context: &mut PipelineContext<'_>,
+    context: PipelineReadContext<'_>,
     proposal: &Proposal,
     checked_facts: Vec<CheckedFact>,
-) -> Option<PipelineResult> {
+) -> Option<PipelineDecision> {
     if proposal.origin != ProposalOrigin::Human {
         return None;
     }
@@ -502,10 +606,10 @@ fn controller_binding_check(
 }
 
 fn reject_action(
-    context: &mut PipelineContext<'_>,
+    context: PipelineReadContext<'_>,
     proposal: &Proposal,
     rejection: ActionRejection,
-) -> PipelineResult {
+) -> PipelineDecision {
     reject(
         context,
         proposal,
@@ -518,6 +622,25 @@ fn reject_action(
 }
 
 fn reject(
+    _context: PipelineReadContext<'_>,
+    proposal: &Proposal,
+    failed_stage: PipelineStage,
+    reason_codes: Vec<ReasonCode>,
+    checked_facts: Vec<CheckedFact>,
+    actor_visible_summary: impl Into<String>,
+    debug_summary: impl Into<String>,
+) -> PipelineDecision {
+    PipelineDecision::Rejected(Box::new(rejection_report(
+        proposal,
+        failed_stage,
+        reason_codes,
+        checked_facts,
+        actor_visible_summary,
+        debug_summary,
+    )))
+}
+
+fn reject_committed(
     context: &mut PipelineContext<'_>,
     proposal: &Proposal,
     failed_stage: PipelineStage,
@@ -526,9 +649,32 @@ fn reject(
     actor_visible_summary: impl Into<String>,
     debug_summary: impl Into<String>,
 ) -> PipelineResult {
+    let report = rejection_report(
+        proposal,
+        failed_stage,
+        reason_codes,
+        checked_facts,
+        actor_visible_summary,
+        debug_summary,
+    );
+    let event = append_rejection_event(context, proposal, &report);
+    PipelineResult {
+        report,
+        appended_events: vec![event],
+    }
+}
+
+fn rejection_report(
+    proposal: &Proposal,
+    failed_stage: PipelineStage,
+    reason_codes: Vec<ReasonCode>,
+    checked_facts: Vec<CheckedFact>,
+    actor_visible_summary: impl Into<String>,
+    debug_summary: impl Into<String>,
+) -> ValidationReport {
     let report_id = report_id(proposal);
     let event_id = rejection_event_id(proposal);
-    let report = ValidationReport {
+    ValidationReport {
         validation_report_id: report_id.clone(),
         proposal_id: proposal.proposal_id.clone(),
         actor_id: proposal.actor_id.clone(),
@@ -544,7 +690,15 @@ fn reject(
         event_ids: vec![event_id.clone()],
         checksum_before: None,
         checksum_after: None,
-    };
+    }
+}
+
+fn append_rejection_event(
+    context: &mut PipelineContext<'_>,
+    proposal: &Proposal,
+    report: &ValidationReport,
+) -> EventEnvelope {
+    let event_id = rejection_event_id(proposal);
 
     let mut event = EventEnvelope::new_v1(
         event_id,
@@ -557,19 +711,16 @@ fn reject(
     );
     event.actor_id = proposal.actor_id.clone();
     event.proposal_id = Some(proposal.proposal_id.clone());
-    event.validation_report_id = Some(report_id);
-    event.payload = reason_codes
+    event.validation_report_id = Some(report.validation_report_id.clone());
+    event.payload = report
+        .reason_codes
         .iter()
         .map(|code| PayloadField::new("reason_code", code.stable_id()))
         .collect();
     event.effects_summary = "rejected before world mutation".to_string();
 
     let _ = context.log.append(event.clone());
-
-    PipelineResult {
-        report,
-        appended_events: vec![event],
-    }
+    event
 }
 
 fn report_id(proposal: &Proposal) -> ValidationReportId {
@@ -835,6 +986,61 @@ mod tests {
         state
     }
 
+    fn content_manifest_id() -> ContentManifestId {
+        ContentManifestId::new("phase2a_manifest").unwrap()
+    }
+
+    fn phase2a_registry() -> ActionRegistry {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_movement_open_close();
+        registry.register_phase1_inspect_wait();
+        registry.register_phase2a_epistemics();
+        registry
+    }
+
+    fn check_container_proposal(proposal_id: &str) -> Proposal {
+        let mut proposal = Proposal::new(
+            ProposalId::new(proposal_id).unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            action_id("check_container"),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push("strongbox_tomas".to_string());
+        proposal
+    }
+
+    fn move_proposal(proposal_id: &str) -> Proposal {
+        let mut proposal = Proposal::new(
+            ProposalId::new(proposal_id).unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            action_id("move"),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push("back_room".to_string());
+        proposal
+    }
+
+    fn committed_report_for(
+        registry: &ActionRegistry,
+        state: &mut PhysicalState,
+        proposal: &Proposal,
+    ) -> ValidationReport {
+        let mut log = EventLog::new();
+        let mut projection = EpistemicProjection::new(content_manifest_id());
+        let mut context = PipelineContext {
+            registry,
+            state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: Some(&mut projection),
+            content_manifest_id: content_manifest_id(),
+            ordering_key: ordering_key(),
+        };
+        run_pipeline(&mut context, proposal).report
+    }
+
     #[test]
     fn same_proposal_validates_same_for_human_and_scheduler_origin() {
         let mut registry = ActionRegistry::new();
@@ -885,6 +1091,125 @@ mod tests {
         assert_eq!(human.report.would_mutate, scheduler.report.would_mutate);
         assert_eq!(human.appended_events.len(), scheduler.appended_events.len());
         assert_eq!(human_state, scheduler_state);
+    }
+
+    #[test]
+    fn validate_proposal_matches_committed_rejection_for_closed_container() {
+        let registry = phase2a_registry();
+        let state = {
+            let mut state = check_state();
+            state
+                .containers
+                .get_mut(&crate::ids::ContainerId::new("strongbox_tomas").unwrap())
+                .unwrap()
+                .is_open = false;
+            state
+        };
+        let proposal = check_container_proposal("proposal_closed_container");
+
+        let preflight = validate_proposal(
+            &registry,
+            &state,
+            None,
+            None,
+            &content_manifest_id(),
+            &ordering_key(),
+            &proposal,
+        );
+        let committed = committed_report_for(&registry, &mut state.clone(), &proposal);
+
+        assert_eq!(preflight.status, ReportStatus::Rejected);
+        assert_eq!(preflight.reason_codes, vec![ReasonCode::ContainerClosed]);
+        assert_eq!(preflight.actor_visible_summary, "The container is closed.");
+        assert_eq!(preflight, committed);
+    }
+
+    #[test]
+    fn validate_proposal_matches_committed_rejection_for_closed_door() {
+        let registry = phase2a_registry();
+        let state = door_state();
+        let proposal = move_proposal("proposal_closed_door");
+
+        let preflight = validate_proposal(
+            &registry,
+            &state,
+            None,
+            None,
+            &content_manifest_id(),
+            &ordering_key(),
+            &proposal,
+        );
+        let committed = committed_report_for(&registry, &mut state.clone(), &proposal);
+
+        assert_eq!(preflight.status, ReportStatus::Rejected);
+        assert_eq!(
+            preflight.reason_codes,
+            vec![ReasonCode::DoorClosedBlocksMovement]
+        );
+        assert_eq!(preflight.actor_visible_summary, "The door is closed.");
+        assert_eq!(preflight, committed);
+    }
+
+    #[test]
+    fn validate_proposal_does_not_commit_or_mutate_state_log_or_epistemics() {
+        let registry = phase2a_registry();
+        let state = check_state();
+        let log = EventLog::new();
+        let projection = EpistemicProjection::new(content_manifest_id());
+        let before_state = state.clone();
+        let before_log_len = log.events().len();
+        let before_projection = projection.clone();
+
+        let accepted_check = check_container_proposal("proposal_accept_check");
+        let accepted_wait = Proposal::new(
+            ProposalId::new("proposal_accept_wait").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            action_id("wait"),
+            SimTick::ZERO,
+        );
+        let mut rejected_state = state.clone();
+        rejected_state
+            .containers
+            .get_mut(&crate::ids::ContainerId::new("strongbox_tomas").unwrap())
+            .unwrap()
+            .is_open = false;
+        let rejected_check = check_container_proposal("proposal_reject_check");
+
+        let accepted_check_report = validate_proposal(
+            &registry,
+            &state,
+            None,
+            Some(&projection),
+            &content_manifest_id(),
+            &ordering_key(),
+            &accepted_check,
+        );
+        let accepted_wait_report = validate_proposal(
+            &registry,
+            &state,
+            None,
+            Some(&projection),
+            &content_manifest_id(),
+            &ordering_key(),
+            &accepted_wait,
+        );
+        let rejected_check_report = validate_proposal(
+            &registry,
+            &rejected_state,
+            None,
+            Some(&projection),
+            &content_manifest_id(),
+            &ordering_key(),
+            &rejected_check,
+        );
+
+        assert_eq!(accepted_check_report.status, ReportStatus::Accepted);
+        assert_eq!(accepted_wait_report.status, ReportStatus::Accepted);
+        assert_eq!(rejected_check_report.status, ReportStatus::Rejected);
+        assert_eq!(state, before_state);
+        assert_eq!(log.events().len(), before_log_len);
+        assert_eq!(projection, before_projection);
     }
 
     #[test]

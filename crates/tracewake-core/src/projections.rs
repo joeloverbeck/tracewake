@@ -1,8 +1,14 @@
-use crate::actions::report::ValidationReport;
+use crate::actions::{
+    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ReportStatus, ValidationReport,
+};
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
-use crate::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
+use crate::ids::{
+    ActionId, ActorId, ContentManifestId, ControllerId, ItemId, PlaceId, ProposalId,
+    SemanticActionId, ViewModelId,
+};
 use crate::location::{visible_locality, Location};
+use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::PhysicalState;
 use crate::time::SimTick;
 use crate::view_models::{
@@ -20,6 +26,8 @@ pub enum ProjectionError {
 
 pub fn build_embodied_view_model(
     state: &PhysicalState,
+    registry: &ActionRegistry,
+    content_manifest_id: &ContentManifestId,
     viewer_actor_id: &ActorId,
     sim_tick: SimTick,
     last_rejection: Option<&ValidationReport>,
@@ -113,7 +121,15 @@ pub fn build_embodied_view_model(
         .collect::<Vec<_>>();
     local_actors.sort();
 
+    let preflight_context = SemanticActionPreflightContext {
+        state,
+        registry,
+        content_manifest_id,
+        viewer_actor_id,
+        sim_tick,
+    };
     let mut semantic_actions = semantic_actions(
+        &preflight_context,
         &visible_exits,
         &visible_doors,
         &visible_containers,
@@ -150,12 +166,21 @@ pub fn build_embodied_view_model(
 
 pub fn build_embodied_view_model_with_notebook(
     state: &PhysicalState,
+    registry: &ActionRegistry,
+    content_manifest_id: &ContentManifestId,
     viewer_actor_id: &ActorId,
     sim_tick: SimTick,
     last_rejection: Option<&ValidationReport>,
     projection: &EpistemicProjection,
 ) -> Result<EmbodiedViewModel, ProjectionError> {
-    let mut view = build_embodied_view_model(state, viewer_actor_id, sim_tick, last_rejection)?;
+    let mut view = build_embodied_view_model(
+        state,
+        registry,
+        content_manifest_id,
+        viewer_actor_id,
+        sim_tick,
+        last_rejection,
+    )?;
     let context = KnowledgeContext::embodied(viewer_actor_id.clone(), sim_tick);
     view.knowledge_context_id = Some(format!(
         "knowledge.{}.{}",
@@ -249,7 +274,17 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
     }
 }
 
+#[derive(Clone, Copy)]
+struct SemanticActionPreflightContext<'a> {
+    state: &'a PhysicalState,
+    registry: &'a ActionRegistry,
+    content_manifest_id: &'a ContentManifestId,
+    viewer_actor_id: &'a ActorId,
+    sim_tick: SimTick,
+}
+
 fn semantic_actions(
+    preflight: &SemanticActionPreflightContext<'_>,
     visible_exits: &[VisibleExit],
     visible_doors: &[VisibleDoor],
     visible_containers: &[VisibleContainer],
@@ -257,64 +292,79 @@ fn semantic_actions(
     carried_items: &[ItemId],
 ) -> Vec<SemanticActionEntry> {
     let mut actions = Vec::new();
-    actions.push(SemanticActionEntry::new(
-        SemanticActionId::new("wait.1_tick").unwrap(),
-        ActionId::new("wait").unwrap(),
-        vec!["1_tick".to_string()],
-        "Wait",
-        true,
-        None,
+    actions.push(with_validator_availability(
+        SemanticActionEntry::new(
+            SemanticActionId::new("wait.1_tick").unwrap(),
+            ActionId::new("wait").unwrap(),
+            vec!["1_tick".to_string()],
+            "Wait",
+            true,
+            None,
+        ),
+        preflight,
     ));
 
     for exit in visible_exits {
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("move.to.{}", exit.destination_place_id.as_str()))
-                .unwrap(),
-            ActionId::new("move").unwrap(),
-            vec![exit.destination_place_id.to_string()],
-            format!("Move to {}", exit.destination_place_id.as_str()),
-            true,
-            None,
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!("move.to.{}", exit.destination_place_id.as_str()))
+                    .unwrap(),
+                ActionId::new("move").unwrap(),
+                vec![exit.destination_place_id.to_string()],
+                format!("Move to {}", exit.destination_place_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
     }
 
     for door in visible_doors {
         let action = if door.is_open { "close" } else { "open" };
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("{action}.door.{}", door.door_id.as_str())).unwrap(),
-            ActionId::new(action).unwrap(),
-            vec![door.door_id.to_string()],
-            format!("{action} {}", door.door_id.as_str()),
-            !door.is_locked,
-            door.is_locked.then(|| "locked".to_string()),
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!("{action}.door.{}", door.door_id.as_str())).unwrap(),
+                ActionId::new(action).unwrap(),
+                vec![door.door_id.to_string()],
+                format!("{action} {}", door.door_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
     }
 
     for container in visible_containers {
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!(
-                "check.container.{}",
-                container.container_id.as_str()
-            ))
-            .unwrap(),
-            ActionId::new("check_container").unwrap(),
-            vec![container.container_id.to_string()],
-            format!("Check {}", container.container_id.as_str()),
-            true,
-            None,
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!(
+                    "check.container.{}",
+                    container.container_id.as_str()
+                ))
+                .unwrap(),
+                ActionId::new("check_container").unwrap(),
+                vec![container.container_id.to_string()],
+                format!("Check {}", container.container_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
         let action = if container.is_open { "close" } else { "open" };
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!(
-                "{action}.container.{}",
-                container.container_id.as_str()
-            ))
-            .unwrap(),
-            ActionId::new(action).unwrap(),
-            vec![container.container_id.to_string()],
-            format!("{action} {}", container.container_id.as_str()),
-            !container.is_locked,
-            container.is_locked.then(|| "locked".to_string()),
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!(
+                    "{action}.container.{}",
+                    container.container_id.as_str()
+                ))
+                .unwrap(),
+                ActionId::new(action).unwrap(),
+                vec![container.container_id.to_string()],
+                format!("{action} {}", container.container_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
     }
 
@@ -324,40 +374,126 @@ fn semantic_actions(
             VisibleItemSource::Container(container_id) => container_id.to_string(),
             VisibleItemSource::Carried => "carried".to_string(),
         };
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!(
-                "take.item.{}.from.{source_label}",
-                item.item_id.as_str()
-            ))
-            .unwrap(),
-            ActionId::new("take").unwrap(),
-            vec![item.item_id.to_string()],
-            format!("Take {}", item.item_id.as_str()),
-            item.portable,
-            (!item.portable).then(|| "not portable".to_string()),
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!(
+                    "take.item.{}.from.{source_label}",
+                    item.item_id.as_str()
+                ))
+                .unwrap(),
+                ActionId::new("take").unwrap(),
+                vec![item.item_id.to_string()],
+                format!("Take {}", item.item_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("inspect.item.{}", item.item_id.as_str())).unwrap(),
-            ActionId::new("inspect_entity").unwrap(),
-            vec![item.item_id.to_string()],
-            format!("Inspect {}", item.item_id.as_str()),
-            true,
-            None,
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!("inspect.item.{}", item.item_id.as_str())).unwrap(),
+                ActionId::new("inspect_entity").unwrap(),
+                vec![item.item_id.to_string()],
+                format!("Inspect {}", item.item_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
     }
 
     for item_id in carried_items {
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("place.item.{}.at.place", item_id.as_str())).unwrap(),
-            ActionId::new("place").unwrap(),
-            vec![item_id.to_string()],
-            format!("Place {}", item_id.as_str()),
-            true,
-            None,
+        actions.push(with_validator_availability(
+            SemanticActionEntry::new(
+                SemanticActionId::new(format!("place.item.{}.at.place", item_id.as_str())).unwrap(),
+                ActionId::new("place").unwrap(),
+                vec![item_id.to_string()],
+                format!("Place {}", item_id.as_str()),
+                true,
+                None,
+            ),
+            preflight,
         ));
     }
 
     actions
+}
+
+fn with_validator_availability(
+    entry: SemanticActionEntry,
+    preflight: &SemanticActionPreflightContext<'_>,
+) -> SemanticActionEntry {
+    let proposal = proposal_from_semantic_action_entry(
+        ProposalId::new(format!(
+            "proposal.preflight.{}",
+            entry.semantic_action_id.as_str()
+        ))
+        .unwrap(),
+        ProposalOrigin::Test,
+        Some(preflight.viewer_actor_id.clone()),
+        preflight.sim_tick,
+        &entry,
+        None,
+        None,
+    );
+    let ordering_key = OrderingKey::new(
+        preflight.sim_tick,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(preflight.viewer_actor_id.clone()),
+        ProposalSequence::new(0),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let report = validate_proposal(
+        preflight.registry,
+        preflight.state,
+        None,
+        None,
+        preflight.content_manifest_id,
+        &ordering_key,
+        &proposal,
+    );
+    let enabled = report.status == ReportStatus::Accepted;
+    SemanticActionEntry::new(
+        entry.semantic_action_id,
+        entry.action_id,
+        entry.target_ids,
+        entry.label,
+        enabled,
+        (!enabled).then_some(report.actor_visible_summary),
+    )
+}
+
+pub fn proposal_from_semantic_action_entry(
+    proposal_id: ProposalId,
+    origin: ProposalOrigin,
+    actor_id: Option<ActorId>,
+    requested_tick: SimTick,
+    entry: &SemanticActionEntry,
+    source_view_model_id: Option<ViewModelId>,
+    controller_id: Option<&ControllerId>,
+) -> Proposal {
+    let mut proposal = Proposal::new(
+        proposal_id,
+        origin,
+        actor_id,
+        entry.action_id.clone(),
+        requested_tick,
+    );
+    proposal.target_ids = entry.target_ids.clone();
+    proposal.source_view_model_id = source_view_model_id;
+    if let Some(controller_id) = controller_id {
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), controller_id.to_string());
+    }
+    if entry.semantic_action_id.as_str() == "wait.1_tick" {
+        proposal
+            .parameters
+            .insert("ticks".to_string(), "1".to_string());
+    }
+    proposal
 }
 
 #[cfg(test)]
@@ -390,6 +526,31 @@ mod tests {
 
     fn event_id(value: &str) -> crate::ids::EventId {
         crate::ids::EventId::new(value).unwrap()
+    }
+
+    fn content_manifest_id() -> ContentManifestId {
+        ContentManifestId::new("phase2a_manifest").unwrap()
+    }
+
+    fn registry() -> ActionRegistry {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_movement_open_close();
+        registry.register_phase1_take_place();
+        registry.register_phase1_inspect_wait();
+        registry.register_phase2a_epistemics();
+        registry
+    }
+
+    fn view_for(state: &PhysicalState) -> EmbodiedViewModel {
+        build_embodied_view_model(
+            state,
+            &registry(),
+            &content_manifest_id(),
+            &actor_id("actor_tomas"),
+            SimTick::new(1),
+            None,
+        )
+        .unwrap()
     }
 
     fn state() -> PhysicalState {
@@ -450,9 +611,7 @@ mod tests {
 
     #[test]
     fn embodied_projection_excludes_hidden_and_debug_truth() {
-        let view =
-            build_embodied_view_model(&state(), &actor_id("actor_tomas"), SimTick::new(1), None)
-                .unwrap();
+        let view = view_for(&state());
 
         assert!(view
             .visible_containers
@@ -476,12 +635,8 @@ mod tests {
 
     #[test]
     fn semantic_actions_are_target_specific_and_deterministic() {
-        let first =
-            build_embodied_view_model(&state(), &actor_id("actor_tomas"), SimTick::new(1), None)
-                .unwrap();
-        let second =
-            build_embodied_view_model(&state(), &actor_id("actor_tomas"), SimTick::new(1), None)
-                .unwrap();
+        let first = view_for(&state());
+        let second = view_for(&state());
 
         assert_eq!(first.semantic_actions, second.semantic_actions);
         assert!(first
@@ -515,9 +670,7 @@ mod tests {
             .contents
             .remove(&item_id("coin_stack_01"));
 
-        let view =
-            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::new(1), None)
-                .unwrap();
+        let view = view_for(&state);
 
         assert!(!view
             .visible_items
@@ -549,9 +702,7 @@ mod tests {
             .unwrap()
             .is_open = true;
 
-        let view =
-            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::new(1), None)
-                .unwrap();
+        let view = view_for(&state);
 
         assert!(view
             .semantic_actions
@@ -570,6 +721,65 @@ mod tests {
                 .iter()
                 .any(|entry| entry.semantic_action_id.as_str()
                     == "take.item.loose_coin_01.from.place")
+        );
+    }
+
+    #[test]
+    fn closed_opaque_container_check_is_disabled_with_validator_reason() {
+        let view = view_for(&state());
+        let entry = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "check.container.strongbox_tomas")
+            .unwrap();
+
+        assert!(!entry.enabled);
+        assert_eq!(
+            entry.why_disabled.as_deref(),
+            Some("The container is closed.")
+        );
+    }
+
+    #[test]
+    fn closed_blocking_door_move_is_disabled_with_validator_reason() {
+        let mut state = state();
+        state
+            .doors
+            .get_mut(&DoorId::new("door_shop_back").unwrap())
+            .unwrap()
+            .is_open = false;
+
+        let view = view_for(&state);
+        let entry = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "move.to.back_room")
+            .unwrap();
+
+        assert!(!entry.enabled);
+        assert_eq!(entry.why_disabled.as_deref(), Some("The door is closed."));
+    }
+
+    #[test]
+    fn locked_container_check_is_disabled_with_validator_reason() {
+        let mut state = state();
+        state
+            .containers
+            .get_mut(&container_id("strongbox_tomas"))
+            .unwrap()
+            .is_locked = true;
+
+        let view = view_for(&state);
+        let entry = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "check.container.strongbox_tomas")
+            .unwrap();
+
+        assert!(!entry.enabled);
+        assert_eq!(
+            entry.why_disabled.as_deref(),
+            Some("The container is locked.")
         );
     }
 
@@ -677,6 +887,8 @@ mod tests {
         let projection = projection_with_missing_coin_belief();
         let view = build_embodied_view_model_with_notebook(
             &state(),
+            &registry(),
+            &content_manifest_id(),
             &actor_id("actor_tomas"),
             SimTick::new(4),
             None,

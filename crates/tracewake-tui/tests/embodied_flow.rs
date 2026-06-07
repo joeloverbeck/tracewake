@@ -25,6 +25,10 @@ fn bind_render_submit_rerender_and_show_why_not() {
     door_app
         .bind_actor(ActorId::new("actor_sena").unwrap())
         .unwrap();
+    let pre_submit = door_app.render_current_view().unwrap();
+    assert!(pre_submit.contains("move.to.back_room"));
+    assert!(pre_submit.contains("disabled: The door is closed."));
+
     let rejected = door_app
         .submit_semantic_action(&SemanticActionId::new("move.to.back_room").unwrap())
         .unwrap();
@@ -33,6 +37,7 @@ fn bind_render_submit_rerender_and_show_why_not() {
     let why_not = door_app.render_current_view().unwrap();
     assert!(why_not.contains("Why-not:"));
     assert!(why_not.contains(&rejected.report.actor_visible_summary));
+    assert!(pre_submit.contains(&rejected.report.actor_visible_summary));
 }
 
 #[test]
