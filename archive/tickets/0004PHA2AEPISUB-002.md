@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-002: Observation, belief, and contradiction records
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds observation/belief/contradiction record types to the `tracewake-core` `epistemics` module.
@@ -87,3 +87,21 @@ Extend `crates/tracewake-core/src/epistemics/mod.rs` with `pub mod observation; 
 1. `cargo test -p tracewake-core epistemics::`
 2. `cargo build --workspace`
 3. Core-crate unit scope is correct: these records have no cross-crate consumers until events (004) and content (012) land.
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added distinct `Observation`, `Belief`, and `Contradiction` record types in `tracewake-core::epistemics`.
+- Added channel, holder, stance, confidence, source, tick-window, subject/target, privacy-scope, and contradiction-kind vocabulary needed by later Phase 2A tickets.
+- Added a checked `BeliefDraft::build` path proving missing holder/source records fail construction, while the concrete `Belief` type remains holder-keyed and source-backed.
+- Added unit tests covering sound observation alternatives/low confidence, observation-not-belief separation, belief provenance requirements, deterministic confidence encoding, and contradiction links.
+
+Deviations from original plan:
+- None. Records remain core-only substrate types; projection storage and event application are still deferred to their tickets.
+
+Verification results:
+- `cargo test -p tracewake-core epistemics::`
+- `cargo build --workspace`
+- `cargo fmt --all --check`
