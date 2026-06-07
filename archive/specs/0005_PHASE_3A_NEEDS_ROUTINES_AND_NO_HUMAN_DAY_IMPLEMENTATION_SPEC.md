@@ -1,6 +1,6 @@
 # Spec 0005 — Phase 3A: Needs, Routines, and No-Human Day
 
-**Status:** Draft implementation specification  
+**Status:** COMPLETED  
 **Repository:** `joeloverbeck/tracewake`  
 **Target commit analyzed:** `8fa8d1b473be848a879457d9a5dd06a2c86e24b3`  
 **Filename:** `0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md`  
@@ -1710,3 +1710,18 @@ Implement Phase 3A as a narrow ordinary-life substrate. Do not write story syste
 The acceptance bar is simple and brutal:
 
 > Run the no-human day. Replay it. Inspect Mara. Explain the missing food. Explain the blocked workplace or bed. Prove nobody teleported. Prove nobody used hidden truth. Prove possession did not reset intention. Prove every stuck actor is named and diagnosed.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Spec 0005 landed as Phase 3A only. The implementation added bounded needs, routine/intention structures, ordinary sleep/eat/work/continue/wait action families through the shared pipeline, Phase 3A content schema and validation, action/guard/canonical fixtures, no-human day runner/metrics, replay/debug projections, embodied needs/routine status, non-diegetic Phase 3A debug panels, README documentation, and capstone acceptance evidence. The `speak minimally` Phase 3 gate and broader Phase 3B/4 systems remain deferred as documented in `docs/4-specs/SPEC_LEDGER.md`.
+
+Deviation: full Phase 3 is not marked complete; this archive closes only the Phase 3A ordinary-life substrate described by this spec.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace`

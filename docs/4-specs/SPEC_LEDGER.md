@@ -99,7 +99,7 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 ### Spec 0005 — Phase 3A Needs, Routines, and No-Human Day
 
 - **Status:** Phase 3A landed (2026-06-07).
-- **Spec file:** `specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md` until archived with the completed implementation package.
+- **Spec file:** `archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md`.
 - **Phase:** Phase 3A only; this is a narrow ordinary-life substrate, not full Phase 3.
 - **Required result:** bounded hunger/fatigue/safety needs, durable intentions, defeasible routines, sleep/eat/work/continue/wait ordinary actions through the shared pipeline, no-human day runner and metrics, action/guard/canonical fixtures, replay/debug reports, embodied needs/routine surface, non-diegetic Phase 3A debug panels, README runbook updates, and capstone acceptance evidence.
 - **Exit evidence:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`, and the Phase 3A golden/content/TUI capstone tests from `0005PHA3ANEEROU-025`.
