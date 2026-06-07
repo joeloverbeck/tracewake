@@ -1031,7 +1031,20 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let metrics = no_human_day_metrics(&log);
     assert_eq!(metrics.projection_version, "no_human_day_metrics_v1");
     assert!(metrics.events_per_day > 0);
-    assert!(metrics.routine_event_count > 0);
+    assert_eq!(
+        metrics.routine_event_count,
+        log.events()
+            .iter()
+            .filter(|event| matches!(
+                event.event_type,
+                EventKind::RoutineStepStarted
+                    | EventKind::RoutineStepCompleted
+                    | EventKind::RoutineStepFailed
+                    | EventKind::ContinueRoutineAccepted
+                    | EventKind::ContinueRoutineRejected
+            ))
+            .count()
+    );
     assert!(metrics.meals_completed > 0);
     assert!(metrics.meals_missed > 0);
     assert!(metrics.sleep_completed > 0);

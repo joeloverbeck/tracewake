@@ -160,7 +160,6 @@ fn is_routine_event(kind: EventKind) -> bool {
         EventKind::RoutineStepStarted
             | EventKind::RoutineStepCompleted
             | EventKind::RoutineStepFailed
-            | EventKind::ContinueRoutineProposed
             | EventKind::ContinueRoutineAccepted
             | EventKind::ContinueRoutineRejected
     )
@@ -1439,7 +1438,6 @@ mod tests {
                     EventKind::RoutineStepStarted
                         | EventKind::RoutineStepCompleted
                         | EventKind::RoutineStepFailed
-                        | EventKind::ContinueRoutineProposed
                         | EventKind::ContinueRoutineAccepted
                         | EventKind::ContinueRoutineRejected
                 ))
@@ -1505,6 +1503,21 @@ mod tests {
             metrics.player_conditioned_event_rate_per_1000,
             (metrics.player_conditioned_event_count as u64 * 1000) / metrics.events_per_day as u64
         );
+    }
+
+    #[test]
+    fn continue_routine_marker_alone_counts_as_no_behavioral_progress() {
+        let mut log = EventLog::new();
+        append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
+        append_metric_event(&mut log, EventKind::ContinueRoutineProposed, 1, 1);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 2, 2);
+
+        let metrics = no_human_day_metrics(&log);
+
+        assert_eq!(metrics.routine_event_count, 0);
+        assert_eq!(metrics.meals_completed, 0);
+        assert_eq!(metrics.sleep_completed, 0);
+        assert_eq!(metrics.work_blocks_completed, 0);
     }
 
     #[test]

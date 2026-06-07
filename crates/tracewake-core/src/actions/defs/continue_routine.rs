@@ -81,6 +81,7 @@ pub fn build_continue_routine_event(
         PayloadField::new("next_action_id", next_action_id.as_str()),
         PayloadField::new("routes_through_shared_pipeline", "true"),
         PayloadField::new("intention_mutated", "false"),
+        PayloadField::new("behavioral_progress", "false"),
     ];
     if let Some(routine_execution_id) = routine_execution_id {
         event.payload.push(PayloadField::new(
@@ -88,7 +89,9 @@ pub fn build_continue_routine_event(
             routine_execution_id.as_str(),
         ));
     }
-    event.effects_summary = "continue routine proposed next ordinary action".to_string();
+    event.effects_summary =
+        "continue routine marker only; behavioral progress requires next ordinary action"
+            .to_string();
     Ok(event)
 }
 
@@ -177,7 +180,7 @@ mod tests {
     use crate::events::EventKind;
     use crate::ids::{ActorId, ControllerId, PlaceId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, ControllerMode};
+    use crate::state::{ActorBody, ControllerMode, PlaceState};
     use crate::time::SimTick;
 
     fn actor_id() -> ActorId {
@@ -186,10 +189,17 @@ mod tests {
 
     fn state() -> PhysicalState {
         let mut state = PhysicalState::default();
-        state.actors.insert(
-            actor_id(),
-            ActorBody::new(actor_id(), PlaceId::new("office").unwrap()),
-        );
+        let office_id = PlaceId::new("office").unwrap();
+        let hallway_id = PlaceId::new("hallway").unwrap();
+        let mut office = PlaceState::new(office_id.clone(), "Office");
+        office.adjacent_place_ids.insert(hallway_id.clone());
+        let mut hallway = PlaceState::new(hallway_id.clone(), "Hallway");
+        hallway.adjacent_place_ids.insert(office_id.clone());
+        state.places.insert(office_id.clone(), office);
+        state.places.insert(hallway_id, hallway);
+        state
+            .actors
+            .insert(actor_id(), ActorBody::new(actor_id(), office_id));
         state
     }
 
@@ -274,6 +284,10 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "intention_mutated" && field.value == "false"));
+        assert!(event
+            .payload
+            .iter()
+            .any(|field| field.key == "behavioral_progress" && field.value == "false"));
     }
 
     #[test]
@@ -340,6 +354,86 @@ mod tests {
             },
             &proposal,
         )
+    }
+
+    fn run_move_pipeline(
+        state: &mut PhysicalState,
+        log: &mut EventLog,
+    ) -> crate::actions::PipelineResult {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_movement_open_close();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_continue_follow_on_move").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id()),
+            ActionId::new("move").unwrap(),
+            SimTick::new(6),
+        );
+        proposal.target_ids.push("hallway".to_string());
+        run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state,
+                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: OrderingKey::new(
+                    SimTick::new(6),
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id()),
+                    ProposalSequence::new(1),
+                    ActionId::new("move").unwrap(),
+                    vec!["hallway".to_string()],
+                    "continue_follow_on_move",
+                ),
+            },
+            &proposal,
+        )
+    }
+
+    #[test]
+    fn continuation_success_requires_follow_on_ordinary_action_ancestry() {
+        let mut state = state();
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_continue_routine();
+        let continue_result = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal(ProposalOrigin::Scheduler),
+        );
+
+        assert_eq!(continue_result.report.status, ReportStatus::Accepted);
+        assert!(continue_result
+            .appended_events
+            .iter()
+            .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+        assert!(!log
+            .events()
+            .iter()
+            .any(|event| event.event_type == EventKind::ActorMoved));
+
+        let move_result = run_move_pipeline(&mut state, &mut log);
+
+        assert_eq!(move_result.report.status, ReportStatus::Accepted);
+        assert!(move_result
+            .appended_events
+            .iter()
+            .any(|event| event.event_type == EventKind::ActorMoved));
+        assert!(log
+            .events()
+            .iter()
+            .any(|event| event.event_type == EventKind::ActorMoved));
     }
 
     #[test]

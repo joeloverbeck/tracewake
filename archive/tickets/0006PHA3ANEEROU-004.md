@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-004: `continue_routine` real continuation, not a marker
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` `continue_routine` action semantics (`actions/defs/continue_routine.rs`, `agent/methods.rs`, `agent/routine.rs`); `ContinueRoutineProposed` event handling
@@ -82,3 +82,25 @@ Advance routine step/status from the continuation's resulting events via the uni
 1. `cargo test -p tracewake-core continue_routine`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Implemented the spec-allowed marker-discipline path for `continue_routine`:
+`ContinueRoutineProposed` is now explicitly marked
+`behavioral_progress=false`, and no metrics/acceptance path treats it as
+routine progress or ordinary movement/eat/work/sleep ancestry.
+
+Added continuation tests that prove marker-only continuation does not move an
+actor, then a follow-on ordinary `move` proposal through the shared pipeline is
+the event ancestry that counts. Added projection and acceptance-gate coverage so
+marker-only logs report zero routine/meal/sleep/work progress. Updated the
+no-human fixture metrics assertion to derive routine progress from
+event-derived routine step/accepted/rejected events only.
+
+Verified with:
+
+1. `cargo test -p tracewake-core continue_routine`
+2. `cargo test --workspace`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo fmt --all --check`

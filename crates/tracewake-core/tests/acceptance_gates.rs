@@ -11,6 +11,7 @@ use tracewake_core::ids::{
     FoodSupplyId, ItemId, PlaceId, ProposalId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -544,4 +545,64 @@ fn phase3a_event_kinds_are_streamed_versioned_and_replay_visible() {
             .any(|metadata| metadata.kind == kind && metadata.stream == kind.stream()));
         assert_ne!(kind.stream(), EventStream::Controller);
     }
+}
+
+#[test]
+fn continue_routine_marker_alone_is_not_behavioral_progress() {
+    let mut registry = registry();
+    registry.register_phase3a_continue_routine();
+    let mut state = state(true, true);
+    let mut agent_state = agent_state();
+    let mut log = EventLog::new();
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_continue_marker_only").unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id()),
+        ActionId::new("continue_routine").unwrap(),
+        SimTick::new(5),
+    );
+    proposal.parameters.insert(
+        "active_intention_id".to_string(),
+        "intention_workday".to_string(),
+    );
+    proposal
+        .parameters
+        .insert("next_action_id".to_string(), "move".to_string());
+
+    let result = run_pipeline(
+        &mut PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: ContentManifestId::new("acceptance_manifest").unwrap(),
+            ordering_key: OrderingKey::new(
+                SimTick::new(5),
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor_id()),
+                ProposalSequence::new(0),
+                ActionId::new("continue_routine").unwrap(),
+                Vec::new(),
+                "continue_marker_only",
+            ),
+        },
+        &proposal,
+    );
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    assert!(!log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorMoved));
+    let metrics = no_human_day_metrics(&log);
+    assert_eq!(metrics.routine_event_count, 0);
+    assert_eq!(metrics.meals_completed, 0);
+    assert_eq!(metrics.sleep_completed, 0);
+    assert_eq!(metrics.work_blocks_completed, 0);
 }
