@@ -1,6 +1,6 @@
 # 0005EMBVIEWFIX-002: Label take affordances by actual item source (place vs container)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` (`view_models.rs` `VisibleItem`, `projections.rs` `visible item` mapping + `semantic_actions`). No event/schema/replay changes; no change to action behavior or `target_ids`.
@@ -80,3 +80,26 @@ In `semantic_actions`, build the take ID from the item's source: `take.item.<id>
 
 1. `cargo test -p tracewake-core projections:: && cargo test -p tracewake-core ids::`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-07
+
+`VisibleItem` now records its physical source, and take affordance IDs use that
+source: floor items keep `take.item.<id>.from.place`, while items visible inside
+open containers use `take.item.<id>.from.<container_id>`. The proposal target
+IDs and action dispatch remain unchanged.
+
+Deviation from the original plan: because `0005EMBVIEWFIX-001` reused
+`VisibleItem` for carried inventory, the source enum includes a `Carried`
+variant as well as `Place` and `Container`. Carried items still do not receive
+take affordances.
+
+Verification:
+
+- `cargo test -p tracewake-core projections::`
+- `cargo test -p tracewake-core ids::`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

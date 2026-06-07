@@ -92,7 +92,15 @@ pub struct VisibleContainer {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VisibleItem {
     pub item_id: ItemId,
+    pub source: VisibleItemSource,
     pub portable: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum VisibleItemSource {
+    Place,
+    Container(ContainerId),
+    Carried,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

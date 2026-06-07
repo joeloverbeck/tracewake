@@ -176,7 +176,7 @@ mod tests {
     use tracewake_core::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        EmbodiedViewModel, SemanticActionEntry, ViewMode, VisibleItem,
+        EmbodiedViewModel, SemanticActionEntry, ViewMode, VisibleItem, VisibleItemSource,
     };
 
     #[test]
@@ -228,10 +228,12 @@ mod tests {
             visible_containers: Vec::new(),
             visible_items: vec![VisibleItem {
                 item_id: ItemId::new("loose_coin_01").unwrap(),
+                source: VisibleItemSource::Place,
                 portable: true,
             }],
             carried_items: vec![VisibleItem {
                 item_id: ItemId::new("coin_stack_01").unwrap(),
+                source: VisibleItemSource::Carried,
                 portable: true,
             }],
             local_actors: Vec::new(),
