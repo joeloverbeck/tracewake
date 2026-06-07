@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-014: Bounded local planning and hidden-truth audit
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the bounded GOAP/STRIPS-style local planner for concrete action sequencing within a selected routine step, with a hidden-truth audit.
@@ -79,3 +79,20 @@ Declare `pub mod planner;` in `crates/tracewake-core/src/agent/mod.rs` and re-ex
 1. `cargo test -p tracewake-core agent::planner`
 2. Core-crate scope is correct; the no-hidden-truth-planning acceptance proof is ticket 020 and the capstone (025).
 3. A grep-proof that `agent::planner` does not call the action validator or read authoritative container contents is the correct no-oracle boundary at the source level.
+
+## Outcome
+
+Completed 2026-06-07.
+
+Implemented `crates/tracewake-core/src/agent/planner.rs` with bounded, deterministic actor-known local planning for route, container, known-food, and wait goals. Route planning emits concrete `open`/`move` proposals from actor-known adjacency and known closed-door inputs, records candidates tried, reports `planner_budget_exhausted` or typed knowledge/resource blockers, and attaches a hidden-truth audit asserting actor-known-only inputs.
+
+Registered the planner from `crates/tracewake-core/src/agent/mod.rs` and re-exported its public request/result/trace types for later Phase 3A integration.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core agent::planner`
+3. `cargo test -p tracewake-core`
+4. `rg -n "validate_proposal|run_pipeline|PipelineContext|PhysicalState|state\\.containers|\\.containers|apply_event" crates/tracewake-core/src/agent/planner.rs` (no matches)
+
+Deviations: the planner consumes explicit `ActorKnownPlanningState` and `LocalPlanRequest` inputs rather than deriving them from projections in this ticket. The broader golden no-hidden-truth fixture remains owned by ticket 020.
