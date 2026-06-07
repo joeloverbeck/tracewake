@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-003: KnowledgeContext and epistemic projection state
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds `KnowledgeContext` and the epistemic projection store to the `tracewake-core` `epistemics` module.
@@ -81,3 +81,22 @@ Extend `crates/tracewake-core/src/epistemics/mod.rs` with `pub mod knowledge_con
 1. `cargo test -p tracewake-core epistemics::knowledge_context epistemics::projection`
 2. `cargo build --workspace`
 3. Core-crate unit scope is correct: filtering has no cross-crate consumer until the view models (009/010) and events (005) land.
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added `KnowledgeContext` with embodied/debug modes, explicit allowed sources, explicit forbidden sources, actor-private/public scope checks, and a non-diegetic debug flag.
+- Added `EpistemicProjection` beside physical state, with ordered indexes for observations, beliefs, contradictions, and notebook entries plus projection version, schema version, event range, and content manifest id.
+- Added read accessors that require a `KnowledgeContext` and filter embodied reads to the viewer actor's private records.
+- Added unit tests proving no other-actor private belief leaks through embodied reads, the forbidden-source set is explicit, debug reads are non-diegetic, and projection ordering is stable across insertion orders.
+
+Deviations from original plan:
+- The ticket's combined cargo test filter is not valid cargo syntax, so the two module filters were run as separate commands.
+
+Verification results:
+- `cargo test -p tracewake-core epistemics::knowledge_context`
+- `cargo test -p tracewake-core epistemics::projection`
+- `cargo build --workspace`
+- `cargo fmt --all --check`
