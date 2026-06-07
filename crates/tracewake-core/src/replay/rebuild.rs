@@ -86,7 +86,10 @@ pub fn rebuild_projection(
                     ));
                 }
             },
-            EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
+            EventStream::Agent
+            | EventStream::Diagnostic
+            | EventStream::Controller
+            | EventStream::ReplayDebug => {}
         }
     }
 

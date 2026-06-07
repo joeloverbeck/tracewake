@@ -4,7 +4,7 @@ pub mod log;
 
 pub use envelope::{
     BeliefUpdatedPayload, ContainerCheckedPayload, EventCause, EventEnvelope,
-    EventEnvelopeParseError, EventKind, EventKindMetadata, EventStream,
+    EventEnvelopeBuildError, EventEnvelopeParseError, EventKind, EventKindMetadata, EventStream,
     ExpectationContradictedPayload, InitialBeliefSeededPayload, InitialBeliefSourceKind,
     ObservationRecordedPayload, PayloadField, RandomDrawRef, EVENT_SCHEMA_V1,
 };

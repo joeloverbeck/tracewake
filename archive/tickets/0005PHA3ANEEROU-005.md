@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-005: Phase 3A event kinds and application
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends `EventKind` with Phase 3A cognition/need/routine/action kinds and adds their application in `events/apply.rs`.
@@ -81,3 +81,23 @@ Update `crates/tracewake-core/src/events/mod.rs` re-exports as needed so the new
 1. `cargo test -p tracewake-core events`
 2. `cargo test -p tracewake-core` (whole-crate, to confirm additive change keeps Phase 1/2A event coverage green)
 3. Core-crate scope is correct; cross-crate replay determinism is exercised by ticket 006 and the capstone (025).
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added an `Agent` event stream and the Phase 3A event-kind vocabulary for needs, candidate goals, intentions, routine steps, decision traces, sleep/eat/work lifecycles, continue-routine outcomes, stuck diagnostics, and no-human day markers.
+- Added `EventKind::requires_cause` and `EventEnvelope::new_caused_v1`, with tests rejecting causeless Phase 3A event construction.
+- Added a standalone `AgentState` slice in `state.rs` for actor needs, intentions, routine executions, decision traces, and stuck diagnostics.
+- Added `apply_agent_event` for eventful need deltas, intention transitions, routine-step progress, trace recording, and stuck-diagnostic recording.
+- Updated replay rebuild to explicitly defer `Agent` stream reconstruction until ticket 006 instead of falling through an unhandled stream.
+
+Deviations from original plan:
+- Full replay/checksum/projection reconstruction for Agent events remains deferred to ticket 006 as planned; this ticket adds the event vocabulary and apply surface.
+- `IntentionStarted` and many lifecycle action variants are added as first-class event kinds now, while their behavior emitters and richer payload application remain deferred to later Phase 3A behavior tickets.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core events` passed.
+- `cargo test -p tracewake-core` passed.

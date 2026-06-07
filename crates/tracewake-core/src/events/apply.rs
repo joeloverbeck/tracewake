@@ -1,16 +1,17 @@
 use std::collections::BTreeMap;
 
+use crate::agent::{IntentionStatus, NeedChangeCause, NeedKind, RoutineStepStatus};
 use crate::epistemics::{
     Belief, Channel, Confidence, Contradiction, ContradictionKind, EpistemicProjection, HolderKind,
     Observation, ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
 };
 use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
-    ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, ItemId, ObservationId,
-    PlaceId,
+    ActionId, ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, IntentionId,
+    ItemId, ObservationId, PlaceId, RoutineExecutionId,
 };
 use crate::location::Location;
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,6 +40,14 @@ pub enum ApplyError {
         actual: String,
     },
     EventKindStreamMismatch,
+    NonAgentEvent,
+    MissingNeedState {
+        actor_id: ActorId,
+        need_kind: NeedKind,
+    },
+    MissingIntention(IntentionId),
+    MissingRoutineExecution(RoutineExecutionId),
+    MissingCause,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -147,6 +156,99 @@ pub fn apply_epistemic_event(
         }
         EventKind::ContainerChecked => Ok(ApplyOutcome::WorldNoOp),
         _ => Err(EpistemicApplyError::NonEpistemicEvent),
+    }
+}
+
+pub fn apply_agent_event(
+    state: &mut AgentState,
+    event: &EventEnvelope,
+) -> Result<ApplyOutcome, ApplyError> {
+    if !event.has_supported_schema_version() {
+        return Err(ApplyError::UnsupportedSchemaVersion(
+            event.event_schema_version.as_str().to_string(),
+        ));
+    }
+
+    if event.stream != event.event_type.stream() {
+        return Err(ApplyError::EventKindStreamMismatch);
+    }
+
+    if event.stream != EventStream::Agent {
+        return Ok(ApplyOutcome::NonWorldNoOp);
+    }
+
+    if event.event_type.requires_cause() && event.causes.is_empty() {
+        return Err(ApplyError::MissingCause);
+    }
+
+    let payload = payload_map(&event.payload);
+    match event.event_type {
+        EventKind::NeedDeltaApplied => {
+            apply_need_delta(state, &payload).map(|_| ApplyOutcome::Applied)
+        }
+        EventKind::IntentionSuspended
+        | EventKind::IntentionResumed
+        | EventKind::IntentionCompleted
+        | EventKind::IntentionFailed
+        | EventKind::IntentionAbandoned
+        | EventKind::IntentionInterrupted
+        | EventKind::IntentionContinued => {
+            apply_intention_transition(state, event.event_type, &payload)
+                .map(|_| ApplyOutcome::Applied)
+        }
+        EventKind::RoutineStepStarted
+        | EventKind::RoutineStepCompleted
+        | EventKind::RoutineStepFailed => {
+            apply_routine_step_transition(state, event.event_type, &payload)
+                .map(|_| ApplyOutcome::Applied)
+        }
+        EventKind::DecisionTraceRecorded => {
+            let trace_id = crate::ids::DecisionTraceId::new(required(&payload, "trace_id")?)
+                .map_err(|_| ApplyError::BadPayload {
+                    key: "trace_id",
+                    value: required(&payload, "trace_id")
+                        .unwrap_or_default()
+                        .to_string(),
+                })?;
+            state
+                .decision_traces
+                .insert(trace_id, required(&payload, "trace_canonical")?.to_string());
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::StuckDiagnosticRecorded => {
+            let diagnostic_id =
+                crate::ids::StuckDiagnosticId::new(required(&payload, "diagnostic_id")?).map_err(
+                    |_| ApplyError::BadPayload {
+                        key: "diagnostic_id",
+                        value: required(&payload, "diagnostic_id")
+                            .unwrap_or_default()
+                            .to_string(),
+                    },
+                )?;
+            state.stuck_diagnostics.insert(
+                diagnostic_id,
+                required(&payload, "diagnostic_canonical")?.to_string(),
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::NeedThresholdCrossed
+        | EventKind::CandidateGoalsEvaluated
+        | EventKind::IntentionStarted
+        | EventKind::SleepStarted
+        | EventKind::SleepCompleted
+        | EventKind::SleepInterrupted
+        | EventKind::FoodConsumed
+        | EventKind::FoodServiceUsed
+        | EventKind::EatFailed
+        | EventKind::WorkBlockStarted
+        | EventKind::WorkBlockCompleted
+        | EventKind::WorkBlockFailed
+        | EventKind::ContinueRoutineProposed
+        | EventKind::ContinueRoutineAccepted
+        | EventKind::ContinueRoutineRejected
+        | EventKind::NoHumanDayStarted
+        | EventKind::NoHumanDayCompleted => Ok(ApplyOutcome::WorldNoOp),
+        _ => Err(ApplyError::NonAgentEvent),
     }
 }
 
@@ -441,6 +543,259 @@ fn parse_item_id(payload: &BTreeMap<&str, &str>) -> Result<ItemId, ApplyError> {
     })
 }
 
+fn parse_intention_id(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<IntentionId, ApplyError> {
+    let value = required(payload, key)?;
+    IntentionId::new(value).map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_routine_execution_id(
+    payload: &BTreeMap<&str, &str>,
+) -> Result<RoutineExecutionId, ApplyError> {
+    let value = required(payload, "routine_execution_id")?;
+    RoutineExecutionId::new(value).map_err(|_| ApplyError::BadPayload {
+        key: "routine_execution_id",
+        value: value.to_string(),
+    })
+}
+
+fn parse_need_kind(payload: &BTreeMap<&str, &str>) -> Result<NeedKind, ApplyError> {
+    let value = required(payload, "need_kind")?;
+    match value {
+        "hunger" => Ok(NeedKind::Hunger),
+        "fatigue" => Ok(NeedKind::Fatigue),
+        "safety" => Ok(NeedKind::Safety),
+        _ => Err(ApplyError::BadPayload {
+            key: "need_kind",
+            value: value.to_string(),
+        }),
+    }
+}
+
+fn parse_i32(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<i32, ApplyError> {
+    let value = required(payload, key)?;
+    value.parse::<i32>().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_action_id_for_agent(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<ActionId, ApplyError> {
+    let value = required(payload, key)?;
+    ActionId::new(value).map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_need_change_cause(payload: &BTreeMap<&str, &str>) -> Result<NeedChangeCause, ApplyError> {
+    let cause_kind = required(payload, "cause_kind")?;
+    match cause_kind {
+        "fixture_initial" => Ok(NeedChangeCause::FixtureInitial),
+        "tick_delta" => Ok(NeedChangeCause::TickDelta),
+        "action_effect" => Ok(NeedChangeCause::ActionEffect(parse_action_id_for_agent(
+            payload,
+            "cause_action_id",
+        )?)),
+        "routine_effect" => Ok(NeedChangeCause::RoutineEffect(parse_routine_execution_id(
+            payload,
+        )?)),
+        _ => Err(ApplyError::BadPayload {
+            key: "cause_kind",
+            value: cause_kind.to_string(),
+        }),
+    }
+}
+
+fn parse_intention_status(payload: &BTreeMap<&str, &str>) -> Result<IntentionStatus, ApplyError> {
+    let value = required(payload, "status")?;
+    match value {
+        "active" => Ok(IntentionStatus::Active),
+        "suspended" => Ok(IntentionStatus::Suspended),
+        "completed" => Ok(IntentionStatus::Completed),
+        "failed" => Ok(IntentionStatus::Failed),
+        "abandoned" => Ok(IntentionStatus::Abandoned),
+        "interrupted" => Ok(IntentionStatus::Interrupted),
+        _ => Err(ApplyError::BadPayload {
+            key: "status",
+            value: value.to_string(),
+        }),
+    }
+}
+
+fn apply_need_delta(
+    state: &mut AgentState,
+    payload: &BTreeMap<&str, &str>,
+) -> Result<(), ApplyError> {
+    let actor_id = parse_actor_id(payload)?;
+    let need_kind = parse_need_kind(payload)?;
+    let delta = parse_i32(payload, "delta")?;
+    let cause = parse_need_change_cause(payload)?;
+    let need_state = state
+        .needs_by_actor
+        .get_mut(&actor_id)
+        .and_then(|needs| needs.get_mut(&need_kind))
+        .ok_or_else(|| ApplyError::MissingNeedState {
+            actor_id: actor_id.clone(),
+            need_kind,
+        })?;
+
+    need_state.apply_delta(delta, cause);
+    Ok(())
+}
+
+fn apply_intention_transition(
+    state: &mut AgentState,
+    event_type: EventKind,
+    payload: &BTreeMap<&str, &str>,
+) -> Result<(), ApplyError> {
+    let intention_id = parse_intention_id(payload, "intention_id")?;
+    let status = parse_intention_status(payload)?;
+    let reason = required(payload, "reason")?.to_string();
+    let intention = state
+        .intentions
+        .get_mut(&intention_id)
+        .ok_or_else(|| ApplyError::MissingIntention(intention_id.clone()))?;
+
+    let expected_status = match event_type {
+        EventKind::IntentionContinued | EventKind::IntentionResumed => IntentionStatus::Active,
+        EventKind::IntentionSuspended => IntentionStatus::Suspended,
+        EventKind::IntentionCompleted => IntentionStatus::Completed,
+        EventKind::IntentionFailed => IntentionStatus::Failed,
+        EventKind::IntentionAbandoned => IntentionStatus::Abandoned,
+        EventKind::IntentionInterrupted => IntentionStatus::Interrupted,
+        _ => status,
+    };
+    if status != expected_status {
+        return Err(ApplyError::PreconditionMismatch {
+            field: "status",
+            expected: expected_status.stable_id().to_string(),
+            actual: status.stable_id().to_string(),
+        });
+    }
+
+    match event_type {
+        EventKind::IntentionContinued => {
+            intention.status = IntentionStatus::Active;
+            intention.status_reason = Some(reason);
+        }
+        EventKind::IntentionResumed => {
+            intention
+                .reactivate(reason)
+                .map_err(|err| ApplyError::BadPayload {
+                    key: "status",
+                    value: format!("{err:?}"),
+                })?
+        }
+        EventKind::IntentionSuspended => {
+            intention
+                .suspend(reason)
+                .map_err(|err| ApplyError::BadPayload {
+                    key: "status",
+                    value: format!("{err:?}"),
+                })?
+        }
+        EventKind::IntentionCompleted => {
+            intention
+                .complete(reason)
+                .map_err(|err| ApplyError::BadPayload {
+                    key: "status",
+                    value: format!("{err:?}"),
+                })?
+        }
+        EventKind::IntentionFailed => {
+            intention
+                .fail(reason)
+                .map_err(|err| ApplyError::BadPayload {
+                    key: "status",
+                    value: format!("{err:?}"),
+                })?
+        }
+        EventKind::IntentionAbandoned => {
+            intention
+                .abandon(reason)
+                .map_err(|err| ApplyError::BadPayload {
+                    key: "status",
+                    value: format!("{err:?}"),
+                })?
+        }
+        EventKind::IntentionInterrupted => {
+            intention
+                .interrupt(reason)
+                .map_err(|err| ApplyError::BadPayload {
+                    key: "status",
+                    value: format!("{err:?}"),
+                })?
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn apply_routine_step_transition(
+    state: &mut AgentState,
+    event_type: EventKind,
+    payload: &BTreeMap<&str, &str>,
+) -> Result<(), ApplyError> {
+    let routine_execution_id = parse_routine_execution_id(payload)?;
+    let tick = payload
+        .get("progress_tick")
+        .copied()
+        .unwrap_or("0")
+        .parse::<u64>()
+        .map_err(|_| ApplyError::BadPayload {
+            key: "progress_tick",
+            value: payload
+                .get("progress_tick")
+                .copied()
+                .unwrap_or("0")
+                .to_string(),
+        })?;
+    let execution = state
+        .routine_executions
+        .get_mut(&routine_execution_id)
+        .ok_or_else(|| ApplyError::MissingRoutineExecution(routine_execution_id.clone()))?;
+
+    match event_type {
+        EventKind::RoutineStepStarted => {
+            let action_id = crate::ids::SemanticActionId::new(required(payload, "action_id")?)
+                .map_err(|_| ApplyError::BadPayload {
+                    key: "action_id",
+                    value: required(payload, "action_id")
+                        .unwrap_or_default()
+                        .to_string(),
+                })?;
+            execution.start_step(SimTick::new(tick), action_id);
+        }
+        EventKind::RoutineStepCompleted => execution.complete_step(SimTick::new(tick)),
+        EventKind::RoutineStepFailed => {
+            execution.fail(SimTick::new(tick), required(payload, "reason")?)
+        }
+        _ => {}
+    }
+    if let Some(fallback_attempts) = payload.get("fallback_attempts") {
+        let attempts = fallback_attempts
+            .parse::<u32>()
+            .map_err(|_| ApplyError::BadPayload {
+                key: "fallback_attempts",
+                value: (*fallback_attempts).to_string(),
+            })?;
+        execution.fallback_attempts = attempts;
+    }
+    if event_type == EventKind::RoutineStepStarted {
+        execution.step_status = RoutineStepStatus::InProgress;
+    }
+    Ok(())
+}
+
 fn expect_bool(
     payload: &BTreeMap<&str, &str>,
     key: &'static str,
@@ -704,8 +1059,14 @@ fn require_item_location(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::EventKind;
-    use crate::ids::{ActionId, ContentManifestId, EventId, SchemaVersion};
+    use crate::agent::{
+        Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+    };
+    use crate::events::{EventCause, EventKind};
+    use crate::ids::{
+        ActionId, CandidateGoalId, ContentManifestId, DecisionTraceId, EventId, IntentionId,
+        ProcessId, RoutineExecutionId, RoutineTemplateId, SchemaVersion, SemanticActionId,
+    };
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
     use crate::state::{ActorBody, ContainerState, PlaceState};
     use crate::time::SimTick;
@@ -773,6 +1134,71 @@ mod tests {
         );
         event.payload = payload;
         event
+    }
+
+    fn caused_agent_event(kind: EventKind, payload: Vec<PayloadField>) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new("event_agent_0001").unwrap(),
+            kind,
+            0,
+            0,
+            SimTick::ZERO,
+            ordering_key(),
+            ContentManifestId::new("phase3a_manifest").unwrap(),
+            vec![EventCause::Process(
+                ProcessId::new("process_agent").unwrap(),
+            )],
+        )
+        .unwrap();
+        event.payload = payload;
+        event
+    }
+
+    fn agent_state() -> AgentState {
+        let actor_id = actor_id("actor_tomas");
+        let mut state = AgentState::default();
+        state.needs_by_actor.insert(
+            actor_id.clone(),
+            [(
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 490, NeedChangeCause::FixtureInitial),
+            )]
+            .into_iter()
+            .collect(),
+        );
+
+        let intention = Intention::adopt(
+            IntentionId::new("intention_breakfast").unwrap(),
+            actor_id.clone(),
+            IntentionSource::CandidateGoalSelection,
+            CandidateGoalId::new("goal_breakfast").unwrap(),
+            Some(RoutineTemplateId::new("routine_eat_meal").unwrap()),
+            Some("check_known_container".to_string()),
+            5,
+            SimTick::ZERO,
+            DecisionTraceId::new("trace_breakfast").unwrap(),
+        );
+        state
+            .active_intention_by_actor
+            .insert(actor_id.clone(), intention.intention_id.clone());
+        state
+            .intentions
+            .insert(intention.intention_id.clone(), intention);
+
+        state.routine_executions.insert(
+            RoutineExecutionId::new("routine_exec_breakfast").unwrap(),
+            RoutineExecution::new(
+                RoutineExecutionId::new("routine_exec_breakfast").unwrap(),
+                actor_id,
+                RoutineTemplateId::new("routine_eat_meal").unwrap(),
+                SimTick::ZERO,
+                Some(SimTick::new(1)),
+                Some(SimTick::new(5)),
+                None,
+                DecisionTraceId::new("trace_breakfast").unwrap(),
+            ),
+        );
+        state
     }
 
     fn proposition() -> String {
@@ -936,5 +1362,120 @@ mod tests {
             ))
         );
         assert!(projection.beliefs_by_id.is_empty());
+    }
+
+    #[test]
+    fn agent_need_delta_event_mutates_need_state_with_cause() {
+        let mut state = agent_state();
+        let event = caused_agent_event(
+            EventKind::NeedDeltaApplied,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("delta", "40"),
+                PayloadField::new("cause_kind", "tick_delta"),
+            ],
+        );
+
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+
+        let hunger = &state.needs_by_actor[&actor_id("actor_tomas")][&NeedKind::Hunger];
+        assert_eq!(hunger.value(), 530);
+        assert_eq!(hunger.last_change_cause(), &NeedChangeCause::TickDelta);
+    }
+
+    #[test]
+    fn agent_intention_transition_event_records_status_and_reason() {
+        let mut state = agent_state();
+        let event = caused_agent_event(
+            EventKind::IntentionSuspended,
+            vec![
+                PayloadField::new("intention_id", "intention_breakfast"),
+                PayloadField::new("status", "suspended"),
+                PayloadField::new("reason", "known food source blocked"),
+            ],
+        );
+
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+
+        let intention = &state.intentions[&IntentionId::new("intention_breakfast").unwrap()];
+        assert_eq!(intention.status, IntentionStatus::Suspended);
+        assert_eq!(
+            intention.status_reason.as_deref(),
+            Some("known food source blocked")
+        );
+    }
+
+    #[test]
+    fn agent_routine_step_event_records_progress_and_fallbacks() {
+        let mut state = agent_state();
+        let event = caused_agent_event(
+            EventKind::RoutineStepStarted,
+            vec![
+                PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+                PayloadField::new("progress_tick", "3"),
+                PayloadField::new("action_id", "check_container.pantry"),
+                PayloadField::new("fallback_attempts", "1"),
+            ],
+        );
+
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+
+        let execution =
+            &state.routine_executions[&RoutineExecutionId::new("routine_exec_breakfast").unwrap()];
+        assert_eq!(execution.step_status, RoutineStepStatus::InProgress);
+        assert_eq!(execution.last_progress_tick, SimTick::new(3));
+        assert_eq!(execution.fallback_attempts, 1);
+        assert_eq!(
+            execution.concrete_action_ancestry,
+            vec![SemanticActionId::new("check_container.pantry").unwrap()]
+        );
+    }
+
+    #[test]
+    fn agent_trace_and_stuck_diagnostic_events_record_canonical_payloads() {
+        let mut state = agent_state();
+        let trace_event = caused_agent_event(
+            EventKind::DecisionTraceRecorded,
+            vec![
+                PayloadField::new("trace_id", "trace_breakfast"),
+                PayloadField::new("trace_canonical", "decision_trace_v1|minimal"),
+            ],
+        );
+        let diagnostic_event = caused_agent_event(
+            EventKind::StuckDiagnosticRecorded,
+            vec![
+                PayloadField::new("diagnostic_id", "diagnostic_food_missing"),
+                PayloadField::new("diagnostic_canonical", "stuck_diagnostic_v1|minimal"),
+            ],
+        );
+
+        assert_eq!(
+            apply_agent_event(&mut state, &trace_event),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &diagnostic_event),
+            Ok(ApplyOutcome::Applied)
+        );
+
+        assert_eq!(
+            state.decision_traces[&DecisionTraceId::new("trace_breakfast").unwrap()],
+            "decision_trace_v1|minimal"
+        );
+        assert_eq!(
+            state.stuck_diagnostics
+                [&crate::ids::StuckDiagnosticId::new("diagnostic_food_missing").unwrap()],
+            "stuck_diagnostic_v1|minimal"
+        );
     }
 }

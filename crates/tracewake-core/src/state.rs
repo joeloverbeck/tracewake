@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::agent::{Intention, NeedKind, NeedState, RoutineExecution};
 use crate::ids::{
-    ActorId, ContainerId, ControllerId, DoorId, ExitId, ItemId, PlaceId, SchemaVersion,
+    ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, IntentionId, ItemId,
+    PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId,
 };
 use crate::location::Location;
 
@@ -113,6 +115,16 @@ pub struct PhysicalState {
     pub doors: BTreeMap<DoorId, DoorState>,
     pub containers: BTreeMap<ContainerId, ContainerState>,
     pub items: BTreeMap<ItemId, ItemState>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AgentState {
+    pub needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+    pub intentions: BTreeMap<IntentionId, Intention>,
+    pub active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
+    pub routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
+    pub decision_traces: BTreeMap<DecisionTraceId, String>,
+    pub stuck_diagnostics: BTreeMap<StuckDiagnosticId, String>,
 }
 
 impl PlaceState {
