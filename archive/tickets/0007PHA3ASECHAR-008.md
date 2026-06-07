@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-008: continue_routine non-progress discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` continue-routine action (`actions/defs/continue_routine.rs`), no-human progress metric (`scheduler.rs`, `projections.rs`)
@@ -76,3 +76,23 @@ Ensure the no-human progress metric (`scheduler.rs` `NoHumanDayReport` / `projec
 2. `cargo test -p tracewake-core --test acceptance_gates`
 3. `cargo test --workspace`
 4. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed `scheduler.rs` so no-human `ordinary_pipeline_events` is derived from the pipeline result's appended event log entries through an explicit progress predicate. `ContinueRoutineProposed` only counts if its payload carries `behavioral_progress=true`; the existing `behavioral_progress=false` continuation marker no longer satisfies the no-human progress report or stuck-progress bookkeeping by itself.
+
+Extended tests with a scheduler regression proving marker-only `continue_routine` through `advance_no_human` reports zero ordinary progress, plus a projection replay regression proving marker + follow-on routine/ordinary events reconstructs the same progress metrics from serialized event-chain replay.
+
+Deviation from plan: `actions/defs/continue_routine.rs` already emitted `behavioral_progress=false` and already had follow-on ordinary-action ancestry coverage, so no production change was needed there. The implementation focused on the no-human progress gate and projection replay proof.
+
+Verification:
+
+1. `cargo test -p tracewake-core continue_routine_marker_only_is_not_ordinary_progress`
+2. `cargo test -p tracewake-core continue_routine_follow_on_progress_survives_replay_from_event_chain`
+3. `cargo test -p tracewake-core --test acceptance_gates continue_routine_marker_alone_is_not_behavioral_progress`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

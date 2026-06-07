@@ -380,7 +380,6 @@ pub mod no_human {
                     proposal.target_ids.clone(),
                     format!("{}:{}", window.window_id, actor_id.as_str()),
                 );
-                let before = log.events().len();
                 let mut context = PipelineContext {
                     registry,
                     state,
@@ -392,11 +391,13 @@ pub mod no_human {
                     ordering_key,
                 };
                 let result = run_pipeline(&mut context, &proposal);
-                let appended = log.events().len().saturating_sub(before);
-                ordinary_pipeline_events += appended;
-                if appended > 0 {
-                    progress_by_window_actor
-                        .insert((window.window_id.clone(), actor_id.clone()), appended);
+                let progress_events = no_human_progress_event_count(&result.appended_events);
+                ordinary_pipeline_events += progress_events;
+                if progress_events > 0 {
+                    progress_by_window_actor.insert(
+                        (window.window_id.clone(), actor_id.clone()),
+                        progress_events,
+                    );
                 }
                 append_intention_lifecycle_after_proposal(
                     log,
@@ -1547,7 +1548,6 @@ pub mod no_human {
         sorted.sort_by(|left, right| left.0.cmp(&right.0));
 
         for (ordering_key, proposal) in sorted {
-            let before = log.events().len();
             let mut context = PipelineContext {
                 registry,
                 state: physical_state,
@@ -1558,8 +1558,8 @@ pub mod no_human {
                 content_manifest_id: content_manifest_id.clone(),
                 ordering_key,
             };
-            run_pipeline(&mut context, &proposal);
-            ordinary_pipeline_events += log.events().len().saturating_sub(before);
+            let result = run_pipeline(&mut context, &proposal);
+            ordinary_pipeline_events += no_human_progress_event_count(&result.appended_events);
         }
 
         for _ in 0..tick_count {
@@ -1583,6 +1583,23 @@ pub mod no_human {
             marker_event_ids: vec![started.event_id, completed.event_id],
             ordinary_pipeline_events,
         }
+    }
+
+    fn no_human_progress_event_count(events: &[EventEnvelope]) -> usize {
+        events
+            .iter()
+            .filter(|event| is_no_human_progress_event(event))
+            .count()
+    }
+
+    fn is_no_human_progress_event(event: &EventEnvelope) -> bool {
+        if event.event_type != EventKind::ContinueRoutineProposed {
+            return true;
+        }
+        event
+            .payload
+            .iter()
+            .any(|field| field.key == "behavioral_progress" && field.value == "true")
     }
 
     fn append_marker(
@@ -1855,6 +1872,56 @@ pub mod no_human {
                     .count(),
                 2
             );
+        }
+
+        #[test]
+        fn continue_routine_marker_only_is_not_ordinary_progress() {
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id(),
+                ActorBody::new(actor_id(), crate::ids::PlaceId::new("shop_front").unwrap()),
+            );
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_continue_routine();
+            let mut agent_state = agent_state(&actor_id());
+            let mut proposal = Proposal::new(
+                ProposalId::new("proposal_continue_marker_only").unwrap(),
+                ProposalOrigin::Scheduler,
+                Some(actor_id()),
+                ActionId::new("continue_routine").unwrap(),
+                SimTick::ZERO,
+            );
+            proposal.parameters.insert(
+                "active_intention_id".to_string(),
+                "intention_workday".to_string(),
+            );
+            proposal
+                .parameters
+                .insert("next_action_id".to_string(), "wait".to_string());
+
+            let report = advance_no_human(
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: &mut agent_state,
+                },
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                SimTick::ZERO,
+                1,
+                vec![proposal],
+            );
+
+            assert_eq!(report.ordinary_pipeline_events, 0);
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+            assert!(!log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ActorWaited));
         }
 
         #[test]

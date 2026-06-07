@@ -1521,6 +1521,24 @@ mod tests {
     }
 
     #[test]
+    fn continue_routine_follow_on_progress_survives_replay_from_event_chain() {
+        let mut log = EventLog::new();
+        append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
+        append_metric_event(&mut log, EventKind::ContinueRoutineProposed, 1, 1);
+        append_metric_event(&mut log, EventKind::RoutineStepCompleted, 2, 2);
+        append_metric_event(&mut log, EventKind::FoodConsumed, 3, 3);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 4, 4);
+
+        let first = no_human_day_metrics(&log);
+        let replayed = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+        let second = no_human_day_metrics(&replayed);
+
+        assert_eq!(first.routine_event_count, 1);
+        assert_eq!(first.meals_completed, 1);
+        assert_eq!(first.serialize_canonical(), second.serialize_canonical());
+    }
+
+    #[test]
     fn no_human_day_metrics_survive_replay_byte_identically() {
         let mut log = EventLog::new();
         append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
