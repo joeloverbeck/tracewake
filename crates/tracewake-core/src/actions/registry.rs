@@ -109,5 +109,8 @@ impl ActionRegistry {
             ActionId::new("check_container").unwrap(),
             ActionEffect::CheckContainer,
         ));
+        self.register(ActionDefinition::query_only(
+            ActionId::new("truthful_accuse_probe").unwrap(),
+        ));
     }
 }

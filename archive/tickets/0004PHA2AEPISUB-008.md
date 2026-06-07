@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-008: Knowledge-blocker why-not and truthful-accuse probe
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds `ReasonCode::KnowledgePreconditionNotMet`, a knowledge-basis validation helper, and a non-mutating `truthful_accuse_probe` to `tracewake-core`.
@@ -81,3 +81,23 @@ Add `crates/tracewake-core/src/actions/defs/accuseprobe.rs` as a `QueryOnly`/non
 1. `cargo test -p tracewake-core actions::defs::accuseprobe`
 2. `cargo test -p tracewake-core --test golden_scenarios`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added `ReasonCode::KnowledgePreconditionNotMet` with stable id `knowledge_precondition_not_met`.
+- Added a context-filtered `actor_has_source_backed_support` helper that reads holder-visible beliefs through `KnowledgeContext`.
+- Added non-mutating `truthful_accuse_probe` validation and registered it as a Phase 2A query action.
+- Added pipeline query validation for the probe, content affordance parity for the query action, and tests for actor-filtered why-not behavior.
+- Added a golden scenario proving Tomas's missing-property belief does not support a truthful accusation against Mara and commits no world/epistemic mutation event.
+
+Deviations from original plan:
+- `crates/tracewake-content/src/validate.rs` was updated so future fixture affordances can target the new query action.
+
+Verification results:
+- `cargo test -p tracewake-core actions::defs::accuseprobe`
+- `cargo test -p tracewake-core --test golden_scenarios`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

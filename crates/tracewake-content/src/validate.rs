@@ -633,6 +633,7 @@ fn supports_target_kind(
             affordance.action_id.as_str() == "inspect_entity"
                 || affordance.action_id.as_str() == "inspect_place"
                 || affordance.action_id.as_str() == "look"
+                || affordance.action_id.as_str() == "truthful_accuse_probe"
         }
         ActionEffect::Wait => false,
     }

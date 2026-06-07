@@ -33,6 +33,7 @@ pub enum ReasonCode {
     InvalidParameter,
     WorldStateMismatch,
     TargetReserved,
+    KnowledgePreconditionNotMet,
 }
 
 impl ReasonCode {
@@ -63,6 +64,7 @@ impl ReasonCode {
             ReasonCode::InvalidParameter => "invalid_parameter",
             ReasonCode::WorldStateMismatch => "world_state_mismatch",
             ReasonCode::TargetReserved => "target_reserved",
+            ReasonCode::KnowledgePreconditionNotMet => "knowledge_precondition_not_met",
         }
     }
 }
@@ -112,6 +114,10 @@ mod tests {
         assert_eq!(
             ReasonCode::DoorClosedBlocksMovement.stable_id(),
             "door_closed_blocks_movement"
+        );
+        assert_eq!(
+            ReasonCode::KnowledgePreconditionNotMet.stable_id(),
+            "knowledge_precondition_not_met"
         );
     }
 }

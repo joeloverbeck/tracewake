@@ -1,5 +1,6 @@
 use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReportStatus,
+    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReasonCode,
+    ReportStatus,
 };
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::controller::ControllerBindings;
@@ -9,6 +10,7 @@ use tracewake_core::epistemics::{
 };
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::EventKind;
+use tracewake_core::events::EventStream;
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
     EventId, FixtureId, ItemId, PlaceId, ProposalId,
@@ -198,6 +200,36 @@ fn run_check_with_projection(
     run_pipeline(&mut pipeline_context, &proposal)
 }
 
+fn run_probe_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    sequence: u64,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let mut proposal = proposal("truthful_accuse_probe", &["actor_mara"], sequence);
+    proposal.proposal_id = ProposalId::new(format!("proposal_accuse_probe_{sequence}")).unwrap();
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
 #[test]
 fn accepted_actions_append_versioned_events() {
     let mut state = initial_state(true, true);
@@ -303,6 +335,49 @@ fn expected_absence_check_creates_contradiction_and_missing_belief() {
         belief.proposition.render().contains("stole")
             || belief.proposition.render().contains("culprit")
     }));
+}
+
+#[test]
+fn missing_property_belief_does_not_support_truthful_accusation() {
+    let mut state = initial_state(true, true);
+    state.actors.insert(
+        ActorId::new("actor_mara").unwrap(),
+        ActorBody::new(
+            ActorId::new("actor_mara").unwrap(),
+            PlaceId::new("shop_front").unwrap(),
+        ),
+    );
+    state
+        .containers
+        .get_mut(&box_id())
+        .unwrap()
+        .contents
+        .clear();
+    state.items.get_mut(&coin_id()).unwrap().location =
+        Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    seed_tomas_coin_expectation(&mut projection);
+    let check = run_check_with_projection(&mut state, &mut log, &mut projection, 8);
+    assert_eq!(check.report.status, ReportStatus::Accepted);
+
+    let probe = run_probe_with_projection(&mut state, &mut log, &mut projection, 9);
+    let after = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
+
+    assert_eq!(before, after);
+    assert_eq!(probe.report.status, ReportStatus::Rejected);
+    assert_eq!(
+        probe.report.reason_codes,
+        vec![ReasonCode::KnowledgePreconditionNotMet]
+    );
+    assert!(!probe.report.actor_visible_summary.contains("actor_mara"));
+    assert!(!probe.report.actor_visible_summary.contains("stole"));
+    assert!(probe.report.debug_summary.contains("actor_mara"));
+    assert!(probe
+        .appended_events
+        .iter()
+        .all(|event| event.stream != EventStream::World && event.stream != EventStream::Epistemic));
 }
 
 #[test]

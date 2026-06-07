@@ -2,6 +2,7 @@
 
 pub mod belief;
 pub mod contradiction;
+pub mod knowledge_basis;
 pub mod knowledge_context;
 pub mod observation;
 pub mod projection;
@@ -11,6 +12,7 @@ pub use belief::{Belief, BeliefBuildError, BeliefDraft, HolderKind, Stance};
 pub use contradiction::{
     detect_expected_absences, Contradiction, ContradictionKind, ExpectedAbsenceDetection,
 };
+pub use knowledge_basis::actor_has_source_backed_support;
 pub use knowledge_context::{
     AllowedKnowledgeSource, ForbiddenKnowledgeSource, KnowledgeContext, ScopeFilter, ViewMode,
 };

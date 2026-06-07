@@ -1,3 +1,4 @@
+use crate::actions::defs::accuseprobe::validate_truthful_accuse_probe;
 use crate::actions::defs::checkcontainer::{
     build_check_container_event, build_observation_recorded_event,
 };
@@ -142,6 +143,8 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         "knowledge_perception_slot",
         if matches!(definition.effect, ActionEffect::CheckContainer) {
             "active"
+        } else if proposal.action_id.as_str() == "truthful_accuse_probe" {
+            "query_validation"
         } else {
             "inert"
         },
@@ -150,6 +153,18 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
 
     let mut appended_events = Vec::new();
     let would_mutate = !matches!(definition.effect, ActionEffect::QueryOnly);
+    if definition.effect == ActionEffect::QueryOnly
+        && proposal.action_id.as_str() == "truthful_accuse_probe"
+    {
+        let projection = context
+            .epistemic_projection
+            .as_ref()
+            .map(|projection| &**projection);
+        if let Err(rejection) = validate_truthful_accuse_probe(context.state, projection, proposal)
+        {
+            return reject_action(context, proposal, rejection);
+        }
+    }
     if would_mutate {
         let event_result = match definition.effect {
             ActionEffect::Move => build_move_event(
