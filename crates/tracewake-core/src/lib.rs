@@ -1,6 +1,7 @@
 //! Authoritative Tracewake simulation kernel.
 
 pub mod actions;
+pub mod agent;
 pub mod checksum;
 pub mod controller;
 pub mod debug_reports;

@@ -127,6 +127,16 @@ fn render_debug<W: Write>(
                 crate::debug_panels::render_debug_observations_panel(&view)
             )
         }
+        DebugCommand::Needs => writeln!(writer, "{}", app.render_debug_needs_panel()),
+        DebugCommand::Routines => writeln!(writer, "{}", app.render_debug_routines_panel()),
+        DebugCommand::Planner(actor_id) => {
+            writeln!(writer, "{}", app.render_debug_planner_panel(&actor_id))
+        }
+        DebugCommand::Stuck => writeln!(writer, "{}", app.render_debug_stuck_panel()),
+        DebugCommand::NoHumanDay => writeln!(writer, "{}", app.render_debug_no_human_day_panel()),
+        DebugCommand::Actor(actor_id) => {
+            writeln!(writer, "{}", app.render_debug_actor_panel(&actor_id))
+        }
     }
 }
 
@@ -157,7 +167,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug actor <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -212,6 +222,12 @@ mod tests {
             "debug epistemics",
             "debug beliefs <actor_id>",
             "debug observations <actor_id>",
+            "debug needs",
+            "debug routines",
+            "debug planner <actor_id>",
+            "debug stuck",
+            "debug no-human-day",
+            "debug actor <actor_id>",
             "quit",
             "q",
         ] {

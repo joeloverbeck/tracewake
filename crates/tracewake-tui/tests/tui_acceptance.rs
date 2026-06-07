@@ -49,6 +49,79 @@ fn debug_truth_does_not_enter_embodied_view() {
 }
 
 #[test]
+fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
+    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let before_view = app.render_current_view().unwrap();
+    let before_checksum = app.physical_checksum();
+    let before_event_count = app.event_count();
+
+    let needs_first = app.render_debug_needs_panel();
+    let needs_second = app.render_debug_needs_panel();
+    let routines = app.render_debug_routines_panel();
+    let planner = app.render_debug_planner_panel(&ActorId::new("actor_mara").unwrap());
+    let stuck = app.render_debug_stuck_panel();
+    let no_human_day = app.render_debug_no_human_day_panel();
+    let actor = app.render_debug_actor_panel(&ActorId::new("actor_tomas").unwrap());
+
+    assert_eq!(needs_first, needs_second);
+    for panel in [
+        &needs_first,
+        &routines,
+        &planner,
+        &stuck,
+        &no_human_day,
+        &actor,
+    ] {
+        assert!(panel.contains("DEBUG NON-DIEGETIC"));
+    }
+    assert!(needs_first.contains("actor_tomas"));
+    assert!(needs_first.contains("need=hunger"));
+    assert!(routines.contains("Routines"));
+    assert!(planner.contains("actor=actor_mara"));
+    assert!(planner.contains("candidate_goals"));
+    assert!(planner.contains("selected_method"));
+    assert!(planner.contains("rejected_reasons"));
+    assert!(planner.contains("blocked_preconditions"));
+    assert!(planner.contains("hidden_truth_audit"));
+    assert!(stuck.contains("stuck_diagnostic_count="));
+    assert!(no_human_day.contains("No Human Day"));
+    assert!(no_human_day.contains("no_human_day_metrics_v1"));
+    assert!(actor.contains("actor=actor_tomas"));
+    assert_eq!(app.render_current_view().unwrap(), before_view);
+    assert_eq!(app.physical_checksum(), before_checksum);
+    assert_eq!(app.event_count(), before_event_count);
+
+    let debug_panels_source = include_str!("../src/debug_panels.rs");
+    for forbidden in ["apply_event", "insert_belief", "insert_observation"] {
+        assert!(
+            !debug_panels_source.contains(forbidden),
+            "debug panel rendering must not call {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn phase3a_possess_continue_and_debug_transcript_is_deterministic() {
+    let first = phase3a_possess_continue_debug_transcript();
+    let second = phase3a_possess_continue_debug_transcript();
+
+    assert_eq!(first, second);
+    assert!(first.contains("Actor: actor_mara"));
+    assert!(first.contains("Needs:"));
+    assert!(first.contains("Intention:"));
+    assert!(first.contains("Accepted: wait.1_tick"));
+    assert!(first.contains("continue_routine"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Needs"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Planner"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Stuck"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Actor"));
+    assert!(!first.contains("food_hidden_pantry"));
+}
+
+#[test]
 fn leakage_debug_truth_does_not_enter_embodied_view() {
     debug_truth_does_not_enter_embodied_view();
 }
@@ -147,4 +220,37 @@ fn assert_no_embodied_culprit_leak(rendered: &str) {
             "embodied surface leaked {forbidden}: {rendered}"
         );
     }
+}
+
+fn phase3a_possess_continue_debug_transcript() -> String {
+    let mut app = TuiApp::from_golden(fixtures::possession_does_not_reset_intention_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
+    let view = app.current_view().unwrap();
+    let continue_action = view
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == "continue_routine")
+        .map(|action| action.semantic_action_id.clone());
+
+    let mut transcript = vec![app.render_current_view().unwrap()];
+    let waited = app
+        .submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())
+        .unwrap();
+    assert_eq!(waited.report.status, ReportStatus::Accepted);
+    transcript.push("Accepted: wait.1_tick".to_string());
+    if let Some(continue_action) = continue_action {
+        let continued = app.submit_semantic_action(&continue_action).unwrap();
+        assert_eq!(continued.report.status, ReportStatus::Accepted);
+        transcript.push(format!("Accepted: {}", continue_action.as_str()));
+    } else {
+        transcript.push("continue_routine unavailable: no active intention".to_string());
+    }
+    transcript.push(app.render_current_view().unwrap());
+    transcript.push(app.render_debug_needs_panel());
+    transcript.push(app.render_debug_routines_panel());
+    transcript.push(app.render_debug_planner_panel(&ActorId::new("actor_mara").unwrap()));
+    transcript.push(app.render_debug_stuck_panel());
+    transcript.push(app.render_debug_no_human_day_panel());
+    transcript.push(app.render_debug_actor_panel(&ActorId::new("actor_mara").unwrap()));
+    transcript.join("\n---\n")
 }

@@ -15,8 +15,15 @@ Phase 2A has landed as the first executable epistemic slice, not all of Phase 2.
 typed propositions, observations, source-backed beliefs, expectation contradictions,
 actor-known notebooks, debug epistemics, possession parity fixtures, and a bounded
 low-confidence sound-observation slice. Richer memory decay, reports, records,
-institutions, gossip, wrong suspicion workflows, routines, dialogue, and graphical client
-work remain deferred.
+institutions, gossip, wrong suspicion workflows, dialogue, and graphical client work remain
+deferred.
+
+Phase 3A has landed as the ordinary-life substrate slice. Actors now have bounded hunger,
+fatigue, and safety needs; durable intentions; authored routine duties; local planning;
+ordinary sleep/eat/work/continue/wait actions through the shared pipeline; no-human day
+markers and metrics; and non-diegetic debug panels for needs, routines, planner traces,
+stuck diagnostics, and no-human day summaries. It is still not a smart-dialogue,
+institution, or quest phase.
 
 ## Workspace layout
 
@@ -79,7 +86,8 @@ cargo run -p tracewake-tui
 
 The binary loads the default `strongbox_001` fixture, binds `actor_tomas`, prints `tracewake-tui ready`, renders the initial embodied view, and enters a simple stdin/stdout command loop.
 
-This is intentionally plain text. It is the Phase 1 operating surface for the current kernel and view-model slice, not a graphical client.
+This is intentionally plain text. It is the operating surface for the current kernel,
+epistemic, and ordinary-life slices, not a graphical client.
 
 ### Commands
 
@@ -101,6 +109,12 @@ debug replay                 replay the log and show the debug report
 debug epistemics             show non-diegetic epistemic projection counts and records
 debug beliefs <actor_id>     show non-diegetic beliefs for one actor
 debug observations <actor_id> show non-diegetic observations for one actor
+debug needs                  show non-diegetic Phase 3A needs for all actors
+debug routines               show non-diegetic Phase 3A intentions and routine executions
+debug planner <actor_id>     show non-diegetic planner traces and blocked preconditions
+debug stuck                  show non-diegetic stuck diagnostics
+debug no-human-day           show non-diegetic no-human day metrics
+debug actor <actor_id>       show one actor's non-diegetic needs, routine, trace, and stuck rows
 quit                         exit
 q                            exit
 ```
@@ -114,6 +128,28 @@ the check action records a channel-backed observation and can contradict Tomas's
 expectation in absence-oriented fixtures without creating culprit knowledge.
 
 Debug panels are marked non-diegetic. They may reveal debug truth, but returning to `view` shows only the actor-filtered embodied view.
+
+### Phase 3A ordinary-life surface
+
+Needs are bounded values for `hunger`, `fatigue`, and `safety`, grouped into bands
+(`comfortable`, `rising`, `urgent`, `severe`). A possessed actor sees only their
+actor-known need/status summary in the embodied view; debug panels may reveal full
+operator truth.
+
+Ordinary-life actions are registered as stable action families: `sleep`, `eat`,
+`work_block`, `continue_routine`, and `wait`. The TUI exposes them as semantic action
+IDs such as `sleep.here`, `eat.<food_supply_id>`, `work.<workplace_id>`,
+`continue.routine.<intention_id>`, and `wait.1_tick` when the current actor and fixture
+state make them applicable. They still submit proposals through the same validation,
+event-log, replay, and why-not machinery as movement, open/close, take/place, and check.
+
+Routines are authored as defeasible templates and assignments in content fixtures. They
+can create durable intentions, select routine methods, emit concrete action proposals,
+wait with a modeled reason, or record typed stuck diagnostics when progress is blocked.
+The canonical boring-day fixture is `no_human_day_001`; debug with
+`debug no-human-day`, `debug planner actor_mara`, `debug stuck`, and
+`debug actor actor_tomas` to inspect the no-human metrics, Mara's food replan trace, and
+stuck actor rows without feeding that truth back into embodied knowledge.
 
 ### Example session shape
 
@@ -205,6 +241,20 @@ Phase 2A adds these fixture contracts:
 | `knowledge_blocker_accuse_001` | Accusation probing is blocked by actor-known knowledge preconditions, not by authored culprit flags. |
 | `sound_uncertainty_001` | Simple sound evidence is low-confidence and uncertain; it does not become theft knowledge. |
 | `no_human_epistemic_check_001` | Epistemic checks are ordinary actor-relative actions and do not require a privileged human controller. |
+
+Phase 3A adds these fixture contracts:
+
+| Fixture | Contract focus |
+|---|---|
+| `ordinary_workday_001` | Routine windows can drive an ordinary workday path. |
+| `sleep_eat_work_001` | Sleep, eat, and work actions affect bounded needs through the shared pipeline. |
+| `food_unavailable_replan_001` | Missing accessible food causes a replan/fallback instead of hidden-truth planning. |
+| `routine_blocked_diagnostic_001` | Blocked routines record typed stuck diagnostics rather than looping silently. |
+| `planner_trace_001` | Candidate goals, selected methods, rejected reasons, and hidden-truth audit rows are traceable. |
+| `routine_no_teleport_001` | Routines cannot start remote work without movement ancestry. |
+| `possession_does_not_reset_intention_001` | Binding a controller does not reset another actor's needs, intention, or routine execution. |
+| `no_hidden_truth_planning_001` | Planner selection uses actor-known inputs, not omniscient fixture truth. |
+| `no_human_day_001` | Canonical no-human ordinary day with needs, routines, diagnostics, replayable metrics, and debug inspection. |
 
 Forbidden shortcut fields such as `culprit`, `stolen_flag`, `npc_knows_truth`,
 `quest_state`, and `player_memory` are rejected by content validation.

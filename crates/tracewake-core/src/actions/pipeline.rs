@@ -2,12 +2,16 @@ use crate::actions::defs::accuseprobe::validate_truthful_accuse_probe;
 use crate::actions::defs::checkcontainer::{
     build_check_container_event, build_observation_recorded_event,
 };
+use crate::actions::defs::continue_routine::build_continue_routine_event;
+use crate::actions::defs::eat::build_eat_events;
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
+use crate::actions::defs::sleep::build_sleep_start_event;
 use crate::actions::defs::takeplace::{
     build_sound_belief_event, build_sound_observation_event, build_take_place_event,
 };
-use crate::actions::defs::wait::build_wait_event;
+use crate::actions::defs::wait::build_wait_events;
+use crate::actions::defs::work::build_work_start_events;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
 use crate::actions::proposal::ProposalOrigin;
@@ -17,7 +21,7 @@ use crate::controller::{ControllerBindings, ControllerError};
 use crate::epistemics::{detect_expected_absences, Confidence, EpistemicProjection};
 use crate::events::apply::{apply_epistemic_event, apply_event};
 use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::PhysicalState;
@@ -164,6 +168,21 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         .registry
         .get(&proposal.action_id)
         .expect("accepted decision must have an action definition");
+
+    if let Some(active_event_id) = body_exclusive_reservation_conflict(context, &candidate_events) {
+        return reject_committed(
+            context,
+            proposal,
+            PipelineStage::ReservationConflictCheck,
+            vec![ReasonCode::ReservationConflict],
+            checked_facts,
+            "That actor is already in a body-exclusive action.",
+            format!(
+                "scheduling/reservation conflict with active body-exclusive event {}",
+                active_event_id.as_str()
+            ),
+        );
+    }
 
     let mut appended_events = Vec::new();
     for event in candidate_events {
@@ -351,6 +370,60 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
     }
 }
 
+fn body_exclusive_reservation_conflict(
+    context: &PipelineContext<'_>,
+    candidate_events: &[EventEnvelope],
+) -> Option<EventId> {
+    let actor_id = candidate_events.iter().find_map(|event| {
+        is_body_exclusive_start(event)
+            .then(|| event.actor_id.clone())
+            .flatten()
+    })?;
+    if !candidate_events.iter().any(is_body_exclusive_start) {
+        return None;
+    }
+
+    let closed_starts = context
+        .log
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.event_type,
+                EventKind::SleepCompleted
+                    | EventKind::SleepInterrupted
+                    | EventKind::WorkBlockCompleted
+            )
+        })
+        .flat_map(|event| event.causes.iter())
+        .filter_map(|cause| match cause {
+            EventCause::Event(event_id) => Some(event_id.clone()),
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+
+    context
+        .log
+        .events()
+        .iter()
+        .find(|event| {
+            event.actor_id.as_ref() == Some(&actor_id)
+                && is_body_exclusive_start(event)
+                && !closed_starts.contains(&event.event_id)
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn is_body_exclusive_start(event: &EventEnvelope) -> bool {
+    matches!(
+        event.event_type,
+        EventKind::SleepStarted | EventKind::WorkBlockStarted
+    ) && event
+        .payload
+        .iter()
+        .any(|field| field.key == "body_exclusive" && field.value == "true")
+}
+
 fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> PipelineDecision {
     let mut checked_facts = vec![CheckedFact::new("action_id", proposal.action_id.as_str())];
 
@@ -463,13 +536,112 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
                 context.content_manifest_id,
                 false,
             ),
-            ActionEffect::Wait => build_wait_event(
+            ActionEffect::Wait => {
+                let events = match build_wait_events(
+                    context.state,
+                    proposal,
+                    context.ordering_key,
+                    context.content_manifest_id,
+                ) {
+                    Ok(events) => events,
+                    Err(rejection) => return reject_action(context, proposal, rejection),
+                };
+
+                let mut dry_run = context.state.clone();
+                for event in &events {
+                    if apply_event(&mut dry_run, event).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::EventApplication,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The world state did not match that action.",
+                            "dry-run event application rejected a constructed wait event",
+                        );
+                    }
+                }
+                return PipelineDecision::Accepted {
+                    candidate_events: events,
+                    checked_facts,
+                    would_mutate,
+                };
+            }
+            ActionEffect::CheckContainer => build_check_container_event(
                 context.state,
                 proposal,
                 context.ordering_key,
                 context.content_manifest_id,
             ),
-            ActionEffect::CheckContainer => build_check_container_event(
+            ActionEffect::Sleep => build_sleep_start_event(
+                context.state,
+                proposal,
+                context.ordering_key,
+                context.content_manifest_id,
+            ),
+            ActionEffect::Eat => {
+                let events = match build_eat_events(
+                    context.state,
+                    proposal,
+                    context.ordering_key,
+                    context.content_manifest_id,
+                ) {
+                    Ok(events) => events,
+                    Err(rejection) => return reject_action(context, proposal, rejection),
+                };
+
+                let mut dry_run = context.state.clone();
+                for event in &events {
+                    if apply_event(&mut dry_run, event).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::EventApplication,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The world state did not match that action.",
+                            "dry-run event application rejected a constructed eat event",
+                        );
+                    }
+                }
+                return PipelineDecision::Accepted {
+                    candidate_events: events,
+                    checked_facts,
+                    would_mutate,
+                };
+            }
+            ActionEffect::Work => {
+                let events = match build_work_start_events(
+                    context.state,
+                    proposal,
+                    context.ordering_key,
+                    context.content_manifest_id,
+                ) {
+                    Ok(events) => events,
+                    Err(rejection) => return reject_action(context, proposal, rejection),
+                };
+
+                let mut dry_run = context.state.clone();
+                for event in &events {
+                    if apply_event(&mut dry_run, event).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::EventApplication,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The world state did not match that action.",
+                            "dry-run event application rejected a constructed work event",
+                        );
+                    }
+                }
+                return PipelineDecision::Accepted {
+                    candidate_events: events,
+                    checked_facts,
+                    would_mutate,
+                };
+            }
+            ActionEffect::ContinueRoutine => build_continue_routine_event(
                 context.state,
                 proposal,
                 context.ordering_key,

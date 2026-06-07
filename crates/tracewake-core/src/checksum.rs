@@ -1,6 +1,7 @@
-use crate::ids::{ContentVersion, FixtureId};
+use crate::agent::RoutineStepStatus;
+use crate::ids::{AgentProjectionVersion, ContentVersion, FixtureId};
 use crate::location::Location;
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -122,8 +123,171 @@ pub fn compute_physical_checksum(
         ));
     }
 
+    for (food_supply_id, food) in &state.food_supplies {
+        lines.push(format!(
+            "food_supply|id={}|location={}|servings={}|hunger_reduction={}",
+            food_supply_id.as_str(),
+            location_key(&food.location),
+            food.servings,
+            food.hunger_reduction_per_serving
+        ));
+    }
+
+    for (workplace_id, workplace) in &state.workplaces {
+        lines.push(format!(
+            "workplace|id={}|place={}|assigned={}|duration={}|fatigue_delta={}|hunger_delta={}|max_fatigue={}|max_hunger={}|access_open={}|output_tag={}",
+            workplace_id.as_str(),
+            workplace.place_id.as_str(),
+            join_ids(workplace.assigned_actor_ids.iter().map(|id| id.as_str())),
+            workplace.work_duration_ticks,
+            workplace.fatigue_delta_per_tick,
+            workplace.hunger_delta_per_tick,
+            workplace.max_fatigue_to_start,
+            workplace.max_hunger_to_start,
+            workplace.access_open,
+            workplace.output_tag
+        ));
+    }
+
     let checksum = PhysicalChecksum::from_canonical_lines(&lines);
     PhysicalChecksumReport {
+        checksum,
+        canonical_input: lines,
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AgentStateChecksum(String);
+
+impl AgentStateChecksum {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn from_canonical_lines(lines: &[String]) -> Self {
+        let physical = PhysicalChecksum::from_canonical_lines(lines);
+        Self(format!(
+            "twa1-{}",
+            physical.as_str().trim_start_matches("twc1-")
+        ))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AgentStateChecksumReport {
+    pub projection_version: AgentProjectionVersion,
+    pub checksum: AgentStateChecksum,
+    pub canonical_input: Vec<String>,
+}
+
+impl AgentStateChecksumReport {
+    pub fn recompute_from_canonical_input(&self) -> AgentStateChecksum {
+        AgentStateChecksum::from_canonical_lines(&self.canonical_input)
+    }
+}
+
+pub fn compute_agent_state_checksum(
+    state: &AgentState,
+    context: &ChecksumContext,
+) -> AgentStateChecksumReport {
+    let projection_version = AgentProjectionVersion::new("agent_projection_v1").unwrap();
+    let mut lines = vec![
+        format!("projection_version={}", projection_version.as_str()),
+        format!("fixture_id={}", context.fixture_id.as_str()),
+        format!("content_version={}", context.content_version.as_str()),
+        format!("sim_tick={}", context.sim_tick.value()),
+        format!(
+            "world_stream_position_applied={}",
+            context.world_stream_position_applied
+        ),
+    ];
+
+    for (actor_id, needs) in &state.needs_by_actor {
+        for (kind, need) in needs {
+            lines.push(format!(
+                "need|actor={}|kind={}|state={}",
+                actor_id.as_str(),
+                kind.stable_id(),
+                need.serialize_canonical()
+            ));
+        }
+    }
+
+    for (intention_id, intention) in &state.intentions {
+        lines.push(format!(
+            "intention|id={}|actor={}|source={}|goal={}|method={}|step={}|durability={}|start={}|last_progress={}|status={}|reason={}|traces={}",
+            intention_id.as_str(),
+            intention.actor_id.as_str(),
+            intention.source.stable_id(),
+            intention.selected_goal_id.as_str(),
+            intention
+                .selected_routine_method
+                .as_ref()
+                .map(|id| id.as_str())
+                .unwrap_or(""),
+            intention.current_step.as_deref().unwrap_or(""),
+            intention.durability_level,
+            intention.start_tick.value(),
+            intention.last_progress_tick.value(),
+            intention.status.stable_id(),
+            intention.status_reason.as_deref().unwrap_or(""),
+            join_ids(intention.trace_ancestry.iter().map(|id| id.as_str()))
+        ));
+    }
+
+    for (actor_id, intention_id) in &state.active_intention_by_actor {
+        lines.push(format!(
+            "active_intention|actor={}|intention={}",
+            actor_id.as_str(),
+            intention_id.as_str()
+        ));
+    }
+
+    for (execution_id, execution) in &state.routine_executions {
+        lines.push(format!(
+            "routine_execution|id={}|actor={}|template={}|step_index={}|status={}|start={}|last_progress={}|next={}|deadline={}|actions={}|resource={}|fallbacks={}|reason={}|trace={}",
+            execution_id.as_str(),
+            execution.actor_id.as_str(),
+            execution.template_id.as_str(),
+            execution.current_step_index,
+            routine_step_status_id(execution.step_status),
+            execution.start_tick.value(),
+            execution.last_progress_tick.value(),
+            execution
+                .expected_next_progress_tick
+                .map(|tick| tick.value().to_string())
+                .unwrap_or_default(),
+            execution
+                .deadline_tick
+                .map(|tick| tick.value().to_string())
+                .unwrap_or_default(),
+            join_ids(execution.concrete_action_ancestry.iter().map(|id| id.as_str())),
+            execution.reserved_resource.as_deref().unwrap_or(""),
+            execution.fallback_attempts,
+            execution.failure_interruption_reason.as_deref().unwrap_or(""),
+            execution.trace_id.as_str()
+        ));
+    }
+
+    for (trace_id, canonical) in &state.decision_traces {
+        lines.push(format!(
+            "decision_trace|id={}|canonical={}",
+            trace_id.as_str(),
+            canonical
+        ));
+    }
+
+    for (diagnostic_id, canonical) in &state.stuck_diagnostics {
+        lines.push(format!(
+            "stuck_diagnostic|id={}|canonical={}",
+            diagnostic_id.as_str(),
+            canonical
+        ));
+    }
+
+    let checksum = AgentStateChecksum::from_canonical_lines(&lines);
+    AgentStateChecksumReport {
+        projection_version,
         checksum,
         canonical_input: lines,
     }
@@ -138,6 +302,19 @@ fn location_key(location: &Location) -> String {
         Location::AtPlace(id) => format!("at_place:{}", id.as_str()),
         Location::InContainer(id) => format!("in_container:{}", id.as_str()),
         Location::CarriedBy(id) => format!("carried_by:{}", id.as_str()),
+    }
+}
+
+fn routine_step_status_id(status: RoutineStepStatus) -> &'static str {
+    match status {
+        RoutineStepStatus::NotStarted => "not_started",
+        RoutineStepStatus::InProgress => "in_progress",
+        RoutineStepStatus::Waiting => "waiting",
+        RoutineStepStatus::Completed => "completed",
+        RoutineStepStatus::Failed => "failed",
+        RoutineStepStatus::Interrupted => "interrupted",
+        RoutineStepStatus::Suspended => "suspended",
+        RoutineStepStatus::Abandoned => "abandoned",
     }
 }
 

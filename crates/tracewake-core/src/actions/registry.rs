@@ -12,6 +12,10 @@ pub enum ActionEffect {
     Place,
     Wait,
     CheckContainer,
+    Sleep,
+    Eat,
+    Work,
+    ContinueRoutine,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -111,6 +115,34 @@ impl ActionRegistry {
         ));
         self.register(ActionDefinition::query_only(
             ActionId::new("truthful_accuse_probe").unwrap(),
+        ));
+    }
+
+    pub fn register_phase3a_sleep(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("sleep").unwrap(),
+            ActionEffect::Sleep,
+        ));
+    }
+
+    pub fn register_phase3a_eat(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("eat").unwrap(),
+            ActionEffect::Eat,
+        ));
+    }
+
+    pub fn register_phase3a_work(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("work_block").unwrap(),
+            ActionEffect::Work,
+        ));
+    }
+
+    pub fn register_phase3a_continue_routine(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("continue_routine").unwrap(),
+            ActionEffect::ContinueRoutine,
         ));
     }
 }

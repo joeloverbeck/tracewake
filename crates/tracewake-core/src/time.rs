@@ -21,6 +21,23 @@ impl SimTick {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PassiveNeedDeltas {
+    pub hunger_delta: i32,
+    pub fatigue_delta: i32,
+}
+
+pub const AWAKE_HUNGER_DELTA_PER_TICK: i32 = 5;
+pub const AWAKE_FATIGUE_DELTA_PER_TICK: i32 = 3;
+
+pub fn passive_awake_need_deltas(elapsed_ticks: u64) -> PassiveNeedDeltas {
+    let elapsed = i32::try_from(elapsed_ticks).unwrap_or(i32::MAX);
+    PassiveNeedDeltas {
+        hunger_delta: elapsed.saturating_mul(AWAKE_HUNGER_DELTA_PER_TICK),
+        fatigue_delta: elapsed.saturating_mul(AWAKE_FATIGUE_DELTA_PER_TICK),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -33,5 +50,18 @@ mod tests {
         assert_eq!(tick.next(), SimTick::new(1));
         assert_eq!(tick.advance_by(5), SimTick::new(5));
         assert_eq!(tick.advance_by(1).advance_by(1), SimTick::new(2));
+    }
+
+    #[test]
+    fn passive_awake_need_deltas_are_deterministic_and_non_reducing() {
+        assert_eq!(
+            passive_awake_need_deltas(3),
+            PassiveNeedDeltas {
+                hunger_delta: 15,
+                fatigue_delta: 9,
+            }
+        );
+        assert!(passive_awake_need_deltas(10).hunger_delta >= 0);
+        assert!(passive_awake_need_deltas(10).fatigue_delta >= 0);
     }
 }

@@ -12,12 +12,13 @@ use tracewake_core::epistemics::{
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::EventKind;
 use tracewake_core::events::EventStream;
+use tracewake_core::events::{EventCause, EventEnvelope, PayloadField};
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
-    EventId, FixtureId, ItemId, PlaceId, ProposalId,
+    EventId, FixtureId, ItemId, PlaceId, ProcessId, ProposalId,
 };
 use tracewake_core::location::Location;
-use tracewake_core::projections::build_notebook_view;
+use tracewake_core::projections::{build_notebook_view, no_human_day_metrics};
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -63,6 +64,51 @@ fn context(log: &EventLog) -> ChecksumContext {
             .count()
             .saturating_sub(1) as u64,
     }
+}
+
+fn agent_ordering_key(action: &str, sequence: u64) -> OrderingKey {
+    OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        ActionId::new(action).unwrap(),
+        vec!["phase3a".to_string()],
+        format!("agent_{sequence}"),
+    )
+}
+
+fn agent_event(
+    event_id: &str,
+    kind: EventKind,
+    sequence: u64,
+    payload: Vec<PayloadField>,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(event_id).unwrap(),
+        kind,
+        99,
+        99,
+        SimTick::ZERO,
+        agent_ordering_key("continue_routine", sequence),
+        manifest_id(),
+        vec![EventCause::Process(
+            ProcessId::new("process_agent").unwrap(),
+        )],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id());
+    event.payload = payload;
+    event
+}
+
+fn hunger_delta_payload(delta: i32, cause_kind: &str) -> Vec<PayloadField> {
+    vec![
+        PayloadField::new("actor_id", "actor_tomas"),
+        PayloadField::new("need_kind", "hunger"),
+        PayloadField::new("delta", delta.to_string()),
+        PayloadField::new("cause_kind", cause_kind),
+    ]
 }
 
 fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
@@ -644,6 +690,48 @@ fn replay_detects_missing_or_reordered_event() {
 }
 
 #[test]
+fn phase3a_agent_state_replay_projection_is_deterministic() {
+    let initial = initial_state(true, true);
+    let mut log = EventLog::new();
+    log.append(agent_event(
+        "event_hunger_initial",
+        EventKind::NeedDeltaApplied,
+        0,
+        hunger_delta_payload(490, "fixture_initial"),
+    ))
+    .unwrap();
+    log.append(agent_event(
+        "event_hunger_tick",
+        EventKind::NeedDeltaApplied,
+        1,
+        hunger_delta_payload(40, "tick_delta"),
+    ))
+    .unwrap();
+    log.append(agent_event(
+        "event_trace_breakfast",
+        EventKind::DecisionTraceRecorded,
+        2,
+        vec![
+            PayloadField::new("trace_id", "trace_breakfast"),
+            PayloadField::new("trace_canonical", "decision_trace_v1|breakfast"),
+        ],
+    ))
+    .unwrap();
+
+    let first = rebuild_projection(&initial, &log, &context(&log), None);
+    let second = rebuild_projection(&initial, &log, &context(&log), None);
+
+    assert_eq!(first.final_agent_checksum, second.final_agent_checksum);
+    assert_eq!(
+        first.final_agent_checksum_report.canonical_input,
+        second.final_agent_checksum_report.canonical_input
+    );
+    assert_eq!(first.final_agent_state.decision_traces.len(), 1);
+    assert!(first.agent_application_errors.is_empty());
+    assert!(first.unsupported_agent_versions.is_empty());
+}
+
+#[test]
 fn debug_item_location_reports_last_location_event() {
     let mut state = initial_state(true, true);
     let mut log = EventLog::new();
@@ -716,4 +804,46 @@ fn no_human_advance_requires_no_controller() {
 
     assert_eq!(report.tick_count, 2);
     assert_eq!(report.marker_event_ids.len(), 2);
+}
+
+#[test]
+fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
+    let mut log = EventLog::new();
+    for (sequence, kind, payload) in [
+        (0, EventKind::NoHumanDayStarted, Vec::new()),
+        (1, EventKind::RoutineStepStarted, Vec::new()),
+        (
+            2,
+            EventKind::FoodConsumed,
+            hunger_delta_payload(-200, "eat"),
+        ),
+        (
+            3,
+            EventKind::NeedThresholdCrossed,
+            hunger_delta_payload(50, "wait"),
+        ),
+        (4, EventKind::WorkBlockFailed, Vec::new()),
+        (5, EventKind::StuckDiagnosticRecorded, Vec::new()),
+        (6, EventKind::NoHumanDayCompleted, Vec::new()),
+    ] {
+        log.append(agent_event(
+            &format!("event_phase3a_metric_{sequence}"),
+            kind,
+            sequence,
+            payload,
+        ))
+        .unwrap();
+    }
+
+    let canonical = log.serialize_canonical();
+    let replayed = EventLog::deserialize_canonical(&canonical).unwrap();
+    let first_metrics = no_human_day_metrics(&log).serialize_canonical();
+    let replayed_metrics = no_human_day_metrics(&replayed).serialize_canonical();
+
+    assert_eq!(replayed.serialize_canonical(), canonical);
+    assert_eq!(replayed_metrics, first_metrics);
+    assert!(first_metrics.contains("no_human_day_metrics_v1"));
+    let canonical_text = String::from_utf8(canonical).unwrap().to_ascii_lowercase();
+    assert!(!canonical_text.contains("player"));
+    assert!(!canonical_text.contains("controller"));
 }

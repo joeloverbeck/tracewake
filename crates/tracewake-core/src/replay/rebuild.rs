@@ -1,10 +1,13 @@
-use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
+use crate::checksum::{
+    compute_agent_state_checksum, compute_physical_checksum, AgentStateChecksum,
+    AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
+};
 use crate::epistemics::{EpistemicProjection, EpistemicProjectionChecksum};
-use crate::events::apply::{apply_epistemic_event, apply_event};
+use crate::events::apply::{apply_agent_event, apply_epistemic_event, apply_event};
 use crate::events::log::EventLog;
-use crate::events::EventStream;
+use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ContentManifestId, EventId};
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectionRebuildReport {
@@ -16,11 +19,27 @@ pub struct ProjectionRebuildReport {
     pub final_checksum: PhysicalChecksum,
     pub final_epistemic_projection: EpistemicProjection,
     pub final_epistemic_checksum: EpistemicProjectionChecksum,
+    pub final_agent_state: AgentState,
+    pub final_agent_checksum: AgentStateChecksum,
+    pub final_agent_checksum_report: AgentStateChecksumReport,
     pub unsupported_versions: Vec<String>,
     pub unsupported_epistemic_versions: Vec<String>,
+    pub unsupported_agent_versions: Vec<Phase3AReplayFailure>,
     pub invariant_violations: Vec<String>,
     pub epistemic_application_errors: Vec<String>,
+    pub agent_application_errors: Vec<Phase3AReplayFailure>,
     pub state_diff: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Phase3AReplayFailure {
+    pub event_position: u64,
+    pub event_kind: EventKind,
+    pub schema_version: String,
+    pub issue: String,
+    pub actor_id: Option<String>,
+    pub routine_id: Option<String>,
+    pub trace_id: Option<String>,
 }
 
 pub fn rebuild_projection(
@@ -30,13 +49,16 @@ pub fn rebuild_projection(
     expected_final_state: Option<&PhysicalState>,
 ) -> ProjectionRebuildReport {
     let mut rebuilt = initial_state.clone();
+    let mut rebuilt_agent = AgentState::default();
     let mut event_count_applied = 0;
     let mut last_event_id = None;
     let mut last_stream_position = None;
     let mut unsupported_versions = Vec::new();
     let mut unsupported_epistemic_versions = Vec::new();
+    let mut unsupported_agent_versions = Vec::new();
     let mut invariant_violations = Vec::new();
     let mut epistemic_application_errors = Vec::new();
+    let mut agent_application_errors = Vec::new();
     let content_manifest_id = ContentManifestId::new(context.content_version.as_str()).unwrap();
     let mut epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
 
@@ -48,10 +70,14 @@ pub fn rebuild_projection(
                 event.event_id.as_str(),
                 event.event_schema_version.as_str()
             );
-            if event.stream == EventStream::Epistemic {
-                unsupported_epistemic_versions.push(message);
-            } else if event.stream == EventStream::World {
-                unsupported_versions.push(event.event_schema_version.as_str().to_string());
+            match event.stream {
+                EventStream::Epistemic => unsupported_epistemic_versions.push(message),
+                EventStream::Agent => unsupported_agent_versions
+                    .push(phase3a_failure(event, "unsupported_schema_version")),
+                EventStream::World => {
+                    unsupported_versions.push(event.event_schema_version.as_str().to_string())
+                }
+                EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
             }
             continue;
         }
@@ -86,12 +112,25 @@ pub fn rebuild_projection(
                     ));
                 }
             },
+            EventStream::Agent => match apply_agent_event(&mut rebuilt_agent, event) {
+                Ok(_) => {
+                    last_event_id = Some(event.event_id.clone());
+                    last_stream_position = Some(event.stream_position);
+                }
+                Err(error) => {
+                    let mut failure = phase3a_failure(event, "agent_application_error");
+                    failure.issue = format!("agent_application_error:{error:?}");
+                    agent_application_errors.push(failure);
+                }
+            },
             EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
         }
     }
 
     let final_checksum = compute_physical_checksum(&rebuilt, context).checksum;
     let final_epistemic_checksum = epistemic_projection.compute_checksum().checksum;
+    let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, context);
+    let final_agent_checksum = final_agent_checksum_report.checksum.clone();
     let state_diff = expected_final_state
         .map(|expected| diff_physical_state(expected, &rebuilt))
         .unwrap_or_default();
@@ -105,11 +144,43 @@ pub fn rebuild_projection(
         final_checksum,
         final_epistemic_projection: epistemic_projection,
         final_epistemic_checksum,
+        final_agent_state: rebuilt_agent,
+        final_agent_checksum,
+        final_agent_checksum_report,
         unsupported_versions,
         unsupported_epistemic_versions,
+        unsupported_agent_versions,
         invariant_violations,
         epistemic_application_errors,
+        agent_application_errors,
         state_diff,
+    }
+}
+
+fn phase3a_failure(event: &EventEnvelope, issue: impl Into<String>) -> Phase3AReplayFailure {
+    let payload = event
+        .payload
+        .iter()
+        .map(|field| (field.key.as_str(), field.value.as_str()))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    Phase3AReplayFailure {
+        event_position: event.global_order,
+        event_kind: event.event_type,
+        schema_version: event.event_schema_version.as_str().to_string(),
+        issue: issue.into(),
+        actor_id: event
+            .actor_id
+            .as_ref()
+            .map(|id| id.as_str().to_string())
+            .or_else(|| payload.get("actor_id").map(|value| (*value).to_string())),
+        routine_id: payload
+            .get("routine_execution_id")
+            .or_else(|| payload.get("routine_id"))
+            .map(|value| (*value).to_string()),
+        trace_id: payload
+            .get("trace_id")
+            .or_else(|| payload.get("decision_trace_id"))
+            .map(|value| (*value).to_string()),
     }
 }
 
@@ -145,6 +216,18 @@ pub fn diff_physical_state(expected: &PhysicalState, actual: &PhysicalState) -> 
             expected.items, actual.items
         ));
     }
+    if expected.food_supplies != actual.food_supplies {
+        diffs.push(format!(
+            "food_supplies expected={:?} actual={:?}",
+            expected.food_supplies, actual.food_supplies
+        ));
+    }
+    if expected.workplaces != actual.workplaces {
+        diffs.push(format!(
+            "workplaces expected={:?} actual={:?}",
+            expected.workplaces, actual.workplaces
+        ));
+    }
     diffs.sort();
     diffs
 }
@@ -156,10 +239,10 @@ mod tests {
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
     use crate::events::log::EventLog;
-    use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+    use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
     use crate::ids::{
         ActionId, ActorId, ContentManifestId, ContentVersion, EventId, FixtureId, PlaceId,
-        ProposalId, SchemaVersion,
+        ProcessId, ProposalId, SchemaVersion,
     };
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
     use crate::state::{ActorBody, DoorState, PhysicalState, PlaceState};
@@ -213,6 +296,34 @@ mod tests {
         );
         event.payload = payload;
         event
+    }
+
+    fn agent_event(id: &str, kind: EventKind, payload: Vec<PayloadField>) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(id).unwrap(),
+            kind,
+            99,
+            99,
+            SimTick::new(3),
+            ordering_key("continue_routine"),
+            ContentManifestId::new("phase3a_manifest").unwrap(),
+            vec![EventCause::Process(
+                ProcessId::new("process_agent").unwrap(),
+            )],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id());
+        event.payload = payload;
+        event
+    }
+
+    fn hunger_delta_payload(delta: i32, cause_kind: &str) -> Vec<PayloadField> {
+        vec![
+            PayloadField::new("actor_id", "actor_tomas"),
+            PayloadField::new("need_kind", "hunger"),
+            PayloadField::new("delta", delta.to_string()),
+            PayloadField::new("cause_kind", cause_kind),
+        ]
     }
 
     fn missing_coin_proposition() -> String {
@@ -346,6 +457,126 @@ mod tests {
         assert_eq!(
             report.unsupported_epistemic_versions,
             ["event_position=99 event_id=event_bad_epistemic_version version=event_schema_v999"]
+        );
+    }
+
+    #[test]
+    fn agent_state_rebuild_is_deterministic_and_catches_need_delta_divergence() {
+        let initial = initial_state();
+        let log = EventLog::from_ordered_events_for_replay_tests(vec![
+            agent_event(
+                "event_hunger_initial",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(490, "fixture_initial"),
+            ),
+            agent_event(
+                "event_hunger_tick",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(40, "tick_delta"),
+            ),
+        ]);
+        let changed_log = EventLog::from_ordered_events_for_replay_tests(vec![
+            agent_event(
+                "event_hunger_initial",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(490, "fixture_initial"),
+            ),
+            agent_event(
+                "event_hunger_tick",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(41, "tick_delta"),
+            ),
+        ]);
+
+        let first = rebuild_projection(&initial, &log, &context(), None);
+        let second = rebuild_projection(&initial, &log, &context(), None);
+        let changed = rebuild_projection(&initial, &changed_log, &context(), None);
+
+        assert_eq!(first.final_agent_checksum, second.final_agent_checksum);
+        assert_eq!(
+            first.final_agent_checksum_report.canonical_input,
+            second.final_agent_checksum_report.canonical_input
+        );
+        assert_ne!(first.final_agent_checksum, changed.final_agent_checksum);
+        assert!(first.agent_application_errors.is_empty());
+    }
+
+    #[test]
+    fn unsupported_agent_event_schema_reports_position_kind_and_ids() {
+        let initial = initial_state();
+        let mut event = agent_event(
+            "event_bad_agent_version",
+            EventKind::RoutineStepStarted,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+                PayloadField::new("trace_id", "trace_breakfast"),
+                PayloadField::new("progress_tick", "3"),
+                PayloadField::new("action_id", "check_container.pantry"),
+            ],
+        );
+        event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
+        let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
+
+        let report = rebuild_projection(&initial, &log, &context(), None);
+
+        assert!(report.final_agent_state.routine_executions.is_empty());
+        assert_eq!(report.unsupported_agent_versions.len(), 1);
+        let failure = &report.unsupported_agent_versions[0];
+        assert_eq!(failure.event_position, 99);
+        assert_eq!(failure.event_kind, EventKind::RoutineStepStarted);
+        assert_eq!(failure.schema_version, "event_schema_v999");
+        assert_eq!(failure.actor_id.as_deref(), Some("actor_tomas"));
+        assert_eq!(
+            failure.routine_id.as_deref(),
+            Some("routine_exec_breakfast")
+        );
+        assert_eq!(failure.trace_id.as_deref(), Some("trace_breakfast"));
+    }
+
+    #[test]
+    fn windowed_need_delta_batching_rebuilds_same_final_agent_state() {
+        let initial = initial_state();
+        let unbatched = EventLog::from_ordered_events_for_replay_tests(vec![
+            agent_event(
+                "event_hunger_initial",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(490, "fixture_initial"),
+            ),
+            agent_event(
+                "event_hunger_tick_a",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(10, "tick_delta"),
+            ),
+            agent_event(
+                "event_hunger_tick_b",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(20, "tick_delta"),
+            ),
+        ]);
+        let batched = EventLog::from_ordered_events_for_replay_tests(vec![
+            agent_event(
+                "event_hunger_initial",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(490, "fixture_initial"),
+            ),
+            agent_event(
+                "event_hunger_tick_window",
+                EventKind::NeedDeltaApplied,
+                hunger_delta_payload(30, "tick_delta"),
+            ),
+        ]);
+
+        let unbatched_report = rebuild_projection(&initial, &unbatched, &context(), None);
+        let batched_report = rebuild_projection(&initial, &batched, &context(), None);
+
+        assert_eq!(
+            unbatched_report.final_agent_checksum,
+            batched_report.final_agent_checksum
+        );
+        assert_eq!(
+            unbatched_report.final_agent_checksum_report.canonical_input,
+            batched_report.final_agent_checksum_report.canonical_input
         );
     }
 }

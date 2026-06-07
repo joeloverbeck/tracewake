@@ -36,6 +36,14 @@ pub fn expectation_contradiction_001() -> GoldenFixture {
             affordance("inspect_entity", "strongbox_tomas"),
         ],
         initial_beliefs: vec![tomas_coin_expectation_seed()],
+        initial_needs: Vec::new(),
+        homes: Vec::new(),
+        sleep_places: Vec::new(),
+        food_supplies: Vec::new(),
+        workplaces: Vec::new(),
+        routine_templates: Vec::new(),
+        routine_assignments: Vec::new(),
+        day_windows: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

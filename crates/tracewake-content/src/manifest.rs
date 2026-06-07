@@ -7,6 +7,8 @@ pub struct ContentManifest {
     pub schema_version: SchemaVersion,
     pub content_version: ContentVersion,
     pub canonical_paths: Vec<String>,
+    pub actor_roster: Vec<String>,
+    pub no_human_day_windows: Vec<String>,
     pub content_fingerprint: String,
 }
 
@@ -29,6 +31,8 @@ impl ContentManifest {
             schema_version,
             content_version,
             canonical_paths,
+            actor_roster: Vec::new(),
+            no_human_day_windows: Vec::new(),
             content_fingerprint: stable_fingerprint(&fingerprint_input),
         }
     }
@@ -62,6 +66,8 @@ mod tests {
         assert_eq!(manifest.schema_version.as_str(), "schema_v1");
         assert_eq!(manifest.content_version.as_str(), "content_v1");
         assert_eq!(manifest.canonical_paths, ["a.fixture", "z.fixture"]);
+        assert!(manifest.actor_roster.is_empty());
+        assert!(manifest.no_human_day_windows.is_empty());
         assert!(manifest.content_fingerprint.starts_with("twf1-"));
     }
 }

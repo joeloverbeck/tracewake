@@ -41,6 +41,26 @@ fn bind_render_submit_rerender_and_show_why_not() {
 }
 
 #[test]
+fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth() {
+    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let rendered = app.render_current_view().unwrap();
+
+    assert!(rendered.contains("Needs:"));
+    assert!(rendered.contains("- hunger:"));
+    assert!(rendered.contains("Intention:"));
+    assert!(rendered.contains("Routine:"));
+    assert!(rendered.contains("Eat food_stew_home_tomas"));
+    assert!(rendered.contains("Sleep here"));
+    assert!(rendered.contains("Work at workplace_tomas"));
+    assert!(rendered.contains("disabled: You are not at that workplace."));
+    assert!(!rendered.contains("food_empty_pantry_mara"));
+    assert!(!rendered.contains("actor_mara"));
+}
+
+#[test]
 fn tui_does_not_call_event_applier() {
     let app_source = include_str!("../src/app.rs");
     let render_source = include_str!("../src/render.rs");

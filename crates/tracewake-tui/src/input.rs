@@ -25,6 +25,12 @@ pub enum DebugCommand {
     Epistemics,
     Beliefs(ActorId),
     Observations(ActorId),
+    Needs,
+    Routines,
+    Planner(ActorId),
+    Stuck,
+    NoHumanDay,
+    Actor(ActorId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -93,6 +99,10 @@ fn parse_debug_command(input: &str) -> Result<DebugCommand, InputError> {
         "projection" => Ok(DebugCommand::ProjectionRebuild),
         "replay" => Ok(DebugCommand::Replay),
         "epistemics" => Ok(DebugCommand::Epistemics),
+        "needs" => Ok(DebugCommand::Needs),
+        "routines" => Ok(DebugCommand::Routines),
+        "stuck" => Ok(DebugCommand::Stuck),
+        "no-human-day" => Ok(DebugCommand::NoHumanDay),
         _ => {
             if let Some(item_id) = trimmed.strip_prefix("item ") {
                 return ItemId::new(item_id.to_string())
@@ -107,6 +117,16 @@ fn parse_debug_command(input: &str) -> Result<DebugCommand, InputError> {
             if let Some(actor_id) = trimmed.strip_prefix("observations ") {
                 return ActorId::new(actor_id.to_string())
                     .map(DebugCommand::Observations)
+                    .map_err(|_| InputError::BadActorId(actor_id.to_string()));
+            }
+            if let Some(actor_id) = trimmed.strip_prefix("planner ") {
+                return ActorId::new(actor_id.to_string())
+                    .map(DebugCommand::Planner)
+                    .map_err(|_| InputError::BadActorId(actor_id.to_string()));
+            }
+            if let Some(actor_id) = trimmed.strip_prefix("actor ") {
+                return ActorId::new(actor_id.to_string())
+                    .map(DebugCommand::Actor)
                     .map_err(|_| InputError::BadActorId(actor_id.to_string()));
             }
             Err(InputError::BadDebugCommand(trimmed.to_string()))
@@ -166,6 +186,7 @@ mod tests {
                     None,
                 ),
             ],
+            phase3a_status: None,
             last_rejection_summary: None,
             knowledge_context_id: None,
             notebook: None,
@@ -249,6 +270,30 @@ mod tests {
             UiCommand::Debug(DebugCommand::Observations(
                 ActorId::new("actor_tomas").unwrap()
             ))
+        );
+        assert_eq!(
+            parse_command("debug needs").unwrap(),
+            UiCommand::Debug(DebugCommand::Needs)
+        );
+        assert_eq!(
+            parse_command("debug routines").unwrap(),
+            UiCommand::Debug(DebugCommand::Routines)
+        );
+        assert_eq!(
+            parse_command("debug planner actor_mara").unwrap(),
+            UiCommand::Debug(DebugCommand::Planner(ActorId::new("actor_mara").unwrap()))
+        );
+        assert_eq!(
+            parse_command("debug stuck").unwrap(),
+            UiCommand::Debug(DebugCommand::Stuck)
+        );
+        assert_eq!(
+            parse_command("debug no-human-day").unwrap(),
+            UiCommand::Debug(DebugCommand::NoHumanDay)
+        );
+        assert_eq!(
+            parse_command("debug actor actor_tomas").unwrap(),
+            UiCommand::Debug(DebugCommand::Actor(ActorId::new("actor_tomas").unwrap()))
         );
     }
 

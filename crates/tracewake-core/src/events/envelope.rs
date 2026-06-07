@@ -11,6 +11,7 @@ pub const EVENT_SCHEMA_V1: &str = "event_schema_v1";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EventStream {
     World,
+    Agent,
     Epistemic,
     Diagnostic,
     Controller,
@@ -42,6 +43,36 @@ pub enum EventKind {
     BeliefUpdated,
     ExpectationContradicted,
     ContainerChecked,
+    NeedDeltaApplied,
+    NeedThresholdCrossed,
+    CandidateGoalsEvaluated,
+    IntentionStarted,
+    IntentionContinued,
+    IntentionSuspended,
+    IntentionResumed,
+    IntentionCompleted,
+    IntentionFailed,
+    IntentionAbandoned,
+    IntentionInterrupted,
+    RoutineStepStarted,
+    RoutineStepCompleted,
+    RoutineStepFailed,
+    DecisionTraceRecorded,
+    SleepStarted,
+    SleepCompleted,
+    SleepInterrupted,
+    FoodConsumed,
+    FoodServiceUsed,
+    EatFailed,
+    WorkBlockStarted,
+    WorkBlockCompleted,
+    WorkBlockFailed,
+    ContinueRoutineProposed,
+    ContinueRoutineAccepted,
+    ContinueRoutineRejected,
+    StuckDiagnosticRecorded,
+    NoHumanDayStarted,
+    NoHumanDayCompleted,
     ReplayProjectionRebuilt,
 }
 
@@ -71,6 +102,36 @@ impl EventKind {
             EventKind::BeliefUpdated,
             EventKind::ExpectationContradicted,
             EventKind::ContainerChecked,
+            EventKind::NeedDeltaApplied,
+            EventKind::NeedThresholdCrossed,
+            EventKind::CandidateGoalsEvaluated,
+            EventKind::IntentionStarted,
+            EventKind::IntentionContinued,
+            EventKind::IntentionSuspended,
+            EventKind::IntentionResumed,
+            EventKind::IntentionCompleted,
+            EventKind::IntentionFailed,
+            EventKind::IntentionAbandoned,
+            EventKind::IntentionInterrupted,
+            EventKind::RoutineStepStarted,
+            EventKind::RoutineStepCompleted,
+            EventKind::RoutineStepFailed,
+            EventKind::DecisionTraceRecorded,
+            EventKind::SleepStarted,
+            EventKind::SleepCompleted,
+            EventKind::SleepInterrupted,
+            EventKind::FoodConsumed,
+            EventKind::FoodServiceUsed,
+            EventKind::EatFailed,
+            EventKind::WorkBlockStarted,
+            EventKind::WorkBlockCompleted,
+            EventKind::WorkBlockFailed,
+            EventKind::ContinueRoutineProposed,
+            EventKind::ContinueRoutineAccepted,
+            EventKind::ContinueRoutineRejected,
+            EventKind::StuckDiagnosticRecorded,
+            EventKind::NoHumanDayStarted,
+            EventKind::NoHumanDayCompleted,
             EventKind::ReplayProjectionRebuilt,
         ]
     }
@@ -102,6 +163,35 @@ impl EventKind {
             | EventKind::BeliefUpdated
             | EventKind::ExpectationContradicted
             | EventKind::ContainerChecked => EventStream::Epistemic,
+            EventKind::NeedDeltaApplied
+            | EventKind::NeedThresholdCrossed
+            | EventKind::CandidateGoalsEvaluated
+            | EventKind::IntentionStarted
+            | EventKind::IntentionContinued
+            | EventKind::IntentionSuspended
+            | EventKind::IntentionResumed
+            | EventKind::IntentionCompleted
+            | EventKind::IntentionFailed
+            | EventKind::IntentionAbandoned
+            | EventKind::IntentionInterrupted
+            | EventKind::RoutineStepStarted
+            | EventKind::RoutineStepCompleted
+            | EventKind::RoutineStepFailed
+            | EventKind::DecisionTraceRecorded
+            | EventKind::SleepStarted
+            | EventKind::SleepCompleted
+            | EventKind::SleepInterrupted
+            | EventKind::FoodServiceUsed
+            | EventKind::EatFailed
+            | EventKind::WorkBlockStarted
+            | EventKind::WorkBlockCompleted
+            | EventKind::WorkBlockFailed
+            | EventKind::ContinueRoutineProposed
+            | EventKind::ContinueRoutineAccepted
+            | EventKind::ContinueRoutineRejected
+            | EventKind::StuckDiagnosticRecorded
+            | EventKind::NoHumanDayStarted
+            | EventKind::NoHumanDayCompleted => EventStream::Agent,
             EventKind::ReplayProjectionRebuilt => EventStream::ReplayDebug,
             EventKind::ActorMoved
             | EventKind::DoorOpened
@@ -112,6 +202,7 @@ impl EventKind {
             | EventKind::ItemTakenFromPlace
             | EventKind::ItemPlacedInContainer
             | EventKind::ItemPlacedInPlace
+            | EventKind::FoodConsumed
             | EventKind::ActorWaited
             | EventKind::TimeAdvanced => EventStream::World,
         }
@@ -129,6 +220,7 @@ impl EventKind {
                 | EventKind::ItemTakenFromPlace
                 | EventKind::ItemPlacedInContainer
                 | EventKind::ItemPlacedInPlace
+                | EventKind::FoodConsumed
                 | EventKind::ActorWaited
                 | EventKind::TimeAdvanced
         )
@@ -159,6 +251,36 @@ impl EventKind {
             EventKind::BeliefUpdated => "belief_updated",
             EventKind::ExpectationContradicted => "expectation_contradicted",
             EventKind::ContainerChecked => "container_checked",
+            EventKind::NeedDeltaApplied => "need_delta_applied",
+            EventKind::NeedThresholdCrossed => "need_threshold_crossed",
+            EventKind::CandidateGoalsEvaluated => "candidate_goals_evaluated",
+            EventKind::IntentionStarted => "intention_started",
+            EventKind::IntentionContinued => "intention_continued",
+            EventKind::IntentionSuspended => "intention_suspended",
+            EventKind::IntentionResumed => "intention_resumed",
+            EventKind::IntentionCompleted => "intention_completed",
+            EventKind::IntentionFailed => "intention_failed",
+            EventKind::IntentionAbandoned => "intention_abandoned",
+            EventKind::IntentionInterrupted => "intention_interrupted",
+            EventKind::RoutineStepStarted => "routine_step_started",
+            EventKind::RoutineStepCompleted => "routine_step_completed",
+            EventKind::RoutineStepFailed => "routine_step_failed",
+            EventKind::DecisionTraceRecorded => "decision_trace_recorded",
+            EventKind::SleepStarted => "sleep_started",
+            EventKind::SleepCompleted => "sleep_completed",
+            EventKind::SleepInterrupted => "sleep_interrupted",
+            EventKind::FoodConsumed => "food_consumed",
+            EventKind::FoodServiceUsed => "food_service_used",
+            EventKind::EatFailed => "eat_failed",
+            EventKind::WorkBlockStarted => "work_block_started",
+            EventKind::WorkBlockCompleted => "work_block_completed",
+            EventKind::WorkBlockFailed => "work_block_failed",
+            EventKind::ContinueRoutineProposed => "continue_routine_proposed",
+            EventKind::ContinueRoutineAccepted => "continue_routine_accepted",
+            EventKind::ContinueRoutineRejected => "continue_routine_rejected",
+            EventKind::StuckDiagnosticRecorded => "stuck_diagnostic_recorded",
+            EventKind::NoHumanDayStarted => "no_human_day_started",
+            EventKind::NoHumanDayCompleted => "no_human_day_completed",
             EventKind::ReplayProjectionRebuilt => "replay_projection_rebuilt",
         }
     }
@@ -168,6 +290,44 @@ impl EventKind {
             .iter()
             .copied()
             .find(|kind| kind.stable_id() == value)
+    }
+}
+
+impl EventKind {
+    pub const fn requires_cause(self) -> bool {
+        matches!(
+            self,
+            EventKind::NeedDeltaApplied
+                | EventKind::NeedThresholdCrossed
+                | EventKind::CandidateGoalsEvaluated
+                | EventKind::IntentionStarted
+                | EventKind::IntentionContinued
+                | EventKind::IntentionSuspended
+                | EventKind::IntentionResumed
+                | EventKind::IntentionCompleted
+                | EventKind::IntentionFailed
+                | EventKind::IntentionAbandoned
+                | EventKind::IntentionInterrupted
+                | EventKind::RoutineStepStarted
+                | EventKind::RoutineStepCompleted
+                | EventKind::RoutineStepFailed
+                | EventKind::DecisionTraceRecorded
+                | EventKind::SleepStarted
+                | EventKind::SleepCompleted
+                | EventKind::SleepInterrupted
+                | EventKind::FoodConsumed
+                | EventKind::FoodServiceUsed
+                | EventKind::EatFailed
+                | EventKind::WorkBlockStarted
+                | EventKind::WorkBlockCompleted
+                | EventKind::WorkBlockFailed
+                | EventKind::ContinueRoutineProposed
+                | EventKind::ContinueRoutineAccepted
+                | EventKind::ContinueRoutineRejected
+                | EventKind::StuckDiagnosticRecorded
+                | EventKind::NoHumanDayStarted
+                | EventKind::NoHumanDayCompleted
+        )
     }
 }
 
@@ -385,6 +545,34 @@ impl EventEnvelope {
         self.event_schema_version.as_str() == EVENT_SCHEMA_V1
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_caused_v1(
+        event_id: EventId,
+        event_type: EventKind,
+        stream_position: u64,
+        global_order: u64,
+        sim_tick: SimTick,
+        ordering_key: OrderingKey,
+        content_manifest_id: ContentManifestId,
+        causes: Vec<EventCause>,
+    ) -> Result<Self, EventEnvelopeBuildError> {
+        if event_type.requires_cause() && causes.is_empty() {
+            return Err(EventEnvelopeBuildError::MissingRequiredCause);
+        }
+
+        let mut envelope = Self::new_v1(
+            event_id,
+            event_type,
+            stream_position,
+            global_order,
+            sim_tick,
+            ordering_key,
+            content_manifest_id,
+        );
+        envelope.causes = causes;
+        Ok(envelope)
+    }
+
     pub fn serialize_canonical(&self) -> Vec<u8> {
         let fields = [
             ("event_id", encode(self.event_id.as_str())),
@@ -532,6 +720,11 @@ impl EventEnvelope {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EventEnvelopeBuildError {
+    MissingRequiredCause,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EventEnvelopeParseError {
     InvalidUtf8,
     MalformedField,
@@ -571,6 +764,7 @@ fn required<'a>(
 fn stream_id(stream: EventStream) -> &'static str {
     match stream {
         EventStream::World => "world",
+        EventStream::Agent => "agent",
         EventStream::Epistemic => "epistemic",
         EventStream::Diagnostic => "diagnostic",
         EventStream::Controller => "controller",
@@ -581,6 +775,7 @@ fn stream_id(stream: EventStream) -> &'static str {
 fn stream_from_id(value: &str) -> Option<EventStream> {
     match value {
         "world" => Some(EventStream::World),
+        "agent" => Some(EventStream::Agent),
         "epistemic" => Some(EventStream::Epistemic),
         "diagnostic" => Some(EventStream::Diagnostic),
         "controller" => Some(EventStream::Controller),
@@ -792,6 +987,18 @@ mod tests {
         ActionId::new(value).unwrap()
     }
 
+    fn ordering_key() -> OrderingKey {
+        OrderingKey::new(
+            SimTick::new(3),
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Actor(actor_id("actor_tomas")),
+            ProposalSequence::new(7),
+            action_id("continue_routine"),
+            vec!["phase3a".to_string()],
+            "tie_phase3a",
+        )
+    }
+
     fn belief_id(value: &str) -> BeliefId {
         BeliefId::new(value).unwrap()
     }
@@ -894,6 +1101,75 @@ mod tests {
     fn epistemic_stream_label_round_trips() {
         assert_eq!(stream_id(EventStream::Epistemic), "epistemic");
         assert_eq!(stream_from_id("epistemic"), Some(EventStream::Epistemic));
+    }
+
+    #[test]
+    fn phase_3a_event_kinds_are_agent_stream_and_round_trip() {
+        let phase_3a_kinds = EventKind::all()
+            .iter()
+            .copied()
+            .filter(|kind| kind.stream() == EventStream::Agent)
+            .collect::<Vec<_>>();
+
+        assert_eq!(phase_3a_kinds.len(), 29);
+        for kind in phase_3a_kinds {
+            assert!(kind.requires_cause());
+            assert!(!kind.physical_mutating());
+            assert_eq!(EventKind::from_stable_id(kind.stable_id()), Some(kind));
+
+            let envelope = EventEnvelope::new_caused_v1(
+                event_id("event_phase3a"),
+                kind,
+                0,
+                0,
+                SimTick::new(3),
+                ordering_key(),
+                ContentManifestId::new("phase3a_manifest").unwrap(),
+                vec![EventCause::Process(
+                    ProcessId::new("process_agent").unwrap(),
+                )],
+            )
+            .unwrap();
+            let round_tripped =
+                EventEnvelope::deserialize_canonical(&envelope.serialize_canonical()).unwrap();
+            assert_eq!(round_tripped.event_type, kind);
+            assert_eq!(round_tripped.stream, EventStream::Agent);
+        }
+    }
+
+    #[test]
+    fn food_consumed_is_physical_world_event() {
+        assert_eq!(EventKind::FoodConsumed.stream(), EventStream::World);
+        assert!(EventKind::FoodConsumed.physical_mutating());
+        assert!(EventKind::FoodConsumed.requires_cause());
+        assert_eq!(
+            EventKind::from_stable_id(EventKind::FoodConsumed.stable_id()),
+            Some(EventKind::FoodConsumed)
+        );
+    }
+
+    #[test]
+    fn caused_constructor_rejects_causeless_phase_3a_event() {
+        assert_eq!(
+            EventEnvelope::new_caused_v1(
+                event_id("event_need_delta"),
+                EventKind::NeedDeltaApplied,
+                0,
+                0,
+                SimTick::new(3),
+                ordering_key(),
+                ContentManifestId::new("phase3a_manifest").unwrap(),
+                Vec::new(),
+            )
+            .unwrap_err(),
+            EventEnvelopeBuildError::MissingRequiredCause
+        );
+    }
+
+    #[test]
+    fn agent_stream_label_round_trips() {
+        assert_eq!(stream_id(EventStream::Agent), "agent");
+        assert_eq!(stream_from_id("agent"), Some(EventStream::Agent));
     }
 
     #[test]

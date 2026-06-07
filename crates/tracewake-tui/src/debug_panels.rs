@@ -1,6 +1,6 @@
 use tracewake_core::debug_reports::{
     ActionRejectionDebugReport, ControllerBindingDebugReport, ItemLocationDebugReport,
-    ProjectionRebuildDebugReport, ReplayDebugReport,
+    NoHumanDayDebugReport, Phase3ADebugReport, ProjectionRebuildDebugReport, ReplayDebugReport,
 };
 use tracewake_core::view_models::DebugEventLogView;
 use tracewake_core::view_models::{
@@ -184,6 +184,30 @@ pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
         )
     }));
     lines("Observations", rows)
+}
+
+pub fn render_phase3a_debug_panel(report: &Phase3ADebugReport) -> String {
+    assert!(report.debug_only);
+    lines(&report.title, report.rows.clone())
+}
+
+pub fn render_no_human_day_panel(report: &NoHumanDayDebugReport) -> String {
+    assert!(report.debug_only);
+    lines(
+        "No Human Day",
+        vec![
+            format!("projection={}", report.metrics.projection_version),
+            format!("events={}", report.metrics.events_per_day),
+            format!("routine_events={}", report.metrics.routine_event_count),
+            format!("meals_completed={}", report.metrics.meals_completed),
+            format!("meals_missed={}", report.metrics.meals_missed),
+            format!("sleep_completed={}", report.metrics.sleep_completed),
+            format!("work_completed={}", report.metrics.work_blocks_completed),
+            format!("planner_failures={}", report.metrics.planner_failures),
+            format!("stuck_actors={}", report.metrics.stuck_actor_count),
+            format!("canonical={}", report.canonical_summary),
+        ],
+    )
 }
 
 fn lines(title: &str, rows: Vec<String>) -> String {

@@ -34,6 +34,7 @@ pub struct LoadedFixture {
     pub fixture: FixtureSchema,
     pub manifest: ContentManifest,
     pub canonical_world: tracewake_core::state::PhysicalState,
+    pub canonical_agent_state: tracewake_core::state::AgentState,
 }
 
 pub fn load_fixture_package(
@@ -52,9 +53,13 @@ pub fn load_fixture_package(
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
     registry.register_phase2a_epistemics();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
     let accepted_world = validate_fixture(&fixture, &registry)?;
     let canonical_bytes = serialize_fixture(&fixture);
-    let manifest = ContentManifest::new(
+    let mut manifest = ContentManifest::new(
         manifest_id,
         fixture.fixture_id.clone(),
         fixture.schema_version.clone(),
@@ -62,11 +67,32 @@ pub fn load_fixture_package(
         files.iter().map(|file| file.path.clone()).collect(),
         &canonical_bytes,
     );
+    manifest.actor_roster = fixture
+        .actors
+        .iter()
+        .map(|actor| actor.actor_id.as_str().to_string())
+        .collect();
+    manifest.no_human_day_windows = fixture
+        .day_windows
+        .iter()
+        .map(|window| {
+            format!(
+                "{}:{}-{}",
+                window.actor_id.as_str(),
+                window.start_tick.value(),
+                window.end_tick.value()
+            )
+        })
+        .collect();
+    manifest.actor_roster.sort();
+    manifest.no_human_day_windows.sort();
     let canonical_world = accepted_world.physical_state;
+    let canonical_agent_state = fixture.to_agent_state();
     Ok(LoadedFixture {
         fixture,
         manifest,
         canonical_world,
+        canonical_agent_state,
     })
 }
 
@@ -107,6 +133,14 @@ mod tests {
             }],
             affordances: Vec::new(),
             initial_beliefs: Vec::new(),
+            initial_needs: Vec::new(),
+            homes: Vec::new(),
+            sleep_places: Vec::new(),
+            food_supplies: Vec::new(),
+            workplaces: Vec::new(),
+            routine_templates: Vec::new(),
+            routine_assignments: Vec::new(),
+            day_windows: Vec::new(),
         }
     }
 
