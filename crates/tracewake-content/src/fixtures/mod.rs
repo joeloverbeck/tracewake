@@ -4,12 +4,16 @@ mod door_access_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
 mod knowledge_blocker_accuse_001;
+mod no_hidden_truth_planning_001;
 mod no_human_advance_001;
 mod no_human_epistemic_check_001;
 mod ordinary_workday_001;
+mod planner_trace_001;
+mod possession_does_not_reset_intention_001;
 mod possession_parity_001;
 mod replay_item_location_001;
 mod routine_blocked_diagnostic_001;
+mod routine_no_teleport_001;
 mod sleep_eat_work_001;
 mod sound_uncertainty_001;
 mod strongbox_001;
@@ -43,12 +47,16 @@ pub use door_access_001::door_access_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use knowledge_blocker_accuse_001::knowledge_blocker_accuse_001;
+pub use no_hidden_truth_planning_001::no_hidden_truth_planning_001;
 pub use no_human_advance_001::no_human_advance_001;
 pub use no_human_epistemic_check_001::no_human_epistemic_check_001;
 pub use ordinary_workday_001::ordinary_workday_001;
+pub use planner_trace_001::planner_trace_001;
+pub use possession_does_not_reset_intention_001::possession_does_not_reset_intention_001;
 pub use possession_parity_001::possession_parity_001;
 pub use replay_item_location_001::replay_item_location_001;
 pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
+pub use routine_no_teleport_001::routine_no_teleport_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
@@ -99,6 +107,10 @@ pub fn all() -> Vec<GoldenFixture> {
         sleep_eat_work_001(),
         food_unavailable_replan_001(),
         routine_blocked_diagnostic_001(),
+        planner_trace_001(),
+        routine_no_teleport_001(),
+        possession_does_not_reset_intention_001(),
+        no_hidden_truth_planning_001(),
     ]
 }
 

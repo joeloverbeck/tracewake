@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-020: Doctrine-guard golden fixtures
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `planner_trace_001`, `routine_no_teleport_001`, `possession_does_not_reset_intention_001`, and `no_hidden_truth_planning_001` golden fixtures and registers them.
@@ -78,3 +78,23 @@ Declare each in `crates/tracewake-content/src/fixtures/mod.rs` and add to `all()
 1. `cargo test -p tracewake-content golden_fixtures_run`
 2. `cargo test -p tracewake-content`
 3. Content-crate scope is correct; the possession-parity/no-leak end-to-end gate is the capstone (025).
+
+## Outcome
+
+Completed on 2026-06-07.
+
+- Added and registered `planner_trace_001`, `routine_no_teleport_001`, `possession_does_not_reset_intention_001`, and `no_hidden_truth_planning_001`.
+- Extended fixture load expectations to all 21 registered fixtures.
+- Added golden-run guard assertions:
+  - planner trace candidate/selection/rejection coverage with actor-known-only hidden-truth audit.
+  - remote work fails without movement ancestry and does not teleport.
+  - controller attach/detach preserves seeded active intention, routine execution, and needs, then `continue_routine` resumes through the shared pipeline.
+  - hidden physical food stays out of planner inputs; forced action fails with typed `EatFailed` rather than consuming/refilling.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-content --test golden_fixtures_run`
+3. `cargo test -p tracewake-content --test fixtures_load`
+4. `cargo test -p tracewake-content golden_fixtures_run` (passes, but this filter selects 0 tests; the explicit `--test` command above runs the assertions)
+5. `cargo test -p tracewake-content`
