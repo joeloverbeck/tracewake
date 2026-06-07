@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-002: Candidate-goal and durable-intention model
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `CandidateGoal`, `GoalKind`, `Intention`, and `IntentionStatus` types to the `agent` module with deterministic tie-break ordering.
@@ -82,3 +82,22 @@ Add `pub mod candidate;` and `pub mod intention;` to `crates/tracewake-core/src/
 1. `cargo test -p tracewake-core agent::candidate`
 2. `cargo test -p tracewake-core agent::intention`
 3. Core-crate unit scope is correct because generation/selection consumers (012, 013) and event consumers (005) land later.
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added `agent::candidate` with `GoalKind`, `CandidateGoalSource`, `GoalPriority`, `ApplicabilityResult`, and `CandidateGoal`.
+- Implemented deterministic candidate ordering that ranks severe safety, severe hunger, severe fatigue, active-intention continuation, urgent need pressure, routine duties, return/sleep windows, idle, then mild need pressure, terminating ties on stable actor and candidate-goal IDs.
+- Added `agent::intention` with `IntentionStatus`, `IntentionSource`, durable `Intention`, reason-bearing lifecycle transitions, and `ActorIntentions` enforcing at most one active intention.
+- Registered and re-exported the new public surfaces from `agent::mod`.
+
+Deviations from original plan:
+- Kept belief/perception inputs as canonical string fragments for this substrate ticket; typed belief consumers remain deferred to candidate generation and trace/event tickets.
+- Represented the selected routine/method handle as `RoutineTemplateId` until the dedicated routine-template/execution model lands in ticket 003.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core agent::candidate` passed.
+- `cargo test -p tracewake-core agent::intention` passed.
