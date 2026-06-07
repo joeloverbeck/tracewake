@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-006: `check_container` action, effect, and pipeline epistemic-slot activation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds `ActionEffect::CheckContainer`, the `check_container` action definition, and activates the pipeline's epistemic slot in `tracewake-core`.
@@ -82,3 +82,24 @@ Activate the `KnowledgePerceptionPlaceholder` stage in `pipeline.rs` for epistem
 1. `cargo test -p tracewake-core actions::defs::checkcontainer`
 2. `cargo test -p tracewake-core --test golden_scenarios`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added `ActionEffect::CheckContainer`, `register_phase2a_epistemics`, and the `check_container` action definition.
+- Activated the pipeline's knowledge/perception slot for `CheckContainer`, appending a `ContainerChecked` event plus a caused `ObservationRecorded` event through the shared log path.
+- Added validation for actor/container reachability, closed opaque containers, and locked containers without reading hidden contents or creating beliefs.
+- Updated content affordance validation so `CheckContainer` supports container targets.
+- Added unit, pipeline, and golden tests for observation emission, open-alone no-observation behavior, rejection cases, and scheduler-origin check without controller binding.
+
+Deviations from original plan:
+- `crates/tracewake-content/src/validate.rs` was also updated because adding a new exhaustive `ActionEffect` variant required content target-kind parity support.
+
+Verification results:
+- `cargo test -p tracewake-core actions::defs::checkcontainer`
+- `cargo test -p tracewake-core --test golden_scenarios`
+- `cargo test -p tracewake-core actions::pipeline`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

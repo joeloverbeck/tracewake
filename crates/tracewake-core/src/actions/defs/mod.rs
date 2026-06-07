@@ -1,3 +1,4 @@
+pub mod checkcontainer;
 pub mod inspect;
 pub mod movement;
 pub mod openclose;

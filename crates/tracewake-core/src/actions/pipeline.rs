@@ -1,3 +1,6 @@
+use crate::actions::defs::checkcontainer::{
+    build_check_container_event, build_observation_recorded_event,
+};
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
 use crate::actions::defs::takeplace::build_take_place_event;
@@ -86,8 +89,8 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         return result;
     }
 
-    // Stages 8-11 are deliberately inert architectural slots for later
-    // epistemic, norm, cost/duration, and reservation systems.
+    // Later placeholder stages remain explicit so new mechanics can activate
+    // the shared pipeline without creating side mutation paths.
     let definition = match context.registry.get(&proposal.action_id) {
         Some(definition) => definition,
         None => {
@@ -133,7 +136,15 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         );
     }
 
-    checked_facts.push(CheckedFact::new("pipeline_slots_8_11", "inert"));
+    checked_facts.push(CheckedFact::new(
+        "knowledge_perception_slot",
+        if matches!(definition.effect, ActionEffect::CheckContainer) {
+            "active"
+        } else {
+            "inert"
+        },
+    ));
+    checked_facts.push(CheckedFact::new("pipeline_slots_9_11", "inert"));
 
     let mut appended_events = Vec::new();
     let would_mutate = !matches!(definition.effect, ActionEffect::QueryOnly);
@@ -174,6 +185,12 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 false,
             ),
             ActionEffect::Wait => build_wait_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            ),
+            ActionEffect::CheckContainer => build_check_container_event(
                 context.state,
                 proposal,
                 &context.ordering_key,
@@ -225,7 +242,31 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 "event application rejected an event that passed dry-run",
             );
         }
-        appended_events.push(appended);
+        if definition.effect == ActionEffect::CheckContainer {
+            let observation_event = build_observation_recorded_event(
+                &appended,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            );
+            let appended_observation = match context.log.append(observation_event) {
+                Ok(appended) => appended,
+                Err(_) => {
+                    return reject(
+                        context,
+                        proposal,
+                        PipelineStage::KnowledgePerceptionPlaceholder,
+                        vec![ReasonCode::WorldStateMismatch],
+                        checked_facts,
+                        "The observation could not be recorded.",
+                        "append-only log rejected the epistemic observation event",
+                    )
+                }
+            };
+            appended_events.push(appended);
+            appended_events.push(appended_observation);
+        } else {
+            appended_events.push(appended);
+        }
     }
     let event_ids = appended_events
         .iter()
@@ -412,7 +453,7 @@ mod tests {
     use crate::events::apply::apply_event;
     use crate::ids::{ActionId, ActorId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, DoorState, PlaceState};
+    use crate::state::{ActorBody, ContainerState, DoorState, PlaceState};
     use crate::time::SimTick;
 
     fn action_id(value: &str) -> ActionId {
@@ -453,6 +494,25 @@ mod tests {
                 actor_id("actor_tomas"),
                 crate::ids::PlaceId::new("shop_front").unwrap(),
             ),
+        );
+        state
+    }
+
+    fn check_state() -> PhysicalState {
+        let mut state = state();
+        let place_id = crate::ids::PlaceId::new("shop_front").unwrap();
+        state.places.insert(
+            place_id.clone(),
+            PlaceState::new(place_id.clone(), "Shop front"),
+        );
+        let mut container = ContainerState::fixed_at_place(
+            crate::ids::ContainerId::new("strongbox_tomas").unwrap(),
+            place_id,
+        );
+        container.is_open = true;
+        state.containers.insert(
+            crate::ids::ContainerId::new("strongbox_tomas").unwrap(),
+            container,
         );
         state
     }
@@ -567,13 +627,51 @@ mod tests {
     }
 
     #[test]
-    fn pipeline_contains_inert_slots_8_to_11() {
+    fn pipeline_contains_epistemic_slot_and_later_inert_slots() {
         let stages = PipelineStage::all();
         assert!(stages.contains(&PipelineStage::KnowledgePerceptionPlaceholder));
         assert!(stages.contains(&PipelineStage::SocialNormPlaceholder));
         assert!(stages.contains(&PipelineStage::CostDurationCheck));
         assert!(stages.contains(&PipelineStage::ReservationConflictCheck));
         assert_eq!(stages.len(), 19);
+    }
+
+    #[test]
+    fn scheduler_origin_check_container_commits_without_controller_binding() {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase2a_epistemics();
+        let mut state = check_state();
+        let mut log = EventLog::new();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_scheduler_check").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id("actor_tomas")),
+            action_id("check_container"),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push("strongbox_tomas".to_string());
+        let mut context = PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            log: &mut log,
+            controller_bindings: None,
+            content_manifest_id: ContentManifestId::new("phase2a_manifest").unwrap(),
+            ordering_key: ordering_key(),
+        };
+
+        let result = run_pipeline(&mut context, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Accepted);
+        assert_eq!(result.appended_events.len(), 2);
+        assert_eq!(
+            result.appended_events[0].event_type,
+            EventKind::ContainerChecked
+        );
+        assert_eq!(
+            result.appended_events[1].event_type,
+            EventKind::ObservationRecorded
+        );
+        assert_eq!(log.events().len(), 2);
     }
 
     #[test]

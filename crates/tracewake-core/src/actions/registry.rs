@@ -11,6 +11,7 @@ pub enum ActionEffect {
     Take,
     Place,
     Wait,
+    CheckContainer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -100,6 +101,13 @@ impl ActionRegistry {
         self.register(ActionDefinition::world_action(
             ActionId::new("wait").unwrap(),
             ActionEffect::Wait,
+        ));
+    }
+
+    pub fn register_phase2a_epistemics(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("check_container").unwrap(),
+            ActionEffect::CheckContainer,
         ));
     }
 }

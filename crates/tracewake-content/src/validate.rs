@@ -621,6 +621,10 @@ fn supports_target_kind(
                     .iter()
                     .any(|container| container.container_id.as_str() == affordance.target_id)
         }
+        ActionEffect::CheckContainer => fixture
+            .containers
+            .iter()
+            .any(|container| container.container_id.as_str() == affordance.target_id),
         ActionEffect::Take | ActionEffect::Place => fixture
             .items
             .iter()

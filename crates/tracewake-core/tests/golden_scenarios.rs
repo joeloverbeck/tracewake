@@ -5,6 +5,7 @@ use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{action_rejection_report, item_location_report};
 use tracewake_core::events::log::EventLog;
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId, FixtureId,
     ItemId, PlaceId, ProposalId,
@@ -23,6 +24,7 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_movement_open_close();
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
+    registry.register_phase2a_epistemics();
     registry
 }
 
@@ -159,6 +161,55 @@ fn accepted_actions_append_versioned_events() {
     assert_eq!(result.appended_events.len(), 1);
     assert!(result.appended_events[0].has_supported_schema_version());
     assert_eq!(log.events().len(), 1);
+}
+
+#[test]
+fn check_container_records_observation_but_open_alone_does_not() {
+    let mut open_state = initial_state(false, true);
+    let mut open_log = EventLog::new();
+    let open = run_action(
+        &mut open_state,
+        &mut open_log,
+        "open",
+        &["strongbox_tomas"],
+        0,
+    );
+
+    assert_eq!(open.report.status, ReportStatus::Accepted);
+    assert_eq!(open.appended_events.len(), 1);
+    assert!(!open_log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ObservationRecorded));
+
+    let mut check_state = open_state;
+    let mut check_log = open_log;
+    let check = run_action(
+        &mut check_state,
+        &mut check_log,
+        "check_container",
+        &["strongbox_tomas"],
+        1,
+    );
+
+    assert_eq!(check.report.status, ReportStatus::Accepted);
+    assert_eq!(check.appended_events.len(), 2);
+    assert_eq!(
+        check.appended_events[0].event_type,
+        EventKind::ContainerChecked
+    );
+    assert_eq!(
+        check.appended_events[1].event_type,
+        EventKind::ObservationRecorded
+    );
+    assert_eq!(
+        check
+            .appended_events
+            .iter()
+            .filter(|event| event.event_type == EventKind::ObservationRecorded)
+            .count(),
+        1
+    );
 }
 
 #[test]
