@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-012: Candidate-goal generation and intention commitment/switching
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the deterministic candidate-goal generator and the intention adoption/continuation/switching engine, emitting decision traces.
@@ -81,3 +81,23 @@ Declare the new module(s) in `crates/tracewake-core/src/agent/mod.rs` and re-exp
 1. `cargo test -p tracewake-core agent::generation`
 2. `cargo test -p tracewake-core agent::decision`
 3. Core-crate scope is correct; end-to-end no-hidden-truth and replay determinism are exercised by tickets 020/006/025.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed:
+- Added `agent::generation` with deterministic candidate generation from explicit needs, active intention state, routine-window goal, and actor-known inputs.
+- Added `agent::decision` with deterministic selection, active-intention continuation preference, severe-need switching, and `DecisionTrace` emission.
+- Re-exported the generation and decision entry points from `agent::mod`.
+- Added tests for mild hunger continuation, severe hunger switch, deterministic repeated selection, and hidden true food absence from actor-known inputs.
+
+Deviations:
+- The generator consumes actor-known input handles supplied by the caller boundary; richer epistemic-context extraction and bounded planning remain deferred to their scoped follow-up tickets.
+- Intention transition events are represented by the emitted `DecisionTrace`/selection output in this ticket; the runner integration that commits transition events remains deferred.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core agent::generation`
+- `cargo test -p tracewake-core agent::decision`
+- `cargo test -p tracewake-core`

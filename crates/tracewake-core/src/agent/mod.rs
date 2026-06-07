@@ -1,6 +1,8 @@
 //! Agent cognition substrate for ordinary-life simulation.
 
 pub mod candidate;
+pub mod decision;
+pub mod generation;
 pub mod intention;
 pub mod need;
 pub mod routine;
@@ -8,6 +10,10 @@ pub mod trace;
 
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
+};
+pub use decision::{select_goal_and_trace, DecisionInput, DecisionSelection};
+pub use generation::{
+    generate_candidate_goals, CandidateGenerationInput, CandidateGenerationOutput,
 };
 pub use intention::{
     ActorIntentions, Intention, IntentionSource, IntentionStatus, IntentionTransitionError,
