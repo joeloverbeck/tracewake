@@ -482,6 +482,8 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             visible_closed_doors: BTreeMap::new(),
             visible_containers_by_place: BTreeMap::new(),
             visible_food_sources: BTreeSet::from(["food_market_stew".to_string()]),
+            visible_sleep_places: BTreeSet::new(),
+            visible_workplaces: BTreeMap::new(),
         },
     );
     let rejected_template = RoutineTemplate::new(
@@ -737,6 +739,8 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             visible_closed_doors: BTreeMap::new(),
             visible_containers_by_place: BTreeMap::new(),
             visible_food_sources: BTreeSet::new(),
+            visible_sleep_places: BTreeSet::new(),
+            visible_workplaces: BTreeMap::new(),
         },
     );
     assert!(!actor_known_state
@@ -766,6 +770,45 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             .actor_known_only
     );
     assert_eq!(plan_failure.reason, "food source is not actor-known");
+
+    let mut no_human_log = EventLog::new();
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut no_human_log,
+        &registry(),
+        manifest_id.clone(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id.clone()],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "hidden_truth_guard".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(no_human_log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorWaited));
+    for forbidden in ["food_hidden_pantry", "hidden_workshop", "workplace_hidden"] {
+        assert!(!no_human_log.events().iter().any(|event| {
+            event
+                .ordering_key
+                .target_ids
+                .iter()
+                .any(|target| target == forbidden)
+                || event
+                    .participants
+                    .iter()
+                    .any(|participant| participant == forbidden)
+                || event
+                    .payload
+                    .iter()
+                    .any(|field| field.value.contains(forbidden))
+        }));
+    }
 
     let mut log = EventLog::new();
     let eat = proposal(

@@ -209,9 +209,9 @@ pub mod no_human {
     use crate::agent::{
         build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
         plan_local_actions, select_goal_and_trace, select_phase3a_method, ActorKnownFact,
-        BlockerCategory, DecisionInput, LiveCandidateGenerationInput, LocalPlanRequest,
-        PlannerGoal, RoutineFamily, StuckDiagnostic, StuckResultingStatus,
-        VisibleLocalPlanningState,
+        ActorKnownPlanningState, BlockerCategory, DecisionInput, Intention,
+        LiveCandidateGenerationInput, LocalPlanRequest, PlannerGoal, RoutineFamily,
+        StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
     use crate::epistemics::EpistemicProjection;
     use crate::events::log::EventLog;
@@ -433,24 +433,13 @@ pub mod no_human {
         content_manifest_id: &ContentManifestId,
     ) -> Option<Proposal> {
         let actor = state.actors.get(actor_id)?;
-        if let Some(proposal) =
-            build_routine_or_need_proposal(state, agent_state, actor_id, window, registry)
-        {
-            return Some(proposal);
-        }
-        registry.get(&ActionId::new("wait").unwrap())?;
         let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
+        let visible_local = visible_local_planning_state(state, actor_id, &actor.current_place_id);
         let mut actor_known_state = build_actor_known_planning_state(
             actor_id,
             &epistemic_projection,
             agent_state,
-            &VisibleLocalPlanningState {
-                current_place_id: actor.current_place_id.clone(),
-                visible_edges: BTreeMap::new(),
-                visible_closed_doors: BTreeMap::new(),
-                visible_containers_by_place: BTreeMap::new(),
-                visible_food_sources: BTreeSet::new(),
-            },
+            &visible_local,
         );
         let wait_reason_fact = ActorKnownFact::modeled(
             "modeled_wait_reason",
@@ -479,11 +468,22 @@ pub mod no_human {
             .map(ActorKnownFact::proof_note)
             .collect();
         let actor_known_facts = actor_known_state.actor_known_facts.clone();
+        if let Some(proposal) = build_routine_or_need_proposal(
+            &actor_known_state,
+            agent_state,
+            actor_id,
+            window,
+            registry,
+        ) {
+            return Some(proposal);
+        }
+        registry.get(&ActionId::new("wait").unwrap())?;
+        let active_intention = active_intention_for_actor(agent_state, actor_id);
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
-            active_intention: None,
+            active_intention: active_intention.clone(),
             actor_known_facts: actor_known_facts.clone(),
             routine_window_goal: None,
         });
@@ -492,7 +492,7 @@ pub mod no_human {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             candidates: generated.candidates,
-            active_intention: None,
+            active_intention,
             actor_known_inputs: generated.actor_known_inputs_used,
         })?;
         let method = select_phase3a_method(
@@ -554,7 +554,7 @@ pub mod no_human {
     }
 
     fn build_routine_or_need_proposal(
-        state: &PhysicalState,
+        actor_known_state: &ActorKnownPlanningState,
         agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
@@ -570,13 +570,19 @@ pub mod no_human {
         if let Some(family) = family {
             match family {
                 RoutineFamily::SleepNight => {
-                    return sleep_proposal(state, actor_id, window, registry)
+                    return sleep_proposal(actor_known_state, actor_id, window, registry);
                 }
                 RoutineFamily::EatMeal | RoutineFamily::FindFood => {
-                    return eat_proposal(state, actor_id, window, registry);
+                    return eat_proposal(actor_known_state, actor_id, window, registry);
                 }
                 RoutineFamily::GoToWork | RoutineFamily::WorkBlock => {
-                    return work_or_move_proposal(state, agent_state, actor_id, window, registry);
+                    return work_or_move_proposal(
+                        actor_known_state,
+                        agent_state,
+                        actor_id,
+                        window,
+                        registry,
+                    );
                 }
                 RoutineFamily::MorningWake
                 | RoutineFamily::ReturnHome
@@ -594,12 +600,12 @@ pub mod no_human {
             .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
             .map_or(0, crate::agent::NeedState::value);
         if hunger >= 500 {
-            if let Some(proposal) = eat_proposal(state, actor_id, window, registry) {
+            if let Some(proposal) = eat_proposal(actor_known_state, actor_id, window, registry) {
                 return Some(proposal);
             }
         }
         if fatigue >= 500 {
-            if let Some(proposal) = sleep_proposal(state, actor_id, window, registry) {
+            if let Some(proposal) = sleep_proposal(actor_known_state, actor_id, window, registry) {
                 return Some(proposal);
             }
         }
@@ -607,67 +613,62 @@ pub mod no_human {
     }
 
     fn eat_proposal(
-        state: &PhysicalState,
+        actor_known_state: &ActorKnownPlanningState,
         actor_id: &ActorId,
         window: &DayWindow,
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
         registry.get(&ActionId::new("eat").unwrap())?;
-        let actor = state.actors.get(actor_id)?;
-        let food = state.food_supplies.values().find(|food| {
-            matches!(&food.location, Location::AtPlace(place_id) if place_id == &actor.current_place_id)
-        })?;
+        let food = actor_known_state.known_food_sources.iter().next()?;
         let mut proposal =
             ordinary_proposal("eat", actor_id, window, ActionId::new("eat").unwrap());
-        proposal
-            .target_ids
-            .push(food.food_supply_id.as_str().to_string());
+        proposal.target_ids.push(food.clone());
         Some(proposal)
     }
 
     fn sleep_proposal(
-        state: &PhysicalState,
+        actor_known_state: &ActorKnownPlanningState,
         actor_id: &ActorId,
         window: &DayWindow,
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
         registry.get(&ActionId::new("sleep").unwrap())?;
-        let actor = state.actors.get(actor_id)?;
+        let sleep_place = actor_known_state
+            .known_sleep_places
+            .iter()
+            .next()
+            .unwrap_or(&actor_known_state.current_place_id);
         let mut proposal =
             ordinary_proposal("sleep", actor_id, window, ActionId::new("sleep").unwrap());
-        proposal
-            .target_ids
-            .push(actor.current_place_id.as_str().to_string());
+        proposal.target_ids.push(sleep_place.as_str().to_string());
         proposal.parameters.insert(
             "sleep_place_id".to_string(),
-            actor.current_place_id.as_str().to_string(),
+            sleep_place.as_str().to_string(),
         );
         Some(proposal)
     }
 
     fn work_or_move_proposal(
-        state: &PhysicalState,
+        actor_known_state: &ActorKnownPlanningState,
         agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
-        let actor = state.actors.get(actor_id)?;
-        let workplace = state
-            .workplaces
-            .values()
-            .find(|workplace| workplace.assigned_actor_ids.contains(actor_id))?;
-        if actor.current_place_id != workplace.place_id {
+        let (workplace_id, workplace_place_id) =
+            actor_known_state.known_workplaces.iter().next()?;
+        if actor_known_state.current_place_id != *workplace_place_id {
             registry.get(&ActionId::new("move").unwrap())?;
-            let current_place = state.places.get(&actor.current_place_id)?;
-            let destination = if current_place
-                .adjacent_place_ids
-                .contains(&workplace.place_id)
+            let destination = if actor_known_state
+                .known_edges
+                .get(&actor_known_state.current_place_id)
+                .is_some_and(|edges| edges.contains(workplace_place_id))
             {
-                workplace.place_id.as_str().to_string()
+                workplace_place_id.as_str().to_string()
             } else {
-                current_place
-                    .adjacent_place_ids
+                actor_known_state
+                    .known_edges
+                    .get(&actor_known_state.current_place_id)?
                     .iter()
                     .next()
                     .map(|place_id| place_id.as_str().to_string())?
@@ -685,9 +686,7 @@ pub mod no_human {
             window,
             ActionId::new("work_block").unwrap(),
         );
-        proposal
-            .target_ids
-            .push(workplace.workplace_id.as_str().to_string());
+        proposal.target_ids.push(workplace_id.as_str().to_string());
         let needs = agent_state.needs_by_actor.get(actor_id);
         proposal.parameters.insert(
             "current_fatigue".to_string(),
@@ -704,6 +703,49 @@ pub mod no_human {
                 .to_string(),
         );
         Some(proposal)
+    }
+
+    fn visible_local_planning_state(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        current_place_id: &crate::ids::PlaceId,
+    ) -> VisibleLocalPlanningState {
+        let mut visible_edges = BTreeMap::new();
+        if let Some(current_place) = state.places.get(current_place_id) {
+            visible_edges.insert(
+                current_place_id.clone(),
+                current_place.adjacent_place_ids.clone(),
+            );
+        }
+        let visible_food_sources = state
+            .food_supplies
+            .values()
+            .filter(|food| matches!(&food.location, Location::AtPlace(place_id) if place_id == current_place_id))
+            .map(|food| food.food_supply_id.as_str().to_string())
+            .collect::<BTreeSet<_>>();
+        let visible_workplaces = state
+            .workplaces
+            .iter()
+            .filter(|(_, workplace)| workplace.assigned_actor_ids.contains(actor_id))
+            .map(|(workplace_id, workplace)| (workplace_id.clone(), workplace.place_id.clone()))
+            .collect::<BTreeMap<_, _>>();
+        VisibleLocalPlanningState {
+            current_place_id: current_place_id.clone(),
+            visible_edges,
+            visible_closed_doors: BTreeMap::new(),
+            visible_containers_by_place: BTreeMap::new(),
+            visible_food_sources,
+            visible_sleep_places: BTreeSet::from([current_place_id.clone()]),
+            visible_workplaces,
+        }
+    }
+
+    fn active_intention_for_actor(
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+    ) -> Option<Intention> {
+        let intention_id = agent_state.active_intention_by_actor.get(actor_id)?;
+        agent_state.intentions.get(intention_id).cloned()
     }
 
     fn ordinary_proposal(
@@ -929,8 +971,8 @@ pub mod no_human {
         use crate::events::apply::apply_event;
         use crate::events::EventStream;
         use crate::ids::{
-            ActorId, DecisionTraceId, FoodSupplyId, PlaceId, ProposalId, RoutineExecutionId,
-            RoutineTemplateId,
+            ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
+            ProposalId, RoutineExecutionId, RoutineTemplateId,
         };
         use crate::state::{ActorBody, AgentState, FoodSupplyState};
 
@@ -1091,7 +1133,7 @@ pub mod no_human {
                 FoodSupplyId::new("meal_serving").unwrap(),
                 FoodSupplyState {
                     food_supply_id: FoodSupplyId::new("meal_serving").unwrap(),
-                    location: Location::AtPlace(kitchen),
+                    location: Location::AtPlace(kitchen.clone()),
                     servings: 1,
                     hunger_reduction_per_serving: 120,
                 },
@@ -1113,9 +1155,15 @@ pub mod no_human {
             );
             let mut registry = ActionRegistry::new();
             registry.register_phase3a_eat();
+            let actor_known_state = build_actor_known_planning_state(
+                &actor_id,
+                &EpistemicProjection::new(content_manifest_id()),
+                &agent_state,
+                &visible_local_planning_state(&state, &actor_id, &kitchen),
+            );
 
             let proposal = build_routine_or_need_proposal(
-                &state,
+                &actor_known_state,
                 &agent_state,
                 &actor_id,
                 &DayWindow {
@@ -1129,6 +1177,34 @@ pub mod no_human {
 
             assert_eq!(proposal.action_id.as_str(), "eat");
             assert_eq!(proposal.target_ids, ["meal_serving"]);
+        }
+
+        #[test]
+        fn active_intention_lookup_returns_live_actor_intention() {
+            let actor_id = actor_id();
+            let mut agent_state = agent_state(&actor_id);
+            let intention = crate::agent::Intention::adopt(
+                IntentionId::new("intention_live_work").unwrap(),
+                actor_id.clone(),
+                crate::agent::IntentionSource::RoutineDuty,
+                CandidateGoalId::new("goal_live_work").unwrap(),
+                Some(RoutineTemplateId::new("routine_live_work").unwrap()),
+                Some("work_block".to_string()),
+                8,
+                SimTick::ZERO,
+                DecisionTraceId::new("trace_live_work").unwrap(),
+            );
+            agent_state
+                .active_intention_by_actor
+                .insert(actor_id.clone(), intention.intention_id.clone());
+            agent_state
+                .intentions
+                .insert(intention.intention_id.clone(), intention.clone());
+
+            assert_eq!(
+                active_intention_for_actor(&agent_state, &actor_id),
+                Some(intention)
+            );
         }
 
         #[test]

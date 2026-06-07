@@ -27,8 +27,8 @@ use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
 };
 use tracewake_core::ids::{
-    ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, ItemId, PlaceId,
-    RoutineTemplateId, SchemaVersion, SemanticActionId,
+    ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, FoodSupplyId, ItemId,
+    PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
@@ -275,6 +275,20 @@ fn food_supply_at_place(
     FoodSupplySchema {
         food_supply_id: food_supply_id.parse().unwrap(),
         location: Location::AtPlace(place(place_id)),
+        servings,
+        hunger_reduction_per_serving,
+    }
+}
+
+fn food_supply_in_container(
+    food_supply_id: &str,
+    container_id: &str,
+    servings: u32,
+    hunger_reduction_per_serving: i32,
+) -> FoodSupplySchema {
+    FoodSupplySchema {
+        food_supply_id: FoodSupplyId::new(food_supply_id).unwrap(),
+        location: Location::InContainer(container(container_id)),
         servings,
         hunger_reduction_per_serving,
     }

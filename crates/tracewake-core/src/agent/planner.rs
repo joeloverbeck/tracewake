@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::agent::{BlockerCategory, HiddenTruthAudit, RoutineStep};
 use crate::epistemics::EpistemicProjection;
-use crate::ids::{ActionId, ActorId, ContainerId, PlaceId};
+use crate::ids::{ActionId, ActorId, ContainerId, PlaceId, WorkplaceId};
 use crate::state::AgentState;
 
 pub const DEFAULT_PLANNER_BUDGET: usize = 8;
@@ -66,6 +66,8 @@ pub struct ActorKnownPlanningState {
     pub known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
     pub known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
     pub known_food_sources: BTreeSet<String>,
+    pub known_sleep_places: BTreeSet<PlaceId>,
+    pub known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
     pub proof_sources: Vec<String>,
     pub actor_known_facts: Vec<ActorKnownFact>,
 }
@@ -77,6 +79,8 @@ pub struct VisibleLocalPlanningState {
     pub visible_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
     pub visible_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
     pub visible_food_sources: BTreeSet<String>,
+    pub visible_sleep_places: BTreeSet<PlaceId>,
+    pub visible_workplaces: BTreeMap<WorkplaceId, PlaceId>,
 }
 
 pub fn build_actor_known_planning_state(
@@ -120,6 +124,29 @@ pub fn build_actor_known_planning_state(
             format!("visible_local:food:{food_source}"),
         ));
     }
+    for sleep_place in &visible_local.visible_sleep_places {
+        actor_known_facts.push(ActorKnownFact::modeled(
+            "actor_knows_sleep_place",
+            format!("visible_local:sleep_place:{}", sleep_place.as_str()),
+        ));
+    }
+    for (workplace_id, place_id) in &visible_local.visible_workplaces {
+        actor_known_facts.push(ActorKnownFact::modeled(
+            "actor_knows_workplace",
+            format!(
+                "visible_local:workplace:{}@{}",
+                workplace_id.as_str(),
+                place_id.as_str()
+            ),
+        ));
+        actor_known_facts.push(ActorKnownFact::modeled(
+            "workplace_assignment_active",
+            format!(
+                "visible_local:workplace_assignment:{}",
+                workplace_id.as_str()
+            ),
+        ));
+    }
     actor_known_facts.sort_by(|left, right| {
         left.stable_id
             .cmp(&right.stable_id)
@@ -137,6 +164,8 @@ pub fn build_actor_known_planning_state(
         known_closed_doors: visible_local.visible_closed_doors.clone(),
         known_containers_by_place: visible_local.visible_containers_by_place.clone(),
         known_food_sources: visible_local.visible_food_sources.clone(),
+        known_sleep_places: visible_local.visible_sleep_places.clone(),
+        known_workplaces: visible_local.visible_workplaces.clone(),
         proof_sources,
         actor_known_facts,
     }
@@ -472,6 +501,8 @@ mod tests {
             )]),
             known_containers_by_place: BTreeMap::new(),
             known_food_sources: BTreeSet::from(["food_soup_pot".to_string()]),
+            known_sleep_places: BTreeSet::from([place("home")]),
+            known_workplaces: BTreeMap::new(),
             proof_sources: vec!["test:known_state".to_string()],
             actor_known_facts: vec![ActorKnownFact::modeled(
                 "actor_knows_food_source",

@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-004: Actor-known planning context replacing PhysicalState oracle
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` no-human proposal builders and actor-known planning context (`scheduler.rs`, `agent/planner.rs`); hidden-truth construction fixtures (`no_hidden_truth_planning_001`, `food_unavailable_replan_001`)
@@ -96,3 +96,31 @@ Strengthen / add `no_hidden_truth_planning_001` (hidden food at current place, h
 2. `cargo test -p tracewake-content`
 3. `cargo test --workspace`
 4. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Extended `ActorKnownPlanningState` / `VisibleLocalPlanningState` with actor-known sleep places and workplaces, with modeled proof facts for visible sleep/workplace context.
+- Reworked no-human proposal building so `build_agent_proposal` builds a populated visible-local context, passes that through actor-known planning, and supplies the actor's real active intention to candidate generation and decision selection.
+- Rewrote `eat_proposal`, `sleep_proposal`, and `work_or_move_proposal` to select from `ActorKnownPlanningState` instead of authoritative physical maps.
+- Strengthened `no_hidden_truth_planning_001` with a closed opaque hidden pantry, hidden food, a hidden workshop edge, and an unassigned hidden workplace; the no-human run now asserts that none of those hidden targets are selected.
+- Kept the forced hidden-food proposal path in the fixture test to prove validation still rejects hidden/inaccessible truth when a caller explicitly submits it.
+
+Deviations from original plan:
+
+- The scheduler still has one visible-local context builder that translates currently visible physical state into `VisibleLocalPlanningState`. That is the intended boundary: selectors consume actor-known data only, while the context builder and validator remain the physical-state read sites.
+- `food_unavailable_replan_001` did not need a fixture change for this acceptance slice; the strengthened `no_hidden_truth_planning_001` plus workspace tests cover the hidden food/route/workplace/container construction.
+
+Verification results:
+
+- `rg -n "food_supplies|workplaces|adjacent_place_ids" crates/tracewake-core/src/scheduler.rs` shows no physical-map reads inside `eat_proposal`, `sleep_proposal`, or `work_or_move_proposal`; remaining hits are the actor-known workplace field name, the visible-local context builder, and test setup.
+- `cargo test -p tracewake-core scheduler`
+- `cargo test -p tracewake-content no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`
+- `cargo test -p tracewake-content`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

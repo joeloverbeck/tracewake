@@ -364,6 +364,8 @@ mod tests {
                 .iter()
                 .map(|food| (*food).to_string())
                 .collect::<BTreeSet<_>>(),
+            known_sleep_places: BTreeSet::from([PlaceId::new("home_tomas").unwrap()]),
+            known_workplaces: BTreeMap::new(),
             proof_sources: vec!["test:actor_known_state".to_string()],
             actor_known_facts: facts,
         }
