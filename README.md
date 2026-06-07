@@ -78,13 +78,31 @@ directories are cached for the clippy and test jobs.
 
 ## Running the TUI
 
-Run the Phase 1 executable TUI with:
+Run the executable TUI with the default fixture and actor:
 
 ```text
 cargo run -p tracewake-tui
 ```
 
-The binary loads the default `strongbox_001` fixture, binds `actor_tomas`, prints `tracewake-tui ready`, renders the initial embodied view, and enters a simple stdin/stdout command loop.
+The no-arg launch still loads `strongbox_001`, binds `actor_tomas`, prints
+`tracewake-tui ready`, renders the initial embodied view, and enters a simple stdin/stdout
+command loop.
+
+Select another fixture, and optionally an actor, with:
+
+```text
+cargo run -p tracewake-tui -- <fixture_id> [actor_id]
+```
+
+List the authored fixture catalog and actor ids with:
+
+```text
+cargo run -p tracewake-tui -- --list
+```
+
+If no actor id is supplied, the TUI binds the first authored actor in the fixture. No-human
+fixtures such as `no_human_day_001` can still be inspected after launch through the
+non-diegetic debug panels, including `debug no-human-day` and `debug planner <actor_id>`.
 
 This is intentionally plain text. It is the operating surface for the current kernel,
 epistemic, and ordinary-life slices, not a graphical client.

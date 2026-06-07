@@ -117,6 +117,12 @@ pub fn all() -> Vec<GoldenFixture> {
     ]
 }
 
+pub fn by_id(fixture_id: &str) -> Option<GoldenFixture> {
+    all()
+        .into_iter()
+        .find(|golden| golden.fixture.fixture_id.as_str() == fixture_id)
+}
+
 fn fixture_id(value: &str) -> FixtureId {
     FixtureId::new(value).unwrap()
 }
@@ -410,5 +416,22 @@ fn sound_lead_seed(
         last_verified_tick: None,
         privacy_scope: PrivacyScope::ActorPrivate(actor(holder_actor_id)),
         schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn by_id_returns_matching_golden() {
+        let golden = by_id("strongbox_001").unwrap();
+
+        assert_eq!(golden.fixture.fixture_id.as_str(), "strongbox_001");
+    }
+
+    #[test]
+    fn by_id_returns_none_for_unknown_id() {
+        assert!(by_id("missing_fixture").is_none());
     }
 }
