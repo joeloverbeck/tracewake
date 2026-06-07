@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-017: No-human day runner, decision ordering, day windows, and stuck detection
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds a real no-human ordinary-day runner on the existing no-human scheduler skeleton, with deterministic actor decision ordering, day windows, and aggressive stuck-actor detection.
@@ -79,3 +79,23 @@ Implement §8.8 detection at decision/advance points and at end-of-run: emit a t
 1. `cargo test -p tracewake-core scheduler`
 2. `cargo test -p tracewake-core --test acceptance_gates`
 3. Core-crate scope is correct; the full `no_human_day_001` acceptance/replay gate is ticket 025.
+
+## Outcome
+
+Completed 2026-06-07.
+
+Extended `scheduler::no_human` with a deterministic no-human day runner. The new runner accepts day windows and actor IDs, derives missing actors from physical state, sorts windows and actors by stable IDs/ticks, emits `NoHumanDayStarted`/`NoHumanDayCompleted` markers, and submits ordinary agent-origin proposals through the shared pipeline with `controller_bindings: None`.
+
+The runner's ordinary idle path now uses the Phase 3A agent seams before pipeline submission: candidate generation, decision selection, HTN method selection, and bounded local planning produce the wait proposal for each actor/window. It records typed `StuckDiagnosticRecorded` events for actor/window pairs with no progress, using canonical stuck diagnostic payloads.
+
+Added default Phase 3A day windows and a core acceptance smoke proving controller-free no-human day execution with ordinary action events. Unit tests cover stable actor/window ordering, no player/controller event facts, shared pipeline use, physical no-op markers, and stuck diagnostics when progress is impossible.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core scheduler`
+3. `cargo test -p tracewake-core --test acceptance_gates`
+4. `cargo test -p tracewake-core`
+5. `git diff --check`
+
+Deviations: richer concrete routine duties such as work/sleep/eat windows are left to the canonical fixture and capstone tickets (021/025). This ticket lands the deterministic day-runner seam, day markers, stable ordering, agent-seam proposal path, and stuck-diagnostic enforcement without pre-scheduled location changes.

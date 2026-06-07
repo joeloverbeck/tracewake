@@ -8,6 +8,7 @@ use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ControllerId, ItemId, PlaceId, ProposalId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
     ActorBody, ContainerState, ControllerMode, DoorState, ItemState, PhysicalState, PlaceState,
@@ -215,6 +216,44 @@ fn sleep_proposals_share_pipeline_across_human_and_nonhuman_origins() {
         scheduler.appended_events[0].event_type,
         EventKind::SleepStarted
     );
+}
+
+#[test]
+fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
+    let mut world = state(true, true);
+    let mut log = EventLog::new();
+    let report = run_no_human_day(
+        &mut world,
+        &mut log,
+        &registry(),
+        ContentManifestId::new("phase3a_manifest").unwrap(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "morning".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+
+    assert_eq!(report.stuck_diagnostic_event_ids.len(), 0);
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::NoHumanDayStarted));
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::NoHumanDayCompleted));
+    let rendered = format!("{:?}", log.events());
+    assert!(!rendered.contains("controller"));
+    assert!(!rendered.contains("player"));
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorWaited));
 }
 
 #[test]

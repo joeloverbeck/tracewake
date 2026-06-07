@@ -201,12 +201,21 @@ impl DeterministicScheduler {
 }
 
 pub mod no_human {
+    use std::collections::BTreeMap;
+
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
-    use crate::actions::proposal::Proposal;
+    use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
+    use crate::agent::{
+        generate_candidate_goals, plan_local_actions, select_goal_and_trace, select_phase3a_method,
+        ActorKnownPlanningState, BlockerCategory, CandidateGenerationInput, DecisionInput,
+        LocalPlanRequest, PlannerGoal, StuckDiagnostic, StuckResultingStatus,
+    };
     use crate::events::log::EventLog;
-    use crate::events::{EventEnvelope, EventKind, PayloadField};
-    use crate::ids::{ActionId, ContentManifestId, EventId, ProcessId};
+    use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
+    use crate::ids::{
+        ActionId, ActorId, ContentManifestId, EventId, ProcessId, ProposalId, StuckDiagnosticId,
+    };
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
@@ -220,6 +229,259 @@ pub mod no_human {
         pub tick_count: u64,
         pub marker_event_ids: Vec<EventId>,
         pub ordinary_pipeline_events: usize,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct DayWindow {
+        pub window_id: String,
+        pub start_tick: SimTick,
+        pub end_tick: SimTick,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct NoHumanDayConfig {
+        pub actor_ids: Vec<ActorId>,
+        pub windows: Vec<DayWindow>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct NoHumanDayReport {
+        pub start_tick: SimTick,
+        pub final_tick: SimTick,
+        pub actor_decision_order: Vec<ActorId>,
+        pub window_ids: Vec<String>,
+        pub marker_event_ids: Vec<EventId>,
+        pub ordinary_pipeline_events: usize,
+        pub stuck_diagnostic_event_ids: Vec<EventId>,
+    }
+
+    pub fn default_day_windows(start_tick: SimTick) -> Vec<DayWindow> {
+        [
+            ("pre_dawn", 0, 4),
+            ("morning", 4, 10),
+            ("work_window", 10, 18),
+            ("evening", 18, 24),
+            ("night", 24, 32),
+        ]
+        .into_iter()
+        .map(|(window_id, start_offset, end_offset)| DayWindow {
+            window_id: window_id.to_string(),
+            start_tick: start_tick.advance_by(start_offset),
+            end_tick: start_tick.advance_by(end_offset),
+        })
+        .collect()
+    }
+
+    pub fn run_no_human_day(
+        state: &mut PhysicalState,
+        log: &mut EventLog,
+        registry: &ActionRegistry,
+        content_manifest_id: ContentManifestId,
+        mut config: NoHumanDayConfig,
+    ) -> NoHumanDayReport {
+        config.windows.sort_by(|left, right| {
+            (left.start_tick, left.end_tick, &left.window_id).cmp(&(
+                right.start_tick,
+                right.end_tick,
+                &right.window_id,
+            ))
+        });
+        if config.actor_ids.is_empty() {
+            config
+                .actor_ids
+                .extend(state.actors.keys().cloned().collect::<Vec<_>>());
+        }
+        config.actor_ids.sort();
+        config.actor_ids.dedup();
+
+        let process_id = ProcessId::new("no_human_day").unwrap();
+        let start_tick = config
+            .windows
+            .first()
+            .map(|window| window.start_tick)
+            .unwrap_or(SimTick::ZERO);
+        let final_tick = config
+            .windows
+            .last()
+            .map(|window| window.end_tick)
+            .unwrap_or(start_tick);
+        let mut scheduler = DeterministicScheduler::new(start_tick);
+        let started = append_marker(
+            log,
+            EventKind::NoHumanDayStarted,
+            &process_id,
+            start_tick,
+            0,
+            final_tick.value().saturating_sub(start_tick.value()),
+            content_manifest_id.clone(),
+        );
+
+        let mut scheduled = Vec::new();
+        for window in &config.windows {
+            for actor_id in &config.actor_ids {
+                if !state.actors.contains_key(actor_id) {
+                    continue;
+                }
+                let Some(proposal) = build_agent_wait_proposal(state, actor_id, window, registry)
+                else {
+                    continue;
+                };
+                let ordering_key = OrderingKey::new(
+                    window.start_tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id.clone()),
+                    scheduler.assign_proposal_sequence(),
+                    proposal.action_id.clone(),
+                    proposal.target_ids.clone(),
+                    format!("{}:{}", window.window_id, actor_id.as_str()),
+                );
+                scheduled.push((window.clone(), actor_id.clone(), ordering_key, proposal));
+            }
+        }
+        scheduled.sort_by(|left, right| left.2.cmp(&right.2));
+
+        let mut ordinary_pipeline_events = 0;
+        let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
+        for (window, actor_id, ordering_key, proposal) in scheduled {
+            let before = log.events().len();
+            let mut context = PipelineContext {
+                registry,
+                state,
+                log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: content_manifest_id.clone(),
+                ordering_key,
+            };
+            run_pipeline(&mut context, &proposal);
+            let appended = log.events().len().saturating_sub(before);
+            ordinary_pipeline_events += appended;
+            if appended > 0 {
+                progress_by_window_actor.insert((window.window_id, actor_id), appended);
+            }
+        }
+
+        let mut stuck_diagnostic_event_ids = Vec::new();
+        for window in &config.windows {
+            for actor_id in &config.actor_ids {
+                if !state.actors.contains_key(actor_id) {
+                    continue;
+                }
+                if !progress_by_window_actor
+                    .contains_key(&(window.window_id.clone(), actor_id.clone()))
+                {
+                    let event = append_stuck_diagnostic(
+                        log,
+                        &process_id,
+                        actor_id,
+                        window,
+                        &content_manifest_id,
+                    );
+                    stuck_diagnostic_event_ids.push(event.event_id);
+                }
+            }
+        }
+
+        let completed = append_marker(
+            log,
+            EventKind::NoHumanDayCompleted,
+            &process_id,
+            final_tick,
+            1,
+            final_tick.value().saturating_sub(start_tick.value()),
+            content_manifest_id,
+        );
+
+        NoHumanDayReport {
+            start_tick,
+            final_tick,
+            actor_decision_order: config.actor_ids,
+            window_ids: config
+                .windows
+                .iter()
+                .map(|window| window.window_id.clone())
+                .collect(),
+            marker_event_ids: vec![started.event_id, completed.event_id],
+            ordinary_pipeline_events,
+            stuck_diagnostic_event_ids,
+        }
+    }
+
+    fn build_agent_wait_proposal(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        if registry.get(&ActionId::new("wait").unwrap()).is_none() {
+            return None;
+        }
+        let actor = state.actors.get(actor_id)?;
+        let actor_known_inputs = vec![
+            "reason_available".to_string(),
+            "reevaluation_scheduled".to_string(),
+            format!("day_window:{}", window.window_id),
+        ];
+        let generated = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id.clone(),
+            decision_tick: window.start_tick,
+            needs: Vec::new(),
+            active_intention: None,
+            actor_known_inputs: actor_known_inputs.clone(),
+            routine_window_goal: None,
+        });
+        let selection = select_goal_and_trace(DecisionInput {
+            actor_id: actor_id.clone(),
+            decision_tick: window.start_tick,
+            candidates: generated.candidates,
+            active_intention: None,
+            actor_known_inputs: generated.actor_known_inputs_used,
+        })?;
+        let method = select_phase3a_method(
+            &selection.selected_goal,
+            &actor_known_inputs,
+            window.start_tick,
+        )
+        .ok()?;
+        let wait_reason = format!("no_human_day:{}", window.window_id);
+        let plan = plan_local_actions(
+            &ActorKnownPlanningState {
+                actor_id: actor_id.clone(),
+                current_place_id: actor.current_place_id.clone(),
+                known_edges: BTreeMap::new(),
+                known_closed_doors: BTreeMap::new(),
+                known_containers_by_place: BTreeMap::new(),
+                known_food_sources: Default::default(),
+            },
+            &LocalPlanRequest {
+                routine_step: method.template.steps.first().cloned().unwrap_or(
+                    crate::agent::RoutineStep::WaitUntil {
+                        reason: wait_reason.clone(),
+                    },
+                ),
+                goal: PlannerGoal::WaitWithReason(wait_reason.clone()),
+                budget: 1,
+                actor_known_inputs,
+            },
+        )
+        .ok()?;
+        let planned = plan.proposals.first()?;
+        let mut proposal = Proposal::new(
+            ProposalId::new(format!(
+                "proposal_no_human_day_{}_{}_wait",
+                actor_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            ProposalOrigin::Agent,
+            Some(actor_id.clone()),
+            planned.action_id.clone(),
+            window.start_tick,
+        );
+        proposal
+            .parameters
+            .insert("reason".to_string(), wait_reason);
+        Some(proposal)
     }
 
     pub fn advance_no_human(
@@ -337,6 +599,77 @@ pub mod no_human {
         log.append(event).expect("no-human marker is versioned")
     }
 
+    fn append_stuck_diagnostic(
+        log: &mut EventLog,
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        content_manifest_id: &ContentManifestId,
+    ) -> EventEnvelope {
+        let diagnostic = StuckDiagnostic::new(
+            StuckDiagnosticId::new(format!(
+                "diagnostic_no_human_day_{}_{}",
+                actor_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            actor_id.clone(),
+            window.start_tick,
+            window.end_tick,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::SchedulingReservation,
+            "no progress recorded in no-human day window",
+            format!(
+                "actor {} had no accepted or rejected ordinary proposal in {}",
+                actor_id.as_str(),
+                window.window_id
+            ),
+            "no-human day stuck detection",
+            "recorded_stuck_diagnostic",
+            StuckResultingStatus::Idle,
+        );
+        let canonical = diagnostic.serialize_canonical();
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.stuck_diagnostic_recorded.{}.{}",
+                actor_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            EventKind::StuckDiagnosticRecorded,
+            0,
+            0,
+            window.end_tick,
+            OrderingKey::new(
+                window.end_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("stuck_diagnostic_recorded").unwrap(),
+                vec![actor_id.as_str().to_string(), window.window_id.clone()],
+                format!("stuck:{}:{}", actor_id.as_str(), window.window_id),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Process(process_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.participants = vec![actor_id.to_string()];
+        event.payload = vec![
+            PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
+            PayloadField::new("diagnostic_canonical", canonical),
+        ];
+        event.effects_summary = "no-human day stuck diagnostic recorded".to_string();
+        log.append(event).expect("stuck diagnostic is versioned")
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -442,6 +775,124 @@ pub mod no_human {
                     .count(),
                 2
             );
+        }
+
+        #[test]
+        fn no_human_day_runs_windows_in_stable_actor_order_without_controller_facts() {
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                ActorId::new("actor_tomas").unwrap(),
+                ActorBody::new(
+                    ActorId::new("actor_tomas").unwrap(),
+                    crate::ids::PlaceId::new("shop_front").unwrap(),
+                ),
+            );
+            state.actors.insert(
+                ActorId::new("actor_mara").unwrap(),
+                ActorBody::new(
+                    ActorId::new("actor_mara").unwrap(),
+                    crate::ids::PlaceId::new("shop_front").unwrap(),
+                ),
+            );
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![
+                        ActorId::new("actor_tomas").unwrap(),
+                        ActorId::new("actor_mara").unwrap(),
+                    ],
+                    windows: vec![
+                        DayWindow {
+                            window_id: "morning".to_string(),
+                            start_tick: SimTick::new(4),
+                            end_tick: SimTick::new(8),
+                        },
+                        DayWindow {
+                            window_id: "pre_dawn".to_string(),
+                            start_tick: SimTick::ZERO,
+                            end_tick: SimTick::new(4),
+                        },
+                    ],
+                },
+            );
+
+            assert_eq!(
+                report.actor_decision_order,
+                [
+                    ActorId::new("actor_mara").unwrap(),
+                    ActorId::new("actor_tomas").unwrap()
+                ]
+            );
+            assert_eq!(report.window_ids, ["pre_dawn", "morning"]);
+            assert_eq!(report.start_tick, SimTick::ZERO);
+            assert_eq!(report.final_tick, SimTick::new(8));
+            assert_eq!(report.marker_event_ids.len(), 2);
+            assert_eq!(report.stuck_diagnostic_event_ids.len(), 0);
+            assert!(report.ordinary_pipeline_events > 0);
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::NoHumanDayStarted));
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::NoHumanDayCompleted));
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ActorWaited));
+            let rendered = format!("{:?}", log.events());
+            assert!(!rendered.contains("player"));
+            assert!(!rendered.contains("controller"));
+        }
+
+        #[test]
+        fn no_human_day_records_stuck_diagnostics_without_progress() {
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                ActorId::new("actor_tomas").unwrap(),
+                ActorBody::new(
+                    ActorId::new("actor_tomas").unwrap(),
+                    crate::ids::PlaceId::new("shop_front").unwrap(),
+                ),
+            );
+            let mut log = EventLog::new();
+            let registry = ActionRegistry::new();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![ActorId::new("actor_tomas").unwrap()],
+                    windows: vec![DayWindow {
+                        window_id: "morning".to_string(),
+                        start_tick: SimTick::new(4),
+                        end_tick: SimTick::new(8),
+                    }],
+                },
+            );
+
+            assert_eq!(report.ordinary_pipeline_events, 0);
+            assert_eq!(report.stuck_diagnostic_event_ids.len(), 1);
+            let diagnostic = log
+                .events()
+                .iter()
+                .find(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+                .expect("stuck diagnostic emitted");
+            assert!(diagnostic
+                .payload
+                .iter()
+                .any(|field| field.key == "diagnostic_canonical"
+                    && field.value.starts_with("stuck_diagnostic_v1|")));
         }
     }
 }
