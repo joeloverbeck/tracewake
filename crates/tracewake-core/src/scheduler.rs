@@ -218,6 +218,7 @@ pub mod no_human {
     use crate::ids::{
         ActionId, ActorId, ContentManifestId, EventId, ProcessId, ProposalId, StuckDiagnosticId,
     };
+    use crate::location::Location;
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
@@ -330,7 +331,7 @@ pub mod no_human {
                 if !state.actors.contains_key(actor_id) {
                     continue;
                 }
-                let Some(proposal) = build_agent_wait_proposal(
+                let Some(proposal) = build_agent_proposal(
                     state,
                     agent_state,
                     actor_id,
@@ -422,7 +423,7 @@ pub mod no_human {
         }
     }
 
-    fn build_agent_wait_proposal(
+    fn build_agent_proposal(
         state: &PhysicalState,
         agent_state: &AgentState,
         actor_id: &ActorId,
@@ -430,8 +431,13 @@ pub mod no_human {
         registry: &ActionRegistry,
         content_manifest_id: &ContentManifestId,
     ) -> Option<Proposal> {
-        registry.get(&ActionId::new("wait").unwrap())?;
         let actor = state.actors.get(actor_id)?;
+        if let Some(proposal) =
+            build_routine_or_need_proposal(state, agent_state, actor_id, window, registry)
+        {
+            return Some(proposal);
+        }
+        registry.get(&ActionId::new("wait").unwrap())?;
         let actor_known_inputs = vec![
             "reason_available".to_string(),
             "reevaluation_scheduled".to_string(),
@@ -522,6 +528,173 @@ pub mod no_human {
             .parameters
             .insert("reason".to_string(), wait_reason);
         Some(proposal)
+    }
+
+    fn build_routine_or_need_proposal(
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        let template_id = agent_state
+            .routine_executions
+            .values()
+            .filter(|execution| &execution.actor_id == actor_id)
+            .filter(|execution| execution.start_tick <= window.end_tick)
+            .min_by(|left, right| left.start_tick.cmp(&right.start_tick))
+            .map(|execution| execution.template_id.as_str().to_string());
+        if let Some(template_id) = template_id {
+            if template_id.contains("sleep") {
+                return sleep_proposal(state, actor_id, window, registry);
+            }
+            if template_id.contains("food") || template_id.contains("eat") {
+                return eat_proposal(state, actor_id, window, registry);
+            }
+            if template_id.contains("work") {
+                return work_or_move_proposal(state, agent_state, actor_id, window, registry);
+            }
+        }
+
+        let needs = agent_state.needs_by_actor.get(actor_id);
+        let hunger = needs
+            .and_then(|needs| needs.get(&crate::agent::NeedKind::Hunger))
+            .map_or(0, crate::agent::NeedState::value);
+        let fatigue = needs
+            .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
+            .map_or(0, crate::agent::NeedState::value);
+        if hunger >= 500 {
+            if let Some(proposal) = eat_proposal(state, actor_id, window, registry) {
+                return Some(proposal);
+            }
+        }
+        if fatigue >= 500 {
+            if let Some(proposal) = sleep_proposal(state, actor_id, window, registry) {
+                return Some(proposal);
+            }
+        }
+        None
+    }
+
+    fn eat_proposal(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        registry.get(&ActionId::new("eat").unwrap())?;
+        let actor = state.actors.get(actor_id)?;
+        let food = state.food_supplies.values().find(|food| {
+            matches!(&food.location, Location::AtPlace(place_id) if place_id == &actor.current_place_id)
+        })?;
+        let mut proposal =
+            ordinary_proposal("eat", actor_id, window, ActionId::new("eat").unwrap());
+        proposal
+            .target_ids
+            .push(food.food_supply_id.as_str().to_string());
+        Some(proposal)
+    }
+
+    fn sleep_proposal(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        registry.get(&ActionId::new("sleep").unwrap())?;
+        let actor = state.actors.get(actor_id)?;
+        let mut proposal =
+            ordinary_proposal("sleep", actor_id, window, ActionId::new("sleep").unwrap());
+        proposal
+            .target_ids
+            .push(actor.current_place_id.as_str().to_string());
+        proposal.parameters.insert(
+            "sleep_place_id".to_string(),
+            actor.current_place_id.as_str().to_string(),
+        );
+        Some(proposal)
+    }
+
+    fn work_or_move_proposal(
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        registry: &ActionRegistry,
+    ) -> Option<Proposal> {
+        let actor = state.actors.get(actor_id)?;
+        let workplace = state
+            .workplaces
+            .values()
+            .find(|workplace| workplace.assigned_actor_ids.contains(actor_id))?;
+        if actor.current_place_id != workplace.place_id {
+            registry.get(&ActionId::new("move").unwrap())?;
+            let current_place = state.places.get(&actor.current_place_id)?;
+            let destination = if current_place
+                .adjacent_place_ids
+                .contains(&workplace.place_id)
+            {
+                workplace.place_id.as_str().to_string()
+            } else {
+                current_place
+                    .adjacent_place_ids
+                    .iter()
+                    .next()
+                    .map(|place_id| place_id.as_str().to_string())?
+            };
+            let mut proposal =
+                ordinary_proposal("move", actor_id, window, ActionId::new("move").unwrap());
+            proposal.target_ids.push(destination);
+            return Some(proposal);
+        }
+
+        registry.get(&ActionId::new("work_block").unwrap())?;
+        let mut proposal = ordinary_proposal(
+            "work",
+            actor_id,
+            window,
+            ActionId::new("work_block").unwrap(),
+        );
+        proposal
+            .target_ids
+            .push(workplace.workplace_id.as_str().to_string());
+        let needs = agent_state.needs_by_actor.get(actor_id);
+        proposal.parameters.insert(
+            "current_fatigue".to_string(),
+            needs
+                .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
+                .map_or(0, crate::agent::NeedState::value)
+                .to_string(),
+        );
+        proposal.parameters.insert(
+            "current_hunger".to_string(),
+            needs
+                .and_then(|needs| needs.get(&crate::agent::NeedKind::Hunger))
+                .map_or(0, crate::agent::NeedState::value)
+                .to_string(),
+        );
+        Some(proposal)
+    }
+
+    fn ordinary_proposal(
+        label: &str,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        action_id: ActionId,
+    ) -> Proposal {
+        Proposal::new(
+            ProposalId::new(format!(
+                "proposal_no_human_day_{}_{}_{}",
+                actor_id.as_str(),
+                window.window_id,
+                label
+            ))
+            .unwrap(),
+            ProposalOrigin::Agent,
+            Some(actor_id.clone()),
+            action_id,
+            window.start_tick,
+        )
     }
 
     pub fn advance_no_human(

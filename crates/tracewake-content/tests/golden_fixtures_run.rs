@@ -772,13 +772,27 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
 
     assert_eq!(report.actor_decision_order, expected_roster);
     assert!(report.ordinary_pipeline_events > 0);
-    let actors_with_waits = log
+    let actors_with_ordinary_actions = log
         .events()
         .iter()
-        .filter(|event| event.event_type == EventKind::ActorWaited)
+        .filter(|event| {
+            matches!(
+                event.event_type,
+                EventKind::ActorMoved
+                    | EventKind::ActorWaited
+                    | EventKind::FoodConsumed
+                    | EventKind::EatFailed
+                    | EventKind::SleepStarted
+                    | EventKind::WorkBlockStarted
+                    | EventKind::WorkBlockFailed
+            )
+        })
         .filter_map(|event| event.actor_id.clone())
         .collect::<BTreeSet<_>>();
-    assert_eq!(actors_with_waits, expected_roster.into_iter().collect());
+    assert_eq!(
+        actors_with_ordinary_actions,
+        expected_roster.into_iter().collect()
+    );
 
     let eat_tomas = proposal(
         "proposal_day_tomas_eat",
@@ -832,9 +846,21 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &sleep_elena,
         102,
     );
-    let sleep_started = sleep_events
+    let sleep_started = log
+        .events()
         .iter()
-        .find(|event| event.event_type == EventKind::SleepStarted)
+        .find(|event| {
+            event.event_type == EventKind::SleepStarted
+                && event
+                    .actor_id
+                    .as_ref()
+                    .is_some_and(|actor| actor.as_str() == "actor_elena")
+        })
+        .or_else(|| {
+            sleep_events
+                .iter()
+                .find(|event| event.event_type == EventKind::SleepStarted)
+        })
         .unwrap()
         .clone();
     append_and_apply(

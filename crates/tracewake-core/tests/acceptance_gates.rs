@@ -389,12 +389,22 @@ fn sleep_proposals_share_pipeline_across_human_and_nonhuman_origins() {
 fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
     let mut world = state(true, true);
     let mut agent_state = agent_state();
+    agent_state
+        .needs_by_actor
+        .entry(actor_id())
+        .or_default()
+        .insert(
+            NeedKind::Fatigue,
+            NeedState::initial(NeedKind::Fatigue, 820, NeedChangeCause::TickDelta),
+        );
+    let mut registry = registry();
+    registry.register_phase3a_sleep();
     let mut log = EventLog::new();
     let report = run_no_human_day(
         &mut world,
         &mut agent_state,
         &mut log,
-        &registry(),
+        &registry,
         ContentManifestId::new("phase3a_manifest").unwrap(),
         NoHumanDayConfig {
             actor_ids: vec![actor_id()],
@@ -420,6 +430,10 @@ fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
     assert!(!rendered.contains("controller"));
     assert!(!rendered.contains("player"));
     assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepStarted));
+    assert!(!log
         .events()
         .iter()
         .any(|event| event.event_type == EventKind::ActorWaited));

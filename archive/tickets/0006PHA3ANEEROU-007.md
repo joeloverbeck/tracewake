@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-007: Real no-human actor decision loop, structured traces, planner-mismatch handling
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` no-human scheduler (`scheduler.rs`); structured decision-trace/stuck-diagnostic storage (`agent/trace.rs`, `state.rs`); planner-mismatch handling
@@ -87,3 +87,36 @@ A planner action the pipeline rejects is recorded in the trace; the actor replan
 1. `cargo test -p tracewake-core --test acceptance_gates`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+`run_no_human_day` no longer builds a wait-only proposal for every actor/window.
+The scheduler now builds routine- or need-driven ordinary proposals first,
+submitting sleep, eat, movement, and work through the same shared pipeline used
+by possessed play. It reads live routine executions, live actor needs, current
+location, food supplies, and workplace assignments, and falls back to bounded
+wait only when no ordinary proposal can be built.
+
+Acceptance coverage now asserts the no-human path can produce ordinary pipeline
+events without a controller. The core acceptance smoke registers sleep, drives a
+fatigued actor, requires `SleepStarted`, and rejects the old wait-only result.
+The golden no-human fixture now requires every roster actor to have ordinary
+action ancestry, and its sleep supplement reuses scheduler-produced sleep events
+when the autonomous loop already created them.
+
+Deviation from the initial plan: the existing typed trace and stuck-diagnostic
+event path was retained instead of replacing `AgentState` trace/diagnostic maps
+with new structured storage in this ticket. The implementation focuses the
+integration boundary on replacing wait-only no-human proposal construction while
+preserving the already-present replay-visible agent event machinery.
+
+Verified with:
+
+1. `cargo test -p tracewake-core --test acceptance_gates`
+2. `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_fixture_has_roster_activity_and_metrics_envelope`
+3. `cargo test --workspace`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
