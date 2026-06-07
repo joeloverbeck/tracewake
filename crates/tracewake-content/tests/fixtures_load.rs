@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use tracewake_content::fixtures;
+use tracewake_content::fixtures::{self, validate_fixture_contract_metadata};
 use tracewake_content::load::load_fixture_package;
 use tracewake_content::schema::{
     ActorSchema, DayWindowSchema, FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
@@ -375,24 +375,29 @@ fn no_human_day_fixture_declares_validated_acceptance_contract() {
     let golden = fixtures::no_human_day_001();
 
     assert_eq!(golden.contract.fixture_id, "no_human_day_001");
+    assert_eq!(
+        validate_fixture_contract_metadata(&golden.contract),
+        Vec::new()
+    );
     assert!(golden
         .contract
         .expected_events_or_reports
         .iter()
-        .any(|entry| entry.contains("NoHumanDayStarted")));
+        .any(|entry| entry == &"autonomous_no_human_event=NoHumanDayStarted"));
     assert!(golden
         .contract
         .expected_events_or_reports
         .iter()
-        .any(|entry| entry.contains("NoHumanDayCompleted")));
+        .any(|entry| entry == &"autonomous_no_human_event=NoHumanDayCompleted"));
     assert!(golden
         .contract
         .expected_events_or_reports
         .iter()
-        .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
+        .any(|entry| entry == &"log_derived_metric=no_human_day_metrics_v1"));
     for required in [
         "player",
         "roster actor",
+        "not manually forced",
         "movement",
         "food",
         "workplace",

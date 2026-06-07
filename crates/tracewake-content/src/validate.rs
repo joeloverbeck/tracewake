@@ -217,6 +217,14 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
                 "unknown_field",
                 format!("unknown content section {tag}"),
             ));
+            if tag.starts_with("routine_") && contains_direct_state_or_script_marker(line) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::NoScript,
+                    format!("line[{line_no}].{tag}"),
+                    "authored_shortcut_effect",
+                    format!("unknown routine content section {tag} contains behavior shortcut"),
+                ));
+            }
         }
 
         let parts = line.split('|').collect::<Vec<_>>();

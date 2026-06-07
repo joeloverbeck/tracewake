@@ -81,6 +81,13 @@ pub struct FixtureContract {
     pub acceptance_assertions: Vec<&'static str>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixtureContractViolation {
+    pub fixture_id: &'static str,
+    pub code: &'static str,
+    pub message: String,
+}
+
 impl GoldenFixture {
     pub fn source_file(&self) -> SourceFile {
         SourceFile {
@@ -115,6 +122,52 @@ pub fn all() -> Vec<GoldenFixture> {
         no_hidden_truth_planning_001(),
         no_human_day_001(),
     ]
+}
+
+pub fn validate_fixture_contract_metadata(
+    contract: &FixtureContract,
+) -> Vec<FixtureContractViolation> {
+    let mut violations = Vec::new();
+    let is_no_human_contract = contract.fixture_id.contains("no_human");
+    if !is_no_human_contract {
+        return violations;
+    }
+
+    let has_structured_behavior_proof = contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.starts_with("autonomous_no_human_event="));
+    let has_log_metric = contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.starts_with("log_derived_metric="));
+    if !has_structured_behavior_proof || !has_log_metric {
+        violations.push(FixtureContractViolation {
+            fixture_id: contract.fixture_id,
+            code: "text_only_behavior_proof",
+            message: format!(
+                "fixture {} expected events/reports must use autonomous event and log-derived metric rows",
+                contract.fixture_id
+            ),
+        });
+    }
+
+    let rejects_manual_forcing = contract
+        .acceptance_assertions
+        .iter()
+        .any(|entry| entry.contains("not manually forced"));
+    if !rejects_manual_forcing {
+        violations.push(FixtureContractViolation {
+            fixture_id: contract.fixture_id,
+            code: "manual_action_ambiguity",
+            message: format!(
+                "fixture {} must distinguish autonomous no-human events from manually forced action-unit events",
+                contract.fixture_id
+            ),
+        });
+    }
+
+    violations
 }
 
 pub fn by_id(fixture_id: &str) -> Option<GoldenFixture> {

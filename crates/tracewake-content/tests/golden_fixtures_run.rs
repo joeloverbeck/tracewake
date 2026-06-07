@@ -846,7 +846,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .contract
         .expected_events_or_reports
         .iter()
-        .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
+        .any(|entry| entry.contains("log_derived_metric=no_human_day_metrics_v1")));
 
     let (mut state, mut agent_state, manifest_id) = load(golden);
     let mut log = EventLog::new();

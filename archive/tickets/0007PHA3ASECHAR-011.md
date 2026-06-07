@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-011: Typed Phase 3A content schema & validation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` schema and validation (`schema.rs`, `validate.rs`, `manifest.rs`); routine/fixture contracts
@@ -78,3 +78,25 @@ Add validation rules in `validate.rs` that block: routine-template names whose s
 1. `cargo test -p tracewake-content`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed behavior:
+- Added no-human fixture contract metadata validation that rejects text-only behavior proof and contracts that do not exclude manually forced action-unit events.
+- Converted the canonical Phase 3A no-human day contract to structured `autonomous_no_human_event=` and `log_derived_metric=` rows.
+- Extended raw content validation so unknown routine-like sections containing behavior/script shortcuts are blocked as no-script authored shortcut effects.
+- Added fail-closed tests for missing typed routine `family`, behavior-looking routine fields, text-only capstone contract proof, and ambiguous no-human/manual action-unit proof.
+
+Deviations:
+- No schema struct migration was needed; routine templates, assignments, day windows, and Phase 3A facts were already typed from earlier tickets. This ticket enforced those shapes through load/contract validation.
+
+Verification:
+- `cargo test -p tracewake-content --test forbidden_content`
+- `cargo test -p tracewake-content --test fixtures_load`
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_fixture_has_roster_activity_and_metrics_envelope`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
