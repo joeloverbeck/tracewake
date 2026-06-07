@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-019: Action-integration golden fixtures
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the `ordinary_workday_001`, `sleep_eat_work_001`, `food_unavailable_replan_001`, and `routine_blocked_diagnostic_001` golden fixtures and registers them.
@@ -80,3 +80,24 @@ Declare each new module in `crates/tracewake-content/src/fixtures/mod.rs` and ad
 1. `cargo test -p tracewake-content golden_fixtures_run`
 2. `cargo test -p tracewake-content`
 3. Content-crate scope is correct; the canonical day and full acceptance are tickets 021/025.
+
+## Outcome
+
+Completed on 2026-06-07.
+
+- Added and registered `ordinary_workday_001`, `sleep_eat_work_001`, `food_unavailable_replan_001`, and `routine_blocked_diagnostic_001`.
+- Added Phase 3A fixture helper constructors for needs, homes, sleep places, food supplies, workplaces, routine templates/assignments, and day windows.
+- Extended `fixtures_load` to assert all 17 registered fixtures, including the four Phase 3A action-integration fixtures.
+- Extended `golden_fixtures_run` with shared action-pipeline helpers and focused fixture assertions:
+  - `ordinary_workday_001` moves to the workplace before work start/completion.
+  - `sleep_eat_work_001` logs sleep/eat/work need effects and replays deterministically.
+  - `food_unavailable_replan_001` records typed `EatFailed` without refill/consumption.
+  - `routine_blocked_diagnostic_001` records typed `WorkBlockFailed` for closed access without silent success.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-content --test golden_fixtures_run`
+3. `cargo test -p tracewake-content --test fixtures_load`
+4. `cargo test -p tracewake-content golden_fixtures_run` (passes, but this filter selects 0 tests; the explicit `--test` command above runs the assertions)
+5. `cargo test -p tracewake-content`

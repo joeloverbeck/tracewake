@@ -1,9 +1,20 @@
 use tracewake_content::fixtures;
+use tracewake_content::fixtures::GoldenFixture;
 use tracewake_content::load::load_fixture_package;
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
+use tracewake_core::actions::defs::sleep::build_sleep_completion_events;
+use tracewake_core::actions::defs::work::build_work_completion_events;
+use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
+use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
+use tracewake_core::events::apply::apply_event;
+use tracewake_core::events::log::EventLog;
+use tracewake_core::events::{EventEnvelope, EventKind};
 use tracewake_core::ids::{ContentManifestId, ContentVersion};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
+use tracewake_core::state::PhysicalState;
+use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
     let mut registry = ActionRegistry::new();
@@ -11,7 +22,78 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
     registry.register_phase2a_epistemics();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
     registry
+}
+
+fn load(golden: GoldenFixture) -> (PhysicalState, ContentManifestId) {
+    let manifest_id =
+        ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
+    let loaded = load_fixture_package(
+        manifest_id.clone(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    (loaded.canonical_world, manifest_id)
+}
+
+fn proposal(id: &str, actor_id: &str, action_id: &str, target_ids: &[&str], tick: u64) -> Proposal {
+    let mut proposal = Proposal::new(
+        id.parse().unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id.parse().unwrap()),
+        action_id.parse().unwrap(),
+        SimTick::new(tick),
+    );
+    proposal.target_ids = target_ids.iter().map(|target| target.to_string()).collect();
+    proposal
+}
+
+fn ordering_key(proposal: &Proposal, sequence: u64) -> OrderingKey {
+    OrderingKey::new(
+        proposal.requested_tick,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(proposal.actor_id.clone().unwrap()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    )
+}
+
+fn run(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    manifest_id: &ContentManifestId,
+    proposal: &Proposal,
+    sequence: u64,
+) -> Vec<EventEnvelope> {
+    let registry = registry();
+    let mut context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: None,
+        content_manifest_id: manifest_id.clone(),
+        ordering_key: ordering_key(proposal, sequence),
+    };
+    run_pipeline(&mut context, proposal).appended_events
+}
+
+fn append_and_apply(state: &mut PhysicalState, log: &mut EventLog, events: Vec<EventEnvelope>) {
+    for event in events {
+        let appended = log.append(event).unwrap();
+        apply_event(state, &appended).unwrap();
+    }
+}
+
+fn has_event(log: &EventLog, kind: EventKind) -> bool {
+    log.events().iter().any(|event| event.event_type == kind)
 }
 
 #[test]
@@ -44,6 +126,206 @@ fn loads_fixtures_deterministically() {
         );
         assert!(!golden.contract.acceptance_assertions.is_empty());
     }
+}
+
+#[test]
+fn ordinary_workday_fixture_moves_before_work_completion() {
+    let (mut state, manifest_id) = load(fixtures::ordinary_workday_001());
+    let mut log = EventLog::new();
+
+    let move_to_work = proposal(
+        "proposal_workday_move",
+        "actor_tomas",
+        "move",
+        &["workshop_tomas"],
+        4,
+    );
+    run(&mut state, &mut log, &manifest_id, &move_to_work, 0);
+    let work = proposal(
+        "proposal_workday_work",
+        "actor_tomas",
+        "work_block",
+        &["workplace_tomas"],
+        8,
+    );
+    let work_events = run(&mut state, &mut log, &manifest_id, &work, 1);
+    let work_started = work_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .expect("work starts after movement ancestry")
+        .clone();
+    append_and_apply(
+        &mut state,
+        &mut log,
+        build_work_completion_events(
+            &work_started,
+            &ordering_key(&work, 2),
+            &manifest_id,
+            SimTick::new(12),
+        ),
+    );
+
+    assert!(has_event(&log, EventKind::ActorMoved));
+    assert!(has_event(&log, EventKind::WorkBlockStarted));
+    assert!(has_event(&log, EventKind::WorkBlockCompleted));
+    let actor_id = "actor_tomas".parse().unwrap();
+    assert_eq!(
+        state.actors[&actor_id].current_place_id.as_str(),
+        "workshop_tomas"
+    );
+}
+
+#[test]
+fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
+    let (mut state, manifest_id) = load(fixtures::sleep_eat_work_001());
+    let initial_state = state.clone();
+    let mut log = EventLog::new();
+
+    let mut sleep = proposal("proposal_sleep", "actor_tomas", "sleep", &["home_tomas"], 0);
+    sleep
+        .parameters
+        .insert("duration_ticks".to_string(), "4".to_string());
+    sleep
+        .parameters
+        .insert("sleep_place_id".to_string(), "home_tomas".to_string());
+    let sleep_events = run(&mut state, &mut log, &manifest_id, &sleep, 0);
+    let sleep_started = sleep_events
+        .iter()
+        .find(|event| event.event_type == EventKind::SleepStarted)
+        .expect("sleep starts")
+        .clone();
+    append_and_apply(
+        &mut state,
+        &mut log,
+        build_sleep_completion_events(
+            &sleep_started,
+            &ordering_key(&sleep, 1),
+            &manifest_id,
+            SimTick::new(4),
+        ),
+    );
+
+    let eat = proposal(
+        "proposal_eat_breakfast",
+        "actor_tomas",
+        "eat",
+        &["food_breakfast_tomas"],
+        5,
+    );
+    run(&mut state, &mut log, &manifest_id, &eat, 2);
+    let move_to_work = proposal(
+        "proposal_sleep_eat_work_move",
+        "actor_tomas",
+        "move",
+        &["workshop_tomas"],
+        6,
+    );
+    run(&mut state, &mut log, &manifest_id, &move_to_work, 3);
+    let work = proposal(
+        "proposal_sleep_eat_work_work",
+        "actor_tomas",
+        "work_block",
+        &["workplace_tomas"],
+        8,
+    );
+    let work_events = run(&mut state, &mut log, &manifest_id, &work, 4);
+    let work_started = work_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .expect("work starts")
+        .clone();
+    append_and_apply(
+        &mut state,
+        &mut log,
+        build_work_completion_events(
+            &work_started,
+            &ordering_key(&work, 5),
+            &manifest_id,
+            SimTick::new(11),
+        ),
+    );
+
+    assert!(has_event(&log, EventKind::SleepCompleted));
+    assert!(has_event(&log, EventKind::FoodConsumed));
+    assert!(has_event(&log, EventKind::WorkBlockCompleted));
+    assert!(
+        log.events()
+            .iter()
+            .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+            .count()
+            >= 5
+    );
+
+    let replayed = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    assert_eq!(replayed, log);
+    let mut replay_state = initial_state;
+    for event in replayed.events() {
+        apply_event(&mut replay_state, event).unwrap();
+    }
+    assert_eq!(replay_state, state);
+}
+
+#[test]
+fn food_unavailable_fixture_records_typed_failure_without_refill() {
+    let (mut state, manifest_id) = load(fixtures::food_unavailable_replan_001());
+    let mut log = EventLog::new();
+
+    let eat = proposal(
+        "proposal_mara_empty_food",
+        "actor_mara",
+        "eat",
+        &["food_empty_pantry_mara"],
+        1,
+    );
+    run(&mut state, &mut log, &manifest_id, &eat, 0);
+
+    assert!(has_event(&log, EventKind::EatFailed));
+    assert!(!has_event(&log, EventKind::FoodConsumed));
+    assert!(!has_event(&log, EventKind::NeedDeltaApplied));
+    let failure = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::EatFailed)
+        .unwrap();
+    assert!(failure
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_kind" && field.value == "resource"));
+    assert!(failure
+        .payload
+        .iter()
+        .any(|field| field.key == "reason" && field.value == "food source empty"));
+}
+
+#[test]
+fn routine_blocked_fixture_records_access_failure_without_silent_loop() {
+    let (mut state, manifest_id) = load(fixtures::routine_blocked_diagnostic_001());
+    let mut log = EventLog::new();
+
+    let work = proposal(
+        "proposal_elena_blocked_work",
+        "actor_elena",
+        "work_block",
+        &["workplace_elena"],
+        1,
+    );
+    run(&mut state, &mut log, &manifest_id, &work, 0);
+
+    assert!(has_event(&log, EventKind::WorkBlockFailed));
+    assert!(!has_event(&log, EventKind::WorkBlockStarted));
+    let failure = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockFailed)
+        .unwrap();
+    assert!(failure
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_kind" && field.value == "access"));
+    assert!(failure
+        .payload
+        .iter()
+        .any(|field| field.key == "reason" && field.value == "workplace access closed"));
 }
 
 #[test]

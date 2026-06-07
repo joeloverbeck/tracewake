@@ -131,7 +131,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 13);
+    assert_eq!(all.len(), 17);
 
     let ids = all
         .iter()
@@ -144,11 +144,15 @@ fn all_fixtures_load_deterministically_and_validate() {
             "debug_attach_001".to_string(),
             "door_access_001".to_string(),
             "expectation_contradiction_001".to_string(),
+            "food_unavailable_replan_001".to_string(),
             "knowledge_blocker_accuse_001".to_string(),
             "no_human_advance_001".to_string(),
             "no_human_epistemic_check_001".to_string(),
+            "ordinary_workday_001".to_string(),
             "possession_parity_001".to_string(),
             "replay_item_location_001".to_string(),
+            "routine_blocked_diagnostic_001".to_string(),
+            "sleep_eat_work_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
             "view_filtering_001".to_string(),

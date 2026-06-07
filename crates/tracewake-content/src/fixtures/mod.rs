@@ -2,31 +2,38 @@ mod container_item_move_001;
 mod debug_attach_001;
 mod door_access_001;
 mod expectation_contradiction_001;
+mod food_unavailable_replan_001;
 mod knowledge_blocker_accuse_001;
 mod no_human_advance_001;
 mod no_human_epistemic_check_001;
+mod ordinary_workday_001;
 mod possession_parity_001;
 mod replay_item_location_001;
+mod routine_blocked_diagnostic_001;
+mod sleep_eat_work_001;
 mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
 
+use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
 };
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, ItemId, PlaceId,
-    SchemaVersion,
+    RoutineTemplateId, SchemaVersion, SemanticActionId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
 
 use crate::load::SourceFile;
 use crate::schema::{
-    ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema,
-    InitialBeliefSchema, ItemSchema, PlaceSchema,
+    ActionAffordanceSchema, ActorSchema, ContainerSchema, DayWindowSchema, DoorSchema,
+    FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema, InitialNeedSchema,
+    ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema,
+    WorkplaceSchema,
 };
 use crate::serialization::serialize_fixture;
 
@@ -34,11 +41,15 @@ pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
 pub use door_access_001::door_access_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
+pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use knowledge_blocker_accuse_001::knowledge_blocker_accuse_001;
 pub use no_human_advance_001::no_human_advance_001;
 pub use no_human_epistemic_check_001::no_human_epistemic_check_001;
+pub use ordinary_workday_001::ordinary_workday_001;
 pub use possession_parity_001::possession_parity_001;
 pub use replay_item_location_001::replay_item_location_001;
+pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
+pub use sleep_eat_work_001::sleep_eat_work_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
@@ -84,6 +95,10 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_advance_001(),
         replay_item_location_001(),
         view_model_local_actions_001(),
+        ordinary_workday_001(),
+        sleep_eat_work_001(),
+        food_unavailable_replan_001(),
+        routine_blocked_diagnostic_001(),
     ]
 }
 
@@ -117,6 +132,14 @@ fn item(value: &str) -> ItemId {
 
 fn action(value: &str) -> ActionId {
     ActionId::new(value).unwrap()
+}
+
+fn routine_template(value: &str) -> RoutineTemplateId {
+    RoutineTemplateId::new(value).unwrap()
+}
+
+fn semantic_action(value: &str) -> SemanticActionId {
+    SemanticActionId::new(value).unwrap()
 }
 
 fn actor_schema(actor_id: &str, current_place_id: &str) -> ActorSchema {
@@ -196,6 +219,128 @@ fn affordance(action_id: &str, target_id: &str) -> ActionAffordanceSchema {
     ActionAffordanceSchema {
         action_id: action(action_id),
         target_id: target_id.to_string(),
+    }
+}
+
+fn initial_need(actor_id: &str, kind: NeedKind, value: u16) -> InitialNeedSchema {
+    InitialNeedSchema {
+        actor_id: actor(actor_id),
+        kind,
+        value,
+    }
+}
+
+fn home_schema(actor_id: &str, place_id: &str) -> HomeSchema {
+    HomeSchema {
+        actor_id: actor(actor_id),
+        place_id: place(place_id),
+    }
+}
+
+fn sleep_place_schema(actor_id: &str, place_id: &str, sleep_place_id: &str) -> SleepPlaceSchema {
+    SleepPlaceSchema {
+        actor_id: actor(actor_id),
+        place_id: place(place_id),
+        sleep_place_id: sleep_place_id.to_string(),
+    }
+}
+
+fn food_supply_at_place(
+    food_supply_id: &str,
+    place_id: &str,
+    servings: u32,
+    hunger_reduction_per_serving: i32,
+) -> FoodSupplySchema {
+    FoodSupplySchema {
+        food_supply_id: food_supply_id.parse().unwrap(),
+        location: Location::AtPlace(place(place_id)),
+        servings,
+        hunger_reduction_per_serving,
+    }
+}
+
+fn workplace_schema(
+    workplace_id: &str,
+    place_id: &str,
+    assigned_actor_ids: &[&str],
+    work_duration_ticks: u64,
+    access_open: bool,
+) -> WorkplaceSchema {
+    WorkplaceSchema {
+        workplace_id: workplace_id.parse().unwrap(),
+        place_id: place(place_id),
+        assigned_actor_ids: assigned_actor_ids.iter().map(|id| actor(id)).collect(),
+        work_duration_ticks,
+        fatigue_delta_per_tick: 8,
+        hunger_delta_per_tick: 4,
+        max_fatigue_to_start: 800,
+        max_hunger_to_start: 850,
+        access_open,
+        output_tag: format!("{workplace_id}_ordinary_output"),
+    }
+}
+
+fn routine_step(kind: &str, action_id: &str) -> RoutineStep {
+    let action_id = semantic_action(action_id);
+    match kind {
+        "move_toward_place" => RoutineStep::MoveTowardPlace { action_id },
+        "check_known_container" => RoutineStep::CheckKnownContainer { action_id },
+        "consume_accessible_food" => RoutineStep::ConsumeAccessibleFood { action_id },
+        "start_scheduled_sleep" => RoutineStep::StartScheduledSleep { action_id },
+        "start_work_block" => RoutineStep::StartWorkBlock { action_id },
+        "continue_current_step" => RoutineStep::ContinueCurrentStep { action_id },
+        "fallback_to_find_food" => RoutineStep::FallbackToFindFood { action_id },
+        _ => panic!("unsupported routine step kind {kind}"),
+    }
+}
+
+fn wait_step(reason: &str) -> RoutineStep {
+    RoutineStep::WaitUntil {
+        reason: reason.to_string(),
+    }
+}
+
+fn routine_template_schema(
+    template_id: &str,
+    family: RoutineFamily,
+    steps: Vec<RoutineStep>,
+    failure_modes: &[&str],
+) -> RoutineTemplateSchema {
+    RoutineTemplateSchema {
+        template_id: routine_template(template_id),
+        family,
+        applicability_conditions: vec!["fixture_authored_possibility".to_string()],
+        preconditions: vec!["shared_pipeline_preconditions".to_string()],
+        steps,
+        min_duration_ticks: 1,
+        max_duration_ticks: 12,
+        interruption_points: vec![0],
+        failure_modes: failure_modes.iter().map(|mode| mode.to_string()).collect(),
+        fallback_rules: vec!["fallback_wait_with_reason".to_string()],
+        debug_labels: vec![template_id.to_string()],
+        reservable_resource: Some("body".to_string()),
+    }
+}
+
+fn routine_assignment_schema(
+    actor_id: &str,
+    template_id: &str,
+    start_tick: u64,
+    end_tick: u64,
+) -> RoutineAssignmentSchema {
+    RoutineAssignmentSchema {
+        actor_id: actor(actor_id),
+        template_id: routine_template(template_id),
+        start_tick: SimTick::new(start_tick),
+        end_tick: SimTick::new(end_tick),
+    }
+}
+
+fn day_window_schema(actor_id: &str, start_tick: u64, end_tick: u64) -> DayWindowSchema {
+    DayWindowSchema {
+        actor_id: actor(actor_id),
+        start_tick: SimTick::new(start_tick),
+        end_tick: SimTick::new(end_tick),
     }
 }
 
