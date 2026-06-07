@@ -714,6 +714,7 @@ fn replay_checksum_matches() {
         &context(&log),
         Some(&live),
         Some(expected),
+        None,
     );
 
     assert!(report.matches_expected);
@@ -740,6 +741,7 @@ fn replay_detects_missing_or_reordered_event() {
         &context(&missing_log),
         Some(&live),
         Some(expected),
+        None,
     );
 
     assert!(!report.matches_expected);
@@ -905,15 +907,17 @@ fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
     let replayed = EventLog::deserialize_canonical(&canonical).unwrap();
     let first_metrics = no_human_day_metrics(&log).serialize_canonical();
     let replayed_metrics = no_human_day_metrics(&replayed).serialize_canonical();
+    let live_physical_checksum = compute_physical_checksum(&live, &context(&log)).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&live_agent, &context(&log)).checksum;
     let replay = run_replay(
         &initial,
         &initial_agent,
         &log,
         &context(&log),
         Some(&live),
-        Some(compute_physical_checksum(&live, &context(&log)).checksum),
+        Some(live_physical_checksum.clone()),
+        Some(live_agent_checksum.clone()),
     );
-    let live_agent_checksum = compute_agent_state_checksum(&live_agent, &context(&log)).checksum;
 
     assert!(report.ordinary_pipeline_events > 0);
     assert!(log
@@ -922,11 +926,10 @@ fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
         .any(|event| event.event_type == EventKind::SleepStarted));
     assert_eq!(replayed.serialize_canonical(), canonical);
     assert_eq!(replayed_metrics, first_metrics);
-    assert_eq!(
-        replay.final_checksum,
-        compute_physical_checksum(&live, &context(&log)).checksum
-    );
+    assert_eq!(replay.final_checksum, live_physical_checksum);
     assert_eq!(replay.final_agent_checksum, live_agent_checksum);
+    assert_eq!(replay.expected_agent_checksum, Some(live_agent_checksum));
+    assert!(replay.agent_checksum_matches);
     assert!(first_metrics.contains("no_human_day_metrics_v1"));
     let canonical_text = String::from_utf8(canonical).unwrap().to_ascii_lowercase();
     assert!(!canonical_text.contains("player"));

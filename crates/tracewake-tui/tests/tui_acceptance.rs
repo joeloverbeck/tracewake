@@ -279,6 +279,7 @@ fn phase2a_tui_transcript_discovers_absence_without_culprit_leak() {
     assert!(debug_beliefs.contains("DEBUG NON-DIEGETIC: Beliefs"));
     assert!(debug_observations.contains("DEBUG NON-DIEGETIC: Observations"));
     assert!(debug_replay.contains("matches_expected=true"));
+    assert!(debug_replay.contains("agent_checksum_matches=true"));
 
     let debug_truth = app.render_debug_item_location_panel(&ItemId::new("coin_stack_01").unwrap());
     assert!(debug_truth.contains("actor_mara"));

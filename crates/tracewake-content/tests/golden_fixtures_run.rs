@@ -1197,6 +1197,7 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
         &context,
         Some(&state),
         Some(live_physical_checksum.clone()),
+        Some(live_agent_checksum.clone()),
     );
     let canonical = log.serialize_canonical();
     let replayed_log = EventLog::deserialize_canonical(&canonical).unwrap();
@@ -1214,6 +1215,12 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     assert_eq!(replayed_log.serialize_canonical(), canonical);
     assert_eq!(replayed_metrics, real_metrics);
     assert_eq!(replay.final_checksum, live_physical_checksum);
+    assert_eq!(replay.final_agent_checksum, live_agent_checksum);
+    assert_eq!(
+        replay.expected_agent_checksum,
+        Some(live_agent_checksum.clone())
+    );
+    assert!(replay.agent_checksum_matches);
     assert!(replay.epistemic_application_errors.is_empty());
     assert!(real_metrics.contains("no_human_day_metrics_v1"));
     assert_eq!(
@@ -1235,6 +1242,7 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
         &checksum_context("no_human_day_001", &missing_last),
         Some(&state),
         Some(live_physical_checksum),
+        Some(live_agent_checksum),
     );
     assert!(!corrupted.matches_expected);
     assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());

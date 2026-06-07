@@ -26,6 +26,8 @@ pub struct ReplayReport {
     pub epistemic_projection_version: String,
     pub final_agent_checksum: AgentStateChecksum,
     pub agent_projection_version: String,
+    pub expected_agent_checksum: Option<AgentStateChecksum>,
+    pub agent_checksum_matches: bool,
     pub expected_checksum: Option<PhysicalChecksum>,
     pub matches_expected: bool,
     pub state_diff: Vec<String>,
@@ -38,6 +40,7 @@ pub fn run_replay(
     context: &ChecksumContext,
     expected_final_state: Option<&PhysicalState>,
     expected_checksum: Option<PhysicalChecksum>,
+    expected_agent_checksum: Option<AgentStateChecksum>,
 ) -> ReplayReport {
     let initial_checksum = compute_physical_checksum(initial_state, context).checksum;
     let rebuild = rebuild_projection(
@@ -64,7 +67,12 @@ pub fn run_replay(
         .as_ref()
         .map(|expected| expected == &rebuild.final_checksum)
         .unwrap_or(true);
+    let agent_checksum_matches = expected_agent_checksum
+        .as_ref()
+        .map(|expected| expected == &rebuild.final_agent_checksum)
+        .unwrap_or(true);
     let matches_expected = checksum_matches
+        && agent_checksum_matches
         && state_diff.is_empty()
         && rebuild.unsupported_versions.is_empty()
         && rebuild.unsupported_epistemic_versions.is_empty()
@@ -99,6 +107,8 @@ pub fn run_replay(
             .projection_version
             .as_str()
             .to_string(),
+        expected_agent_checksum,
+        agent_checksum_matches,
         expected_checksum,
         matches_expected,
         state_diff,
@@ -214,6 +224,7 @@ mod tests {
             &context(),
             Some(&live),
             Some(expected_checksum),
+            None,
         );
 
         assert!(report.matches_expected);
@@ -234,6 +245,7 @@ mod tests {
             &context(),
             Some(&live),
             Some(expected_checksum),
+            None,
         );
 
         assert!(!report.matches_expected);
@@ -254,6 +266,7 @@ mod tests {
             &bad_log,
             &context(),
             Some(&live),
+            None,
             None,
         );
 

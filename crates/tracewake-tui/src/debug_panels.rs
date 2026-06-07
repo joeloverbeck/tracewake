@@ -106,7 +106,15 @@ pub fn render_replay_panel(report: &ReplayDebugReport) -> String {
             format!("events={}", report.replay.event_count),
             format!("diagnostic_events={}", report.replay.diagnostic_event_count),
             format!("matches_expected={}", report.replay.matches_expected),
+            format!(
+                "agent_checksum_matches={}",
+                report.replay.agent_checksum_matches
+            ),
             format!("final_checksum={}", report.replay.final_checksum.as_str()),
+            format!(
+                "final_agent_checksum={}",
+                report.replay.final_agent_checksum.as_str()
+            ),
         ],
     )
 }

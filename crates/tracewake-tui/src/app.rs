@@ -4,7 +4,9 @@ use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ProposalOrigin, ReportStatus,
     ValidationReport,
 };
-use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
+use tracewake_core::checksum::{
+    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext, PhysicalChecksum,
+};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{
     action_rejection_report, controller_binding_report, item_location_report,
@@ -324,6 +326,8 @@ impl TuiApp {
 
     pub fn render_debug_replay_panel(&self) -> String {
         let expected_checksum = self.physical_checksum();
+        let expected_agent_checksum =
+            compute_agent_state_checksum(&self.agent_state, &self.checksum_context()).checksum;
         let report = run_replay(
             &self.initial_state,
             &self.initial_agent_state,
@@ -331,6 +335,7 @@ impl TuiApp {
             &self.checksum_context(),
             Some(&self.state),
             Some(expected_checksum),
+            Some(expected_agent_checksum),
         );
         render_replay_panel(&replay_debug_report(
             DebugReportId::new("debug.replay").unwrap(),

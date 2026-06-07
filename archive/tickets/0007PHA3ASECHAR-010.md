@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-010: Replay & provenance for Phase 3A state
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` replay rebuild and report (`replay/rebuild.rs`, `replay/report.rs`), checksums (`checksum.rs`), provenance projection (`projections.rs`)
@@ -80,3 +80,24 @@ Fold the Phase 3A agent-state fields into `AgentStateChecksum` (`checksum.rs`) w
 2. `cargo test -p tracewake-core --test golden_scenarios`
 3. `cargo test --workspace`
 4. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+Extended `ReplayReport` so callers can pass an expected Phase 3A `AgentStateChecksum`. The report now stores `expected_agent_checksum`, computes `agent_checksum_matches`, and folds that comparison into the broad `matches_expected` replay-health flag. The TUI replay panel now renders `agent_checksum_matches` and `final_agent_checksum`, and `TuiApp` passes the live agent-state checksum when rendering replay diagnostics.
+
+Strengthened the no-human golden replay tests to compare live physical checksum, live agent-state checksum, expected agent checksum, log-derived no-human metrics, and serialized event-log replay. This explicitly proves Phase 3A needs, intentions, routine executions, decision/stuck traces, and metrics are rebuilt from event log state and included in the canonical agent checksum.
+
+Deviation from plan: `replay/rebuild.rs` and `checksum.rs` already rebuilt and checksummed the Phase 3A fields named by the ticket, so the implementation extended the replay report comparison contract and golden proof rather than replacing rebuild/checksum internals.
+
+Verification:
+
+1. `cargo test -p tracewake-core replay`
+2. `cargo test -p tracewake-core --test golden_scenarios phase3a_no_human_metrics_are_byte_identical_after_log_replay`
+3. `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_real_run_replays_metrics_and_trace_projection`
+4. `cargo test -p tracewake-tui --test tui_acceptance phase2a_tui_transcript_discovers_absence_without_culprit_leak`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`
