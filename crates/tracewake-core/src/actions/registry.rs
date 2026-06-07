@@ -13,6 +13,7 @@ pub enum ActionEffect {
     Wait,
     CheckContainer,
     Sleep,
+    Eat,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -119,6 +120,13 @@ impl ActionRegistry {
         self.register(ActionDefinition::world_action(
             ActionId::new("sleep").unwrap(),
             ActionEffect::Sleep,
+        ));
+    }
+
+    pub fn register_phase3a_eat(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("eat").unwrap(),
+            ActionEffect::Eat,
         ));
     }
 }

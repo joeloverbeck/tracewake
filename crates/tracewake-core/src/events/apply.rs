@@ -7,8 +7,8 @@ use crate::epistemics::{
 };
 use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
-    ActionId, ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, IntentionId,
-    ItemId, ObservationId, PlaceId, RoutineExecutionId,
+    ActionId, ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, FoodSupplyId,
+    IntentionId, ItemId, ObservationId, PlaceId, RoutineExecutionId,
 };
 use crate::location::Location;
 use crate::state::{AgentState, PhysicalState};
@@ -34,6 +34,7 @@ pub enum ApplyError {
     MissingDoor(DoorId),
     MissingContainer(ContainerId),
     MissingItem(ItemId),
+    MissingFoodSupply(FoodSupplyId),
     PreconditionMismatch {
         field: &'static str,
         expected: String,
@@ -106,6 +107,9 @@ pub fn apply_event(
         }
         EventKind::ItemPlacedInContainer => {
             apply_item_placed_in_container(state, &payload).map(|_| ApplyOutcome::Applied)
+        }
+        EventKind::FoodConsumed => {
+            apply_food_consumed(state, &payload).map(|_| ApplyOutcome::Applied)
         }
         EventKind::ActorWaited | EventKind::TimeAdvanced => Ok(ApplyOutcome::WorldNoOp),
         _ => Ok(ApplyOutcome::NonWorldNoOp),
@@ -543,6 +547,14 @@ fn parse_item_id(payload: &BTreeMap<&str, &str>) -> Result<ItemId, ApplyError> {
     })
 }
 
+fn parse_food_supply_id(payload: &BTreeMap<&str, &str>) -> Result<FoodSupplyId, ApplyError> {
+    let value = required(payload, "food_supply_id")?;
+    FoodSupplyId::new(value).map_err(|_| ApplyError::BadPayload {
+        key: "food_supply_id",
+        value: value.to_string(),
+    })
+}
+
 fn parse_intention_id(
     payload: &BTreeMap<&str, &str>,
     key: &'static str,
@@ -580,6 +592,14 @@ fn parse_need_kind(payload: &BTreeMap<&str, &str>) -> Result<NeedKind, ApplyErro
 fn parse_i32(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<i32, ApplyError> {
     let value = required(payload, key)?;
     value.parse::<i32>().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_u32(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<u32, ApplyError> {
+    let value = required(payload, key)?;
+    value.parse::<u32>().map_err(|_| ApplyError::BadPayload {
         key,
         value: value.to_string(),
     })
@@ -1032,6 +1052,39 @@ fn apply_item_placed_in_container(
         .expect("container checked")
         .contents
         .insert(item_id);
+    Ok(())
+}
+
+fn apply_food_consumed(
+    state: &mut PhysicalState,
+    payload: &BTreeMap<&str, &str>,
+) -> Result<(), ApplyError> {
+    let food_supply_id = parse_food_supply_id(payload)?;
+    let servings_consumed = parse_u32(payload, "servings_consumed")?;
+    let servings_before = parse_u32(payload, "servings_before")?;
+    let servings_after = parse_u32(payload, "servings_after")?;
+    if servings_before.saturating_sub(servings_consumed) != servings_after {
+        return Err(ApplyError::PreconditionMismatch {
+            field: "food_supply.servings_after",
+            expected: servings_before
+                .saturating_sub(servings_consumed)
+                .to_string(),
+            actual: servings_after.to_string(),
+        });
+    }
+
+    let food = state
+        .food_supplies
+        .get_mut(&food_supply_id)
+        .ok_or_else(|| ApplyError::MissingFoodSupply(food_supply_id.clone()))?;
+    if food.servings != servings_before {
+        return Err(ApplyError::PreconditionMismatch {
+            field: "food_supply.servings",
+            expected: servings_before.to_string(),
+            actual: food.servings.to_string(),
+        });
+    }
+    food.servings = servings_after;
     Ok(())
 }
 

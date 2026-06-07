@@ -1,5 +1,6 @@
 pub mod accuseprobe;
 pub mod checkcontainer;
+pub mod eat;
 pub mod inspect;
 pub mod movement;
 pub mod openclose;

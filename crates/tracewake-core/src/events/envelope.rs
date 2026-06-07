@@ -181,7 +181,6 @@ impl EventKind {
             | EventKind::SleepStarted
             | EventKind::SleepCompleted
             | EventKind::SleepInterrupted
-            | EventKind::FoodConsumed
             | EventKind::FoodServiceUsed
             | EventKind::EatFailed
             | EventKind::WorkBlockStarted
@@ -203,6 +202,7 @@ impl EventKind {
             | EventKind::ItemTakenFromPlace
             | EventKind::ItemPlacedInContainer
             | EventKind::ItemPlacedInPlace
+            | EventKind::FoodConsumed
             | EventKind::ActorWaited
             | EventKind::TimeAdvanced => EventStream::World,
         }
@@ -220,6 +220,7 @@ impl EventKind {
                 | EventKind::ItemTakenFromPlace
                 | EventKind::ItemPlacedInContainer
                 | EventKind::ItemPlacedInPlace
+                | EventKind::FoodConsumed
                 | EventKind::ActorWaited
                 | EventKind::TimeAdvanced
         )
@@ -1110,7 +1111,7 @@ mod tests {
             .filter(|kind| kind.stream() == EventStream::Agent)
             .collect::<Vec<_>>();
 
-        assert_eq!(phase_3a_kinds.len(), 30);
+        assert_eq!(phase_3a_kinds.len(), 29);
         for kind in phase_3a_kinds {
             assert!(kind.requires_cause());
             assert!(!kind.physical_mutating());
@@ -1134,6 +1135,17 @@ mod tests {
             assert_eq!(round_tripped.event_type, kind);
             assert_eq!(round_tripped.stream, EventStream::Agent);
         }
+    }
+
+    #[test]
+    fn food_consumed_is_physical_world_event() {
+        assert_eq!(EventKind::FoodConsumed.stream(), EventStream::World);
+        assert!(EventKind::FoodConsumed.physical_mutating());
+        assert!(EventKind::FoodConsumed.requires_cause());
+        assert_eq!(
+            EventKind::from_stable_id(EventKind::FoodConsumed.stable_id()),
+            Some(EventKind::FoodConsumed)
+        );
     }
 
     #[test]

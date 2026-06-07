@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-009: Food entity model and eat action
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds a finite food-supply entity to core state and an `eat` action that consumes modeled food eventfully and reduces hunger.
@@ -82,3 +82,26 @@ Register `eat` via the Phase 3A registration fn in `crates/tracewake-core/src/ac
 1. `cargo test -p tracewake-core actions::defs::eat`
 2. `cargo test -p tracewake-core state`
 3. Core-crate scope is correct; the end-to-end food-unavailable interruption chain is exercised by tickets 020/021/025.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed:
+- Added `FoodSupplyId` and finite `FoodSupplyState` to physical state with stable location, servings, and per-serving hunger reduction.
+- Added `eat` as a Phase 3A registry action that emits `FoodConsumed` plus a caused hunger `NeedDeltaApplied` event for accessible servings.
+- Made `FoodConsumed` a physical world event so replay/application decrements servings deterministically.
+- Added `EatFailed` event paths for absent, empty, or inaccessible food sources with typed `knowledge`, `resource`, or `access` blockers and absence/observation ancestry payload fields.
+- Included food supplies in physical checksums and replay diffs.
+
+Deviations:
+- Food service, planner source selection, content schemas, and food-unavailable golden fixtures remain deferred to their scoped follow-up tickets.
+- Failure events are committed as eventful failed action outcomes rather than unstructured hunger changes; actor hunger is unchanged unless a consumption event is emitted.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core actions::defs::eat`
+- `cargo test -p tracewake-core state`
+- `cargo test -p tracewake-core actions`
+- `cargo test -p tracewake-core`
+- `rg -n "price|market|nutrition" crates/tracewake-core/src/state.rs crates/tracewake-core/src/actions/defs/eat.rs` returned no matches.

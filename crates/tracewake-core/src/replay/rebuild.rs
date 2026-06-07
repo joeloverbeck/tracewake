@@ -216,6 +216,12 @@ pub fn diff_physical_state(expected: &PhysicalState, actual: &PhysicalState) -> 
             expected.items, actual.items
         ));
     }
+    if expected.food_supplies != actual.food_supplies {
+        diffs.push(format!(
+            "food_supplies expected={:?} actual={:?}",
+            expected.food_supplies, actual.food_supplies
+        ));
+    }
     diffs.sort();
     diffs
 }

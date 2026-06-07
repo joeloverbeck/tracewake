@@ -123,6 +123,16 @@ pub fn compute_physical_checksum(
         ));
     }
 
+    for (food_supply_id, food) in &state.food_supplies {
+        lines.push(format!(
+            "food_supply|id={}|location={}|servings={}|hunger_reduction={}",
+            food_supply_id.as_str(),
+            location_key(&food.location),
+            food.servings,
+            food.hunger_reduction_per_serving
+        ));
+    }
+
     let checksum = PhysicalChecksum::from_canonical_lines(&lines);
     PhysicalChecksumReport {
         checksum,

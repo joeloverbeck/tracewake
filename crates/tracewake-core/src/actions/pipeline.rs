@@ -2,6 +2,7 @@ use crate::actions::defs::accuseprobe::validate_truthful_accuse_probe;
 use crate::actions::defs::checkcontainer::{
     build_check_container_event, build_observation_recorded_event,
 };
+use crate::actions::defs::eat::build_eat_events;
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
 use crate::actions::defs::sleep::build_sleep_start_event;
@@ -507,6 +508,37 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
                 context.ordering_key,
                 context.content_manifest_id,
             ),
+            ActionEffect::Eat => {
+                let events = match build_eat_events(
+                    context.state,
+                    proposal,
+                    context.ordering_key,
+                    context.content_manifest_id,
+                ) {
+                    Ok(events) => events,
+                    Err(rejection) => return reject_action(context, proposal, rejection),
+                };
+
+                let mut dry_run = context.state.clone();
+                for event in &events {
+                    if apply_event(&mut dry_run, event).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::EventApplication,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The world state did not match that action.",
+                            "dry-run event application rejected a constructed eat event",
+                        );
+                    }
+                }
+                return PipelineDecision::Accepted {
+                    candidate_events: events,
+                    checked_facts,
+                    would_mutate,
+                };
+            }
             ActionEffect::QueryOnly => unreachable!("would_mutate checked above"),
         };
 

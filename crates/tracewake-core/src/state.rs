@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::agent::{Intention, NeedKind, NeedState, RoutineExecution};
 use crate::ids::{
-    ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, IntentionId, ItemId,
-    PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId,
+    ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, FoodSupplyId, IntentionId,
+    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId,
 };
 use crate::location::Location;
 
@@ -14,6 +14,7 @@ pub enum EntityKind {
     Door,
     Container,
     Item,
+    FoodSupply,
     InstitutionPlaceholder,
     RecordPlaceholder,
 }
@@ -25,6 +26,7 @@ pub enum EntityId {
     Door(DoorId),
     Container(ContainerId),
     Item(ItemId),
+    FoodSupply(FoodSupplyId),
     InstitutionPlaceholder(SchemaVersion),
     RecordPlaceholder(SchemaVersion),
 }
@@ -37,6 +39,7 @@ impl EntityId {
             EntityId::Door(_) => EntityKind::Door,
             EntityId::Container(_) => EntityKind::Container,
             EntityId::Item(_) => EntityKind::Item,
+            EntityId::FoodSupply(_) => EntityKind::FoodSupply,
             EntityId::InstitutionPlaceholder(_) => EntityKind::InstitutionPlaceholder,
             EntityId::RecordPlaceholder(_) => EntityKind::RecordPlaceholder,
         }
@@ -49,6 +52,7 @@ impl EntityId {
             EntityId::Door(id) => id.as_str(),
             EntityId::Container(id) => id.as_str(),
             EntityId::Item(id) => id.as_str(),
+            EntityId::FoodSupply(id) => id.as_str(),
             EntityId::InstitutionPlaceholder(id) => id.as_str(),
             EntityId::RecordPlaceholder(id) => id.as_str(),
         }
@@ -115,6 +119,7 @@ pub struct PhysicalState {
     pub doors: BTreeMap<DoorId, DoorState>,
     pub containers: BTreeMap<ContainerId, ContainerState>,
     pub items: BTreeMap<ItemId, ItemState>,
+    pub food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -210,6 +215,34 @@ pub struct ItemState {
     pub value_token: Option<ValueToken>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FoodSupplyState {
+    pub food_supply_id: FoodSupplyId,
+    pub location: Location,
+    pub servings: u32,
+    pub hunger_reduction_per_serving: i32,
+}
+
+impl FoodSupplyState {
+    pub fn new(
+        food_supply_id: FoodSupplyId,
+        location: Location,
+        servings: u32,
+        hunger_reduction_per_serving: i32,
+    ) -> Self {
+        Self {
+            food_supply_id,
+            location,
+            servings,
+            hunger_reduction_per_serving,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.servings == 0
+    }
+}
+
 impl ItemState {
     pub fn new(item_id: ItemId, location: Location) -> Self {
         Self {
@@ -296,6 +329,10 @@ mod tests {
         ContainerId::new(value).unwrap()
     }
 
+    fn food_supply_id(value: &str) -> FoodSupplyId {
+        FoodSupplyId::new(value).unwrap()
+    }
+
     #[test]
     fn records_use_ordered_collections() {
         let mut actor = ActorBody::new(actor_id("actor_tomas"), place_id("shop_front"));
@@ -340,5 +377,25 @@ mod tests {
 
         assert_eq!(header.kind, EntityKind::Container);
         assert_eq!(header.id.as_str(), "strongbox_tomas");
+    }
+
+    #[test]
+    fn food_supply_models_finite_zero_servings_without_economy_fields() {
+        let full = FoodSupplyState::new(
+            food_supply_id("food_bread_loaf"),
+            Location::AtPlace(place_id("kitchen")),
+            2,
+            100,
+        );
+        let empty = FoodSupplyState::new(
+            food_supply_id("food_empty_bowl"),
+            Location::AtPlace(place_id("kitchen")),
+            0,
+            100,
+        );
+
+        assert!(!full.is_empty());
+        assert!(empty.is_empty());
+        assert_eq!(full.hunger_reduction_per_serving, 100);
     }
 }

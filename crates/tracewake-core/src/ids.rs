@@ -129,6 +129,7 @@ stable_id_type!(ExitId);
 stable_id_type!(DoorId);
 stable_id_type!(ContainerId);
 stable_id_type!(ItemId);
+stable_id_type!(FoodSupplyId);
 stable_id_type!(ActionId);
 stable_id_type!(SemanticActionId);
 stable_id_type!(EventId);
