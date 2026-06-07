@@ -1,6 +1,7 @@
+use crate::epistemics::{Belief, Contradiction, Observation};
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, EventId, PlaceId, ProcessId, ProposalId,
-    SchemaVersion, ValidationReportId,
+    ActionId, ActorId, ContainerId, ContentManifestId, ControllerId, EventId, PlaceId, ProcessId,
+    ProposalId, SchemaVersion, ValidationReportId,
 };
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::time::SimTick;
@@ -10,6 +11,7 @@ pub const EVENT_SCHEMA_V1: &str = "event_schema_v1";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EventStream {
     World,
+    Epistemic,
     Diagnostic,
     Controller,
     ReplayDebug,
@@ -35,6 +37,11 @@ pub enum EventKind {
     ActionRejected,
     NoHumanAdvanceStarted,
     NoHumanAdvanceCompleted,
+    InitialBeliefSeeded,
+    ObservationRecorded,
+    BeliefUpdated,
+    ExpectationContradicted,
+    ContainerChecked,
     ReplayProjectionRebuilt,
 }
 
@@ -59,6 +66,11 @@ impl EventKind {
             EventKind::ActionRejected,
             EventKind::NoHumanAdvanceStarted,
             EventKind::NoHumanAdvanceCompleted,
+            EventKind::InitialBeliefSeeded,
+            EventKind::ObservationRecorded,
+            EventKind::BeliefUpdated,
+            EventKind::ExpectationContradicted,
+            EventKind::ContainerChecked,
             EventKind::ReplayProjectionRebuilt,
         ]
     }
@@ -85,6 +97,11 @@ impl EventKind {
             | EventKind::ActionRejected
             | EventKind::NoHumanAdvanceStarted
             | EventKind::NoHumanAdvanceCompleted => EventStream::Diagnostic,
+            EventKind::InitialBeliefSeeded
+            | EventKind::ObservationRecorded
+            | EventKind::BeliefUpdated
+            | EventKind::ExpectationContradicted
+            | EventKind::ContainerChecked => EventStream::Epistemic,
             EventKind::ReplayProjectionRebuilt => EventStream::ReplayDebug,
             EventKind::ActorMoved
             | EventKind::DoorOpened
@@ -137,6 +154,11 @@ impl EventKind {
             EventKind::ActionRejected => "action_rejected",
             EventKind::NoHumanAdvanceStarted => "no_human_advance_started",
             EventKind::NoHumanAdvanceCompleted => "no_human_advance_completed",
+            EventKind::InitialBeliefSeeded => "initial_belief_seeded",
+            EventKind::ObservationRecorded => "observation_recorded",
+            EventKind::BeliefUpdated => "belief_updated",
+            EventKind::ExpectationContradicted => "expectation_contradicted",
+            EventKind::ContainerChecked => "container_checked",
             EventKind::ReplayProjectionRebuilt => "replay_projection_rebuilt",
         }
     }
@@ -154,6 +176,107 @@ pub struct EventKindMetadata {
     pub kind: EventKind,
     pub stream: EventStream,
     pub physical_mutating: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InitialBeliefSourceKind {
+    AuthoredPrehistory,
+}
+
+impl InitialBeliefSourceKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            InitialBeliefSourceKind::AuthoredPrehistory => "authored_prehistory",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InitialBeliefSeededPayload {
+    pub schema_version: SchemaVersion,
+    pub source_kind: InitialBeliefSourceKind,
+    pub belief: Belief,
+}
+
+impl InitialBeliefSeededPayload {
+    pub fn new_v1(belief: Belief) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
+            belief,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObservationRecordedPayload {
+    pub schema_version: SchemaVersion,
+    pub observation: Observation,
+}
+
+impl ObservationRecordedPayload {
+    pub fn new_v1(observation: Observation) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            observation,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BeliefUpdatedPayload {
+    pub schema_version: SchemaVersion,
+    pub belief: Belief,
+}
+
+impl BeliefUpdatedPayload {
+    pub fn new_v1(belief: Belief) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            belief,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExpectationContradictedPayload {
+    pub schema_version: SchemaVersion,
+    pub contradiction: Contradiction,
+}
+
+impl ExpectationContradictedPayload {
+    pub fn new_v1(contradiction: Contradiction) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            contradiction,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContainerCheckedPayload {
+    pub schema_version: SchemaVersion,
+    pub actor_id: ActorId,
+    pub container_id: ContainerId,
+    pub source_action_id: ActionId,
+    pub observed_tick: SimTick,
+}
+
+impl ContainerCheckedPayload {
+    pub fn new_v1(
+        actor_id: ActorId,
+        container_id: ContainerId,
+        source_action_id: ActionId,
+        observed_tick: SimTick,
+    ) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            actor_id,
+            container_id,
+            source_action_id,
+            observed_tick,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -448,6 +571,7 @@ fn required<'a>(
 fn stream_id(stream: EventStream) -> &'static str {
     match stream {
         EventStream::World => "world",
+        EventStream::Epistemic => "epistemic",
         EventStream::Diagnostic => "diagnostic",
         EventStream::Controller => "controller",
         EventStream::ReplayDebug => "replay_debug",
@@ -457,6 +581,7 @@ fn stream_id(stream: EventStream) -> &'static str {
 fn stream_from_id(value: &str) -> Option<EventStream> {
     match value {
         "world" => Some(EventStream::World),
+        "epistemic" => Some(EventStream::Epistemic),
         "diagnostic" => Some(EventStream::Diagnostic),
         "controller" => Some(EventStream::Controller),
         "replay_debug" => Some(EventStream::ReplayDebug),
@@ -647,4 +772,168 @@ fn decode(value: &str) -> Result<String, EventEnvelopeParseError> {
     }
 
     String::from_utf8(bytes).map_err(|_| EventEnvelopeParseError::InvalidUtf8)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::epistemics::{
+        Belief, Channel, Confidence, Contradiction, ContradictionKind, HolderKind, Observation,
+        ObservationSubject, ObservationTarget, SourceRef, Stance,
+    };
+    use crate::ids::{BeliefId, ContradictionId, ItemId, ObservationId};
+    use crate::location::Location;
+
+    fn actor_id(value: &str) -> ActorId {
+        ActorId::new(value).unwrap()
+    }
+
+    fn action_id(value: &str) -> ActionId {
+        ActionId::new(value).unwrap()
+    }
+
+    fn belief_id(value: &str) -> BeliefId {
+        BeliefId::new(value).unwrap()
+    }
+
+    fn container_id(value: &str) -> ContainerId {
+        ContainerId::new(value).unwrap()
+    }
+
+    fn contradiction_id(value: &str) -> ContradictionId {
+        ContradictionId::new(value).unwrap()
+    }
+
+    fn event_id(value: &str) -> EventId {
+        EventId::new(value).unwrap()
+    }
+
+    fn item_id(value: &str) -> ItemId {
+        ItemId::new(value).unwrap()
+    }
+
+    fn observation_id(value: &str) -> ObservationId {
+        ObservationId::new(value).unwrap()
+    }
+
+    fn place_id(value: &str) -> PlaceId {
+        PlaceId::new(value).unwrap()
+    }
+
+    fn expected_proposition() -> crate::epistemics::Proposition {
+        crate::epistemics::Proposition::ItemLocatedInContainer {
+            item_id: item_id("coin_stack_01"),
+            container_id: container_id("strongbox_tomas"),
+        }
+    }
+
+    fn missing_proposition() -> crate::epistemics::Proposition {
+        crate::epistemics::Proposition::ItemMissingFromExpectedLocation {
+            item_id: item_id("coin_stack_01"),
+            expected_location: Location::InContainer(container_id("strongbox_tomas")),
+        }
+    }
+
+    fn belief() -> Belief {
+        Belief::new(
+            belief_id("belief_tomas_expected_coin"),
+            HolderKind::Actor(actor_id("actor_tomas")),
+            expected_proposition(),
+            Stance::ExpectsTrue,
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(event_id("event_initial_belief")),
+            SimTick::ZERO,
+        )
+    }
+
+    fn observation() -> Observation {
+        Observation::new(
+            observation_id("obs_tomas_checked_strongbox"),
+            actor_id("actor_tomas"),
+            Channel::AbsenceMarker,
+            SimTick::new(3),
+            place_id("tomas_room"),
+            ObservationSubject::Container(container_id("strongbox_tomas")),
+            ObservationTarget::Container(container_id("strongbox_tomas")),
+            Confidence::new(950).unwrap(),
+            SourceRef::Event(event_id("event_container_checked")),
+        )
+    }
+
+    fn contradiction() -> Contradiction {
+        Contradiction::new(
+            contradiction_id("contradiction_tomas_missing_coin"),
+            actor_id("actor_tomas"),
+            ContradictionKind::ExpectedItemAbsentFromContainer,
+            belief_id("belief_tomas_expected_coin"),
+            observation_id("obs_tomas_checked_strongbox"),
+            expected_proposition(),
+            missing_proposition(),
+            SimTick::new(3),
+        )
+    }
+
+    #[test]
+    fn epistemic_event_kinds_classify_to_epistemic_stream() {
+        let kinds = [
+            EventKind::InitialBeliefSeeded,
+            EventKind::ObservationRecorded,
+            EventKind::BeliefUpdated,
+            EventKind::ExpectationContradicted,
+            EventKind::ContainerChecked,
+        ];
+
+        for kind in kinds {
+            assert_eq!(kind.stream(), EventStream::Epistemic);
+            assert!(!kind.physical_mutating());
+            assert_eq!(EventKind::from_stable_id(kind.stable_id()), Some(kind));
+        }
+    }
+
+    #[test]
+    fn epistemic_stream_label_round_trips() {
+        assert_eq!(stream_id(EventStream::Epistemic), "epistemic");
+        assert_eq!(stream_from_id("epistemic"), Some(EventStream::Epistemic));
+    }
+
+    #[test]
+    fn epistemic_payloads_are_versioned_and_can_hold_unsupported_schema() {
+        let mut observation_payload = ObservationRecordedPayload::new_v1(observation());
+        let belief_payload = BeliefUpdatedPayload::new_v1(belief());
+        let initial_payload = InitialBeliefSeededPayload::new_v1(belief());
+        let contradiction_payload = ExpectationContradictedPayload::new_v1(contradiction());
+        let container_checked_payload = ContainerCheckedPayload::new_v1(
+            actor_id("actor_tomas"),
+            container_id("strongbox_tomas"),
+            action_id("check_container"),
+            SimTick::new(3),
+        );
+
+        assert_eq!(observation_payload.schema_version.as_str(), EVENT_SCHEMA_V1);
+        assert_eq!(belief_payload.schema_version.as_str(), EVENT_SCHEMA_V1);
+        assert_eq!(initial_payload.schema_version.as_str(), EVENT_SCHEMA_V1);
+        assert_eq!(
+            initial_payload.source_kind,
+            InitialBeliefSourceKind::AuthoredPrehistory
+        );
+        assert_eq!(
+            initial_payload.source_kind.stable_id(),
+            "authored_prehistory"
+        );
+        assert_eq!(
+            contradiction_payload.schema_version.as_str(),
+            EVENT_SCHEMA_V1
+        );
+        assert_eq!(
+            container_checked_payload.schema_version.as_str(),
+            EVENT_SCHEMA_V1
+        );
+
+        observation_payload.schema_version = SchemaVersion::new("event_schema_v999").unwrap();
+        assert_eq!(observation_payload.observation, observation());
+        assert_eq!(
+            observation_payload.schema_version.as_str(),
+            "event_schema_v999"
+        );
+    }
 }

@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-004: Epistemic event kinds, stream, and payloads
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the `Epistemic` event stream, new event kinds, and their payloads to `tracewake-core` `events/envelope.rs`.
@@ -77,3 +77,21 @@ Add the new arms to every `EventKind`/`EventStream` `match` in `envelope.rs` (la
 1. `cargo test -p tracewake-core events::envelope`
 2. `cargo build --workspace --all-targets` (proves no non-exhaustive `match` after adding the stream variant)
 3. The envelope unit scope is correct because application/replay behavior is exercised in ticket 005.
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added `EventStream::Epistemic` and classified `InitialBeliefSeeded`, `ObservationRecorded`, `BeliefUpdated`, `ExpectationContradicted`, and `ContainerChecked` into that stream.
+- Added stable event-kind labels, stream label/parse support for `"epistemic"`, and public exports for the new typed epistemic payload structs.
+- Added versioned payload structs that carry ticket 002 record content and allow unsupported schema versions to be represented for ticket 005 rejection.
+- Added envelope unit tests for epistemic stream classification, stream label round-trip, and payload versioning.
+
+Deviations from original plan:
+- `events/mod.rs` was also touched to re-export the new payload types because `events::envelope` is private.
+
+Verification results:
+- `cargo test -p tracewake-core events::envelope`
+- `cargo build --workspace --all-targets`
+- `cargo fmt --all --check`
