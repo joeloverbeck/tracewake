@@ -1012,9 +1012,21 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &work_tomas,
         106,
     );
-    let work_started = work_events
+    let work_started = log
+        .events()
         .iter()
-        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .find(|event| {
+            event.event_type == EventKind::WorkBlockStarted
+                && event
+                    .actor_id
+                    .as_ref()
+                    .is_some_and(|actor| actor.as_str() == "actor_tomas")
+        })
+        .or_else(|| {
+            work_events
+                .iter()
+                .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        })
         .unwrap()
         .clone();
     append_and_apply(

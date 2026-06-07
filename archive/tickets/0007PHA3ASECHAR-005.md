@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-005: Live needs integration with ancestry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` needs (`agent/need.rs`), no-human loop passive deltas (`scheduler.rs`), event application (`events/apply.rs`), action need-delta emission (`actions/defs/eat.rs`, `actions/defs/sleep.rs`, `actions/defs/work.rs`)
@@ -86,3 +86,31 @@ On a threshold crossing, trigger candidate re-evaluation; when a severe need out
 1. `cargo test -p tracewake-core agent::need`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Added `last_threshold_crossing` to `NeedState` and included it in canonical need serialization/checksum as `need_state_v2`.
+- Updated `NeedState::apply_delta` so replay preserves the last actual threshold crossing across later non-crossing deltas.
+- Integrated passive need deltas into `run_no_human_day` before each actor decision, using elapsed ticks since that actor's previous decision point and applying the emitted agent events to live `AgentState`.
+- Added no-human threshold marker events with tick/window ancestry, `candidate_goal_reevaluation=true`, and a severe-need interruption cause marker when a severe crossing occurs while the actor has an active intention.
+- Kept action-derived need deltas on the existing eat/sleep/work event paths and added scheduler tests proving eat action deltas carry action-event ancestry.
+- Adjusted the no-human day golden fixture assertion to tolerate a work start emitted during the live no-human run before the follow-up manual work completion step.
+
+Deviations from original plan:
+
+- The full intention lifecycle transition is still left to `0007PHA3ASECHAR-006`. This ticket emits the severe-need interruption cause as typed threshold-event payload rather than mutating the intention state machine.
+- Passive deltas are based on elapsed time since the actor's previous decision point, not the future duration of the current window. This keeps decisions live without pre-spending an entire future window of need pressure.
+
+Verification results:
+
+- `cargo test -p tracewake-core agent::need`
+- `cargo test -p tracewake-core scheduler`
+- `cargo test -p tracewake-content no_human_day_fixture_has_roster_activity_and_metrics_envelope`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

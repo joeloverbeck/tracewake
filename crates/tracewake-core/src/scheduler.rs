@@ -210,10 +210,11 @@ pub mod no_human {
         build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
         plan_local_actions, select_goal_and_trace, select_phase3a_method, ActorKnownFact,
         ActorKnownPlanningState, BlockerCategory, DecisionInput, Intention,
-        LiveCandidateGenerationInput, LocalPlanRequest, PlannerGoal, RoutineFamily,
-        StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
+        LiveCandidateGenerationInput, LocalPlanRequest, NeedBand, NeedKind, NeedState, PlannerGoal,
+        RoutineFamily, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
     use crate::epistemics::EpistemicProjection;
+    use crate::events::apply::apply_agent_event;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
@@ -326,12 +327,37 @@ pub mod no_human {
             content_manifest_id.clone(),
         );
 
-        let mut scheduled = Vec::new();
+        let mut ordinary_pipeline_events = 0;
+        let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
+        let mut last_decision_tick_by_actor = config
+            .actor_ids
+            .iter()
+            .cloned()
+            .map(|actor_id| (actor_id, SimTick::ZERO))
+            .collect::<BTreeMap<_, _>>();
         for window in &config.windows {
             for actor_id in &config.actor_ids {
                 if !state.actors.contains_key(actor_id) {
                     continue;
                 }
+                let previous_decision_tick = last_decision_tick_by_actor
+                    .get(actor_id)
+                    .copied()
+                    .unwrap_or(start_tick);
+                let elapsed_ticks = window
+                    .start_tick
+                    .value()
+                    .saturating_sub(previous_decision_tick.value());
+                append_passive_need_events_before_decision(
+                    log,
+                    agent_state,
+                    &process_id,
+                    actor_id,
+                    window,
+                    elapsed_ticks,
+                    &content_manifest_id,
+                );
+                last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
                 let Some(proposal) = build_agent_proposal(
                     state,
                     agent_state,
@@ -351,30 +377,24 @@ pub mod no_human {
                     proposal.target_ids.clone(),
                     format!("{}:{}", window.window_id, actor_id.as_str()),
                 );
-                scheduled.push((window.clone(), actor_id.clone(), ordering_key, proposal));
-            }
-        }
-        scheduled.sort_by(|left, right| left.2.cmp(&right.2));
-
-        let mut ordinary_pipeline_events = 0;
-        let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
-        for (window, actor_id, ordering_key, proposal) in scheduled {
-            let before = log.events().len();
-            let mut context = PipelineContext {
-                registry,
-                state,
-                agent_state,
-                log,
-                controller_bindings: None,
-                epistemic_projection: None,
-                content_manifest_id: content_manifest_id.clone(),
-                ordering_key,
-            };
-            run_pipeline(&mut context, &proposal);
-            let appended = log.events().len().saturating_sub(before);
-            ordinary_pipeline_events += appended;
-            if appended > 0 {
-                progress_by_window_actor.insert((window.window_id, actor_id), appended);
+                let before = log.events().len();
+                let mut context = PipelineContext {
+                    registry,
+                    state,
+                    agent_state,
+                    log,
+                    controller_bindings: None,
+                    epistemic_projection: None,
+                    content_manifest_id: content_manifest_id.clone(),
+                    ordering_key,
+                };
+                run_pipeline(&mut context, &proposal);
+                let appended = log.events().len().saturating_sub(before);
+                ordinary_pipeline_events += appended;
+                if appended > 0 {
+                    progress_by_window_actor
+                        .insert((window.window_id.clone(), actor_id.clone()), appended);
+                }
             }
         }
 
@@ -748,6 +768,228 @@ pub mod no_human {
         agent_state.intentions.get(intention_id).cloned()
     }
 
+    fn append_passive_need_events_before_decision(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        elapsed_ticks: u64,
+        content_manifest_id: &ContentManifestId,
+    ) {
+        if elapsed_ticks == 0 {
+            return;
+        }
+        let deltas = crate::time::passive_awake_need_deltas(elapsed_ticks);
+        for (need_kind, delta) in [
+            (NeedKind::Hunger, deltas.hunger_delta),
+            (NeedKind::Fatigue, deltas.fatigue_delta),
+        ] {
+            let Some(current_value) = agent_state
+                .needs_by_actor
+                .get(actor_id)
+                .and_then(|needs| needs.get(&need_kind))
+                .map(NeedState::value)
+            else {
+                continue;
+            };
+            let next_value = (i32::from(current_value) + delta).clamp(0, 1000) as u16;
+            let crossing = NeedState::threshold_crossing(current_value, next_value);
+            let delta_event = append_and_apply_agent_event(
+                log,
+                agent_state,
+                build_window_passive_need_delta_event(
+                    process_id,
+                    actor_id,
+                    window,
+                    content_manifest_id,
+                    need_kind,
+                    delta,
+                    elapsed_ticks,
+                ),
+            );
+            if let Some(crossing) = crossing {
+                let has_active_intention =
+                    agent_state.active_intention_by_actor.contains_key(actor_id);
+                append_and_apply_agent_event(
+                    log,
+                    agent_state,
+                    build_window_need_threshold_event(
+                        process_id,
+                        actor_id,
+                        window,
+                        content_manifest_id,
+                        &delta_event.event_id,
+                        need_kind,
+                        current_value,
+                        next_value,
+                        crossing.from,
+                        crossing.to,
+                        has_active_intention,
+                    ),
+                );
+            }
+        }
+    }
+
+    fn append_and_apply_agent_event(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        event: EventEnvelope,
+    ) -> EventEnvelope {
+        let appended = log.append(event).expect("agent event is appendable");
+        apply_agent_event(agent_state, &appended).expect("agent event applies to live state");
+        appended
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_window_passive_need_delta_event(
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        content_manifest_id: &ContentManifestId,
+        need_kind: NeedKind,
+        delta: i32,
+        elapsed_ticks: u64,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.no_human_passive_need_delta.{}.{}.{}",
+                window.window_id,
+                actor_id.as_str(),
+                need_kind.stable_id()
+            ))
+            .unwrap(),
+            EventKind::NeedDeltaApplied,
+            0,
+            0,
+            window.start_tick,
+            OrderingKey::new(
+                window.start_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("passive_need_delta").unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    window.window_id.clone(),
+                    need_kind.stable_id().to_string(),
+                ],
+                format!(
+                    "before_decision:{}:{}:{}",
+                    window.window_id,
+                    actor_id.as_str(),
+                    need_kind.stable_id()
+                ),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Process(process_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.participants = vec![actor_id.to_string()];
+        event.payload = vec![
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("need_kind", need_kind.stable_id()),
+            PayloadField::new("delta", delta.to_string()),
+            PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
+            PayloadField::new("window_id", window.window_id.as_str()),
+            PayloadField::new("cause_kind", "tick_delta"),
+        ];
+        event.effects_summary = format!(
+            "{} changed by {} before {} decision",
+            need_kind.stable_id(),
+            delta,
+            window.window_id
+        );
+        event
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_window_need_threshold_event(
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        content_manifest_id: &ContentManifestId,
+        delta_event_id: &EventId,
+        need_kind: NeedKind,
+        from_value: u16,
+        to_value: u16,
+        from_band: NeedBand,
+        to_band: NeedBand,
+        has_active_intention: bool,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.no_human_need_threshold.{}.{}.{}",
+                window.window_id,
+                actor_id.as_str(),
+                need_kind.stable_id()
+            ))
+            .unwrap(),
+            EventKind::NeedThresholdCrossed,
+            0,
+            0,
+            window.start_tick,
+            OrderingKey::new(
+                window.start_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("need_threshold_crossed").unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    window.window_id.clone(),
+                    need_kind.stable_id().to_string(),
+                ],
+                format!(
+                    "before_decision_threshold:{}:{}:{}",
+                    window.window_id,
+                    actor_id.as_str(),
+                    need_kind.stable_id()
+                ),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Event(delta_event_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.participants = vec![actor_id.to_string()];
+        let severe_need_interrupts = has_active_intention && matches!(to_band, NeedBand::Severe);
+        event.payload = vec![
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("need_kind", need_kind.stable_id()),
+            PayloadField::new("from_value", from_value.to_string()),
+            PayloadField::new("to_value", to_value.to_string()),
+            PayloadField::new("from_band", from_band.stable_id()),
+            PayloadField::new("to_band", to_band.stable_id()),
+            PayloadField::new("window_id", window.window_id.as_str()),
+            PayloadField::new("candidate_goal_reevaluation", "true"),
+            PayloadField::new(
+                "severe_need_interrupts_active_intention",
+                severe_need_interrupts.to_string(),
+            ),
+            PayloadField::new(
+                "interruption_cause",
+                if severe_need_interrupts {
+                    "severe_need_pressure"
+                } else {
+                    "none"
+                },
+            ),
+        ];
+        event.effects_summary = format!(
+            "{} crossed {} to {} before {} decision",
+            need_kind.stable_id(),
+            from_band.stable_id(),
+            to_band.stable_id(),
+            window.window_id
+        );
+        event
+    }
+
     fn ordinary_proposal(
         label: &str,
         actor_id: &ActorId,
@@ -968,8 +1210,9 @@ pub mod no_human {
     mod tests {
         use super::*;
         use crate::actions::proposal::{Proposal, ProposalOrigin};
+        use crate::events::apply::apply_agent_event;
         use crate::events::apply::apply_event;
-        use crate::events::EventStream;
+        use crate::events::{EventCause, EventStream};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
             ProposalId, RoutineExecutionId, RoutineTemplateId,
@@ -1205,6 +1448,203 @@ pub mod no_human {
                 active_intention_for_actor(&agent_state, &actor_id),
                 Some(intention)
             );
+        }
+
+        #[test]
+        fn no_human_day_applies_passive_needs_before_decision_and_replays_need_state() {
+            let actor_id = actor_id();
+            let kitchen = PlaceId::new("kitchen").unwrap();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), kitchen.clone()),
+            );
+            state.food_supplies.insert(
+                FoodSupplyId::new("meal_serving").unwrap(),
+                FoodSupplyState {
+                    food_supply_id: FoodSupplyId::new("meal_serving").unwrap(),
+                    location: Location::AtPlace(kitchen),
+                    servings: 1,
+                    hunger_reduction_per_serving: 120,
+                },
+            );
+            let mut agent_state = agent_state(&actor_id);
+            agent_state
+                .needs_by_actor
+                .get_mut(&actor_id)
+                .unwrap()
+                .insert(
+                    NeedKind::Hunger,
+                    crate::agent::NeedState::initial(
+                        NeedKind::Hunger,
+                        490,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                );
+            let initial_agent_state = agent_state.clone();
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+            registry.register_phase3a_eat();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id.clone()],
+                    windows: vec![DayWindow {
+                        window_id: "breakfast".to_string(),
+                        start_tick: SimTick::new(4),
+                        end_tick: SimTick::new(8),
+                    }],
+                },
+            );
+
+            assert!(report.ordinary_pipeline_events > 0);
+            let passive_index = log
+                .events()
+                .iter()
+                .position(|event| {
+                    event.event_type == EventKind::NeedDeltaApplied
+                        && event
+                            .payload
+                            .iter()
+                            .any(|field| field.key == "window_id" && field.value == "breakfast")
+                })
+                .expect("passive need delta emitted before decision");
+            let consumed_index = log
+                .events()
+                .iter()
+                .position(|event| event.event_type == EventKind::FoodConsumed)
+                .expect("post-passive hunger selection consumed food");
+            assert!(passive_index < consumed_index);
+            assert!(log.events().iter().any(|event| {
+                event.event_type == EventKind::NeedThresholdCrossed
+                    && event.payload.iter().any(|field| {
+                        field.key == "candidate_goal_reevaluation" && field.value == "true"
+                    })
+            }));
+            let action_delta = log
+                .events()
+                .iter()
+                .find(|event| {
+                    event.event_type == EventKind::NeedDeltaApplied
+                        && event
+                            .payload
+                            .iter()
+                            .any(|field| field.key == "cause_action_id" && field.value == "eat")
+                })
+                .expect("eat emitted action-derived need delta");
+            assert!(action_delta
+                .causes
+                .iter()
+                .any(|cause| matches!(cause, EventCause::Event(_))));
+
+            let mut replay_agent_state = initial_agent_state;
+            for event in log.events() {
+                if matches!(
+                    event.event_type,
+                    EventKind::NeedDeltaApplied | EventKind::NeedThresholdCrossed
+                ) {
+                    apply_agent_event(&mut replay_agent_state, event).unwrap();
+                }
+            }
+            assert_eq!(
+                replay_agent_state.needs_by_actor,
+                agent_state.needs_by_actor
+            );
+            let replay_hunger = &replay_agent_state.needs_by_actor[&actor_id][&NeedKind::Hunger];
+            let live_hunger = &agent_state.needs_by_actor[&actor_id][&NeedKind::Hunger];
+            assert_eq!(replay_hunger.value(), live_hunger.value());
+            assert_eq!(replay_hunger.band(), live_hunger.band());
+            assert_eq!(
+                replay_hunger.last_change_cause(),
+                live_hunger.last_change_cause()
+            );
+            assert_eq!(
+                replay_hunger.last_threshold_crossing(),
+                live_hunger.last_threshold_crossing()
+            );
+        }
+
+        #[test]
+        fn severe_need_threshold_marks_active_intention_interruption_cause() {
+            let actor_id = actor_id();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), PlaceId::new("workshop").unwrap()),
+            );
+            let mut agent_state = agent_state(&actor_id);
+            agent_state
+                .needs_by_actor
+                .get_mut(&actor_id)
+                .unwrap()
+                .insert(
+                    NeedKind::Hunger,
+                    crate::agent::NeedState::initial(
+                        NeedKind::Hunger,
+                        740,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                );
+            let intention = crate::agent::Intention::adopt(
+                IntentionId::new("intention_continue_work").unwrap(),
+                actor_id.clone(),
+                crate::agent::IntentionSource::RoutineDuty,
+                CandidateGoalId::new("goal_continue_work").unwrap(),
+                Some(RoutineTemplateId::new("routine_continue_work").unwrap()),
+                Some("work_block".to_string()),
+                8,
+                SimTick::ZERO,
+                DecisionTraceId::new("trace_continue_work").unwrap(),
+            );
+            agent_state
+                .active_intention_by_actor
+                .insert(actor_id.clone(), intention.intention_id.clone());
+            agent_state
+                .intentions
+                .insert(intention.intention_id.clone(), intention);
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "hunger_spike".to_string(),
+                        start_tick: SimTick::new(4),
+                        end_tick: SimTick::new(8),
+                    }],
+                },
+            );
+
+            let threshold = log
+                .events()
+                .iter()
+                .find(|event| {
+                    event.event_type == EventKind::NeedThresholdCrossed
+                        && event
+                            .payload
+                            .iter()
+                            .any(|field| field.key == "to_band" && field.value == "severe")
+                })
+                .expect("severe threshold crossing emitted");
+            assert!(threshold.payload.iter().any(|field| {
+                field.key == "severe_need_interrupts_active_intention" && field.value == "true"
+            }));
+            assert!(threshold.payload.iter().any(|field| {
+                field.key == "interruption_cause" && field.value == "severe_need_pressure"
+            }));
         }
 
         #[test]
