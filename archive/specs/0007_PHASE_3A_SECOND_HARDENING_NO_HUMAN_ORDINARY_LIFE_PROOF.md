@@ -4,9 +4,9 @@
 
 - **Spec ID:** 0007
 - **Title:** Phase 3A Second Hardening: Integrated No-Human Ordinary-Life Proof
-- **Status:** Proposed.
+- **Status:** Landed (2026-06-07).
 - **Phase:** Phase 3A second hardening — a narrow ordinary-life substrate slice of execution Phase 3 (`docs/2-execution/07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md`), not full Phase 3.
-- **Predecessor:** Spec 0006 (`archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`); recorded in `docs/4-specs/SPEC_LEDGER.md` under "Next required spec".
+- **Predecessor:** Spec 0006 (`archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`); final result recorded in `docs/4-specs/SPEC_LEDGER.md` under "Spec 0007".
 
 Source commit and freshness are recorded under "Static audit target" below.
 
@@ -365,11 +365,11 @@ These acceptance criteria mirror the named gates in `docs/2-execution/07_PHASE_3
 
 ## Explicit phase-exit impact
 
-Until this spec passes, Phase 3A should be treated as materially improved but not safe as the substrate for ordinary-life-dependent Phase 3B or Phase 4 work.
+This spec has passed. Phase 3A's no-human ordinary-life substrate is now evidenced by the Spec 0007 gates recorded in `docs/4-specs/SPEC_LEDGER.md`.
 
-Phase 4 entry remains blocked for work that assumes robust ordinary daily behavior, routine life, no-human causal stability, or replayable decision provenance.
+This does not close full Phase 3. Minimal social speech/testimony and broader autonomous missing-property story setup remain Phase 3B work, and Phase 4 entry remains governed by the execution ladder and higher-authority doctrine.
 
-Scoped exploratory work may continue only if it does not depend on Phase 3A being complete and does not claim Phase 3A readiness.
+Later work that depends on Phase 3A ordinary-life readiness should cite Spec 0007 rather than Spec 0005 or Spec 0006 alone.
 
 ## Documentation/status updates required
 
@@ -380,8 +380,25 @@ After implementation and acceptance evidence:
 - add a narrow status errata/report if any archived completion claim remains misleading;
 - do not rewrite foundation, architecture, execution, or reference doctrine unless a separate doctrine contradiction is discovered.
 
-Before implementation passes, ledger/status language should say that Spec 0006 landed useful hardening but did not fully prove Phase 3A integrated ordinary-life readiness.
+Ledger/status language records that Spec 0006 landed useful hardening but did not fully prove Phase 3A integrated ordinary-life readiness at its audit point, and that Spec 0007 is the follow-up evidence.
 
 ## Static-audit limitations
 
 This spec is based on exact-commit static source inspection. The test suite was not run. It does not prove runtime failures; it identifies source-level architectural and evidentiary gaps that must be closed before the Phase 3A substrate is safe to build on.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed behavior:
+- Tickets `0007PHA3ASECHAR-001` through `0007PHA3ASECHAR-012` closed the typed actor-known planning, routine dispatch, candidate generation, no-human proposal routing, live need, intention, routine ancestry, continue-progress, TUI/debug, replay checksum, content validation, and integrated capstone gaps described here.
+- Ticket `0007PHA3ASECHAR-013` recorded the final status in `docs/4-specs/SPEC_LEDGER.md` and `docs/4-specs/README.md`.
+
+Deviations:
+- The integrated capstone exposed missing in-run duration completion and decision-trace emission; those were completed in the final capstone ticket so the no-human run itself produces the proof instead of relying on post-run manual proposals.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

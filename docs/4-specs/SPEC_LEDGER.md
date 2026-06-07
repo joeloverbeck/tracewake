@@ -218,7 +218,7 @@ The next evidence-bearing status is Spec 0007.
 
 **Status:** Landed (2026-06-07). The integrated no-human ordinary-life proof gates passed after tickets `0007PHA3ASECHAR-001` through `0007PHA3ASECHAR-012`, with status/ledger alignment recorded by `0007PHA3ASECHAR-013`.
 
-**Spec file:** `specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md`.
+**Spec file:** `archive/specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md`.
 
 **Phase:** Phase 3A second hardening; integrated no-human ordinary-life proof.
 
