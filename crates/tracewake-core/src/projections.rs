@@ -3,6 +3,7 @@ use crate::actions::{
 };
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
+use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, ControllerId, ItemId, PlaceId, ProposalId,
     SemanticActionId, ViewModelId,
@@ -22,6 +23,170 @@ use crate::view_models::{
 pub enum ProjectionError {
     ActorNotFound(ActorId),
     PlaceNotFound(PlaceId),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NoHumanDayMetrics {
+    pub projection_version: String,
+    pub events_per_day: usize,
+    pub routine_event_count: usize,
+    pub meals_completed: usize,
+    pub meals_missed: usize,
+    pub sleep_completed: usize,
+    pub sleep_interrupted: usize,
+    pub work_blocks_completed: usize,
+    pub work_blocks_failed: usize,
+    pub need_threshold_crossings: usize,
+    pub routine_interruptions: usize,
+    pub planner_failures: usize,
+    pub stuck_actor_count: usize,
+    pub run_duration_ticks: u64,
+    pub replay_failure_count: usize,
+    pub tui_action_coverage: usize,
+    pub player_conditioned_event_count: usize,
+    pub player_conditioned_event_rate_per_1000: u64,
+}
+
+impl NoHumanDayMetrics {
+    pub fn serialize_canonical(&self) -> String {
+        format!(
+            "no_human_day_metrics_v1|events={}|routine_events={}|meals_completed={}|meals_missed={}|sleep_completed={}|sleep_interrupted={}|work_completed={}|work_failed={}|need_crossings={}|routine_interruptions={}|planner_failures={}|stuck_actors={}|run_duration_ticks={}|replay_failures={}|tui_action_coverage={}|player_conditioned_events={}|player_conditioned_rate_per_1000={}",
+            self.events_per_day,
+            self.routine_event_count,
+            self.meals_completed,
+            self.meals_missed,
+            self.sleep_completed,
+            self.sleep_interrupted,
+            self.work_blocks_completed,
+            self.work_blocks_failed,
+            self.need_threshold_crossings,
+            self.routine_interruptions,
+            self.planner_failures,
+            self.stuck_actor_count,
+            self.run_duration_ticks,
+            self.replay_failure_count,
+            self.tui_action_coverage,
+            self.player_conditioned_event_count,
+            self.player_conditioned_event_rate_per_1000
+        )
+    }
+}
+
+pub fn no_human_day_metrics(log: &EventLog) -> NoHumanDayMetrics {
+    let events = log.events();
+    let player_conditioned_event_count = events
+        .iter()
+        .filter(|event| contains_player_conditioned_fact(event))
+        .count();
+    let player_conditioned_event_rate_per_1000 = if events.is_empty() {
+        0
+    } else {
+        (player_conditioned_event_count as u64 * 1000) / events.len() as u64
+    };
+    let start_tick = events
+        .iter()
+        .find(|event| event.event_type == EventKind::NoHumanDayStarted)
+        .map(|event| event.sim_tick)
+        .unwrap_or(SimTick::ZERO);
+    let end_tick = events
+        .iter()
+        .rev()
+        .find(|event| event.event_type == EventKind::NoHumanDayCompleted)
+        .map(|event| event.sim_tick)
+        .unwrap_or(start_tick);
+    let mut stuck_actor_ids = events
+        .iter()
+        .filter(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+        .filter_map(|event| event.actor_id.clone())
+        .collect::<Vec<_>>();
+    stuck_actor_ids.sort();
+    stuck_actor_ids.dedup();
+
+    NoHumanDayMetrics {
+        projection_version: "no_human_day_metrics_v1".to_string(),
+        events_per_day: events.len(),
+        routine_event_count: events
+            .iter()
+            .filter(|event| is_routine_event(event.event_type))
+            .count(),
+        meals_completed: count_kind(events, EventKind::FoodConsumed),
+        meals_missed: count_kind(events, EventKind::EatFailed),
+        sleep_completed: count_kind(events, EventKind::SleepCompleted),
+        sleep_interrupted: count_kind(events, EventKind::SleepInterrupted),
+        work_blocks_completed: count_kind(events, EventKind::WorkBlockCompleted),
+        work_blocks_failed: count_kind(events, EventKind::WorkBlockFailed),
+        need_threshold_crossings: count_kind(events, EventKind::NeedThresholdCrossed),
+        routine_interruptions: count_kind(events, EventKind::IntentionInterrupted)
+            + count_kind(events, EventKind::RoutineStepFailed),
+        planner_failures: events
+            .iter()
+            .filter(|event| {
+                event.event_type == EventKind::DecisionTraceRecorded
+                    && event.payload.iter().any(|field| {
+                        field.value.contains("planner_budget_exhausted")
+                            || (field.value.contains("planner") && field.value.contains("failed"))
+                    })
+            })
+            .count(),
+        stuck_actor_count: stuck_actor_ids.len(),
+        run_duration_ticks: end_tick.value().saturating_sub(start_tick.value()),
+        replay_failure_count: events
+            .iter()
+            .filter(|event| {
+                event.event_type == EventKind::ReplayProjectionRebuilt
+                    && event
+                        .payload
+                        .iter()
+                        .any(|field| field.value.contains("failure"))
+            })
+            .count(),
+        tui_action_coverage: unique_action_count(events),
+        player_conditioned_event_count,
+        player_conditioned_event_rate_per_1000,
+    }
+}
+
+fn count_kind(events: &[EventEnvelope], kind: EventKind) -> usize {
+    events
+        .iter()
+        .filter(|event| event.event_type == kind)
+        .count()
+}
+
+fn is_routine_event(kind: EventKind) -> bool {
+    matches!(
+        kind,
+        EventKind::RoutineStepStarted
+            | EventKind::RoutineStepCompleted
+            | EventKind::RoutineStepFailed
+            | EventKind::ContinueRoutineProposed
+            | EventKind::ContinueRoutineAccepted
+            | EventKind::ContinueRoutineRejected
+    )
+}
+
+fn unique_action_count(events: &[EventEnvelope]) -> usize {
+    let mut action_ids = events
+        .iter()
+        .map(|event| event.ordering_key.action_id.clone())
+        .collect::<Vec<_>>();
+    action_ids.sort();
+    action_ids.dedup();
+    action_ids.len()
+}
+
+fn contains_player_conditioned_fact(event: &EventEnvelope) -> bool {
+    event.participants.iter().any(|value| is_player_term(value))
+        || event
+            .payload
+            .iter()
+            .any(|field| is_player_term(&field.key) || is_player_term(&field.value))
+        || is_player_term(&event.effects_summary)
+}
+
+fn is_player_term(value: &str) -> bool {
+    let lowered = value.to_ascii_lowercase();
+    lowered.contains("player") || lowered.contains("controller")
 }
 
 pub fn build_embodied_view_model(
@@ -503,7 +668,8 @@ mod tests {
         Belief, Channel, Confidence, Contradiction, ContradictionKind, HolderKind, Observation,
         ObservationSubject, ObservationTarget, PrivacyScope, Proposition, SourceRef, Stance,
     };
-    use crate::ids::{ContainerId, DoorId};
+    use crate::events::PayloadField;
+    use crate::ids::{ContainerId, DoorId, ProcessId};
     use crate::state::{
         ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
     };
@@ -530,6 +696,30 @@ mod tests {
 
     fn content_manifest_id() -> ContentManifestId {
         ContentManifestId::new("phase2a_manifest").unwrap()
+    }
+
+    fn metric_event(kind: EventKind, sequence: u64, tick: u64) -> EventEnvelope {
+        EventEnvelope::new_v1(
+            event_id(&format!("event_metrics_{sequence}")),
+            kind,
+            99,
+            99,
+            SimTick::new(tick),
+            OrderingKey::new(
+                SimTick::new(tick),
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(ProcessId::new("process_metrics").unwrap()),
+                ProposalSequence::new(sequence),
+                ActionId::new(format!("action_metrics_{sequence}")).unwrap(),
+                vec![format!("target_{sequence}")],
+                format!("metrics_tie_{sequence}"),
+            ),
+            content_manifest_id(),
+        )
+    }
+
+    fn append_metric_event(log: &mut EventLog, kind: EventKind, sequence: u64, tick: u64) {
+        log.append(metric_event(kind, sequence, tick)).unwrap();
     }
 
     fn registry() -> ActionRegistry {
@@ -901,5 +1091,158 @@ mod tests {
             view.notebook.unwrap().source_bound_beliefs[0].acquired_tick,
             3
         );
+    }
+
+    #[test]
+    fn no_human_day_metrics_are_independent_event_log_counts() {
+        let mut log = EventLog::new();
+        append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
+        append_metric_event(&mut log, EventKind::RoutineStepStarted, 1, 1);
+        append_metric_event(&mut log, EventKind::RoutineStepCompleted, 2, 2);
+        append_metric_event(&mut log, EventKind::FoodConsumed, 3, 3);
+        append_metric_event(&mut log, EventKind::EatFailed, 4, 4);
+        append_metric_event(&mut log, EventKind::SleepCompleted, 5, 5);
+        append_metric_event(&mut log, EventKind::SleepInterrupted, 6, 6);
+        append_metric_event(&mut log, EventKind::WorkBlockCompleted, 7, 7);
+        append_metric_event(&mut log, EventKind::WorkBlockFailed, 8, 8);
+        append_metric_event(&mut log, EventKind::NeedThresholdCrossed, 9, 9);
+        append_metric_event(&mut log, EventKind::IntentionInterrupted, 10, 10);
+        append_metric_event(&mut log, EventKind::RoutineStepFailed, 11, 11);
+        let mut planner_failure = metric_event(EventKind::DecisionTraceRecorded, 12, 12);
+        planner_failure.payload = vec![PayloadField::new(
+            "trace_canonical",
+            "decision_trace_v1|planner_budget_exhausted",
+        )];
+        log.append(planner_failure).unwrap();
+        let mut stuck_first = metric_event(EventKind::StuckDiagnosticRecorded, 13, 13);
+        stuck_first.actor_id = Some(actor_id("actor_tomas"));
+        log.append(stuck_first).unwrap();
+        let mut stuck_duplicate = metric_event(EventKind::StuckDiagnosticRecorded, 14, 14);
+        stuck_duplicate.actor_id = Some(actor_id("actor_tomas"));
+        log.append(stuck_duplicate).unwrap();
+        let mut replay_failure = metric_event(EventKind::ReplayProjectionRebuilt, 15, 15);
+        replay_failure.payload = vec![PayloadField::new("status", "failure")];
+        log.append(replay_failure).unwrap();
+        let mut player_conditioned = metric_event(EventKind::ActionStarted, 16, 16);
+        player_conditioned.effects_summary = "conditioned on player choice".to_string();
+        log.append(player_conditioned).unwrap();
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 17, 20);
+
+        let metrics = no_human_day_metrics(&log);
+        let events = log.events();
+
+        assert_eq!(metrics.projection_version, "no_human_day_metrics_v1");
+        assert_eq!(metrics.events_per_day, events.len());
+        assert_eq!(
+            metrics.routine_event_count,
+            events
+                .iter()
+                .filter(|event| matches!(
+                    event.event_type,
+                    EventKind::RoutineStepStarted
+                        | EventKind::RoutineStepCompleted
+                        | EventKind::RoutineStepFailed
+                        | EventKind::ContinueRoutineProposed
+                        | EventKind::ContinueRoutineAccepted
+                        | EventKind::ContinueRoutineRejected
+                ))
+                .count()
+        );
+        assert_eq!(
+            metrics.meals_completed,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::FoodConsumed)
+                .count()
+        );
+        assert_eq!(
+            metrics.meals_missed,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::EatFailed)
+                .count()
+        );
+        assert_eq!(
+            metrics.sleep_completed,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::SleepCompleted)
+                .count()
+        );
+        assert_eq!(
+            metrics.sleep_interrupted,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::SleepInterrupted)
+                .count()
+        );
+        assert_eq!(
+            metrics.work_blocks_completed,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::WorkBlockCompleted)
+                .count()
+        );
+        assert_eq!(
+            metrics.work_blocks_failed,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::WorkBlockFailed)
+                .count()
+        );
+        assert_eq!(
+            metrics.need_threshold_crossings,
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::NeedThresholdCrossed)
+                .count()
+        );
+        assert_eq!(metrics.routine_interruptions, 2);
+        assert_eq!(metrics.planner_failures, 1);
+        assert_eq!(metrics.stuck_actor_count, 1);
+        assert_eq!(metrics.run_duration_ticks, 20);
+        assert_eq!(metrics.replay_failure_count, 1);
+        assert_eq!(metrics.tui_action_coverage, events.len());
+        assert_eq!(metrics.player_conditioned_event_count, 1);
+        assert_eq!(
+            metrics.player_conditioned_event_rate_per_1000,
+            (metrics.player_conditioned_event_count as u64 * 1000) / metrics.events_per_day as u64
+        );
+    }
+
+    #[test]
+    fn no_human_day_metrics_survive_replay_byte_identically() {
+        let mut log = EventLog::new();
+        append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
+        append_metric_event(&mut log, EventKind::RoutineStepStarted, 1, 1);
+        append_metric_event(&mut log, EventKind::RoutineStepCompleted, 2, 2);
+        append_metric_event(&mut log, EventKind::FoodConsumed, 3, 3);
+        append_metric_event(&mut log, EventKind::NeedThresholdCrossed, 4, 4);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 5, 24);
+
+        let first = no_human_day_metrics(&log);
+        let replayed = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+        let second = no_human_day_metrics(&replayed);
+
+        assert_eq!(first.serialize_canonical(), second.serialize_canonical());
+    }
+
+    #[test]
+    fn populated_no_human_day_metrics_have_activity_without_player_conditioning() {
+        let mut log = EventLog::new();
+        append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
+        append_metric_event(&mut log, EventKind::RoutineStepStarted, 1, 1);
+        append_metric_event(&mut log, EventKind::RoutineStepCompleted, 2, 2);
+        append_metric_event(&mut log, EventKind::FoodConsumed, 3, 3);
+        append_metric_event(&mut log, EventKind::NeedThresholdCrossed, 4, 4);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 5, 24);
+
+        let metrics = no_human_day_metrics(&log);
+
+        assert!(metrics.routine_event_count > 0);
+        assert!(metrics.meals_completed > 0);
+        assert!(metrics.need_threshold_crossings > 0);
+        assert_eq!(metrics.player_conditioned_event_count, 0);
+        assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
     }
 }

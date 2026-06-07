@@ -595,6 +595,12 @@ pub mod no_human {
         );
         event.process_id = Some(process_id.clone());
         event.payload = vec![PayloadField::new("tick_count", tick_count.to_string())];
+        if kind == EventKind::NoHumanDayCompleted {
+            event.payload.push(PayloadField::new(
+                "metrics_projection",
+                "no_human_day_metrics_v1",
+            ));
+        }
         event.effects_summary = "no-human advance process marker".to_string();
         log.append(event).expect("no-human marker is versioned")
     }

@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-018: No-human day metrics artifact
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — adds a deterministic, replayable no-human day metrics/observability artifact derived from events/projections.
@@ -75,3 +75,18 @@ Make the runner's no-human day-summary marker (ticket 017) reference/emit the me
 1. `cargo test -p tracewake-core projections`
 2. Core-crate scope is correct; the canonical-day metrics envelope assertion is tickets 021/025.
 3. A re-count-equality test is the correct boundary because it proves derivation-from-events without needing the full day fixture.
+
+## Outcome
+
+Completed on 2026-06-07.
+
+- Added `NoHumanDayMetrics` and `no_human_day_metrics` in `crates/tracewake-core/src/projections.rs`, deriving the Phase 3A metrics from `EventLog` events only.
+- Added canonical serialization for replay-stable byte comparisons, including raw player-conditioned event count and a deterministic per-1000 rate.
+- Made the no-human day completion marker reference `no_human_day_metrics_v1` for downstream debug/capstone consumers.
+- Added projection tests for independent recount equality, canonical replay stability, and populated no-human activity with zero player-conditioned rate.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core projections`
+3. `cargo test -p tracewake-core`
