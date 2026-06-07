@@ -1,4 +1,5 @@
 use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
+use crate::epistemics::EpistemicProjectionChecksum;
 use crate::events::log::EventLog;
 use crate::events::EventStream;
 use crate::ids::{ContentManifestId, FixtureId};
@@ -13,8 +14,12 @@ pub struct ReplayReport {
     pub event_count: usize,
     pub diagnostic_event_count: usize,
     pub unsupported_versions: Vec<String>,
+    pub unsupported_epistemic_versions: Vec<String>,
     pub application_errors: Vec<String>,
+    pub epistemic_application_errors: Vec<String>,
     pub final_checksum: PhysicalChecksum,
+    pub final_epistemic_checksum: EpistemicProjectionChecksum,
+    pub epistemic_projection_version: String,
     pub expected_checksum: Option<PhysicalChecksum>,
     pub matches_expected: bool,
     pub state_diff: Vec<String>,
@@ -49,7 +54,14 @@ pub fn run_replay(
     let matches_expected = checksum_matches
         && state_diff.is_empty()
         && rebuild.unsupported_versions.is_empty()
-        && rebuild.invariant_violations.is_empty();
+        && rebuild.unsupported_epistemic_versions.is_empty()
+        && rebuild.invariant_violations.is_empty()
+        && rebuild.epistemic_application_errors.is_empty();
+    let epistemic_projection_version = rebuild
+        .final_epistemic_projection
+        .projection_version
+        .as_str()
+        .to_string();
 
     ReplayReport {
         fixture_id: context.fixture_id.clone(),
@@ -58,8 +70,12 @@ pub fn run_replay(
         event_count: rebuild.event_count_applied,
         diagnostic_event_count,
         unsupported_versions: rebuild.unsupported_versions,
+        unsupported_epistemic_versions: rebuild.unsupported_epistemic_versions,
         application_errors: rebuild.invariant_violations,
+        epistemic_application_errors: rebuild.epistemic_application_errors,
         final_checksum: rebuild.final_checksum,
+        final_epistemic_checksum: rebuild.final_epistemic_checksum,
+        epistemic_projection_version,
         expected_checksum,
         matches_expected,
         state_diff,
@@ -154,6 +170,7 @@ mod tests {
             state: &mut live,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key("take"),
         };

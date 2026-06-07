@@ -28,6 +28,7 @@ pub fn container_item_move_001() -> GoldenFixture {
             affordance("inspect_entity", "source_chest"),
             affordance("inspect_entity", "destination_crate"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

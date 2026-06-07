@@ -139,6 +139,11 @@ stable_id_type!(ProcessId);
 stable_id_type!(ContentManifestId);
 stable_id_type!(ContentVersion);
 stable_id_type!(SchemaVersion);
+stable_id_type!(PropositionId);
+stable_id_type!(ObservationId);
+stable_id_type!(BeliefId);
+stable_id_type!(ContradictionId);
+stable_id_type!(EpistemicProjectionVersion);
 stable_id_type!(ProposalId);
 stable_id_type!(DebugReportId);
 stable_id_type!(ProjectionId);
@@ -257,6 +262,34 @@ mod tests {
 
         let ordered: Vec<_> = ids.iter().map(ItemId::as_str).collect();
         assert_eq!(ordered, ["coin_stack_01", "coin_stack_02", "coin_stack_10"]);
+    }
+
+    #[test]
+    fn epistemic_ids_reject_display_names_and_order_by_value() {
+        assert_eq!(PropositionId::new("").unwrap_err(), IdError::Empty);
+        assert_eq!(
+            ObservationId::new("Observed Coin").unwrap_err(),
+            IdError::InvalidStart { found: 'O' }
+        );
+        assert_eq!(
+            BeliefId::new("belief tomas").unwrap_err(),
+            IdError::InvalidCharacter { found: ' ' }
+        );
+        assert_eq!(
+            ContradictionId::new("contradiction:tomas").unwrap_err(),
+            IdError::InvalidCharacter { found: ':' }
+        );
+
+        let mut ids = [
+            PropositionId::new("prop_10").unwrap(),
+            PropositionId::new("prop_02").unwrap(),
+            PropositionId::new("prop_01").unwrap(),
+        ];
+
+        ids.sort();
+
+        let ordered: Vec<_> = ids.iter().map(PropositionId::as_str).collect();
+        assert_eq!(ordered, ["prop_01", "prop_02", "prop_10"]);
     }
 
     #[test]

@@ -1,6 +1,12 @@
+use crate::actions::defs::accuseprobe::validate_truthful_accuse_probe;
+use crate::actions::defs::checkcontainer::{
+    build_check_container_event, build_observation_recorded_event,
+};
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
-use crate::actions::defs::takeplace::build_take_place_event;
+use crate::actions::defs::takeplace::{
+    build_sound_belief_event, build_sound_observation_event, build_take_place_event,
+};
 use crate::actions::defs::wait::build_wait_event;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
@@ -8,10 +14,11 @@ use crate::actions::proposal::ProposalOrigin;
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
 use crate::controller::{ControllerBindings, ControllerError};
-use crate::events::apply::apply_event;
+use crate::epistemics::{detect_expected_absences, Confidence, EpistemicProjection};
+use crate::events::apply::{apply_epistemic_event, apply_event};
 use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind, PayloadField};
-use crate::ids::{ContentManifestId, EventId, ValidationReportId};
+use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::PhysicalState;
 
@@ -69,6 +76,7 @@ pub struct PipelineContext<'a> {
     pub state: &'a mut PhysicalState,
     pub log: &'a mut EventLog,
     pub controller_bindings: Option<&'a ControllerBindings>,
+    pub epistemic_projection: Option<&'a mut EpistemicProjection>,
     pub content_manifest_id: ContentManifestId,
     pub ordering_key: OrderingKey,
 }
@@ -86,8 +94,8 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         return result;
     }
 
-    // Stages 8-11 are deliberately inert architectural slots for later
-    // epistemic, norm, cost/duration, and reservation systems.
+    // Later placeholder stages remain explicit so new mechanics can activate
+    // the shared pipeline without creating side mutation paths.
     let definition = match context.registry.get(&proposal.action_id) {
         Some(definition) => definition,
         None => {
@@ -133,10 +141,29 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         );
     }
 
-    checked_facts.push(CheckedFact::new("pipeline_slots_8_11", "inert"));
+    checked_facts.push(CheckedFact::new(
+        "knowledge_perception_slot",
+        if matches!(definition.effect, ActionEffect::CheckContainer) {
+            "active"
+        } else if proposal.action_id.as_str() == "truthful_accuse_probe" {
+            "query_validation"
+        } else {
+            "inert"
+        },
+    ));
+    checked_facts.push(CheckedFact::new("pipeline_slots_9_11", "inert"));
 
     let mut appended_events = Vec::new();
     let would_mutate = !matches!(definition.effect, ActionEffect::QueryOnly);
+    if definition.effect == ActionEffect::QueryOnly
+        && proposal.action_id.as_str() == "truthful_accuse_probe"
+    {
+        let projection = context.epistemic_projection.as_deref();
+        if let Err(rejection) = validate_truthful_accuse_probe(context.state, projection, proposal)
+        {
+            return reject_action(context, proposal, rejection);
+        }
+    }
     if would_mutate {
         let event_result = match definition.effect {
             ActionEffect::Move => build_move_event(
@@ -174,6 +201,12 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 false,
             ),
             ActionEffect::Wait => build_wait_event(
+                context.state,
+                proposal,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            ),
+            ActionEffect::CheckContainer => build_check_container_event(
                 context.state,
                 proposal,
                 &context.ordering_key,
@@ -225,7 +258,150 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                 "event application rejected an event that passed dry-run",
             );
         }
-        appended_events.push(appended);
+        if definition.effect == ActionEffect::CheckContainer {
+            let observation_event = build_observation_recorded_event(
+                &appended,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            );
+            let appended_observation = match context.log.append(observation_event) {
+                Ok(appended) => appended,
+                Err(_) => {
+                    return reject(
+                        context,
+                        proposal,
+                        PipelineStage::KnowledgePerceptionPlaceholder,
+                        vec![ReasonCode::WorldStateMismatch],
+                        checked_facts,
+                        "The observation could not be recorded.",
+                        "append-only log rejected the epistemic observation event",
+                    )
+                }
+            };
+            appended_events.push(appended.clone());
+            appended_events.push(appended_observation.clone());
+            if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                if apply_epistemic_event(projection, &appended_observation).is_err() {
+                    return reject(
+                        context,
+                        proposal,
+                        PipelineStage::KnowledgePerceptionPlaceholder,
+                        vec![ReasonCode::WorldStateMismatch],
+                        checked_facts,
+                        "The observation could not be applied.",
+                        "epistemic projection rejected the observation event",
+                    );
+                }
+                for event in build_absence_detection_events(
+                    projection,
+                    context.state,
+                    &appended,
+                    &appended_observation,
+                    &context.ordering_key,
+                    &context.content_manifest_id,
+                ) {
+                    let appended_detection = match context.log.append(event) {
+                        Ok(appended) => appended,
+                        Err(_) => {
+                            return reject(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be recorded.",
+                                "append-only log rejected a contradiction/belief event",
+                            )
+                        }
+                    };
+                    if apply_epistemic_event(projection, &appended_detection).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The derived belief could not be applied.",
+                            "epistemic projection rejected a contradiction/belief event",
+                        );
+                    }
+                    appended_events.push(appended_detection);
+                }
+            }
+        } else if matches!(definition.effect, ActionEffect::Take | ActionEffect::Place) {
+            appended_events.push(appended.clone());
+            if let Some(sound_observation) = build_sound_observation_event(
+                context.state,
+                &appended,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            ) {
+                let appended_observation = match context.log.append(sound_observation) {
+                    Ok(appended) => appended,
+                    Err(_) => {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The observation could not be recorded.",
+                            "append-only log rejected the sound observation event",
+                        )
+                    }
+                };
+                if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                    if apply_epistemic_event(projection, &appended_observation).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The observation could not be applied.",
+                            "epistemic projection rejected the sound observation event",
+                        );
+                    }
+                }
+                appended_events.push(appended_observation.clone());
+                if let Some(sound_belief) = build_sound_belief_event(
+                    &appended_observation,
+                    &context.ordering_key,
+                    &context.content_manifest_id,
+                ) {
+                    let appended_belief = match context.log.append(sound_belief) {
+                        Ok(appended) => appended,
+                        Err(_) => {
+                            return reject(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be recorded.",
+                                "append-only log rejected the sound belief event",
+                            )
+                        }
+                    };
+                    if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                        if apply_epistemic_event(projection, &appended_belief).is_err() {
+                            return reject(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be applied.",
+                                "epistemic projection rejected the sound belief event",
+                            );
+                        }
+                    }
+                    appended_events.push(appended_belief);
+                }
+            }
+        } else {
+            appended_events.push(appended);
+        }
     }
     let event_ids = appended_events
         .iter()
@@ -404,6 +580,167 @@ fn rejection_event_id(proposal: &Proposal) -> EventId {
     EventId::new(format!("event.rejection.{}", proposal.proposal_id.as_str())).unwrap()
 }
 
+fn build_absence_detection_events(
+    projection: &EpistemicProjection,
+    state: &PhysicalState,
+    check_event: &EventEnvelope,
+    observation_event: &EventEnvelope,
+    ordering_key: &OrderingKey,
+    content_manifest_id: &ContentManifestId,
+) -> Vec<EventEnvelope> {
+    let Some(actor_id) = check_event.actor_id.as_ref() else {
+        return Vec::new();
+    };
+    let Some(container_id) =
+        payload_value(check_event, "container_id").and_then(|value| ContainerId::new(value).ok())
+    else {
+        return Vec::new();
+    };
+    let Some(observation_id) = payload_value(observation_event, "observation_id")
+        .and_then(|value| crate::ids::ObservationId::new(value).ok())
+    else {
+        return Vec::new();
+    };
+    let observed_item_ids = state
+        .containers
+        .get(&container_id)
+        .map(|container| container.contents.clone())
+        .unwrap_or_default();
+    let expectation_beliefs = projection
+        .beliefs_by_holder
+        .get(actor_id)
+        .into_iter()
+        .flat_map(|ids| ids.iter())
+        .filter_map(|id| projection.beliefs_by_id.get(id))
+        .collect::<Vec<_>>();
+    let detections = detect_expected_absences(
+        actor_id,
+        &container_id,
+        &observed_item_ids,
+        &expectation_beliefs,
+        &observation_id,
+        &observation_event.event_id,
+        observation_event.sim_tick,
+        Confidence::new(1000).unwrap(),
+    );
+    let mut events = Vec::new();
+    for detection in detections {
+        let mut contradiction_event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.expectation_contradicted.{}",
+                detection.contradiction.contradiction_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::ExpectationContradicted,
+            0,
+            0,
+            observation_event.sim_tick,
+            ordering_key.clone(),
+            content_manifest_id.clone(),
+        );
+        contradiction_event.actor_id = Some(actor_id.clone());
+        contradiction_event.proposal_id = check_event.proposal_id.clone();
+        contradiction_event.causes = vec![crate::events::EventCause::Event(
+            observation_event.event_id.clone(),
+        )];
+        contradiction_event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new(
+                "contradiction_id",
+                detection.contradiction.contradiction_id.as_str(),
+            ),
+            PayloadField::new("holder_actor_id", actor_id.as_str()),
+            PayloadField::new(
+                "prior_expectation_belief_id",
+                detection.contradiction.prior_expectation_belief_id.as_str(),
+            ),
+            PayloadField::new(
+                "contradicting_observation_id",
+                detection
+                    .contradiction
+                    .contradicting_observation_id
+                    .as_str(),
+            ),
+            PayloadField::new(
+                "expected_proposition",
+                detection
+                    .contradiction
+                    .expected_proposition
+                    .serialize_canonical(),
+            ),
+            PayloadField::new(
+                "observed_proposition",
+                detection
+                    .contradiction
+                    .observed_proposition
+                    .serialize_canonical(),
+            ),
+            PayloadField::new(
+                "detected_tick",
+                observation_event.sim_tick.value().to_string(),
+            ),
+        ];
+        contradiction_event.effects_summary = "expectation contradicted by check".to_string();
+
+        let mut belief_event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.belief_updated.{}",
+                detection.missing_belief.belief_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::BeliefUpdated,
+            0,
+            0,
+            observation_event.sim_tick,
+            ordering_key.clone(),
+            content_manifest_id.clone(),
+        );
+        belief_event.actor_id = Some(actor_id.clone());
+        belief_event.proposal_id = check_event.proposal_id.clone();
+        belief_event.causes = vec![
+            crate::events::EventCause::Event(observation_event.event_id.clone()),
+            crate::events::EventCause::Event(contradiction_event.event_id.clone()),
+        ];
+        belief_event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("belief_id", detection.missing_belief.belief_id.as_str()),
+            PayloadField::new("holder_actor_id", actor_id.as_str()),
+            PayloadField::new(
+                "proposition",
+                detection.missing_belief.proposition.serialize_canonical(),
+            ),
+            PayloadField::new("stance", detection.missing_belief.stance.stable_id()),
+            PayloadField::new(
+                "confidence",
+                detection
+                    .missing_belief
+                    .confidence
+                    .parts_per_thousand()
+                    .to_string(),
+            ),
+            PayloadField::new("source_event_id", observation_event.event_id.as_str()),
+            PayloadField::new(
+                "acquired_tick",
+                observation_event.sim_tick.value().to_string(),
+            ),
+            PayloadField::new("channel", "absence_marker"),
+        ];
+        belief_event.effects_summary = "missing expected item belief updated".to_string();
+
+        events.push(contradiction_event);
+        events.push(belief_event);
+    }
+    events
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -412,7 +749,7 @@ mod tests {
     use crate::events::apply::apply_event;
     use crate::ids::{ActionId, ActorId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, DoorState, PlaceState};
+    use crate::state::{ActorBody, ContainerState, DoorState, PlaceState};
     use crate::time::SimTick;
 
     fn action_id(value: &str) -> ActionId {
@@ -453,6 +790,25 @@ mod tests {
                 actor_id("actor_tomas"),
                 crate::ids::PlaceId::new("shop_front").unwrap(),
             ),
+        );
+        state
+    }
+
+    fn check_state() -> PhysicalState {
+        let mut state = state();
+        let place_id = crate::ids::PlaceId::new("shop_front").unwrap();
+        state.places.insert(
+            place_id.clone(),
+            PlaceState::new(place_id.clone(), "Shop front"),
+        );
+        let mut container = ContainerState::fixed_at_place(
+            crate::ids::ContainerId::new("strongbox_tomas").unwrap(),
+            place_id,
+        );
+        container.is_open = true;
+        state.containers.insert(
+            crate::ids::ContainerId::new("strongbox_tomas").unwrap(),
+            container,
         );
         state
     }
@@ -505,6 +861,7 @@ mod tests {
             state: &mut human_state,
             log: &mut human_log,
             controller_bindings: Some(&bindings),
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -517,6 +874,7 @@ mod tests {
             state: &mut scheduler_state,
             log: &mut scheduler_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -540,6 +898,7 @@ mod tests {
             state: &mut state,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -567,13 +926,52 @@ mod tests {
     }
 
     #[test]
-    fn pipeline_contains_inert_slots_8_to_11() {
+    fn pipeline_contains_epistemic_slot_and_later_inert_slots() {
         let stages = PipelineStage::all();
         assert!(stages.contains(&PipelineStage::KnowledgePerceptionPlaceholder));
         assert!(stages.contains(&PipelineStage::SocialNormPlaceholder));
         assert!(stages.contains(&PipelineStage::CostDurationCheck));
         assert!(stages.contains(&PipelineStage::ReservationConflictCheck));
         assert_eq!(stages.len(), 19);
+    }
+
+    #[test]
+    fn scheduler_origin_check_container_commits_without_controller_binding() {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase2a_epistemics();
+        let mut state = check_state();
+        let mut log = EventLog::new();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_scheduler_check").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id("actor_tomas")),
+            action_id("check_container"),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push("strongbox_tomas".to_string());
+        let mut context = PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: ContentManifestId::new("phase2a_manifest").unwrap(),
+            ordering_key: ordering_key(),
+        };
+
+        let result = run_pipeline(&mut context, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Accepted);
+        assert_eq!(result.appended_events.len(), 2);
+        assert_eq!(
+            result.appended_events[0].event_type,
+            EventKind::ContainerChecked
+        );
+        assert_eq!(
+            result.appended_events[1].event_type,
+            EventKind::ObservationRecorded
+        );
+        assert_eq!(log.events().len(), 2);
     }
 
     #[test]
@@ -597,6 +995,7 @@ mod tests {
             state: &mut live_state,
             log: &mut live_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -620,6 +1019,7 @@ mod tests {
             state: &mut live_state,
             log: &mut live_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };

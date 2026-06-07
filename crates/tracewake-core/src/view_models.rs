@@ -5,6 +5,8 @@ use crate::ids::{
 };
 use crate::time::SimTick;
 
+pub const DEBUG_EPISTEMICS_MARKER: &str = "DEBUG NON-DIEGETIC: Epistemics";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ViewMode {
     Embodied,
@@ -25,7 +27,43 @@ pub struct EmbodiedViewModel {
     pub local_actors: Vec<VisibleActor>,
     pub semantic_actions: Vec<SemanticActionEntry>,
     pub last_rejection_summary: Option<String>,
+    pub knowledge_context_id: Option<String>,
+    pub notebook: Option<NotebookView>,
     pub debug_available: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotebookView {
+    pub viewer_actor_id: ActorId,
+    pub source_bound_beliefs: Vec<NotebookBeliefEntry>,
+    pub recent_observations: Vec<NotebookObservationEntry>,
+    pub known_contradictions: Vec<NotebookContradictionEntry>,
+    pub possible_leads: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookBeliefEntry {
+    pub belief_id: String,
+    pub summary: String,
+    pub source_summary: String,
+    pub confidence_label: String,
+    pub acquired_tick: u64,
+    pub contradiction_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookObservationEntry {
+    pub observation_id: String,
+    pub channel: String,
+    pub summary: String,
+    pub confidence_label: String,
+    pub observed_tick: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookContradictionEntry {
+    pub contradiction_id: String,
+    pub summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -99,6 +137,10 @@ pub enum DebugViewModel {
     ActionRejection(Box<DebugActionRejectionView>),
     ProjectionRebuild(DebugProjectionRebuildView),
     ReplayReport(DebugReplayReportView),
+    Epistemics(DebugEpistemicsView),
+    Beliefs(DebugBeliefsView),
+    Observations(DebugObservationsView),
+    TruthBeliefMismatch(DebugTruthBeliefMismatchView),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -168,6 +210,77 @@ pub struct DebugReplayReportView {
     pub summary: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DebugEpistemicsView {
+    pub debug_only: bool,
+    pub non_diegetic_marker: String,
+    pub context_mode: String,
+    pub observations: Vec<DebugObservationEntry>,
+    pub beliefs_by_holder: Vec<DebugHolderBeliefs>,
+    pub contradictions: Vec<DebugContradictionEntry>,
+    pub possession_metadata: Vec<String>,
+    pub projection_summary: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DebugBeliefsView {
+    pub debug_only: bool,
+    pub non_diegetic_marker: String,
+    pub holder_actor_id: ActorId,
+    pub beliefs: Vec<DebugBeliefEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DebugObservationsView {
+    pub debug_only: bool,
+    pub non_diegetic_marker: String,
+    pub observer_actor_id: ActorId,
+    pub observations: Vec<DebugObservationEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DebugTruthBeliefMismatchView {
+    pub debug_only: bool,
+    pub non_diegetic_marker: String,
+    pub item_id: ItemId,
+    pub ground_truth_location: String,
+    pub held_belief_summary: String,
+    pub mismatch_summary: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DebugHolderBeliefs {
+    pub holder_actor_id: ActorId,
+    pub beliefs: Vec<DebugBeliefEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DebugBeliefEntry {
+    pub belief_id: String,
+    pub proposition: String,
+    pub stance: String,
+    pub confidence: String,
+    pub source: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DebugObservationEntry {
+    pub observation_id: String,
+    pub observer_actor_id: ActorId,
+    pub channel: String,
+    pub confidence: String,
+    pub source: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DebugContradictionEntry {
+    pub contradiction_id: String,
+    pub holder_actor_id: ActorId,
+    pub expectation_belief_id: String,
+    pub observation_id: String,
+    pub summary: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,5 +315,112 @@ mod tests {
             DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only),
             _ => panic!("wrong debug view variant"),
         }
+    }
+
+    #[test]
+    fn notebook_view_is_actor_scoped_and_source_bound() {
+        let notebook = NotebookView {
+            viewer_actor_id: ActorId::new("actor_tomas").unwrap(),
+            source_bound_beliefs: vec![NotebookBeliefEntry {
+                belief_id: "belief_tomas_missing_coin".to_string(),
+                summary: "coin_stack_01 is missing from expected location".to_string(),
+                source_summary: "event:event_observation".to_string(),
+                confidence_label: "1000".to_string(),
+                acquired_tick: 3,
+                contradiction_ids: vec!["contradiction_tomas_missing_coin".to_string()],
+            }],
+            recent_observations: Vec::new(),
+            known_contradictions: Vec::new(),
+            possible_leads: vec!["Source-bound lead from belief_tomas_missing_coin".to_string()],
+        };
+
+        assert_eq!(notebook.viewer_actor_id.as_str(), "actor_tomas");
+        assert!(!format!("{notebook:?}").contains("quest"));
+    }
+
+    #[test]
+    fn debug_epistemics_view_is_non_diegetic_and_lists_all_holders() {
+        let view = DebugEpistemicsView {
+            debug_only: true,
+            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
+            context_mode: "debug".to_string(),
+            observations: vec![DebugObservationEntry {
+                observation_id: "obs_tomas_checked_strongbox".to_string(),
+                observer_actor_id: ActorId::new("actor_tomas").unwrap(),
+                channel: "touch_or_search".to_string(),
+                confidence: "1000".to_string(),
+                source: "event:event_observation".to_string(),
+            }],
+            beliefs_by_holder: vec![
+                DebugHolderBeliefs {
+                    holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+                    beliefs: vec![DebugBeliefEntry {
+                        belief_id: "belief_tomas_missing_coin".to_string(),
+                        proposition: "coin_stack_01 is missing from expected location".to_string(),
+                        stance: "believes_true".to_string(),
+                        confidence: "1000".to_string(),
+                        source: "event:event_observation".to_string(),
+                    }],
+                },
+                DebugHolderBeliefs {
+                    holder_actor_id: ActorId::new("actor_elena").unwrap(),
+                    beliefs: Vec::new(),
+                },
+            ],
+            contradictions: vec![DebugContradictionEntry {
+                contradiction_id: "contradiction_tomas_missing_coin".to_string(),
+                holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+                expectation_belief_id: "belief_tomas_expected_coin".to_string(),
+                observation_id: "obs_tomas_checked_strongbox".to_string(),
+                summary: "expected item absent from container".to_string(),
+            }],
+            possession_metadata: vec!["controller_human->actor_tomas@2".to_string()],
+            projection_summary: "epistemic_projection_v1".to_string(),
+        };
+
+        assert!(view.debug_only);
+        assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+        assert_eq!(view.beliefs_by_holder.len(), 2);
+        assert_eq!(
+            DebugViewModel::Epistemics(view.clone()),
+            DebugViewModel::Epistemics(view)
+        );
+    }
+
+    #[test]
+    fn focused_debug_views_are_marked_non_diegetic() {
+        let beliefs = DebugBeliefsView {
+            debug_only: true,
+            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
+            holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+            beliefs: Vec::new(),
+        };
+        let observations = DebugObservationsView {
+            debug_only: true,
+            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
+            observer_actor_id: ActorId::new("actor_tomas").unwrap(),
+            observations: Vec::new(),
+        };
+
+        assert!(beliefs.debug_only);
+        assert!(observations.debug_only);
+        assert_eq!(beliefs.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+        assert_eq!(observations.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    }
+
+    #[test]
+    fn truth_belief_mismatch_shows_truth_and_belief_side_by_side() {
+        let mismatch = DebugTruthBeliefMismatchView {
+            debug_only: true,
+            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
+            item_id: ItemId::new("coin_stack_01").unwrap(),
+            ground_truth_location: "actor:actor_mara".to_string(),
+            held_belief_summary: "coin_stack_01 is missing from expected location".to_string(),
+            mismatch_summary: "truth and holder belief diverge".to_string(),
+        };
+
+        assert!(mismatch.debug_only);
+        assert!(mismatch.ground_truth_location.contains("actor_mara"));
+        assert!(mismatch.held_belief_summary.contains("missing"));
     }
 }

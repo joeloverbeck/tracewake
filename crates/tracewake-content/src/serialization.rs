@@ -1,12 +1,20 @@
+use std::str::FromStr;
 use tracewake_core::events::log::{EventLog, EventLogError};
+
+use tracewake_core::epistemics::{
+    Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
+};
+use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, ItemId, PlaceId,
+    SchemaVersion,
 };
 use tracewake_core::location::Location;
+use tracewake_core::time::SimTick;
 
 use crate::schema::{
-    ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema, ItemSchema,
-    PlaceSchema,
+    ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema,
+    InitialBeliefSchema, ItemSchema, PlaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -14,13 +22,28 @@ pub enum SerializationError {
     MissingField(&'static str),
     BadLine(String),
     BadBool(String),
+    BadU64(String),
     Id(tracewake_core::ids::IdError),
     EventLog(EventLogError),
+    Proposition(tracewake_core::epistemics::proposition::PropositionParseError),
+    Confidence(tracewake_core::epistemics::observation::ConfidenceError),
 }
 
 impl From<tracewake_core::ids::IdError> for SerializationError {
     fn from(value: tracewake_core::ids::IdError) -> Self {
         Self::Id(value)
+    }
+}
+
+impl From<tracewake_core::epistemics::proposition::PropositionParseError> for SerializationError {
+    fn from(value: tracewake_core::epistemics::proposition::PropositionParseError) -> Self {
+        Self::Proposition(value)
+    }
+}
+
+impl From<tracewake_core::epistemics::observation::ConfidenceError> for SerializationError {
+    fn from(value: tracewake_core::epistemics::observation::ConfidenceError) -> Self {
+        Self::Confidence(value)
     }
 }
 
@@ -82,6 +105,26 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             affordance.target_id
         ));
     }
+    for belief in fixture.initial_beliefs {
+        lines.push(format!(
+            "initial_belief|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            belief.belief_id.as_str(),
+            belief.holder_actor_id.as_str(),
+            encode(&belief.proposition.serialize_canonical()),
+            belief.stance.stable_id(),
+            belief.confidence.serialize_canonical(),
+            belief.source_kind.stable_id(),
+            source_id(&belief.source),
+            belief.channel.map(channel_id).unwrap_or(""),
+            belief.acquired_tick.value(),
+            belief
+                .last_verified_tick
+                .map(|tick| tick.value().to_string())
+                .unwrap_or_default(),
+            serialize_privacy_scope(&belief.privacy_scope),
+            belief.schema_version.as_str(),
+        ));
+    }
     lines.join("\n").into_bytes()
 }
 
@@ -96,6 +139,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     let mut containers = Vec::new();
     let mut items = Vec::new();
     let mut affordances = Vec::new();
+    let mut initial_beliefs = Vec::new();
 
     for line in text.lines() {
         let parts = line.split('|').collect::<Vec<_>>();
@@ -139,6 +183,22 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                 action_id: ActionId::new(*action_id)?,
                 target_id: (*target_id).to_string(),
             }),
+            ["initial_belief", belief_id, holder_actor_id, proposition, stance, confidence, source_kind, source_id, channel, acquired_tick, last_verified_tick, privacy_scope, schema_version] => {
+                initial_beliefs.push(InitialBeliefSchema {
+                    belief_id: BeliefId::new(*belief_id)?,
+                    holder_actor_id: ActorId::new(*holder_actor_id)?,
+                    proposition: Proposition::from_str(&decode(proposition)?)?,
+                    stance: parse_stance(stance)?,
+                    confidence: parse_confidence(confidence)?,
+                    source_kind: parse_source_kind(source_kind)?,
+                    source: parse_source(source_kind, source_id)?,
+                    channel: parse_optional_channel(channel)?,
+                    acquired_tick: parse_tick(acquired_tick)?,
+                    last_verified_tick: parse_optional_tick(last_verified_tick)?,
+                    privacy_scope: parse_privacy_scope(privacy_scope)?,
+                    schema_version: SchemaVersion::new(*schema_version)?,
+                })
+            }
             _ => return Err(SerializationError::BadLine(line.to_string())),
         }
     }
@@ -152,6 +212,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         containers,
         items,
         affordances,
+        initial_beliefs,
     };
     fixture.canonicalize();
     Ok(fixture)
@@ -181,6 +242,118 @@ fn deserialize_location(value: &str) -> Result<Location, SerializationError> {
         "at" => Ok(Location::AtPlace(PlaceId::new(id)?)),
         "in" => Ok(Location::InContainer(ContainerId::new(id)?)),
         "carried" => Ok(Location::CarriedBy(ActorId::new(id)?)),
+        _ => Err(SerializationError::BadLine(value.to_string())),
+    }
+}
+
+fn channel_id(channel: Channel) -> &'static str {
+    channel.stable_id()
+}
+
+fn parse_optional_channel(value: &str) -> Result<Option<Channel>, SerializationError> {
+    if value.is_empty() {
+        Ok(None)
+    } else {
+        parse_channel(value).map(Some)
+    }
+}
+
+fn parse_channel(value: &str) -> Result<Channel, SerializationError> {
+    match value {
+        "direct_sight" => Ok(Channel::DirectSight),
+        "touch_or_search" => Ok(Channel::TouchOrSearch),
+        "simple_sound" => Ok(Channel::SimpleSound),
+        "absence_marker" => Ok(Channel::AbsenceMarker),
+        "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
+        _ => Err(SerializationError::BadLine(format!("bad channel {value}"))),
+    }
+}
+
+fn parse_stance(value: &str) -> Result<Stance, SerializationError> {
+    match value {
+        "believes_true" => Ok(Stance::BelievesTrue),
+        "believes_false" => Ok(Stance::BelievesFalse),
+        "expects_true" => Ok(Stance::ExpectsTrue),
+        "plausible" => Ok(Stance::Plausible),
+        "doubts" => Ok(Stance::Doubts),
+        "unknown_or_unresolved" => Ok(Stance::UnknownOrUnresolved),
+        _ => Err(SerializationError::BadLine(format!("bad stance {value}"))),
+    }
+}
+
+fn parse_confidence(value: &str) -> Result<Confidence, SerializationError> {
+    Confidence::new(
+        value
+            .parse::<u16>()
+            .map_err(|_| SerializationError::BadU64(value.to_string()))?,
+    )
+    .map_err(Into::into)
+}
+
+fn parse_tick(value: &str) -> Result<SimTick, SerializationError> {
+    value
+        .parse::<u64>()
+        .map(SimTick::new)
+        .map_err(|_| SerializationError::BadU64(value.to_string()))
+}
+
+fn parse_optional_tick(value: &str) -> Result<Option<SimTick>, SerializationError> {
+    if value.is_empty() {
+        Ok(None)
+    } else {
+        parse_tick(value).map(Some)
+    }
+}
+
+fn source_id(source: &SourceRef) -> String {
+    match source {
+        SourceRef::Event(event_id) => event_id.as_str().to_string(),
+        SourceRef::Action(action_id) => action_id.as_str().to_string(),
+        SourceRef::Cause(cause) => format!("{cause:?}"),
+    }
+}
+
+fn parse_source(kind: &str, id: &str) -> Result<SourceRef, SerializationError> {
+    if id.is_empty() {
+        return Err(SerializationError::BadLine(
+            "initial_belief source_id must not be empty".to_string(),
+        ));
+    }
+    match kind {
+        "authored_prehistory" => Ok(SourceRef::Event(EventId::new(id)?)),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad source kind {kind}"
+        ))),
+    }
+}
+
+fn parse_source_kind(value: &str) -> Result<InitialBeliefSourceKind, SerializationError> {
+    match value {
+        "authored_prehistory" => Ok(InitialBeliefSourceKind::AuthoredPrehistory),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad source kind {value}"
+        ))),
+    }
+}
+
+fn serialize_privacy_scope(scope: &PrivacyScope) -> String {
+    match scope {
+        PrivacyScope::ActorPrivate(actor_id) => format!("actor:{}", actor_id.as_str()),
+        PrivacyScope::PublicPlaceholder => "public".to_string(),
+        PrivacyScope::InstitutionPlaceholder(value) => format!("institution:{}", encode(value)),
+    }
+}
+
+fn parse_privacy_scope(value: &str) -> Result<PrivacyScope, SerializationError> {
+    if value == "public" {
+        return Ok(PrivacyScope::PublicPlaceholder);
+    }
+    let (kind, id) = value
+        .split_once(':')
+        .ok_or_else(|| SerializationError::BadLine(value.to_string()))?;
+    match kind {
+        "actor" => Ok(PrivacyScope::ActorPrivate(ActorId::new(id)?)),
+        "institution" => Ok(PrivacyScope::InstitutionPlaceholder(decode(id)?)),
         _ => Err(SerializationError::BadLine(value.to_string())),
     }
 }
@@ -274,6 +447,7 @@ mod tests {
                 location: Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
             }],
             affordances: Vec::new(),
+            initial_beliefs: Vec::new(),
         }
     }
 

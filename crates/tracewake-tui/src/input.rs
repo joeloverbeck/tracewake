@@ -5,6 +5,7 @@ use tracewake_core::view_models::EmbodiedViewModel;
 pub enum UiCommand {
     Help,
     View,
+    Notebook,
     BindActor(ActorId),
     SelectSemanticAction(SemanticActionId),
     SelectByMenuIndex(usize),
@@ -21,6 +22,9 @@ pub enum DebugCommand {
     Rejection,
     ProjectionRebuild,
     Replay,
+    Epistemics,
+    Beliefs(ActorId),
+    Observations(ActorId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -48,6 +52,9 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
     }
     if trimmed == "view" {
         return Ok(UiCommand::View);
+    }
+    if trimmed == "notebook" {
+        return Ok(UiCommand::Notebook);
     }
     if trimmed == "wait" || trimmed == "w" {
         return Ok(UiCommand::WaitOneTick);
@@ -85,11 +92,22 @@ fn parse_debug_command(input: &str) -> Result<DebugCommand, InputError> {
         "rejection" => Ok(DebugCommand::Rejection),
         "projection" => Ok(DebugCommand::ProjectionRebuild),
         "replay" => Ok(DebugCommand::Replay),
+        "epistemics" => Ok(DebugCommand::Epistemics),
         _ => {
             if let Some(item_id) = trimmed.strip_prefix("item ") {
                 return ItemId::new(item_id.to_string())
                     .map(DebugCommand::ItemLocation)
                     .map_err(|_| InputError::BadItemId(item_id.to_string()));
+            }
+            if let Some(actor_id) = trimmed.strip_prefix("beliefs ") {
+                return ActorId::new(actor_id.to_string())
+                    .map(DebugCommand::Beliefs)
+                    .map_err(|_| InputError::BadActorId(actor_id.to_string()));
+            }
+            if let Some(actor_id) = trimmed.strip_prefix("observations ") {
+                return ActorId::new(actor_id.to_string())
+                    .map(DebugCommand::Observations)
+                    .map_err(|_| InputError::BadActorId(actor_id.to_string()));
             }
             Err(InputError::BadDebugCommand(trimmed.to_string()))
         }
@@ -148,6 +166,8 @@ mod tests {
                 ),
             ],
             last_rejection_summary: None,
+            knowledge_context_id: None,
+            notebook: None,
             debug_available: true,
         }
     }
@@ -172,6 +192,7 @@ mod tests {
     fn parser_recognizes_help_view_and_wait_commands() {
         assert_eq!(parse_command("help").unwrap(), UiCommand::Help);
         assert_eq!(parse_command("view").unwrap(), UiCommand::View);
+        assert_eq!(parse_command("notebook").unwrap(), UiCommand::Notebook);
         assert_eq!(parse_command("wait").unwrap(), UiCommand::WaitOneTick);
         assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);
     }
@@ -214,6 +235,20 @@ mod tests {
             parse_command("debug replay").unwrap(),
             UiCommand::Debug(DebugCommand::Replay)
         );
+        assert_eq!(
+            parse_command("debug epistemics").unwrap(),
+            UiCommand::Debug(DebugCommand::Epistemics)
+        );
+        assert_eq!(
+            parse_command("debug beliefs actor_tomas").unwrap(),
+            UiCommand::Debug(DebugCommand::Beliefs(ActorId::new("actor_tomas").unwrap()))
+        );
+        assert_eq!(
+            parse_command("debug observations actor_tomas").unwrap(),
+            UiCommand::Debug(DebugCommand::Observations(
+                ActorId::new("actor_tomas").unwrap()
+            ))
+        );
     }
 
     #[test]
@@ -225,6 +260,10 @@ mod tests {
         assert_eq!(
             parse_command("debug item BAD"),
             Err(InputError::BadItemId("BAD".to_string()))
+        );
+        assert_eq!(
+            parse_command("debug beliefs BAD"),
+            Err(InputError::BadActorId("BAD".to_string()))
         );
     }
 }

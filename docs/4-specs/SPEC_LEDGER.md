@@ -88,9 +88,17 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 - **Required result:** `cargo run -p tracewake-tui` must become a genuinely operable stdin/stdout command loop supporting actor binding, embodied view rendering, semantic action submission by stable ID and numeric selection, wait, why-not, debug panels, replay/projection reports, and clean quit.
 - **Phase 2 dependency:** Satisfied by the landed Spec 0003 acceptance gates.
 
+### Spec 0004 — Phase 2A Epistemic Substrate, Expectation Contradiction, and Possession Parity
+
+- **Status:** Phase 2A landed (2026-06-07).
+- **Spec file:** `archive/specs/0004_PHASE_2A_EPISTEMIC_SUBSTRATE_EXPECTATION_CONTRADICTION_AND_POSSESSION_PARITY_IMPLEMENTATION_SPEC.md`
+- **Phase:** Phase 2A only; this opens executable Phase 2 epistemics but does not complete all Phase 2.
+- **Required result:** typed propositions, source-backed observations and beliefs, expectation contradiction, `check_container`, bounded sound uncertainty, actor-known notebooks, debug epistemics, possession parity, no-human epistemic checks, content validation, and replay/projection acceptance gates are implemented and covered by the capstone exit evidence.
+- **Deferred scope:** Phase 2B+ perception depth, memory decay, testimony, speech, reports, records, institutions, gossip, wrong suspicion workflows, routines, dialogue, planning-driven candidate goals, graphical client work, and Phase 3/4 systems remain future work.
+
 ## Next allowed spec
 
-Spec 0003 has landed. The next implementation spec may open Phase 2 work, but the Phase 1A corrective work must not be represented as Phase 2.
+Spec 0004 has landed Phase 2A only. The next implementation spec may continue Phase 2B+ work or open a later phase only if the Phase 2A boundaries above are preserved and the deferred scope is not represented as already complete.
 
 ## Retread warning
 

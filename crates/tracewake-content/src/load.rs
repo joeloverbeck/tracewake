@@ -51,6 +51,7 @@ pub fn load_fixture_package(
     registry.register_phase1_movement_open_close();
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
+    registry.register_phase2a_epistemics();
     let accepted_world = validate_fixture(&fixture, &registry)?;
     let canonical_bytes = serialize_fixture(&fixture);
     let manifest = ContentManifest::new(
@@ -105,6 +106,7 @@ mod tests {
                 location: Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
             }],
             affordances: Vec::new(),
+            initial_beliefs: Vec::new(),
         }
     }
 

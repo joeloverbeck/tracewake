@@ -11,6 +11,13 @@ actions (move, inspect, open/close, take/place, wait), see structured reasons wh
 action is impossible, inspect debug provenance, rebuild projections from a fixture plus
 ordered events, and replay deterministically to the same physical result.
 
+Phase 2A has landed as the first executable epistemic slice, not all of Phase 2. It adds
+typed propositions, observations, source-backed beliefs, expectation contradictions,
+actor-known notebooks, debug epistemics, possession parity fixtures, and a bounded
+low-confidence sound-observation slice. Richer memory decay, reports, records,
+institutions, gossip, wrong suspicion workflows, routines, dialogue, and graphical client
+work remain deferred.
+
 ## Workspace layout
 
 A Cargo workspace of three crates with a strict one-way dependency direction
@@ -82,6 +89,7 @@ view                         re-render the current embodied view
 bind <actor_id>              bind the controller to an actor
 <n>                          submit the action at the 1-based menu position from the current view
 do <semantic_action_id>      submit a stable semantic action ID shown in the action menu
+notebook                     show the current actor's source-backed notebook projection
 wait                         wait one tick through the ordinary action pipeline
 w                            alias for wait
 debug log                    show the non-diegetic event log panel
@@ -90,11 +98,20 @@ debug item <item_id>         show a non-diegetic item-location report
 debug rejection              show the latest non-diegetic rejection report, if any
 debug projection             rebuild projection from the event log and show the debug report
 debug replay                 replay the log and show the debug report
+debug epistemics             show non-diegetic epistemic projection counts and records
+debug beliefs <actor_id>     show non-diegetic beliefs for one actor
+debug observations <actor_id> show non-diegetic observations for one actor
 quit                         exit
 q                            exit
 ```
 
 The numbered menu position is never an action identity. Numeric input resolves through the current view to the stable semantic action ID printed beside the action.
+
+`check_container` is the Phase 2A search/check action. In the default strongbox fixture,
+the embodied action menu includes the stable semantic action ID
+`check.container.strongbox_tomas`. Open physical access if required, then check/search;
+the check action records a channel-backed observation and can contradict Tomas's authored
+expectation in absence-oriented fixtures without creating culprit knowledge.
 
 Debug panels are marked non-diegetic. They may reveal debug truth, but returning to `view` shows only the actor-filtered embodied view.
 
@@ -108,12 +125,27 @@ tracewake-tui ready
 Actor: actor_tomas | Tick: 0
 Place: ...
 Actions:
-1. ... [open.container.strongbox_tomas]
+1. ... [check.container.strongbox_tomas]
 2. ... [wait.1_tick]
 tracewake>
-1
+do open.container.strongbox_tomas
 Accepted: open.container.strongbox_tomas
 Actor: actor_tomas | Tick: ...
+...
+tracewake>
+do check.container.strongbox_tomas
+Accepted: check.container.strongbox_tomas
+Actor: actor_tomas | Tick: ...
+Knowledge context: knowledge.actor_tomas...
+...
+tracewake>
+notebook
+Notebook: actor_tomas
+Beliefs:
+...
+Observations:
+...
+Contradictions:
 ...
 tracewake>
 view
@@ -133,10 +165,49 @@ debug item coin_stack_01
 DEBUG NON-DIEGETIC: Item Location
 ...
 tracewake>
+debug epistemics
+DEBUG NON-DIEGETIC: Epistemics
+...
+tracewake>
+debug beliefs actor_tomas
+DEBUG NON-DIEGETIC: Beliefs
+...
+tracewake>
+debug observations actor_tomas
+DEBUG NON-DIEGETIC: Observations
+...
+tracewake>
 quit
 ```
 
-All ordinary world changes go through the shared semantic action/proposal/pipeline path. The TUI does not directly mutate world state.
+The embodied portion of the session shows Tomas discovering absence through check/search
+and notebook projection. It does not print ground-truth culprit knowledge. Debug panels
+remain explicitly non-diegetic.
+
+All ordinary world and epistemic changes go through the shared semantic
+action/proposal/pipeline path. The TUI does not directly mutate world state.
+
+## Fixture Contracts
+
+Fixture contracts live with the fixture constructors under
+`crates/tracewake-content/src/fixtures/`. Phase 1 fixture contracts remain intact:
+physical setup, allowed ordinary actions, expected event/debug/replay artifacts, and
+acceptance assertions are still declared for the original seven fixtures.
+
+Phase 2A adds these fixture contracts:
+
+| Fixture | Contract focus |
+|---|---|
+| `strongbox_001` | Phase 1 physical baseline plus Tomas's authored-prehistory expectation that `coin_stack_01` is in `strongbox_tomas`. |
+| `expectation_contradiction_001` | Checking an empty strongbox can record absence, contradiction, and a missing-property belief without naming a culprit. |
+| `possession_parity_001` | `actor_mara` is an ordinary actor using the same take/place/check actions; no theft-only shortcut exists. |
+| `view_filtering_001` | Actor-private beliefs are visible through actor-known notebook projections and separated from debug truth. |
+| `knowledge_blocker_accuse_001` | Accusation probing is blocked by actor-known knowledge preconditions, not by authored culprit flags. |
+| `sound_uncertainty_001` | Simple sound evidence is low-confidence and uncertain; it does not become theft knowledge. |
+| `no_human_epistemic_check_001` | Epistemic checks are ordinary actor-relative actions and do not require a privileged human controller. |
+
+Forbidden shortcut fields such as `culprit`, `stolen_flag`, `npc_knows_truth`,
+`quest_state`, and `player_memory` are rejected by content validation.
 
 ## Where to go next
 

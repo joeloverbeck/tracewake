@@ -4,6 +4,7 @@ pub mod actions;
 pub mod checksum;
 pub mod controller;
 pub mod debug_reports;
+pub mod epistemics;
 pub mod events;
 pub mod ids;
 pub mod location;

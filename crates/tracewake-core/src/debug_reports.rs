@@ -315,6 +315,7 @@ mod tests {
             state: &mut state,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: content_manifest_id(),
             ordering_key: crate::scheduler::OrderingKey::new(
                 SimTick::ZERO,
@@ -362,6 +363,7 @@ mod tests {
             state: &mut mutable_state,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: content_manifest_id(),
             ordering_key: crate::scheduler::OrderingKey::new(
                 SimTick::ZERO,

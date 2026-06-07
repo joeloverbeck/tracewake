@@ -29,21 +29,34 @@ fn run_session(script: &str) -> String {
 
 #[test]
 fn scripted_session_exercises_actual_binary_loop() {
-    let output = run_session("1\ndo move.to.street_lane\ndebug log\nquit\n");
+    let output = run_session(
+        "notebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nquit\n",
+    );
 
     assert!(output.contains("tracewake-tui ready"));
     assert!(output.contains("Actor: actor_tomas | Tick: 0"));
     assert!(output.contains("Actions:"));
     assert!(output.contains("Accepted: close.door.door_house_street"));
     assert!(output.contains("Why-not: The door is closed."));
+    assert!(output.contains("Notebook: actor_tomas"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Event Log"));
+    assert!(output.contains("DEBUG NON-DIEGETIC: Epistemics"));
+    assert!(output.contains("DEBUG NON-DIEGETIC: Beliefs"));
+    assert!(output.contains("DEBUG NON-DIEGETIC: Observations"));
     assert!(output.contains("tracewake>"));
 }
 
 #[test]
+fn malformed_debug_actor_id_is_typed_error() {
+    let output = run_session("debug beliefs BAD\nquit\n");
+
+    assert!(output.contains("Error: bad actor id: BAD"));
+}
+
+#[test]
 fn numeric_selection_executes_stable_semantic_action_id() {
-    let output = run_session("1\nquit\n");
-    let selected_id = first_menu_id(&output, 1);
+    let output = run_session("2\nquit\n");
+    let selected_id = first_menu_id(&output, 2);
 
     assert_ne!(selected_id, "1");
     assert!(output.contains(&format!("Accepted: {selected_id}")));

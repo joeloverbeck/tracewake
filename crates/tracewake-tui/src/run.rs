@@ -5,6 +5,7 @@ use tracewake_core::ids::SemanticActionId;
 
 use crate::app::TuiApp;
 use crate::input::{parse_command, semantic_id_for_selection, DebugCommand, InputError, UiCommand};
+use crate::render::render_notebook;
 
 const PROMPT: &str = "tracewake>";
 const WAIT_ACTION_ID: &str = "wait.1_tick";
@@ -38,6 +39,10 @@ fn dispatch_command<W: Write>(
     match command {
         UiCommand::Help => writeln!(writer, "{}", help_text()),
         UiCommand::View => writeln!(writer, "{}", app_result(app.render_current_view())?),
+        UiCommand::Notebook => {
+            let notebook = app_result(app.notebook_view())?;
+            writeln!(writer, "{}", render_notebook(&notebook))
+        }
         UiCommand::BindActor(actor_id) => {
             app_result(app.bind_actor(actor_id.clone()))?;
             writeln!(writer, "Bound actor: {}", actor_id.as_str())?;
@@ -99,6 +104,29 @@ fn render_debug<W: Write>(
             writeln!(writer, "{}", app.render_debug_projection_rebuild_panel())
         }
         DebugCommand::Replay => writeln!(writer, "{}", app.render_debug_replay_panel()),
+        DebugCommand::Epistemics => {
+            writeln!(
+                writer,
+                "{}",
+                crate::debug_panels::render_debug_epistemics_panel(&app.debug_epistemics_view())
+            )
+        }
+        DebugCommand::Beliefs(actor_id) => {
+            let view = app_result(app.debug_beliefs_view(&actor_id))?;
+            writeln!(
+                writer,
+                "{}",
+                crate::debug_panels::render_debug_beliefs_panel(&view)
+            )
+        }
+        DebugCommand::Observations(actor_id) => {
+            let view = app_result(app.debug_observations_view(&actor_id))?;
+            writeln!(
+                writer,
+                "{}",
+                crate::debug_panels::render_debug_observations_panel(&view)
+            )
+        }
     }
 }
 
@@ -129,7 +157,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -143,7 +171,7 @@ mod tests {
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let script =
-            b"view\n1\ndo move.to.street_lane\ndebug rejection\nwait\ndebug log\nbogus\nquit\n";
+            b"view\nnotebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug rejection\nwait\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nbogus\nquit\n";
         let mut output = Vec::new();
 
         run_command_loop(&mut app, &script[..], &mut output).unwrap();
@@ -153,8 +181,12 @@ mod tests {
         assert!(rendered.contains("Actions:"));
         assert!(rendered.contains("Accepted: close.door.door_house_street"));
         assert!(rendered.contains("Why-not:"));
+        assert!(rendered.contains("Notebook: actor_tomas"));
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Action Rejection"));
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Event Log"));
+        assert!(rendered.contains("DEBUG NON-DIEGETIC: Epistemics"));
+        assert!(rendered.contains("DEBUG NON-DIEGETIC: Beliefs"));
+        assert!(rendered.contains("DEBUG NON-DIEGETIC: Observations"));
         assert!(rendered.contains("Error: unknown command: bogus"));
         assert!(rendered.contains(PROMPT));
     }
@@ -165,6 +197,7 @@ mod tests {
         for command in [
             "help",
             "view",
+            "notebook",
             "bind <actor_id>",
             "do <semantic_action_id>",
             "<n>",
@@ -176,6 +209,9 @@ mod tests {
             "debug rejection",
             "debug projection",
             "debug replay",
+            "debug epistemics",
+            "debug beliefs <actor_id>",
+            "debug observations <actor_id>",
             "quit",
             "q",
         ] {

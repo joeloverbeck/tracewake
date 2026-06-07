@@ -181,6 +181,7 @@ pub mod no_human {
                 state,
                 log,
                 controller_bindings: None,
+                epistemic_projection: None,
                 content_manifest_id: content_manifest_id.clone(),
                 ordering_key,
             };
@@ -607,6 +608,7 @@ mod tests {
             state: &mut direct_state,
             log: &mut direct_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: content_manifest_id(),
             ordering_key: OrderingKey::new(
                 SimTick::ZERO,

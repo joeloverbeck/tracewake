@@ -11,6 +11,7 @@ fn readme_documented_commands_are_live_against_binary() {
         "bind <actor_id>",
         "<n>",
         "do <semantic_action_id>",
+        "notebook",
         "wait",
         "w",
         "debug log",
@@ -19,6 +20,9 @@ fn readme_documented_commands_are_live_against_binary() {
         "debug rejection",
         "debug projection",
         "debug replay",
+        "debug epistemics",
+        "debug beliefs <actor_id>",
+        "debug observations <actor_id>",
         "quit",
         "q",
     ] {
@@ -33,7 +37,9 @@ fn readme_documented_commands_are_live_against_binary() {
          view\n\
          bind actor_elena\n\
          bind actor_tomas\n\
-         1\n\
+         do open.container.strongbox_tomas\n\
+         do check.container.strongbox_tomas\n\
+         notebook\n\
          do wait.1_tick\n\
          wait\n\
          w\n\
@@ -43,6 +49,9 @@ fn readme_documented_commands_are_live_against_binary() {
          debug rejection\n\
          debug projection\n\
          debug replay\n\
+         debug epistemics\n\
+         debug beliefs actor_tomas\n\
+         debug observations actor_tomas\n\
          q\n",
     );
 
@@ -51,7 +60,9 @@ fn readme_documented_commands_are_live_against_binary() {
     assert!(output.contains("Commands: help, view"));
     assert!(output.contains("Bound actor: actor_elena"));
     assert!(output.contains("Bound actor: actor_tomas"));
-    assert!(output.contains("Accepted: close.door.door_house_street"));
+    assert!(output.contains("Accepted: open.container.strongbox_tomas"));
+    assert!(output.contains("Accepted: check.container.strongbox_tomas"));
+    assert!(output.contains("Notebook: actor_tomas"));
     assert!(output.contains("Accepted: wait.1_tick"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Event Log"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Controller Binding"));
@@ -59,6 +70,9 @@ fn readme_documented_commands_are_live_against_binary() {
     assert!(output.contains("DEBUG NON-DIEGETIC: Action Rejection"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Projection Rebuild"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Replay"));
+    assert!(output.contains("DEBUG NON-DIEGETIC: Epistemics"));
+    assert!(output.contains("DEBUG NON-DIEGETIC: Beliefs"));
+    assert!(output.contains("DEBUG NON-DIEGETIC: Observations"));
 }
 
 fn run_session(script: &str) -> String {

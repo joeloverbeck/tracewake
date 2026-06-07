@@ -1,15 +1,23 @@
 use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReportStatus,
+    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReasonCode,
+    ReportStatus,
 };
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{action_rejection_report, item_location_report};
+use tracewake_core::epistemics::{
+    Belief, Confidence, EpistemicProjection, HolderKind, KnowledgeContext, Proposition, SourceRef,
+    Stance,
+};
 use tracewake_core::events::log::EventLog;
+use tracewake_core::events::EventKind;
+use tracewake_core::events::EventStream;
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId, FixtureId,
-    ItemId, PlaceId, ProposalId,
+    ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
+    EventId, FixtureId, ItemId, PlaceId, ProposalId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::projections::build_notebook_view;
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -23,6 +31,7 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_movement_open_close();
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
+    registry.register_phase2a_epistemics();
     registry
 }
 
@@ -142,7 +151,191 @@ fn run_action(
         state,
         log,
         controller_bindings: None,
+        epistemic_projection: None,
         content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
+fn seed_tomas_coin_expectation(projection: &mut EpistemicProjection) {
+    projection.insert_belief(Belief::new(
+        BeliefId::new("belief_tomas_expected_coin").unwrap(),
+        HolderKind::Actor(actor_id()),
+        Proposition::ItemLocatedInContainer {
+            item_id: coin_id(),
+            container_id: box_id(),
+        },
+        Stance::ExpectsTrue,
+        Confidence::new(900).unwrap(),
+        SourceRef::Event(EventId::new("event_seed_tomas_expectation").unwrap()),
+        SimTick::ZERO,
+    ));
+}
+
+fn run_check_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    sequence: u64,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let proposal = proposal("check_container", &["strongbox_tomas"], sequence);
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
+fn run_scheduler_check_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    sequence: u64,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let mut proposal = Proposal::new(
+        ProposalId::new(format!("proposal_scheduler_check_{sequence}")).unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id()),
+        ActionId::new("check_container").unwrap(),
+        SimTick::ZERO,
+    );
+    proposal.target_ids = vec!["strongbox_tomas".to_string()];
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
+fn assert_no_actor_mara_or_culprit_text(value: &str) {
+    for forbidden in ["actor_mara", "Mara", "culprit", "stole", "theft"] {
+        assert!(
+            !value.contains(forbidden),
+            "actor-known surface leaked {forbidden}: {value}"
+        );
+    }
+}
+
+fn run_probe_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    sequence: u64,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let mut proposal = proposal("truthful_accuse_probe", &["actor_mara"], sequence);
+    proposal.proposal_id = ProposalId::new(format!("proposal_accuse_probe_{sequence}")).unwrap();
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
+fn sound_state() -> PhysicalState {
+    let mut state = PhysicalState::default();
+    let house = PlaceId::new("house_tomas").unwrap();
+    let street = PlaceId::new("street_lane").unwrap();
+    let mut house_state = PlaceState::new(house.clone(), "Tomas house");
+    house_state.adjacent_place_ids.insert(street.clone());
+    let mut street_state = PlaceState::new(street.clone(), "Street lane");
+    street_state.adjacent_place_ids.insert(house.clone());
+    state.places.insert(house.clone(), house_state);
+    state.places.insert(street.clone(), street_state);
+    let mara = ActorId::new("actor_mara").unwrap();
+    let elena = ActorId::new("actor_elena").unwrap();
+    state
+        .actors
+        .insert(mara.clone(), ActorBody::new(mara, house.clone()));
+    state
+        .actors
+        .insert(elena.clone(), ActorBody::new(elena, street));
+    let mut container = ContainerState::fixed_at_place(box_id(), house);
+    container.is_open = true;
+    container.contents.insert(coin_id());
+    state.containers.insert(box_id(), container);
+    state.items.insert(
+        coin_id(),
+        ItemState::new(coin_id(), Location::InContainer(box_id())),
+    );
+    state
+}
+
+fn run_mara_take_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_mara_take_coin").unwrap(),
+        ProposalOrigin::Test,
+        Some(ActorId::new("actor_mara").unwrap()),
+        ActionId::new("take").unwrap(),
+        SimTick::ZERO,
+    );
+    proposal.target_ids = vec!["coin_stack_01".to_string(), "strongbox_tomas".to_string()];
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(ActorId::new("actor_mara").unwrap()),
+        ProposalSequence::new(0),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: ContentManifestId::new("phase2a_manifest").unwrap(),
         ordering_key: key,
     };
     run_pipeline(&mut pipeline_context, &proposal)
@@ -159,6 +352,241 @@ fn accepted_actions_append_versioned_events() {
     assert_eq!(result.appended_events.len(), 1);
     assert!(result.appended_events[0].has_supported_schema_version());
     assert_eq!(log.events().len(), 1);
+}
+
+#[test]
+fn sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge() {
+    let mut state = sound_state();
+    let mut log = EventLog::new();
+    let mut projection =
+        EpistemicProjection::new(ContentManifestId::new("phase2a_manifest").unwrap());
+
+    let result = run_mara_take_with_projection(&mut state, &mut log, &mut projection);
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ObservationRecorded));
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::BeliefUpdated));
+    let observation = projection
+        .observations_by_id
+        .values()
+        .find(|observation| observation.channel.stable_id() == "simple_sound")
+        .expect("simple sound observation recorded");
+    assert!(observation.confidence.is_low());
+    assert!(observation.alternatives.len() >= 2);
+
+    let belief = projection
+        .beliefs_by_id
+        .values()
+        .find(|belief| {
+            belief
+                .channel
+                .is_some_and(|channel| channel.stable_id() == "simple_sound")
+        })
+        .expect("sound belief recorded");
+    assert!(belief.confidence.is_low());
+    assert!(matches!(
+        belief.proposition,
+        Proposition::SoundHeardNearPlace { .. } | Proposition::PossibleMovementNearPlace { .. }
+    ));
+    assert!(!matches!(
+        belief.proposition,
+        Proposition::ActorWasNearPlace { .. }
+    ));
+
+    let notebook = build_notebook_view(
+        &projection,
+        &KnowledgeContext::embodied(ActorId::new("actor_elena").unwrap(), SimTick::ZERO),
+    );
+    let rendered = format!("{notebook:?}");
+    assert!(!rendered.contains("Mara"));
+    assert!(!rendered.contains("actor_mara"));
+    assert!(!rendered.contains("stole"));
+    assert!(!rendered.contains("culprit"));
+}
+
+#[test]
+fn check_container_records_observation_but_open_alone_does_not() {
+    let mut open_state = initial_state(false, true);
+    let mut open_log = EventLog::new();
+    let open = run_action(
+        &mut open_state,
+        &mut open_log,
+        "open",
+        &["strongbox_tomas"],
+        0,
+    );
+
+    assert_eq!(open.report.status, ReportStatus::Accepted);
+    assert_eq!(open.appended_events.len(), 1);
+    assert!(!open_log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ObservationRecorded));
+
+    let mut check_state = open_state;
+    let mut check_log = open_log;
+    let check = run_action(
+        &mut check_state,
+        &mut check_log,
+        "check_container",
+        &["strongbox_tomas"],
+        1,
+    );
+
+    assert_eq!(check.report.status, ReportStatus::Accepted);
+    assert_eq!(check.appended_events.len(), 2);
+    assert_eq!(
+        check.appended_events[0].event_type,
+        EventKind::ContainerChecked
+    );
+    assert_eq!(
+        check.appended_events[1].event_type,
+        EventKind::ObservationRecorded
+    );
+    assert_eq!(
+        check
+            .appended_events
+            .iter()
+            .filter(|event| event.event_type == EventKind::ObservationRecorded)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn expected_absence_check_creates_contradiction_and_missing_belief() {
+    let mut state = initial_state(true, true);
+    state
+        .containers
+        .get_mut(&box_id())
+        .unwrap()
+        .contents
+        .clear();
+    state.items.get_mut(&coin_id()).unwrap().location =
+        Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    seed_tomas_coin_expectation(&mut projection);
+
+    let result = run_check_with_projection(&mut state, &mut log, &mut projection, 7);
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert_eq!(
+        result
+            .appended_events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>(),
+        [
+            EventKind::ContainerChecked,
+            EventKind::ObservationRecorded,
+            EventKind::ExpectationContradicted,
+            EventKind::BeliefUpdated
+        ]
+    );
+    assert_eq!(projection.contradictions_by_id.len(), 1);
+    assert!(projection.beliefs_by_id.values().any(|belief| {
+        belief.holder == HolderKind::Actor(actor_id())
+            && matches!(
+                belief.proposition,
+                Proposition::ItemMissingFromExpectedLocation { .. }
+            )
+    }));
+    assert!(!projection.beliefs_by_id.values().any(|belief| {
+        belief.proposition.render().contains("stole")
+            || belief.proposition.render().contains("culprit")
+    }));
+}
+
+#[test]
+fn no_human_epistemic_check_records_evidence_without_controller() {
+    let mut state = initial_state(true, true);
+    state
+        .containers
+        .get_mut(&box_id())
+        .unwrap()
+        .contents
+        .clear();
+    state.items.get_mut(&coin_id()).unwrap().location =
+        Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    seed_tomas_coin_expectation(&mut projection);
+
+    let result = run_scheduler_check_with_projection(&mut state, &mut log, &mut projection, 11);
+    let after = compute_physical_checksum(&state, &context(&log)).checksum;
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert_eq!(before, after);
+    assert!(result.appended_events.iter().all(|event| {
+        event.ordering_key.phase == SchedulePhase::NoHumanProcess
+            && matches!(event.ordering_key.source_id, SchedulerSourceId::Actor(_))
+    }));
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContainerChecked));
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ObservationRecorded));
+    assert!(projection.contradictions_by_id.len() == 1);
+
+    let notebook = build_notebook_view(
+        &projection,
+        &KnowledgeContext::embodied(actor_id(), SimTick::ZERO),
+    );
+    assert_no_actor_mara_or_culprit_text(&format!("{notebook:?}"));
+}
+
+#[test]
+fn missing_property_belief_does_not_support_truthful_accusation() {
+    let mut state = initial_state(true, true);
+    state.actors.insert(
+        ActorId::new("actor_mara").unwrap(),
+        ActorBody::new(
+            ActorId::new("actor_mara").unwrap(),
+            PlaceId::new("shop_front").unwrap(),
+        ),
+    );
+    state
+        .containers
+        .get_mut(&box_id())
+        .unwrap()
+        .contents
+        .clear();
+    state.items.get_mut(&coin_id()).unwrap().location =
+        Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    seed_tomas_coin_expectation(&mut projection);
+    let check = run_check_with_projection(&mut state, &mut log, &mut projection, 8);
+    assert_eq!(check.report.status, ReportStatus::Accepted);
+
+    let probe = run_probe_with_projection(&mut state, &mut log, &mut projection, 9);
+    let after = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
+
+    assert_eq!(before, after);
+    assert_eq!(probe.report.status, ReportStatus::Rejected);
+    assert_eq!(
+        probe.report.reason_codes,
+        vec![ReasonCode::KnowledgePreconditionNotMet]
+    );
+    assert!(!probe.report.actor_visible_summary.contains("actor_mara"));
+    assert!(!probe.report.actor_visible_summary.contains("stole"));
+    assert!(probe.report.debug_summary.contains("actor_mara"));
+    assert!(probe
+        .appended_events
+        .iter()
+        .all(|event| event.stream != EventStream::World && event.stream != EventStream::Epistemic));
 }
 
 #[test]

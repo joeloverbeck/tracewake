@@ -1,9 +1,17 @@
 use std::collections::BTreeMap;
 
-use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField};
-use crate::ids::{ActorId, ContainerId, DoorId, ItemId, PlaceId};
+use crate::epistemics::{
+    Belief, Channel, Confidence, Contradiction, ContradictionKind, EpistemicProjection, HolderKind,
+    Observation, ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
+};
+use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
+use crate::ids::{
+    ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, ItemId, ObservationId,
+    PlaceId,
+};
 use crate::location::Location;
 use crate::state::PhysicalState;
+use crate::time::SimTick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApplyOutcome {
@@ -31,6 +39,18 @@ pub enum ApplyError {
         actual: String,
     },
     EventKindStreamMismatch,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EpistemicApplyError {
+    UnsupportedEventSchemaVersion(String),
+    UnsupportedPayloadSchemaVersion(String),
+    MissingPayload(&'static str),
+    BadPayload { key: &'static str, value: String },
+    EventKindStreamMismatch,
+    NonEpistemicEvent,
+    MissingHolder,
+    MissingSource,
 }
 
 pub fn apply_event(
@@ -83,6 +103,53 @@ pub fn apply_event(
     }
 }
 
+pub fn apply_epistemic_event(
+    projection: &mut EpistemicProjection,
+    event: &EventEnvelope,
+) -> Result<ApplyOutcome, EpistemicApplyError> {
+    if !event.has_supported_schema_version() {
+        return Err(EpistemicApplyError::UnsupportedEventSchemaVersion(
+            event.event_schema_version.as_str().to_string(),
+        ));
+    }
+
+    if event.stream != event.event_type.stream() {
+        return Err(EpistemicApplyError::EventKindStreamMismatch);
+    }
+
+    if event.stream != EventStream::Epistemic {
+        return Ok(ApplyOutcome::NonWorldNoOp);
+    }
+
+    let payload = payload_map(&event.payload);
+    let payload_schema_version = required_epistemic(&payload, "schema_version")?;
+    if payload_schema_version != EVENT_SCHEMA_V1 {
+        return Err(EpistemicApplyError::UnsupportedPayloadSchemaVersion(
+            payload_schema_version.to_string(),
+        ));
+    }
+
+    match event.event_type {
+        EventKind::InitialBeliefSeeded | EventKind::BeliefUpdated => {
+            let belief = parse_belief_payload(&payload)?;
+            projection.insert_belief(belief);
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::ObservationRecorded => {
+            let observation = parse_observation_payload(&payload)?;
+            projection.insert_observation(observation);
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::ExpectationContradicted => {
+            let contradiction = parse_contradiction_payload(&payload)?;
+            projection.insert_contradiction(contradiction);
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::ContainerChecked => Ok(ApplyOutcome::WorldNoOp),
+        _ => Err(EpistemicApplyError::NonEpistemicEvent),
+    }
+}
+
 fn payload_map(payload: &[PayloadField]) -> BTreeMap<&str, &str> {
     payload
         .iter()
@@ -98,6 +165,237 @@ fn required<'a>(
         .get(key)
         .copied()
         .ok_or(ApplyError::MissingPayload(key))
+}
+
+fn required_epistemic<'a>(
+    payload: &'a BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<&'a str, EpistemicApplyError> {
+    payload
+        .get(key)
+        .copied()
+        .ok_or(EpistemicApplyError::MissingPayload(key))
+}
+
+fn parse_actor_id_epistemic(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<ActorId, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    ActorId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_belief_id(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<BeliefId, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    BeliefId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_observation_id(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<ObservationId, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    ObservationId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_contradiction_id(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<ContradictionId, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    ContradictionId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_place_id_epistemic(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<PlaceId, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    PlaceId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_event_id_epistemic(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<EventId, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    EventId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_tick(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<SimTick, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    let parsed = value
+        .parse::<u64>()
+        .map_err(|_| EpistemicApplyError::BadPayload {
+            key,
+            value: value.to_string(),
+        })?;
+    Ok(SimTick::new(parsed))
+}
+
+fn parse_confidence(payload: &BTreeMap<&str, &str>) -> Result<Confidence, EpistemicApplyError> {
+    let value = required_epistemic(payload, "confidence")?;
+    let parsed = value
+        .parse::<u16>()
+        .map_err(|_| EpistemicApplyError::BadPayload {
+            key: "confidence",
+            value: value.to_string(),
+        })?;
+    Confidence::new(parsed).map_err(|_| EpistemicApplyError::BadPayload {
+        key: "confidence",
+        value: value.to_string(),
+    })
+}
+
+fn parse_stance(payload: &BTreeMap<&str, &str>) -> Result<Stance, EpistemicApplyError> {
+    let value = required_epistemic(payload, "stance")?;
+    match value {
+        "believes_true" => Ok(Stance::BelievesTrue),
+        "believes_false" => Ok(Stance::BelievesFalse),
+        "expects_true" => Ok(Stance::ExpectsTrue),
+        "plausible" => Ok(Stance::Plausible),
+        "doubts" => Ok(Stance::Doubts),
+        "unknown_or_unresolved" => Ok(Stance::UnknownOrUnresolved),
+        _ => Err(EpistemicApplyError::BadPayload {
+            key: "stance",
+            value: value.to_string(),
+        }),
+    }
+}
+
+fn parse_channel(payload: &BTreeMap<&str, &str>) -> Result<Channel, EpistemicApplyError> {
+    let value = required_epistemic(payload, "channel")?;
+    match value {
+        "direct_sight" => Ok(Channel::DirectSight),
+        "touch_or_search" => Ok(Channel::TouchOrSearch),
+        "simple_sound" => Ok(Channel::SimpleSound),
+        "absence_marker" => Ok(Channel::AbsenceMarker),
+        "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
+        _ => Err(EpistemicApplyError::BadPayload {
+            key: "channel",
+            value: value.to_string(),
+        }),
+    }
+}
+
+fn parse_proposition(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<Proposition, EpistemicApplyError> {
+    let value = required_epistemic(payload, key)?;
+    value.parse().map_err(|_| EpistemicApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_belief_payload(payload: &BTreeMap<&str, &str>) -> Result<Belief, EpistemicApplyError> {
+    let holder_actor_id = parse_actor_id_epistemic(payload, "holder_actor_id")
+        .map_err(|_| EpistemicApplyError::MissingHolder)?;
+    let source_event_id = parse_event_id_epistemic(payload, "source_event_id")
+        .map_err(|_| EpistemicApplyError::MissingSource)?;
+    let mut belief = Belief::new(
+        parse_belief_id(payload, "belief_id")?,
+        HolderKind::Actor(holder_actor_id),
+        parse_proposition(payload, "proposition")?,
+        parse_stance(payload)?,
+        parse_confidence(payload)?,
+        SourceRef::Event(source_event_id),
+        parse_tick(payload, "acquired_tick")?,
+    );
+    if payload.contains_key("channel") {
+        belief = belief.with_channel(parse_channel(payload)?);
+    }
+    Ok(belief)
+}
+
+fn parse_observation_payload(
+    payload: &BTreeMap<&str, &str>,
+) -> Result<Observation, EpistemicApplyError> {
+    let observer_actor_id = parse_actor_id_epistemic(payload, "observer_actor_id")?;
+    let observer_place_id = parse_place_id_epistemic(payload, "observer_place_id")?;
+    let source_event_id = parse_event_id_epistemic(payload, "source_event_id")
+        .map_err(|_| EpistemicApplyError::MissingSource)?;
+    let channel = parse_channel(payload)?;
+    let (subject, target) = if let Some(container_id) = payload.get("container_id") {
+        let container_id =
+            ContainerId::new(*container_id).map_err(|_| EpistemicApplyError::BadPayload {
+                key: "container_id",
+                value: (*container_id).to_string(),
+            })?;
+        (
+            ObservationSubject::Container(container_id.clone()),
+            ObservationTarget::Container(container_id),
+        )
+    } else {
+        let place_id = parse_place_id_epistemic(payload, "place_id")?;
+        (
+            ObservationSubject::Place(place_id.clone()),
+            ObservationTarget::Place(place_id),
+        )
+    };
+    let mut observation = Observation::new(
+        parse_observation_id(payload, "observation_id")?,
+        observer_actor_id,
+        channel,
+        parse_tick(payload, "observed_tick")?,
+        observer_place_id,
+        subject,
+        target,
+        parse_confidence(payload)?,
+        SourceRef::Event(source_event_id),
+    );
+    if let Some(alternatives) = payload.get("alternatives") {
+        observation = observation.with_alternatives(parse_alternatives(alternatives));
+    }
+    Ok(observation)
+}
+
+fn parse_alternatives(value: &str) -> std::collections::BTreeSet<String> {
+    value
+        .split(',')
+        .filter(|part| !part.is_empty())
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn parse_contradiction_payload(
+    payload: &BTreeMap<&str, &str>,
+) -> Result<Contradiction, EpistemicApplyError> {
+    Ok(Contradiction::new(
+        parse_contradiction_id(payload, "contradiction_id")?,
+        parse_actor_id_epistemic(payload, "holder_actor_id")?,
+        ContradictionKind::ExpectedItemAbsentFromContainer,
+        parse_belief_id(payload, "prior_expectation_belief_id")?,
+        parse_observation_id(payload, "contradicting_observation_id")?,
+        parse_proposition(payload, "expected_proposition")?,
+        parse_proposition(payload, "observed_proposition")?,
+        parse_tick(payload, "detected_tick")?,
+    ))
 }
 
 fn parse_actor_id(payload: &BTreeMap<&str, &str>) -> Result<ActorId, ApplyError> {
@@ -477,6 +775,42 @@ mod tests {
         event
     }
 
+    fn proposition() -> String {
+        Proposition::ItemMissingFromExpectedLocation {
+            item_id: ItemId::new("coin_stack_01").unwrap(),
+            expected_location: Location::InContainer(container_id("strongbox_tomas")),
+        }
+        .serialize_canonical()
+    }
+
+    fn belief_payload() -> Vec<PayloadField> {
+        vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("belief_id", "belief_tomas_missing_coin"),
+            PayloadField::new("holder_actor_id", "actor_tomas"),
+            PayloadField::new("proposition", proposition()),
+            PayloadField::new("stance", "believes_true"),
+            PayloadField::new("confidence", "900"),
+            PayloadField::new("source_event_id", "event_obs_absence"),
+            PayloadField::new("acquired_tick", "3"),
+            PayloadField::new("channel", "absence_marker"),
+        ]
+    }
+
+    fn observation_payload() -> Vec<PayloadField> {
+        vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("observation_id", "obs_tomas_checked_strongbox"),
+            PayloadField::new("observer_actor_id", "actor_tomas"),
+            PayloadField::new("channel", "absence_marker"),
+            PayloadField::new("observed_tick", "3"),
+            PayloadField::new("observer_place_id", "shop_front"),
+            PayloadField::new("container_id", "strongbox_tomas"),
+            PayloadField::new("confidence", "950"),
+            PayloadField::new("source_event_id", "event_container_checked"),
+        ]
+    }
+
     #[test]
     fn valid_world_event_changes_declared_state_only() {
         let mut state = base_state();
@@ -548,5 +882,59 @@ mod tests {
             Ok(ApplyOutcome::NonWorldNoOp)
         );
         assert_eq!(state, before);
+    }
+
+    #[test]
+    fn epistemic_event_is_physical_noop() {
+        let mut state = base_state();
+        let before = state.clone();
+        let epistemic = event(EventKind::BeliefUpdated, belief_payload());
+
+        assert_eq!(
+            apply_event(&mut state, &epistemic),
+            Ok(ApplyOutcome::NonWorldNoOp)
+        );
+        assert_eq!(state, before);
+    }
+
+    #[test]
+    fn epistemic_application_updates_projection() {
+        let mut projection =
+            EpistemicProjection::new(ContentManifestId::new("phase2a_manifest").unwrap());
+        let observation_event = event(EventKind::ObservationRecorded, observation_payload());
+        let belief_event = event(EventKind::BeliefUpdated, belief_payload());
+
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &observation_event),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &belief_event),
+            Ok(ApplyOutcome::Applied)
+        );
+
+        assert!(projection
+            .observations_by_id
+            .contains_key(&ObservationId::new("obs_tomas_checked_strongbox").unwrap()));
+        assert!(projection
+            .beliefs_by_id
+            .contains_key(&BeliefId::new("belief_tomas_missing_coin").unwrap()));
+    }
+
+    #[test]
+    fn unsupported_epistemic_payload_version_errors() {
+        let mut projection =
+            EpistemicProjection::new(ContentManifestId::new("phase2a_manifest").unwrap());
+        let mut payload = belief_payload();
+        payload[0] = PayloadField::new("schema_version", "event_schema_v999");
+        let belief_event = event(EventKind::BeliefUpdated, payload);
+
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &belief_event),
+            Err(EpistemicApplyError::UnsupportedPayloadSchemaVersion(
+                "event_schema_v999".to_string()
+            ))
+        );
+        assert!(projection.beliefs_by_id.is_empty());
     }
 }
