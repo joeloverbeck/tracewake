@@ -147,7 +147,7 @@ Phase 2B+ perception depth, memory decay, testimony, speech, reports, records, i
 
 ### Current meaning
 
-The implementation contained useful scaffolding and partial surfaces, but the no-human ordinary-life substrate was not robust enough to support later phases. Corrective Spec 0006 was required before Phase 3B or Phase 4. See:
+The implementation contained useful scaffolding and partial surfaces, but the no-human ordinary-life substrate was not robust enough to support later phases at that audit point. Corrective Spec 0006 was the next evidence-producing follow-up. See:
 
 - `archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md`
 - `archive/reports/PHASE_3A_STATUS_ERRATA.md`
@@ -170,7 +170,7 @@ Spec 0005 explicitly does not close full Phase 3. The Phase 3 acceptance line re
 
 **Title:** Phase 3A Needs, Routines, and No-Human Day Hardening
 
-**Status:** Landed useful corrective hardening, but post-0006 static source audit at `93759ded3967936431c359a4ec8eefa1619b518b` finds Phase 3A integrated ordinary-life readiness still **not fully earned**. A second Phase 3A hardening spec is required before Phase 3B or ordinary-life-dependent Phase 4 work treats Phase 3A as safe.
+**Status:** Landed useful corrective hardening, but post-0006 static source audit at `93759ded3967936431c359a4ec8eefa1619b518b` found Phase 3A integrated ordinary-life readiness was **not fully earned at that audit point**. That finding required a second Phase 3A hardening spec; the current follow-up result is recorded under Spec 0007.
 
 **Spec file:** `archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`.
 
@@ -208,22 +208,51 @@ The post-0006 source still shows foundation-level shortcut debt:
 
 ### Current allowed next work
 
-Do not use Spec 0006 as proof that Phase 3A has landed far enough to unblock Phase 3B or ordinary-life-dependent Phase 4 work.
+Do not use Spec 0006 by itself as proof that Phase 3A landed far enough to support later ordinary-life-dependent work.
 
-Allowed next work is the second Phase 3A hardening spec, plus narrow exploratory work that does not rely on Phase 3A being complete and does not overclaim substrate readiness.
+The next evidence-bearing status is Spec 0007.
 
-## Next required spec
+## Spec 0007
 
 **Title:** Phase 3A Second Hardening: Integrated No-Human Ordinary-Life Proof
 
-**Status:** Required by post-0006 static source audit at `93759ded3967936431c359a4ec8eefa1619b518b`.
+**Status:** Landed (2026-06-07). The integrated no-human ordinary-life proof gates passed after tickets `0007PHA3ASECHAR-001` through `0007PHA3ASECHAR-012`, with status/ledger alignment recorded by `0007PHA3ASECHAR-013`.
 
-**Required result:** a no-human day that produces wake/eat/move/work/rest/sleep/fail/replan ancestry from live needs, durable intentions, defeasible routines, actor-known planning, shared action validation, debug/TUI visibility, and replayable provenance without synthetic post-run action injection or hidden-truth caller hygiene.
+**Spec file:** `specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md`.
+
+**Phase:** Phase 3A second hardening; integrated no-human ordinary-life proof.
+
+### Why it existed
+
+The post-0006 audit showed meaningful hardening but not enough integrated evidence. Spec 0007 was required to remove shortcut debt around substring routine dispatch, raw actor-known strings, hidden-truth planning, static needs, inert intentions/routines, manually forced post-run ordinary actions, text-only content proof, and insufficient TUI/replay evidence.
+
+### Deliverables produced
+
+- Typed actor-known planner facts and derived hidden-truth audit.
+- Typed routine-family dispatch and typed candidate generation.
+- Actor-known no-human proposal routing instead of physical-truth oracle selection.
+- Live passive/action need deltas, threshold re-evaluation, and severe-need interruption cause.
+- No-human intention lifecycle events, routine step ancestry, and non-progress discipline for continue markers.
+- TUI/debug rows for actual Phase 3A behavior and replay agent-checksum comparison.
+- Typed content-schema validation and no-human fixture contract metadata checks.
+- A single integrated no-human capstone that runs `run_no_human_day` once and proves ordinary-life behavior without synthetic post-run ordinary proposals.
+
+### Result carried forward
+
+Spec 0007 earns the Phase 3A no-human ordinary-life substrate that Spec 0006 could not fully prove. The accepted result includes deterministic multi-actor order, passive needs before decisions, actor-known eating and no-food waiting, sleep/work duration completion inside the autonomous run, movement before remote work, typed work blockers, intention/routine/decision ancestry, no controller/player-conditioned ordinary behavior, TUI/debug visibility, metrics, and replayed physical/agent/intention/routine/decision/stuck state.
+
+### Remaining deferred scope
+
+Spec 0007 still does not close full Phase 3. Minimal social speech/testimony and the broader missing-property autonomous story setup remain Phase 3B work. Phase 4 institutions, regional simulation, economy, graphical client work, and broader social systems remain governed by the execution ladder and higher-authority doctrine.
+
+### Current allowed next work
+
+Later Phase 3B or ordinary-life-dependent work may rely on the Phase 3A no-human ordinary-life substrate only as proven by Spec 0007 and its passing gates. It must not treat Spec 0005 or Spec 0006 alone as sufficient evidence, and it must not claim full Phase 3 completion until the remaining Phase 3B speech/story gates pass.
 
 ## Retread warning
 
 Do not create another Phase 0 ontology package unless a real doctrine gap, contradiction, or safety issue is discovered. Future work should cite Spec 0001 and move forward.
 
-Do not create Phase 4 or ordinary-life-dependent Phase 3B implementation specs that assume Phase 3A is safe until the second Phase 3A hardening gates pass.
+Do not create Phase 4 or ordinary-life-dependent Phase 3B implementation specs that cite Spec 0005 or Spec 0006 alone as Phase 3A readiness proof. Cite Spec 0007 and keep the remaining full-Phase-3 deferred scope explicit.
 
 Exact fetch ledgers may appear in spec-package provenance. They are not enduring product doctrine.

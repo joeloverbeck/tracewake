@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-013: Status/ledger documentation alignment
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — docs only (`docs/4-specs/SPEC_LEDGER.md`, `docs/4-specs/README.md`)
@@ -70,3 +70,20 @@ Update `docs/4-specs/README.md` only if its 0006 wording still implies readiness
 
 1. `grep -n '0007' docs/4-specs/SPEC_LEDGER.md`
 2. `git diff --name-only docs/`
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed behavior:
+- Replaced the ledger's "Next required spec" placeholder with a landed Spec 0007 record that names the passed integrated no-human ordinary-life proof and the carried-forward Phase 3A result.
+- Updated the docs spec README so Spec 0007 is the current evidence source for Phase 3A no-human ordinary-life readiness.
+- Reworded older Spec 0005/0006 status lines so they remain historical audit findings and no longer read as current blockers after Spec 0007.
+
+Deviations:
+- No higher-tier doctrine docs or errata files were needed; the misleading status surface was limited to `SPEC_LEDGER.md` and `README.md`.
+
+Verification:
+- `grep -n '0007' docs/4-specs/SPEC_LEDGER.md`
+- `rg -n "required before Phase 3B|until the second Phase 3A|still not fully earned|unblock Phase 3B|unblocks Phase 3B|ordinary-life-dependent Phase 4 work treats Phase 3A as safe" docs/4-specs/SPEC_LEDGER.md docs/4-specs/README.md` returned no matches.
+- `git diff --name-only docs/` listed only `docs/4-specs/README.md` and `docs/4-specs/SPEC_LEDGER.md`.
