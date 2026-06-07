@@ -202,9 +202,17 @@ pub fn render_no_human_day_panel(report: &NoHumanDayDebugReport) -> String {
             format!("meals_completed={}", report.metrics.meals_completed),
             format!("meals_missed={}", report.metrics.meals_missed),
             format!("sleep_completed={}", report.metrics.sleep_completed),
+            format!("sleep_interrupted={}", report.metrics.sleep_interrupted),
             format!("work_completed={}", report.metrics.work_blocks_completed),
+            format!("work_failed={}", report.metrics.work_blocks_failed),
+            format!("need_crossings={}", report.metrics.need_threshold_crossings),
+            format!(
+                "routine_interruptions={}",
+                report.metrics.routine_interruptions
+            ),
             format!("planner_failures={}", report.metrics.planner_failures),
             format!("stuck_actors={}", report.metrics.stuck_actor_count),
+            format!("replay_failures={}", report.metrics.replay_failure_count),
             format!("canonical={}", report.canonical_summary),
         ],
     )

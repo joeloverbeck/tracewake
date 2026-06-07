@@ -45,7 +45,9 @@ pub struct Phase3AEmbodiedStatus {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NeedStatusEntry {
     pub kind: String,
+    pub value: u16,
     pub band_label: String,
+    pub last_cause: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

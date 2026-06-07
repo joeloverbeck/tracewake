@@ -459,7 +459,9 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
         .flat_map(|needs| needs.values())
         .map(|need| NeedStatusEntry {
             kind: need.kind().stable_id().to_string(),
+            value: need.value(),
             band_label: need.band().stable_id().to_string(),
+            last_cause: need.last_change_cause().stable_id().to_string(),
         })
         .collect::<Vec<_>>();
     need_summaries.sort();
@@ -1362,6 +1364,8 @@ mod tests {
         let status = view.phase3a_status.as_ref().unwrap();
         assert_eq!(status.need_summaries.len(), 1);
         assert_eq!(status.need_summaries[0].kind, "hunger");
+        assert_eq!(status.need_summaries[0].value, 620);
+        assert_eq!(status.need_summaries[0].last_cause, "fixture_initial");
         assert!(status
             .intention_summary
             .as_deref()

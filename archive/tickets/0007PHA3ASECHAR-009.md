@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-009: TUI / view-model / debug Phase 3A behavioral proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` view models + debug reports (`view_models.rs`, `debug_reports.rs`); `tracewake-tui` panels and command loop (`debug_panels.rs`, `render.rs`, `run.rs`, `app.rs`)
@@ -87,3 +87,25 @@ Ensure `run`/`app` expose running/advancing no-human segments and inspecting the
 1. `cargo test -p tracewake-tui`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed the Phase 3A embodied need view model to carry actor-filtered need value and last-change cause in addition to band, and rendered those fields in the TUI. Expanded the no-human debug panel with direct behavior counters for sleep interruption, failed work, need crossings, routine interruptions, and replay failures instead of requiring tests to infer them from the canonical metrics string.
+
+Hardened TUI acceptance and binary command-loop tests so `no_human_day_001` proves concrete Phase 3A behavior rows: post-run embodied need values/causes, active intention/routine step, no-human routine/work failure counters, routine failure/completion rows, replay panel reachability, and negative hidden-truth assertions. The command-loop test now launches the real binary with `no_human_day_001 actor_tomas` and verifies the same behavior rows through stdin/stdout.
+
+Deviation from plan: no scheduler/planner emission was added here. Current integrated no-human fixture runs produce typed routine failures and fallback progress, so the TUI stuck panel correctly reports `stuck_diagnostic_count=0` for that run; typed stuck diagnostics remain covered at the core debug-report/scheduler layer rather than being forced into the TUI fixture output.
+
+Verification:
+
+1. `cargo test -p tracewake-core view_models_embodied_phase3a_status_is_viewer_scoped_and_actor_known`
+2. `cargo test -p tracewake-tui --test tui_acceptance`
+3. `cargo test -p tracewake-tui --test command_loop_session`
+4. `cargo test -p tracewake-tui debug_panels_are_marked_non_diegetic_and_do_not_change_embodied_view_or_checksum`
+5. `cargo test -p tracewake-tui`
+6. `cargo fmt --all --check`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`
+9. `cargo test --workspace`
