@@ -37,6 +37,7 @@ pub fn strongbox_001() -> GoldenFixture {
             affordance("inspect_place", "house_tomas"),
             affordance("inspect_entity", "strongbox_tomas"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

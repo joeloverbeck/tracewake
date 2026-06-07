@@ -36,6 +36,7 @@ pub fn view_model_local_actions_001() -> GoldenFixture {
             affordance("inspect_entity", "sample_bin"),
             affordance("inspect_entity", "sample_token_01"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

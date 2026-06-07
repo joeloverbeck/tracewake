@@ -25,6 +25,7 @@ pub fn door_access_001() -> GoldenFixture {
             affordance("inspect_place", "front_hall"),
             affordance("inspect_entity", "door_front_back"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

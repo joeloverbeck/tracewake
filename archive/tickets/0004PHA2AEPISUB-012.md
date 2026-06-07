@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-012: Content schema, serialization, and validation for epistemic seeds
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends `tracewake-content` (`schema.rs`, `serialization.rs`, `validate.rs`) with an epistemic seed section and its validation.
@@ -80,3 +80,23 @@ Extend `validate.rs` with epistemic-seed validation (the §11.5 rejection set), 
 1. `cargo test -p tracewake-content`
 2. `cargo test -p tracewake-content --test forbidden_content`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Changed:
+- Added a typed `initial_beliefs` fixture section with proposition, holder, source, stance, confidence, channel, tick, scope, and epistemic schema version fields.
+- Extended canonical fixture serialization/deserialization for deterministic epistemic seed round-trips.
+- Added blocking validation for seed IDs, actor/proposition references, schema versions, source/scope rules, canonical ordering, raw prose propositions, and shortcut-truth fields.
+- Preserved existing fixtures with an additive empty seed section.
+
+Deviations:
+- None.
+
+Verification:
+- `cargo test -p tracewake-content`
+- `cargo test -p tracewake-content --test forbidden_content`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`
+- `git diff --check`

@@ -1,10 +1,15 @@
+use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
+use tracewake_core::epistemics::{
+    Belief, Channel, Confidence, HolderKind, PrivacyScope, Proposition, SourceRef, Stance,
+};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    ActionId, ActorId, BeliefId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::{
     ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
 };
+use tracewake_core::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FixtureSchema {
@@ -16,6 +21,7 @@ pub struct FixtureSchema {
     pub containers: Vec<ContainerSchema>,
     pub items: Vec<ItemSchema>,
     pub affordances: Vec<ActionAffordanceSchema>,
+    pub initial_beliefs: Vec<InitialBeliefSchema>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,6 +69,63 @@ pub struct ActionAffordanceSchema {
     pub target_id: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InitialBeliefSchema {
+    pub belief_id: BeliefId,
+    pub holder_actor_id: ActorId,
+    pub proposition: Proposition,
+    pub stance: Stance,
+    pub confidence: Confidence,
+    pub source: SourceRef,
+    pub channel: Option<Channel>,
+    pub acquired_tick: SimTick,
+    pub last_verified_tick: Option<SimTick>,
+    pub privacy_scope: PrivacyScope,
+    pub schema_version: SchemaVersion,
+}
+
+impl InitialBeliefSchema {
+    pub fn to_belief(&self) -> Belief {
+        let mut belief = Belief::new(
+            self.belief_id.clone(),
+            HolderKind::Actor(self.holder_actor_id.clone()),
+            self.proposition.clone(),
+            self.stance,
+            self.confidence,
+            self.source.clone(),
+            self.acquired_tick,
+        );
+        belief.channel = self.channel;
+        belief.last_verified_tick = self.last_verified_tick;
+        belief.privacy_scope = self.privacy_scope.clone();
+        belief.schema_version = self.schema_version.clone();
+        belief
+    }
+
+    pub fn new_expectation(
+        belief_id: BeliefId,
+        holder_actor_id: ActorId,
+        proposition: Proposition,
+        confidence: Confidence,
+        source: SourceRef,
+        acquired_tick: SimTick,
+    ) -> Self {
+        Self {
+            belief_id,
+            privacy_scope: PrivacyScope::ActorPrivate(holder_actor_id.clone()),
+            holder_actor_id,
+            proposition,
+            stance: Stance::ExpectsTrue,
+            confidence,
+            source,
+            channel: None,
+            acquired_tick,
+            last_verified_tick: None,
+            schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+        }
+    }
+}
+
 impl FixtureSchema {
     pub fn canonicalize(&mut self) {
         self.actors
@@ -78,6 +141,8 @@ impl FixtureSchema {
         self.affordances.sort_by(|left, right| {
             (&left.action_id, &left.target_id).cmp(&(&right.action_id, &right.target_id))
         });
+        self.initial_beliefs
+            .sort_by(|left, right| left.belief_id.cmp(&right.belief_id));
         for place in &mut self.places {
             place.adjacent_place_ids.sort();
         }

@@ -23,6 +23,7 @@ pub fn replay_item_location_001() -> GoldenFixture {
             affordance("inspect_entity", "receipt_01"),
             affordance("inspect_entity", "evidence_box"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

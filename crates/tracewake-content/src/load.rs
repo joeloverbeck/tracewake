@@ -105,6 +105,7 @@ mod tests {
                 location: Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
             }],
             affordances: Vec::new(),
+            initial_beliefs: Vec::new(),
         }
     }
 

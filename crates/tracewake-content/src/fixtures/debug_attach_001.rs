@@ -28,6 +28,7 @@ pub fn debug_attach_001() -> GoldenFixture {
             affordance("inspect_place", "south_room"),
             affordance("inspect_entity", "lantern_01"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

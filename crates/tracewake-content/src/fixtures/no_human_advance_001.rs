@@ -13,6 +13,7 @@ pub fn no_human_advance_001() -> GoldenFixture {
             affordance("inspect_place", "quiet_room"),
             affordance("inspect_entity", "notebook_01"),
         ],
+        initial_beliefs: Vec::new(),
     };
     fixture.canonicalize();
     GoldenFixture {

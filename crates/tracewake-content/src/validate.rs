@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry};
+use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
+use tracewake_core::epistemics::{PrivacyScope, SourceRef};
 use tracewake_core::ids::PlaceId;
 use tracewake_core::location::Location;
 use tracewake_core::state::PhysicalState;
@@ -39,9 +41,10 @@ pub enum ValidationPhase {
     SemanticView = 9,
     NoPlayer = 10,
     NoScript = 11,
-    DeterminismHazard = 12,
-    FixtureContract = 13,
-    Serialization = 14,
+    EpistemicSeed = 12,
+    DeterminismHazard = 13,
+    FixtureContract = 14,
+    Serialization = 15,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -147,6 +150,7 @@ fn validate_fixture_errors(
     validate_semantic_ids(fixture, &mut errors);
     validate_no_player(fixture, &mut errors);
     validate_no_script(fixture, &mut errors);
+    validate_epistemic_seeds(fixture, registry, &mut errors);
     validate_determinism(fixture, &mut errors);
     validate_fixture_contract(fixture, &mut errors);
     validate_serialization_roundtrip(fixture, &mut errors);
@@ -185,7 +189,15 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
             ));
         } else if !matches!(
             tag,
-            "fixture" | "schema" | "actor" | "place" | "door" | "container" | "item" | "affordance"
+            "fixture"
+                | "schema"
+                | "actor"
+                | "place"
+                | "door"
+                | "container"
+                | "item"
+                | "affordance"
+                | "initial_belief"
         ) {
             errors.push(ContentValidationError::new(
                 ValidationPhase::ParseSchema,
@@ -198,7 +210,15 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
         let parts = line.split('|').collect::<Vec<_>>();
         if matches!(
             tag,
-            "fixture" | "schema" | "actor" | "place" | "door" | "container" | "item" | "affordance"
+            "fixture"
+                | "schema"
+                | "actor"
+                | "place"
+                | "door"
+                | "container"
+                | "item"
+                | "affordance"
+                | "initial_belief"
         ) && parts.get(1).is_some_and(|value| value.is_empty())
         {
             errors.push(ContentValidationError::new(
@@ -278,6 +298,18 @@ fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError
         reject_reserved_or_display(
             item.item_id.as_str(),
             format!("items[{index}].item_id"),
+            errors,
+        );
+    }
+    for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+        push_id(
+            &mut seen,
+            belief.belief_id.as_str(),
+            format!("initial_beliefs[{index}].belief_id"),
+        );
+        reject_reserved_or_display(
+            belief.belief_id.as_str(),
+            format!("initial_beliefs[{index}].belief_id"),
             errors,
         );
     }
@@ -411,6 +443,30 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
                 "actor",
             ),
             _ => {}
+        }
+    }
+
+    for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+        if !actors.contains(&belief.holder_actor_id) {
+            missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("initial_beliefs[{index}].holder_actor_id"),
+                belief.holder_actor_id.as_str(),
+                "actor",
+            );
+        }
+        if let Err(error) =
+            belief
+                .proposition
+                .validate_references(&actors, &places, &containers, &items)
+        {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::EpistemicSeed,
+                format!("initial_beliefs[{index}].proposition"),
+                "bad_reference",
+                format!("{error}"),
+            ));
         }
     }
 }
@@ -724,6 +780,98 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
     }
 }
 
+fn validate_epistemic_seeds(
+    fixture: &FixtureSchema,
+    registry: &ActionRegistry,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+        if belief.schema_version.as_str() != EPISTEMIC_RECORD_SCHEMA_V1 {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::EpistemicSeed,
+                format!("initial_beliefs[{index}].schema_version"),
+                "unsupported_epistemic_schema_version",
+                format!(
+                    "unsupported epistemic schema version {}",
+                    belief.schema_version.as_str()
+                ),
+            ));
+        }
+        if !(0..=1000).contains(&belief.confidence.parts_per_thousand()) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::EpistemicSeed,
+                format!("initial_beliefs[{index}].confidence"),
+                "bad_confidence",
+                "belief confidence must be 0..=1000",
+            ));
+        }
+        match &belief.privacy_scope {
+            PrivacyScope::ActorPrivate(actor_id) if actor_id == &belief.holder_actor_id => {}
+            PrivacyScope::ActorPrivate(actor_id) => errors.push(ContentValidationError::new(
+                ValidationPhase::EpistemicSeed,
+                format!("initial_beliefs[{index}].privacy_scope"),
+                "cross_actor_seed_scope",
+                format!(
+                    "belief holder {} must not receive actor-private scope for {}",
+                    belief.holder_actor_id.as_str(),
+                    actor_id.as_str()
+                ),
+            )),
+            PrivacyScope::PublicPlaceholder | PrivacyScope::InstitutionPlaceholder(_) => {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::EpistemicSeed,
+                    format!("initial_beliefs[{index}].privacy_scope"),
+                    "unsupported_seed_scope",
+                    "initial belief seeds must be actor-private in Phase 2A",
+                ));
+            }
+        }
+        if let Some(last_verified_tick) = belief.last_verified_tick {
+            if last_verified_tick < belief.acquired_tick {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::EpistemicSeed,
+                    format!("initial_beliefs[{index}].last_verified_tick"),
+                    "bad_tick_order",
+                    "last_verified_tick must not precede acquired_tick",
+                ));
+            }
+        }
+        match &belief.source {
+            SourceRef::Event(event_id) => {
+                if is_forbidden_key(event_id.as_str()) {
+                    errors.push(ContentValidationError::new(
+                        ValidationPhase::NoScript,
+                        format!("initial_beliefs[{index}].source_id"),
+                        "shortcut_truth_field",
+                        format!("forbidden shortcut-truth source {}", event_id.as_str()),
+                    ));
+                }
+            }
+            SourceRef::Action(action_id) => {
+                if registry.get(action_id).is_none() {
+                    errors.push(ContentValidationError::new(
+                        ValidationPhase::EpistemicSeed,
+                        format!("initial_beliefs[{index}].source_id"),
+                        "unknown_action_source",
+                        format!(
+                            "belief source action {} is not registered",
+                            action_id.as_str()
+                        ),
+                    ));
+                }
+            }
+            SourceRef::Cause(_) => errors.push(ContentValidationError::new(
+                ValidationPhase::EpistemicSeed,
+                format!("initial_beliefs[{index}].source_kind"),
+                "unsupported_source_kind",
+                "initial belief seeds must use event or action source references",
+            )),
+        }
+
+        let _belief = belief.to_belief();
+    }
+}
+
 fn validate_determinism(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
     for (index, place) in fixture.places.iter().enumerate() {
         if !is_sorted_unique(&place.adjacent_place_ids) {
@@ -744,6 +892,18 @@ fn validate_determinism(fixture: &FixtureSchema, errors: &mut Vec<ContentValidat
                 "container contents must be canonical sorted without duplicates",
             ));
         }
+    }
+    if !fixture
+        .initial_beliefs
+        .windows(2)
+        .all(|window| window[0].belief_id < window[1].belief_id)
+    {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::DeterminismHazard,
+            "initial_beliefs",
+            "non_canonical_ordering",
+            "initial belief seeds must be canonical sorted without duplicates",
+        ));
     }
 }
 
@@ -821,6 +981,11 @@ fn serialization_error(error: SerializationError) -> ContentValidationError {
             "bad_bool",
             format!("bad bool value {value}"),
         ),
+        SerializationError::BadU64(value) => (
+            "fixture.number".to_string(),
+            "bad_number",
+            format!("bad numeric value {value}"),
+        ),
         SerializationError::Id(error) => (
             "fixture.id".to_string(),
             "bad_stable_id",
@@ -829,6 +994,16 @@ fn serialization_error(error: SerializationError) -> ContentValidationError {
         SerializationError::EventLog(error) => (
             "fixture.event_log".to_string(),
             "event_log_error",
+            format!("{error:?}"),
+        ),
+        SerializationError::Proposition(error) => (
+            "fixture.initial_belief.proposition".to_string(),
+            "bad_proposition",
+            format!("{error}"),
+        ),
+        SerializationError::Confidence(error) => (
+            "fixture.initial_belief.confidence".to_string(),
+            "bad_confidence",
             format!("{error:?}"),
         ),
     };
@@ -863,6 +1038,12 @@ fn is_script_key(value: &str) -> bool {
             | "story_beat"
             | "director"
             | "culprit"
+            | "true_culprit"
+            | "stolen_flag"
+            | "npc_knows_truth"
+            | "knows_mara_did_it"
+            | "quest_state"
+            | "player_memory"
             | "branch"
             | "selector"
             | "llm_prompt"
@@ -937,6 +1118,7 @@ mod tests {
                     target_id: "back_room".to_string(),
                 },
             ],
+            initial_beliefs: Vec::new(),
         }
     }
 
