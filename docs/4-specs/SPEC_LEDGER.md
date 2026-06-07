@@ -107,15 +107,15 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 
 ### Spec 0006 — Phase 3A Needs, Routines, and No-Human Day Hardening
 
-- **Status:** Proposed corrective hardening spec; **blocking**, not yet landed.
+- **Status:** Landed corrective hardening slice with acceptance evidence. The blocking Spec 0006 ticket family is implemented and archived; capstone evidence now covers real no-human scheduler runs, physical replay/metrics byte identity, actor-known/TUI/debug visibility, and fail-closed content validation. Full agent-projection replay equivalence for scheduler-emitted stuck diagnostics is not overclaimed here and remains a follow-up hardening concern if later phases require it.
 - **Spec file:** `specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`.
 - **Phase:** Phase 3A hardening; repairs the materially incomplete archived Phase 3A before any Phase 3B / Phase 4 / ordinary-life-dependent expansion.
-- **Why blocking:** the exact-commit audit (`archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md`) found Phase 3A acceptance not earned. Until Spec 0006 passes its no-human / replay / debug / TUI / actor-known gates, the no-human ordinary-life substrate later phases depend on does not robustly exist.
+- **Why it existed:** the exact-commit audit (`archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md`) found Phase 3A acceptance not earned. Spec 0006 was the corrective hardening pass for the no-human / replay / debug / TUI / actor-known gates.
 - **Intended result:** live needs/intention/routine state updated through the shared pipeline; an actor decision loop that uses the same scheduler/action/proposal/event pipeline as possessed play; typed HTN/planner condition proof from actor-known state; hidden-truth planning impossible by construction; a no-human day that produces wake/eat/move/work/rest/sleep/fail/replan ancestry; debug/TUI inspection of real generated decisions and failures; replay equivalence for actual logs.
 
 ## Next allowed spec
 
-Phase 3A is **not** safely complete (see the Spec 0005 audit result above). The next **blocking** product-behavior spec is **0006 Phase 3A Needs, Routines, and No-Human Day Hardening**. No Phase 3B, Phase 4, or ordinary-life-dependent expansion should proceed until Spec 0006 passes its no-human / replay / debug / TUI / actor-known gates. Phase 2B+ work that does not depend on the no-human ordinary-life substrate may continue in parallel only if the Phase 2A boundaries above are preserved and deferred scope is not represented as already complete.
+Phase 3A hardening has landed far enough to unblock scoped Phase 3B planning that builds on the ordinary-life substrate, provided follow-on specs do not assume full multi-day depth, social speech, institutions, or full agent-projection replay equivalence beyond the evidence recorded for Spec 0006. Phase 4 or ordinary-life-dependent expansion still needs a fresh governing spec and acceptance gate.
 
 ## Retread warning
 

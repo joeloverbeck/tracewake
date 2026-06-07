@@ -15,16 +15,20 @@ use tracewake_core::agent::{
     GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
     RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate, VisibleLocalPlanningState,
 };
+use tracewake_core::checksum::{
+    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
 use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind};
+use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, FoodSupplyId, IntentionId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, FixtureId, FoodSupplyId, IntentionId,
     RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
+use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig,
 };
@@ -59,6 +63,24 @@ fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId)
         loaded.canonical_agent_state,
         manifest_id,
     )
+}
+
+fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
+    ChecksumContext {
+        fixture_id: FixtureId::new(fixture_id).unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick: log
+            .events()
+            .last()
+            .map(|event| event.sim_tick)
+            .unwrap_or(SimTick::ZERO),
+        world_stream_position_applied: log
+            .events()
+            .iter()
+            .filter(|event| event.stream == EventStream::World)
+            .count()
+            .saturating_sub(1) as u64,
+    }
 }
 
 fn proposal(id: &str, actor_id: &str, action_id: &str, target_ids: &[&str], tick: u64) -> Proposal {
@@ -1054,6 +1076,86 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     assert!(metrics.need_threshold_crossings > 0);
     assert_eq!(metrics.player_conditioned_event_count, 0);
     assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
+}
+
+#[test]
+fn no_human_day_real_run_replays_metrics_and_trace_projection() {
+    let golden = fixtures::no_human_day_001();
+    let (mut state, mut agent_state, manifest_id) = load(golden);
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let expected_roster = state.actors.keys().cloned().collect::<Vec<_>>();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: expected_roster.clone(),
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+    let context = checksum_context("no_human_day_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let rebuild = rebuild_projection(
+        &initial_state,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&state),
+    );
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum.clone()),
+    );
+    let canonical = log.serialize_canonical();
+    let replayed_log = EventLog::deserialize_canonical(&canonical).unwrap();
+    let real_metrics = no_human_day_metrics(&log).serialize_canonical();
+    let replayed_metrics = no_human_day_metrics(&replayed_log).serialize_canonical();
+
+    assert_eq!(report.actor_decision_order, expected_roster);
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(has_event(&log, EventKind::NoHumanDayStarted));
+    assert!(has_event(&log, EventKind::NoHumanDayCompleted));
+    assert!(has_event(&log, EventKind::SleepStarted));
+    assert!(has_event(&log, EventKind::FoodConsumed) || has_event(&log, EventKind::EatFailed));
+    assert!(has_event(&log, EventKind::ActorMoved));
+    assert_eq!(rebuild.final_checksum, live_physical_checksum);
+    assert_eq!(replayed_log.serialize_canonical(), canonical);
+    assert_eq!(replayed_metrics, real_metrics);
+    assert_eq!(replay.final_checksum, live_physical_checksum);
+    assert!(replay.epistemic_application_errors.is_empty());
+    assert!(real_metrics.contains("no_human_day_metrics_v1"));
+    assert_eq!(
+        rebuild.final_agent_state.decision_traces,
+        agent_state.decision_traces
+    );
+    assert_eq!(
+        compute_agent_state_checksum(&agent_state, &context).checksum,
+        live_agent_checksum
+    );
+
+    let missing_last =
+        EventLog::deserialize_canonical(canonical.split(|byte| *byte == b'\n').next().unwrap())
+            .unwrap();
+    let corrupted = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &missing_last,
+        &checksum_context("no_human_day_001", &missing_last),
+        Some(&state),
+        Some(live_physical_checksum),
+    );
+    assert!(!corrupted.matches_expected);
+    assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());
 }
 
 #[test]

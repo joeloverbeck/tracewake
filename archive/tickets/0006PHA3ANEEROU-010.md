@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-010: Capstone — full no-human-day behavior and replay-equivalence acceptance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — acceptance harness only (`no_human_day_001` fixture run, `acceptance_gates.rs`, `golden_scenarios.rs`); `docs/4-specs/SPEC_LEDGER.md` Status flip on landing. No new production logic.
@@ -80,3 +80,29 @@ On landing, flip the Spec 0006 ledger entry Status in `docs/4-specs/SPEC_LEDGER.
 1. `cargo test -p tracewake-core --test acceptance_gates`
 2. `cargo test --workspace`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — full §8 acceptance gate.
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Replaced the synthetic Phase 3A no-human metrics golden scenario with a real core-only no-human scheduler run that emits ordinary pipeline events, `SleepStarted`, canonical-log byte roundtrip, metrics byte identity, physical replay checksum equality, agent replay checksum equality, and no player/controller terms in canonical output.
+- Added a content-level capstone over the real `no_human_day_001` fixture. The test runs the integrated no-human day through the content fixture, asserts real marker/action ancestry, verifies canonical log and metrics byte identity, checks physical replay equivalence, checks trace projection rebuild equality, and proves a truncated log fails loudly instead of matching the expected final state.
+- Flipped `docs/4-specs/SPEC_LEDGER.md` from blocking/proposed to a landed corrective hardening slice with the evidence and caveats recorded.
+
+Deviations from original plan:
+
+- The fixture-specific capstone lives in `tracewake-content` because `tracewake-core` must not depend on content fixtures.
+- Full agent-projection replay equivalence for scheduler-emitted stuck diagnostics is not claimed here. The capstone verifies agent checksum equality for the core scheduler run and trace projection equality for the content fixture run, while leaving broader stuck-diagnostic agent replay hardening as a follow-up concern.
+- No production logic was changed for this ticket.
+
+Verification:
+
+- `cargo test -p tracewake-core --test acceptance_gates`
+- `cargo test -p tracewake-core --test golden_scenarios phase3a_no_human_metrics_are_byte_identical_after_log_replay`
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_real_run_replays_metrics_and_trace_projection`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
