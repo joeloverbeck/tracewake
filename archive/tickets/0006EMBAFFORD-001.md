@@ -1,6 +1,6 @@
 # 0006EMBAFFORD-001: Add a validate-only (no-commit) proposal preflight to the action pipeline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`actions/pipeline.rs`: factor a pure decision step out of `run_pipeline`; add `validate_proposal`; likely re-export in `actions/mod.rs`). No event/schema/replay changes; committed-path events and reports are unchanged.
@@ -89,3 +89,23 @@ Add `pub fn validate_proposal(...)` (read-only inputs mirroring `decide_proposal
 
 1. `cargo test -p tracewake-core actions::pipeline`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added `validate_proposal` as a read-only action-pipeline preflight exported from `tracewake-core::actions`.
+- Factored proposal accept/reject decision construction so `run_pipeline` and `validate_proposal` share the same validator path.
+- Kept event appends, physical state mutation, and epistemic projection mutation in the committed `run_pipeline` path only.
+- Added pipeline tests for closed-container and closed-door preflight/commit report parity, plus no-commit invariance for accepted and rejected preflights including `check_container`.
+
+Deviations from original plan:
+- The extracted decision returns candidate events for accepted mutating actions and boxes rejected reports to satisfy clippy's enum-size lint.
+
+Verification:
+- `cargo test -p tracewake-core actions::pipeline`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
