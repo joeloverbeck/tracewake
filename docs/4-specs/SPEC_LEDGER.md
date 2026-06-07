@@ -108,7 +108,7 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 ### Spec 0006 — Phase 3A Needs, Routines, and No-Human Day Hardening
 
 - **Status:** Landed corrective hardening slice with acceptance evidence. The blocking Spec 0006 ticket family is implemented and archived; capstone evidence now covers real no-human scheduler runs, physical replay/metrics byte identity, actor-known/TUI/debug visibility, and fail-closed content validation. Full agent-projection replay equivalence for scheduler-emitted stuck diagnostics is not overclaimed here and remains a follow-up hardening concern if later phases require it.
-- **Spec file:** `specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`.
+- **Spec file:** `archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`.
 - **Phase:** Phase 3A hardening; repairs the materially incomplete archived Phase 3A before any Phase 3B / Phase 4 / ordinary-life-dependent expansion.
 - **Why it existed:** the exact-commit audit (`archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md`) found Phase 3A acceptance not earned. Spec 0006 was the corrective hardening pass for the no-human / replay / debug / TUI / actor-known gates.
 - **Intended result:** live needs/intention/routine state updated through the shared pipeline; an actor decision loop that uses the same scheduler/action/proposal/event pipeline as possessed play; typed HTN/planner condition proof from actor-known state; hidden-truth planning impossible by construction; a no-human day that produces wake/eat/move/work/rest/sleep/fail/replan ancestry; debug/TUI inspection of real generated decisions and failures; replay equivalence for actual logs.

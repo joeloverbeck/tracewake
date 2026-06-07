@@ -1,6 +1,6 @@
 # Spec 0006 — Phase 3A Needs, Routines, and No-Human Day Hardening
 
-Status: **Proposed corrective hardening spec**  
+**Status**: COMPLETED
 Targeted corrective layer: archived Spec 0005 / Phase 3A  
 Repository target audited: `joeloverbeck/tracewake` at commit `ec1e73f91b7330d87ce12ae93f8cf57ea3671306`
 
@@ -397,18 +397,18 @@ Do not satisfy this spec by:
 
 ## 10. Completion checklist
 
-- [ ] Unified event application updates live physical/agent/epistemic projections as appropriate.
-- [ ] TUI action submission updates live `AgentState` from Phase 3A events.
-- [ ] No-human day uses real actor decision loop, not wait-only proposal builder.
-- [ ] Candidate generation receives live needs/intention/routine inputs.
-- [ ] Routine assignments instantiate live routine/intention state.
-- [ ] Typed HTN method conditions replace string-prefix/substr applicability.
-- [ ] Canonical actor-known planner input builder exists and is tested.
-- [ ] Planner/action mismatch produces trace + diagnostic + bounded fallback.
-- [ ] `continue_routine` cannot satisfy behavior without subsequent ordinary action ancestry.
-- [ ] Full no-human day fixture proves wake/eat/move/work/rest/sleep/fail/replan ancestry.
-- [ ] Food-unavailable, blocked-routine, no-teleport, hidden-truth, possession-parity, replay-equivalence, and TUI/debug tests pass.
-- [ ] Debug panels show real generated Phase 3A decisions/failures.
+- [x] Unified event application updates live physical/agent/epistemic projections as appropriate.
+- [x] TUI action submission updates live `AgentState` from Phase 3A events.
+- [x] No-human day uses real actor decision loop, not wait-only proposal builder.
+- [x] Candidate generation receives live needs/intention/routine inputs.
+- [x] Routine assignments instantiate live routine/intention state.
+- [x] Typed HTN method conditions replace string-prefix/substr applicability.
+- [x] Canonical actor-known planner input builder exists and is tested.
+- [x] Planner/action mismatch produces trace + diagnostic + bounded fallback.
+- [x] `continue_routine` cannot satisfy behavior without subsequent ordinary action ancestry.
+- [x] Full no-human day fixture proves wake/eat/move/work/rest/sleep/fail/replan ancestry.
+- [x] Food-unavailable, blocked-routine, no-teleport, hidden-truth, possession-parity, replay-equivalence, and TUI/debug tests pass.
+- [x] Debug panels show real generated Phase 3A decisions/failures.
 - [x] Status docs are corrected or errata is committed. *(Landed: `docs/4-specs/SPEC_LEDGER.md` + `docs/4-specs/README.md` updated; `archive/reports/PHASE_3A_STATUS_ERRATA.md` recorded.)*
 
 ## 11. Exit rule
@@ -416,3 +416,25 @@ Do not satisfy this spec by:
 Phase 3A's no-human ordinary-life substrate exits only after this spec passes. Until then, do not start Phase 3B or Phase 4 work that assumes autonomous ordinary life is solved.
 
 Passing this spec satisfies the *minimum* Phase 3 no-human, replay, test, debug, and failure-case gates of `docs/2-execution/07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md`. Two Phase 3 items remain deliberately deferred to Phase 3B and are **not** unblocked by this spec: the exit-checklist item "ordinary life supports the missing-property setup" and minimal social speech. This deferral matches the Spec 0005 ledger deferred-scope note (`docs/4-specs/SPEC_LEDGER.md`).
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Implemented and archived ticket family `0006PHA3ANEEROU-001` through `0006PHA3ANEEROU-010`.
+- Landed live Phase 3A event application, actor-known planner input, typed HTN conditions, ordinary-action routine continuation, live needs for candidate generation, routine assignment instantiation, no-human ordinary action proposals, TUI no-human-day command/debug surfaces, stricter content validation, and capstone real-run replay/metrics evidence.
+- Updated `docs/4-specs/SPEC_LEDGER.md` and `docs/4-specs/README.md` so Spec 0006 is recorded as landed and archived rather than proposed/blocking.
+
+Deviations from original plan:
+
+- The capstone fixture run lives in `tracewake-content`, not `tracewake-core`, to preserve crate dependency direction.
+- Full agent-projection replay equivalence for scheduler-emitted stuck diagnostics is not overclaimed. The landed evidence covers core scheduler agent checksum equality plus content fixture trace projection equality; broader diagnostic replay hardening remains a follow-up concern if later phases require it.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
