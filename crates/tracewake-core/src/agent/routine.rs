@@ -187,12 +187,89 @@ pub enum RoutineStepProposal<'a> {
     Diagnostic(&'a str),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RoutineCondition {
+    ActorKnowsFoodSource,
+    ActorKnowsWorkplace,
+    WorkplaceAssignmentActive,
+    ActorKnowsHome,
+    ActorKnowsSleepPlace,
+    ActorHasFoodSearchKnowledge,
+    ActiveIntentionPresent,
+    ReasonAvailable,
+    SleepStateCanEnd,
+    FoodSourceBelievedAccessible,
+    RoutePlannerAvailable,
+    ActorAtWorkplace,
+    SleepPlaceBelievedAccessible,
+    SearchSurfaceActorKnown,
+    NextStepAvailable,
+    ReevaluationScheduled,
+    FixtureAuthoredPossibility,
+    SharedPipelinePreconditions,
+    AssignedWorkplaceKnown,
+    AtWorkplace,
+}
+
+impl RoutineCondition {
+    pub const fn stable_id(&self) -> &'static str {
+        match self {
+            Self::ActorKnowsFoodSource => "actor_knows_food_source",
+            Self::ActorKnowsWorkplace => "actor_knows_workplace",
+            Self::WorkplaceAssignmentActive => "workplace_assignment_active",
+            Self::ActorKnowsHome => "actor_knows_home",
+            Self::ActorKnowsSleepPlace => "actor_knows_sleep_place",
+            Self::ActorHasFoodSearchKnowledge => "actor_has_food_search_knowledge",
+            Self::ActiveIntentionPresent => "active_intention_present",
+            Self::ReasonAvailable => "reason_available",
+            Self::SleepStateCanEnd => "sleep_state_can_end",
+            Self::FoodSourceBelievedAccessible => "food_source_believed_accessible",
+            Self::RoutePlannerAvailable => "route_planner_available",
+            Self::ActorAtWorkplace => "actor_at_workplace",
+            Self::SleepPlaceBelievedAccessible => "sleep_place_believed_accessible",
+            Self::SearchSurfaceActorKnown => "search_surface_actor_known",
+            Self::NextStepAvailable => "next_step_available",
+            Self::ReevaluationScheduled => "reevaluation_scheduled",
+            Self::FixtureAuthoredPossibility => "fixture_authored_possibility",
+            Self::SharedPipelinePreconditions => "shared_pipeline_preconditions",
+            Self::AssignedWorkplaceKnown => "assigned_workplace_known",
+            Self::AtWorkplace => "at_workplace",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "actor_knows_food_source" => Some(Self::ActorKnowsFoodSource),
+            "actor_knows_workplace" => Some(Self::ActorKnowsWorkplace),
+            "workplace_assignment_active" => Some(Self::WorkplaceAssignmentActive),
+            "actor_knows_home" => Some(Self::ActorKnowsHome),
+            "actor_knows_sleep_place" => Some(Self::ActorKnowsSleepPlace),
+            "actor_has_food_search_knowledge" => Some(Self::ActorHasFoodSearchKnowledge),
+            "active_intention_present" => Some(Self::ActiveIntentionPresent),
+            "reason_available" => Some(Self::ReasonAvailable),
+            "sleep_state_can_end" => Some(Self::SleepStateCanEnd),
+            "food_source_believed_accessible" => Some(Self::FoodSourceBelievedAccessible),
+            "route_planner_available" => Some(Self::RoutePlannerAvailable),
+            "actor_at_workplace" => Some(Self::ActorAtWorkplace),
+            "sleep_place_believed_accessible" => Some(Self::SleepPlaceBelievedAccessible),
+            "search_surface_actor_known" => Some(Self::SearchSurfaceActorKnown),
+            "next_step_available" => Some(Self::NextStepAvailable),
+            "reevaluation_scheduled" => Some(Self::ReevaluationScheduled),
+            "fixture_authored_possibility" => Some(Self::FixtureAuthoredPossibility),
+            "shared_pipeline_preconditions" => Some(Self::SharedPipelinePreconditions),
+            "assigned_workplace_known" => Some(Self::AssignedWorkplaceKnown),
+            "at_workplace" => Some(Self::AtWorkplace),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RoutineTemplate {
     pub template_id: RoutineTemplateId,
     pub family: RoutineFamily,
-    pub applicability_conditions: Vec<String>,
-    pub preconditions: Vec<String>,
+    pub applicability_conditions: Vec<RoutineCondition>,
+    pub preconditions: Vec<RoutineCondition>,
     pub steps: Vec<RoutineStep>,
     pub min_duration_ticks: u64,
     pub max_duration_ticks: u64,
@@ -208,8 +285,8 @@ impl RoutineTemplate {
     pub fn new(
         template_id: RoutineTemplateId,
         family: RoutineFamily,
-        applicability_conditions: Vec<String>,
-        preconditions: Vec<String>,
+        applicability_conditions: Vec<RoutineCondition>,
+        preconditions: Vec<RoutineCondition>,
         steps: Vec<RoutineStep>,
         min_duration_ticks: u64,
         max_duration_ticks: u64,
@@ -461,8 +538,8 @@ mod tests {
         RoutineTemplate::new(
             RoutineTemplateId::new("routine_eat_meal").unwrap(),
             RoutineFamily::EatMeal,
-            vec!["actor_knows_food_source".to_string()],
-            vec!["food_source_accessible".to_string()],
+            vec![RoutineCondition::ActorKnowsFoodSource],
+            vec![RoutineCondition::FoodSourceBelievedAccessible],
             vec![RoutineStep::CheckKnownContainer {
                 action_id: action("check_container.pantry"),
             }],

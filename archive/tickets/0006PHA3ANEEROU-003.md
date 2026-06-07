@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-003: Typed HTN method conditions with actor-known resolver
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` HTN applicability (`agent/htn.rs`, `agent/methods.rs`); routine-template condition representation (content schema consumed by `tracewake-content`)
@@ -82,3 +82,23 @@ Add a resolver that, given the actor-known planning state (0006PHA3ANEEROU-002),
 1. `cargo test -p tracewake-core agent::htn`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Implemented typed `RoutineCondition` values across core routine templates and
+content fixture schema. HTN method selection now resolves applicability and
+preconditions through an actor-known condition resolver that returns satisfied,
+rejected, or unknown outcomes; selected conditions carry proof sources and
+rejected/unknown conditions are recorded in `DecisionTrace.rejected_methods`.
+
+Removed string-prefix/substr applicability shortcuts from `agent/htn.rs`,
+updated scheduler method selection to pass the actor-known planning state, and
+added tests for spoof rejection, rejected-condition trace recording, stable
+tie-breaks, fixture trace proof sources, and typed content serialization.
+
+Verified with:
+
+1. `cargo test -p tracewake-core agent::htn`
+2. `cargo test --workspace`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo fmt --all --check`

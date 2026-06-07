@@ -10,7 +10,7 @@ use tracewake_content::schema::{
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::ids::{
@@ -100,8 +100,8 @@ fn phase3a_fixture() -> FixtureSchema {
         routine_templates: vec![RoutineTemplateSchema {
             template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
             family: RoutineFamily::WorkBlock,
-            applicability_conditions: vec!["assigned_workplace_known".to_string()],
-            preconditions: vec!["at_workplace".to_string()],
+            applicability_conditions: vec![RoutineCondition::AssignedWorkplaceKnown],
+            preconditions: vec![RoutineCondition::AtWorkplace],
             steps: vec![RoutineStep::StartWorkBlock {
                 action_id: SemanticActionId::new("work_block.workplace_shop").unwrap(),
             }],

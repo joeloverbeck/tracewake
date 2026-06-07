@@ -11,9 +11,10 @@ use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
-    select_goal_and_trace, select_phase3a_method, CandidateGenerationInput, DecisionInput,
+    select_goal_and_trace, select_method_from_templates, CandidateGenerationInput, DecisionInput,
     GoalKind, Intention, IntentionSource, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState,
-    PlannerGoal, RoutineExecution, RoutineStep, VisibleLocalPlanningState,
+    PlannerGoal, RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineTemplate,
+    VisibleLocalPlanningState,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
@@ -22,7 +23,7 @@ use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventEnvelope, EventKind};
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DecisionTraceId, FoodSupplyId,
-    IntentionId, RoutineExecutionId,
+    IntentionId, RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::scheduler::no_human::{
@@ -422,7 +423,7 @@ fn routine_blocked_fixture_records_access_failure_without_silent_loop() {
 
 #[test]
 fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
-    let _ = load(fixtures::planner_trace_001());
+    let (_state, agent_state, manifest_id) = load(fixtures::planner_trace_001());
     let actor_id: ActorId = "actor_tomas".parse().unwrap();
     let generated = generate_candidate_goals(&CandidateGenerationInput {
         actor_id: actor_id.clone(),
@@ -440,17 +441,68 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
         routine_window_goal: Some(GoalKind::GoToWork),
     });
     let selection = select_goal_and_trace(DecisionInput {
-        actor_id,
+        actor_id: actor_id.clone(),
         decision_tick: SimTick::new(2),
         candidates: generated.candidates.clone(),
         active_intention: None,
         actor_known_inputs: generated.actor_known_inputs_used.clone(),
     })
     .unwrap();
-    let method = select_phase3a_method(
+    let actor_known_state = build_actor_known_planning_state(
+        &actor_id,
+        &EpistemicProjection::new(manifest_id.clone()),
+        &agent_state,
+        &VisibleLocalPlanningState {
+            current_place_id: "home_tomas".parse().unwrap(),
+            visible_edges: BTreeMap::from([(
+                "home_tomas".parse().unwrap(),
+                BTreeSet::from(["market_square".parse().unwrap()]),
+            )]),
+            visible_closed_doors: BTreeMap::new(),
+            visible_containers_by_place: BTreeMap::new(),
+            visible_food_sources: BTreeSet::from(["food_market_stew".to_string()]),
+        },
+    );
+    let rejected_template = RoutineTemplate::new(
+        RoutineTemplateId::new("routine_a_rejected_eat_workplace").unwrap(),
+        RoutineFamily::EatMeal,
+        vec![RoutineCondition::ActorKnowsWorkplace],
+        vec![RoutineCondition::FoodSourceBelievedAccessible],
+        vec![RoutineStep::WaitUntil {
+            reason: "rejected fixture method".to_string(),
+        }],
+        1,
+        1,
+        vec![0],
+        vec!["missing_workplace".to_string()],
+        vec!["fallback_wait".to_string()],
+        vec!["planner_trace_001".to_string()],
+        None,
+    )
+    .unwrap();
+    let selected_template = RoutineTemplate::new(
+        RoutineTemplateId::new("routine_b_selected_eat_food").unwrap(),
+        RoutineFamily::EatMeal,
+        vec![RoutineCondition::ActorKnowsFoodSource],
+        vec![RoutineCondition::FoodSourceBelievedAccessible],
+        vec![RoutineStep::ConsumeAccessibleFood {
+            action_id: "eat".parse().unwrap(),
+        }],
+        1,
+        1,
+        vec![0],
+        vec!["food_missing".to_string()],
+        vec!["fallback_wait".to_string()],
+        vec!["planner_trace_001".to_string()],
+        Some("food_source".to_string()),
+    )
+    .unwrap();
+    let method = select_method_from_templates(
         &selection.selected_goal,
+        &actor_known_state,
         &generated.actor_known_inputs_used,
         SimTick::new(2),
+        &[selected_template, rejected_template],
     )
     .unwrap();
 
@@ -460,6 +512,12 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
     assert!(selection.trace.hidden_truth_audit_result.actor_known_only);
     assert!(method.trace.selected_method_id.is_some());
     assert!(method.trace.hidden_truth_audit_result.actor_known_only);
+    assert!(!method.trace.rejected_methods.is_empty());
+    assert!(method
+        .trace
+        .beliefs_perceptions_known_places_used
+        .iter()
+        .any(|source| source.contains("actor_known_state")));
 }
 
 #[test]

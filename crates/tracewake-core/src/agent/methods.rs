@@ -1,4 +1,6 @@
-use crate::agent::{GoalKind, RoutineFamily, RoutineStep, RoutineStepProposal, RoutineTemplate};
+use crate::agent::{
+    GoalKind, RoutineCondition, RoutineFamily, RoutineStep, RoutineStepProposal, RoutineTemplate,
+};
 use crate::ids::{RoutineTemplateId, SemanticActionId};
 
 pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
@@ -6,8 +8,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_morning_wake",
             RoutineFamily::MorningWake,
-            vec!["actor_is_resting"],
-            vec!["sleep_state_can_end"],
+            vec![RoutineCondition::ActorKnowsSleepPlace],
+            vec![RoutineCondition::SleepStateCanEnd],
             vec![
                 step("continue_current_step", "continue_routine"),
                 wait("morning reevaluation"),
@@ -19,8 +21,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_eat_meal",
             RoutineFamily::EatMeal,
-            vec!["actor_knows_food_source"],
-            vec!["food_source_believed_accessible"],
+            vec![RoutineCondition::ActorKnowsFoodSource],
+            vec![RoutineCondition::FoodSourceBelievedAccessible],
             vec![
                 step("check_known_container", "check_container"),
                 step("consume_accessible_food", "eat"),
@@ -32,8 +34,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_go_to_work",
             RoutineFamily::GoToWork,
-            vec!["actor_knows_workplace"],
-            vec!["route_planner_available"],
+            vec![RoutineCondition::ActorKnowsWorkplace],
+            vec![RoutineCondition::RoutePlannerAvailable],
             vec![step("move_toward_place", "move")],
             vec!["route_blocked", "workplace_unknown"],
             vec!["fallback_wait_with_reason"],
@@ -42,8 +44,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_work_block",
             RoutineFamily::WorkBlock,
-            vec!["workplace_assignment_active"],
-            vec!["actor_at_workplace"],
+            vec![RoutineCondition::WorkplaceAssignmentActive],
+            vec![RoutineCondition::ActorAtWorkplace],
             vec![step("start_work_block", "work_block")],
             vec!["workplace_closed", "need_blocked"],
             vec!["fallback_wait_with_reason"],
@@ -52,8 +54,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_return_home",
             RoutineFamily::ReturnHome,
-            vec!["actor_knows_home"],
-            vec!["route_planner_available"],
+            vec![RoutineCondition::ActorKnowsHome],
+            vec![RoutineCondition::RoutePlannerAvailable],
             vec![step("move_toward_place", "move")],
             vec!["route_home_blocked"],
             vec!["fallback_wait_with_reason"],
@@ -62,8 +64,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_sleep_night",
             RoutineFamily::SleepNight,
-            vec!["actor_knows_sleep_place"],
-            vec!["sleep_place_believed_accessible"],
+            vec![RoutineCondition::ActorKnowsSleepPlace],
+            vec![RoutineCondition::SleepPlaceBelievedAccessible],
             vec![
                 step("move_toward_place", "move"),
                 step("start_scheduled_sleep", "sleep"),
@@ -75,8 +77,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_find_food",
             RoutineFamily::FindFood,
-            vec!["actor_has_food_search_knowledge"],
-            vec!["search_surface_actor_known"],
+            vec![RoutineCondition::ActorHasFoodSearchKnowledge],
+            vec![RoutineCondition::SearchSurfaceActorKnown],
             vec![
                 step("check_known_container", "check_container"),
                 step("fallback_to_find_food", "eat"),
@@ -88,8 +90,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_continue_current_intention",
             RoutineFamily::ContinueCurrentIntention,
-            vec!["active_intention_present"],
-            vec!["next_step_available"],
+            vec![RoutineCondition::ActiveIntentionPresent],
+            vec![RoutineCondition::NextStepAvailable],
             vec![step("continue_current_step", "continue_routine")],
             vec!["no_current_intention", "step_blocked"],
             vec!["fallback_wait_with_reason"],
@@ -98,8 +100,8 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
         template(
             "routine_wait_idle",
             RoutineFamily::Wait,
-            vec!["reason_available"],
-            vec!["reevaluation_scheduled"],
+            vec![RoutineCondition::ReasonAvailable],
+            vec![RoutineCondition::ReevaluationScheduled],
             vec![wait("bounded idle with reevaluation")],
             vec!["wait_interrupted"],
             vec!["fallback_stuck_diagnostic"],
@@ -154,8 +156,8 @@ fn wait(reason: &str) -> RoutineStep {
 fn template(
     id: &str,
     family: RoutineFamily,
-    applicability_conditions: Vec<&str>,
-    preconditions: Vec<&str>,
+    applicability_conditions: Vec<RoutineCondition>,
+    preconditions: Vec<RoutineCondition>,
     steps: Vec<RoutineStep>,
     failure_modes: Vec<&str>,
     fallback_rules: Vec<&str>,
@@ -164,11 +166,8 @@ fn template(
     RoutineTemplate::new(
         RoutineTemplateId::new(id).unwrap(),
         family,
-        applicability_conditions
-            .into_iter()
-            .map(str::to_string)
-            .collect(),
-        preconditions.into_iter().map(str::to_string).collect(),
+        applicability_conditions,
+        preconditions,
         steps,
         1,
         8,
@@ -219,8 +218,7 @@ mod tests {
 
         assert!(template
             .preconditions
-            .iter()
-            .any(|condition| condition.contains("actor_known")));
+            .contains(&RoutineCondition::SearchSurfaceActorKnown));
         assert!(!template.serialize_for_test().contains("hidden"));
     }
 

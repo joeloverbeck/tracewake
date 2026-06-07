@@ -1,4 +1,6 @@
-use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{
+    NeedChangeCause, NeedKind, NeedState, RoutineCondition, RoutineFamily, RoutineStep,
+};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Belief, Channel, Confidence, HolderKind, PrivacyScope, Proposition, SourceRef, Stance,
@@ -143,8 +145,8 @@ pub struct WorkplaceSchema {
 pub struct RoutineTemplateSchema {
     pub template_id: RoutineTemplateId,
     pub family: RoutineFamily,
-    pub applicability_conditions: Vec<String>,
-    pub preconditions: Vec<String>,
+    pub applicability_conditions: Vec<RoutineCondition>,
+    pub preconditions: Vec<RoutineCondition>,
     pub steps: Vec<RoutineStep>,
     pub min_duration_ticks: u64,
     pub max_duration_ticks: u64,

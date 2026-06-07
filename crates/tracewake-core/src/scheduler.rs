@@ -437,6 +437,19 @@ pub mod no_human {
             "reevaluation_scheduled".to_string(),
             format!("day_window:{}", window.window_id),
         ];
+        let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
+        let actor_known_state = build_actor_known_planning_state(
+            actor_id,
+            &epistemic_projection,
+            agent_state,
+            &VisibleLocalPlanningState {
+                current_place_id: actor.current_place_id.clone(),
+                visible_edges: BTreeMap::new(),
+                visible_closed_doors: BTreeMap::new(),
+                visible_containers_by_place: BTreeMap::new(),
+                visible_food_sources: BTreeSet::new(),
+            },
+        );
         let generated = generate_candidate_goals(&CandidateGenerationInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
@@ -454,24 +467,12 @@ pub mod no_human {
         })?;
         let method = select_phase3a_method(
             &selection.selected_goal,
+            &actor_known_state,
             &actor_known_inputs,
             window.start_tick,
         )
         .ok()?;
         let wait_reason = format!("no_human_day:{}", window.window_id);
-        let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
-        let actor_known_state = build_actor_known_planning_state(
-            actor_id,
-            &epistemic_projection,
-            agent_state,
-            &VisibleLocalPlanningState {
-                current_place_id: actor.current_place_id.clone(),
-                visible_edges: BTreeMap::new(),
-                visible_closed_doors: BTreeMap::new(),
-                visible_containers_by_place: BTreeMap::new(),
-                visible_food_sources: BTreeSet::new(),
-            },
-        );
         let plan = plan_local_actions(
             &actor_known_state,
             &LocalPlanRequest {

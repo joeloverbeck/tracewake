@@ -1164,14 +1164,14 @@ fn validate_phase3a_no_shortcuts(
     for (template_index, template) in fixture.routine_templates.iter().enumerate() {
         for (index, value) in template.applicability_conditions.iter().enumerate() {
             reject_shortcut_text(
-                value,
+                value.stable_id(),
                 format!("routine_templates[{template_index}].applicability_conditions[{index}]"),
                 errors,
             );
         }
         for (index, value) in template.preconditions.iter().enumerate() {
             reject_shortcut_text(
-                value,
+                value.stable_id(),
                 format!("routine_templates[{template_index}].preconditions[{index}]"),
                 errors,
             );
@@ -1541,7 +1541,7 @@ mod tests {
         InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
         SleepPlaceSchema, WorkplaceSchema,
     };
-    use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
+    use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
     use tracewake_core::ids::{
         ActionId, ActorId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
         RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
@@ -1673,8 +1673,8 @@ mod tests {
         RoutineTemplateSchema {
             template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
             family: RoutineFamily::WorkBlock,
-            applicability_conditions: vec!["assigned_workplace_known".to_string()],
-            preconditions: vec!["at_workplace".to_string()],
+            applicability_conditions: vec![RoutineCondition::AssignedWorkplaceKnown],
+            preconditions: vec![RoutineCondition::AtWorkplace],
             steps: vec![RoutineStep::StartWorkBlock {
                 action_id: SemanticActionId::new("work_block.workplace_shop").unwrap(),
             }],

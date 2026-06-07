@@ -21,7 +21,7 @@ mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
 
-use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
+use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
@@ -330,8 +330,8 @@ fn routine_template_schema(
     RoutineTemplateSchema {
         template_id: routine_template(template_id),
         family,
-        applicability_conditions: vec!["fixture_authored_possibility".to_string()],
-        preconditions: vec!["shared_pipeline_preconditions".to_string()],
+        applicability_conditions: vec![RoutineCondition::FixtureAuthoredPossibility],
+        preconditions: vec![RoutineCondition::SharedPipelinePreconditions],
         steps,
         min_duration_ticks: 1,
         max_duration_ticks: 12,

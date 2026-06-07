@@ -36,8 +36,8 @@ pub use planner::{
     VisibleLocalPlanningState, DEFAULT_PLANNER_BUDGET,
 };
 pub use routine::{
-    RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError, RoutineStepProposal,
-    RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
+    RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError,
+    RoutineStepProposal, RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
 };
 pub use trace::{
     BlockerCategory, DecisionOutcome, DecisionTrace, HiddenTruthAudit, RejectedDecisionItem,
