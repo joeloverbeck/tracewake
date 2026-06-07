@@ -208,9 +208,9 @@ pub mod no_human {
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
         build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
-        plan_local_actions, select_goal_and_trace, select_phase3a_method, BlockerCategory,
-        DecisionInput, LiveCandidateGenerationInput, LocalPlanRequest, PlannerGoal,
-        StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
+        plan_local_actions, select_goal_and_trace, select_phase3a_method, ActorKnownFact,
+        BlockerCategory, DecisionInput, LiveCandidateGenerationInput, LocalPlanRequest,
+        PlannerGoal, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
     use crate::epistemics::EpistemicProjection;
     use crate::events::log::EventLog;
@@ -438,13 +438,8 @@ pub mod no_human {
             return Some(proposal);
         }
         registry.get(&ActionId::new("wait").unwrap())?;
-        let actor_known_inputs = vec![
-            "reason_available".to_string(),
-            "reevaluation_scheduled".to_string(),
-            format!("day_window:{}", window.window_id),
-        ];
         let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
-        let actor_known_state = build_actor_known_planning_state(
+        let mut actor_known_state = build_actor_known_planning_state(
             actor_id,
             &epistemic_projection,
             agent_state,
@@ -456,6 +451,37 @@ pub mod no_human {
                 visible_food_sources: BTreeSet::new(),
             },
         );
+        let wait_reason_fact = ActorKnownFact::modeled(
+            "modeled_wait_reason",
+            format!("window_id={}:bounded_idle", window.window_id),
+        );
+        let reevaluation_fact = ActorKnownFact::modeled(
+            "reevaluation_window_known",
+            format!(
+                "window_id={}:{}..{}",
+                window.window_id,
+                window.start_tick.value(),
+                window.end_tick.value()
+            ),
+        );
+        actor_known_state
+            .actor_known_facts
+            .extend([wait_reason_fact, reevaluation_fact]);
+        actor_known_state.actor_known_facts.sort_by(|left, right| {
+            left.stable_id
+                .cmp(&right.stable_id)
+                .then_with(|| left.proof_note().cmp(&right.proof_note()))
+        });
+        actor_known_state.proof_sources = actor_known_state
+            .actor_known_facts
+            .iter()
+            .map(ActorKnownFact::proof_note)
+            .collect();
+        let actor_known_facts = actor_known_state.actor_known_facts.clone();
+        let actor_known_inputs = actor_known_facts
+            .iter()
+            .map(ActorKnownFact::proof_note)
+            .collect::<Vec<_>>();
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
@@ -475,7 +501,7 @@ pub mod no_human {
         let method = select_phase3a_method(
             &selection.selected_goal,
             &actor_known_state,
-            &actor_known_inputs,
+            &actor_known_facts,
             window.start_tick,
         )
         .or_else(|_| {
@@ -490,7 +516,7 @@ pub mod no_human {
                     select_phase3a_method(
                         candidate,
                         &actor_known_state,
-                        &actor_known_inputs,
+                        &actor_known_facts,
                         window.start_tick,
                     )
                 })
@@ -507,7 +533,7 @@ pub mod no_human {
                 ),
                 goal: PlannerGoal::WaitWithReason(wait_reason.clone()),
                 budget: 1,
-                actor_known_inputs,
+                actor_known_facts,
             },
         )
         .ok()?;

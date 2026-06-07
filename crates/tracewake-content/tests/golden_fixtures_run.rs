@@ -11,8 +11,8 @@ use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
-    select_goal_and_trace, select_method_from_templates, CandidateGenerationInput, DecisionInput,
-    GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
+    select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
+    DecisionInput, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
     RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
@@ -521,7 +521,7 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
     let method = select_method_from_templates(
         &selection.selected_goal,
         &actor_known_state,
-        &generated.actor_known_inputs_used,
+        &actor_known_state.actor_known_facts,
         SimTick::new(2),
         &[selected_template, rejected_template],
     )
@@ -539,6 +539,33 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
         .beliefs_perceptions_known_places_used
         .iter()
         .any(|source| source.contains("actor_known_state")));
+
+    let no_source_plan = plan_local_actions(
+        &actor_known_state,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_market_stew".to_string()),
+            budget: 1,
+            actor_known_facts: vec![ActorKnownFact::unproven(
+                "actor_knows_food_source",
+                "planner_trace_001 negative assertion",
+            )],
+        },
+    )
+    .unwrap();
+    assert!(
+        !no_source_plan
+            .trace
+            .hidden_truth_audit_result
+            .actor_known_only
+    );
+    assert!(no_source_plan
+        .trace
+        .hidden_truth_audit_result
+        .notes
+        .contains("unproven:planner_trace_001 negative assertion"));
 }
 
 #[test]
@@ -718,7 +745,7 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
     assert!(actor_known_state
         .proof_sources
         .iter()
-        .any(|source| source == "agent_state:needs_present"));
+        .any(|source| source == "agent_needs_present=agent_state:needs_present"));
 
     let plan_failure = plan_local_actions(
         &actor_known_state,
@@ -728,7 +755,7 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             },
             goal: PlannerGoal::EatKnownFood("food_hidden_pantry".to_string()),
             budget: 1,
-            actor_known_inputs: Vec::new(),
+            actor_known_facts: Vec::new(),
         },
     )
     .unwrap_err();

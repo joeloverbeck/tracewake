@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-001: Typed actor-known planner facts; derive hidden-truth audit
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` planner/HTN facts (`agent/planner.rs`, `agent/htn.rs`, `agent/routine.rs` condition enum, `agent/methods.rs`, `agent/trace.rs`); minimal scheduler caller update to keep the build green; content fixture `planner_trace_001`
@@ -99,3 +99,30 @@ Replace the raw `vec!["reason_available", "reevaluation_scheduled", format!("day
 1. `cargo test -p tracewake-core agent::planner`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Added provenance-bearing `ActorKnownFact` planner inputs and derived planner hidden-truth audits from modeled fact proof sources.
+- Removed the `ReasonAvailable`, `RoutePlannerAvailable`, and `ReevaluationScheduled` self-attestation routine conditions.
+- Replaced scheduler wait fallback self-attestation strings with modeled wait-reason and reevaluation-window facts.
+- Updated HTN condition resolution and Phase 3A routine templates to use modeled facts for wait and route applicability.
+- Extended planner and `planner_trace_001` coverage so unproven planner facts drive `actor_known_only = false` while modeled facts remain actor-known-only.
+
+Deviations from original plan:
+
+- The fixture assertion lives in `crates/tracewake-content/tests/golden_fixtures_run.rs`, which is the executable test for `planner_trace_001`; the fixture data file itself did not need schema changes for this ticket.
+- `trace.rs` did not require a structural edit; the existing `HiddenTruthAudit` shape was sufficient once planner/HTN populated it from provenance.
+
+Verification results:
+
+- `rg -n "reason_available|route_planner_available|day_window:|reevaluation_scheduled" crates/tracewake-core/src/agent crates/tracewake-core/src/scheduler.rs` returned no matches.
+- `rg -n "actor_known_only: true" crates/tracewake-core/src/agent/planner.rs` returned no matches.
+- `cargo test -p tracewake-core agent::planner` passed.
+- `cargo test -p tracewake-core agent::htn` passed.
+- `cargo test --workspace` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo fmt --all --check` passed.
