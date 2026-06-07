@@ -20,6 +20,26 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     if let Some(context_id) = &view.knowledge_context_id {
         lines.push(format!("Knowledge context: {context_id}"));
     }
+    if let Some(status) = &view.phase3a_status {
+        lines.push("Needs:".to_string());
+        if status.need_summaries.is_empty() {
+            lines.push("- none known".to_string());
+        }
+        for need in &status.need_summaries {
+            lines.push(format!("- {}: {}", need.kind, need.band_label));
+        }
+        lines.push(format!(
+            "Intention: {}",
+            status.intention_summary.as_deref().unwrap_or("none")
+        ));
+        lines.push(format!(
+            "Routine: {}",
+            status.routine_summary.as_deref().unwrap_or("none")
+        ));
+        if let Some(interruption) = &status.salient_interruption {
+            lines.push(format!("Interruption: {interruption}"));
+        }
+    }
 
     lines.push("Exits:".to_string());
     for exit in &view.visible_exits {
@@ -202,6 +222,7 @@ mod tests {
                 true,
                 None,
             )],
+            phase3a_status: None,
             last_rejection_summary: None,
             knowledge_context_id: None,
             notebook: None,
@@ -238,6 +259,7 @@ mod tests {
             }],
             local_actors: Vec::new(),
             semantic_actions: Vec::new(),
+            phase3a_status: None,
             last_rejection_summary: None,
             knowledge_context_id: None,
             notebook: None,

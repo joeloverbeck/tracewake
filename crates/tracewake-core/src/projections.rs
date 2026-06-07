@@ -10,13 +10,14 @@ use crate::ids::{
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
-use crate::state::PhysicalState;
+use crate::state::AgentState;
+use crate::state::{ActorBody, PhysicalState};
 use crate::time::SimTick;
 use crate::view_models::{
-    DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NotebookBeliefEntry,
-    NotebookContradictionEntry, NotebookObservationEntry, NotebookView, SemanticActionEntry,
-    ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit, VisibleItem,
-    VisibleItemSource,
+    DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
+    NotebookContradictionEntry, NotebookObservationEntry, NotebookView, Phase3AEmbodiedStatus,
+    SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit,
+    VisibleItem, VisibleItemSource,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -197,6 +198,26 @@ pub fn build_embodied_view_model(
     sim_tick: SimTick,
     last_rejection: Option<&ValidationReport>,
 ) -> Result<EmbodiedViewModel, ProjectionError> {
+    build_embodied_view_model_with_agent_state(
+        state,
+        None,
+        registry,
+        content_manifest_id,
+        viewer_actor_id,
+        sim_tick,
+        last_rejection,
+    )
+}
+
+pub fn build_embodied_view_model_with_agent_state(
+    state: &PhysicalState,
+    agent_state: Option<&AgentState>,
+    registry: &ActionRegistry,
+    content_manifest_id: &ContentManifestId,
+    viewer_actor_id: &ActorId,
+    sim_tick: SimTick,
+    last_rejection: Option<&ValidationReport>,
+) -> Result<EmbodiedViewModel, ProjectionError> {
     let actor = state
         .actors
         .get(viewer_actor_id)
@@ -301,6 +322,12 @@ pub fn build_embodied_view_model(
         &visible_items,
         &carried_item_ids,
     );
+    semantic_actions.extend(phase3a_semantic_actions(
+        state,
+        agent_state,
+        actor,
+        viewer_actor_id,
+    ));
     semantic_actions.sort();
 
     Ok(EmbodiedViewModel {
@@ -322,6 +349,7 @@ pub fn build_embodied_view_model(
         carried_items,
         local_actors,
         semantic_actions,
+        phase3a_status: agent_state.map(|agent_state| phase3a_status(agent_state, viewer_actor_id)),
         last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
         knowledge_context_id: None,
         notebook: None,
@@ -422,6 +450,142 @@ fn source_summary(source: &SourceRef) -> String {
         SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
         SourceRef::Cause(cause) => format!("cause:{cause:?}"),
     }
+}
+
+fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3AEmbodiedStatus {
+    let mut need_summaries = agent_state
+        .needs_by_actor
+        .get(viewer_actor_id)
+        .into_iter()
+        .flat_map(|needs| needs.values())
+        .map(|need| NeedStatusEntry {
+            kind: need.kind().stable_id().to_string(),
+            band_label: need.band().stable_id().to_string(),
+        })
+        .collect::<Vec<_>>();
+    need_summaries.sort();
+
+    let intention = agent_state
+        .active_intention_by_actor
+        .get(viewer_actor_id)
+        .and_then(|intention_id| agent_state.intentions.get(intention_id));
+    let intention_summary = intention.map(|intention| {
+        format!(
+            "active:{}:{}",
+            intention
+                .selected_routine_method
+                .as_ref()
+                .map(|id| id.as_str())
+                .unwrap_or("routine_unknown"),
+            intention.current_step.as_deref().unwrap_or("step_pending")
+        )
+    });
+    let routine_summary = intention
+        .and_then(|intention| intention.selected_routine_method.as_ref())
+        .map(|template_id| format!("routine:{}", template_id.as_str()));
+
+    Phase3AEmbodiedStatus {
+        need_summaries,
+        intention_summary,
+        routine_summary,
+        salient_interruption: None,
+    }
+}
+
+fn phase3a_semantic_actions(
+    state: &PhysicalState,
+    agent_state: Option<&AgentState>,
+    actor: &ActorBody,
+    viewer_actor_id: &ActorId,
+) -> Vec<SemanticActionEntry> {
+    let mut actions = Vec::new();
+    actions.push(SemanticActionEntry::new(
+        SemanticActionId::new("sleep.here").unwrap(),
+        ActionId::new("sleep").unwrap(),
+        vec![actor.current_place_id.to_string()],
+        "Sleep here",
+        true,
+        None,
+    ));
+
+    for food in state.food_supplies.values() {
+        let reachable = match &food.location {
+            Location::AtPlace(place_id) => place_id == &actor.current_place_id,
+            Location::CarriedBy(actor_id) => actor_id == viewer_actor_id,
+            Location::InContainer(container_id) => {
+                state.containers.get(container_id).is_some_and(|container| {
+                    container.location == Location::AtPlace(actor.current_place_id.clone())
+                        && container.is_open
+                })
+            }
+        };
+        if reachable {
+            actions.push(SemanticActionEntry::new(
+                SemanticActionId::new(format!("eat.food.{}", food.food_supply_id.as_str()))
+                    .unwrap(),
+                ActionId::new("eat").unwrap(),
+                vec![food.food_supply_id.to_string()],
+                format!("Eat {}", food.food_supply_id.as_str()),
+                !food.is_empty(),
+                food.is_empty()
+                    .then_some("No servings are available here.".to_string()),
+            ));
+        }
+    }
+
+    for workplace in state.workplaces.values() {
+        let assigned = workplace.assigned_actor_ids.is_empty()
+            || workplace.assigned_actor_ids.contains(viewer_actor_id);
+        if assigned {
+            let at_workplace = workplace.place_id == actor.current_place_id;
+            let enabled = at_workplace && workplace.access_open;
+            let why_disabled = if !at_workplace {
+                Some("You are not at that workplace.".to_string())
+            } else if !workplace.access_open {
+                Some("That workplace is not available.".to_string())
+            } else {
+                None
+            };
+            actions.push(SemanticActionEntry::new(
+                SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
+                    .unwrap(),
+                ActionId::new("work_block").unwrap(),
+                vec![workplace.workplace_id.to_string()],
+                format!("Work at {}", workplace.workplace_id.as_str()),
+                enabled,
+                why_disabled,
+            ));
+        }
+    }
+
+    if let Some((intention_id, intention)) = agent_state.and_then(|agent_state| {
+        agent_state
+            .active_intention_by_actor
+            .get(viewer_actor_id)
+            .and_then(|intention_id| {
+                agent_state
+                    .intentions
+                    .get(intention_id)
+                    .map(|intention| (intention_id, intention))
+            })
+    }) {
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new(format!("continue.routine.{}", intention_id.as_str())).unwrap(),
+            ActionId::new("continue_routine").unwrap(),
+            vec![
+                intention_id.to_string(),
+                intention
+                    .current_step
+                    .clone()
+                    .unwrap_or_else(|| "wait".to_string()),
+            ],
+            "Continue routine",
+            true,
+            None,
+        ));
+    }
+
+    actions
 }
 
 pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
@@ -658,21 +822,41 @@ pub fn proposal_from_semantic_action_entry(
             .parameters
             .insert("ticks".to_string(), "1".to_string());
     }
+    if entry.action_id.as_str() == "continue_routine" {
+        if let Some(intention_id) = entry.target_ids.first() {
+            proposal
+                .parameters
+                .insert("active_intention_id".to_string(), intention_id.clone());
+        }
+        if let Some(next_action_id) = entry.target_ids.get(1) {
+            proposal
+                .parameters
+                .insert("next_action_id".to_string(), next_action_id.clone());
+        }
+        proposal
+            .parameters
+            .insert("intention_status".to_string(), "active".to_string());
+    }
     proposal
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent::{Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState};
     use crate::epistemics::{
         Belief, Channel, Confidence, Contradiction, ContradictionKind, HolderKind, Observation,
         ObservationSubject, ObservationTarget, PrivacyScope, Proposition, SourceRef, Stance,
     };
     use crate::events::PayloadField;
-    use crate::ids::{ContainerId, DoorId, ProcessId};
+    use crate::ids::{
+        CandidateGoalId, ContainerId, DecisionTraceId, DoorId, FoodSupplyId, IntentionId,
+        ProcessId, RoutineTemplateId, WorkplaceId,
+    };
     use crate::state::{
         ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
     };
+    use crate::state::{AgentState, FoodSupplyState, WorkplaceState};
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
@@ -1091,6 +1275,119 @@ mod tests {
             view.notebook.unwrap().source_bound_beliefs[0].acquired_tick,
             3
         );
+    }
+
+    #[test]
+    fn view_models_embodied_phase3a_status_is_viewer_scoped_and_actor_known() {
+        let mut state = state();
+        state
+            .actors
+            .get_mut(&actor_id("actor_mara"))
+            .unwrap()
+            .current_place_id = place_id("back_room");
+        state.food_supplies.insert(
+            FoodSupplyId::new("food_soup_pot").unwrap(),
+            FoodSupplyState::new(
+                FoodSupplyId::new("food_soup_pot").unwrap(),
+                Location::AtPlace(place_id("shop_front")),
+                1,
+                200,
+            ),
+        );
+        state.food_supplies.insert(
+            FoodSupplyId::new("food_hidden_back_room").unwrap(),
+            FoodSupplyState::new(
+                FoodSupplyId::new("food_hidden_back_room").unwrap(),
+                Location::AtPlace(place_id("back_room")),
+                1,
+                200,
+            ),
+        );
+        let mut workplace = WorkplaceState::new(
+            WorkplaceId::new("workplace_tomas").unwrap(),
+            place_id("shop_front"),
+            "repair_output",
+        );
+        workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));
+        state
+            .workplaces
+            .insert(WorkplaceId::new("workplace_tomas").unwrap(), workplace);
+
+        let mut agent_state = AgentState::default();
+        agent_state
+            .needs_by_actor
+            .entry(actor_id("actor_tomas"))
+            .or_default()
+            .insert(
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 620, NeedChangeCause::FixtureInitial),
+            );
+        agent_state
+            .needs_by_actor
+            .entry(actor_id("actor_mara"))
+            .or_default()
+            .insert(
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 900, NeedChangeCause::FixtureInitial),
+            );
+        let intention_id = IntentionId::new("intention_tomas_work").unwrap();
+        agent_state
+            .active_intention_by_actor
+            .insert(actor_id("actor_tomas"), intention_id.clone());
+        agent_state.intentions.insert(
+            intention_id.clone(),
+            Intention::adopt(
+                intention_id,
+                actor_id("actor_tomas"),
+                IntentionSource::RoutineDuty,
+                CandidateGoalId::new("goal_tomas_work").unwrap(),
+                Some(RoutineTemplateId::new("routine_tomas_work").unwrap()),
+                Some("work_block".to_string()),
+                8,
+                SimTick::new(1),
+                DecisionTraceId::new("trace_tomas_work").unwrap(),
+            ),
+        );
+
+        let view = build_embodied_view_model_with_agent_state(
+            &state,
+            Some(&agent_state),
+            &registry(),
+            &content_manifest_id(),
+            &actor_id("actor_tomas"),
+            SimTick::new(2),
+            None,
+        )
+        .unwrap();
+
+        let status = view.phase3a_status.as_ref().unwrap();
+        assert_eq!(status.need_summaries.len(), 1);
+        assert_eq!(status.need_summaries[0].kind, "hunger");
+        assert!(status
+            .intention_summary
+            .as_deref()
+            .unwrap()
+            .contains("routine_tomas_work"));
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "eat.food.food_soup_pot"));
+        assert!(!view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "eat.food.food_hidden_back_room"));
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "work.block.workplace_tomas"));
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str()
+                == "continue.routine.intention_tomas_work"));
+        let rendered = format!("{view:?}");
+        assert!(!rendered.contains("actor_mara"));
+        assert!(!rendered.contains("900"));
     }
 
     #[test]

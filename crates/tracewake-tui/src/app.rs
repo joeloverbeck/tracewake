@@ -19,14 +19,14 @@ use tracewake_core::ids::{
     ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model_with_notebook,
+    build_debug_event_log_view, build_embodied_view_model_with_agent_state, build_notebook_view,
     proposal_from_semantic_action_entry, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::{
     DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId,
 };
-use tracewake_core::state::PhysicalState;
+use tracewake_core::state::{AgentState, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
@@ -65,6 +65,7 @@ pub struct TuiApp {
     registry: ActionRegistry,
     initial_state: PhysicalState,
     state: PhysicalState,
+    agent_state: AgentState,
     log: EventLog,
     controller_bindings: ControllerBindings,
     controller_id: ControllerId,
@@ -94,6 +95,10 @@ impl TuiApp {
         registry.register_phase1_take_place();
         registry.register_phase1_inspect_wait();
         registry.register_phase2a_epistemics();
+        registry.register_phase3a_sleep();
+        registry.register_phase3a_eat();
+        registry.register_phase3a_work();
+        registry.register_phase3a_continue_routine();
         let mut epistemic_projection =
             EpistemicProjection::new(loaded.manifest.manifest_id.clone());
         for seed in &loaded.fixture.initial_beliefs {
@@ -103,6 +108,7 @@ impl TuiApp {
             registry,
             initial_state: loaded.canonical_world.clone(),
             state: loaded.canonical_world,
+            agent_state: loaded.canonical_agent_state,
             log: EventLog::new(),
             controller_bindings: ControllerBindings::new(),
             controller_id: ControllerId::new("controller_human").unwrap(),
@@ -137,16 +143,27 @@ impl TuiApp {
             .bound_actor_id
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
-        build_embodied_view_model_with_notebook(
+        let mut view = build_embodied_view_model_with_agent_state(
             &self.state,
+            Some(&self.agent_state),
             &self.registry,
             &self.content_manifest_id,
             actor_id,
             self.scheduler.current_tick,
             self.last_rejection.as_ref(),
-            &self.epistemic_projection,
         )
-        .map_err(Into::into)
+        .map_err(AppError::from)?;
+        let context = tracewake_core::epistemics::KnowledgeContext::embodied(
+            actor_id.clone(),
+            self.scheduler.current_tick,
+        );
+        view.knowledge_context_id = Some(format!(
+            "knowledge.{}.{}",
+            actor_id.as_str(),
+            self.scheduler.current_tick.value()
+        ));
+        view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
+        Ok(view)
     }
 
     pub fn render_current_view(&self) -> Result<String, AppError> {

@@ -166,6 +166,7 @@ mod tests {
                     None,
                 ),
             ],
+            phase3a_status: None,
             last_rejection_summary: None,
             knowledge_context_id: None,
             notebook: None,

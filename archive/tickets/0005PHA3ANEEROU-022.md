@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-022: Embodied view-model — needs/intention/routine summary, affordances, why-not
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends the embodied view model and TUI to expose Phase 3A needs/intention/routine status, sleep/eat/work/wait/continue affordances, and why-not, without hidden-truth leakage.
@@ -78,3 +78,20 @@ Extend the TUI (`crates/tracewake-tui/src/render.rs`, `app.rs`, `input.rs`, `run
 1. `cargo test -p tracewake-tui --test embodied_flow`
 2. `cargo test -p tracewake-core view_models`
 3. TUI + view-model scope is the correct embodied boundary; the full no-leak transcript proof is the capstone (025).
+
+## Outcome
+
+Completed on 2026-06-07.
+
+- Added optional Phase 3A embodied status to the core view model: actor-scoped need bands, current intention summary, routine summary, and interruption slot.
+- Added an agent-state-aware embodied projection used by the TUI while preserving the existing projection API.
+- Added actor-known sleep/eat/work/continue affordances, including why-not for empty food or unavailable workplace, and mapped `continue_routine` semantic entries back through shared proposal parameters.
+- Updated TUI rendering to display needs/intention/routine status and registered Phase 3A actions in the app.
+- Added no-leak/status coverage in core and TUI tests.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-tui --test embodied_flow`
+3. `cargo test -p tracewake-core view_models`
+4. `cargo test -p tracewake-tui`

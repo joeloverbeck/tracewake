@@ -27,10 +27,25 @@ pub struct EmbodiedViewModel {
     pub carried_items: Vec<VisibleItem>,
     pub local_actors: Vec<VisibleActor>,
     pub semantic_actions: Vec<SemanticActionEntry>,
+    pub phase3a_status: Option<Phase3AEmbodiedStatus>,
     pub last_rejection_summary: Option<String>,
     pub knowledge_context_id: Option<String>,
     pub notebook: Option<NotebookView>,
     pub debug_available: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Phase3AEmbodiedStatus {
+    pub need_summaries: Vec<NeedStatusEntry>,
+    pub intention_summary: Option<String>,
+    pub routine_summary: Option<String>,
+    pub salient_interruption: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NeedStatusEntry {
+    pub kind: String,
+    pub band_label: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
