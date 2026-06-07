@@ -83,6 +83,8 @@ Confirm eat reduces hunger, sleep reduces fatigue, work increases fatigue/hunger
 
 ## Outcome
 
+Completed: 2026-06-07
+
 Added `generate_candidate_goals_from_agent_state`, a live `AgentState` entry
 point that derives candidate needs from the actor's current event-applied need
 state instead of requiring callers to pass an ad hoc need vector. The no-human

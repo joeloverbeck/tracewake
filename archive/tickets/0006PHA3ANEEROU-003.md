@@ -85,6 +85,8 @@ Add a resolver that, given the actor-known planning state (0006PHA3ANEEROU-002),
 
 ## Outcome
 
+Completed: 2026-06-07
+
 Implemented typed `RoutineCondition` values across core routine templates and
 content fixture schema. HTN method selection now resolves applicability and
 preconditions through an actor-known condition resolver that returns satisfied,

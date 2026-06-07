@@ -85,6 +85,8 @@ Advance routine step/status from the continuation's resulting events via the uni
 
 ## Outcome
 
+Completed: 2026-06-07
+
 Implemented the spec-allowed marker-discipline path for `continue_routine`:
 `ContinueRoutineProposed` is now explicitly marked
 `behavioral_progress=false`, and no metrics/acceptance path treats it as

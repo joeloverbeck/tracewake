@@ -92,6 +92,8 @@ Ensure possession attach/detach/switch (controller binding) emits no agent-cogni
 
 ## Outcome
 
+Completed: 2026-06-07
+
 Routine assignments now instantiate durable live cognition during content load:
 `FixtureSchema::to_agent_state` creates deterministic active `Intention` and
 `RoutineExecution` records for each routine assignment, with IDs derived from
