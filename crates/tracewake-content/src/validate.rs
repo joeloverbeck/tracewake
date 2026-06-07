@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry};
+use tracewake_core::agent::RoutineStepProposal;
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
 use tracewake_core::events::InitialBeliefSourceKind;
-use tracewake_core::ids::{FoodSupplyId, PlaceId, WorkplaceId};
+use tracewake_core::ids::{ActionId, FoodSupplyId, PlaceId, WorkplaceId};
 use tracewake_core::location::Location;
 use tracewake_core::state::PhysicalState;
 
@@ -148,9 +149,11 @@ fn validate_fixture_errors(
     validate_topology(fixture, &mut errors);
     validate_state(fixture, &mut errors);
     validate_action_registry_parity(fixture, registry, &mut errors);
+    validate_routine_rules(fixture, registry, &mut errors);
     validate_semantic_ids(fixture, &mut errors);
     validate_no_player(fixture, &mut errors);
     validate_no_script(fixture, &mut errors);
+    validate_phase3a_no_shortcuts(fixture, &mut errors);
     validate_epistemic_seeds(fixture, registry, &mut errors);
     validate_determinism(fixture, &mut errors);
     validate_fixture_contract(fixture, &mut errors);
@@ -922,6 +925,64 @@ fn validate_action_registry_parity(
     }
 }
 
+fn validate_routine_rules(
+    fixture: &FixtureSchema,
+    registry: &ActionRegistry,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+        let has_explicit_diagnostic = template.steps.iter().any(|step| {
+            matches!(
+                step.proposed(),
+                RoutineStepProposal::Diagnostic(diagnostic) if !diagnostic.is_empty()
+            )
+        });
+        if template.fallback_rules.is_empty() && !has_explicit_diagnostic {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("routine_templates[{template_index}].fallback_rules"),
+                "missing_fallback_or_diagnostic",
+                "routine templates must declare fallback rules or an explicit diagnostic failure",
+            ));
+        }
+
+        for (step_index, step) in template.steps.iter().enumerate() {
+            let RoutineStepProposal::Action(semantic_action_id) = step.proposed() else {
+                continue;
+            };
+            let Some(action_id) = semantic_action_base(semantic_action_id.as_str()) else {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::ActionRegistryParity,
+                    format!("routine_templates[{template_index}].steps[{step_index}]"),
+                    "unknown_action",
+                    format!(
+                        "routine step action {} has no stable base action",
+                        semantic_action_id.as_str()
+                    ),
+                ));
+                continue;
+            };
+            if registry.get(&action_id).is_none() {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::ActionRegistryParity,
+                    format!("routine_templates[{template_index}].steps[{step_index}]"),
+                    "unknown_action",
+                    format!(
+                        "routine step action {} maps to unregistered action {}",
+                        semantic_action_id.as_str(),
+                        action_id.as_str()
+                    ),
+                ));
+            }
+        }
+    }
+}
+
+fn semantic_action_base(value: &str) -> Option<ActionId> {
+    let base = value.split('.').next().unwrap_or(value);
+    ActionId::new(base).ok()
+}
+
 fn supports_target_kind(
     effect: ActionEffect,
     fixture: &FixtureSchema,
@@ -1079,6 +1140,84 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
                 ),
             ));
         }
+    }
+}
+
+fn validate_phase3a_no_shortcuts(
+    fixture: &FixtureSchema,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
+        reject_shortcut_text(
+            &sleep_place.sleep_place_id,
+            format!("sleep_places[{index}].sleep_place_id"),
+            errors,
+        );
+    }
+    for (index, workplace) in fixture.workplaces.iter().enumerate() {
+        reject_shortcut_text(
+            &workplace.output_tag,
+            format!("workplaces[{index}].output_tag"),
+            errors,
+        );
+    }
+    for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+        for (index, value) in template.applicability_conditions.iter().enumerate() {
+            reject_shortcut_text(
+                value,
+                format!("routine_templates[{template_index}].applicability_conditions[{index}]"),
+                errors,
+            );
+        }
+        for (index, value) in template.preconditions.iter().enumerate() {
+            reject_shortcut_text(
+                value,
+                format!("routine_templates[{template_index}].preconditions[{index}]"),
+                errors,
+            );
+        }
+        for (index, value) in template.failure_modes.iter().enumerate() {
+            reject_shortcut_text(
+                value,
+                format!("routine_templates[{template_index}].failure_modes[{index}]"),
+                errors,
+            );
+        }
+        for (index, value) in template.fallback_rules.iter().enumerate() {
+            reject_shortcut_text(
+                value,
+                format!("routine_templates[{template_index}].fallback_rules[{index}]"),
+                errors,
+            );
+        }
+        for (index, value) in template.debug_labels.iter().enumerate() {
+            reject_shortcut_text(
+                value,
+                format!("routine_templates[{template_index}].debug_labels[{index}]"),
+                errors,
+            );
+        }
+        if let Some(value) = &template.reservable_resource {
+            reject_shortcut_text(
+                value,
+                format!("routine_templates[{template_index}].reservable_resource"),
+                errors,
+            );
+        }
+    }
+}
+
+fn reject_shortcut_text(value: &str, path: String, errors: &mut Vec<ContentValidationError>) {
+    if value
+        .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+        .any(is_phase3a_shortcut_marker)
+    {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::NoScript,
+            path,
+            "authored_shortcut_effect",
+            format!("Phase 3A shortcut marker {value} is forbidden"),
+        ));
     }
 }
 
@@ -1349,6 +1488,18 @@ fn is_script_key(value: &str) -> bool {
             | "on_tick"
             | "force_event"
             | "complete_objective"
+            | "appear_at"
+            | "force_location_at_tick"
+            | "scripted_absence"
+            | "teleport_actor"
+            | "move_item_to"
+            | "set_need"
+            | "set_hunger"
+            | "set_fatigue"
+            | "hunger_refill_without_food"
+            | "instant_sleep_refill"
+            | "work_always_succeeds"
+            | "hidden_true_item_location"
             | "story_beat"
             | "director"
             | "culprit"
@@ -1364,21 +1515,49 @@ fn is_script_key(value: &str) -> bool {
     )
 }
 
+fn is_phase3a_shortcut_marker(value: &str) -> bool {
+    matches!(
+        value,
+        "appear_at"
+            | "force_location_at_tick"
+            | "scripted_absence"
+            | "teleport_actor"
+            | "move_item_to"
+            | "set_need"
+            | "set_hunger"
+            | "set_fatigue"
+            | "hunger_refill_without_food"
+            | "instant_sleep_refill"
+            | "work_always_succeeds"
+            | "hidden_true_item_location"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::schema::{
-        ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, ItemSchema, PlaceSchema,
+        ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FoodSupplySchema,
+        InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
+        SleepPlaceSchema, WorkplaceSchema,
     };
+    use tracewake_core::agent::{NeedKind, RoutineFamily, RoutineStep};
     use tracewake_core::ids::{
-        ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+        ActionId, ActorId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
+        RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
     };
+    use tracewake_core::time::SimTick;
 
     fn registry() -> ActionRegistry {
         let mut registry = ActionRegistry::new();
         registry.register_phase1_movement_open_close();
         registry.register_phase1_take_place();
         registry.register_phase1_inspect_wait();
+        registry.register_phase2a_epistemics();
+        registry.register_phase3a_sleep();
+        registry.register_phase3a_eat();
+        registry.register_phase3a_work();
+        registry.register_phase3a_continue_routine();
         registry
     }
 
@@ -1441,6 +1620,71 @@ mod tests {
             routine_templates: Vec::new(),
             routine_assignments: Vec::new(),
             day_windows: Vec::new(),
+        }
+    }
+
+    fn phase3a_fixture() -> FixtureSchema {
+        let mut fixture = fixture();
+        fixture.places.push(PlaceSchema {
+            place_id: PlaceId::new("workshop").unwrap(),
+            display_label: "Workshop".to_string(),
+            adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
+        });
+        fixture.initial_needs.push(InitialNeedSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            kind: NeedKind::Hunger,
+            value: 350,
+        });
+        fixture.sleep_places.push(SleepPlaceSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            place_id: PlaceId::new("shop_front").unwrap(),
+            sleep_place_id: "bed_tomas".to_string(),
+        });
+        fixture.food_supplies.push(FoodSupplySchema {
+            food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
+            location: Location::AtPlace(PlaceId::new("shop_front").unwrap()),
+            servings: 2,
+            hunger_reduction_per_serving: 100,
+        });
+        fixture.workplaces.push(WorkplaceSchema {
+            workplace_id: WorkplaceId::new("workplace_shop").unwrap(),
+            place_id: PlaceId::new("workshop").unwrap(),
+            assigned_actor_ids: vec![ActorId::new("actor_tomas").unwrap()],
+            work_duration_ticks: 4,
+            fatigue_delta_per_tick: 8,
+            hunger_delta_per_tick: 4,
+            max_fatigue_to_start: 800,
+            max_hunger_to_start: 850,
+            access_open: true,
+            output_tag: "service_completed_placeholder".to_string(),
+        });
+        fixture.routine_templates.push(valid_routine_template());
+        fixture.routine_assignments.push(RoutineAssignmentSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+            start_tick: SimTick::new(10),
+            end_tick: SimTick::new(20),
+        });
+        fixture.canonicalize();
+        fixture
+    }
+
+    fn valid_routine_template() -> RoutineTemplateSchema {
+        RoutineTemplateSchema {
+            template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+            family: RoutineFamily::WorkBlock,
+            applicability_conditions: vec!["assigned_workplace_known".to_string()],
+            preconditions: vec!["at_workplace".to_string()],
+            steps: vec![RoutineStep::StartWorkBlock {
+                action_id: SemanticActionId::new("work_block.workplace_shop").unwrap(),
+            }],
+            min_duration_ticks: 4,
+            max_duration_ticks: 6,
+            interruption_points: vec![0],
+            failure_modes: vec!["access".to_string()],
+            fallback_rules: vec!["wait".to_string()],
+            debug_labels: vec!["phase3a_schema_sample".to_string()],
+            reservable_resource: Some("body".to_string()),
         }
     }
 
@@ -1545,5 +1789,60 @@ mod tests {
             .errors
             .iter()
             .any(|error| error.code == "unknown_action"));
+    }
+
+    #[test]
+    fn phase3a_valid_routine_content_is_accepted() {
+        validate_fixture(&phase3a_fixture(), &registry()).unwrap();
+    }
+
+    #[test]
+    fn phase3a_routine_structure_failures_are_rejected() {
+        let mut fixture = phase3a_fixture();
+        fixture.routine_templates[0].failure_modes.clear();
+        fixture.routine_templates[0].min_duration_ticks = 0;
+        fixture.routine_templates[0].steps = vec![RoutineStep::StartWorkBlock {
+            action_id: SemanticActionId::new("unknown_action.workplace_shop").unwrap(),
+        }];
+        fixture.routine_assignments[0].template_id =
+            RoutineTemplateId::new("routine_missing").unwrap();
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+        let codes = report
+            .errors
+            .iter()
+            .map(|error| error.code)
+            .collect::<BTreeSet<_>>();
+        assert!(codes.contains("invalid_routine_template"));
+        assert!(codes.contains("unknown_action"));
+        assert!(codes.contains("bad_reference"));
+    }
+
+    #[test]
+    fn phase3a_routine_shortcut_effects_are_rejected() {
+        let mut fixture = phase3a_fixture();
+        fixture.routine_templates[0]
+            .fallback_rules
+            .push("hunger_refill_without_food".to_string());
+        fixture.routine_templates[0]
+            .debug_labels
+            .push("instant_sleep_refill".to_string());
+        fixture.workplaces[0].output_tag = "work_always_succeeds".to_string();
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+        for marker in [
+            "hunger_refill_without_food",
+            "instant_sleep_refill",
+            "work_always_succeeds",
+        ] {
+            assert!(
+                report
+                    .errors
+                    .iter()
+                    .any(|error| error.code == "authored_shortcut_effect"
+                        && error.message.contains(marker)),
+                "missing shortcut rejection for {marker}: {report:?}"
+            );
+        }
     }
 }

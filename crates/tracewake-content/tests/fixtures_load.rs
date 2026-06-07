@@ -248,7 +248,7 @@ fn fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected() {
 
 #[test]
 fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
-    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|\nteleport_actor|actor_tomas|workshop";
+    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|\nunknown_phase3a_section|actor_tomas|workshop";
     let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
 
     assert!(report

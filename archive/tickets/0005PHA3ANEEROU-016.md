@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-016: Phase 3A content validation rules and forbidden teleport/refill fields
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds Phase 3A fail-closed validation (routine preconditions/failure-modes/interruption/no-teleport) and extends the forbidden-content list with schedule-teleport and refill shortcut fields.
@@ -75,3 +75,21 @@ Add §16.4 routine validation in `validate.rs`: actor/routine reference existenc
 1. `cargo test -p tracewake-content forbidden_content`
 2. `cargo test -p tracewake-content validate`
 3. Content-crate scope is correct; full fixture validation under the no-human day is exercised by tickets 021/025.
+
+## Outcome
+
+Completed 2026-06-07.
+
+Extended the content validator's forbidden script-key gate with Phase 3A schedule-teleport and shortcut-effect markers, including `appear_at`, `force_location_at_tick`, `scripted_absence`, `teleport_actor`, `move_item_to`, `set_need`, `hunger_refill_without_food`, `instant_sleep_refill`, `work_always_succeeds`, and `hidden_true_item_location`.
+
+Added parsed Phase 3A routine validation: concrete routine step semantic action IDs must resolve to a registered base action, routines must declare fallback rules or an explicit diagnostic failure, and authored string fields in sleep places, workplaces, and routine templates reject shortcut markers as blocking `NoScript` errors. Existing routine shape validation from ticket 015 still catches missing failure modes, non-positive duration, invalid interruption points, and dangling routine references.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-content forbidden_content`
+3. `cargo test -p tracewake-content validate`
+4. `cargo test -p tracewake-content`
+5. `git diff --check`
+
+Deviations: none. The fixture-level unknown-field test now uses a genuinely unknown key because `teleport_actor` is intentionally a known forbidden script key after this ticket.
