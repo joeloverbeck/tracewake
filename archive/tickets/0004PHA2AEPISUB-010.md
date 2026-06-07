@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-010: Debug epistemics view models
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds debug epistemics view models to `tracewake-core` (`view_models.rs`).
@@ -73,3 +73,21 @@ Build these views from a debug-mode `KnowledgeContext`; expose the `DEBUG NON-DI
 1. `cargo test -p tracewake-core view_models::`
 2. `cargo test -p tracewake-core`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added `DEBUG NON-DIEGETIC: Epistemics` marker and debug-only epistemics, beliefs, observations, and truth/belief-mismatch view models.
+- Added `DebugViewModel` variants for the new debug epistemic surfaces.
+- Added unit tests proving debug epistemics views carry the marker, list all holders/records, support focused holder/observer views, and show truth and belief side by side.
+
+Deviations from original plan:
+- None. This ticket is limited to `view_models.rs`; TUI rendering remains ticket 011.
+
+Verification results:
+- `cargo test -p tracewake-core view_models::`
+- `cargo test -p tracewake-core`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`
