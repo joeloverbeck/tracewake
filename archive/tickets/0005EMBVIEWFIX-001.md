@@ -1,6 +1,6 @@
 # 0005EMBVIEWFIX-001: Separate carried inventory from place-reachable items in the embodied view
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`location.rs` `visible_locality`, `view_models.rs` `EmbodiedViewModel`, `projections.rs` `build_embodied_view_model`), `tracewake-tui` (`render.rs` embodied renderer). No event/schema/replay changes.
@@ -103,3 +103,26 @@ In `render_embodied_view`, add an `Inventory:` section after `Items:` that lists
 
 1. `cargo test -p tracewake-core location:: && cargo test -p tracewake-core projections:: && cargo test -p tracewake-tui`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-07
+
+The embodied locality projection now keeps place-reachable items separate from
+actor-carried items. `EmbodiedViewModel` carries a dedicated `carried_items`
+inventory surface, and the TUI renderer prints it under `Inventory:` instead of
+leaking possessions through `Items:`.
+
+The implementation followed the planned view-model-only path. No event schema,
+replay, action validation, or source-label behavior changed; source-accurate
+container take IDs remain scoped to `0005EMBVIEWFIX-002`.
+
+Verification:
+
+- `cargo test -p tracewake-core location::`
+- `cargo test -p tracewake-core projections::`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

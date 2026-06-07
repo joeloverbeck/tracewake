@@ -67,7 +67,7 @@ pub fn visible_locality(
     let current_place_id = actor.current_place_id.clone();
     let mut connected_doors = BTreeSet::new();
     let mut visible_containers = BTreeSet::new();
-    let mut visible_items = actor.carried_item_ids.clone();
+    let mut visible_items = BTreeSet::new();
     let carried_items = actor.carried_item_ids.clone();
     let mut co_located_actors = BTreeSet::new();
 
@@ -94,9 +94,6 @@ pub fn visible_locality(
     for (item_id, item) in items {
         match &item.location {
             Location::AtPlace(place_id) if place_id == &current_place_id => {
-                visible_items.insert(item_id.clone());
-            }
-            Location::CarriedBy(actor_id) if actor_id == &actor.actor_id => {
                 visible_items.insert(item_id.clone());
             }
             _ => {}
@@ -249,5 +246,38 @@ mod tests {
         assert!(!visible.visible_items.contains(&item_id("ledger_01")));
         assert!(visible.co_located_actors.contains(&actor_id("actor_mara")));
         assert!(!visible.co_located_actors.contains(&actor_id("actor_ren")));
+    }
+
+    #[test]
+    fn visibility_keeps_carried_items_out_of_place_reachable_items() {
+        let mut tomas = ActorBody::new(actor_id("actor_tomas"), place_id("shop_front"));
+        tomas.carried_item_ids.insert(item_id("coin_stack_01"));
+        let mut actors = BTreeMap::new();
+        actors.insert(tomas.actor_id.clone(), tomas.clone());
+
+        let doors = BTreeMap::new();
+        let containers = BTreeMap::new();
+        let mut items = BTreeMap::new();
+        items.insert(
+            item_id("coin_stack_01"),
+            ItemState::new(
+                item_id("coin_stack_01"),
+                Location::CarriedBy(actor_id("actor_tomas")),
+            ),
+        );
+        items.insert(
+            item_id("loose_coin_01"),
+            ItemState::new(
+                item_id("loose_coin_01"),
+                Location::AtPlace(place_id("shop_front")),
+            ),
+        );
+
+        let visible = visible_locality(&tomas, &actors, &doors, &containers, &items);
+
+        assert!(visible.visible_items.contains(&item_id("loose_coin_01")));
+        assert!(!visible.visible_items.contains(&item_id("coin_stack_01")));
+        assert!(visible.carried_items.contains(&item_id("coin_stack_01")));
+        assert!(!visible.carried_items.contains(&item_id("loose_coin_01")));
     }
 }

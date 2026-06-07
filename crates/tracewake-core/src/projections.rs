@@ -87,6 +87,21 @@ pub fn build_embodied_view_model(
         .collect::<Vec<_>>();
     visible_items.sort();
 
+    let mut carried_items = visible
+        .carried_items
+        .iter()
+        .filter_map(|item_id| state.items.get(item_id))
+        .map(|item| VisibleItem {
+            item_id: item.item_id.clone(),
+            portable: item.portable,
+        })
+        .collect::<Vec<_>>();
+    carried_items.sort();
+    let carried_item_ids = carried_items
+        .iter()
+        .map(|item| item.item_id.clone())
+        .collect::<Vec<_>>();
+
     let mut local_actors = visible
         .co_located_actors
         .iter()
@@ -100,7 +115,7 @@ pub fn build_embodied_view_model(
         &visible_doors,
         &visible_containers,
         &visible_items,
-        &visible.carried_items.into_iter().collect::<Vec<_>>(),
+        &carried_item_ids,
     );
     semantic_actions.sort();
 
@@ -120,6 +135,7 @@ pub fn build_embodied_view_model(
         visible_doors,
         visible_containers,
         visible_items,
+        carried_items,
         local_actors,
         semantic_actions,
         last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
@@ -458,6 +474,52 @@ mod tests {
             .semantic_actions
             .iter()
             .all(|entry| entry.semantic_action_id.as_str() != "0"));
+    }
+
+    #[test]
+    fn embodied_projection_separates_carried_items_from_reachable_items() {
+        let mut state = state();
+        state
+            .actors
+            .get_mut(&actor_id("actor_tomas"))
+            .unwrap()
+            .carried_item_ids
+            .insert(item_id("coin_stack_01"));
+        state
+            .items
+            .get_mut(&item_id("coin_stack_01"))
+            .unwrap()
+            .location = Location::CarriedBy(actor_id("actor_tomas"));
+        state
+            .containers
+            .get_mut(&container_id("strongbox_tomas"))
+            .unwrap()
+            .contents
+            .remove(&item_id("coin_stack_01"));
+
+        let view =
+            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::new(1), None)
+                .unwrap();
+
+        assert!(!view
+            .visible_items
+            .iter()
+            .any(|item| item.item_id == item_id("coin_stack_01")));
+        assert!(view
+            .carried_items
+            .iter()
+            .any(|item| item.item_id == item_id("coin_stack_01")));
+        assert!(
+            !view
+                .semantic_actions
+                .iter()
+                .any(|entry| entry.semantic_action_id.as_str()
+                    == "take.item.coin_stack_01.from.place")
+        );
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "place.item.coin_stack_01.at.place"));
     }
 
     fn projection_with_missing_coin_belief() -> EpistemicProjection {

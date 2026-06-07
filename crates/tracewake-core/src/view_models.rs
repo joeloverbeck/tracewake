@@ -24,6 +24,7 @@ pub struct EmbodiedViewModel {
     pub visible_doors: Vec<VisibleDoor>,
     pub visible_containers: Vec<VisibleContainer>,
     pub visible_items: Vec<VisibleItem>,
+    pub carried_items: Vec<VisibleItem>,
     pub local_actors: Vec<VisibleActor>,
     pub semantic_actions: Vec<SemanticActionEntry>,
     pub last_rejection_summary: Option<String>,

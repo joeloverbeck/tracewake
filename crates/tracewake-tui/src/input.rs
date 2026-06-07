@@ -146,6 +146,7 @@ mod tests {
             visible_doors: Vec::new(),
             visible_containers: Vec::new(),
             visible_items: Vec::new(),
+            carried_items: Vec::new(),
             local_actors: Vec::new(),
             semantic_actions: vec![
                 SemanticActionEntry::new(
