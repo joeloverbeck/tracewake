@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-002: Canonical actor-known planner-input boundary
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` agent planner input construction (`agent/planner.rs`, `agent/generation.rs`, `scheduler.rs`); hidden-truth fixture enforcement
@@ -82,3 +82,24 @@ Replace the scheduler's hand-assembled inputs with the builder. The hidden-truth
 1. `cargo test -p tracewake-content --test golden_fixtures_run`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Added canonical `build_actor_known_planning_state` and `VisibleLocalPlanningState` in the planner boundary.
+- Routed no-human scheduler planner input through the canonical builder instead of hand-constructing `ActorKnownPlanningState` from physical state.
+- Added proof-source notes to planner hidden-truth audit output.
+- Updated the hidden-truth fixture test to use the real builder and assert hidden food is absent from actor-known planner state.
+
+Deviations from original plan:
+
+- The current scheduler has no live epistemic projection parameter, so its no-human wait path supplies an empty `EpistemicProjection` plus visible-local current-place input. This preserves the existing wait-only behavior while removing the hand-built planner-state shortcut.
+
+Verification:
+
+- `cargo test -p tracewake-content --test golden_fixtures_run`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`

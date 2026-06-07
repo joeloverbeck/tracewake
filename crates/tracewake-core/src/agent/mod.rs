@@ -31,8 +31,9 @@ pub use need::{
     NeedThresholdCrossing, ThresholdDirection,
 };
 pub use planner::{
-    plan_local_actions, ActorKnownPlanningState, LocalPlan, LocalPlanFailure, LocalPlanRequest,
-    LocalPlanTrace, PlannedProposal, PlannerGoal, DEFAULT_PLANNER_BUDGET,
+    build_actor_known_planning_state, plan_local_actions, ActorKnownPlanningState, LocalPlan,
+    LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
+    VisibleLocalPlanningState, DEFAULT_PLANNER_BUDGET,
 };
 pub use routine::{
     RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError, RoutineStepProposal,

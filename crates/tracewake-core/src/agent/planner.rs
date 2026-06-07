@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::agent::{BlockerCategory, HiddenTruthAudit, RoutineStep};
+use crate::epistemics::EpistemicProjection;
 use crate::ids::{ActionId, ActorId, ContainerId, PlaceId};
+use crate::state::AgentState;
 
 pub const DEFAULT_PLANNER_BUDGET: usize = 8;
 
@@ -21,6 +23,60 @@ pub struct ActorKnownPlanningState {
     pub known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
     pub known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
     pub known_food_sources: BTreeSet<String>,
+    pub proof_sources: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VisibleLocalPlanningState {
+    pub current_place_id: PlaceId,
+    pub visible_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+    pub visible_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
+    pub visible_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
+    pub visible_food_sources: BTreeSet<String>,
+}
+
+pub fn build_actor_known_planning_state(
+    actor_id: &ActorId,
+    epistemic_projection: &EpistemicProjection,
+    agent_state: &AgentState,
+    visible_local: &VisibleLocalPlanningState,
+) -> ActorKnownPlanningState {
+    let mut proof_sources = vec![format!(
+        "visible_local:current_place:{}",
+        visible_local.current_place_id.as_str()
+    )];
+    if agent_state.needs_by_actor.contains_key(actor_id) {
+        proof_sources.push("agent_state:needs_present".to_string());
+    }
+    let actor_belief_count = epistemic_projection
+        .beliefs_by_holder
+        .get(actor_id)
+        .map_or(0, BTreeSet::len);
+    proof_sources.push(format!(
+        "epistemic_projection:actor_beliefs:{actor_belief_count}"
+    ));
+    for (from, tos) in &visible_local.visible_edges {
+        for to in tos {
+            proof_sources.push(format!(
+                "visible_local:edge:{}->{}",
+                from.as_str(),
+                to.as_str()
+            ));
+        }
+    }
+    for food_source in &visible_local.visible_food_sources {
+        proof_sources.push(format!("visible_local:food:{food_source}"));
+    }
+
+    ActorKnownPlanningState {
+        actor_id: actor_id.clone(),
+        current_place_id: visible_local.current_place_id.clone(),
+        known_edges: visible_local.visible_edges.clone(),
+        known_closed_doors: visible_local.visible_closed_doors.clone(),
+        known_containers_by_place: visible_local.visible_containers_by_place.clone(),
+        known_food_sources: visible_local.visible_food_sources.clone(),
+        proof_sources,
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -298,7 +354,10 @@ fn trace(
         blocker,
         hidden_truth_audit_result: HiddenTruthAudit {
             actor_known_only: true,
-            notes: "planner consumed only ActorKnownPlanningState and LocalPlanRequest".to_string(),
+            notes: format!(
+                "planner consumed ActorKnownPlanningState proof_sources={}",
+                state.proof_sources.join(",")
+            ),
         },
     }
 }
@@ -333,6 +392,7 @@ mod tests {
             )]),
             known_containers_by_place: BTreeMap::new(),
             known_food_sources: BTreeSet::from(["food_soup_pot".to_string()]),
+            proof_sources: vec!["test:known_state".to_string()],
         }
     }
 

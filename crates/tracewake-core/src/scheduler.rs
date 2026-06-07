@@ -201,16 +201,18 @@ impl DeterministicScheduler {
 }
 
 pub mod no_human {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
-        generate_candidate_goals, plan_local_actions, select_goal_and_trace, select_phase3a_method,
-        ActorKnownPlanningState, BlockerCategory, CandidateGenerationInput, DecisionInput,
-        LocalPlanRequest, PlannerGoal, StuckDiagnostic, StuckResultingStatus,
+        build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
+        select_goal_and_trace, select_phase3a_method, BlockerCategory, CandidateGenerationInput,
+        DecisionInput, LocalPlanRequest, PlannerGoal, StuckDiagnostic, StuckResultingStatus,
+        VisibleLocalPlanningState,
     };
+    use crate::epistemics::EpistemicProjection;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
@@ -328,8 +330,14 @@ pub mod no_human {
                 if !state.actors.contains_key(actor_id) {
                     continue;
                 }
-                let Some(proposal) = build_agent_wait_proposal(state, actor_id, window, registry)
-                else {
+                let Some(proposal) = build_agent_wait_proposal(
+                    state,
+                    agent_state,
+                    actor_id,
+                    window,
+                    registry,
+                    &content_manifest_id,
+                ) else {
                     continue;
                 };
                 let ordering_key = OrderingKey::new(
@@ -416,9 +424,11 @@ pub mod no_human {
 
     fn build_agent_wait_proposal(
         state: &PhysicalState,
+        agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
         registry: &ActionRegistry,
+        content_manifest_id: &ContentManifestId,
     ) -> Option<Proposal> {
         registry.get(&ActionId::new("wait").unwrap())?;
         let actor = state.actors.get(actor_id)?;
@@ -449,15 +459,21 @@ pub mod no_human {
         )
         .ok()?;
         let wait_reason = format!("no_human_day:{}", window.window_id);
-        let plan = plan_local_actions(
-            &ActorKnownPlanningState {
-                actor_id: actor_id.clone(),
+        let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
+        let actor_known_state = build_actor_known_planning_state(
+            actor_id,
+            &epistemic_projection,
+            agent_state,
+            &VisibleLocalPlanningState {
                 current_place_id: actor.current_place_id.clone(),
-                known_edges: BTreeMap::new(),
-                known_closed_doors: BTreeMap::new(),
-                known_containers_by_place: BTreeMap::new(),
-                known_food_sources: Default::default(),
+                visible_edges: BTreeMap::new(),
+                visible_closed_doors: BTreeMap::new(),
+                visible_containers_by_place: BTreeMap::new(),
+                visible_food_sources: BTreeSet::new(),
             },
+        );
+        let plan = plan_local_actions(
+            &actor_known_state,
             &LocalPlanRequest {
                 routine_step: method.template.steps.first().cloned().unwrap_or(
                     crate::agent::RoutineStep::WaitUntil {

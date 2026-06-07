@@ -10,10 +10,10 @@ use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
 use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
-    generate_candidate_goals, plan_local_actions, select_goal_and_trace, select_phase3a_method,
-    ActorKnownPlanningState, CandidateGenerationInput, DecisionInput, GoalKind, Intention,
-    IntentionSource, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
-    RoutineExecution, RoutineStep,
+    build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
+    select_goal_and_trace, select_phase3a_method, CandidateGenerationInput, DecisionInput,
+    GoalKind, Intention, IntentionSource, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState,
+    PlannerGoal, RoutineExecution, RoutineStep, VisibleLocalPlanningState,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
@@ -644,15 +644,29 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
         .iter()
         .any(|input| input.contains("food_hidden_pantry")));
 
-    let plan_failure = plan_local_actions(
-        &ActorKnownPlanningState {
-            actor_id,
+    let epistemic_projection = EpistemicProjection::new(manifest_id.clone());
+    let actor_known_state = build_actor_known_planning_state(
+        &actor_id,
+        &epistemic_projection,
+        &agent_state,
+        &VisibleLocalPlanningState {
             current_place_id: "home_mara".parse().unwrap(),
-            known_edges: BTreeMap::new(),
-            known_closed_doors: BTreeMap::new(),
-            known_containers_by_place: BTreeMap::new(),
-            known_food_sources: BTreeSet::new(),
+            visible_edges: BTreeMap::new(),
+            visible_closed_doors: BTreeMap::new(),
+            visible_containers_by_place: BTreeMap::new(),
+            visible_food_sources: BTreeSet::new(),
         },
+    );
+    assert!(!actor_known_state
+        .known_food_sources
+        .contains("food_hidden_pantry"));
+    assert!(actor_known_state
+        .proof_sources
+        .iter()
+        .any(|source| source == "agent_state:needs_present"));
+
+    let plan_failure = plan_local_actions(
+        &actor_known_state,
         &LocalPlanRequest {
             routine_step: RoutineStep::ConsumeAccessibleFood {
                 action_id: "eat".parse().unwrap(),
