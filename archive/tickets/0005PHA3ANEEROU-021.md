@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-021: Canonical no_human_day_001 fixture
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the canonical `no_human_day_001` fixture (roster, homes, food, work, routes, routines, needs, day windows, expected roster + metrics envelope) and registers it.
@@ -76,3 +76,23 @@ Declare the module in `crates/tracewake-content/src/fixtures/mod.rs` and add to 
 1. `cargo test -p tracewake-content golden_fixtures_run`
 2. `cargo test -p tracewake-content`
 3. Content-crate load/validate scope is correct here; the end-to-end no-human run + replay/metrics gate is the capstone (025), which runs this fixture through the core runner.
+
+## Outcome
+
+Completed on 2026-06-07.
+
+- Added and registered canonical `no_human_day_001` with actors `actor_anna`, `actor_elena`, `actor_mara`, and `actor_tomas`.
+- Authored homes, sleep place, consumable and empty food supplies, work access/open and blocked workplaces, routes, routine assignments, initial needs, and day windows.
+- Recorded expected roster and metrics-envelope anchors in the fixture contract.
+- Added a golden-run assertion that:
+  - runs the no-human day path without controller binding and confirms every roster actor advances,
+  - verifies no emitted event references player/controller facts,
+  - exercises meal completion/miss, sleep completion, movement ancestry, work completion, access-blocked work failure, routine event emission, and a need-threshold crossing through logged events,
+  - checks `no_human_day_metrics` has nonzero canonical activity and zero player-conditioned event rate.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-content --test golden_fixtures_run`
+3. `cargo test -p tracewake-content golden_fixtures_run` (passes, but this filter selects 0 tests; the explicit `--test` command above runs the assertions)
+4. `cargo test -p tracewake-content`

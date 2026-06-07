@@ -6,6 +6,7 @@ mod food_unavailable_replan_001;
 mod knowledge_blocker_accuse_001;
 mod no_hidden_truth_planning_001;
 mod no_human_advance_001;
+mod no_human_day_001;
 mod no_human_epistemic_check_001;
 mod ordinary_workday_001;
 mod planner_trace_001;
@@ -49,6 +50,7 @@ pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use knowledge_blocker_accuse_001::knowledge_blocker_accuse_001;
 pub use no_hidden_truth_planning_001::no_hidden_truth_planning_001;
 pub use no_human_advance_001::no_human_advance_001;
+pub use no_human_day_001::no_human_day_001;
 pub use no_human_epistemic_check_001::no_human_epistemic_check_001;
 pub use ordinary_workday_001::ordinary_workday_001;
 pub use planner_trace_001::planner_trace_001;
@@ -111,6 +113,7 @@ pub fn all() -> Vec<GoldenFixture> {
         routine_no_teleport_001(),
         possession_does_not_reset_intention_001(),
         no_hidden_truth_planning_001(),
+        no_human_day_001(),
     ]
 }
 

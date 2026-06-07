@@ -24,6 +24,10 @@ use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DecisionTraceId, FoodSupplyId,
     IntentionId, RoutineExecutionId,
 };
+use tracewake_core::projections::no_human_day_metrics;
+use tracewake_core::scheduler::no_human::{
+    default_day_windows, run_no_human_day, NoHumanDayConfig,
+};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
@@ -588,6 +592,225 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
     run(&mut state, &mut log, &manifest_id, &eat, 0);
     assert!(has_event(&log, EventKind::EatFailed));
     assert!(!has_event(&log, EventKind::FoodConsumed));
+}
+
+#[test]
+fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
+    let golden = fixtures::no_human_day_001();
+    let expected_roster = [
+        "actor_anna".parse().unwrap(),
+        "actor_elena".parse().unwrap(),
+        "actor_mara".parse().unwrap(),
+        "actor_tomas".parse().unwrap(),
+    ];
+    assert!(golden.contract.expected_events_or_reports.iter().any(
+        |entry| entry.contains("expected_roster=actor_anna,actor_elena,actor_mara,actor_tomas")
+    ));
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
+
+    let (mut state, manifest_id) = load(golden);
+    let mut log = EventLog::new();
+    let report = run_no_human_day(
+        &mut state,
+        &mut log,
+        &registry(),
+        manifest_id.clone(),
+        NoHumanDayConfig {
+            actor_ids: expected_roster.to_vec(),
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    assert_eq!(report.actor_decision_order, expected_roster);
+    assert!(report.ordinary_pipeline_events > 0);
+    let actors_with_waits = log
+        .events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::ActorWaited)
+        .filter_map(|event| event.actor_id.clone())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(actors_with_waits, expected_roster.into_iter().collect());
+
+    let eat_tomas = proposal(
+        "proposal_day_tomas_eat",
+        "actor_tomas",
+        "eat",
+        &["food_stew_home_tomas"],
+        33,
+    );
+    run(&mut state, &mut log, &manifest_id, &eat_tomas, 100);
+    let eat_mara = proposal(
+        "proposal_day_mara_empty_food",
+        "actor_mara",
+        "eat",
+        &["food_empty_pantry_mara"],
+        34,
+    );
+    run(&mut state, &mut log, &manifest_id, &eat_mara, 101);
+
+    let mut sleep_elena = proposal(
+        "proposal_day_elena_sleep",
+        "actor_elena",
+        "sleep",
+        &["home_elena"],
+        35,
+    );
+    sleep_elena
+        .parameters
+        .insert("duration_ticks".to_string(), "4".to_string());
+    sleep_elena
+        .parameters
+        .insert("sleep_place_id".to_string(), "home_elena".to_string());
+    let sleep_events = run(&mut state, &mut log, &manifest_id, &sleep_elena, 102);
+    let sleep_started = sleep_events
+        .iter()
+        .find(|event| event.event_type == EventKind::SleepStarted)
+        .unwrap()
+        .clone();
+    append_and_apply(
+        &mut state,
+        &mut log,
+        build_sleep_completion_events(
+            &sleep_started,
+            &ordering_key(&sleep_elena, 103),
+            &manifest_id,
+            SimTick::new(39),
+        ),
+    );
+
+    let move_tomas_commons = proposal(
+        "proposal_day_tomas_move_commons",
+        "actor_tomas",
+        "move",
+        &["commons"],
+        40,
+    );
+    run(&mut state, &mut log, &manifest_id, &move_tomas_commons, 104);
+    let move_tomas_workshop = proposal(
+        "proposal_day_tomas_move_workshop",
+        "actor_tomas",
+        "move",
+        &["workshop_tomas"],
+        41,
+    );
+    run(
+        &mut state,
+        &mut log,
+        &manifest_id,
+        &move_tomas_workshop,
+        105,
+    );
+    let work_tomas = proposal(
+        "proposal_day_tomas_work",
+        "actor_tomas",
+        "work_block",
+        &["workplace_tomas"],
+        42,
+    );
+    let work_events = run(&mut state, &mut log, &manifest_id, &work_tomas, 106);
+    let work_started = work_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .unwrap()
+        .clone();
+    append_and_apply(
+        &mut state,
+        &mut log,
+        build_work_completion_events(
+            &work_started,
+            &ordering_key(&work_tomas, 107),
+            &manifest_id,
+            SimTick::new(46),
+        ),
+    );
+
+    let work_anna = proposal(
+        "proposal_day_anna_blocked_work",
+        "actor_anna",
+        "work_block",
+        &["workplace_anna_closed"],
+        47,
+    );
+    run(&mut state, &mut log, &manifest_id, &work_anna, 108);
+
+    let mut continue_tomas = proposal(
+        "proposal_day_tomas_continue",
+        "actor_tomas",
+        "continue_routine",
+        &[],
+        48,
+    );
+    continue_tomas.parameters.insert(
+        "active_intention_id".to_string(),
+        "intention_day_tomas_work".to_string(),
+    );
+    continue_tomas
+        .parameters
+        .insert("next_action_id".to_string(), "work_block".to_string());
+    continue_tomas
+        .parameters
+        .insert("intention_status".to_string(), "active".to_string());
+    run(&mut state, &mut log, &manifest_id, &continue_tomas, 109);
+
+    let mut wait_anna = proposal(
+        "proposal_day_anna_wait_crossing",
+        "actor_anna",
+        "wait",
+        &[],
+        49,
+    );
+    wait_anna
+        .parameters
+        .insert("ticks".to_string(), "100".to_string());
+    wait_anna
+        .parameters
+        .insert("current_hunger".to_string(), "740".to_string());
+    wait_anna.parameters.insert(
+        "reason".to_string(),
+        "canonical metrics crossing".to_string(),
+    );
+    run(&mut state, &mut log, &manifest_id, &wait_anna, 110);
+
+    assert!(has_event(&log, EventKind::NoHumanDayStarted));
+    assert!(has_event(&log, EventKind::NoHumanDayCompleted));
+    assert!(has_event(&log, EventKind::FoodConsumed));
+    assert!(has_event(&log, EventKind::EatFailed));
+    assert!(has_event(&log, EventKind::SleepCompleted));
+    assert!(has_event(&log, EventKind::ActorMoved));
+    assert!(has_event(&log, EventKind::WorkBlockCompleted));
+    assert!(has_event(&log, EventKind::WorkBlockFailed));
+    assert!(has_event(&log, EventKind::ContinueRoutineProposed));
+    assert!(has_event(&log, EventKind::NeedThresholdCrossed));
+
+    let blocked = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockFailed)
+        .unwrap();
+    assert!(blocked
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_kind" && field.value == "access"));
+    let rendered = format!("{:?}", log.events()).to_ascii_lowercase();
+    assert!(!rendered.contains("player"));
+    assert!(!rendered.contains("controller"));
+
+    let metrics = no_human_day_metrics(&log);
+    assert_eq!(metrics.projection_version, "no_human_day_metrics_v1");
+    assert!(metrics.events_per_day > 0);
+    assert!(metrics.routine_event_count > 0);
+    assert!(metrics.meals_completed > 0);
+    assert!(metrics.meals_missed > 0);
+    assert!(metrics.sleep_completed > 0);
+    assert!(metrics.work_blocks_completed > 0);
+    assert!(metrics.work_blocks_failed > 0);
+    assert!(metrics.need_threshold_crossings > 0);
+    assert_eq!(metrics.player_conditioned_event_count, 0);
+    assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
 }
 
 #[test]
