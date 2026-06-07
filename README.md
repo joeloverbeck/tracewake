@@ -101,8 +101,9 @@ cargo run -p tracewake-tui -- --list
 ```
 
 If no actor id is supplied, the TUI binds the first authored actor in the fixture. No-human
-fixtures such as `no_human_day_001` can still be inspected after launch through the
-non-diegetic debug panels, including `debug no-human-day` and `debug planner <actor_id>`.
+fixtures such as `no_human_day_001` can be advanced after launch with
+`run no-human-day`, then inspected through the non-diegetic debug panels, including
+`debug no-human-day` and `debug planner <actor_id>`.
 
 This is intentionally plain text. It is the operating surface for the current kernel,
 epistemic, and ordinary-life slices, not a graphical client.
@@ -118,6 +119,7 @@ do <semantic_action_id>      submit a stable semantic action ID shown in the act
 notebook                     show the current actor's source-backed notebook projection
 wait                         wait one tick through the ordinary action pipeline
 w                            alias for wait
+run no-human-day             advance the loaded fixture through the no-human day scheduler
 debug log                    show the non-diegetic event log panel
 debug bindings               show non-diegetic controller bindings
 debug item <item_id>         show a non-diegetic item-location report
@@ -165,7 +167,7 @@ Routines are authored as defeasible templates and assignments in content fixture
 can create durable intentions, select routine methods, emit concrete action proposals,
 wait with a modeled reason, or record typed stuck diagnostics when progress is blocked.
 The canonical boring-day fixture is `no_human_day_001`; debug with
-`debug no-human-day`, `debug planner actor_mara`, `debug stuck`, and
+`run no-human-day`, then `debug no-human-day`, `debug planner actor_mara`, `debug stuck`, and
 `debug actor actor_tomas` to inspect the no-human metrics, Mara's food replan trace, and
 stuck actor rows without feeding that truth back into embodied knowledge.
 

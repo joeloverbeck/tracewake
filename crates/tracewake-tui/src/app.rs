@@ -25,6 +25,9 @@ use tracewake_core::projections::{
     proposal_from_semantic_action_entry, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
+use tracewake_core::scheduler::no_human::{
+    default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
+};
 use tracewake_core::scheduler::{
     DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId,
 };
@@ -239,6 +242,24 @@ impl TuiApp {
 
     pub fn event_count(&self) -> usize {
         self.log.events().len()
+    }
+
+    pub fn run_no_human_day(&mut self) -> NoHumanDayReport {
+        let windows = default_day_windows(self.scheduler.current_tick);
+        let report = run_no_human_day(
+            &mut self.state,
+            &mut self.agent_state,
+            &mut self.log,
+            &self.registry,
+            self.content_manifest_id.clone(),
+            NoHumanDayConfig {
+                actor_ids: Vec::new(),
+                windows,
+            },
+        );
+        self.scheduler.current_tick = report.final_tick;
+        self.last_rejection = None;
+        report
     }
 
     pub fn physical_checksum(&self) -> PhysicalChecksum {
@@ -517,5 +538,18 @@ mod tests {
         let rendered = app.render_current_view().unwrap();
         assert!(rendered.contains("Why-not:"));
         assert!(rendered.contains(&result.report.actor_visible_summary));
+    }
+
+    #[test]
+    fn app_runs_no_human_day_into_real_log_metrics() {
+        let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+        let before_events = app.event_count();
+
+        let report = app.run_no_human_day();
+
+        assert!(report.ordinary_pipeline_events > 0);
+        assert!(app.event_count() > before_events);
+        assert!(app.render_debug_no_human_day_panel().contains("events="));
+        assert!(app.render_debug_no_human_day_panel().contains("canonical="));
     }
 }

@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-008: Debug/metrics/TUI visibility and run-no-human-day command
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` debug reports/metrics (`debug_reports.rs`); `tracewake-tui` panels/command surface (`app.rs`, `input.rs`, `run.rs`, `render.rs`, `debug_panels.rs`); README runbook
@@ -85,3 +85,37 @@ Embodied Phase 3A status panel shows actor-known needs/intention/routine without
 1. `cargo test -p tracewake-tui --test tui_acceptance`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+The TUI now exposes `run no-human-day` as a first-class command distinct from
+`debug no-human-day`. The command calls the core no-human scheduler through
+`TuiApp::run_no_human_day`, mutates only the app's live simulation state/log via
+the shared core scheduler, advances the app tick to the report final tick, clears
+stale rejection state, and then renders a run summary plus the real event-log
+derived no-human metrics panel and current embodied view.
+
+The command parser, command-loop help, and README runbook now document the new
+advancing command. `debug no-human-day` remains an inspection-only metrics panel,
+and the existing Phase 3A debug panels continue to render non-diegetic data from
+the live `AgentState` and event log.
+
+Acceptance coverage now includes a TUI/view-model test that runs an actual
+no-human day on `no_human_day_001`, verifies ordinary scheduler activity reached
+the log, inspects embodied needs/intention status without leaking hidden pantry
+truth, checks post-run no-human/planner/stuck debug panels, and proves debug
+inspection after the run does not mutate event count or physical checksum. The
+same test also drives the stdin command loop with `run no-human-day`.
+
+Verified with:
+
+1. `cargo test -p tracewake-tui --test tui_acceptance`
+2. `cargo test -p tracewake-tui parser_recognizes_help_view_and_wait_commands`
+3. `cargo test -p tracewake-tui help_lists_minimum_command_vocabulary`
+4. `cargo test -p tracewake-tui app_runs_no_human_day_into_real_log_metrics`
+5. `cargo test --workspace`
+6. `cargo fmt --all --check`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`
