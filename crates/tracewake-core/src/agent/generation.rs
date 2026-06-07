@@ -1,6 +1,7 @@
 use crate::agent::{
-    ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority, Intention,
-    NeedBand, NeedKind, NeedPressure, NeedState, NeedThresholdCrossing, ThresholdDirection,
+    ActorKnownFact, ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind,
+    GoalPriority, Intention, NeedBand, NeedKind, NeedPressure, NeedState, NeedThresholdCrossing,
+    ThresholdDirection,
 };
 use crate::ids::{ActorId, CandidateGoalId, DecisionTraceId};
 use crate::state::AgentState;
@@ -12,7 +13,7 @@ pub struct CandidateGenerationInput {
     pub decision_tick: SimTick,
     pub needs: Vec<NeedState>,
     pub active_intention: Option<Intention>,
-    pub actor_known_inputs: Vec<String>,
+    pub actor_known_facts: Vec<ActorKnownFact>,
     pub routine_window_goal: Option<GoalKind>,
 }
 
@@ -28,7 +29,7 @@ pub struct LiveCandidateGenerationInput<'a> {
     pub decision_tick: SimTick,
     pub agent_state: &'a AgentState,
     pub active_intention: Option<Intention>,
-    pub actor_known_inputs: Vec<String>,
+    pub actor_known_facts: Vec<ActorKnownFact>,
     pub routine_window_goal: Option<GoalKind>,
 }
 
@@ -47,7 +48,7 @@ pub fn generate_candidate_goals_from_agent_state(
         decision_tick: input.decision_tick,
         needs,
         active_intention: input.active_intention.clone(),
-        actor_known_inputs: input.actor_known_inputs.clone(),
+        actor_known_facts: input.actor_known_facts.clone(),
         routine_window_goal: input.routine_window_goal,
     })
 }
@@ -74,7 +75,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
             GoalKind::ContinueCurrentIntention,
             GoalPriority::ActiveIntentionContinuation,
             "active intention remains durable",
-            input.actor_known_inputs.clone(),
+            actor_known_fact_notes(&input.actor_known_facts),
             ApplicabilityResult::Applicable,
             None,
         ));
@@ -104,7 +105,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
                 GoalKind::SleepOrRest,
                 GoalPriority::UrgentHungerOrFatigue,
                 "fatigue is urgent",
-                input.actor_known_inputs.clone(),
+                actor_known_fact_notes(&input.actor_known_facts),
                 ApplicabilityResult::Applicable,
                 None,
             )),
@@ -115,7 +116,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
                 GoalKind::SleepOrRest,
                 GoalPriority::SevereFatigue,
                 "fatigue is severe",
-                input.actor_known_inputs.clone(),
+                actor_known_fact_notes(&input.actor_known_facts),
                 ApplicabilityResult::Applicable,
                 None,
             )),
@@ -126,7 +127,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
                 GoalKind::LeaveUnsafePlace,
                 GoalPriority::SevereSafety,
                 "safety is severe",
-                input.actor_known_inputs.clone(),
+                actor_known_fact_notes(&input.actor_known_facts),
                 ApplicabilityResult::Applicable,
                 None,
             )),
@@ -142,7 +143,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
             goal_kind,
             GoalPriority::RoutineWindowDuty,
             "routine window is active",
-            input.actor_known_inputs.clone(),
+            actor_known_fact_notes(&input.actor_known_facts),
             ApplicabilityResult::Applicable,
             None,
         ));
@@ -155,7 +156,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
         GoalKind::IdleWithReason,
         GoalPriority::IdleWithReason,
         "no higher priority candidate selected",
-        input.actor_known_inputs.clone(),
+        actor_known_fact_notes(&input.actor_known_facts),
         ApplicabilityResult::Applicable,
         None,
     ));
@@ -164,7 +165,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
     CandidateGenerationOutput {
         candidates,
         active_needs,
-        actor_known_inputs_used: input.actor_known_inputs.clone(),
+        actor_known_inputs_used: actor_known_fact_notes(&input.actor_known_facts),
     }
 }
 
@@ -174,9 +175,9 @@ fn hunger_candidate(
     reason: &str,
 ) -> CandidateGoal {
     let knows_food = input
-        .actor_known_inputs
+        .actor_known_facts
         .iter()
-        .any(|input| input.starts_with("known_food:"));
+        .any(|fact| fact.stable_id == "actor_knows_food_source" && fact.is_actor_known());
     candidate(
         input,
         if knows_food { "eat" } else { "find_food" },
@@ -188,10 +189,17 @@ fn hunger_candidate(
         },
         priority,
         reason,
-        input.actor_known_inputs.clone(),
+        actor_known_fact_notes(&input.actor_known_facts),
         ApplicabilityResult::Applicable,
         None,
     )
+}
+
+fn actor_known_fact_notes(actor_known_facts: &[ActorKnownFact]) -> Vec<String> {
+    actor_known_facts
+        .iter()
+        .map(ActorKnownFact::proof_note)
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -279,6 +287,10 @@ mod tests {
         )
     }
 
+    fn known_food_fact() -> ActorKnownFact {
+        ActorKnownFact::modeled("actor_knows_food_source", "test:visible_food")
+    }
+
     #[test]
     fn rising_hunger_adds_eat_candidate_without_erasing_active_intention() {
         let output = generate_candidate_goals(&CandidateGenerationInput {
@@ -290,7 +302,7 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: Some(active_intention()),
-            actor_known_inputs: vec!["known_food:food_soup_pot".to_string()],
+            actor_known_facts: vec![known_food_fact()],
             routine_window_goal: None,
         });
 
@@ -315,7 +327,10 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: None,
-            actor_known_inputs: vec!["known_sleep_place:bed_tomas".to_string()],
+            actor_known_facts: vec![ActorKnownFact::modeled(
+                "actor_knows_sleep_place",
+                "test:visible_sleep_place",
+            )],
             routine_window_goal: Some(GoalKind::GoToWork),
         };
 
@@ -336,7 +351,10 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: None,
-            actor_known_inputs: vec!["known_place:kitchen".to_string()],
+            actor_known_facts: vec![ActorKnownFact::modeled(
+                "actor_current_place_visible",
+                "test:visible_place",
+            )],
             routine_window_goal: None,
         });
 
@@ -348,6 +366,38 @@ mod tests {
             .candidates
             .iter()
             .any(|candidate| candidate.goal_kind == GoalKind::FindFood));
+        assert!(!output
+            .candidates
+            .iter()
+            .any(|candidate| candidate.goal_kind == GoalKind::Eat));
+    }
+
+    #[test]
+    fn unproven_food_fact_does_not_make_eat_applicable() {
+        let output = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            needs: vec![NeedState::initial(
+                NeedKind::Hunger,
+                800,
+                NeedChangeCause::TickDelta,
+            )],
+            active_intention: None,
+            actor_known_facts: vec![ActorKnownFact::unproven(
+                "actor_knows_food_source",
+                "caller supplied no modeled source",
+            )],
+            routine_window_goal: None,
+        });
+
+        assert!(output
+            .candidates
+            .iter()
+            .any(|candidate| candidate.goal_kind == GoalKind::FindFood));
+        assert!(!output
+            .candidates
+            .iter()
+            .any(|candidate| candidate.goal_kind == GoalKind::Eat));
     }
 
     #[test]
@@ -366,7 +416,7 @@ mod tests {
             decision_tick: SimTick::new(20),
             agent_state: &agent_state,
             active_intention: None,
-            actor_known_inputs: vec!["known_food:food_soup_pot".to_string()],
+            actor_known_facts: vec![known_food_fact()],
             routine_window_goal: None,
         });
 

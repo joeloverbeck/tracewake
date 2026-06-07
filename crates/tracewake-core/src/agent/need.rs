@@ -57,6 +57,16 @@ impl NeedBand {
             _ => Self::Severe,
         }
     }
+
+    fn parse(value: &str) -> Result<Self, NeedParseError> {
+        match value {
+            "comfortable" => Ok(Self::Comfortable),
+            "rising" => Ok(Self::Rising),
+            "urgent" => Ok(Self::Urgent),
+            "severe" => Ok(Self::Severe),
+            _ => Err(NeedParseError::InvalidNeedBand),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -72,6 +82,14 @@ impl ThresholdDirection {
             ThresholdDirection::DecreasingPressure => "decreasing_pressure",
         }
     }
+
+    fn parse(value: &str) -> Result<Self, NeedParseError> {
+        match value {
+            "increasing_pressure" => Ok(Self::IncreasingPressure),
+            "decreasing_pressure" => Ok(Self::DecreasingPressure),
+            _ => Err(NeedParseError::InvalidThresholdDirection),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -79,6 +97,34 @@ pub struct NeedThresholdCrossing {
     pub from: NeedBand,
     pub to: NeedBand,
     pub direction: ThresholdDirection,
+}
+
+impl NeedThresholdCrossing {
+    pub fn stable_id(&self) -> String {
+        format!(
+            "{}>{}:{}",
+            self.from.stable_id(),
+            self.to.stable_id(),
+            self.direction.stable_id()
+        )
+    }
+
+    fn parse(value: &str) -> Result<Option<Self>, NeedParseError> {
+        if value == "none" {
+            return Ok(None);
+        }
+        let (bands, direction) = value
+            .split_once(':')
+            .ok_or(NeedParseError::InvalidThresholdCrossing)?;
+        let (from, to) = bands
+            .split_once('>')
+            .ok_or(NeedParseError::InvalidThresholdCrossing)?;
+        Ok(Some(Self {
+            from: NeedBand::parse(from)?,
+            to: NeedBand::parse(to)?,
+            direction: ThresholdDirection::parse(direction)?,
+        }))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -132,6 +178,7 @@ pub struct NeedState {
     kind: NeedKind,
     value: u16,
     last_change_cause: NeedChangeCause,
+    last_threshold_crossing: Option<NeedThresholdCrossing>,
 }
 
 impl NeedState {
@@ -140,6 +187,7 @@ impl NeedState {
             kind,
             value: clamp_need_value(value),
             last_change_cause: cause,
+            last_threshold_crossing: None,
         }
     }
 
@@ -159,6 +207,10 @@ impl NeedState {
         &self.last_change_cause
     }
 
+    pub const fn last_threshold_crossing(&self) -> Option<NeedThresholdCrossing> {
+        self.last_threshold_crossing
+    }
+
     pub fn last_change_source_label(&self) -> String {
         self.last_change_cause.stable_id()
     }
@@ -171,7 +223,11 @@ impl NeedState {
         let previous = self.value;
         self.value = clamp_need_value(i32::from(previous) + delta);
         self.last_change_cause = cause;
-        Self::threshold_crossing(previous, self.value)
+        let crossing = Self::threshold_crossing(previous, self.value);
+        if crossing.is_some() {
+            self.last_threshold_crossing = crossing;
+        }
+        crossing
     }
 
     pub fn threshold_crossing(from_value: u16, to_value: u16) -> Option<NeedThresholdCrossing> {
@@ -217,10 +273,14 @@ impl NeedState {
 
     pub fn serialize_canonical(&self) -> String {
         format!(
-            "need_state_v1|{}|{:04}|{}",
+            "need_state_v2|{}|{:04}|{}|{}",
             self.kind.stable_id(),
             self.value,
-            self.last_change_cause.stable_id()
+            self.last_change_cause.stable_id(),
+            self.last_threshold_crossing
+                .as_ref()
+                .map(NeedThresholdCrossing::stable_id)
+                .unwrap_or_else(|| "none".to_string())
         )
     }
 
@@ -235,7 +295,8 @@ impl NeedState {
         let kind = fields.next().ok_or(NeedParseError::InvalidShape)?;
         let need_value = fields.next().ok_or(NeedParseError::InvalidShape)?;
         let cause = fields.next().ok_or(NeedParseError::InvalidShape)?;
-        if fields.next().is_some() || version != "need_state_v1" {
+        let crossing = fields.next().ok_or(NeedParseError::InvalidShape)?;
+        if fields.next().is_some() || version != "need_state_v2" {
             return Err(NeedParseError::InvalidShape);
         }
 
@@ -250,6 +311,7 @@ impl NeedState {
             kind: NeedKind::parse(kind)?,
             value: need_value,
             last_change_cause: NeedChangeCause::parse(cause)?,
+            last_threshold_crossing: NeedThresholdCrossing::parse(crossing)?,
         })
     }
 }
@@ -272,6 +334,9 @@ pub enum NeedParseError {
     InvalidUtf8,
     InvalidShape,
     InvalidNeedKind,
+    InvalidNeedBand,
+    InvalidThresholdDirection,
+    InvalidThresholdCrossing,
     InvalidValue,
     InvalidCause,
     InvalidId(crate::ids::IdError),
@@ -283,6 +348,13 @@ impl fmt::Display for NeedParseError {
             NeedParseError::InvalidUtf8 => write!(f, "canonical need bytes must be UTF-8"),
             NeedParseError::InvalidShape => write!(f, "invalid canonical need shape"),
             NeedParseError::InvalidNeedKind => write!(f, "invalid need kind"),
+            NeedParseError::InvalidNeedBand => write!(f, "invalid need band"),
+            NeedParseError::InvalidThresholdDirection => {
+                write!(f, "invalid need threshold direction")
+            }
+            NeedParseError::InvalidThresholdCrossing => {
+                write!(f, "invalid need threshold crossing")
+            }
             NeedParseError::InvalidValue => write!(f, "invalid need value"),
             NeedParseError::InvalidCause => write!(f, "invalid need change cause"),
             NeedParseError::InvalidId(err) => write!(f, "invalid need cause ID: {err}"),

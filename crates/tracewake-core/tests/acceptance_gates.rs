@@ -1,14 +1,21 @@
+use std::collections::BTreeMap;
+
 use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReportStatus,
 };
-use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
-use tracewake_core::checksum::{compute_agent_state_checksum, ChecksumContext};
+use tracewake_core::agent::{
+    NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
+};
+use tracewake_core::checksum::{
+    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventKind, EventStream};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId, FixtureId,
-    FoodSupplyId, ItemId, PlaceId, ProposalId,
+    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
+    DecisionTraceId, FixtureId, FoodSupplyId, ItemId, PlaceId, ProposalId, RoutineExecutionId,
+    RoutineTemplateId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -17,7 +24,7 @@ use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDa
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, ControllerMode, DoorState, FoodSupplyState, ItemState,
-    PhysicalState, PlaceState,
+    PhysicalState, PlaceState, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -100,8 +107,229 @@ fn phase3a_registry() -> ActionRegistry {
     registry
 }
 
+fn capstone_registry() -> ActionRegistry {
+    let mut registry = registry();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
+    registry
+}
+
 fn agent_need(agent_state: &AgentState, need: NeedKind) -> u16 {
     agent_state.needs_by_actor[&actor_id()][&need].value()
+}
+
+fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
+    let mut world = PhysicalState::default();
+    for (place_id, label) in [
+        ("commons", "Commons"),
+        ("home_elena", "Elena home"),
+        ("home_bruno", "Bruno home"),
+        ("home_mara", "Mara home"),
+        ("home_tomas", "Tomas home"),
+        ("office_anna", "Anna office"),
+        ("workshop_tomas", "Tomas workshop"),
+    ] {
+        world.places.insert(
+            PlaceId::new(place_id).unwrap(),
+            PlaceState::new(PlaceId::new(place_id).unwrap(), label),
+        );
+    }
+    for place_id in [
+        "home_elena",
+        "home_bruno",
+        "home_mara",
+        "home_tomas",
+        "office_anna",
+        "workshop_tomas",
+    ] {
+        connect_places(&mut world, "commons", place_id);
+    }
+
+    for (actor_id, place_id) in [
+        ("actor_anna", "office_anna"),
+        ("actor_bruno", "home_bruno"),
+        ("actor_elena", "home_elena"),
+        ("actor_mara", "home_mara"),
+        ("actor_tomas", "home_tomas"),
+    ] {
+        add_actor(&mut world, actor_id, place_id);
+    }
+
+    world.food_supplies.insert(
+        FoodSupplyId::new("food_stew_home_bruno").unwrap(),
+        FoodSupplyState::new(
+            FoodSupplyId::new("food_stew_home_bruno").unwrap(),
+            Location::AtPlace(PlaceId::new("home_bruno").unwrap()),
+            2,
+            240,
+        ),
+    );
+
+    let mut closed_workplace = WorkplaceState::new(
+        WorkplaceId::new("workplace_anna_closed").unwrap(),
+        PlaceId::new("office_anna").unwrap(),
+        "blocked_office_output",
+    );
+    closed_workplace
+        .assigned_actor_ids
+        .insert(ActorId::new("actor_anna").unwrap());
+    closed_workplace.access_open = false;
+    world.workplaces.insert(
+        WorkplaceId::new("workplace_anna_closed").unwrap(),
+        closed_workplace,
+    );
+
+    let mut open_workplace = WorkplaceState::new(
+        WorkplaceId::new("workplace_tomas").unwrap(),
+        PlaceId::new("workshop_tomas").unwrap(),
+        "tomas_work_output",
+    );
+    open_workplace
+        .assigned_actor_ids
+        .insert(ActorId::new("actor_tomas").unwrap());
+    open_workplace.work_duration_ticks = 4;
+    open_workplace.access_open = true;
+    world
+        .workplaces
+        .insert(WorkplaceId::new("workplace_tomas").unwrap(), open_workplace);
+
+    let mut agent_state = AgentState::default();
+    for (actor_id, hunger, fatigue) in [
+        ("actor_anna", 320, 260),
+        ("actor_bruno", 490, 240),
+        ("actor_elena", 260, 820),
+        ("actor_mara", 900, 240),
+        ("actor_tomas", 520, 260),
+    ] {
+        let actor_id = ActorId::new(actor_id).unwrap();
+        agent_state.needs_by_actor.insert(
+            actor_id,
+            BTreeMap::from([
+                (
+                    NeedKind::Hunger,
+                    NeedState::initial(NeedKind::Hunger, hunger, NeedChangeCause::FixtureInitial),
+                ),
+                (
+                    NeedKind::Fatigue,
+                    NeedState::initial(NeedKind::Fatigue, fatigue, NeedChangeCause::FixtureInitial),
+                ),
+                (
+                    NeedKind::Safety,
+                    NeedState::initial(NeedKind::Safety, 100, NeedChangeCause::FixtureInitial),
+                ),
+            ]),
+        );
+    }
+    add_routine_execution(
+        &mut agent_state,
+        "routine_exec_anna_work",
+        "actor_anna",
+        "routine_anna_work",
+        RoutineFamily::WorkBlock,
+        4,
+        18,
+    );
+    add_routine_execution(
+        &mut agent_state,
+        "routine_exec_elena_sleep",
+        "actor_elena",
+        "routine_elena_sleep",
+        RoutineFamily::SleepNight,
+        24,
+        32,
+    );
+    add_routine_execution(
+        &mut agent_state,
+        "routine_exec_tomas_go_work",
+        "actor_tomas",
+        "routine_tomas_go_work",
+        RoutineFamily::GoToWork,
+        4,
+        10,
+    );
+    add_routine_execution(
+        &mut agent_state,
+        "routine_exec_tomas_work",
+        "actor_tomas",
+        "routine_tomas_work",
+        RoutineFamily::WorkBlock,
+        10,
+        24,
+    );
+
+    let expected_roster = world.actors.keys().cloned().collect::<Vec<_>>();
+    (world, agent_state, expected_roster)
+}
+
+fn connect_places(world: &mut PhysicalState, left: &str, right: &str) {
+    let left = PlaceId::new(left).unwrap();
+    let right = PlaceId::new(right).unwrap();
+    world
+        .places
+        .get_mut(&left)
+        .unwrap()
+        .adjacent_place_ids
+        .insert(right.clone());
+    world
+        .places
+        .get_mut(&right)
+        .unwrap()
+        .adjacent_place_ids
+        .insert(left);
+}
+
+fn add_actor(world: &mut PhysicalState, actor_id: &str, place_id: &str) {
+    let actor_id = ActorId::new(actor_id).unwrap();
+    let place_id = PlaceId::new(place_id).unwrap();
+    world.actors.insert(
+        actor_id.clone(),
+        ActorBody::new(actor_id.clone(), place_id.clone()),
+    );
+    world
+        .places
+        .get_mut(&place_id)
+        .unwrap()
+        .local_actor_ids
+        .insert(actor_id);
+}
+
+fn add_routine_execution(
+    agent_state: &mut AgentState,
+    execution_id: &str,
+    actor_id: &str,
+    template_id: &str,
+    family: RoutineFamily,
+    start_tick: u64,
+    end_tick: u64,
+) {
+    let execution_id = RoutineExecutionId::new(execution_id).unwrap();
+    agent_state.routine_executions.insert(
+        execution_id.clone(),
+        RoutineExecution::new(
+            execution_id.clone(),
+            ActorId::new(actor_id).unwrap(),
+            RoutineTemplateId::new(template_id).unwrap(),
+            family,
+            SimTick::new(start_tick),
+            Some(SimTick::new(start_tick).next()),
+            Some(SimTick::new(end_tick)),
+            Some("body".to_string()),
+            DecisionTraceId::new(format!("trace_{execution_id}")).unwrap(),
+        ),
+    );
+}
+
+fn has_event(log: &EventLog, kind: EventKind) -> bool {
+    log.events().iter().any(|event| event.event_type == kind)
+}
+
+fn first_event_index(log: &EventLog, kind: EventKind) -> usize {
+    log.events()
+        .iter()
+        .position(|event| event.event_type == kind)
+        .unwrap_or_else(|| panic!("missing event {kind:?}"))
 }
 
 fn agent_checksum_context(log: &EventLog) -> ChecksumContext {
@@ -437,6 +665,220 @@ fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
         .events()
         .iter()
         .any(|event| event.event_type == EventKind::ActorWaited));
+}
+
+#[test]
+fn integrated_no_human_day_capstone_emerges_from_one_autonomous_run() {
+    let (mut world, mut agent_state, expected_roster) = capstone_world_and_agents();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let registry = capstone_registry();
+    let content_manifest_id = ContentManifestId::new("phase3a_capstone_manifest").unwrap();
+    let windows = vec![
+        DayWindow {
+            window_id: "pre_dawn".to_string(),
+            start_tick: SimTick::ZERO,
+            end_tick: SimTick::new(4),
+        },
+        DayWindow {
+            window_id: "morning".to_string(),
+            start_tick: SimTick::new(4),
+            end_tick: SimTick::new(10),
+        },
+        DayWindow {
+            window_id: "work_window".to_string(),
+            start_tick: SimTick::new(10),
+            end_tick: SimTick::new(18),
+        },
+        DayWindow {
+            window_id: "evening".to_string(),
+            start_tick: SimTick::new(18),
+            end_tick: SimTick::new(24),
+        },
+        DayWindow {
+            window_id: "night".to_string(),
+            start_tick: SimTick::new(24),
+            end_tick: SimTick::new(32),
+        },
+    ];
+    let expected_window_ids = windows
+        .iter()
+        .map(|window| window.window_id.clone())
+        .collect::<Vec<_>>();
+
+    let report = run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry,
+        content_manifest_id,
+        NoHumanDayConfig {
+            actor_ids: expected_roster.clone(),
+            windows,
+        },
+    );
+
+    assert_eq!(report.actor_decision_order, expected_roster);
+    assert_eq!(report.window_ids, expected_window_ids);
+    assert_eq!(report.start_tick, SimTick::ZERO);
+    assert_eq!(report.final_tick, SimTick::new(32));
+    assert_eq!(report.marker_event_ids.len(), 2);
+    assert!(report.ordinary_pipeline_events > expected_roster.len());
+
+    for required in [
+        EventKind::NoHumanDayStarted,
+        EventKind::NoHumanDayCompleted,
+        EventKind::NeedDeltaApplied,
+        EventKind::SleepStarted,
+        EventKind::SleepCompleted,
+        EventKind::FoodConsumed,
+        EventKind::ActorWaited,
+        EventKind::ActorMoved,
+        EventKind::WorkBlockStarted,
+        EventKind::WorkBlockCompleted,
+        EventKind::WorkBlockFailed,
+        EventKind::IntentionStarted,
+        EventKind::IntentionContinued,
+        EventKind::RoutineStepStarted,
+        EventKind::RoutineStepCompleted,
+        EventKind::RoutineStepFailed,
+        EventKind::DecisionTraceRecorded,
+    ] {
+        assert!(
+            has_event(&log, required),
+            "capstone missing required event {required:?}"
+        );
+    }
+
+    assert!(
+        first_event_index(&log, EventKind::NeedDeltaApplied)
+            < first_event_index(&log, EventKind::FoodConsumed)
+    );
+    assert!(
+        first_event_index(&log, EventKind::ActorMoved)
+            < first_event_index(&log, EventKind::WorkBlockStarted)
+    );
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::ActorWaited
+            && event
+                .payload
+                .iter()
+                .any(|field| field.key == "reason" && field.value.starts_with("no_human_day:"))
+    }));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::WorkBlockFailed
+            && event
+                .payload
+                .iter()
+                .any(|field| field.key == "blocker_kind" && field.value == "access")
+    }));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::RoutineStepFailed
+            && event
+                .payload
+                .iter()
+                .any(|field| field.key == "reason" && field.value == "work_block_failed")
+    }));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::IntentionContinued
+            && event.payload.iter().any(|field| {
+                field.key == "reason" && field.value == "ordinary_follow_on_action_committed"
+            })
+    }));
+    for actor_id in &expected_roster {
+        assert!(
+            log.events().iter().any(|event| {
+                event
+                    .actor_id
+                    .as_ref()
+                    .is_some_and(|event_actor_id| event_actor_id == actor_id)
+            }),
+            "unpossessed actor {} produced no event",
+            actor_id.as_str()
+        );
+    }
+
+    let metrics = no_human_day_metrics(&log);
+    assert_eq!(metrics.projection_version, "no_human_day_metrics_v1");
+    assert!(metrics.events_per_day > 0);
+    assert!(metrics.meals_completed > 0);
+    assert!(metrics.sleep_completed > 0);
+    assert!(metrics.work_blocks_completed > 0);
+    assert!(metrics.work_blocks_failed > 0);
+    assert_eq!(metrics.player_conditioned_event_count, 0);
+    assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
+
+    let rendered = format!("{:?}", log.events()).to_ascii_lowercase();
+    assert!(!rendered.contains("player"));
+    assert!(!rendered.contains("controller"));
+    assert!(!rendered.contains("food_hidden"));
+    assert!(!rendered.contains("hidden_route"));
+    assert!(!log
+        .events()
+        .iter()
+        .any(|event| event.stream == EventStream::Controller));
+
+    let context = ChecksumContext {
+        fixture_id: FixtureId::new("phase3a_capstone").unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick: report.final_tick,
+        world_stream_position_applied: log
+            .events()
+            .iter()
+            .filter(|event| event.stream == EventStream::World)
+            .count()
+            .saturating_sub(1) as u64,
+    };
+    let live_physical_checksum = compute_physical_checksum(&world, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&world),
+    );
+
+    assert!(rebuild.unsupported_versions.is_empty());
+    assert!(rebuild.unsupported_agent_versions.is_empty());
+    assert!(rebuild.invariant_violations.is_empty());
+    assert!(rebuild.epistemic_application_errors.is_empty());
+    let non_marker_agent_errors = rebuild
+        .agent_application_errors
+        .iter()
+        .filter(|error| {
+            !matches!(
+                error.event_kind,
+                EventKind::NoHumanDayStarted | EventKind::NoHumanDayCompleted
+            )
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        non_marker_agent_errors.is_empty(),
+        "{non_marker_agent_errors:?}"
+    );
+    assert!(rebuild.state_diff.is_empty());
+    assert_eq!(rebuild.final_checksum, live_physical_checksum);
+    assert_eq!(rebuild.final_agent_checksum, live_agent_checksum);
+    assert_eq!(rebuild.final_agent_state.intentions, agent_state.intentions);
+    assert_eq!(
+        rebuild.final_agent_state.routine_executions,
+        agent_state.routine_executions
+    );
+    assert_eq!(
+        rebuild.final_agent_state.decision_traces,
+        agent_state.decision_traces
+    );
+    assert_eq!(
+        rebuild.final_agent_state.stuck_diagnostics,
+        agent_state.stuck_diagnostics
+    );
+    assert_eq!(
+        no_human_day_metrics(&EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap())
+            .serialize_canonical(),
+        metrics.serialize_canonical()
+    );
 }
 
 #[test]

@@ -276,10 +276,11 @@ pub fn phase3a_routines_report(agent_state: &AgentState) -> Phase3ADebugReport {
     }));
     rows.extend(agent_state.routine_executions.values().map(|execution| {
         format!(
-            "routine={} actor={} template={} step_index={} status={:?} next_tick={} deadline={} fallback_attempts={}",
+            "routine={} actor={} template={} family={} step_index={} status={:?} next_tick={} deadline={} fallback_attempts={}",
             execution.execution_id.as_str(),
             execution.actor_id.as_str(),
             execution.template_id.as_str(),
+            execution.family.stable_id(),
             execution.current_step_index,
             execution.step_status,
             execution
@@ -486,6 +487,7 @@ mod tests {
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
         Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+        RoutineFamily,
     };
     use crate::ids::{
         ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
@@ -695,6 +697,7 @@ mod tests {
                 routine_execution_id,
                 actor_mara.clone(),
                 routine_template_id,
+                RoutineFamily::EatMeal,
                 SimTick::new(4),
                 Some(SimTick::new(5)),
                 Some(SimTick::new(10)),

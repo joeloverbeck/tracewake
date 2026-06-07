@@ -473,6 +473,7 @@ impl FixtureSchema {
                         routine_execution_id,
                         assignment.actor_id.clone(),
                         template.template_id.clone(),
+                        template.family,
                         assignment.start_tick,
                         Some(assignment.start_tick.next()),
                         Some(assignment.end_tick),

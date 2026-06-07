@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::agent::{IntentionStatus, NeedChangeCause, NeedKind, RoutineStepStatus};
+use crate::agent::{
+    Intention, IntentionSource, IntentionStatus, NeedChangeCause, NeedKind, RoutineStepStatus,
+};
 use crate::epistemics::{
     Belief, Channel, Confidence, Contradiction, ContradictionKind, EpistemicProjection, HolderKind,
     Observation, ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
@@ -228,6 +230,9 @@ pub fn apply_agent_event(
         EventKind::NeedDeltaApplied => {
             apply_need_delta(state, &payload).map(|_| ApplyOutcome::Applied)
         }
+        EventKind::IntentionStarted => {
+            apply_intention_started(state, &payload).map(|_| ApplyOutcome::Applied)
+        }
         EventKind::IntentionSuspended
         | EventKind::IntentionResumed
         | EventKind::IntentionCompleted
@@ -275,7 +280,6 @@ pub fn apply_agent_event(
         }
         EventKind::NeedThresholdCrossed
         | EventKind::CandidateGoalsEvaluated
-        | EventKind::IntentionStarted
         | EventKind::SleepStarted
         | EventKind::SleepCompleted
         | EventKind::SleepInterrupted
@@ -689,6 +693,75 @@ fn parse_intention_status(payload: &BTreeMap<&str, &str>) -> Result<IntentionSta
     }
 }
 
+fn parse_intention_source(payload: &BTreeMap<&str, &str>) -> Result<IntentionSource, ApplyError> {
+    let value = required(payload, "source")?;
+    match value {
+        "need_pressure" => Ok(IntentionSource::NeedPressure),
+        "routine_duty" => Ok(IntentionSource::RoutineDuty),
+        "candidate_goal_selection" => Ok(IntentionSource::CandidateGoalSelection),
+        "safety_interruption" => Ok(IntentionSource::SafetyInterruption),
+        "fixture_routine_assignment" => Ok(IntentionSource::FixtureRoutineAssignment),
+        "fallback" => Ok(IntentionSource::Fallback),
+        _ => Err(ApplyError::BadPayload {
+            key: "source",
+            value: value.to_string(),
+        }),
+    }
+}
+
+fn parse_candidate_goal_id(
+    payload: &BTreeMap<&str, &str>,
+) -> Result<crate::ids::CandidateGoalId, ApplyError> {
+    let value = required(payload, "selected_goal_id")?;
+    crate::ids::CandidateGoalId::new(value).map_err(|_| ApplyError::BadPayload {
+        key: "selected_goal_id",
+        value: value.to_string(),
+    })
+}
+
+fn parse_decision_trace_id(
+    payload: &BTreeMap<&str, &str>,
+) -> Result<crate::ids::DecisionTraceId, ApplyError> {
+    let value = required(payload, "trace_id")?;
+    crate::ids::DecisionTraceId::new(value).map_err(|_| ApplyError::BadPayload {
+        key: "trace_id",
+        value: value.to_string(),
+    })
+}
+
+fn parse_optional_routine_template_id(
+    payload: &BTreeMap<&str, &str>,
+) -> Result<Option<crate::ids::RoutineTemplateId>, ApplyError> {
+    let Some(value) = payload.get("selected_routine_method").copied() else {
+        return Ok(None);
+    };
+    if value.is_empty() {
+        return Ok(None);
+    }
+    crate::ids::RoutineTemplateId::new(value)
+        .map(Some)
+        .map_err(|_| ApplyError::BadPayload {
+            key: "selected_routine_method",
+            value: value.to_string(),
+        })
+}
+
+fn parse_u8(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<u8, ApplyError> {
+    let value = required(payload, key)?;
+    value.parse::<u8>().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
+fn parse_u64_agent(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<u64, ApplyError> {
+    let value = required(payload, key)?;
+    value.parse::<u64>().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
+}
+
 fn apply_need_delta(
     state: &mut AgentState,
     payload: &BTreeMap<&str, &str>,
@@ -714,6 +787,40 @@ fn apply_need_delta(
         })?;
 
     need_state.apply_delta(delta, cause);
+    Ok(())
+}
+
+fn apply_intention_started(
+    state: &mut AgentState,
+    payload: &BTreeMap<&str, &str>,
+) -> Result<(), ApplyError> {
+    let intention_id = parse_intention_id(payload, "intention_id")?;
+    let actor_id = parse_actor_id(payload)?;
+    let status = parse_intention_status(payload)?;
+    if status != IntentionStatus::Active {
+        return Err(ApplyError::PreconditionMismatch {
+            field: "status",
+            expected: IntentionStatus::Active.stable_id().to_string(),
+            actual: status.stable_id().to_string(),
+        });
+    }
+    let intention = Intention::adopt(
+        intention_id.clone(),
+        actor_id.clone(),
+        parse_intention_source(payload)?,
+        parse_candidate_goal_id(payload)?,
+        parse_optional_routine_template_id(payload)?,
+        payload
+            .get("current_step")
+            .map(|value| (*value).to_string()),
+        parse_u8(payload, "durability_level")?,
+        SimTick::new(parse_u64_agent(payload, "start_tick")?),
+        parse_decision_trace_id(payload)?,
+    );
+    state
+        .active_intention_by_actor
+        .insert(actor_id, intention_id.clone());
+    state.intentions.insert(intention_id, intention);
     Ok(())
 }
 
@@ -751,6 +858,19 @@ fn apply_intention_transition(
         EventKind::IntentionContinued => {
             intention.status = IntentionStatus::Active;
             intention.status_reason = Some(reason);
+            if let Some(progress_tick) = payload.get("progress_tick") {
+                let tick = progress_tick
+                    .parse::<u64>()
+                    .map_err(|_| ApplyError::BadPayload {
+                        key: "progress_tick",
+                        value: (*progress_tick).to_string(),
+                    })?;
+                let step = payload
+                    .get("current_step")
+                    .copied()
+                    .unwrap_or("continue_current_intention");
+                intention.record_progress(SimTick::new(tick), step);
+            }
         }
         EventKind::IntentionResumed => {
             intention
@@ -1159,6 +1279,7 @@ mod tests {
     use super::*;
     use crate::agent::{
         Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+        RoutineFamily,
     };
     use crate::events::{EventCause, EventKind};
     use crate::ids::{
@@ -1289,6 +1410,7 @@ mod tests {
                 RoutineExecutionId::new("routine_exec_breakfast").unwrap(),
                 actor_id,
                 RoutineTemplateId::new("routine_eat_meal").unwrap(),
+                RoutineFamily::EatMeal,
                 SimTick::ZERO,
                 Some(SimTick::new(1)),
                 Some(SimTick::new(5)),

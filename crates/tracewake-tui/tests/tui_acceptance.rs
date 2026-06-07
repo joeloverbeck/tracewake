@@ -79,7 +79,10 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
     }
     assert!(needs_first.contains("actor_tomas"));
     assert!(needs_first.contains("need=hunger"));
+    assert!(needs_first.contains("value=520 band=urgent cause=fixture_initial"));
     assert!(routines.contains("Routines"));
+    assert!(routines.contains("active actor=actor_tomas intention=intention_tomas_go_work"));
+    assert!(routines.contains("routine_exec_tomas_go_work"));
     assert!(planner.contains("actor=actor_mara"));
     assert!(planner.contains("candidate_goals"));
     assert!(planner.contains("selected_method"));
@@ -89,7 +92,9 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
     assert!(stuck.contains("stuck_diagnostic_count="));
     assert!(no_human_day.contains("No Human Day"));
     assert!(no_human_day.contains("no_human_day_metrics_v1"));
+    assert!(no_human_day.contains("routine_interruptions=0"));
     assert!(actor.contains("actor=actor_tomas"));
+    assert!(actor.contains("active_intention=intention_tomas_go_work"));
     assert_eq!(app.render_current_view().unwrap(), before_view);
     assert_eq!(app.physical_checksum(), before_checksum);
     assert_eq!(app.event_count(), before_event_count);
@@ -122,10 +127,17 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(report.ordinary_pipeline_events > 0);
     assert!(after_run_events > before_events);
     assert!(embodied.contains("Needs:"));
+    assert!(embodied.contains("- hunger: value=416 band=rising cause=action_effect:work_block"));
     assert!(embodied.contains("Intention:"));
+    assert!(embodied.contains("active:routine_tomas_go_work:work_block"));
     assert!(!embodied.contains("food_hidden_pantry"));
     assert!(metrics.contains("DEBUG NON-DIEGETIC: No Human Day"));
     assert!(metrics.contains("no_human_day_metrics_v1"));
+    assert!(metrics.contains("routine_events=9"));
+    assert!(metrics.contains("work_failed=4"));
+    assert!(metrics.contains("need_crossings=2"));
+    assert!(metrics.contains("routine_interruptions=2"));
+    assert!(metrics.contains("replay_failures=0"));
     let events_line = metrics
         .lines()
         .find(|line| line.starts_with("events="))
@@ -134,6 +146,12 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(planner.contains("DEBUG NON-DIEGETIC: Planner"));
     assert!(planner.contains("candidate_goals"));
     assert!(stuck.contains("DEBUG NON-DIEGETIC: Stuck"));
+    assert!(stuck.contains("stuck_diagnostic_count=0"));
+    let routines = app.render_debug_routines_panel();
+    assert!(routines.contains("routine_exec_mara_eat"));
+    assert!(routines.contains("status=Failed"));
+    assert!(routines.contains("routine_exec_tomas_work"));
+    assert!(routines.contains("status=Completed"));
     assert_eq!(app.event_count(), after_debug_events);
     assert_eq!(app.physical_checksum(), before_debug_checksum);
 
@@ -150,6 +168,9 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(rendered.contains("Ran no-human day:"));
     assert!(rendered.contains("ordinary_events="));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(rendered.contains("work_failed=4"));
+    assert!(rendered.contains("routine_interruptions=2"));
+    assert!(rendered.contains("- hunger: value=416 band=rising cause=action_effect:work_block"));
     assert!(rendered.contains("Actor: actor_tomas"));
     assert!(!rendered.contains("food_hidden_pantry"));
 }
@@ -258,6 +279,7 @@ fn phase2a_tui_transcript_discovers_absence_without_culprit_leak() {
     assert!(debug_beliefs.contains("DEBUG NON-DIEGETIC: Beliefs"));
     assert!(debug_observations.contains("DEBUG NON-DIEGETIC: Observations"));
     assert!(debug_replay.contains("matches_expected=true"));
+    assert!(debug_replay.contains("agent_checksum_matches=true"));
 
     let debug_truth = app.render_debug_item_location_panel(&ItemId::new("coin_stack_01").unwrap());
     assert!(debug_truth.contains("actor_mara"));

@@ -33,7 +33,8 @@ pub use need::{
     NeedThresholdCrossing, ThresholdDirection,
 };
 pub use planner::{
-    build_actor_known_planning_state, plan_local_actions, ActorKnownPlanningState, LocalPlan,
+    build_actor_known_planning_state, derive_hidden_truth_audit, plan_local_actions,
+    ActorKnownFact, ActorKnownFactProofSource, ActorKnownPlanningState, LocalPlan,
     LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
     VisibleLocalPlanningState, DEFAULT_PLANNER_BUDGET,
 };

@@ -1,7 +1,7 @@
 use crate::agent::{
-    family_for_goal, phase3a_routine_templates, ActorKnownPlanningState, CandidateGoal,
-    DecisionOutcome, DecisionTrace, HiddenTruthAudit, RejectedDecisionItem, RoutineCondition,
-    RoutineExecution, RoutineFamily, RoutineTemplate,
+    derive_hidden_truth_audit, family_for_goal, phase3a_routine_templates, ActorKnownFact,
+    ActorKnownPlanningState, CandidateGoal, DecisionOutcome, DecisionTrace, RejectedDecisionItem,
+    RoutineCondition, RoutineExecution, RoutineFamily, RoutineTemplate,
 };
 use crate::ids::{DecisionTraceId, RoutineExecutionId};
 use crate::time::SimTick;
@@ -28,13 +28,13 @@ pub struct MethodSelection {
 pub fn select_phase3a_method(
     selected_goal: &CandidateGoal,
     actor_known_state: &ActorKnownPlanningState,
-    actor_known_inputs: &[String],
+    actor_known_facts: &[ActorKnownFact],
     tick: SimTick,
 ) -> Result<MethodSelection, MethodSelectionFailure> {
     select_method_from_templates(
         selected_goal,
         actor_known_state,
-        actor_known_inputs,
+        actor_known_facts,
         tick,
         &phase3a_routine_templates(),
     )
@@ -43,7 +43,7 @@ pub fn select_phase3a_method(
 pub fn select_method_from_templates(
     selected_goal: &CandidateGoal,
     actor_known_state: &ActorKnownPlanningState,
-    actor_known_inputs: &[String],
+    actor_known_facts: &[ActorKnownFact],
     tick: SimTick,
     templates: &[RoutineTemplate],
 ) -> Result<MethodSelection, MethodSelectionFailure> {
@@ -59,7 +59,7 @@ pub fn select_method_from_templates(
     let mut selected_proofs = Vec::new();
     for template in candidates {
         let resolution =
-            resolve_template_conditions(&template, actor_known_state, actor_known_inputs);
+            resolve_template_conditions(&template, actor_known_state, actor_known_facts);
         if resolution.rejected_conditions.is_empty() && resolution.unknown_conditions.is_empty() {
             selected_proofs = resolution.proof_sources;
             selected = Some(template);
@@ -92,6 +92,7 @@ pub fn select_method_from_templates(
         .unwrap(),
         selected_goal.actor_id.clone(),
         template.template_id.clone(),
+        template.family,
         tick,
         Some(tick.advance_by(template.min_duration_ticks)),
         Some(tick.advance_by(template.max_duration_ticks)),
@@ -116,13 +117,7 @@ pub fn select_method_from_templates(
         None,
         Some("method_selected".to_string()),
         template.fallback_rules.first().cloned(),
-        HiddenTruthAudit {
-            actor_known_only: true,
-            notes: format!(
-                "method selected from actor-known condition proofs={}",
-                selected_proofs.join(",")
-            ),
-        },
+        derive_hidden_truth_audit(actor_known_state, actor_known_facts),
         DecisionOutcome::Replanned,
         "deterministic htn method selection".to_string(),
     );
@@ -177,7 +172,7 @@ impl TemplateConditionResolution {
 fn resolve_template_conditions(
     template: &RoutineTemplate,
     actor_known_state: &ActorKnownPlanningState,
-    actor_known_inputs: &[String],
+    actor_known_facts: &[ActorKnownFact],
 ) -> TemplateConditionResolution {
     let mut resolution = TemplateConditionResolution::default();
     for condition in template
@@ -185,7 +180,7 @@ fn resolve_template_conditions(
         .iter()
         .chain(template.preconditions.iter())
     {
-        match resolve_condition(condition, actor_known_state, actor_known_inputs) {
+        match resolve_condition(condition, actor_known_state, actor_known_facts) {
             ConditionResolution::Satisfied { proof_source } => {
                 resolution
                     .proof_sources
@@ -206,7 +201,7 @@ fn resolve_template_conditions(
 pub fn resolve_condition(
     condition: &RoutineCondition,
     actor_known_state: &ActorKnownPlanningState,
-    actor_known_inputs: &[String],
+    actor_known_facts: &[ActorKnownFact],
 ) -> ConditionResolution {
     match condition {
         RoutineCondition::ActorKnowsFoodSource => {
@@ -223,7 +218,7 @@ pub fn resolve_condition(
         }
         RoutineCondition::ActorHasFoodSearchKnowledge => {
             if actor_known_state.known_food_sources.is_empty()
-                && !has_exact_input(actor_known_inputs, "food_search_knowledge:local_visible")
+                && !has_modeled_fact(actor_known_facts, "food_search_knowledge_local_visible")
             {
                 return unknown(condition, "no modeled actor-known food search source");
             }
@@ -232,15 +227,15 @@ pub fn resolve_condition(
         RoutineCondition::SearchSurfaceActorKnown => {
             if actor_known_state.known_food_sources.is_empty()
                 && actor_known_state.known_containers_by_place.is_empty()
-                && !has_exact_input(actor_known_inputs, "food_search_knowledge:local_visible")
+                && !has_modeled_fact(actor_known_facts, "food_search_knowledge_local_visible")
             {
                 return unknown(condition, "no actor-known search surface");
             }
             satisfied(condition, "actor_known_state:search_surface")
         }
-        RoutineCondition::RoutePlannerAvailable => {
+        RoutineCondition::KnownRouteSurface => {
             if actor_known_state.known_edges.is_empty()
-                && !has_exact_input(actor_known_inputs, condition.stable_id())
+                && !has_modeled_fact(actor_known_facts, condition.stable_id())
             {
                 return unknown(condition, "no actor-known route surface");
             }
@@ -251,16 +246,16 @@ pub fn resolve_condition(
         | RoutineCondition::ActorKnowsHome
         | RoutineCondition::ActorKnowsSleepPlace
         | RoutineCondition::ActiveIntentionPresent
-        | RoutineCondition::ReasonAvailable
         | RoutineCondition::SleepStateCanEnd
         | RoutineCondition::ActorAtWorkplace
         | RoutineCondition::SleepPlaceBelievedAccessible
         | RoutineCondition::NextStepAvailable
-        | RoutineCondition::ReevaluationScheduled
+        | RoutineCondition::ModeledWaitReason
+        | RoutineCondition::ReevaluationWindowKnown
         | RoutineCondition::AssignedWorkplaceKnown
         | RoutineCondition::AtWorkplace => {
-            if has_exact_input(actor_known_inputs, condition.stable_id()) {
-                satisfied(condition, "actor_known_input:exact")
+            if let Some(proof) = modeled_fact_proof(actor_known_facts, condition.stable_id()) {
+                satisfied(condition, proof)
             } else {
                 unknown(
                     condition,
@@ -275,13 +270,20 @@ pub fn resolve_condition(
     }
 }
 
-fn has_exact_input(actor_known_inputs: &[String], expected: &str) -> bool {
-    actor_known_inputs.iter().any(|input| input == expected)
+fn has_modeled_fact(actor_known_facts: &[ActorKnownFact], expected: &str) -> bool {
+    modeled_fact_proof(actor_known_facts, expected).is_some()
 }
 
-fn satisfied(condition: &RoutineCondition, proof_source: &str) -> ConditionResolution {
+fn modeled_fact_proof(actor_known_facts: &[ActorKnownFact], expected: &str) -> Option<String> {
+    actor_known_facts
+        .iter()
+        .find(|fact| fact.stable_id == expected && fact.is_actor_known())
+        .map(|fact| fact.proof_note())
+}
+
+fn satisfied(condition: &RoutineCondition, proof_source: impl Into<String>) -> ConditionResolution {
     ConditionResolution::Satisfied {
-        proof_source: format!("{}:{proof_source}", condition.stable_id()),
+        proof_source: format!("{}:{}", condition.stable_id(), proof_source.into()),
     }
 }
 
@@ -327,6 +329,28 @@ mod tests {
     }
 
     fn planning_state(known_food: &[&str]) -> ActorKnownPlanningState {
+        let mut facts = vec![
+            ActorKnownFact::modeled("actor_knows_workplace", "test:work_assignment"),
+            ActorKnownFact::modeled("workplace_assignment_active", "test:work_assignment"),
+            ActorKnownFact::modeled("actor_at_workplace", "test:current_place"),
+            ActorKnownFact::modeled("actor_knows_home", "test:home_assignment"),
+            ActorKnownFact::modeled("actor_knows_sleep_place", "test:sleep_assignment"),
+            ActorKnownFact::modeled(
+                "sleep_place_believed_accessible",
+                "test:visible_sleep_place",
+            ),
+            ActorKnownFact::modeled("active_intention_present", "test:intention_state"),
+            ActorKnownFact::modeled("next_step_available", "test:routine_execution"),
+            ActorKnownFact::modeled("modeled_wait_reason", "test:wait_reason"),
+            ActorKnownFact::modeled("reevaluation_window_known", "test:day_window"),
+            ActorKnownFact::modeled("known_route_surface", "test:visible_route"),
+        ];
+        if !known_food.is_empty() {
+            facts.push(ActorKnownFact::modeled(
+                "actor_knows_food_source",
+                "test:known_food",
+            ));
+        }
         ActorKnownPlanningState {
             actor_id: actor_id(),
             current_place_id: PlaceId::new("home_tomas").unwrap(),
@@ -340,7 +364,10 @@ mod tests {
                 .iter()
                 .map(|food| (*food).to_string())
                 .collect::<BTreeSet<_>>(),
+            known_sleep_places: BTreeSet::from([PlaceId::new("home_tomas").unwrap()]),
+            known_workplaces: BTreeMap::new(),
             proof_sources: vec!["test:actor_known_state".to_string()],
+            actor_known_facts: facts,
         }
     }
 
@@ -362,27 +389,13 @@ mod tests {
             GoalKind::ContinueCurrentIntention,
             GoalKind::IdleWithReason,
         ] {
-            let inputs = vec![
-                "actor_knows_food_source".to_string(),
-                "actor_knows_workplace".to_string(),
-                "workplace_assignment_active".to_string(),
-                "actor_at_workplace".to_string(),
-                "actor_knows_home".to_string(),
-                "actor_knows_sleep_place".to_string(),
-                "sleep_place_believed_accessible".to_string(),
-                "active_intention_present".to_string(),
-                "next_step_available".to_string(),
-                "reason_available".to_string(),
-                "reevaluation_scheduled".to_string(),
-            ];
-            let selection = select_phase3a_method(
-                &candidate(goal_kind),
-                &planning_state(&["food_soup"]),
-                &inputs,
-                SimTick::new(10),
-            )
-            .unwrap();
+            let state = planning_state(&["food_soup"]);
+            let inputs = state.actor_known_facts.clone();
+            let selection =
+                select_phase3a_method(&candidate(goal_kind), &state, &inputs, SimTick::new(10))
+                    .unwrap();
             assert_eq!(selection.template.family, family_for_goal(goal_kind));
+            assert_eq!(selection.execution.family, selection.template.family);
             assert!(selection.trace.hidden_truth_audit_result.actor_known_only);
             assert!(!selection
                 .trace
@@ -413,7 +426,10 @@ mod tests {
         let selection = select_phase3a_method(
             &candidate(GoalKind::Eat),
             &planning_state(&["food_soup"]),
-            &["actor_knows_food_source".to_string()],
+            &[ActorKnownFact::modeled(
+                "actor_knows_food_source",
+                "test:known_food",
+            )],
             SimTick::new(10),
         )
         .unwrap();
@@ -433,7 +449,10 @@ mod tests {
     #[test]
     fn selection_is_deterministic() {
         let goal = candidate(GoalKind::Eat);
-        let inputs = vec!["actor_knows_food_source".to_string()];
+        let inputs = vec![ActorKnownFact::modeled(
+            "actor_knows_food_source",
+            "test:known_food",
+        )];
         let state = planning_state(&["food_soup"]);
         let first = select_phase3a_method(&goal, &state, &inputs, SimTick::new(10)).unwrap();
         let second = select_phase3a_method(&goal, &state, &inputs, SimTick::new(10)).unwrap();
@@ -465,7 +484,10 @@ mod tests {
         let err = select_method_from_templates(
             &candidate(GoalKind::FindFood),
             &planning_state(&[]),
-            &["actor_has_food_search_knowledge".to_string()],
+            &[ActorKnownFact::unproven(
+                "actor_has_food_search_knowledge",
+                "caller supplied no modeled source",
+            )],
             SimTick::new(10),
             &[template],
         )

@@ -11,8 +11,8 @@ use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
-    select_goal_and_trace, select_method_from_templates, CandidateGenerationInput, DecisionInput,
-    GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
+    select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
+    DecisionInput, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
     RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
@@ -455,10 +455,10 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             NeedChangeCause::FixtureInitial,
         )],
         active_intention: None,
-        actor_known_inputs: vec![
-            "known_food:food_market_stew".to_string(),
-            "actor_knows_food_source".to_string(),
-        ],
+        actor_known_facts: vec![ActorKnownFact::modeled(
+            "actor_knows_food_source",
+            "planner_trace_001:visible_food",
+        )],
         routine_window_goal: Some(GoalKind::GoToWork),
     });
     let selection = select_goal_and_trace(DecisionInput {
@@ -482,6 +482,8 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             visible_closed_doors: BTreeMap::new(),
             visible_containers_by_place: BTreeMap::new(),
             visible_food_sources: BTreeSet::from(["food_market_stew".to_string()]),
+            visible_sleep_places: BTreeSet::new(),
+            visible_workplaces: BTreeMap::new(),
         },
     );
     let rejected_template = RoutineTemplate::new(
@@ -521,7 +523,7 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
     let method = select_method_from_templates(
         &selection.selected_goal,
         &actor_known_state,
-        &generated.actor_known_inputs_used,
+        &actor_known_state.actor_known_facts,
         SimTick::new(2),
         &[selected_template, rejected_template],
     )
@@ -539,6 +541,33 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
         .beliefs_perceptions_known_places_used
         .iter()
         .any(|source| source.contains("actor_known_state")));
+
+    let no_source_plan = plan_local_actions(
+        &actor_known_state,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_market_stew".to_string()),
+            budget: 1,
+            actor_known_facts: vec![ActorKnownFact::unproven(
+                "actor_knows_food_source",
+                "planner_trace_001 negative assertion",
+            )],
+        },
+    )
+    .unwrap();
+    assert!(
+        !no_source_plan
+            .trace
+            .hidden_truth_audit_result
+            .actor_known_only
+    );
+    assert!(no_source_plan
+        .trace
+        .hidden_truth_audit_result
+        .notes
+        .contains("unproven:planner_trace_001 negative assertion"));
 }
 
 #[test]
@@ -679,7 +708,7 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             NeedChangeCause::FixtureInitial,
         )],
         active_intention: None,
-        actor_known_inputs: Vec::new(),
+        actor_known_facts: Vec::new(),
         routine_window_goal: None,
     });
     let selection = select_goal_and_trace(DecisionInput {
@@ -710,6 +739,8 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             visible_closed_doors: BTreeMap::new(),
             visible_containers_by_place: BTreeMap::new(),
             visible_food_sources: BTreeSet::new(),
+            visible_sleep_places: BTreeSet::new(),
+            visible_workplaces: BTreeMap::new(),
         },
     );
     assert!(!actor_known_state
@@ -718,7 +749,7 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
     assert!(actor_known_state
         .proof_sources
         .iter()
-        .any(|source| source == "agent_state:needs_present"));
+        .any(|source| source == "agent_needs_present=agent_state:needs_present"));
 
     let plan_failure = plan_local_actions(
         &actor_known_state,
@@ -728,7 +759,7 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             },
             goal: PlannerGoal::EatKnownFood("food_hidden_pantry".to_string()),
             budget: 1,
-            actor_known_inputs: Vec::new(),
+            actor_known_facts: Vec::new(),
         },
     )
     .unwrap_err();
@@ -739,6 +770,45 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             .actor_known_only
     );
     assert_eq!(plan_failure.reason, "food source is not actor-known");
+
+    let mut no_human_log = EventLog::new();
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut no_human_log,
+        &registry(),
+        manifest_id.clone(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id.clone()],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "hidden_truth_guard".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(no_human_log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorWaited));
+    for forbidden in ["food_hidden_pantry", "hidden_workshop", "workplace_hidden"] {
+        assert!(!no_human_log.events().iter().any(|event| {
+            event
+                .ordering_key
+                .target_ids
+                .iter()
+                .any(|target| target == forbidden)
+                || event
+                    .participants
+                    .iter()
+                    .any(|participant| participant == forbidden)
+                || event
+                    .payload
+                    .iter()
+                    .any(|field| field.value.contains(forbidden))
+        }));
+    }
 
     let mut log = EventLog::new();
     let eat = proposal(
@@ -776,7 +846,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .contract
         .expected_events_or_reports
         .iter()
-        .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
+        .any(|entry| entry.contains("log_derived_metric=no_human_day_metrics_v1")));
 
     let (mut state, mut agent_state, manifest_id) = load(golden);
     let mut log = EventLog::new();
@@ -942,9 +1012,21 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &work_tomas,
         106,
     );
-    let work_started = work_events
+    let work_started = log
+        .events()
         .iter()
-        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .find(|event| {
+            event.event_type == EventKind::WorkBlockStarted
+                && event
+                    .actor_id
+                    .as_ref()
+                    .is_some_and(|actor| actor.as_str() == "actor_tomas")
+        })
+        .or_else(|| {
+            work_events
+                .iter()
+                .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        })
         .unwrap()
         .clone();
     append_and_apply(
@@ -1115,6 +1197,7 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
         &context,
         Some(&state),
         Some(live_physical_checksum.clone()),
+        Some(live_agent_checksum.clone()),
     );
     let canonical = log.serialize_canonical();
     let replayed_log = EventLog::deserialize_canonical(&canonical).unwrap();
@@ -1132,6 +1215,12 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     assert_eq!(replayed_log.serialize_canonical(), canonical);
     assert_eq!(replayed_metrics, real_metrics);
     assert_eq!(replay.final_checksum, live_physical_checksum);
+    assert_eq!(replay.final_agent_checksum, live_agent_checksum);
+    assert_eq!(
+        replay.expected_agent_checksum,
+        Some(live_agent_checksum.clone())
+    );
+    assert!(replay.agent_checksum_matches);
     assert!(replay.epistemic_application_errors.is_empty());
     assert!(real_metrics.contains("no_human_day_metrics_v1"));
     assert_eq!(
@@ -1153,6 +1242,7 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
         &checksum_context("no_human_day_001", &missing_last),
         Some(&state),
         Some(live_physical_checksum),
+        Some(live_agent_checksum),
     );
     assert!(!corrupted.matches_expected);
     assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());

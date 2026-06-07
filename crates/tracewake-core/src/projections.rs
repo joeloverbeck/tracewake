@@ -459,7 +459,9 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
         .flat_map(|needs| needs.values())
         .map(|need| NeedStatusEntry {
             kind: need.kind().stable_id().to_string(),
+            value: need.value(),
             band_label: need.band().stable_id().to_string(),
+            last_cause: need.last_change_cause().stable_id().to_string(),
         })
         .collect::<Vec<_>>();
     need_summaries.sort();
@@ -1362,6 +1364,8 @@ mod tests {
         let status = view.phase3a_status.as_ref().unwrap();
         assert_eq!(status.need_summaries.len(), 1);
         assert_eq!(status.need_summaries[0].kind, "hunger");
+        assert_eq!(status.need_summaries[0].value, 620);
+        assert_eq!(status.need_summaries[0].last_cause, "fixture_initial");
         assert!(status
             .intention_summary
             .as_deref()
@@ -1518,6 +1522,24 @@ mod tests {
         assert_eq!(metrics.meals_completed, 0);
         assert_eq!(metrics.sleep_completed, 0);
         assert_eq!(metrics.work_blocks_completed, 0);
+    }
+
+    #[test]
+    fn continue_routine_follow_on_progress_survives_replay_from_event_chain() {
+        let mut log = EventLog::new();
+        append_metric_event(&mut log, EventKind::NoHumanDayStarted, 0, 0);
+        append_metric_event(&mut log, EventKind::ContinueRoutineProposed, 1, 1);
+        append_metric_event(&mut log, EventKind::RoutineStepCompleted, 2, 2);
+        append_metric_event(&mut log, EventKind::FoodConsumed, 3, 3);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 4, 4);
+
+        let first = no_human_day_metrics(&log);
+        let replayed = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+        let second = no_human_day_metrics(&replayed);
+
+        assert_eq!(first.routine_event_count, 1);
+        assert_eq!(first.meals_completed, 1);
+        assert_eq!(first.serialize_canonical(), second.serialize_canonical());
     }
 
     #[test]

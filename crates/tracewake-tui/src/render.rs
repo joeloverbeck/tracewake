@@ -26,7 +26,10 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             lines.push("- none known".to_string());
         }
         for need in &status.need_summaries {
-            lines.push(format!("- {}: {}", need.kind, need.band_label));
+            lines.push(format!(
+                "- {}: value={} band={} cause={}",
+                need.kind, need.value, need.band_label, need.last_cause
+            ));
         }
         lines.push(format!(
             "Intention: {}",

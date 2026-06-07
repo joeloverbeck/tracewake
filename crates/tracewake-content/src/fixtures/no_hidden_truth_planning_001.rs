@@ -6,24 +6,41 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
         schema_version: schema_version(),
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
-            place_schema("home_mara", "Mara home", &[]),
-            place_schema("locked_pantry", "Locked pantry", &[]),
+            place_schema("home_mara", "Mara home", &["hidden_workshop"]),
+            place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
         ],
         doors: Vec::new(),
-        containers: Vec::new(),
+        containers: vec![container_schema(
+            "hidden_pantry",
+            "home_mara",
+            false,
+            false,
+            &[],
+            false,
+        )],
         items: Vec::new(),
-        affordances: vec![affordance("eat", "food_hidden_pantry")],
+        affordances: vec![
+            affordance("eat", "food_hidden_pantry"),
+            affordance("move", "hidden_workshop"),
+            affordance("work_block", "workplace_hidden"),
+        ],
         initial_beliefs: Vec::new(),
         initial_needs: vec![initial_need("actor_mara", NeedKind::Hunger, 880)],
         homes: vec![home_schema("actor_mara", "home_mara")],
         sleep_places: Vec::new(),
-        food_supplies: vec![food_supply_at_place(
+        food_supplies: vec![food_supply_in_container(
             "food_hidden_pantry",
-            "locked_pantry",
+            "hidden_pantry",
             1,
             220,
         )],
-        workplaces: Vec::new(),
+        workplaces: vec![workplace_schema(
+            "workplace_hidden",
+            "hidden_workshop",
+            &[],
+            4,
+            true,
+        )],
         routine_templates: vec![routine_template_schema(
             "routine_mara_hidden_food_guard",
             RoutineFamily::EatMeal,
@@ -46,7 +63,8 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
             purpose: "Prove hidden food truth does not enter planner inputs even when physical action failure can explain it.",
             setup: vec![
                 "actor_mara starts hungry at home_mara",
-                "food_hidden_pantry exists at locked_pantry",
+                "food_hidden_pantry exists in a closed opaque container at home_mara",
+                "hidden_workshop and workplace_hidden exist but are not assigned to actor_mara",
                 "no initial belief grants actor_mara knowledge of that food",
             ],
             allowed_actions: vec![
@@ -57,6 +75,7 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
             expected_events_or_reports: vec![
                 "planner hidden-truth audit is actor-known-only",
                 "planner does not select hidden food",
+                "no-human run does not select hidden_workshop or workplace_hidden",
                 "EatFailed explains physical inaccessibility",
             ],
             acceptance_assertions: vec![
