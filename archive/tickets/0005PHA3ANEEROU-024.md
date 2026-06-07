@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-024: Cross-cutting docs — README Phase 3A surface and fixture-contract notes
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — documentation only: updates `README.md` to describe the Phase 3A ordinary-life surface (needs, ordinary actions, routines, no-human day, fixtures, debug commands).
@@ -69,3 +69,17 @@ Update `README.md` with a Phase 3A section: the bounded needs (hunger/fatigue/sa
 1. `cargo test -p tracewake-tui --test readme_sample_session`
 2. `grep -nE "sleep|eat|work_block|continue_routine|debug needs|no_human_day_001" README.md` (confirm documented surfaces present and resolvable)
 3. A docs-only grep + the existing README sample-session test is the correct verification boundary because this ticket adds no production code.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Updated `README.md` with the landed Phase 3A ordinary-life surface: bounded needs, ordinary action families, routine/no-human day behavior, debug commands, and Phase 3A fixture contracts.
+
+Deviation: none.
+
+Verification:
+
+1. `cargo test -p tracewake-tui --test readme_sample_session`
+2. `grep -nE "sleep|eat|work_block|continue_routine|debug needs|no_human_day_001" README.md`
+3. `rg -n "register_phase3a_sleep|register_phase3a_eat|register_phase3a_work|register_phase3a_continue_routine|\"needs\" => Ok\\(DebugCommand::Needs\\)|\"no-human-day\" => Ok\\(DebugCommand::NoHumanDay\\)|pub use no_human_day_001::no_human_day_001|no_human_day_001\\(\\)" crates README.md`
