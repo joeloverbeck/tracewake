@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-014: Sound observation slice with bounded uncertainty
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — adds the low-confidence sound-observation slice (runtime/seeded) to the `tracewake-core` epistemic path and `tracewake-content` fixture.
@@ -80,3 +80,23 @@ Wire `sound_uncertainty_001` (ticket 013) to place Elena within sound range and 
 1. `cargo test -p tracewake-core --test golden_scenarios`
 2. `cargo test -p tracewake-core actions::defs::takeplace`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Changed:
+- Added deterministic low-confidence simple-sound observation generation for qualifying Mara take/place actions near Elena.
+- Added an optional plausible `SoundHeardNearPlace` belief update sourced from the sound observation, with no culprit/theft/`ActorWasNearPlace(actor_mara, ...)` inference.
+- Extended epistemic observation application to support place-targeted sound observations and alternatives.
+- Added unit and golden-scenario coverage for low confidence, alternatives, deterministic projection updates, and Elena notebook no-leak strings.
+
+Deviations:
+- None.
+
+Verification:
+- `cargo test -p tracewake-core --test golden_scenarios`
+- `cargo test -p tracewake-core actions::defs::takeplace`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`
+- `git diff --check`

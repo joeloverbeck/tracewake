@@ -6,7 +6,8 @@ use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{action_rejection_report, item_location_report};
 use tracewake_core::epistemics::{
-    Belief, Confidence, EpistemicProjection, HolderKind, Proposition, SourceRef, Stance,
+    Belief, Confidence, EpistemicProjection, HolderKind, KnowledgeContext, Proposition, SourceRef,
+    Stance,
 };
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::EventKind;
@@ -16,6 +17,7 @@ use tracewake_core::ids::{
     EventId, FixtureId, ItemId, PlaceId, ProposalId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::projections::build_notebook_view;
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -230,6 +232,70 @@ fn run_probe_with_projection(
     run_pipeline(&mut pipeline_context, &proposal)
 }
 
+fn sound_state() -> PhysicalState {
+    let mut state = PhysicalState::default();
+    let house = PlaceId::new("house_tomas").unwrap();
+    let street = PlaceId::new("street_lane").unwrap();
+    let mut house_state = PlaceState::new(house.clone(), "Tomas house");
+    house_state.adjacent_place_ids.insert(street.clone());
+    let mut street_state = PlaceState::new(street.clone(), "Street lane");
+    street_state.adjacent_place_ids.insert(house.clone());
+    state.places.insert(house.clone(), house_state);
+    state.places.insert(street.clone(), street_state);
+    let mara = ActorId::new("actor_mara").unwrap();
+    let elena = ActorId::new("actor_elena").unwrap();
+    state
+        .actors
+        .insert(mara.clone(), ActorBody::new(mara, house.clone()));
+    state
+        .actors
+        .insert(elena.clone(), ActorBody::new(elena, street));
+    let mut container = ContainerState::fixed_at_place(box_id(), house);
+    container.is_open = true;
+    container.contents.insert(coin_id());
+    state.containers.insert(box_id(), container);
+    state.items.insert(
+        coin_id(),
+        ItemState::new(coin_id(), Location::InContainer(box_id())),
+    );
+    state
+}
+
+fn run_mara_take_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_mara_take_coin").unwrap(),
+        ProposalOrigin::Test,
+        Some(ActorId::new("actor_mara").unwrap()),
+        ActionId::new("take").unwrap(),
+        SimTick::ZERO,
+    );
+    proposal.target_ids = vec!["coin_stack_01".to_string(), "strongbox_tomas".to_string()];
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(ActorId::new("actor_mara").unwrap()),
+        ProposalSequence::new(0),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: ContentManifestId::new("phase2a_manifest").unwrap(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
 #[test]
 fn accepted_actions_append_versioned_events() {
     let mut state = initial_state(true, true);
@@ -241,6 +307,62 @@ fn accepted_actions_append_versioned_events() {
     assert_eq!(result.appended_events.len(), 1);
     assert!(result.appended_events[0].has_supported_schema_version());
     assert_eq!(log.events().len(), 1);
+}
+
+#[test]
+fn sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge() {
+    let mut state = sound_state();
+    let mut log = EventLog::new();
+    let mut projection =
+        EpistemicProjection::new(ContentManifestId::new("phase2a_manifest").unwrap());
+
+    let result = run_mara_take_with_projection(&mut state, &mut log, &mut projection);
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ObservationRecorded));
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::BeliefUpdated));
+    let observation = projection
+        .observations_by_id
+        .values()
+        .find(|observation| observation.channel.stable_id() == "simple_sound")
+        .expect("simple sound observation recorded");
+    assert!(observation.confidence.is_low());
+    assert!(observation.alternatives.len() >= 2);
+
+    let belief = projection
+        .beliefs_by_id
+        .values()
+        .find(|belief| {
+            belief
+                .channel
+                .is_some_and(|channel| channel.stable_id() == "simple_sound")
+        })
+        .expect("sound belief recorded");
+    assert!(belief.confidence.is_low());
+    assert!(matches!(
+        belief.proposition,
+        Proposition::SoundHeardNearPlace { .. } | Proposition::PossibleMovementNearPlace { .. }
+    ));
+    assert!(!matches!(
+        belief.proposition,
+        Proposition::ActorWasNearPlace { .. }
+    ));
+
+    let notebook = build_notebook_view(
+        &projection,
+        &KnowledgeContext::embodied(ActorId::new("actor_elena").unwrap(), SimTick::ZERO),
+    );
+    let rendered = format!("{notebook:?}");
+    assert!(!rendered.contains("Mara"));
+    assert!(!rendered.contains("actor_mara"));
+    assert!(!rendered.contains("stole"));
+    assert!(!rendered.contains("culprit"));
 }
 
 #[test]

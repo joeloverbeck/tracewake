@@ -221,17 +221,6 @@ fn parse_contradiction_id(
     })
 }
 
-fn parse_container_id_epistemic(
-    payload: &BTreeMap<&str, &str>,
-    key: &'static str,
-) -> Result<ContainerId, EpistemicApplyError> {
-    let value = required_epistemic(payload, key)?;
-    ContainerId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
-        key,
-        value: value.to_string(),
-    })
-}
-
 fn parse_place_id_epistemic(
     payload: &BTreeMap<&str, &str>,
     key: &'static str,
@@ -349,20 +338,49 @@ fn parse_observation_payload(
 ) -> Result<Observation, EpistemicApplyError> {
     let observer_actor_id = parse_actor_id_epistemic(payload, "observer_actor_id")?;
     let observer_place_id = parse_place_id_epistemic(payload, "observer_place_id")?;
-    let container_id = parse_container_id_epistemic(payload, "container_id")?;
     let source_event_id = parse_event_id_epistemic(payload, "source_event_id")
         .map_err(|_| EpistemicApplyError::MissingSource)?;
-    Ok(Observation::new(
+    let channel = parse_channel(payload)?;
+    let (subject, target) = if let Some(container_id) = payload.get("container_id") {
+        let container_id =
+            ContainerId::new(*container_id).map_err(|_| EpistemicApplyError::BadPayload {
+                key: "container_id",
+                value: (*container_id).to_string(),
+            })?;
+        (
+            ObservationSubject::Container(container_id.clone()),
+            ObservationTarget::Container(container_id),
+        )
+    } else {
+        let place_id = parse_place_id_epistemic(payload, "place_id")?;
+        (
+            ObservationSubject::Place(place_id.clone()),
+            ObservationTarget::Place(place_id),
+        )
+    };
+    let mut observation = Observation::new(
         parse_observation_id(payload, "observation_id")?,
         observer_actor_id,
-        parse_channel(payload)?,
+        channel,
         parse_tick(payload, "observed_tick")?,
         observer_place_id,
-        ObservationSubject::Container(container_id.clone()),
-        ObservationTarget::Container(container_id),
+        subject,
+        target,
         parse_confidence(payload)?,
         SourceRef::Event(source_event_id),
-    ))
+    );
+    if let Some(alternatives) = payload.get("alternatives") {
+        observation = observation.with_alternatives(parse_alternatives(alternatives));
+    }
+    Ok(observation)
+}
+
+fn parse_alternatives(value: &str) -> std::collections::BTreeSet<String> {
+    value
+        .split(',')
+        .filter(|part| !part.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 fn parse_contradiction_payload(

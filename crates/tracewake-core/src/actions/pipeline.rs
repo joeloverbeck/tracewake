@@ -4,7 +4,9 @@ use crate::actions::defs::checkcontainer::{
 };
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
-use crate::actions::defs::takeplace::build_take_place_event;
+use crate::actions::defs::takeplace::{
+    build_sound_belief_event, build_sound_observation_event, build_take_place_event,
+};
 use crate::actions::defs::wait::build_wait_event;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
@@ -327,6 +329,77 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                         );
                     }
                     appended_events.push(appended_detection);
+                }
+            }
+        } else if matches!(definition.effect, ActionEffect::Take | ActionEffect::Place) {
+            appended_events.push(appended.clone());
+            if let Some(sound_observation) = build_sound_observation_event(
+                context.state,
+                &appended,
+                &context.ordering_key,
+                &context.content_manifest_id,
+            ) {
+                let appended_observation = match context.log.append(sound_observation) {
+                    Ok(appended) => appended,
+                    Err(_) => {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The observation could not be recorded.",
+                            "append-only log rejected the sound observation event",
+                        )
+                    }
+                };
+                if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                    if apply_epistemic_event(projection, &appended_observation).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The observation could not be applied.",
+                            "epistemic projection rejected the sound observation event",
+                        );
+                    }
+                }
+                appended_events.push(appended_observation.clone());
+                if let Some(sound_belief) = build_sound_belief_event(
+                    &appended_observation,
+                    &context.ordering_key,
+                    &context.content_manifest_id,
+                ) {
+                    let appended_belief = match context.log.append(sound_belief) {
+                        Ok(appended) => appended,
+                        Err(_) => {
+                            return reject(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be recorded.",
+                                "append-only log rejected the sound belief event",
+                            )
+                        }
+                    };
+                    if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                        if apply_epistemic_event(projection, &appended_belief).is_err() {
+                            return reject(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be applied.",
+                                "epistemic projection rejected the sound belief event",
+                            );
+                        }
+                    }
+                    appended_events.push(appended_belief);
                 }
             }
         } else {
