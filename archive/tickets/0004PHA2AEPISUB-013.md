@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-013: Phase 2A fixtures — strongbox expectation, Mara, and golden scenarios
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds Phase 2A golden fixtures and extends `strongbox_001` in `tracewake-content`.
@@ -85,3 +85,23 @@ Add fixture files for `expectation_contradiction_001`, `possession_parity_001`, 
 1. `cargo test -p tracewake-content --test fixtures_load`
 2. `cargo test -p tracewake-content`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Changed:
+- Extended `strongbox_001` with Tomas's authored-prehistory expectation seed while preserving the Phase 1 physical baseline.
+- Added and registered the Phase 2A fixtures: `expectation_contradiction_001`, `possession_parity_001`, `view_filtering_001`, `knowledge_blocker_accuse_001`, `sound_uncertainty_001`, and `no_human_epistemic_check_001`.
+- Added fixture helpers for authored-prehistory expectation and low-confidence sound-lead seeds, registered Phase 2A epistemic actions in content loading, and extended tests for fixture registration, Mara as an ordinary actor, script-free Phase 2A content, and projection construction from seeds.
+- Aligned content seed serialization with the required `authored_prehistory` source kind.
+
+Deviations:
+- None.
+
+Verification:
+- `cargo test -p tracewake-content --test fixtures_load`
+- `cargo test -p tracewake-content`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`
+- `git diff --check`

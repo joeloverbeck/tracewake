@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use tracewake_core::actions::{ActionEffect, ActionRegistry};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
+use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::PlaceId;
 use tracewake_core::location::Location;
 use tracewake_core::state::PhysicalState;
@@ -837,7 +838,9 @@ fn validate_epistemic_seeds(
             }
         }
         match &belief.source {
-            SourceRef::Event(event_id) => {
+            SourceRef::Event(event_id)
+                if belief.source_kind == InitialBeliefSourceKind::AuthoredPrehistory =>
+            {
                 if is_forbidden_key(event_id.as_str()) {
                     errors.push(ContentValidationError::new(
                         ValidationPhase::NoScript,
@@ -847,25 +850,35 @@ fn validate_epistemic_seeds(
                     ));
                 }
             }
-            SourceRef::Action(action_id) => {
-                if registry.get(action_id).is_none() {
-                    errors.push(ContentValidationError::new(
-                        ValidationPhase::EpistemicSeed,
-                        format!("initial_beliefs[{index}].source_id"),
-                        "unknown_action_source",
-                        format!(
-                            "belief source action {} is not registered",
-                            action_id.as_str()
-                        ),
-                    ));
-                }
+            SourceRef::Event(_) | SourceRef::Action(_) | SourceRef::Cause(_) => {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::EpistemicSeed,
+                    format!("initial_beliefs[{index}].source_kind"),
+                    "unsupported_source_kind",
+                    "initial belief seeds must use authored_prehistory event source references",
+                ))
             }
-            SourceRef::Cause(_) => errors.push(ContentValidationError::new(
+        }
+        if let SourceRef::Action(action_id) = &belief.source {
+            if registry.get(action_id).is_none() {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::EpistemicSeed,
+                    format!("initial_beliefs[{index}].source_id"),
+                    "unknown_action_source",
+                    format!(
+                        "belief source action {} is not registered",
+                        action_id.as_str()
+                    ),
+                ));
+            }
+        }
+        if matches!(&belief.source, SourceRef::Cause(_)) {
+            errors.push(ContentValidationError::new(
                 ValidationPhase::EpistemicSeed,
                 format!("initial_beliefs[{index}].source_kind"),
                 "unsupported_source_kind",
-                "initial belief seeds must use event or action source references",
-            )),
+                "initial belief seeds must use authored_prehistory event source references",
+            ));
         }
 
         let _belief = belief.to_belief();

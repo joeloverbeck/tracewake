@@ -2,6 +2,7 @@ use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{
     Belief, Channel, Confidence, HolderKind, PrivacyScope, Proposition, SourceRef, Stance,
 };
+use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
 };
@@ -76,6 +77,7 @@ pub struct InitialBeliefSchema {
     pub proposition: Proposition,
     pub stance: Stance,
     pub confidence: Confidence,
+    pub source_kind: InitialBeliefSourceKind,
     pub source: SourceRef,
     pub channel: Option<Channel>,
     pub acquired_tick: SimTick,
@@ -117,6 +119,7 @@ impl InitialBeliefSchema {
             proposition,
             stance: Stance::ExpectsTrue,
             confidence,
+            source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
             source,
             channel: None,
             acquired_tick,

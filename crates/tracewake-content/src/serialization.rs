@@ -4,6 +4,7 @@ use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
 };
+use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, ItemId, PlaceId,
     SchemaVersion,
@@ -112,7 +113,7 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             encode(&belief.proposition.serialize_canonical()),
             belief.stance.stable_id(),
             belief.confidence.serialize_canonical(),
-            source_kind(&belief.source),
+            belief.source_kind.stable_id(),
             source_id(&belief.source),
             belief.channel.map(channel_id).unwrap_or(""),
             belief.acquired_tick.value(),
@@ -189,6 +190,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                     proposition: Proposition::from_str(&decode(proposition)?)?,
                     stance: parse_stance(stance)?,
                     confidence: parse_confidence(confidence)?,
+                    source_kind: parse_source_kind(source_kind)?,
                     source: parse_source(source_kind, source_id)?,
                     channel: parse_optional_channel(channel)?,
                     acquired_tick: parse_tick(acquired_tick)?,
@@ -303,14 +305,6 @@ fn parse_optional_tick(value: &str) -> Result<Option<SimTick>, SerializationErro
     }
 }
 
-fn source_kind(source: &SourceRef) -> &'static str {
-    match source {
-        SourceRef::Event(_) => "event",
-        SourceRef::Action(_) => "action",
-        SourceRef::Cause(_) => "cause",
-    }
-}
-
 fn source_id(source: &SourceRef) -> String {
     match source {
         SourceRef::Event(event_id) => event_id.as_str().to_string(),
@@ -326,13 +320,18 @@ fn parse_source(kind: &str, id: &str) -> Result<SourceRef, SerializationError> {
         ));
     }
     match kind {
-        "event" => Ok(SourceRef::Event(EventId::new(id)?)),
-        "action" => Ok(SourceRef::Action(ActionId::new(id)?)),
-        "cause" => Err(SerializationError::BadLine(
-            "initial_belief cause source is not serializable".to_string(),
-        )),
+        "authored_prehistory" => Ok(SourceRef::Event(EventId::new(id)?)),
         _ => Err(SerializationError::BadLine(format!(
             "bad source kind {kind}"
+        ))),
+    }
+}
+
+fn parse_source_kind(value: &str) -> Result<InitialBeliefSourceKind, SerializationError> {
+    match value {
+        "authored_prehistory" => Ok(InitialBeliefSourceKind::AuthoredPrehistory),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad source kind {value}"
         ))),
     }
 }

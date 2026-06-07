@@ -64,14 +64,14 @@ fn malformed_epistemic_seed_fields_are_rejected() {
         .serialize_canonical(),
     );
     let missing_holder = format!(
-        "fixture|bad_fixture\nschema|schema_v1\ninitial_belief|belief_tomas_expected_coin||{proposition}|expects_true|0900|event|event_seed||0||actor:actor_tomas|epistemic_record_schema_v1"
+        "fixture|bad_fixture\nschema|schema_v1\ninitial_belief|belief_tomas_expected_coin||{proposition}|expects_true|0900|authored_prehistory|prehistory_seed||0||actor:actor_tomas|epistemic_record_schema_v1"
     );
     let missing_source = format!(
-        "fixture|bad_fixture\nschema|schema_v1\ninitial_belief|belief_tomas_expected_coin|actor_tomas|{proposition}|expects_true|0900|event|||0||actor:actor_tomas|epistemic_record_schema_v1"
+        "fixture|bad_fixture\nschema|schema_v1\ninitial_belief|belief_tomas_expected_coin|actor_tomas|{proposition}|expects_true|0900|authored_prehistory|||0||actor:actor_tomas|epistemic_record_schema_v1"
     );
     let raw_prose = encode("Tomas thinks the coins are probably gone");
     let raw_prose_seed = format!(
-        "fixture|bad_fixture\nschema|schema_v1\ninitial_belief|belief_tomas_expected_coin|actor_tomas|{raw_prose}|expects_true|0900|event|event_seed||0||actor:actor_tomas|epistemic_record_schema_v1"
+        "fixture|bad_fixture\nschema|schema_v1\ninitial_belief|belief_tomas_expected_coin|actor_tomas|{raw_prose}|expects_true|0900|authored_prehistory|prehistory_seed||0||actor:actor_tomas|epistemic_record_schema_v1"
     );
 
     for raw in [missing_holder, missing_source, raw_prose_seed] {

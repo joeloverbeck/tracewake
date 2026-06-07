@@ -37,7 +37,7 @@ pub fn strongbox_001() -> GoldenFixture {
             affordance("inspect_place", "house_tomas"),
             affordance("inspect_entity", "strongbox_tomas"),
         ],
-        initial_beliefs: Vec::new(),
+        initial_beliefs: vec![tomas_coin_expectation_seed()],
     };
     fixture.canonicalize();
     GoldenFixture {
@@ -70,7 +70,7 @@ pub fn strongbox_001() -> GoldenFixture {
                 "fixture validates with stable physical IDs",
                 "coin_stack_01 is not an abstract balance",
                 "debug report identifies fixture-origin location inside strongbox_tomas",
-                "no belief contradiction, suspicion, report, institution, quest, reward, player, or outcome script is asserted",
+                "only Tomas's source-backed authored-prehistory expectation is seeded; no contradiction, suspicion, report, institution, quest, reward, player, or outcome script is asserted",
             ],
         },
     }

@@ -2,6 +2,7 @@ use tracewake_content::fixtures;
 use tracewake_content::load::load_fixture_package;
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
+use tracewake_core::epistemics::EpistemicProjection;
 use tracewake_core::ids::{ContentManifestId, ContentVersion};
 
 fn registry() -> ActionRegistry {
@@ -9,6 +10,7 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_movement_open_close();
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
+    registry.register_phase2a_epistemics();
     registry
 }
 
@@ -130,4 +132,24 @@ fn llm_disabled_phase1_still_passes() {
     for golden in fixtures::all() {
         validate_fixture(&golden.fixture, &registry()).unwrap();
     }
+}
+
+#[test]
+fn fixture_initial_beliefs_construct_epistemic_projection() {
+    let golden = fixtures::strongbox_001();
+    let mut projection =
+        EpistemicProjection::new(ContentManifestId::new("manifest_strongbox_001").unwrap());
+
+    for seed in &golden.fixture.initial_beliefs {
+        projection.insert_belief(seed.to_belief());
+    }
+
+    assert!(projection.beliefs_by_id.contains_key(
+        &"belief_tomas_expects_coin_stack_01_in_strongbox_tomas"
+            .parse()
+            .unwrap()
+    ));
+    assert!(projection
+        .beliefs_by_holder
+        .contains_key(&"actor_tomas".parse().unwrap()));
 }
