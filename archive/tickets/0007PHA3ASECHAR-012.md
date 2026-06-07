@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-012: Integrated no-human day capstone
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — capstone fixture/test only (`crates/tracewake-content/src/fixtures/no_human_day_001.rs`, `crates/tracewake-core/tests/acceptance_gates.rs`); no new production logic
@@ -78,3 +78,29 @@ In `acceptance_gates.rs`, assert each §Acceptance-criteria bullet as a sub-case
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
 4. `cargo fmt --all --check`
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed behavior:
+- Added a single-run integrated no-human capstone in `acceptance_gates.rs` that constructs a deterministic multi-actor ordinary-day scenario and asserts passive needs before decisions, autonomous eating, no-food waiting, sleep completion, movement before work, work completion/failure, intention continuation, routine ancestry, no controller/player leakage, metrics, and replayed physical/agent/intention/routine/decision/stuck state.
+- `run_no_human_day` now schedules in-run completion events for sleep and work starts whose expected completion ticks fall inside the run, using the existing sleep/work completion event builders.
+- `run_no_human_day` now records deterministic decision-trace events for autonomous proposals so replay rebuilds decision-trace state from the log.
+- Updated TUI no-human assertions to the new post-run need row after work completion costs are applied.
+
+Deviations:
+- The ticket expected capstone fixture/test only, but the capstone exposed that duration-based sleep/work completions and decision trace state were not yet emitted inside the autonomous run. I added narrow production scheduler hooks so the single run, not post-run manual injection, produces the required evidence.
+- The core acceptance test uses a core-only capstone scenario rather than importing `tracewake-content`, preserving the workspace dependency direction.
+
+Verification:
+- `cargo test -p tracewake-core --test acceptance_gates integrated_no_human_day_capstone_emerges_from_one_autonomous_run`
+- `cargo test -p tracewake-core --test acceptance_gates`
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_day`
+- `cargo test -p tracewake-core no_human_day`
+- `cargo test -p tracewake-tui --test command_loop_session no_human_day_command_loop_renders_phase3a_behavior_rows`
+- `cargo test -p tracewake-tui --test tui_acceptance tui_runs_no_human_day_and_inspects_real_post_run_panels`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

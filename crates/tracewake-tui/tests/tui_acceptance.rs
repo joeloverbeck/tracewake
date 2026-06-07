@@ -127,7 +127,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(report.ordinary_pipeline_events > 0);
     assert!(after_run_events > before_events);
     assert!(embodied.contains("Needs:"));
-    assert!(embodied.contains("- hunger: value=400 band=rising cause=tick_delta"));
+    assert!(embodied.contains("- hunger: value=416 band=rising cause=action_effect:work_block"));
     assert!(embodied.contains("Intention:"));
     assert!(embodied.contains("active:routine_tomas_go_work:work_block"));
     assert!(!embodied.contains("food_hidden_pantry"));
@@ -170,7 +170,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(rendered.contains("DEBUG NON-DIEGETIC: No Human Day"));
     assert!(rendered.contains("work_failed=4"));
     assert!(rendered.contains("routine_interruptions=2"));
-    assert!(rendered.contains("- hunger: value=400 band=rising cause=tick_delta"));
+    assert!(rendered.contains("- hunger: value=416 band=rising cause=action_effect:work_block"));
     assert!(rendered.contains("Actor: actor_tomas"));
     assert!(!rendered.contains("food_hidden_pantry"));
 }

@@ -107,7 +107,7 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     assert!(output.contains("status=Failed"));
     assert!(output.contains("routine_exec_tomas_work"));
     assert!(output.contains("status=Completed"));
-    assert!(output.contains("- hunger: value=400 band=rising cause=tick_delta"));
+    assert!(output.contains("- hunger: value=416 band=rising cause=action_effect:work_block"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(output.contains("fixture=no_human_day_001"));
     assert!(!output.contains("food_hidden_pantry"));

@@ -203,6 +203,8 @@ impl DeterministicScheduler {
 pub mod no_human {
     use std::collections::{BTreeMap, BTreeSet};
 
+    use crate::actions::defs::sleep::build_sleep_completion_events;
+    use crate::actions::defs::work::build_work_completion_events;
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
@@ -331,6 +333,8 @@ pub mod no_human {
 
         let mut ordinary_pipeline_events = 0;
         let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
+        let mut pending_sleep_starts = Vec::new();
+        let mut pending_work_starts = Vec::new();
         let mut last_decision_tick_by_actor = config
             .actor_ids
             .iter()
@@ -391,6 +395,28 @@ pub mod no_human {
                     ordering_key,
                 };
                 let result = run_pipeline(&mut context, &proposal);
+                pending_sleep_starts.extend(
+                    result
+                        .appended_events
+                        .iter()
+                        .filter(|event| {
+                            event.event_type == EventKind::SleepStarted
+                                && scheduled_completion_tick(event)
+                                    .is_some_and(|tick| tick <= final_tick)
+                        })
+                        .cloned(),
+                );
+                pending_work_starts.extend(
+                    result
+                        .appended_events
+                        .iter()
+                        .filter(|event| {
+                            event.event_type == EventKind::WorkBlockStarted
+                                && scheduled_completion_tick(event)
+                                    .is_some_and(|tick| tick <= final_tick)
+                        })
+                        .cloned(),
+                );
                 let progress_events = no_human_progress_event_count(&result.appended_events);
                 ordinary_pipeline_events += progress_events;
                 if progress_events > 0 {
@@ -420,8 +446,35 @@ pub mod no_human {
                     &content_manifest_id,
                     result.appended_events.first(),
                 );
+                append_decision_trace_after_proposal(
+                    log,
+                    agent_state,
+                    &process_id,
+                    actor_id,
+                    window,
+                    &proposal,
+                    &content_manifest_id,
+                    result.appended_events.first(),
+                );
             }
         }
+
+        append_scheduled_sleep_completions(
+            log,
+            agent_state,
+            &process_id,
+            &mut scheduler,
+            &content_manifest_id,
+            pending_sleep_starts,
+        );
+        append_scheduled_work_completions(
+            log,
+            agent_state,
+            &process_id,
+            &mut scheduler,
+            &content_manifest_id,
+            pending_work_starts,
+        );
 
         let mut stuck_diagnostic_event_ids = Vec::new();
         for window in &config.windows {
@@ -791,6 +844,191 @@ pub mod no_human {
     ) -> Option<Intention> {
         let intention_id = agent_state.active_intention_by_actor.get(actor_id)?;
         agent_state.intentions.get(intention_id).cloned()
+    }
+
+    fn append_scheduled_sleep_completions(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        scheduler: &mut DeterministicScheduler,
+        content_manifest_id: &ContentManifestId,
+        sleep_starts: Vec<EventEnvelope>,
+    ) {
+        for sleep_started in sleep_starts {
+            let Some(completion_tick) = scheduled_completion_tick(&sleep_started) else {
+                continue;
+            };
+            let actor_id = sleep_started
+                .actor_id
+                .as_ref()
+                .map(|actor_id| actor_id.as_str().to_string())
+                .unwrap_or_default();
+            let ordering_key = OrderingKey::new(
+                completion_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                scheduler.assign_proposal_sequence(),
+                ActionId::new("sleep_completed").unwrap(),
+                vec![actor_id],
+                format!("sleep_completed:{}", sleep_started.event_id.as_str()),
+            );
+            for event in build_sleep_completion_events(
+                &sleep_started,
+                &ordering_key,
+                content_manifest_id,
+                completion_tick,
+            ) {
+                append_and_apply_agent_event(log, agent_state, event);
+            }
+        }
+    }
+
+    fn append_scheduled_work_completions(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        scheduler: &mut DeterministicScheduler,
+        content_manifest_id: &ContentManifestId,
+        work_starts: Vec<EventEnvelope>,
+    ) {
+        for work_started in work_starts {
+            let Some(completion_tick) = scheduled_completion_tick(&work_started) else {
+                continue;
+            };
+            let actor_id = work_started
+                .actor_id
+                .as_ref()
+                .map(|actor_id| actor_id.as_str().to_string())
+                .unwrap_or_default();
+            let ordering_key = OrderingKey::new(
+                completion_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                scheduler.assign_proposal_sequence(),
+                ActionId::new("work_block_completed").unwrap(),
+                vec![actor_id],
+                format!("work_completed:{}", work_started.event_id.as_str()),
+            );
+            for event in build_work_completion_events(
+                &work_started,
+                &ordering_key,
+                content_manifest_id,
+                completion_tick,
+            ) {
+                append_and_apply_agent_event(log, agent_state, event);
+            }
+        }
+    }
+
+    fn scheduled_completion_tick(event: &EventEnvelope) -> Option<SimTick> {
+        event
+            .payload
+            .iter()
+            .find(|field| field.key == "expected_completion_tick")
+            .and_then(|field| field.value.parse::<u64>().ok())
+            .map(SimTick::new)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn append_decision_trace_after_proposal(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: Option<&EventEnvelope>,
+    ) {
+        let Some(ordinary_event) = ordinary_event else {
+            return;
+        };
+        append_and_apply_agent_event(
+            log,
+            agent_state,
+            build_decision_trace_event(
+                process_id,
+                actor_id,
+                window,
+                proposal,
+                content_manifest_id,
+                ordinary_event,
+            ),
+        );
+    }
+
+    fn build_decision_trace_event(
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let trace_id = DecisionTraceId::new(format!(
+            "trace_{}_{}_{}",
+            actor_id.as_str(),
+            window.window_id,
+            proposal.action_id.as_str()
+        ))
+        .unwrap();
+        let outcome = match ordinary_event.event_type {
+            EventKind::ActionRejected
+            | EventKind::EatFailed
+            | EventKind::WorkBlockFailed
+            | EventKind::ContinueRoutineRejected => "failed",
+            EventKind::ActorWaited => "waited",
+            EventKind::ContinueRoutineAccepted => "continued",
+            _ => "completed",
+        };
+        let trace_canonical = format!(
+            "decision_trace_v1|{}|{}|{}|{}|{}|0|true|6e6f5f68756d616e5f646179",
+            trace_id.as_str(),
+            actor_id.as_str(),
+            window.start_tick.value(),
+            window.end_tick.value(),
+            outcome
+        );
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.decision_trace.{}.{}",
+                actor_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            EventKind::DecisionTraceRecorded,
+            0,
+            0,
+            window.start_tick,
+            OrderingKey::new(
+                window.start_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("decision_trace_recorded").unwrap(),
+                vec![actor_id.as_str().to_string(), trace_id.as_str().to_string()],
+                format!("decision_trace:{}:{}", actor_id.as_str(), window.window_id),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Event(ordinary_event.event_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.proposal_id = Some(proposal.proposal_id.clone());
+        event.participants = vec![actor_id.to_string(), trace_id.to_string()];
+        event.payload = vec![
+            PayloadField::new("trace_id", trace_id.as_str()),
+            PayloadField::new("trace_canonical", trace_canonical),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("window_id", window.window_id.as_str()),
+            PayloadField::new("action_id", proposal.action_id.as_str()),
+            PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
+            PayloadField::new("hidden_truth_audit", "actor_known_only"),
+        ];
+        event.effects_summary =
+            "no-human decision trace recorded from autonomous proposal".to_string();
+        event
     }
 
     fn append_passive_need_events_before_decision(
