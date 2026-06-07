@@ -12,9 +12,8 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
     select_goal_and_trace, select_method_from_templates, CandidateGenerationInput, DecisionInput,
-    GoalKind, Intention, IntentionSource, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState,
-    PlannerGoal, RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineTemplate,
-    VisibleLocalPlanningState,
+    GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
+    RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate, VisibleLocalPlanningState,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
@@ -22,8 +21,8 @@ use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplic
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventEnvelope, EventKind};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DecisionTraceId, FoodSupplyId,
-    IntentionId, RoutineExecutionId, RoutineTemplateId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, FoodSupplyId, IntentionId,
+    RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::scheduler::no_human::{
@@ -576,38 +575,14 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
     let actor_id: ActorId = "actor_mara".parse().unwrap();
     let intention_id: IntentionId = "intention_mara_work".parse().unwrap();
     let routine_execution_id: RoutineExecutionId = "routine_exec_mara_work".parse().unwrap();
-    let trace_id: DecisionTraceId = "trace_mara_work".parse().unwrap();
-    let intention = Intention::adopt(
-        intention_id.clone(),
-        actor_id.clone(),
-        IntentionSource::RoutineDuty,
-        "goal_mara_work".parse().unwrap(),
-        Some("routine_mara_active_work".parse().unwrap()),
-        Some("work_block".to_string()),
-        8,
-        SimTick::new(1),
-        trace_id.clone(),
+    assert_eq!(
+        agent_state.active_intention_by_actor.get(&actor_id),
+        Some(&intention_id)
     );
-    let mut execution = RoutineExecution::new(
-        routine_execution_id.clone(),
-        actor_id.clone(),
-        "routine_mara_active_work".parse().unwrap(),
-        SimTick::new(1),
-        Some(SimTick::new(2)),
-        Some(SimTick::new(8)),
-        Some("body".to_string()),
-        trace_id,
-    );
-    execution.start_step(SimTick::new(1), "continue_routine".parse().unwrap());
-    agent_state
-        .active_intention_by_actor
-        .insert(actor_id.clone(), intention_id.clone());
-    agent_state
-        .intentions
-        .insert(intention_id.clone(), intention);
-    agent_state
+    assert!(agent_state.intentions.contains_key(&intention_id));
+    assert!(agent_state
         .routine_executions
-        .insert(routine_execution_id.clone(), execution);
+        .contains_key(&routine_execution_id));
     let before_agent_state = agent_state.clone();
     let mut log = EventLog::new();
     let mut bindings = ControllerBindings::new();

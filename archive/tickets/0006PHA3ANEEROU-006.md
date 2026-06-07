@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-006: Intention and routine lifecycle, possession parity, no-teleport
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` intention/routine state (`agent/intention.rs`, `agent/routine.rs`, `state.rs`); routine-assignment instantiation; content schema (`tracewake-content`)
@@ -89,3 +89,26 @@ Ensure possession attach/detach/switch (controller binding) emits no agent-cogni
 1. `cargo test -p tracewake-content --test golden_fixtures_run`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Routine assignments now instantiate durable live cognition during content load:
+`FixtureSchema::to_agent_state` creates deterministic active `Intention` and
+`RoutineExecution` records for each routine assignment, with IDs derived from
+actor and routine family and trace/goal ancestry attached. This removes the
+fixture-only manual injection path previously used by the possession parity
+test.
+
+Updated `possession_does_not_reset_intention_001` coverage to assert the loaded
+agent state already contains the active intention and routine execution, then
+verify controller attach/detach and `continue_routine` leave cognition state
+unchanged. Existing no-teleport and blocked-routine fixture tests continue to
+assert ordinary action reachability/failure and typed diagnostics.
+
+Verified with:
+
+1. `cargo test -p tracewake-content --test golden_fixtures_run`
+2. `cargo test --workspace`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo fmt --all --check`
