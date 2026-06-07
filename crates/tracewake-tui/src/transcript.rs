@@ -18,6 +18,10 @@ pub fn capture_representative_transcript() -> Result<String, AppError> {
         render_rejection(&rejected.report),
     ));
     sections.push(section("view.why_not", app.render_current_view()?));
+    sections.push(section(
+        "notebook.actor_sena",
+        crate::render::render_notebook(&app.notebook_view()?),
+    ));
 
     app.submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())?;
     sections.push(section("view.after_wait", app.render_current_view()?));
@@ -44,6 +48,22 @@ pub fn capture_representative_transcript() -> Result<String, AppError> {
         app.render_debug_projection_rebuild_panel(),
     ));
     sections.push(section("debug.replay", app.render_debug_replay_panel()));
+    sections.push(section(
+        "debug.epistemics",
+        crate::debug_panels::render_debug_epistemics_panel(&app.debug_epistemics_view()),
+    ));
+    sections.push(section(
+        "debug.beliefs.actor_sena",
+        crate::debug_panels::render_debug_beliefs_panel(
+            &app.debug_beliefs_view(&ActorId::new("actor_sena").unwrap())?,
+        ),
+    ));
+    sections.push(section(
+        "debug.observations.actor_sena",
+        crate::debug_panels::render_debug_observations_panel(
+            &app.debug_observations_view(&ActorId::new("actor_sena").unwrap())?,
+        ),
+    ));
 
     Ok(sections.join("\n\n"))
 }

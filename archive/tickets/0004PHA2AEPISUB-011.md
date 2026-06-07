@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-011: TUI parser, app, and renderers for notebook and debug epistemics
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — extends the `tracewake-tui` parser, app loop, and renderers (`input.rs`, `app.rs`, `render.rs`, `debug_panels.rs`).
@@ -81,3 +81,21 @@ Add renderers in `render.rs` for the actor-known notebook and the embodied why-n
 1. `cargo test -p tracewake-tui`
 2. `cargo test -p tracewake-tui --test transcript_snapshot`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Changed:
+- Added `notebook`, `debug epistemics`, `debug beliefs <actor_id>`, and `debug observations <actor_id>` parsing and command-loop dispatch.
+- Wired `TuiApp` to own and update the live `EpistemicProjection`, render actor-scoped notebook views, and expose debug epistemics view models without mutating embodied state.
+- Added deterministic notebook/debug renderers and extended binary-session and transcript coverage, including typed malformed actor-id rejection.
+
+Deviations:
+- None.
+
+Verification:
+- `cargo test -p tracewake-tui`
+- `cargo test -p tracewake-tui --test transcript_snapshot`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

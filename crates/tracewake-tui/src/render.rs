@@ -1,5 +1,5 @@
 use tracewake_core::actions::report::ValidationReport;
-use tracewake_core::view_models::EmbodiedViewModel;
+use tracewake_core::view_models::{EmbodiedViewModel, NotebookView};
 
 pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     let mut lines = Vec::new();
@@ -16,6 +16,9 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
 
     if let Some(summary) = &view.last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
+    }
+    if let Some(context_id) = &view.knowledge_context_id {
+        lines.push(format!("Knowledge context: {context_id}"));
     }
 
     lines.push("Exits:".to_string());
@@ -80,6 +83,66 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             action.semantic_action_id.as_str(),
             disabled
         ));
+    }
+
+    lines.join("\n")
+}
+
+pub fn render_notebook(view: &NotebookView) -> String {
+    let mut lines = vec![format!("Notebook: {}", view.viewer_actor_id.as_str())];
+    lines.push("Beliefs:".to_string());
+    if view.source_bound_beliefs.is_empty() {
+        lines.push("- none".to_string());
+    }
+    for belief in &view.source_bound_beliefs {
+        let contradictions = if belief.contradiction_ids.is_empty() {
+            "none".to_string()
+        } else {
+            belief.contradiction_ids.join(",")
+        };
+        lines.push(format!(
+            "- {} confidence={} source={} tick={} contradictions={} :: {}",
+            belief.belief_id,
+            belief.confidence_label,
+            belief.source_summary,
+            belief.acquired_tick,
+            contradictions,
+            belief.summary
+        ));
+    }
+
+    lines.push("Observations:".to_string());
+    if view.recent_observations.is_empty() {
+        lines.push("- none".to_string());
+    }
+    for observation in &view.recent_observations {
+        lines.push(format!(
+            "- {} channel={} confidence={} tick={} :: {}",
+            observation.observation_id,
+            observation.channel,
+            observation.confidence_label,
+            observation.observed_tick,
+            observation.summary
+        ));
+    }
+
+    lines.push("Contradictions:".to_string());
+    if view.known_contradictions.is_empty() {
+        lines.push("- none".to_string());
+    }
+    for contradiction in &view.known_contradictions {
+        lines.push(format!(
+            "- {} :: {}",
+            contradiction.contradiction_id, contradiction.summary
+        ));
+    }
+
+    lines.push("Leads:".to_string());
+    if view.possible_leads.is_empty() {
+        lines.push("- none".to_string());
+    }
+    for lead in &view.possible_leads {
+        lines.push(format!("- {lead}"));
     }
 
     lines.join("\n")

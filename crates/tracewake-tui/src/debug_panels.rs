@@ -3,6 +3,9 @@ use tracewake_core::debug_reports::{
     ProjectionRebuildDebugReport, ReplayDebugReport,
 };
 use tracewake_core::view_models::DebugEventLogView;
+use tracewake_core::view_models::{
+    DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, DEBUG_EPISTEMICS_MARKER,
+};
 
 const DEBUG_MARKER: &str = "DEBUG NON-DIEGETIC";
 
@@ -106,6 +109,81 @@ pub fn render_replay_panel(report: &ReplayDebugReport) -> String {
             format!("final_checksum={}", report.replay.final_checksum.as_str()),
         ],
     )
+}
+
+pub fn render_debug_epistemics_panel(view: &DebugEpistemicsView) -> String {
+    assert!(view.debug_only);
+    assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    let mut rows = vec![
+        format!("context_mode={}", view.context_mode),
+        format!("projection={}", view.projection_summary),
+        format!("observation_count={}", view.observations.len()),
+        format!("holder_count={}", view.beliefs_by_holder.len()),
+        format!("contradiction_count={}", view.contradictions.len()),
+    ];
+    rows.extend(view.observations.iter().map(|observation| {
+        format!(
+            "observation={} actor={} channel={} confidence={} source={}",
+            observation.observation_id,
+            observation.observer_actor_id.as_str(),
+            observation.channel,
+            observation.confidence,
+            observation.source
+        )
+    }));
+    rows.extend(view.beliefs_by_holder.iter().map(|holder| {
+        format!(
+            "holder={} belief_count={}",
+            holder.holder_actor_id.as_str(),
+            holder.beliefs.len()
+        )
+    }));
+    rows.extend(view.contradictions.iter().map(|contradiction| {
+        format!(
+            "contradiction={} holder={} expectation={} observation={} summary={}",
+            contradiction.contradiction_id,
+            contradiction.holder_actor_id.as_str(),
+            contradiction.expectation_belief_id,
+            contradiction.observation_id,
+            contradiction.summary
+        )
+    }));
+    lines("Epistemics", rows)
+}
+
+pub fn render_debug_beliefs_panel(view: &DebugBeliefsView) -> String {
+    assert!(view.debug_only);
+    assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    let mut rows = vec![
+        format!("actor={}", view.holder_actor_id.as_str()),
+        format!("belief_count={}", view.beliefs.len()),
+    ];
+    rows.extend(view.beliefs.iter().map(|belief| {
+        format!(
+            "belief={} stance={} confidence={} source={} :: {}",
+            belief.belief_id, belief.stance, belief.confidence, belief.source, belief.proposition
+        )
+    }));
+    lines("Beliefs", rows)
+}
+
+pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
+    assert!(view.debug_only);
+    assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    let mut rows = vec![
+        format!("actor={}", view.observer_actor_id.as_str()),
+        format!("observation_count={}", view.observations.len()),
+    ];
+    rows.extend(view.observations.iter().map(|observation| {
+        format!(
+            "observation={} channel={} confidence={} source={}",
+            observation.observation_id,
+            observation.channel,
+            observation.confidence,
+            observation.source
+        )
+    }));
+    lines("Observations", rows)
 }
 
 fn lines(title: &str, rows: Vec<String>) -> String {

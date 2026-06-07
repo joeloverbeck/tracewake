@@ -7,7 +7,11 @@ fn transcript_snapshot_is_byte_identical_across_runs() {
 
     assert_eq!(first.as_bytes(), second.as_bytes());
     assert!(first.contains("== view.initial =="));
+    assert!(first.contains("== notebook.actor_sena =="));
     assert!(first.contains("Why-not:"));
     assert!(first.contains("DEBUG NON-DIEGETIC: Event Log"));
     assert!(first.contains("DEBUG NON-DIEGETIC: Replay"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Epistemics"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Beliefs"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Observations"));
 }
