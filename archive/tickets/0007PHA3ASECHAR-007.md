@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-007: Routine execution as defeasible procedures over ordinary actions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` routine execution ancestry and interruption (`agent/routine.rs`, `scheduler.rs`, `events/apply.rs`); routine fixtures
@@ -81,3 +81,31 @@ Interrupt a routine on a severe need (cause from 0007PHA3ASECHAR-005), blocked a
 2. `cargo test -p tracewake-content`
 3. `cargo test --workspace`
 4. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Wired `run_no_human_day` to emit and apply routine step events after ordinary no-human proposals when an actor has a live `RoutineExecution`.
+- Successful instant ordinary actions now emit `RoutineStepStarted` and `RoutineStepCompleted` caused by the ordinary action event; the start event records `concrete_action_ancestry`.
+- Duration starts such as sleep/work emit `RoutineStepStarted` without marker-only completion.
+- Typed ordinary failures (`ActionRejected`, `EatFailed`, `WorkBlockFailed`, `ContinueRoutineRejected`) emit `RoutineStepFailed` with a stable failure reason and fallback attempt count.
+- Added scheduler tests proving routine step ancestry replays to the same routine execution state and blocked work records a typed routine failure reason.
+
+Deviations from original plan:
+
+- No fixture schema changes were required; the existing `routine_no_teleport_001` and `routine_blocked_diagnostic_001` checks pass against the integrated no-human routine-step events.
+- Broader interruption coordination remains narrow here: routine failures are recorded from typed ordinary action failures, while severe-need intention interruption remains the cause signal introduced in `0007PHA3ASECHAR-005`.
+
+Verification results:
+
+- `cargo test -p tracewake-core scheduler`
+- `cargo test -p tracewake-core agent::routine`
+- `cargo test -p tracewake-content routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry`
+- `cargo test -p tracewake-content routine_blocked_fixture_records_access_failure_without_silent_loop`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

@@ -219,7 +219,8 @@ pub mod no_human {
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
         ActionId, ActorId, CandidateGoalId, ContentManifestId, DecisionTraceId, EventId,
-        IntentionId, ProcessId, ProposalId, StuckDiagnosticId,
+        IntentionId, ProcessId, ProposalId, RoutineExecutionId, SemanticActionId,
+        StuckDiagnosticId,
     };
     use crate::location::Location;
     use crate::scheduler::{
@@ -406,6 +407,16 @@ pub mod no_human {
                     &proposal,
                     &content_manifest_id,
                     active_before_proposal.as_ref(),
+                    result.appended_events.first(),
+                );
+                append_routine_step_events_after_proposal(
+                    log,
+                    agent_state,
+                    &process_id,
+                    actor_id,
+                    window,
+                    &proposal,
+                    &content_manifest_id,
                     result.appended_events.first(),
                 );
             }
@@ -1196,6 +1207,283 @@ pub mod no_human {
         event
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn append_routine_step_events_after_proposal(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: Option<&EventEnvelope>,
+    ) {
+        let Some(ordinary_event) = ordinary_event else {
+            return;
+        };
+        let Some(execution_id) = active_routine_execution_for_actor(agent_state, actor_id) else {
+            return;
+        };
+        let Some(execution) = agent_state.routine_executions.get(&execution_id) else {
+            return;
+        };
+        if matches!(
+            execution.step_status,
+            crate::agent::RoutineStepStatus::Completed
+                | crate::agent::RoutineStepStatus::Failed
+                | crate::agent::RoutineStepStatus::Interrupted
+                | crate::agent::RoutineStepStatus::Abandoned
+        ) {
+            return;
+        }
+        if is_routine_failure_event(ordinary_event) {
+            append_and_apply_agent_event(
+                log,
+                agent_state,
+                build_routine_step_failed_event(
+                    process_id,
+                    &execution_id,
+                    actor_id,
+                    window,
+                    proposal,
+                    content_manifest_id,
+                    ordinary_event,
+                ),
+            );
+            return;
+        }
+        if execution.step_status == crate::agent::RoutineStepStatus::NotStarted {
+            append_and_apply_agent_event(
+                log,
+                agent_state,
+                build_routine_step_started_event(
+                    process_id,
+                    &execution_id,
+                    actor_id,
+                    window,
+                    proposal,
+                    content_manifest_id,
+                    ordinary_event,
+                ),
+            );
+        }
+        if is_instant_routine_progress_event(ordinary_event) {
+            append_and_apply_agent_event(
+                log,
+                agent_state,
+                build_routine_step_completed_event(
+                    process_id,
+                    &execution_id,
+                    actor_id,
+                    window,
+                    proposal,
+                    content_manifest_id,
+                    ordinary_event,
+                ),
+            );
+        }
+    }
+
+    fn active_routine_execution_for_actor(
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+    ) -> Option<RoutineExecutionId> {
+        agent_state
+            .routine_executions
+            .iter()
+            .filter(|(_, execution)| &execution.actor_id == actor_id)
+            .filter(|(_, execution)| {
+                !matches!(
+                    execution.step_status,
+                    crate::agent::RoutineStepStatus::Completed
+                        | crate::agent::RoutineStepStatus::Failed
+                        | crate::agent::RoutineStepStatus::Interrupted
+                        | crate::agent::RoutineStepStatus::Abandoned
+                )
+            })
+            .min_by(|(_, left), (_, right)| {
+                left.start_tick
+                    .cmp(&right.start_tick)
+                    .then_with(|| left.execution_id.cmp(&right.execution_id))
+            })
+            .map(|(execution_id, _)| execution_id.clone())
+    }
+
+    fn is_routine_failure_event(event: &EventEnvelope) -> bool {
+        matches!(
+            event.event_type,
+            EventKind::ActionRejected
+                | EventKind::EatFailed
+                | EventKind::WorkBlockFailed
+                | EventKind::ContinueRoutineRejected
+        )
+    }
+
+    fn is_instant_routine_progress_event(event: &EventEnvelope) -> bool {
+        !matches!(
+            event.event_type,
+            EventKind::SleepStarted | EventKind::WorkBlockStarted
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_routine_step_started_event(
+        process_id: &ProcessId,
+        execution_id: &RoutineExecutionId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let semantic_action_id = SemanticActionId::new(proposal.action_id.as_str()).unwrap();
+        let mut event = routine_step_event(
+            EventKind::RoutineStepStarted,
+            process_id,
+            execution_id,
+            actor_id,
+            window,
+            proposal,
+            content_manifest_id,
+            ordinary_event,
+            "routine_step_started",
+        );
+        event.payload = vec![
+            PayloadField::new("routine_execution_id", execution_id.as_str()),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("action_id", semantic_action_id.as_str()),
+            PayloadField::new("progress_tick", window.start_tick.value().to_string()),
+            PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
+            PayloadField::new("ordinary_action_id", proposal.action_id.as_str()),
+        ];
+        event.effects_summary = "routine step started with ordinary action ancestry".to_string();
+        event
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_routine_step_completed_event(
+        process_id: &ProcessId,
+        execution_id: &RoutineExecutionId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let mut event = routine_step_event(
+            EventKind::RoutineStepCompleted,
+            process_id,
+            execution_id,
+            actor_id,
+            window,
+            proposal,
+            content_manifest_id,
+            ordinary_event,
+            "routine_step_completed",
+        );
+        event.payload = vec![
+            PayloadField::new("routine_execution_id", execution_id.as_str()),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("progress_tick", window.start_tick.value().to_string()),
+            PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
+            PayloadField::new("ordinary_action_id", proposal.action_id.as_str()),
+        ];
+        event.effects_summary = "routine step completed with ordinary action ancestry".to_string();
+        event
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_routine_step_failed_event(
+        process_id: &ProcessId,
+        execution_id: &RoutineExecutionId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let mut event = routine_step_event(
+            EventKind::RoutineStepFailed,
+            process_id,
+            execution_id,
+            actor_id,
+            window,
+            proposal,
+            content_manifest_id,
+            ordinary_event,
+            "routine_step_failed",
+        );
+        let reason = routine_failure_reason(ordinary_event);
+        event.payload = vec![
+            PayloadField::new("routine_execution_id", execution_id.as_str()),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("progress_tick", window.start_tick.value().to_string()),
+            PayloadField::new("reason", reason),
+            PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
+            PayloadField::new("ordinary_action_id", proposal.action_id.as_str()),
+            PayloadField::new("fallback_attempts", "1"),
+        ];
+        event.effects_summary = format!("routine step failed: {reason}");
+        event
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn routine_step_event(
+        kind: EventKind,
+        process_id: &ProcessId,
+        execution_id: &RoutineExecutionId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+        label: &str,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.{}.{}.{}",
+                label,
+                execution_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            kind,
+            0,
+            0,
+            window.start_tick,
+            OrderingKey::new(
+                window.start_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new(label).unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    execution_id.as_str().to_string(),
+                ],
+                format!("{}:{}:{}", label, actor_id.as_str(), window.window_id),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Event(ordinary_event.event_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.proposal_id = Some(proposal.proposal_id.clone());
+        event.participants = vec![actor_id.to_string(), execution_id.to_string()];
+        event
+    }
+
+    fn routine_failure_reason(event: &EventEnvelope) -> &'static str {
+        match event.event_type {
+            EventKind::ActionRejected => "action_rejected",
+            EventKind::EatFailed => "eat_failed",
+            EventKind::WorkBlockFailed => "work_block_failed",
+            EventKind::ContinueRoutineRejected => "continue_routine_rejected",
+            _ => "ordinary_action_failed",
+        }
+    }
+
     fn ordinary_proposal(
         label: &str,
         actor_id: &ActorId,
@@ -1421,9 +1709,9 @@ pub mod no_human {
         use crate::events::{EventCause, EventStream};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
-            ProposalId, RoutineExecutionId, RoutineTemplateId,
+            ProposalId, RoutineExecutionId, RoutineTemplateId, WorkplaceId,
         };
-        use crate::state::{ActorBody, AgentState, FoodSupplyState};
+        use crate::state::{ActorBody, AgentState, FoodSupplyState, WorkplaceState};
 
         fn agent_state(actor_id: &ActorId) -> AgentState {
             let mut state = AgentState::default();
@@ -1664,7 +1952,7 @@ pub mod no_human {
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
             );
-            let mut agent_state = AgentState::default();
+            let mut agent_state = agent_state(&actor_id);
             let initial_agent_state = agent_state.clone();
             let mut log = EventLog::new();
             let mut registry = ActionRegistry::new();
@@ -1737,7 +2025,163 @@ pub mod no_human {
                     apply_agent_event(&mut replay_agent_state, event).unwrap();
                 }
             }
-            assert_eq!(replay_agent_state, agent_state);
+            assert_eq!(replay_agent_state.intentions, agent_state.intentions);
+            assert_eq!(
+                replay_agent_state.active_intention_by_actor,
+                agent_state.active_intention_by_actor
+            );
+        }
+
+        #[test]
+        fn no_human_day_records_routine_step_ancestry_and_replays_it() {
+            let actor_id = actor_id();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
+            );
+            let mut agent_state = agent_state(&actor_id);
+            let execution_id = RoutineExecutionId::new("routine_exec_wait").unwrap();
+            agent_state.routine_executions.insert(
+                execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    execution_id.clone(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_wait").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::ZERO,
+                    Some(SimTick::new(1)),
+                    Some(SimTick::new(2)),
+                    None,
+                    DecisionTraceId::new("trace_wait").unwrap(),
+                ),
+            );
+            let initial_agent_state = agent_state.clone();
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "routine_wait".to_string(),
+                        start_tick: SimTick::ZERO,
+                        end_tick: SimTick::new(1),
+                    }],
+                },
+            );
+
+            assert!(log.events().iter().any(|event| event.event_type
+                == EventKind::RoutineStepStarted
+                && event
+                    .causes
+                    .iter()
+                    .any(|cause| matches!(cause, EventCause::Event(_)))));
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::RoutineStepCompleted));
+            let execution = &agent_state.routine_executions[&execution_id];
+            assert_eq!(
+                execution.step_status,
+                crate::agent::RoutineStepStatus::Completed
+            );
+            assert_eq!(
+                execution.concrete_action_ancestry,
+                vec![SemanticActionId::new("wait").unwrap()]
+            );
+
+            let mut replay_agent_state = initial_agent_state;
+            for event in log.events() {
+                if matches!(
+                    event.event_type,
+                    EventKind::RoutineStepStarted | EventKind::RoutineStepCompleted
+                ) {
+                    apply_agent_event(&mut replay_agent_state, event).unwrap();
+                }
+            }
+            assert_eq!(
+                replay_agent_state.routine_executions,
+                agent_state.routine_executions
+            );
+        }
+
+        #[test]
+        fn no_human_day_records_blocked_routine_failure_reason() {
+            let actor_id = actor_id();
+            let workshop = PlaceId::new("workshop").unwrap();
+            let workplace_id = WorkplaceId::new("workplace_blocked").unwrap();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), workshop.clone()),
+            );
+            let mut workplace =
+                WorkplaceState::new(workplace_id.clone(), workshop, "blocked_output");
+            workplace.assigned_actor_ids.insert(actor_id.clone());
+            workplace.access_open = false;
+            state.workplaces.insert(workplace_id, workplace);
+            let mut agent_state = agent_state(&actor_id);
+            let execution_id = RoutineExecutionId::new("routine_exec_blocked_work").unwrap();
+            agent_state.routine_executions.insert(
+                execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    execution_id.clone(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_blocked_work").unwrap(),
+                    RoutineFamily::WorkBlock,
+                    SimTick::ZERO,
+                    Some(SimTick::new(1)),
+                    Some(SimTick::new(4)),
+                    None,
+                    DecisionTraceId::new("trace_blocked_work").unwrap(),
+                ),
+            );
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_work();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "blocked_work".to_string(),
+                        start_tick: SimTick::ZERO,
+                        end_tick: SimTick::new(1),
+                    }],
+                },
+            );
+
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::WorkBlockFailed));
+            assert!(log.events().iter().any(|event| event.event_type
+                == EventKind::RoutineStepFailed
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| { field.key == "reason" && field.value == "work_block_failed" })));
+            let execution = &agent_state.routine_executions[&execution_id];
+            assert_eq!(
+                execution.step_status,
+                crate::agent::RoutineStepStatus::Failed
+            );
+            assert_eq!(
+                execution.failure_interruption_reason.as_deref(),
+                Some("work_block_failed")
+            );
         }
 
         #[test]
