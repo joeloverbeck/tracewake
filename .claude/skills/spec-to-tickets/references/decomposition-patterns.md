@@ -30,7 +30,7 @@ Most deliverables get their own ticket. These categories are exempt from per-del
 
 ## Ticket shapes
 
-**Trailing-shape co-occurrence**: a single spec closeout deliverable often bundles docs-finalization **and** exit-evidence; split it into both shapes below — a cross-cutting docs ticket (Deps = the surface-citing implementation tickets) plus a capstone (Deps = the leaf set, including the docs ticket). The `Done`-status flip (spec Status → `Done` and the `docs/4-specs/SPEC_LEDGER.md` index row) defaults to the **capstone**, since it is gated on exit evidence passing; the docs ticket carries doc content and any earlier status update, not the completion flip — unless the spec's §Documentation-updates assigns the ledger flip to the docs ticket, in which case the §Cross-cutting docs ticket `Deps: <capstone>` exception applies.
+**Trailing-shape co-occurrence**: a single spec closeout deliverable often bundles docs-finalization **and** exit-evidence; split it into both shapes below — a cross-cutting docs ticket (Deps = the surface-citing implementation tickets) plus a capstone (Deps = the leaf set, including the docs ticket). The spec closeout artifact — (a) a `docs/4-specs/SPEC_LEDGER.md` entry/row added post-landing (the usual case for a forward implementation spec, whose own Status need not flip), and/or (b) a spec Status → `Done` flip (for a retroactive spec) — defaults to the **capstone**, since it is gated on exit evidence passing; the docs ticket carries doc content and any earlier status update, not the completion artifact — unless the spec's §Documentation-updates assigns the ledger entry to the docs ticket, in which case the §Cross-cutting docs ticket `Deps: <capstone>` exception applies.
 
 ### Capstone integration ticket
 
