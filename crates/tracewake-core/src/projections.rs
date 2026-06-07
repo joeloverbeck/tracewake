@@ -2,13 +2,14 @@ use crate::actions::report::ValidationReport;
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
 use crate::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
-use crate::location::visible_locality;
+use crate::location::{visible_locality, Location};
 use crate::state::PhysicalState;
 use crate::time::SimTick;
 use crate::view_models::{
     DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NotebookBeliefEntry,
     NotebookContradictionEntry, NotebookObservationEntry, NotebookView, SemanticActionEntry,
     ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit, VisibleItem,
+    VisibleItemSource,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,10 +83,27 @@ pub fn build_embodied_view_model(
         .filter_map(|item_id| state.items.get(item_id))
         .map(|item| VisibleItem {
             item_id: item.item_id.clone(),
+            source: visible_item_source(&item.location),
             portable: item.portable,
         })
         .collect::<Vec<_>>();
     visible_items.sort();
+
+    let mut carried_items = visible
+        .carried_items
+        .iter()
+        .filter_map(|item_id| state.items.get(item_id))
+        .map(|item| VisibleItem {
+            item_id: item.item_id.clone(),
+            source: visible_item_source(&item.location),
+            portable: item.portable,
+        })
+        .collect::<Vec<_>>();
+    carried_items.sort();
+    let carried_item_ids = carried_items
+        .iter()
+        .map(|item| item.item_id.clone())
+        .collect::<Vec<_>>();
 
     let mut local_actors = visible
         .co_located_actors
@@ -100,7 +118,7 @@ pub fn build_embodied_view_model(
         &visible_doors,
         &visible_containers,
         &visible_items,
-        &visible.carried_items.into_iter().collect::<Vec<_>>(),
+        &carried_item_ids,
     );
     semantic_actions.sort();
 
@@ -120,6 +138,7 @@ pub fn build_embodied_view_model(
         visible_doors,
         visible_containers,
         visible_items,
+        carried_items,
         local_actors,
         semantic_actions,
         last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
@@ -222,6 +241,14 @@ pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
     }
 }
 
+fn visible_item_source(location: &Location) -> VisibleItemSource {
+    match location {
+        Location::AtPlace(_) => VisibleItemSource::Place,
+        Location::InContainer(container_id) => VisibleItemSource::Container(container_id.clone()),
+        Location::CarriedBy(_) => VisibleItemSource::Carried,
+    }
+}
+
 fn semantic_actions(
     visible_exits: &[VisibleExit],
     visible_doors: &[VisibleDoor],
@@ -292,9 +319,17 @@ fn semantic_actions(
     }
 
     for item in visible_items {
+        let source_label = match &item.source {
+            VisibleItemSource::Place => "place".to_string(),
+            VisibleItemSource::Container(container_id) => container_id.to_string(),
+            VisibleItemSource::Carried => "carried".to_string(),
+        };
         actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("take.item.{}.from.place", item.item_id.as_str()))
-                .unwrap(),
+            SemanticActionId::new(format!(
+                "take.item.{}.from.{source_label}",
+                item.item_id.as_str()
+            ))
+            .unwrap(),
             ActionId::new("take").unwrap(),
             vec![item.item_id.to_string()],
             format!("Take {}", item.item_id.as_str()),
@@ -333,7 +368,6 @@ mod tests {
         ObservationSubject, ObservationTarget, PrivacyScope, Proposition, SourceRef, Stance,
     };
     use crate::ids::{ContainerId, DoorId};
-    use crate::location::Location;
     use crate::state::{
         ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
     };
@@ -458,6 +492,85 @@ mod tests {
             .semantic_actions
             .iter()
             .all(|entry| entry.semantic_action_id.as_str() != "0"));
+    }
+
+    #[test]
+    fn embodied_projection_separates_carried_items_from_reachable_items() {
+        let mut state = state();
+        state
+            .actors
+            .get_mut(&actor_id("actor_tomas"))
+            .unwrap()
+            .carried_item_ids
+            .insert(item_id("coin_stack_01"));
+        state
+            .items
+            .get_mut(&item_id("coin_stack_01"))
+            .unwrap()
+            .location = Location::CarriedBy(actor_id("actor_tomas"));
+        state
+            .containers
+            .get_mut(&container_id("strongbox_tomas"))
+            .unwrap()
+            .contents
+            .remove(&item_id("coin_stack_01"));
+
+        let view =
+            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::new(1), None)
+                .unwrap();
+
+        assert!(!view
+            .visible_items
+            .iter()
+            .any(|item| item.item_id == item_id("coin_stack_01")));
+        assert!(view
+            .carried_items
+            .iter()
+            .any(|item| item.item_id == item_id("coin_stack_01")));
+        assert!(
+            !view
+                .semantic_actions
+                .iter()
+                .any(|entry| entry.semantic_action_id.as_str()
+                    == "take.item.coin_stack_01.from.place")
+        );
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "place.item.coin_stack_01.at.place"));
+    }
+
+    #[test]
+    fn container_sourced_visible_item_uses_container_take_id() {
+        let mut state = state();
+        state
+            .containers
+            .get_mut(&container_id("strongbox_tomas"))
+            .unwrap()
+            .is_open = true;
+
+        let view =
+            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::new(1), None)
+                .unwrap();
+
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str()
+                == "take.item.coin_stack_01.from.strongbox_tomas"));
+        assert!(
+            !view
+                .semantic_actions
+                .iter()
+                .any(|entry| entry.semantic_action_id.as_str()
+                    == "take.item.coin_stack_01.from.place")
+        );
+        assert!(
+            view.semantic_actions
+                .iter()
+                .any(|entry| entry.semantic_action_id.as_str()
+                    == "take.item.loose_coin_01.from.place")
+        );
     }
 
     fn projection_with_missing_coin_belief() -> EpistemicProjection {

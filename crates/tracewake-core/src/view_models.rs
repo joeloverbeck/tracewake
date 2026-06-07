@@ -24,6 +24,7 @@ pub struct EmbodiedViewModel {
     pub visible_doors: Vec<VisibleDoor>,
     pub visible_containers: Vec<VisibleContainer>,
     pub visible_items: Vec<VisibleItem>,
+    pub carried_items: Vec<VisibleItem>,
     pub local_actors: Vec<VisibleActor>,
     pub semantic_actions: Vec<SemanticActionEntry>,
     pub last_rejection_summary: Option<String>,
@@ -91,7 +92,15 @@ pub struct VisibleContainer {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VisibleItem {
     pub item_id: ItemId,
+    pub source: VisibleItemSource,
     pub portable: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum VisibleItemSource {
+    Place,
+    Container(ContainerId),
+    Carried,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -64,6 +64,15 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         ));
     }
 
+    lines.push("Inventory:".to_string());
+    for item in &view.carried_items {
+        lines.push(format!(
+            "- {} portable={}",
+            item.item_id.as_str(),
+            item.portable
+        ));
+    }
+
     lines.push("Actors:".to_string());
     for actor in &view.local_actors {
         lines.push(format!("- {}", actor.actor_id.as_str()));
@@ -164,9 +173,11 @@ pub fn render_rejection(report: &ValidationReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracewake_core::ids::{ActionId, ActorId, PlaceId, SemanticActionId, ViewModelId};
+    use tracewake_core::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
     use tracewake_core::time::SimTick;
-    use tracewake_core::view_models::{EmbodiedViewModel, SemanticActionEntry, ViewMode};
+    use tracewake_core::view_models::{
+        EmbodiedViewModel, SemanticActionEntry, ViewMode, VisibleItem, VisibleItemSource,
+    };
 
     #[test]
     fn renderer_prints_semantic_action_ids() {
@@ -181,6 +192,7 @@ mod tests {
             visible_doors: Vec::new(),
             visible_containers: Vec::new(),
             visible_items: Vec::new(),
+            carried_items: Vec::new(),
             local_actors: Vec::new(),
             semantic_actions: vec![SemanticActionEntry::new(
                 SemanticActionId::new("open.door.door_market_store").unwrap(),
@@ -200,5 +212,46 @@ mod tests {
 
         assert!(rendered.contains("open.door.door_market_store"));
         assert!(rendered.contains("Market stall"));
+    }
+
+    #[test]
+    fn renderer_prints_carried_items_under_inventory_not_items() {
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: vec![VisibleItem {
+                item_id: ItemId::new("loose_coin_01").unwrap(),
+                source: VisibleItemSource::Place,
+                portable: true,
+            }],
+            carried_items: vec![VisibleItem {
+                item_id: ItemId::new("coin_stack_01").unwrap(),
+                source: VisibleItemSource::Carried,
+                portable: true,
+            }],
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            last_rejection_summary: None,
+            knowledge_context_id: None,
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+        let items_index = rendered.find("Items:").unwrap();
+        let inventory_index = rendered.find("Inventory:").unwrap();
+        let actors_index = rendered.find("Actors:").unwrap();
+        let items_section = &rendered[items_index..inventory_index];
+        let inventory_section = &rendered[inventory_index..actors_index];
+
+        assert!(inventory_section.contains("- coin_stack_01 portable=true"));
+        assert!(!items_section.contains("coin_stack_01"));
     }
 }
