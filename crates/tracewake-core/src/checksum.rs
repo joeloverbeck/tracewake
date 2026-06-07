@@ -133,6 +133,22 @@ pub fn compute_physical_checksum(
         ));
     }
 
+    for (workplace_id, workplace) in &state.workplaces {
+        lines.push(format!(
+            "workplace|id={}|place={}|assigned={}|duration={}|fatigue_delta={}|hunger_delta={}|max_fatigue={}|max_hunger={}|access_open={}|output_tag={}",
+            workplace_id.as_str(),
+            workplace.place_id.as_str(),
+            join_ids(workplace.assigned_actor_ids.iter().map(|id| id.as_str())),
+            workplace.work_duration_ticks,
+            workplace.fatigue_delta_per_tick,
+            workplace.hunger_delta_per_tick,
+            workplace.max_fatigue_to_start,
+            workplace.max_hunger_to_start,
+            workplace.access_open,
+            workplace.output_tag
+        ));
+    }
+
     let checksum = PhysicalChecksum::from_canonical_lines(&lines);
     PhysicalChecksumReport {
         checksum,

@@ -7,6 +7,7 @@ pub mod openclose;
 pub mod sleep;
 pub mod takeplace;
 pub mod wait;
+pub mod work;
 
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::report::{CheckedFact, ReasonCode};

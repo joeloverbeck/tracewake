@@ -10,6 +10,7 @@ use crate::actions::defs::takeplace::{
     build_sound_belief_event, build_sound_observation_event, build_take_place_event,
 };
 use crate::actions::defs::wait::build_wait_events;
+use crate::actions::defs::work::build_work_start_events;
 use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::Proposal;
 use crate::actions::proposal::ProposalOrigin;
@@ -530,6 +531,37 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
                             checked_facts,
                             "The world state did not match that action.",
                             "dry-run event application rejected a constructed eat event",
+                        );
+                    }
+                }
+                return PipelineDecision::Accepted {
+                    candidate_events: events,
+                    checked_facts,
+                    would_mutate,
+                };
+            }
+            ActionEffect::Work => {
+                let events = match build_work_start_events(
+                    context.state,
+                    proposal,
+                    context.ordering_key,
+                    context.content_manifest_id,
+                ) {
+                    Ok(events) => events,
+                    Err(rejection) => return reject_action(context, proposal, rejection),
+                };
+
+                let mut dry_run = context.state.clone();
+                for event in &events {
+                    if apply_event(&mut dry_run, event).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::EventApplication,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The world state did not match that action.",
+                            "dry-run event application rejected a constructed work event",
                         );
                     }
                 }

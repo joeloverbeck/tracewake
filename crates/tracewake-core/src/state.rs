@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::agent::{Intention, NeedKind, NeedState, RoutineExecution};
 use crate::ids::{
     ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, FoodSupplyId, IntentionId,
-    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId,
+    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId, WorkplaceId,
 };
 use crate::location::Location;
 
@@ -15,6 +15,7 @@ pub enum EntityKind {
     Container,
     Item,
     FoodSupply,
+    Workplace,
     InstitutionPlaceholder,
     RecordPlaceholder,
 }
@@ -27,6 +28,7 @@ pub enum EntityId {
     Container(ContainerId),
     Item(ItemId),
     FoodSupply(FoodSupplyId),
+    Workplace(WorkplaceId),
     InstitutionPlaceholder(SchemaVersion),
     RecordPlaceholder(SchemaVersion),
 }
@@ -40,6 +42,7 @@ impl EntityId {
             EntityId::Container(_) => EntityKind::Container,
             EntityId::Item(_) => EntityKind::Item,
             EntityId::FoodSupply(_) => EntityKind::FoodSupply,
+            EntityId::Workplace(_) => EntityKind::Workplace,
             EntityId::InstitutionPlaceholder(_) => EntityKind::InstitutionPlaceholder,
             EntityId::RecordPlaceholder(_) => EntityKind::RecordPlaceholder,
         }
@@ -53,6 +56,7 @@ impl EntityId {
             EntityId::Container(id) => id.as_str(),
             EntityId::Item(id) => id.as_str(),
             EntityId::FoodSupply(id) => id.as_str(),
+            EntityId::Workplace(id) => id.as_str(),
             EntityId::InstitutionPlaceholder(id) => id.as_str(),
             EntityId::RecordPlaceholder(id) => id.as_str(),
         }
@@ -120,6 +124,7 @@ pub struct PhysicalState {
     pub containers: BTreeMap<ContainerId, ContainerState>,
     pub items: BTreeMap<ItemId, ItemState>,
     pub food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
+    pub workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -221,6 +226,41 @@ pub struct FoodSupplyState {
     pub location: Location,
     pub servings: u32,
     pub hunger_reduction_per_serving: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkplaceState {
+    pub workplace_id: WorkplaceId,
+    pub place_id: PlaceId,
+    pub assigned_actor_ids: BTreeSet<ActorId>,
+    pub work_duration_ticks: u64,
+    pub fatigue_delta_per_tick: i32,
+    pub hunger_delta_per_tick: i32,
+    pub max_fatigue_to_start: i32,
+    pub max_hunger_to_start: i32,
+    pub access_open: bool,
+    pub output_tag: String,
+}
+
+impl WorkplaceState {
+    pub fn new(
+        workplace_id: WorkplaceId,
+        place_id: PlaceId,
+        output_tag: impl Into<String>,
+    ) -> Self {
+        Self {
+            workplace_id,
+            place_id,
+            assigned_actor_ids: BTreeSet::new(),
+            work_duration_ticks: 4,
+            fatigue_delta_per_tick: 8,
+            hunger_delta_per_tick: 4,
+            max_fatigue_to_start: 900,
+            max_hunger_to_start: 900,
+            access_open: true,
+            output_tag: output_tag.into(),
+        }
+    }
 }
 
 impl FoodSupplyState {
@@ -333,6 +373,10 @@ mod tests {
         FoodSupplyId::new(value).unwrap()
     }
 
+    fn workplace_id(value: &str) -> WorkplaceId {
+        WorkplaceId::new(value).unwrap()
+    }
+
     #[test]
     fn records_use_ordered_collections() {
         let mut actor = ActorBody::new(actor_id("actor_tomas"), place_id("shop_front"));
@@ -397,5 +441,23 @@ mod tests {
         assert!(!full.is_empty());
         assert!(empty.is_empty());
         assert_eq!(full.hunger_reduction_per_serving, 100);
+    }
+
+    #[test]
+    fn workplace_models_duration_access_and_non_economic_output() {
+        let mut workplace = WorkplaceState::new(
+            workplace_id("workplace_office"),
+            place_id("office"),
+            "service_completed_placeholder",
+        );
+        workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));
+        workplace.work_duration_ticks = 3;
+
+        assert!(workplace.access_open);
+        assert_eq!(workplace.work_duration_ticks, 3);
+        assert_eq!(workplace.output_tag, "service_completed_placeholder");
+        assert!(workplace
+            .assigned_actor_ids
+            .contains(&actor_id("actor_tomas")));
     }
 }

@@ -14,6 +14,7 @@ pub enum ActionEffect {
     CheckContainer,
     Sleep,
     Eat,
+    Work,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -127,6 +128,13 @@ impl ActionRegistry {
         self.register(ActionDefinition::world_action(
             ActionId::new("eat").unwrap(),
             ActionEffect::Eat,
+        ));
+    }
+
+    pub fn register_phase3a_work(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("work_block").unwrap(),
+            ActionEffect::Work,
         ));
     }
 }

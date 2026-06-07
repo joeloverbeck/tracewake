@@ -222,6 +222,12 @@ pub fn diff_physical_state(expected: &PhysicalState, actual: &PhysicalState) -> 
             expected.food_supplies, actual.food_supplies
         ));
     }
+    if expected.workplaces != actual.workplaces {
+        diffs.push(format!(
+            "workplaces expected={:?} actual={:?}",
+            expected.workplaces, actual.workplaces
+        ));
+    }
     diffs.sort();
     diffs
 }

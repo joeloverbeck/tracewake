@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-010: Workplace model and work action (duration-based)
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds a workplace/workstation entity to core state and a duration-based `work_block`/`begin_work` action producing a non-economic completion marker.
@@ -82,3 +82,27 @@ Register the work action via the Phase 3A registration fn in `crates/tracewake-c
 1. `cargo test -p tracewake-core actions::defs::work`
 2. `cargo test -p tracewake-core actions`
 3. Core-crate scope is correct; end-to-end work within `ordinary_workday_001`/`no_human_day_001` is exercised by tickets 019/021/025.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed:
+- Added `WorkplaceId` and `WorkplaceState` with place, assignments, access flag, duration, need-cost thresholds, and a non-economic output tag.
+- Added `work_block` as a Phase 3A registry action through the shared pipeline.
+- Work start emits `WorkBlockStarted` with deterministic expected-completion tick and body-exclusive metadata.
+- Work completion emits `WorkBlockCompleted` with `non_economic_output=true` plus caused fatigue/hunger `NeedDeltaApplied` events.
+- Need/access/assignment blockers emit `WorkBlockFailed` with typed blocker payloads and no completion.
+- Included workplaces in physical checksums and replay diffs.
+
+Deviations:
+- Runner-level completion resume, routine selection, content schemas, and workday golden fixtures remain deferred to their scoped follow-up tickets.
+- No payment, wage, custody, or value mutation was added; the output remains an inert marker.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core actions::defs::work`
+- `cargo test -p tracewake-core state`
+- `cargo test -p tracewake-core actions`
+- `rg -n "money|payment|wage|custody|value_token|ValueToken" crates/tracewake-core/src/actions/defs/work.rs` returned no matches.
+- `rg -n "payment|wage|money" crates/tracewake-core/src/state.rs crates/tracewake-core/src/actions/defs/work.rs` returned no matches.
