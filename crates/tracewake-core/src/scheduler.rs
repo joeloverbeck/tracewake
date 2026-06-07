@@ -479,16 +479,12 @@ pub mod no_human {
             .map(ActorKnownFact::proof_note)
             .collect();
         let actor_known_facts = actor_known_state.actor_known_facts.clone();
-        let actor_known_inputs = actor_known_facts
-            .iter()
-            .map(ActorKnownFact::proof_note)
-            .collect::<Vec<_>>();
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
             active_intention: None,
-            actor_known_inputs: actor_known_inputs.clone(),
+            actor_known_facts: actor_known_facts.clone(),
             routine_window_goal: None,
         });
         let candidate_fallbacks = generated.candidates.clone();

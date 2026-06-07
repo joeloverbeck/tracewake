@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-003: Typed candidate generation without string prefixes
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` candidate generation (`agent/generation.rs`, `agent/candidate.rs`)
@@ -74,3 +74,27 @@ Audit `generation.rs` / `candidate.rs` for any sibling prefix-coded applicabilit
 1. `cargo test -p tracewake-core agent::generation`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Changed `CandidateGenerationInput` and `LiveCandidateGenerationInput` to consume `ActorKnownFact` values instead of raw actor-known input strings.
+- Replaced the `starts_with("known_food:")` hunger candidate shortcut with a modeled `actor_knows_food_source` fact check.
+- Kept candidate/decision trace inputs as rendered proof notes derived from typed facts.
+- Updated scheduler, decision, and golden fixture call sites to pass typed facts into candidate generation.
+- Added positive and negative generation tests proving modeled food facts yield `Eat`, while absent or unproven food facts yield `FindFood` and no `Eat`.
+
+Deviations from original plan:
+
+- `candidate.rs` did not require a structural edit; the existing `CandidateGoal.belief_inputs` remains a rendered trace/debug surface populated from typed facts.
+
+Verification results:
+
+- `rg -n "starts_with\\(\\\"known_food" crates/tracewake-core/src/agent/generation.rs` returned no matches.
+- `cargo test -p tracewake-core agent::generation` passed.
+- `cargo test --workspace` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo fmt --all --check` passed.

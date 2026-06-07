@@ -95,7 +95,7 @@ mod tests {
     use super::*;
     use crate::agent::generation::{generate_candidate_goals, CandidateGenerationInput};
     use crate::agent::{
-        GoalKind, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
+        ActorKnownFact, GoalKind, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
     };
     use crate::ids::{CandidateGoalId, IntentionId, RoutineTemplateId};
 
@@ -128,7 +128,10 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: Some(active.clone()),
-            actor_known_inputs: vec!["known_food:food_soup_pot".to_string()],
+            actor_known_facts: vec![ActorKnownFact::modeled(
+                "actor_knows_food_source",
+                "test:visible_food",
+            )],
             routine_window_goal: None,
         });
         select_goal_and_trace(DecisionInput {

@@ -455,10 +455,10 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             NeedChangeCause::FixtureInitial,
         )],
         active_intention: None,
-        actor_known_inputs: vec![
-            "known_food:food_market_stew".to_string(),
-            "actor_knows_food_source".to_string(),
-        ],
+        actor_known_facts: vec![ActorKnownFact::modeled(
+            "actor_knows_food_source",
+            "planner_trace_001:visible_food",
+        )],
         routine_window_goal: Some(GoalKind::GoToWork),
     });
     let selection = select_goal_and_trace(DecisionInput {
@@ -706,7 +706,7 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
             NeedChangeCause::FixtureInitial,
         )],
         active_intention: None,
-        actor_known_inputs: Vec::new(),
+        actor_known_facts: Vec::new(),
         routine_window_goal: None,
     });
     let selection = select_goal_and_trace(DecisionInput {
