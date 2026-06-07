@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-001: Epistemic stable IDs and typed proposition model
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — creates the `epistemics` module in `tracewake-core` and extends `ids.rs` with epistemic ID newtypes.
@@ -82,3 +82,20 @@ Add `crates/tracewake-core/src/epistemics/mod.rs` declaring `pub mod proposition
 1. `cargo test -p tracewake-core epistemics::proposition`
 2. `cargo test -p tracewake-core ids`
 3. A core-crate unit-test scope is correct here because the proposition model has no cross-crate consumers until tickets 002/004/012 land.
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added the `tracewake_core::epistemics` module and structured `Proposition` enum with the Phase 2A claim variants, canonical serialization/deserialization, contradiction comparison, rendering, and reference validation.
+- Added `PropositionId`, `ObservationId`, `BeliefId`, `ContradictionId`, and `EpistemicProjectionVersion` via the existing stable-ID macro.
+- Registered the new module in `tracewake-core` and added focused unit tests for proposition round-trip, contradiction behavior, reference validation, render derivation, and epistemic ID validation/ordering.
+
+Deviations from original plan:
+- None. The implementation is core-only and dependency-free.
+
+Verification results:
+- `cargo test -p tracewake-core epistemics::proposition`
+- `cargo test -p tracewake-core ids`
+- `cargo fmt --all --check`
