@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-004: Decision-trace and stuck-diagnostic model
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds `DecisionTrace`, `BlockerCategory`, and `StuckDiagnostic` types to the `agent` module.
@@ -79,3 +79,21 @@ Add `pub mod trace;` to `crates/tracewake-core/src/agent/mod.rs` and re-export t
 1. `cargo test -p tracewake-core agent::trace`
 2. Core-crate unit scope is correct because trace/diagnostic emitters (012–017) and the debug renderer (023) land later; this ticket pins the record shape.
 3. A grep-proof that `agent::trace` has no `&mut` actor-state mutator is the correct debug-not-authority boundary at the type level.
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added `agent::trace` with `DecisionTrace`, `DecisionOutcome`, `HiddenTruthAudit`, and `RejectedDecisionItem`.
+- Added the closed nine-variant `BlockerCategory` vocabulary plus `StuckDiagnostic` and `StuckResultingStatus`.
+- Added canonical serialization for decision traces and canonical serialize/deserialize round-trips for stuck diagnostics.
+- Registered and re-exported the trace/diagnostic public surface from the `agent` module.
+
+Deviations from original plan:
+- Decision trace canonical serialization currently captures the stable summary fields needed for substrate replay/debug anchoring; full event/projection payload serialization remains deferred to tickets 005/006/023.
+- `FailWithTypedDiagnostic` routine-step payloads inside stuck diagnostics are serialized through the routine-step canonical format rather than duplicating a second encoding.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core agent::trace` passed.

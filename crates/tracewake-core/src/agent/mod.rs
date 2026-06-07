@@ -4,6 +4,7 @@ pub mod candidate;
 pub mod intention;
 pub mod need;
 pub mod routine;
+pub mod trace;
 
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
@@ -18,4 +19,8 @@ pub use need::{
 pub use routine::{
     RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError, RoutineStepProposal,
     RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
+};
+pub use trace::{
+    BlockerCategory, DecisionOutcome, DecisionTrace, HiddenTruthAudit, RejectedDecisionItem,
+    StuckDiagnostic, StuckDiagnosticParseError, StuckResultingStatus,
 };
