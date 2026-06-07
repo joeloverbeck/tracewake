@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-015: Documentation updates — README and fixture contracts
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — documentation only (`README.md`, fixture-contract docs).
@@ -78,3 +78,26 @@ State explicitly that this is Phase 2A, not full Phase 2, and what remains defer
 1. `grep -nE "notebook|debug epistemics|debug beliefs|debug observations|check\.container\." README.md`
 2. `cargo test -p tracewake-tui --test readme_sample_session` (if the README sample session is asserted by the existing harness, it must still pass)
 3. A grep/manual-review boundary is correct here because the ticket changes only markdown; behavioral verification lives in the cited implementation tickets and the capstone.
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Changed:
+
+1. Updated `README.md` with Phase 2A scoping, the new notebook/debug epistemic commands, a `check.container.strongbox_tomas` semantic-action example, a no-leak example session, and Phase 2A fixture contracts.
+2. Updated the README sample-session test so the documented command set is exercised against the TUI binary.
+3. Exposed visible container `check.container.<container_id>` semantic actions in the embodied view model and loaded fixture initial beliefs into the TUI epistemic projection so the documented notebook/check workflow is reachable and truthful.
+
+Deviation:
+
+1. This ticket was scoped as documentation-only, but the README would have documented unreachable behavior without two narrow implementation fixes: visible container check actions were not present in the action menu, and TUI startup did not seed authored initial beliefs into the epistemic projection.
+
+Verification:
+
+1. `grep -nE "notebook|debug epistemics|debug beliefs|debug observations|check\.container\." README.md`
+2. `grep -Rni "phase 2 complete" README.md docs` returned no matches.
+3. `cargo test -p tracewake-tui --test readme_sample_session`
+4. `cargo fmt --all --check`
+5. `cargo build --workspace --all-targets --locked`
+6. `git diff --check`

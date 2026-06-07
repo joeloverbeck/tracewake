@@ -264,6 +264,18 @@ fn semantic_actions(
     }
 
     for container in visible_containers {
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new(format!(
+                "check.container.{}",
+                container.container_id.as_str()
+            ))
+            .unwrap(),
+            ActionId::new("check_container").unwrap(),
+            vec![container.container_id.to_string()],
+            format!("Check {}", container.container_id.as_str()),
+            true,
+            None,
+        ));
         let action = if container.is_open { "close" } else { "open" };
         actions.push(SemanticActionEntry::new(
             SemanticActionId::new(format!(
