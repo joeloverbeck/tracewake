@@ -92,6 +92,7 @@ pub fn select_method_from_templates(
         .unwrap(),
         selected_goal.actor_id.clone(),
         template.template_id.clone(),
+        template.family,
         tick,
         Some(tick.advance_by(template.min_duration_ticks)),
         Some(tick.advance_by(template.max_duration_ticks)),
@@ -392,6 +393,7 @@ mod tests {
                 select_phase3a_method(&candidate(goal_kind), &state, &inputs, SimTick::new(10))
                     .unwrap();
             assert_eq!(selection.template.family, family_for_goal(goal_kind));
+            assert_eq!(selection.execution.family, selection.template.family);
             assert!(selection.trace.hidden_truth_audit_result.actor_known_only);
             assert!(!selection
                 .trace

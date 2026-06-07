@@ -245,10 +245,11 @@ pub fn compute_agent_state_checksum(
 
     for (execution_id, execution) in &state.routine_executions {
         lines.push(format!(
-            "routine_execution|id={}|actor={}|template={}|step_index={}|status={}|start={}|last_progress={}|next={}|deadline={}|actions={}|resource={}|fallbacks={}|reason={}|trace={}",
+            "routine_execution|id={}|actor={}|template={}|family={}|step_index={}|status={}|start={}|last_progress={}|next={}|deadline={}|actions={}|resource={}|fallbacks={}|reason={}|trace={}",
             execution_id.as_str(),
             execution.actor_id.as_str(),
             execution.template_id.as_str(),
+            execution.family.stable_id(),
             execution.current_step_index,
             routine_step_status_id(execution.step_status),
             execution.start_tick.value(),

@@ -352,6 +352,7 @@ pub struct RoutineExecution {
     pub execution_id: RoutineExecutionId,
     pub actor_id: ActorId,
     pub template_id: RoutineTemplateId,
+    pub family: RoutineFamily,
     pub current_step_index: usize,
     pub step_status: RoutineStepStatus,
     pub start_tick: SimTick,
@@ -371,6 +372,7 @@ impl RoutineExecution {
         execution_id: RoutineExecutionId,
         actor_id: ActorId,
         template_id: RoutineTemplateId,
+        family: RoutineFamily,
         start_tick: SimTick,
         expected_next_progress_tick: Option<SimTick>,
         deadline_tick: Option<SimTick>,
@@ -381,6 +383,7 @@ impl RoutineExecution {
             execution_id,
             actor_id,
             template_id,
+            family,
             current_step_index: 0,
             step_status: RoutineStepStatus::NotStarted,
             start_tick,
@@ -558,6 +561,7 @@ mod tests {
             RoutineExecutionId::new("routine_exec_mara_breakfast").unwrap(),
             ActorId::new("actor_mara").unwrap(),
             RoutineTemplateId::new("routine_eat_meal").unwrap(),
+            RoutineFamily::EatMeal,
             SimTick::new(10),
             Some(SimTick::new(11)),
             Some(SimTick::new(20)),
@@ -594,6 +598,7 @@ mod tests {
     #[test]
     fn routine_execution_transitions_record_ticks_reasons_and_fallbacks() {
         let mut execution = execution();
+        assert_eq!(execution.family, RoutineFamily::EatMeal);
 
         execution.start_step(SimTick::new(11), action("check_container.pantry"));
         assert_eq!(execution.step_status, RoutineStepStatus::InProgress);

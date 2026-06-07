@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-002: Typed routine-family dispatch on RoutineExecution
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` `RoutineExecution` schema (`agent/routine.rs`), scheduler dispatch (`scheduler.rs`), replay rebuild (`replay/rebuild.rs`, `events/apply.rs`)
@@ -80,3 +80,29 @@ Rewrite `build_routine_or_need_proposal` (`scheduler.rs:547-556`) to `match exec
 1. `cargo test -p tracewake-core agent::routine`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Added `family: RoutineFamily` to `RoutineExecution`.
+- Populated `RoutineExecution.family` from the selected or assigned `RoutineTemplate.family` in HTN selection and content routine-assignment instantiation.
+- Replaced no-human routine dispatch by `template_id.contains(...)` with a `match` on `execution.family`.
+- Added `family` to routine debug rows and agent-state checksum canonical input so replay/checksum comparisons observe the field.
+- Added regression coverage for a routine execution whose template id has no magic substring but dispatches to `eat` through `RoutineFamily::EatMeal`.
+
+Deviations from original plan:
+
+- `events/apply.rs` only needed constructor test-state updates; routine step events mutate existing executions and do not reconstruct the family.
+- `replay/rebuild.rs` did not need a code change because replay starts from canonical agent state and applies events to existing routine executions; adding `family` to the checksum canonical input makes replay equality sensitive to the field.
+
+Verification results:
+
+- `rg -n "template_id\\.contains" crates/tracewake-core/src/scheduler.rs` returned no matches.
+- `cargo test -p tracewake-core agent::routine` passed.
+- `cargo test -p tracewake-core scheduler::no_human::tests::routine_dispatch_uses_family_when_template_id_has_no_magic_substring` passed.
+- `cargo test --workspace` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo fmt --all --check` passed.

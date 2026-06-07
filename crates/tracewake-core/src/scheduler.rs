@@ -210,7 +210,8 @@ pub mod no_human {
         build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
         plan_local_actions, select_goal_and_trace, select_phase3a_method, ActorKnownFact,
         BlockerCategory, DecisionInput, LiveCandidateGenerationInput, LocalPlanRequest,
-        PlannerGoal, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
+        PlannerGoal, RoutineFamily, StuckDiagnostic, StuckResultingStatus,
+        VisibleLocalPlanningState,
     };
     use crate::epistemics::EpistemicProjection;
     use crate::events::log::EventLog;
@@ -563,22 +564,29 @@ pub mod no_human {
         window: &DayWindow,
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
-        let template_id = agent_state
+        let family = agent_state
             .routine_executions
             .values()
             .filter(|execution| &execution.actor_id == actor_id)
             .filter(|execution| execution.start_tick <= window.end_tick)
             .min_by(|left, right| left.start_tick.cmp(&right.start_tick))
-            .map(|execution| execution.template_id.as_str().to_string());
-        if let Some(template_id) = template_id {
-            if template_id.contains("sleep") {
-                return sleep_proposal(state, actor_id, window, registry);
-            }
-            if template_id.contains("food") || template_id.contains("eat") {
-                return eat_proposal(state, actor_id, window, registry);
-            }
-            if template_id.contains("work") {
-                return work_or_move_proposal(state, agent_state, actor_id, window, registry);
+            .map(|execution| execution.family);
+        if let Some(family) = family {
+            match family {
+                RoutineFamily::SleepNight => {
+                    return sleep_proposal(state, actor_id, window, registry)
+                }
+                RoutineFamily::EatMeal | RoutineFamily::FindFood => {
+                    return eat_proposal(state, actor_id, window, registry);
+                }
+                RoutineFamily::GoToWork | RoutineFamily::WorkBlock => {
+                    return work_or_move_proposal(state, agent_state, actor_id, window, registry);
+                }
+                RoutineFamily::MorningWake
+                | RoutineFamily::ReturnHome
+                | RoutineFamily::ContinueCurrentIntention
+                | RoutineFamily::Wait
+                | RoutineFamily::IdleWithReason => {}
             }
         }
 
@@ -924,8 +932,11 @@ pub mod no_human {
         use crate::actions::proposal::{Proposal, ProposalOrigin};
         use crate::events::apply::apply_event;
         use crate::events::EventStream;
-        use crate::ids::{ActorId, ProposalId};
-        use crate::state::{ActorBody, AgentState};
+        use crate::ids::{
+            ActorId, DecisionTraceId, FoodSupplyId, PlaceId, ProposalId, RoutineExecutionId,
+            RoutineTemplateId,
+        };
+        use crate::state::{ActorBody, AgentState, FoodSupplyState};
 
         fn agent_state(actor_id: &ActorId) -> AgentState {
             let mut state = AgentState::default();
@@ -1069,6 +1080,59 @@ pub mod no_human {
                     .count(),
                 2
             );
+        }
+
+        #[test]
+        fn routine_dispatch_uses_family_when_template_id_has_no_magic_substring() {
+            let actor_id = actor_id();
+            let kitchen = PlaceId::new("kitchen").unwrap();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), kitchen.clone()),
+            );
+            state.food_supplies.insert(
+                FoodSupplyId::new("meal_serving").unwrap(),
+                FoodSupplyState {
+                    food_supply_id: FoodSupplyId::new("meal_serving").unwrap(),
+                    location: Location::AtPlace(kitchen),
+                    servings: 1,
+                    hunger_reduction_per_serving: 120,
+                },
+            );
+            let mut agent_state = agent_state(&actor_id);
+            agent_state.routine_executions.insert(
+                RoutineExecutionId::new("routine_exec_midday").unwrap(),
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new("routine_exec_midday").unwrap(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_midday").unwrap(),
+                    RoutineFamily::EatMeal,
+                    SimTick::ZERO,
+                    Some(SimTick::new(1)),
+                    Some(SimTick::new(4)),
+                    None,
+                    DecisionTraceId::new("trace_midday").unwrap(),
+                ),
+            );
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_eat();
+
+            let proposal = build_routine_or_need_proposal(
+                &state,
+                &agent_state,
+                &actor_id,
+                &DayWindow {
+                    window_id: "midday".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(4),
+                },
+                &registry,
+            )
+            .expect("typed eat family should dispatch to eat proposal");
+
+            assert_eq!(proposal.action_id.as_str(), "eat");
+            assert_eq!(proposal.target_ids, ["meal_serving"]);
         }
 
         #[test]

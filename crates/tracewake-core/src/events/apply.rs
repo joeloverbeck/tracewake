@@ -1159,6 +1159,7 @@ mod tests {
     use super::*;
     use crate::agent::{
         Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+        RoutineFamily,
     };
     use crate::events::{EventCause, EventKind};
     use crate::ids::{
@@ -1289,6 +1290,7 @@ mod tests {
                 RoutineExecutionId::new("routine_exec_breakfast").unwrap(),
                 actor_id,
                 RoutineTemplateId::new("routine_eat_meal").unwrap(),
+                RoutineFamily::EatMeal,
                 SimTick::ZERO,
                 Some(SimTick::new(1)),
                 Some(SimTick::new(5)),
