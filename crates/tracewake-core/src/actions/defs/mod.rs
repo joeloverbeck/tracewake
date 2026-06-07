@@ -3,6 +3,7 @@ pub mod checkcontainer;
 pub mod inspect;
 pub mod movement;
 pub mod openclose;
+pub mod sleep;
 pub mod takeplace;
 pub mod wait;
 

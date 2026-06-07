@@ -12,6 +12,7 @@ pub enum ActionEffect {
     Place,
     Wait,
     CheckContainer,
+    Sleep,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -111,6 +112,13 @@ impl ActionRegistry {
         ));
         self.register(ActionDefinition::query_only(
             ActionId::new("truthful_accuse_probe").unwrap(),
+        ));
+    }
+
+    pub fn register_phase3a_sleep(&mut self) {
+        self.register(ActionDefinition::world_action(
+            ActionId::new("sleep").unwrap(),
+            ActionEffect::Sleep,
         ));
     }
 }

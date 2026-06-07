@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-008: Sleep action (duration-based)
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds a duration-based `sleep` action def + registry registration, with scheduled completion and fatigue recovery over time.
@@ -82,3 +82,24 @@ Use the scheduler's deterministic ordering to resume the action at the expected-
 1. `cargo test -p tracewake-core actions::defs::sleep`
 2. `cargo test -p tracewake-core actions`
 3. Core-crate scope is correct; end-to-end sleep within `no_human_day_001`/`sleep_eat_work_001` is exercised by tickets 019/021/025.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed:
+- Added the Phase 3A `sleep` action definition and registry registration.
+- Sleep start now emits a duration-based `SleepStarted` event with deterministic expected completion metadata, `body_exclusive=true`, and no start-time fatigue recovery.
+- Added completion/interruption builders that emit `SleepCompleted`/`SleepInterrupted` plus elapsed-duration fatigue and hunger `NeedDeltaApplied` events.
+- Added deterministic duration-completion ordering-key helper for scheduled action resumes.
+- Added unit and acceptance coverage for start, completion, interruption, invalid sleep place, and shared Human-vs-Scheduler pipeline routing.
+
+Deviations:
+- Bed/body reservation conflict enforcement remains deferred to ticket 011 as scoped.
+- Completion scheduling is represented by deterministic start-event metadata and a shared duration ordering-key helper; the runner-level resume mechanism remains deferred to later runner/capstone tickets.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core actions::defs::sleep`
+- `cargo test -p tracewake-core actions`
+- `cargo test -p tracewake-core sleep_proposals_share_pipeline_across_human_and_nonhuman_origins`

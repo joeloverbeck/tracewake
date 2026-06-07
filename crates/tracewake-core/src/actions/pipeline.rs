@@ -4,6 +4,7 @@ use crate::actions::defs::checkcontainer::{
 };
 use crate::actions::defs::movement::build_move_event;
 use crate::actions::defs::openclose::build_open_close_event;
+use crate::actions::defs::sleep::build_sleep_start_event;
 use crate::actions::defs::takeplace::{
     build_sound_belief_event, build_sound_observation_event, build_take_place_event,
 };
@@ -495,6 +496,12 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
                 };
             }
             ActionEffect::CheckContainer => build_check_container_event(
+                context.state,
+                proposal,
+                context.ordering_key,
+                context.content_manifest_id,
+            ),
+            ActionEffect::Sleep => build_sleep_start_event(
                 context.state,
                 proposal,
                 context.ordering_key,

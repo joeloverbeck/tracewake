@@ -159,6 +159,23 @@ pub fn build_passive_need_delta_events(
         .collect()
 }
 
+pub fn duration_completion_ordering_key(
+    actor_id: &ActorId,
+    action_id: &ActionId,
+    completion_tick: SimTick,
+    sequence: u64,
+) -> OrderingKey {
+    OrderingKey::new(
+        completion_tick,
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Actor(actor_id.clone()),
+        ProposalSequence::new(sequence),
+        action_id.clone(),
+        vec![actor_id.as_str().to_string()],
+        format!("duration_completion:{}", actor_id.as_str()),
+    )
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeterministicScheduler {
     pub current_tick: SimTick,
