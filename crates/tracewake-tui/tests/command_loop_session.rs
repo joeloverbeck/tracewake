@@ -30,7 +30,7 @@ fn run_session(script: &str) -> String {
 #[test]
 fn scripted_session_exercises_actual_binary_loop() {
     let output = run_session(
-        "notebook\n1\ndo move.to.street_lane\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nquit\n",
+        "notebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nquit\n",
     );
 
     assert!(output.contains("tracewake-tui ready"));
@@ -55,8 +55,8 @@ fn malformed_debug_actor_id_is_typed_error() {
 
 #[test]
 fn numeric_selection_executes_stable_semantic_action_id() {
-    let output = run_session("1\nquit\n");
-    let selected_id = first_menu_id(&output, 1);
+    let output = run_session("2\nquit\n");
+    let selected_id = first_menu_id(&output, 2);
 
     assert_ne!(selected_id, "1");
     assert!(output.contains(&format!("Accepted: {selected_id}")));

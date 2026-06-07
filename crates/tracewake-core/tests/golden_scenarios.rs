@@ -202,6 +202,51 @@ fn run_check_with_projection(
     run_pipeline(&mut pipeline_context, &proposal)
 }
 
+fn run_scheduler_check_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    sequence: u64,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let mut proposal = Proposal::new(
+        ProposalId::new(format!("proposal_scheduler_check_{sequence}")).unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id()),
+        ActionId::new("check_container").unwrap(),
+        SimTick::ZERO,
+    );
+    proposal.target_ids = vec!["strongbox_tomas".to_string()];
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
+        content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
+fn assert_no_actor_mara_or_culprit_text(value: &str) {
+    for forbidden in ["actor_mara", "Mara", "culprit", "stole", "theft"] {
+        assert!(
+            !value.contains(forbidden),
+            "actor-known surface leaked {forbidden}: {value}"
+        );
+    }
+}
+
 fn run_probe_with_projection(
     state: &mut PhysicalState,
     log: &mut EventLog,
@@ -457,6 +502,48 @@ fn expected_absence_check_creates_contradiction_and_missing_belief() {
         belief.proposition.render().contains("stole")
             || belief.proposition.render().contains("culprit")
     }));
+}
+
+#[test]
+fn no_human_epistemic_check_records_evidence_without_controller() {
+    let mut state = initial_state(true, true);
+    state
+        .containers
+        .get_mut(&box_id())
+        .unwrap()
+        .contents
+        .clear();
+    state.items.get_mut(&coin_id()).unwrap().location =
+        Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    seed_tomas_coin_expectation(&mut projection);
+
+    let result = run_scheduler_check_with_projection(&mut state, &mut log, &mut projection, 11);
+    let after = compute_physical_checksum(&state, &context(&log)).checksum;
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert_eq!(before, after);
+    assert!(result.appended_events.iter().all(|event| {
+        event.ordering_key.phase == SchedulePhase::NoHumanProcess
+            && matches!(event.ordering_key.source_id, SchedulerSourceId::Actor(_))
+    }));
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContainerChecked));
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ObservationRecorded));
+    assert!(projection.contradictions_by_id.len() == 1);
+
+    let notebook = build_notebook_view(
+        &projection,
+        &KnowledgeContext::embodied(actor_id(), SimTick::ZERO),
+    );
+    assert_no_actor_mara_or_culprit_text(&format!("{notebook:?}"));
 }
 
 #[test]

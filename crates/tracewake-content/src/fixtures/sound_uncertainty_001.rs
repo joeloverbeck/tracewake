@@ -30,6 +30,7 @@ pub fn sound_uncertainty_001() -> GoldenFixture {
         )],
         items: vec![item_in_container("coin_stack_01", "strongbox_tomas", true)],
         affordances: vec![
+            affordance("open", "strongbox_tomas"),
             affordance("check_container", "strongbox_tomas"),
             affordance("inspect_place", "street_lane"),
             affordance("inspect_place", "house_tomas"),
@@ -57,6 +58,7 @@ pub fn sound_uncertainty_001() -> GoldenFixture {
             ],
             allowed_actions: vec![
                 "inspect local places",
+                "open strongbox_tomas",
                 "check strongbox_tomas",
                 "render actor-scoped notebooks",
             ],

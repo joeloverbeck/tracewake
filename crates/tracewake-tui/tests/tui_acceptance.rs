@@ -3,6 +3,7 @@ use tracewake_core::actions::ReportStatus;
 use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
 use tracewake_tui::app::TuiApp;
 use tracewake_tui::input::semantic_id_for_selection;
+use tracewake_tui::render::render_notebook;
 use tracewake_tui::transcript::capture_representative_transcript;
 
 #[test]
@@ -82,4 +83,68 @@ fn tui_playability_reaches_action_rejection_wait_and_debug() {
         .render_debug_projection_rebuild_panel()
         .contains("Projection Rebuild"));
     assert!(app.render_debug_replay_panel().contains("Replay"));
+}
+
+#[test]
+fn phase2a_tui_transcript_discovers_absence_without_culprit_leak() {
+    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let before_view = app.render_current_view().unwrap();
+    let before_notebook = render_notebook(&app.notebook_view().unwrap());
+
+    assert!(before_view.contains("check.container.strongbox_tomas"));
+    assert_no_embodied_culprit_leak(&before_view);
+    assert_no_embodied_culprit_leak(&before_notebook);
+
+    let opened = app
+        .submit_semantic_action(&SemanticActionId::new("open.container.strongbox_tomas").unwrap())
+        .unwrap();
+    assert_eq!(opened.report.status, ReportStatus::Accepted);
+
+    let checked = app
+        .submit_semantic_action(&SemanticActionId::new("check.container.strongbox_tomas").unwrap())
+        .unwrap();
+    assert_eq!(checked.report.status, ReportStatus::Accepted);
+
+    let after_view = app.render_current_view().unwrap();
+    let after_notebook = render_notebook(&app.notebook_view().unwrap());
+    let debug_epistemics =
+        tracewake_tui::debug_panels::render_debug_epistemics_panel(&app.debug_epistemics_view());
+    let debug_beliefs = tracewake_tui::debug_panels::render_debug_beliefs_panel(
+        &app.debug_beliefs_view(&ActorId::new("actor_tomas").unwrap())
+            .unwrap(),
+    );
+    let debug_observations = tracewake_tui::debug_panels::render_debug_observations_panel(
+        &app.debug_observations_view(&ActorId::new("actor_tomas").unwrap())
+            .unwrap(),
+    );
+    let debug_replay = app.render_debug_replay_panel();
+
+    assert!(after_view.contains("Knowledge context:"));
+    assert!(after_notebook.contains("missing"));
+    assert!(after_notebook.contains("source=event:"));
+    assert!(after_notebook.contains("Contradictions:"));
+    assert_no_embodied_culprit_leak(&after_view);
+    assert_no_embodied_culprit_leak(&after_notebook);
+    assert!(debug_epistemics.contains("DEBUG NON-DIEGETIC: Epistemics"));
+    assert!(debug_epistemics.contains("contradiction_count=1"));
+    assert!(debug_beliefs.contains("DEBUG NON-DIEGETIC: Beliefs"));
+    assert!(debug_observations.contains("DEBUG NON-DIEGETIC: Observations"));
+    assert!(debug_replay.contains("matches_expected=true"));
+
+    let debug_truth = app.render_debug_item_location_panel(&ItemId::new("coin_stack_01").unwrap());
+    assert!(debug_truth.contains("actor_mara"));
+    assert!(!after_view.contains("actor_mara"));
+    assert!(!after_notebook.contains("actor_mara"));
+}
+
+fn assert_no_embodied_culprit_leak(rendered: &str) {
+    for forbidden in ["actor_mara", "Mara", "culprit", "stole", "theft"] {
+        assert!(
+            !rendered.contains(forbidden),
+            "embodied surface leaked {forbidden}: {rendered}"
+        );
+    }
 }

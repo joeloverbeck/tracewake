@@ -30,6 +30,7 @@ pub fn knowledge_blocker_accuse_001() -> GoldenFixture {
         items: vec![item_in_container("coin_stack_01", "strongbox_tomas", true)],
         affordances: vec![
             affordance("truthful_accuse_probe", "actor_mara"),
+            affordance("open", "strongbox_tomas"),
             affordance("check_container", "strongbox_tomas"),
             affordance("inspect_place", "house_tomas"),
         ],
@@ -49,6 +50,7 @@ pub fn knowledge_blocker_accuse_001() -> GoldenFixture {
             ],
             allowed_actions: vec![
                 "truthful accuse probe actor_mara",
+                "open strongbox_tomas",
                 "check strongbox_tomas",
                 "inspect local view",
             ],

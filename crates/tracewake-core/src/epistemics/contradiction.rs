@@ -74,6 +74,7 @@ impl Contradiction {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn detect_expected_absences(
     holder_actor_id: &ActorId,
     checked_container_id: &ContainerId,

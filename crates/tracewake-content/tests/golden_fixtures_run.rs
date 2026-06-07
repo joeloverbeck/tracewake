@@ -2,7 +2,7 @@ use tracewake_content::fixtures;
 use tracewake_content::load::load_fixture_package;
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::epistemics::EpistemicProjection;
+use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
 use tracewake_core::ids::{ContentManifestId, ContentVersion};
 
 fn registry() -> ActionRegistry {
@@ -152,4 +152,70 @@ fn fixture_initial_beliefs_construct_epistemic_projection() {
     assert!(projection
         .beliefs_by_holder
         .contains_key(&"actor_tomas".parse().unwrap()));
+}
+
+#[test]
+fn phase2a_golden_fixtures_have_contracts_and_validate() {
+    let expected = [
+        "strongbox_001",
+        "expectation_contradiction_001",
+        "possession_parity_001",
+        "view_filtering_001",
+        "knowledge_blocker_accuse_001",
+        "sound_uncertainty_001",
+        "no_human_epistemic_check_001",
+    ];
+
+    for fixture_id in expected {
+        let golden = fixtures::all()
+            .into_iter()
+            .find(|golden| golden.fixture.fixture_id.as_str() == fixture_id)
+            .unwrap_or_else(|| panic!("missing Phase 2A fixture {fixture_id}"));
+
+        validate_fixture(&golden.fixture, &registry()).unwrap();
+        assert_eq!(golden.contract.fixture_id, fixture_id);
+        assert!(!golden.contract.setup.is_empty());
+        assert!(!golden.contract.allowed_actions.is_empty());
+        assert!(!golden.contract.expected_events_or_reports.is_empty());
+        assert!(!golden.contract.acceptance_assertions.is_empty());
+    }
+}
+
+#[test]
+fn phase2a_initial_beliefs_are_holder_and_source_backed() {
+    for golden in fixtures::all()
+        .into_iter()
+        .filter(|golden| !golden.fixture.initial_beliefs.is_empty())
+    {
+        for seed in &golden.fixture.initial_beliefs {
+            let belief = seed.to_belief();
+            assert!(matches!(belief.holder, HolderKind::Actor(_)));
+            assert!(matches!(
+                belief.source,
+                SourceRef::Event(_) | SourceRef::Action(_) | SourceRef::Cause(_)
+            ));
+            assert!(!belief.belief_id.as_str().is_empty());
+            assert!(!belief.proposition.render().is_empty());
+        }
+    }
+}
+
+#[test]
+fn phase2a_validation_rejects_shortcut_truth_fields() {
+    let report = validate_fixture_bytes(
+        b"fixture|bad_phase2a_fixture\nschema|schema_v1\nculprit|actor_mara\nstolen_flag|true\nnpc_knows_truth|actor_tomas\nplayer_memory|coin_stack_01",
+        &registry(),
+    )
+    .unwrap_err()
+    .report;
+
+    for forbidden in ["culprit", "stolen_flag", "npc_knows_truth", "player_memory"] {
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| error.code == "forbidden_form" && error.path.contains(forbidden)),
+            "missing forbidden-form validation for {forbidden}: {report:?}"
+        );
+    }
 }

@@ -29,6 +29,7 @@ pub fn expectation_contradiction_001() -> GoldenFixture {
         )],
         items: vec![item_carried_by("coin_stack_01", "actor_mara", true)],
         affordances: vec![
+            affordance("open", "strongbox_tomas"),
             affordance("check_container", "strongbox_tomas"),
             affordance("truthful_accuse_probe", "actor_mara"),
             affordance("inspect_place", "house_tomas"),
@@ -48,6 +49,7 @@ pub fn expectation_contradiction_001() -> GoldenFixture {
                 "Tomas has only a source-backed authored-prehistory expectation",
             ],
             allowed_actions: vec![
+                "open strongbox_tomas",
                 "check strongbox_tomas",
                 "inspect house_tomas and strongbox_tomas",
                 "probe whether knowledge would support accusing actor_mara",

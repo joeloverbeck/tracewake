@@ -171,7 +171,7 @@ mod tests {
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let script =
-            b"view\nnotebook\n1\ndo move.to.street_lane\ndebug rejection\nwait\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nbogus\nquit\n";
+            b"view\nnotebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug rejection\nwait\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nbogus\nquit\n";
         let mut output = Vec::new();
 
         run_command_loop(&mut app, &script[..], &mut output).unwrap();

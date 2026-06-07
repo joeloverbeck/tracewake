@@ -13,7 +13,7 @@ pub fn no_human_epistemic_check_001() -> GoldenFixture {
             false,
             false,
             &["coin_stack_01"],
-            false,
+            true,
         )],
         items: vec![item_in_container("coin_stack_01", "strongbox_tomas", true)],
         affordances: vec![

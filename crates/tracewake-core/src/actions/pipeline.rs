@@ -158,10 +158,7 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
     if definition.effect == ActionEffect::QueryOnly
         && proposal.action_id.as_str() == "truthful_accuse_probe"
     {
-        let projection = context
-            .epistemic_projection
-            .as_ref()
-            .map(|projection| &**projection);
+        let projection = context.epistemic_projection.as_deref();
         if let Err(rejection) = validate_truthful_accuse_probe(context.state, projection, proposal)
         {
             return reject_action(context, proposal, rejection);

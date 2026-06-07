@@ -2,6 +2,7 @@ use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReportStatus,
 };
 use tracewake_core::events::log::EventLog;
+use tracewake_core::events::{EventKind, EventStream};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ItemId, PlaceId, ProposalId,
 };
@@ -199,4 +200,24 @@ fn event_append_order_is_deterministic() {
     assert_eq!(log.events()[0].global_order, 0);
     assert_eq!(log.events()[1].global_order, 1);
     assert!(log.events()[0].event_id < log.events()[1].event_id);
+}
+
+#[test]
+fn phase2a_epistemic_event_kinds_are_nonphysical_and_versioned() {
+    for kind in [
+        EventKind::InitialBeliefSeeded,
+        EventKind::ObservationRecorded,
+        EventKind::BeliefUpdated,
+        EventKind::ExpectationContradicted,
+        EventKind::ContainerChecked,
+    ] {
+        assert_eq!(kind.stream(), EventStream::Epistemic);
+        assert!(!kind.physical_mutating());
+        assert!(!kind.stable_id().is_empty());
+        assert!(EventKind::registry()
+            .iter()
+            .any(|metadata| metadata.kind == kind
+                && metadata.stream == EventStream::Epistemic
+                && !metadata.physical_mutating));
+    }
 }

@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-016: Capstone — Phase 2A acceptance gates, possession parity, no-human run, and replay determinism
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds Phase 2A acceptance/transcript/property/golden tests and the `docs/4-specs/SPEC_LEDGER.md` Spec 0004 entry.
@@ -90,3 +90,31 @@ Add the Spec 0004 entry to `docs/4-specs/SPEC_LEDGER.md` marked Phase 2A (not fu
 1. `cargo test --workspace`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked`
 3. `cargo test -p tracewake-tui --test tui_acceptance` (the end-to-end Phase 2A acceptance boundary)
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Changed:
+
+1. Added capstone assertions for Phase 2A epistemic event registration, nonphysical event streams, holder/source-backed initial beliefs, forbidden shortcut-truth validation, all seven Phase 2A golden fixture contracts, no-human scheduler-origin checks, and the TUI no-leak absence-discovery transcript.
+2. Added the Spec 0004 entry to `docs/4-specs/SPEC_LEDGER.md`, explicitly marked as Phase 2A only with Phase 2B+/3/4 scope deferred.
+3. Repaired Phase 2A fixture reachability where capstone tests found advertised `check_container` paths on closed opaque containers without an ordinary opening/visibility route.
+4. Repaired stale TUI command-loop tests so they use stable semantic IDs or the correct current numeric slot after `check.container.*` became visible in the action menu.
+5. Cleared clippy findings in the Phase 2A pipeline/detection code needed for the full CI gate.
+
+Deviations:
+
+1. Although the ticket was intended as tests plus ledger only, the capstone exposed fixture-contract mismatches: several Phase 2A fixtures advertised check/search behavior that was physically rejected until an ordinary `open` affordance or closed-visible fixture setup was added.
+2. Full clippy was first run at capstone time and surfaced two pre-existing Phase 2A warnings; they were fixed here because the capstone owns the CI exit gate.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace`
+5. `cargo test -p tracewake-tui --test tui_acceptance`
+6. `cargo test -p tracewake-content --test golden_fixtures_run`
+7. `cargo test -p tracewake-core --test golden_scenarios`
+8. `git diff --check`

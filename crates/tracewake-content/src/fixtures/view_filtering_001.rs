@@ -20,6 +20,7 @@ pub fn view_filtering_001() -> GoldenFixture {
         )],
         items: vec![item_in_container("coin_stack_01", "strongbox_tomas", true)],
         affordances: vec![
+            affordance("open", "strongbox_tomas"),
             affordance("check_container", "strongbox_tomas"),
             affordance("inspect_place", "house_tomas"),
             affordance("inspect_entity", "strongbox_tomas"),
@@ -38,6 +39,8 @@ pub fn view_filtering_001() -> GoldenFixture {
                 "debug views may inspect all records but embodied views must not",
             ],
             allowed_actions: vec![
+                "open strongbox_tomas",
+                "check strongbox_tomas",
                 "bind as actor_tomas",
                 "bind as actor_elena",
                 "render notebook and debug epistemics",
