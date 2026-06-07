@@ -187,6 +187,7 @@ impl TuiApp {
             state: &mut self.state,
             log: &mut self.log,
             controller_bindings: Some(&self.controller_bindings),
+            epistemic_projection: None,
             content_manifest_id: self.content_manifest_id.clone(),
             ordering_key,
         };

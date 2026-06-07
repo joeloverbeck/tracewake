@@ -331,6 +331,7 @@ mod tests {
             state: &mut human_state,
             log: &mut human_log,
             controller_bindings: Some(&bindings),
+            epistemic_projection: None,
             content_manifest_id: content_manifest_id(),
             ordering_key: ordering_key(),
         };
@@ -350,6 +351,7 @@ mod tests {
             state: &mut scheduler_state,
             log: &mut scheduler_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: content_manifest_id(),
             ordering_key: ordering_key(),
         };

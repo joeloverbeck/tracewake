@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-007: Expectation contradiction and absence-as-evidence
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds contradiction detection and missing-property belief derivation to the `tracewake-core` epistemic path.
@@ -80,3 +80,22 @@ Ensure no contradiction/belief is emitted when the actor has no relevant expecta
 1. `cargo test -p tracewake-core epistemics::contradiction`
 2. `cargo test -p tracewake-core --test golden_scenarios`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added pure expected-absence detection that compares a holder's expectation beliefs with observed container contents and derives a contradiction plus missing-property belief only when the expected item is absent from the checked container.
+- Wired `check_container` pipeline outcomes to optionally consume an `EpistemicProjection`, apply the observation, emit/apply `ExpectationContradicted` and `BeliefUpdated` events, and leave existing callers unchanged when no projection is supplied.
+- Added unit tests for positive detection, no-expectation, different-location expectation, and present-item negative cases.
+- Added a golden scenario proving Tomas's seeded expectation plus an empty strongbox check yields `ContainerChecked`, `ObservationRecorded`, `ExpectationContradicted`, and `BeliefUpdated` with no culprit language.
+
+Deviations from original plan:
+- `PipelineContext` gained an optional `epistemic_projection` field so detection can consume seeded expectations without adding a parallel mutation path. Existing callers pass `None`.
+
+Verification results:
+- `cargo test -p tracewake-core epistemics::contradiction`
+- `cargo test -p tracewake-core --test golden_scenarios`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

@@ -4,11 +4,14 @@ use tracewake_core::actions::{
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{action_rejection_report, item_location_report};
+use tracewake_core::epistemics::{
+    Belief, Confidence, EpistemicProjection, HolderKind, Proposition, SourceRef, Stance,
+};
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::EventKind;
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId, FixtureId,
-    ItemId, PlaceId, ProposalId,
+    ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
+    EventId, FixtureId, ItemId, PlaceId, ProposalId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::replay::{rebuild_projection, run_replay};
@@ -144,6 +147,51 @@ fn run_action(
         state,
         log,
         controller_bindings: None,
+        epistemic_projection: None,
+        content_manifest_id: manifest_id(),
+        ordering_key: key,
+    };
+    run_pipeline(&mut pipeline_context, &proposal)
+}
+
+fn seed_tomas_coin_expectation(projection: &mut EpistemicProjection) {
+    projection.insert_belief(Belief::new(
+        BeliefId::new("belief_tomas_expected_coin").unwrap(),
+        HolderKind::Actor(actor_id()),
+        Proposition::ItemLocatedInContainer {
+            item_id: coin_id(),
+            container_id: box_id(),
+        },
+        Stance::ExpectsTrue,
+        Confidence::new(900).unwrap(),
+        SourceRef::Event(EventId::new("event_seed_tomas_expectation").unwrap()),
+        SimTick::ZERO,
+    ));
+}
+
+fn run_check_with_projection(
+    state: &mut PhysicalState,
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    sequence: u64,
+) -> tracewake_core::actions::PipelineResult {
+    let registry = registry();
+    let proposal = proposal("check_container", &["strongbox_tomas"], sequence);
+    let key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(sequence),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        proposal.proposal_id.as_str().to_string(),
+    );
+    let mut pipeline_context = PipelineContext {
+        registry: &registry,
+        state,
+        log,
+        controller_bindings: None,
+        epistemic_projection: Some(projection),
         content_manifest_id: manifest_id(),
         ordering_key: key,
     };
@@ -210,6 +258,51 @@ fn check_container_records_observation_but_open_alone_does_not() {
             .count(),
         1
     );
+}
+
+#[test]
+fn expected_absence_check_creates_contradiction_and_missing_belief() {
+    let mut state = initial_state(true, true);
+    state
+        .containers
+        .get_mut(&box_id())
+        .unwrap()
+        .contents
+        .clear();
+    state.items.get_mut(&coin_id()).unwrap().location =
+        Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    seed_tomas_coin_expectation(&mut projection);
+
+    let result = run_check_with_projection(&mut state, &mut log, &mut projection, 7);
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert_eq!(
+        result
+            .appended_events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>(),
+        [
+            EventKind::ContainerChecked,
+            EventKind::ObservationRecorded,
+            EventKind::ExpectationContradicted,
+            EventKind::BeliefUpdated
+        ]
+    );
+    assert_eq!(projection.contradictions_by_id.len(), 1);
+    assert!(projection.beliefs_by_id.values().any(|belief| {
+        belief.holder == HolderKind::Actor(actor_id())
+            && matches!(
+                belief.proposition,
+                Proposition::ItemMissingFromExpectedLocation { .. }
+            )
+    }));
+    assert!(!projection.beliefs_by_id.values().any(|belief| {
+        belief.proposition.render().contains("stole")
+            || belief.proposition.render().contains("culprit")
+    }));
 }
 
 #[test]

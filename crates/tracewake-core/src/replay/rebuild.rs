@@ -268,6 +268,7 @@ mod tests {
             state: &mut live,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key("open"),
         };
@@ -286,6 +287,7 @@ mod tests {
             state: &mut live,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key("move"),
         };

@@ -8,7 +8,9 @@ pub mod projection;
 pub mod proposition;
 
 pub use belief::{Belief, BeliefBuildError, BeliefDraft, HolderKind, Stance};
-pub use contradiction::{Contradiction, ContradictionKind};
+pub use contradiction::{
+    detect_expected_absences, Contradiction, ContradictionKind, ExpectedAbsenceDetection,
+};
 pub use knowledge_context::{
     AllowedKnowledgeSource, ForbiddenKnowledgeSource, KnowledgeContext, ScopeFilter, ViewMode,
 };

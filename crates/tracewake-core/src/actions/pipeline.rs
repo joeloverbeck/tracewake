@@ -11,10 +11,11 @@ use crate::actions::proposal::ProposalOrigin;
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
 use crate::controller::{ControllerBindings, ControllerError};
-use crate::events::apply::apply_event;
+use crate::epistemics::{detect_expected_absences, Confidence, EpistemicProjection};
+use crate::events::apply::{apply_epistemic_event, apply_event};
 use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind, PayloadField};
-use crate::ids::{ContentManifestId, EventId, ValidationReportId};
+use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::PhysicalState;
 
@@ -72,6 +73,7 @@ pub struct PipelineContext<'a> {
     pub state: &'a mut PhysicalState,
     pub log: &'a mut EventLog,
     pub controller_bindings: Option<&'a ControllerBindings>,
+    pub epistemic_projection: Option<&'a mut EpistemicProjection>,
     pub content_manifest_id: ContentManifestId,
     pub ordering_key: OrderingKey,
 }
@@ -262,8 +264,56 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
                     )
                 }
             };
-            appended_events.push(appended);
-            appended_events.push(appended_observation);
+            appended_events.push(appended.clone());
+            appended_events.push(appended_observation.clone());
+            if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+                if apply_epistemic_event(projection, &appended_observation).is_err() {
+                    return reject(
+                        context,
+                        proposal,
+                        PipelineStage::KnowledgePerceptionPlaceholder,
+                        vec![ReasonCode::WorldStateMismatch],
+                        checked_facts,
+                        "The observation could not be applied.",
+                        "epistemic projection rejected the observation event",
+                    );
+                }
+                for event in build_absence_detection_events(
+                    projection,
+                    context.state,
+                    &appended,
+                    &appended_observation,
+                    &context.ordering_key,
+                    &context.content_manifest_id,
+                ) {
+                    let appended_detection = match context.log.append(event) {
+                        Ok(appended) => appended,
+                        Err(_) => {
+                            return reject(
+                                context,
+                                proposal,
+                                PipelineStage::KnowledgePerceptionPlaceholder,
+                                vec![ReasonCode::WorldStateMismatch],
+                                checked_facts,
+                                "The derived belief could not be recorded.",
+                                "append-only log rejected a contradiction/belief event",
+                            )
+                        }
+                    };
+                    if apply_epistemic_event(projection, &appended_detection).is_err() {
+                        return reject(
+                            context,
+                            proposal,
+                            PipelineStage::KnowledgePerceptionPlaceholder,
+                            vec![ReasonCode::WorldStateMismatch],
+                            checked_facts,
+                            "The derived belief could not be applied.",
+                            "epistemic projection rejected a contradiction/belief event",
+                        );
+                    }
+                    appended_events.push(appended_detection);
+                }
+            }
         } else {
             appended_events.push(appended);
         }
@@ -445,6 +495,167 @@ fn rejection_event_id(proposal: &Proposal) -> EventId {
     EventId::new(format!("event.rejection.{}", proposal.proposal_id.as_str())).unwrap()
 }
 
+fn build_absence_detection_events(
+    projection: &EpistemicProjection,
+    state: &PhysicalState,
+    check_event: &EventEnvelope,
+    observation_event: &EventEnvelope,
+    ordering_key: &OrderingKey,
+    content_manifest_id: &ContentManifestId,
+) -> Vec<EventEnvelope> {
+    let Some(actor_id) = check_event.actor_id.as_ref() else {
+        return Vec::new();
+    };
+    let Some(container_id) =
+        payload_value(check_event, "container_id").and_then(|value| ContainerId::new(value).ok())
+    else {
+        return Vec::new();
+    };
+    let Some(observation_id) = payload_value(observation_event, "observation_id")
+        .and_then(|value| crate::ids::ObservationId::new(value).ok())
+    else {
+        return Vec::new();
+    };
+    let observed_item_ids = state
+        .containers
+        .get(&container_id)
+        .map(|container| container.contents.clone())
+        .unwrap_or_default();
+    let expectation_beliefs = projection
+        .beliefs_by_holder
+        .get(actor_id)
+        .into_iter()
+        .flat_map(|ids| ids.iter())
+        .filter_map(|id| projection.beliefs_by_id.get(id))
+        .collect::<Vec<_>>();
+    let detections = detect_expected_absences(
+        actor_id,
+        &container_id,
+        &observed_item_ids,
+        &expectation_beliefs,
+        &observation_id,
+        &observation_event.event_id,
+        observation_event.sim_tick,
+        Confidence::new(1000).unwrap(),
+    );
+    let mut events = Vec::new();
+    for detection in detections {
+        let mut contradiction_event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.expectation_contradicted.{}",
+                detection.contradiction.contradiction_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::ExpectationContradicted,
+            0,
+            0,
+            observation_event.sim_tick,
+            ordering_key.clone(),
+            content_manifest_id.clone(),
+        );
+        contradiction_event.actor_id = Some(actor_id.clone());
+        contradiction_event.proposal_id = check_event.proposal_id.clone();
+        contradiction_event.causes = vec![crate::events::EventCause::Event(
+            observation_event.event_id.clone(),
+        )];
+        contradiction_event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new(
+                "contradiction_id",
+                detection.contradiction.contradiction_id.as_str(),
+            ),
+            PayloadField::new("holder_actor_id", actor_id.as_str()),
+            PayloadField::new(
+                "prior_expectation_belief_id",
+                detection.contradiction.prior_expectation_belief_id.as_str(),
+            ),
+            PayloadField::new(
+                "contradicting_observation_id",
+                detection
+                    .contradiction
+                    .contradicting_observation_id
+                    .as_str(),
+            ),
+            PayloadField::new(
+                "expected_proposition",
+                detection
+                    .contradiction
+                    .expected_proposition
+                    .serialize_canonical(),
+            ),
+            PayloadField::new(
+                "observed_proposition",
+                detection
+                    .contradiction
+                    .observed_proposition
+                    .serialize_canonical(),
+            ),
+            PayloadField::new(
+                "detected_tick",
+                observation_event.sim_tick.value().to_string(),
+            ),
+        ];
+        contradiction_event.effects_summary = "expectation contradicted by check".to_string();
+
+        let mut belief_event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.belief_updated.{}",
+                detection.missing_belief.belief_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::BeliefUpdated,
+            0,
+            0,
+            observation_event.sim_tick,
+            ordering_key.clone(),
+            content_manifest_id.clone(),
+        );
+        belief_event.actor_id = Some(actor_id.clone());
+        belief_event.proposal_id = check_event.proposal_id.clone();
+        belief_event.causes = vec![
+            crate::events::EventCause::Event(observation_event.event_id.clone()),
+            crate::events::EventCause::Event(contradiction_event.event_id.clone()),
+        ];
+        belief_event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("belief_id", detection.missing_belief.belief_id.as_str()),
+            PayloadField::new("holder_actor_id", actor_id.as_str()),
+            PayloadField::new(
+                "proposition",
+                detection.missing_belief.proposition.serialize_canonical(),
+            ),
+            PayloadField::new("stance", detection.missing_belief.stance.stable_id()),
+            PayloadField::new(
+                "confidence",
+                detection
+                    .missing_belief
+                    .confidence
+                    .parts_per_thousand()
+                    .to_string(),
+            ),
+            PayloadField::new("source_event_id", observation_event.event_id.as_str()),
+            PayloadField::new(
+                "acquired_tick",
+                observation_event.sim_tick.value().to_string(),
+            ),
+            PayloadField::new("channel", "absence_marker"),
+        ];
+        belief_event.effects_summary = "missing expected item belief updated".to_string();
+
+        events.push(contradiction_event);
+        events.push(belief_event);
+    }
+    events
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -565,6 +776,7 @@ mod tests {
             state: &mut human_state,
             log: &mut human_log,
             controller_bindings: Some(&bindings),
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -577,6 +789,7 @@ mod tests {
             state: &mut scheduler_state,
             log: &mut scheduler_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -600,6 +813,7 @@ mod tests {
             state: &mut state,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -655,6 +869,7 @@ mod tests {
             state: &mut state,
             log: &mut log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase2a_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -695,6 +910,7 @@ mod tests {
             state: &mut live_state,
             log: &mut live_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
@@ -718,6 +934,7 @@ mod tests {
             state: &mut live_state,
             log: &mut live_log,
             controller_bindings: None,
+            epistemic_projection: None,
             content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
             ordering_key: ordering_key(),
         };
