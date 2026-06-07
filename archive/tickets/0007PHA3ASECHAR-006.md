@@ -1,6 +1,6 @@
 # 0007PHA3ASECHAR-006: Durable intentions as live no-human commitments
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` intention lifecycle wiring (`agent/intention.rs`, `scheduler.rs`, `events/apply.rs`); possession-parity fixture
@@ -83,3 +83,30 @@ Ensure attach/detach/switch paths never clear an ordinary actor's active intenti
 1. `cargo test -p tracewake-core agent::intention`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+
+- Added replay application for `IntentionStarted`, constructing a live `Intention` and active-intention mapping from event payload.
+- Extended `IntentionContinued` application to record progress tick/current step when those fields are present.
+- Wired `run_no_human_day` to emit and apply `IntentionStarted` after an actor's first ordinary follow-on proposal when no active intention exists.
+- Wired later no-human proposals to emit and apply `IntentionContinued` with ordinary follow-on event ancestry, preserving the active intention as a live commitment for subsequent decisions.
+- Added a scheduler acceptance test proving no-human start/continue lifecycle events replay to the same `AgentState`.
+
+Deviations from original plan:
+
+- Terminal lifecycle transitions (`Completed`, `Failed`, `Suspended`, `Resumed`, `Abandoned`, `Interrupted`) remain available in the state machine and apply path, but this ticket only integrates start/continue in the no-human loop. Routine-step completion/failure ancestry is owned by `0007PHA3ASECHAR-007`, and severe-need interruption cause signaling was introduced by `0007PHA3ASECHAR-005`.
+- `possession_does_not_reset_intention_001` already asserted active-intention preservation across controller binding, so no fixture schema change was required.
+
+Verification results:
+
+- `cargo test -p tracewake-core scheduler::no_human::tests::no_human_day_starts_continues_and_replays_active_intention`
+- `cargo test -p tracewake-core agent::intention`
+- `cargo test -p tracewake-core events::apply::tests::agent_intention`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

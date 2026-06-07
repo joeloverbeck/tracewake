@@ -209,7 +209,7 @@ pub mod no_human {
     use crate::agent::{
         build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
         plan_local_actions, select_goal_and_trace, select_phase3a_method, ActorKnownFact,
-        ActorKnownPlanningState, BlockerCategory, DecisionInput, Intention,
+        ActorKnownPlanningState, BlockerCategory, DecisionInput, Intention, IntentionSource,
         LiveCandidateGenerationInput, LocalPlanRequest, NeedBand, NeedKind, NeedState, PlannerGoal,
         RoutineFamily, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
@@ -218,7 +218,8 @@ pub mod no_human {
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
-        ActionId, ActorId, ContentManifestId, EventId, ProcessId, ProposalId, StuckDiagnosticId,
+        ActionId, ActorId, CandidateGoalId, ContentManifestId, DecisionTraceId, EventId,
+        IntentionId, ProcessId, ProposalId, StuckDiagnosticId,
     };
     use crate::location::Location;
     use crate::scheduler::{
@@ -368,6 +369,7 @@ pub mod no_human {
                 ) else {
                     continue;
                 };
+                let active_before_proposal = active_intention_for_actor(agent_state, actor_id);
                 let ordering_key = OrderingKey::new(
                     window.start_tick,
                     SchedulePhase::NoHumanProcess,
@@ -388,13 +390,24 @@ pub mod no_human {
                     content_manifest_id: content_manifest_id.clone(),
                     ordering_key,
                 };
-                run_pipeline(&mut context, &proposal);
+                let result = run_pipeline(&mut context, &proposal);
                 let appended = log.events().len().saturating_sub(before);
                 ordinary_pipeline_events += appended;
                 if appended > 0 {
                     progress_by_window_actor
                         .insert((window.window_id.clone(), actor_id.clone()), appended);
                 }
+                append_intention_lifecycle_after_proposal(
+                    log,
+                    agent_state,
+                    &process_id,
+                    actor_id,
+                    window,
+                    &proposal,
+                    &content_manifest_id,
+                    active_before_proposal.as_ref(),
+                    result.appended_events.first(),
+                );
             }
         }
 
@@ -990,6 +1003,199 @@ pub mod no_human {
         event
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn append_intention_lifecycle_after_proposal(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        active_before_proposal: Option<&Intention>,
+        ordinary_event: Option<&EventEnvelope>,
+    ) {
+        let Some(ordinary_event) = ordinary_event else {
+            return;
+        };
+        if let Some(active) = active_before_proposal {
+            append_and_apply_agent_event(
+                log,
+                agent_state,
+                build_intention_continued_event(
+                    process_id,
+                    active,
+                    window,
+                    proposal,
+                    content_manifest_id,
+                    ordinary_event,
+                ),
+            );
+            return;
+        }
+        if agent_state.active_intention_by_actor.contains_key(actor_id) {
+            return;
+        }
+        append_and_apply_agent_event(
+            log,
+            agent_state,
+            build_intention_started_event(
+                process_id,
+                actor_id,
+                window,
+                proposal,
+                content_manifest_id,
+                ordinary_event,
+            ),
+        );
+    }
+
+    fn build_intention_started_event(
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let action = proposal.action_id.as_str();
+        let intention_id = IntentionId::new(format!(
+            "intention_{}_{}_{}",
+            actor_id.as_str(),
+            window.window_id,
+            action
+        ))
+        .unwrap();
+        let selected_goal_id = CandidateGoalId::new(format!(
+            "goal_{}_{}_{}",
+            actor_id.as_str(),
+            window.start_tick.value(),
+            action
+        ))
+        .unwrap();
+        let trace_id = DecisionTraceId::new(format!(
+            "trace_{}_{}_{}",
+            actor_id.as_str(),
+            window.start_tick.value(),
+            action
+        ))
+        .unwrap();
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.intention_started.{}.{}",
+                actor_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            EventKind::IntentionStarted,
+            0,
+            0,
+            window.start_tick,
+            OrderingKey::new(
+                window.start_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("intention_started").unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    intention_id.as_str().to_string(),
+                ],
+                format!(
+                    "intention_started:{}:{}",
+                    actor_id.as_str(),
+                    window.window_id
+                ),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Event(ordinary_event.event_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.proposal_id = Some(proposal.proposal_id.clone());
+        event.participants = vec![actor_id.to_string(), intention_id.to_string()];
+        event.payload = vec![
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("intention_id", intention_id.as_str()),
+            PayloadField::new("status", "active"),
+            PayloadField::new(
+                "source",
+                IntentionSource::CandidateGoalSelection.stable_id(),
+            ),
+            PayloadField::new("selected_goal_id", selected_goal_id.as_str()),
+            PayloadField::new("selected_routine_method", ""),
+            PayloadField::new("current_step", action),
+            PayloadField::new("durability_level", "5"),
+            PayloadField::new("start_tick", window.start_tick.value().to_string()),
+            PayloadField::new("trace_id", trace_id.as_str()),
+            PayloadField::new("follow_on_action_id", proposal.action_id.as_str()),
+            PayloadField::new("follow_on_event_id", ordinary_event.event_id.as_str()),
+            PayloadField::new("window_id", window.window_id.as_str()),
+            PayloadField::new("reason", "no_human_selected_goal"),
+        ];
+        event.effects_summary = "no-human actor adopted a durable intention".to_string();
+        event
+    }
+
+    fn build_intention_continued_event(
+        process_id: &ProcessId,
+        active: &Intention,
+        window: &DayWindow,
+        proposal: &Proposal,
+        content_manifest_id: &ContentManifestId,
+        ordinary_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.intention_continued.{}.{}",
+                active.actor_id.as_str(),
+                window.window_id
+            ))
+            .unwrap(),
+            EventKind::IntentionContinued,
+            0,
+            0,
+            window.start_tick,
+            OrderingKey::new(
+                window.start_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("intention_continued").unwrap(),
+                vec![
+                    active.actor_id.as_str().to_string(),
+                    active.intention_id.as_str().to_string(),
+                ],
+                format!(
+                    "intention_continued:{}:{}",
+                    active.actor_id.as_str(),
+                    window.window_id
+                ),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Event(ordinary_event.event_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(active.actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.proposal_id = Some(proposal.proposal_id.clone());
+        event.participants = vec![active.actor_id.to_string(), active.intention_id.to_string()];
+        event.payload = vec![
+            PayloadField::new("actor_id", active.actor_id.as_str()),
+            PayloadField::new("intention_id", active.intention_id.as_str()),
+            PayloadField::new("status", "active"),
+            PayloadField::new("reason", "ordinary_follow_on_action_committed"),
+            PayloadField::new("progress_tick", window.start_tick.value().to_string()),
+            PayloadField::new("current_step", proposal.action_id.as_str()),
+            PayloadField::new("follow_on_action_id", proposal.action_id.as_str()),
+            PayloadField::new("follow_on_event_id", ordinary_event.event_id.as_str()),
+            PayloadField::new("window_id", window.window_id.as_str()),
+        ];
+        event.effects_summary = "active intention continued through ordinary action".to_string();
+        event
+    }
+
     fn ordinary_proposal(
         label: &str,
         actor_id: &ActorId,
@@ -1448,6 +1654,90 @@ pub mod no_human {
                 active_intention_for_actor(&agent_state, &actor_id),
                 Some(intention)
             );
+        }
+
+        #[test]
+        fn no_human_day_starts_continues_and_replays_active_intention() {
+            let actor_id = actor_id();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
+            );
+            let mut agent_state = AgentState::default();
+            let initial_agent_state = agent_state.clone();
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id.clone()],
+                    windows: vec![
+                        DayWindow {
+                            window_id: "first".to_string(),
+                            start_tick: SimTick::ZERO,
+                            end_tick: SimTick::new(1),
+                        },
+                        DayWindow {
+                            window_id: "second".to_string(),
+                            start_tick: SimTick::new(1),
+                            end_tick: SimTick::new(2),
+                        },
+                    ],
+                },
+            );
+
+            let started = log
+                .events()
+                .iter()
+                .find(|event| event.event_type == EventKind::IntentionStarted)
+                .expect("first no-human action adopts intention");
+            let continued = log
+                .events()
+                .iter()
+                .find(|event| event.event_type == EventKind::IntentionContinued)
+                .expect("later no-human action continues intention");
+            assert!(continued
+                .causes
+                .iter()
+                .any(|cause| matches!(cause, EventCause::Event(_))));
+            assert!(continued
+                .payload
+                .iter()
+                .any(|field| { field.key == "follow_on_action_id" && field.value == "wait" }));
+            let intention_id = started
+                .payload
+                .iter()
+                .find(|field| field.key == "intention_id")
+                .map(|field| IntentionId::new(field.value.as_str()).unwrap())
+                .unwrap();
+            assert_eq!(
+                agent_state.active_intention_by_actor.get(&actor_id),
+                Some(&intention_id)
+            );
+            assert_eq!(
+                agent_state.intentions[&intention_id]
+                    .status_reason
+                    .as_deref(),
+                Some("ordinary_follow_on_action_committed")
+            );
+
+            let mut replay_agent_state = initial_agent_state;
+            for event in log.events() {
+                if matches!(
+                    event.event_type,
+                    EventKind::IntentionStarted | EventKind::IntentionContinued
+                ) {
+                    apply_agent_event(&mut replay_agent_state, event).unwrap();
+                }
+            }
+            assert_eq!(replay_agent_state, agent_state);
         }
 
         #[test]
