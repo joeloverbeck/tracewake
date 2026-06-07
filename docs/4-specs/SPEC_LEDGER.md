@@ -98,16 +98,24 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 
 ### Spec 0005 — Phase 3A Needs, Routines, and No-Human Day
 
-- **Status:** Phase 3A landed (2026-06-07).
-- **Spec file:** `archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md`.
+- **Status:** Archived as historical implementation work. Exact-commit audit at `ec1e73f91b7330d87ce12ae93f8cf57ea3671306` found that Phase 3A acceptance was **not earned**. The implementation contains useful scaffolding and partial surfaces, but the no-human ordinary-life substrate is not robust enough to support later phases. Corrective Spec 0006 is required before Phase 3B or Phase 4. See `archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md` and `archive/reports/PHASE_3A_STATUS_ERRATA.md`.
+- **Spec file:** `archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md`. This file is historical evidence of intended/attempted work, not proof that Phase 3A is safe; it is not rewritten.
 - **Phase:** Phase 3A only; this is a narrow ordinary-life substrate, not full Phase 3.
-- **Required result:** bounded hunger/fatigue/safety needs, durable intentions, defeasible routines, sleep/eat/work/continue/wait ordinary actions through the shared pipeline, no-human day runner and metrics, action/guard/canonical fixtures, replay/debug reports, embodied needs/routine surface, non-diegetic Phase 3A debug panels, README runbook updates, and capstone acceptance evidence.
-- **Exit evidence:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`, and the Phase 3A golden/content/TUI capstone tests from `0005PHA3ANEEROU-025`.
+- **Intended result:** bounded hunger/fatigue/safety needs, durable intentions, defeasible routines, sleep/eat/work/continue/wait ordinary actions through the shared pipeline, actor-known planning, no-human day runner and metrics, action/guard/canonical fixtures, replay/debug reports, embodied needs/routine surface, non-diegetic Phase 3A debug panels, README runbook updates, and capstone acceptance evidence.
+- **Audit result:** these are not yet proven behaviorally. Current code over-relies on wait-only no-human advancement (`run_no_human_day` submits `wait` proposals with empty needs/intention/routine inputs), replay-side agent-state application (the shared pipeline mutates `PhysicalState` only; `AgentState` is applied by a separate `apply_agent_event` path during replay/projection rebuild), string-prefix/substring HTN preconditions, synthetic replay logs, and fixture/debug snapshots rather than integrated ordinary-life behavior. The original `cargo fmt`/`clippy`/`build`/`test` exit evidence passes, but it rewards smoke/synthetic/snapshot behavior and does not prove the integrated no-human substrate.
 - **Deferred scope:** Spec 0005 explicitly does not close full Phase 3. The Phase 3 acceptance line requiring agents to speak minimally is deferred to Phase 3B; broader memory decay, testimony, reports, institutions, gossip, wrong suspicion workflows, autonomous missing-property story setup, multi-day depth, economy, graphical client, and Phase 4 regional systems remain future work.
+
+### Spec 0006 — Phase 3A Needs, Routines, and No-Human Day Hardening
+
+- **Status:** Proposed corrective hardening spec; **blocking**, not yet landed.
+- **Spec file:** `specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md`.
+- **Phase:** Phase 3A hardening; repairs the materially incomplete archived Phase 3A before any Phase 3B / Phase 4 / ordinary-life-dependent expansion.
+- **Why blocking:** the exact-commit audit (`archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md`) found Phase 3A acceptance not earned. Until Spec 0006 passes its no-human / replay / debug / TUI / actor-known gates, the no-human ordinary-life substrate later phases depend on does not robustly exist.
+- **Intended result:** live needs/intention/routine state updated through the shared pipeline; an actor decision loop that uses the same scheduler/action/proposal/event pipeline as possessed play; typed HTN/planner condition proof from actor-known state; hidden-truth planning impossible by construction; a no-human day that produces wake/eat/move/work/rest/sleep/fail/replan ancestry; debug/TUI inspection of real generated decisions and failures; replay equivalence for actual logs.
 
 ## Next allowed spec
 
-Spec 0005 has landed Phase 3A only. The next implementation spec may continue Phase 2B+ work, open Phase 3B speech/ordinary-life follow-up, or pursue another later slice only if the Phase 2A/3A boundaries above are preserved and deferred scope is not represented as already complete.
+Phase 3A is **not** safely complete (see the Spec 0005 audit result above). The next **blocking** product-behavior spec is **0006 Phase 3A Needs, Routines, and No-Human Day Hardening**. No Phase 3B, Phase 4, or ordinary-life-dependent expansion should proceed until Spec 0006 passes its no-human / replay / debug / TUI / actor-known gates. Phase 2B+ work that does not depend on the no-human ordinary-life substrate may continue in parallel only if the Phase 2A boundaries above are preserved and deferred scope is not represented as already complete.
 
 ## Retread warning
 
