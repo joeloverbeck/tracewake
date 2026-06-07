@@ -365,9 +365,17 @@ mod tests {
     #[test]
     fn human_binding_adds_no_extra_semantic_actions() {
         let state = state();
-        let before =
-            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::ZERO, None)
-                .unwrap();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_inspect_wait();
+        let before = build_embodied_view_model(
+            &state,
+            &registry,
+            &content_manifest_id(),
+            &actor_id("actor_tomas"),
+            SimTick::ZERO,
+            None,
+        )
+        .unwrap();
         let mut bindings = ControllerBindings::new();
         let mut log = EventLog::new();
         bindings.attach(
@@ -378,9 +386,15 @@ mod tests {
             &mut log,
             content_manifest_id(),
         );
-        let after =
-            build_embodied_view_model(&state, &actor_id("actor_tomas"), SimTick::ZERO, None)
-                .unwrap();
+        let after = build_embodied_view_model(
+            &state,
+            &registry,
+            &content_manifest_id(),
+            &actor_id("actor_tomas"),
+            SimTick::ZERO,
+            None,
+        )
+        .unwrap();
 
         assert_eq!(before.semantic_actions, after.semantic_actions);
     }

@@ -1,8 +1,8 @@
 use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, Proposal, ProposalOrigin,
-    ReportStatus, ValidationReport,
+    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ProposalOrigin, ReportStatus,
+    ValidationReport,
 };
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::controller::ControllerBindings;
@@ -19,7 +19,8 @@ use tracewake_core::ids::{
     ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model_with_notebook, ProjectionError,
+    build_debug_event_log_view, build_embodied_view_model_with_notebook,
+    proposal_from_semantic_action_entry, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::{
@@ -138,6 +139,8 @@ impl TuiApp {
             .ok_or(AppError::ActorNotBound)?;
         build_embodied_view_model_with_notebook(
             &self.state,
+            &self.registry,
+            &self.content_manifest_id,
             actor_id,
             self.scheduler.current_tick,
             self.last_rejection.as_ref(),
@@ -171,23 +174,15 @@ impl TuiApp {
     ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let sequence = self.scheduler.assign_proposal_sequence();
-        let mut proposal = Proposal::new(
+        let proposal = proposal_from_semantic_action_entry(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
             ProposalOrigin::Human,
             Some(actor_id.clone()),
-            entry.action_id.clone(),
             self.scheduler.current_tick,
+            entry,
+            source_view_model_id,
+            Some(&self.controller_id),
         );
-        proposal.target_ids = entry.target_ids.clone();
-        proposal.source_view_model_id = source_view_model_id;
-        proposal
-            .parameters
-            .insert("controller_id".to_string(), self.controller_id.to_string());
-        if entry.semantic_action_id.as_str() == "wait.1_tick" {
-            proposal
-                .parameters
-                .insert("ticks".to_string(), "1".to_string());
-        }
 
         let ordering_key = OrderingKey::new(
             self.scheduler.current_tick,

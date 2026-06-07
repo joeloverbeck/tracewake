@@ -1,6 +1,6 @@
 # 0006EMBAFFORD-002: Derive embodied menu availability from the validator preflight; remove duplicated precondition logic
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs` `semantic_actions` / `build_embodied_view_model` signature; consumes `validate_proposal`), `tracewake-tui` (`app.rs` render path passes the registry; `tests/embodied_flow.rs`). No event/schema/replay changes.
@@ -101,3 +101,25 @@ Add core view-model tests for: closed container → `check.container` disabled w
 
 1. `cargo test -p tracewake-core projections:: && cargo test -p tracewake-tui --test embodied_flow`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- `build_embodied_view_model` and notebook view construction now receive the action registry and content manifest so semantic action availability can be preflighted through the validator.
+- `semantic_actions()` now builds candidate entries, converts them to proposals, calls `validate_proposal`, and uses the returned `ValidationReport` status and actor-visible summary for `enabled` / `why_disabled`.
+- Added shared `proposal_from_semantic_action_entry` construction and reused it from the TUI submit path.
+- Removed ad-hoc lock/portable precondition gating from menu construction; only action-shape selection such as open-vs-close remains local.
+- Added core tests for closed-container, closed-door, and locked-container disabled reasons, and updated the embodied TUI flow test to assert pre-submit disabled rendering and post-submit why-not parity.
+
+Deviations from original plan:
+- Core preflight proposals use `ProposalOrigin::Test` so menu construction does not falsely fail on human controller-binding metadata that is only available at submit time. The TUI submit path uses the same shared proposal builder with `ProposalOrigin::Human` and controller metadata.
+
+Verification:
+- `cargo test -p tracewake-core projections::`
+- `cargo test -p tracewake-tui --test embodied_flow`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
