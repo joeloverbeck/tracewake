@@ -61,6 +61,7 @@ pub struct LocalPlanFailure {
     pub trace: LocalPlanTrace,
 }
 
+#[allow(clippy::result_large_err)]
 pub fn plan_local_actions(
     state: &ActorKnownPlanningState,
     request: &LocalPlanRequest,
@@ -91,6 +92,7 @@ pub fn plan_local_actions(
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn plan_route(
     state: &ActorKnownPlanningState,
     request: &LocalPlanRequest,
@@ -188,6 +190,7 @@ fn proposals_for_path(
     proposals
 }
 
+#[allow(clippy::result_large_err)]
 fn plan_check_container(
     state: &ActorKnownPlanningState,
     request: &LocalPlanRequest,
@@ -224,6 +227,7 @@ fn plan_check_container(
     ))
 }
 
+#[allow(clippy::result_large_err)]
 fn plan_known_food(
     state: &ActorKnownPlanningState,
     request: &LocalPlanRequest,

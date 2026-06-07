@@ -346,3 +346,34 @@ fn phase2a_epistemic_event_kinds_are_nonphysical_and_versioned() {
                 && !metadata.physical_mutating));
     }
 }
+
+#[test]
+fn phase3a_event_kinds_are_streamed_versioned_and_replay_visible() {
+    for kind in [
+        EventKind::NeedDeltaApplied,
+        EventKind::NeedThresholdCrossed,
+        EventKind::IntentionStarted,
+        EventKind::IntentionInterrupted,
+        EventKind::RoutineStepStarted,
+        EventKind::RoutineStepCompleted,
+        EventKind::RoutineStepFailed,
+        EventKind::SleepStarted,
+        EventKind::SleepCompleted,
+        EventKind::FoodConsumed,
+        EventKind::EatFailed,
+        EventKind::WorkBlockStarted,
+        EventKind::WorkBlockCompleted,
+        EventKind::WorkBlockFailed,
+        EventKind::DecisionTraceRecorded,
+        EventKind::StuckDiagnosticRecorded,
+        EventKind::NoHumanDayStarted,
+        EventKind::NoHumanDayCompleted,
+        EventKind::ContinueRoutineProposed,
+    ] {
+        assert!(!kind.stable_id().is_empty());
+        assert!(EventKind::registry()
+            .iter()
+            .any(|metadata| metadata.kind == kind && metadata.stream == kind.stream()));
+        assert_ne!(kind.stream(), EventStream::Controller);
+    }
+}

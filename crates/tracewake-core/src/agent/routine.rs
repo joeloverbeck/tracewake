@@ -289,6 +289,7 @@ pub struct RoutineExecution {
 }
 
 impl RoutineExecution {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         execution_id: RoutineExecutionId,
         actor_id: ActorId,

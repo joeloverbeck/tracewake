@@ -949,6 +949,35 @@ fn phase2a_golden_fixtures_have_contracts_and_validate() {
 }
 
 #[test]
+fn phase3a_golden_fixtures_have_contracts_and_validate() {
+    let expected = [
+        "ordinary_workday_001",
+        "sleep_eat_work_001",
+        "food_unavailable_replan_001",
+        "routine_blocked_diagnostic_001",
+        "planner_trace_001",
+        "routine_no_teleport_001",
+        "possession_does_not_reset_intention_001",
+        "no_hidden_truth_planning_001",
+        "no_human_day_001",
+    ];
+
+    for fixture_id in expected {
+        let golden = fixtures::all()
+            .into_iter()
+            .find(|golden| golden.fixture.fixture_id.as_str() == fixture_id)
+            .unwrap_or_else(|| panic!("missing Phase 3A fixture {fixture_id}"));
+
+        validate_fixture(&golden.fixture, &registry()).unwrap();
+        assert_eq!(golden.contract.fixture_id, fixture_id);
+        assert!(!golden.contract.setup.is_empty());
+        assert!(!golden.contract.allowed_actions.is_empty());
+        assert!(!golden.contract.expected_events_or_reports.is_empty());
+        assert!(!golden.contract.acceptance_assertions.is_empty());
+    }
+}
+
+#[test]
 fn phase2a_initial_beliefs_are_holder_and_source_backed() {
     for golden in fixtures::all()
         .into_iter()

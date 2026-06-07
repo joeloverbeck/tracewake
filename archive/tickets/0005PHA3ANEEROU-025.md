@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-025: Capstone — Phase 3A acceptance gates, test matrix, and spec ledger
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the Phase 3A acceptance/property/golden/transcript tests across crates and records the Spec 0005 entry in `docs/4-specs/SPEC_LEDGER.md`. Introduces no new production logic.
@@ -90,3 +90,19 @@ Add the Spec 0005 entry to `docs/4-specs/SPEC_LEDGER.md` marked **Phase 3A only*
 1. `cargo test --workspace`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked`
 3. `cargo test -p tracewake-content --test golden_fixtures_run` (the end-to-end Phase 3A no-human-day acceptance boundary)
+
+## Outcome
+
+Completed: 2026-06-07
+
+Added the Phase 3A capstone evidence across core, content, and TUI tests: Phase 3A event-kind coverage, no-human metrics replay byte identity, Phase 3A fixture roster validation, deterministic Phase 3A debug snapshots, and a possess/wait/debug TUI transcript. Recorded Spec 0005 in `docs/4-specs/SPEC_LEDGER.md` as Phase 3A only with full Phase 3 speech and later systems explicitly deferred.
+
+Deviation: the full clippy gate exposed pre-existing Phase 3A helper lints. This ticket includes lint-only production hygiene (`#[allow]` on intentional helper signatures/large error returns and one mechanical `?` rewrite) so the required CI gate passes; no production behavior was added for the capstone.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace`
+5. `cargo test -p tracewake-content --test golden_fixtures_run`

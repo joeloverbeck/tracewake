@@ -96,9 +96,18 @@ Spec 0002 does not implement Phase 2+ systems (beliefs, routines, institutions, 
 - **Required result:** typed propositions, source-backed observations and beliefs, expectation contradiction, `check_container`, bounded sound uncertainty, actor-known notebooks, debug epistemics, possession parity, no-human epistemic checks, content validation, and replay/projection acceptance gates are implemented and covered by the capstone exit evidence.
 - **Deferred scope:** Phase 2B+ perception depth, memory decay, testimony, speech, reports, records, institutions, gossip, wrong suspicion workflows, routines, dialogue, planning-driven candidate goals, graphical client work, and Phase 3/4 systems remain future work.
 
+### Spec 0005 — Phase 3A Needs, Routines, and No-Human Day
+
+- **Status:** Phase 3A landed (2026-06-07).
+- **Spec file:** `specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md` until archived with the completed implementation package.
+- **Phase:** Phase 3A only; this is a narrow ordinary-life substrate, not full Phase 3.
+- **Required result:** bounded hunger/fatigue/safety needs, durable intentions, defeasible routines, sleep/eat/work/continue/wait ordinary actions through the shared pipeline, no-human day runner and metrics, action/guard/canonical fixtures, replay/debug reports, embodied needs/routine surface, non-diegetic Phase 3A debug panels, README runbook updates, and capstone acceptance evidence.
+- **Exit evidence:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`, and the Phase 3A golden/content/TUI capstone tests from `0005PHA3ANEEROU-025`.
+- **Deferred scope:** Spec 0005 explicitly does not close full Phase 3. The Phase 3 acceptance line requiring agents to speak minimally is deferred to Phase 3B; broader memory decay, testimony, reports, institutions, gossip, wrong suspicion workflows, autonomous missing-property story setup, multi-day depth, economy, graphical client, and Phase 4 regional systems remain future work.
+
 ## Next allowed spec
 
-Spec 0004 has landed Phase 2A only. The next implementation spec may continue Phase 2B+ work or open a later phase only if the Phase 2A boundaries above are preserved and the deferred scope is not represented as already complete.
+Spec 0005 has landed Phase 3A only. The next implementation spec may continue Phase 2B+ work, open Phase 3B speech/ordinary-life follow-up, or pursue another later slice only if the Phase 2A/3A boundaries above are preserved and deferred scope is not represented as already complete.
 
 ## Retread warning
 

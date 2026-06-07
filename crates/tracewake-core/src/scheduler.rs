@@ -413,9 +413,7 @@ pub mod no_human {
         window: &DayWindow,
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
-        if registry.get(&ActionId::new("wait").unwrap()).is_none() {
-            return None;
-        }
+        registry.get(&ActionId::new("wait").unwrap())?;
         let actor = state.actors.get(actor_id)?;
         let actor_known_inputs = vec![
             "reason_available".to_string(),

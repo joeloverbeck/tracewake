@@ -18,7 +18,7 @@ use tracewake_core::ids::{
     EventId, FixtureId, ItemId, PlaceId, ProcessId, ProposalId,
 };
 use tracewake_core::location::Location;
-use tracewake_core::projections::build_notebook_view;
+use tracewake_core::projections::{build_notebook_view, no_human_day_metrics};
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -804,4 +804,46 @@ fn no_human_advance_requires_no_controller() {
 
     assert_eq!(report.tick_count, 2);
     assert_eq!(report.marker_event_ids.len(), 2);
+}
+
+#[test]
+fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
+    let mut log = EventLog::new();
+    for (sequence, kind, payload) in [
+        (0, EventKind::NoHumanDayStarted, Vec::new()),
+        (1, EventKind::RoutineStepStarted, Vec::new()),
+        (
+            2,
+            EventKind::FoodConsumed,
+            hunger_delta_payload(-200, "eat"),
+        ),
+        (
+            3,
+            EventKind::NeedThresholdCrossed,
+            hunger_delta_payload(50, "wait"),
+        ),
+        (4, EventKind::WorkBlockFailed, Vec::new()),
+        (5, EventKind::StuckDiagnosticRecorded, Vec::new()),
+        (6, EventKind::NoHumanDayCompleted, Vec::new()),
+    ] {
+        log.append(agent_event(
+            &format!("event_phase3a_metric_{sequence}"),
+            kind,
+            sequence,
+            payload,
+        ))
+        .unwrap();
+    }
+
+    let canonical = log.serialize_canonical();
+    let replayed = EventLog::deserialize_canonical(&canonical).unwrap();
+    let first_metrics = no_human_day_metrics(&log).serialize_canonical();
+    let replayed_metrics = no_human_day_metrics(&replayed).serialize_canonical();
+
+    assert_eq!(replayed.serialize_canonical(), canonical);
+    assert_eq!(replayed_metrics, first_metrics);
+    assert!(first_metrics.contains("no_human_day_metrics_v1"));
+    let canonical_text = String::from_utf8(canonical).unwrap().to_ascii_lowercase();
+    assert!(!canonical_text.contains("player"));
+    assert!(!canonical_text.contains("controller"));
 }

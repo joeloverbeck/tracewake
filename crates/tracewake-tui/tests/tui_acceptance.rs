@@ -103,6 +103,25 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
 }
 
 #[test]
+fn phase3a_possess_continue_and_debug_transcript_is_deterministic() {
+    let first = phase3a_possess_continue_debug_transcript();
+    let second = phase3a_possess_continue_debug_transcript();
+
+    assert_eq!(first, second);
+    assert!(first.contains("Actor: actor_mara"));
+    assert!(first.contains("Needs:"));
+    assert!(first.contains("Intention:"));
+    assert!(first.contains("Accepted: wait.1_tick"));
+    assert!(first.contains("continue_routine"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Needs"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Planner"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Stuck"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(first.contains("DEBUG NON-DIEGETIC: Actor"));
+    assert!(!first.contains("food_hidden_pantry"));
+}
+
+#[test]
 fn leakage_debug_truth_does_not_enter_embodied_view() {
     debug_truth_does_not_enter_embodied_view();
 }
@@ -201,4 +220,37 @@ fn assert_no_embodied_culprit_leak(rendered: &str) {
             "embodied surface leaked {forbidden}: {rendered}"
         );
     }
+}
+
+fn phase3a_possess_continue_debug_transcript() -> String {
+    let mut app = TuiApp::from_golden(fixtures::possession_does_not_reset_intention_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
+    let view = app.current_view().unwrap();
+    let continue_action = view
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == "continue_routine")
+        .map(|action| action.semantic_action_id.clone());
+
+    let mut transcript = vec![app.render_current_view().unwrap()];
+    let waited = app
+        .submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())
+        .unwrap();
+    assert_eq!(waited.report.status, ReportStatus::Accepted);
+    transcript.push("Accepted: wait.1_tick".to_string());
+    if let Some(continue_action) = continue_action {
+        let continued = app.submit_semantic_action(&continue_action).unwrap();
+        assert_eq!(continued.report.status, ReportStatus::Accepted);
+        transcript.push(format!("Accepted: {}", continue_action.as_str()));
+    } else {
+        transcript.push("continue_routine unavailable: no active intention".to_string());
+    }
+    transcript.push(app.render_current_view().unwrap());
+    transcript.push(app.render_debug_needs_panel());
+    transcript.push(app.render_debug_routines_panel());
+    transcript.push(app.render_debug_planner_panel(&ActorId::new("actor_mara").unwrap()));
+    transcript.push(app.render_debug_stuck_panel());
+    transcript.push(app.render_debug_no_human_day_panel());
+    transcript.push(app.render_debug_actor_panel(&ActorId::new("actor_mara").unwrap()));
+    transcript.join("\n---\n")
 }

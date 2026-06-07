@@ -150,6 +150,7 @@ fn wait(reason: &str) -> RoutineStep {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn template(
     id: &str,
     family: RoutineFamily,

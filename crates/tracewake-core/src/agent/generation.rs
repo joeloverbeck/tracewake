@@ -158,6 +158,7 @@ fn hunger_candidate(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn candidate(
     input: &CandidateGenerationInput,
     suffix: &str,
