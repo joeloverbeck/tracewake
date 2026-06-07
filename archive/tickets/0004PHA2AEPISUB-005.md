@@ -1,6 +1,6 @@
 # 0004PHA2AEPISUB-005: Epistemic projection application and deterministic rebuild
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds explicit epistemic event application and replay rebuild to `tracewake-core` (`events/apply.rs`, `replay/`).
@@ -81,3 +81,24 @@ Reject unknown epistemic event kinds, unsupported epistemic/proposition/projecti
 1. `cargo test -p tracewake-core replay:: events::apply`
 2. `cargo test -p tracewake-core --test golden_scenarios`
 3. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completion date: 2026-06-07
+
+What changed:
+- Added explicit `apply_epistemic_event` handling for the Phase 2A epistemic event stream while keeping physical `apply_event` a non-world no-op for epistemic events.
+- Added deterministic epistemic projection checksum generation over ordered projection records.
+- Extended replay rebuild/report output with rebuilt epistemic projection, checksum, projection version, unsupported epistemic version details, and epistemic application errors.
+- Added tests for deterministic double rebuild, unsupported epistemic event-schema rejection with event position/version, epistemic application into projection, unsupported payload-schema rejection, and physical purity for epistemic events.
+
+Deviations from original plan:
+- The ticket's combined cargo test filter is not valid cargo syntax, so `replay::` and `events::apply` were run as separate filters.
+- `events/mod.rs` was touched to re-export `EVENT_SCHEMA_V1`, which the explicit payload parser needs.
+
+Verification results:
+- `cargo test -p tracewake-core replay::`
+- `cargo test -p tracewake-core events::apply`
+- `cargo test -p tracewake-core --test golden_scenarios`
+- `cargo build --workspace --all-targets --locked`
+- `cargo fmt --all --check`

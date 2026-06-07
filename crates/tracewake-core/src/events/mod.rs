@@ -6,7 +6,7 @@ pub use envelope::{
     BeliefUpdatedPayload, ContainerCheckedPayload, EventCause, EventEnvelope,
     EventEnvelopeParseError, EventKind, EventKindMetadata, EventStream,
     ExpectationContradictedPayload, InitialBeliefSeededPayload, InitialBeliefSourceKind,
-    ObservationRecordedPayload, PayloadField, RandomDrawRef,
+    ObservationRecordedPayload, PayloadField, RandomDrawRef, EVENT_SCHEMA_V1,
 };
 
 #[cfg(test)]

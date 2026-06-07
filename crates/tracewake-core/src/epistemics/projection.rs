@@ -39,6 +39,32 @@ pub struct EpistemicProjection {
     pub content_manifest_id: ContentManifestId,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EpistemicProjectionChecksum(String);
+
+impl EpistemicProjectionChecksum {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn from_canonical_lines(lines: &[String]) -> Self {
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for line in lines {
+            for byte in line.as_bytes().iter().copied().chain([b'\n']) {
+                hash ^= u64::from(byte);
+                hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+        Self(format!("twe1-{hash:016x}"))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EpistemicProjectionChecksumReport {
+    pub checksum: EpistemicProjectionChecksum,
+    pub canonical_input: Vec<String>,
+}
+
 impl EpistemicProjection {
     pub fn new(content_manifest_id: ContentManifestId) -> Self {
         Self {
@@ -152,6 +178,103 @@ impl EpistemicProjection {
                 .flat_map(|entries| entries.iter())
                 .collect(),
         }
+    }
+
+    pub fn compute_checksum(&self) -> EpistemicProjectionChecksumReport {
+        let mut lines = vec![
+            format!("projection_version={}", self.projection_version.as_str()),
+            format!(
+                "projection_schema_version={}",
+                self.projection_schema_version.as_str()
+            ),
+            format!("content_manifest_id={}", self.content_manifest_id.as_str()),
+            format!(
+                "event_range={}:{}:{}",
+                self.event_range
+                    .first_event_id
+                    .as_ref()
+                    .map(|id| id.as_str())
+                    .unwrap_or(""),
+                self.event_range
+                    .last_event_id
+                    .as_ref()
+                    .map(|id| id.as_str())
+                    .unwrap_or(""),
+                self.event_range.event_count
+            ),
+        ];
+
+        for (id, observation) in &self.observations_by_id {
+            lines.push(format!(
+                "observation|id={}|actor={}|channel={}|tick={}|place={}|confidence={}|source={:?}",
+                id.as_str(),
+                observation.observer_actor_id.as_str(),
+                observation.channel.stable_id(),
+                observation.observed_tick.value(),
+                observation.observer_place_id.as_str(),
+                observation.confidence.serialize_canonical(),
+                observation.source,
+            ));
+        }
+
+        for (id, belief) in &self.beliefs_by_id {
+            lines.push(format!(
+                "belief|id={}|holder={}|stance={}|confidence={}|proposition={}|source={:?}",
+                id.as_str(),
+                holder_key(&belief.holder),
+                belief.stance.stable_id(),
+                belief.confidence.serialize_canonical(),
+                belief.proposition.serialize_canonical(),
+                belief.source,
+            ));
+        }
+
+        for (id, contradiction) in &self.contradictions_by_id {
+            lines.push(format!(
+                "contradiction|id={}|holder={}|kind={}|belief={}|observation={}|expected={}|observed={}|tick={}",
+                id.as_str(),
+                contradiction.holder_actor_id.as_str(),
+                contradiction.kind.stable_id(),
+                contradiction.prior_expectation_belief_id.as_str(),
+                contradiction.contradicting_observation_id.as_str(),
+                contradiction.expected_proposition.serialize_canonical(),
+                contradiction.observed_proposition.serialize_canonical(),
+                contradiction.detected_tick.value(),
+            ));
+        }
+
+        for (actor_id, entries) in &self.notebook_entries_by_actor {
+            for entry in entries {
+                lines.push(format!(
+                    "notebook|actor={}|belief={}|observation={}|summary={}",
+                    actor_id.as_str(),
+                    entry
+                        .source_belief_id
+                        .as_ref()
+                        .map(|id| id.as_str())
+                        .unwrap_or(""),
+                    entry
+                        .source_observation_id
+                        .as_ref()
+                        .map(|id| id.as_str())
+                        .unwrap_or(""),
+                    entry.summary
+                ));
+            }
+        }
+
+        let checksum = EpistemicProjectionChecksum::from_canonical_lines(&lines);
+        EpistemicProjectionChecksumReport {
+            checksum,
+            canonical_input: lines,
+        }
+    }
+}
+
+fn holder_key(holder: &HolderKind) -> String {
+    match holder {
+        HolderKind::Actor(actor_id) => format!("actor:{}", actor_id.as_str()),
+        HolderKind::InstitutionPlaceholder(id) => format!("institution_placeholder:{id}"),
     }
 }
 

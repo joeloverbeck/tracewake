@@ -16,5 +16,8 @@ pub use observation::{
     Channel, Confidence, ConfidenceError, Observation, ObservationSubject, ObservationTarget,
     PrivacyScope, SourceRef, TickWindow,
 };
-pub use projection::{EpistemicProjection, NotebookEntry, ProjectionEventRange};
+pub use projection::{
+    EpistemicProjection, EpistemicProjectionChecksum, EpistemicProjectionChecksumReport,
+    NotebookEntry, ProjectionEventRange,
+};
 pub use proposition::{Proposition, PropositionReferenceError};
