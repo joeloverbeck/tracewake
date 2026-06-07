@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-009: Content and routine-template validation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` schema + validation (`schema.rs`, `validate.rs`); forbidden-content tests
@@ -81,3 +81,35 @@ Require no-human day fixtures to declare acceptance contracts in a validated for
 1. `cargo test -p tracewake-content --test forbidden_content`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed on 2026-06-07.
+
+Content validation now fails closed on additional Phase 3A routine and
+no-script gaps. Routine templates reject untyped/unknown failure modes, unknown
+fallback rules, and routine-step action IDs that contain direct state/script
+operations such as authored need setting. Routine assignments and day windows
+now require `start_tick < end_tick`.
+
+Forbidden raw content checks now reserve scripted final-event/output forms and
+hidden planner input forms, including `final_event`, `expected_final_event`,
+`scripted_outcome`, `hidden_planner_input`, and `actor_known_hidden_input`.
+Initial belief sources also reject embedded Phase 3A shortcut markers such as
+`event_hidden_true_item_location`, preventing hidden truth from being authored as
+actor-known planner input via a longer stable ID.
+
+Fixture coverage now explicitly checks that `no_human_day_001` declares the
+validated acceptance contract surface for start/completion markers,
+`no_human_day_metrics_v1`, player-free execution, roster advancement, movement,
+food failure, workplace blockers, and metrics.
+
+Verified with:
+
+1. `cargo test -p tracewake-content --test forbidden_content`
+2. `cargo test -p tracewake-content --test fixtures_load`
+3. `cargo test -p tracewake-content validate::tests::phase3a`
+4. `cargo test --workspace`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`

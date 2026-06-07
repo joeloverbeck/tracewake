@@ -371,6 +371,45 @@ fn every_fixture_declares_contract_actions_reports_and_assertions() {
 }
 
 #[test]
+fn no_human_day_fixture_declares_validated_acceptance_contract() {
+    let golden = fixtures::no_human_day_001();
+
+    assert_eq!(golden.contract.fixture_id, "no_human_day_001");
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("NoHumanDayStarted")));
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("NoHumanDayCompleted")));
+    assert!(golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .any(|entry| entry.contains("expected_metrics=no_human_day_metrics_v1")));
+    for required in [
+        "player",
+        "roster actor",
+        "movement",
+        "food",
+        "workplace",
+        "metrics",
+    ] {
+        assert!(
+            golden
+                .contract
+                .acceptance_assertions
+                .iter()
+                .any(|assertion| assertion.contains(required)),
+            "missing no-human contract assertion containing {required}"
+        );
+    }
+}
+
+#[test]
 fn valid_epistemic_seed_validates_and_round_trips_canonically() {
     let mut golden = fixtures::strongbox_001();
     golden

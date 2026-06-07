@@ -668,6 +668,14 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
                 "routine_template",
             );
         }
+        if assignment.start_tick >= assignment.end_tick {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("routine_assignments[{index}]"),
+                "bad_tick_order",
+                "routine assignment start_tick must precede end_tick",
+            ));
+        }
     }
     for (index, window) in fixture.day_windows.iter().enumerate() {
         if !actors.contains(&window.actor_id) {
@@ -678,6 +686,14 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
                 window.actor_id.as_str(),
                 "actor",
             );
+        }
+        if window.start_tick >= window.end_tick {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("day_windows[{index}]"),
+                "bad_tick_order",
+                "day window start_tick must precede end_tick",
+            ));
         }
     }
 
@@ -950,6 +966,18 @@ fn validate_routine_rules(
             let RoutineStepProposal::Action(semantic_action_id) = step.proposed() else {
                 continue;
             };
+            if contains_direct_state_or_script_marker(semantic_action_id.as_str()) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::NoScript,
+                    format!("routine_templates[{template_index}].steps[{step_index}]"),
+                    "authored_shortcut_effect",
+                    format!(
+                        "routine step action {} contains a direct state/script operation",
+                        semantic_action_id.as_str()
+                    ),
+                ));
+                continue;
+            }
             let Some(action_id) = semantic_action_base(semantic_action_id.as_str()) else {
                 errors.push(ContentValidationError::new(
                     ValidationPhase::ActionRegistryParity,
@@ -975,12 +1003,64 @@ fn validate_routine_rules(
                 ));
             }
         }
+
+        for (mode_index, failure_mode) in template.failure_modes.iter().enumerate() {
+            if !is_known_routine_failure_mode(failure_mode) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!("routine_templates[{template_index}].failure_modes[{mode_index}]"),
+                    "unknown_failure_mode",
+                    format!("unknown routine failure mode {failure_mode}"),
+                ));
+            }
+        }
+        for (rule_index, fallback_rule) in template.fallback_rules.iter().enumerate() {
+            if !is_known_routine_fallback_rule(fallback_rule) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!("routine_templates[{template_index}].fallback_rules[{rule_index}]"),
+                    "unknown_fallback_rule",
+                    format!("unknown routine fallback rule {fallback_rule}"),
+                ));
+            }
+        }
     }
 }
 
 fn semantic_action_base(value: &str) -> Option<ActionId> {
     let base = value.split('.').next().unwrap_or(value);
     ActionId::new(base).ok()
+}
+
+fn contains_direct_state_or_script_marker(value: &str) -> bool {
+    value
+        .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+        .any(|token| is_script_key(token) || is_phase3a_shortcut_marker(token))
+        || PHASE3A_SHORTCUT_MARKERS
+            .iter()
+            .any(|marker| value.contains(marker))
+}
+
+fn is_known_routine_failure_mode(value: &str) -> bool {
+    matches!(
+        value,
+        "access"
+            | "actor_not_at_workplace"
+            | "food_inaccessible"
+            | "food_missing"
+            | "need_blocked"
+            | "no_current_intention"
+            | "no_known_food_sources"
+            | "route_blocked"
+            | "search_blocked"
+            | "sleep_place_blocked"
+            | "step_blocked"
+            | "workplace_closed"
+    )
+}
+
+fn is_known_routine_fallback_rule(value: &str) -> bool {
+    matches!(value, "fallback_wait_with_reason" | "wait")
 }
 
 fn supports_target_kind(
@@ -1281,7 +1361,9 @@ fn validate_epistemic_seeds(
             SourceRef::Event(event_id)
                 if belief.source_kind == InitialBeliefSourceKind::AuthoredPrehistory =>
             {
-                if is_forbidden_key(event_id.as_str()) {
+                if is_forbidden_key(event_id.as_str())
+                    || contains_direct_state_or_script_marker(event_id.as_str())
+                {
                     errors.push(ContentValidationError::new(
                         ValidationPhase::NoScript,
                         format!("initial_beliefs[{index}].source_id"),
@@ -1500,7 +1582,15 @@ fn is_script_key(value: &str) -> bool {
             | "instant_sleep_refill"
             | "work_always_succeeds"
             | "hidden_true_item_location"
+            | "hidden_planner_input"
+            | "actor_known_hidden_input"
+            | "actor_knows_hidden_food"
             | "story_beat"
+            | "final_event"
+            | "expected_final_event"
+            | "assert_final_event"
+            | "scripted_outcome"
+            | "golden_event_log"
             | "director"
             | "culprit"
             | "true_culprit"
@@ -1515,22 +1605,23 @@ fn is_script_key(value: &str) -> bool {
     )
 }
 
+const PHASE3A_SHORTCUT_MARKERS: &[&str] = &[
+    "appear_at",
+    "force_location_at_tick",
+    "scripted_absence",
+    "teleport_actor",
+    "move_item_to",
+    "set_need",
+    "set_hunger",
+    "set_fatigue",
+    "hunger_refill_without_food",
+    "instant_sleep_refill",
+    "work_always_succeeds",
+    "hidden_true_item_location",
+];
+
 fn is_phase3a_shortcut_marker(value: &str) -> bool {
-    matches!(
-        value,
-        "appear_at"
-            | "force_location_at_tick"
-            | "scripted_absence"
-            | "teleport_actor"
-            | "move_item_to"
-            | "set_need"
-            | "set_hunger"
-            | "set_fatigue"
-            | "hunger_refill_without_food"
-            | "instant_sleep_refill"
-            | "work_always_succeeds"
-            | "hidden_true_item_location"
-    )
+    PHASE3A_SHORTCUT_MARKERS.contains(&value)
 }
 
 #[cfg(test)]
@@ -1816,6 +1907,39 @@ mod tests {
         assert!(codes.contains("invalid_routine_template"));
         assert!(codes.contains("unknown_action"));
         assert!(codes.contains("bad_reference"));
+    }
+
+    #[test]
+    fn phase3a_routine_typed_modes_windows_and_direct_ops_are_rejected() {
+        let mut fixture = phase3a_fixture();
+        fixture.routine_templates[0]
+            .failure_modes
+            .push("story_beats_complete".to_string());
+        fixture.routine_templates[0]
+            .fallback_rules
+            .push("teleport_to_workplace".to_string());
+        fixture.routine_templates[0].steps = vec![RoutineStep::ContinueCurrentStep {
+            action_id: SemanticActionId::new("set_need.hunger").unwrap(),
+        }];
+        fixture.routine_assignments[0].start_tick = SimTick::new(20);
+        fixture.routine_assignments[0].end_tick = SimTick::new(20);
+        fixture.day_windows.push(crate::schema::DayWindowSchema {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            start_tick: SimTick::new(5),
+            end_tick: SimTick::new(5),
+        });
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+        let codes = report
+            .errors
+            .iter()
+            .map(|error| error.code)
+            .collect::<BTreeSet<_>>();
+
+        assert!(codes.contains("unknown_failure_mode"));
+        assert!(codes.contains("unknown_fallback_rule"));
+        assert!(codes.contains("authored_shortcut_effect"));
+        assert!(codes.contains("bad_tick_order"));
     }
 
     #[test]
