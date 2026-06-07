@@ -1,8 +1,9 @@
 use crate::agent::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority, Intention,
-    NeedBand, NeedKind, NeedPressure, NeedState,
+    NeedBand, NeedKind, NeedPressure, NeedState, NeedThresholdCrossing, ThresholdDirection,
 };
 use crate::ids::{ActorId, CandidateGoalId, DecisionTraceId};
+use crate::state::AgentState;
 use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,6 +21,41 @@ pub struct CandidateGenerationOutput {
     pub candidates: Vec<CandidateGoal>,
     pub active_needs: Vec<NeedPressure>,
     pub actor_known_inputs_used: Vec<String>,
+}
+
+pub struct LiveCandidateGenerationInput<'a> {
+    pub actor_id: ActorId,
+    pub decision_tick: SimTick,
+    pub agent_state: &'a AgentState,
+    pub active_intention: Option<Intention>,
+    pub actor_known_inputs: Vec<String>,
+    pub routine_window_goal: Option<GoalKind>,
+}
+
+pub fn generate_candidate_goals_from_agent_state(
+    input: &LiveCandidateGenerationInput<'_>,
+) -> CandidateGenerationOutput {
+    let needs = input
+        .agent_state
+        .needs_by_actor
+        .get(&input.actor_id)
+        .map(|needs| needs.values().cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+
+    generate_candidate_goals(&CandidateGenerationInput {
+        actor_id: input.actor_id.clone(),
+        decision_tick: input.decision_tick,
+        needs,
+        active_intention: input.active_intention.clone(),
+        actor_known_inputs: input.actor_known_inputs.clone(),
+        routine_window_goal: input.routine_window_goal,
+    })
+}
+
+pub const fn need_crossing_triggers_candidate_reevaluation(
+    crossing: &NeedThresholdCrossing,
+) -> bool {
+    matches!(crossing.direction, ThresholdDirection::IncreasingPressure)
 }
 
 pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGenerationOutput {
@@ -222,6 +258,8 @@ mod tests {
     use super::*;
     use crate::agent::{IntentionSource, NeedChangeCause};
     use crate::ids::{CandidateGoalId, DecisionTraceId, IntentionId, RoutineTemplateId};
+    use crate::state::AgentState;
+    use std::collections::BTreeMap;
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
@@ -310,5 +348,55 @@ mod tests {
             .candidates
             .iter()
             .any(|candidate| candidate.goal_kind == GoalKind::FindFood));
+    }
+
+    #[test]
+    fn live_agent_state_hunger_generates_need_candidate_without_supplied_need_vector() {
+        let mut agent_state = AgentState::default();
+        agent_state.needs_by_actor.insert(
+            actor_id(),
+            BTreeMap::from([(
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 760, NeedChangeCause::TickDelta),
+            )]),
+        );
+
+        let output = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(20),
+            agent_state: &agent_state,
+            active_intention: None,
+            actor_known_inputs: vec!["known_food:food_soup_pot".to_string()],
+            routine_window_goal: None,
+        });
+
+        assert!(output
+            .active_needs
+            .iter()
+            .any(|pressure| pressure.need_kind == NeedKind::Hunger
+                && pressure.band == NeedBand::Severe
+                && pressure.source_ancestry == NeedChangeCause::TickDelta));
+        assert!(output
+            .candidates
+            .iter()
+            .any(|candidate| candidate.goal_kind == GoalKind::Eat
+                && candidate.source == CandidateGoalSource::NeedPressure
+                && candidate.priority == GoalPriority::SevereHunger));
+    }
+
+    #[test]
+    fn increasing_threshold_crossing_requests_candidate_reevaluation() {
+        let mut hunger = NeedState::initial(NeedKind::Hunger, 490, NeedChangeCause::FixtureInitial);
+        let crossing = hunger.apply_delta(25, NeedChangeCause::TickDelta).unwrap();
+
+        assert!(need_crossing_triggers_candidate_reevaluation(&crossing));
+        assert_eq!(crossing.from, NeedBand::Rising);
+        assert_eq!(crossing.to, NeedBand::Urgent);
+
+        let recovery =
+            hunger.apply_delta(-300, NeedChangeCause::ActionEffect("eat".parse().unwrap()));
+        assert!(!need_crossing_triggers_candidate_reevaluation(
+            &recovery.unwrap()
+        ));
     }
 }

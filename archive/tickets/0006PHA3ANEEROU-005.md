@@ -1,6 +1,6 @@
 # 0006PHA3ANEEROU-005: Needs lifecycle and candidate reevaluation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` needs + candidate generation (`agent/need.rs`, `agent/generation.rs`); eat/sleep/work need-cost modeling
@@ -80,3 +80,26 @@ Confirm eat reduces hunger, sleep reduces fatigue, work increases fatigue/hunger
 1. `cargo test -p tracewake-core agent::generation`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Added `generate_candidate_goals_from_agent_state`, a live `AgentState` entry
+point that derives candidate needs from the actor's current event-applied need
+state instead of requiring callers to pass an ad hoc need vector. The no-human
+scheduler bridge now calls that live-needs generator; when the current wait-only
+bridge cannot resolve a selected need goal into a proposal yet, it falls back to
+the existing idle wait candidate rather than dropping the actor from the
+scheduled decision order.
+
+Added deterministic threshold-crossing reevaluation logic and tests proving an
+increasing hunger band crossing requests candidate reevaluation. Added
+need-source provenance via `last_change_source_label`, with round-trip coverage
+so debug/replay can name the last modeled cause of a need value.
+
+Verified with:
+
+1. `cargo test -p tracewake-core agent::generation`
+2. `cargo test --workspace`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo fmt --all --check`

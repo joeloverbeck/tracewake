@@ -159,6 +159,10 @@ impl NeedState {
         &self.last_change_cause
     }
 
+    pub fn last_change_source_label(&self) -> String {
+        self.last_change_cause.stable_id()
+    }
+
     pub fn apply_delta(
         &mut self,
         delta: i32,
@@ -410,6 +414,23 @@ mod tests {
         assert_eq!(
             pressure.threshold_crossing.unwrap().direction,
             ThresholdDirection::IncreasingPressure
+        );
+    }
+
+    #[test]
+    fn last_change_source_label_is_deterministic_for_debug_and_replay() {
+        let mut state = NeedState::initial(NeedKind::Hunger, 620, NeedChangeCause::FixtureInitial);
+        state.apply_delta(
+            -240,
+            NeedChangeCause::ActionEffect(ActionId::new("eat").unwrap()),
+        );
+
+        assert_eq!(state.last_change_source_label(), "action_effect:eat");
+        assert_eq!(
+            NeedState::deserialize_canonical(&state.serialize_canonical_bytes())
+                .unwrap()
+                .last_change_source_label(),
+            "action_effect:eat"
         );
     }
 }

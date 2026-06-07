@@ -16,7 +16,9 @@ pub use candidate::{
 };
 pub use decision::{select_goal_and_trace, DecisionInput, DecisionSelection};
 pub use generation::{
-    generate_candidate_goals, CandidateGenerationInput, CandidateGenerationOutput,
+    generate_candidate_goals, generate_candidate_goals_from_agent_state,
+    need_crossing_triggers_candidate_reevaluation, CandidateGenerationInput,
+    CandidateGenerationOutput, LiveCandidateGenerationInput,
 };
 pub use htn::{
     mark_mid_method_failure, select_method_from_templates, select_phase3a_method, MethodSelection,

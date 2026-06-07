@@ -207,10 +207,10 @@ pub mod no_human {
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
-        build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
-        select_goal_and_trace, select_phase3a_method, BlockerCategory, CandidateGenerationInput,
-        DecisionInput, LocalPlanRequest, PlannerGoal, StuckDiagnostic, StuckResultingStatus,
-        VisibleLocalPlanningState,
+        build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
+        plan_local_actions, select_goal_and_trace, select_phase3a_method, BlockerCategory,
+        DecisionInput, LiveCandidateGenerationInput, LocalPlanRequest, PlannerGoal,
+        StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
     use crate::epistemics::EpistemicProjection;
     use crate::events::log::EventLog;
@@ -450,14 +450,15 @@ pub mod no_human {
                 visible_food_sources: BTreeSet::new(),
             },
         );
-        let generated = generate_candidate_goals(&CandidateGenerationInput {
+        let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
-            needs: Vec::new(),
+            agent_state,
             active_intention: None,
             actor_known_inputs: actor_known_inputs.clone(),
             routine_window_goal: None,
         });
+        let candidate_fallbacks = generated.candidates.clone();
         let selection = select_goal_and_trace(DecisionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
@@ -471,6 +472,23 @@ pub mod no_human {
             &actor_known_inputs,
             window.start_tick,
         )
+        .or_else(|_| {
+            candidate_fallbacks
+                .iter()
+                .find(|candidate| candidate.goal_kind == crate::agent::GoalKind::IdleWithReason)
+                .ok_or(crate::agent::MethodSelectionFailure::NoApplicableMethod {
+                    family: crate::agent::RoutineFamily::Wait,
+                    reason: "idle fallback candidate missing".to_string(),
+                })
+                .and_then(|candidate| {
+                    select_phase3a_method(
+                        candidate,
+                        &actor_known_state,
+                        &actor_known_inputs,
+                        window.start_tick,
+                    )
+                })
+        })
         .ok()?;
         let wait_reason = format!("no_human_day:{}", window.window_id);
         let plan = plan_local_actions(
