@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-003: Routine template, execution, and step model
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds `RoutineTemplate`, `RoutineExecution`, `RoutineFamily`, and the bounded `RoutineStep` vocabulary to the `agent` module.
@@ -80,3 +80,21 @@ Add `pub mod routine;` to `crates/tracewake-core/src/agent/mod.rs` and re-export
 1. `cargo test -p tracewake-core agent::routine`
 2. Core-crate unit scope is correct because routine selection (013), planner (014), and content schema (015) consumers land later.
 3. A grep-proof (`agent::routine` enum has no `Set*`/`Move*Direct` variant) is the correct no-teleport boundary at the type level; runtime no-teleport is exercised in ticket 020's fixture.
+
+## Outcome
+
+Completed: 2026-06-07
+
+What changed:
+- Added `agent::routine` with `RoutineFamily`, closed `RoutineStep` vocabulary, `RoutineStepProposal`, `RoutineTemplate`, `RoutineExecution`, and `RoutineStepStatus`.
+- Added template validation requiring steps, at least one failure mode, at least one interruption point, positive bounded durations, valid duration ordering, and interruption points that reference authored steps.
+- Added runtime execution helpers for starting, waiting, completing, failing, interrupting, suspending, resuming, abandoning, action ancestry, and fallback-attempt tracking.
+- Added canonical `RoutineStep` serialization/deserialization and tests for proposal exposure across every step variant.
+
+Deviations from original plan:
+- `FailWithTypedDiagnostic` exposes a typed diagnostic proposal rather than a semantic action or wait reason, preserving the spec's failure vocabulary while keeping direct mutation unrepresentable.
+- Resource reservations are modeled as opaque string handles only; conflict enforcement remains deferred to the reservation/action tickets.
+
+Verification results:
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core agent::routine` passed.
