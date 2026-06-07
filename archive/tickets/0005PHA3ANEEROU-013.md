@@ -1,6 +1,6 @@
 # 0005PHA3ANEEROU-013: Routine families and HTN method selection
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds the authored Phase 3A routine methods (MorningWake…Wait) and the HTN-like method selection that turns a selected goal into a routine execution proposing ordinary actions.
@@ -81,3 +81,23 @@ Declare the new module(s) in `crates/tracewake-core/src/agent/mod.rs` and re-exp
 1. `cargo test -p tracewake-core agent::methods`
 2. `cargo test -p tracewake-core agent::htn`
 3. Core-crate scope is correct; end-to-end routine runs and no-teleport are exercised by tickets 019/020/021/025.
+
+## Outcome
+
+Completed: 2026-06-07
+
+Changed:
+- Added `agent::methods` with authored Phase 3A routine templates for MorningWake, EatMeal, GoToWork, WorkBlock, ReturnHome, SleepNight, FindFood, ContinueCurrentIntention, and Wait.
+- Added `agent::htn` with deterministic method selection, routine execution instantiation, method-selection `DecisionTrace`, no-applicable-method failure, and mid-method failure/fallback recording.
+- Re-exported the routine method and HTN selector entry points from `agent::mod`.
+- Added tests that audit required family coverage, proposal-shaped steps, actor-known-only FindFood inputs, deterministic selection, typed no-method failure, and mid-method interruption/fallback behavior.
+
+Deviations:
+- Concrete route expansion and bounded planning remain deferred to ticket 014; route-like methods expose ordinary action/planner-handle steps without teleporting.
+- Optional §11.6 routine families remain out of scope.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core agent::methods`
+- `cargo test -p tracewake-core agent::htn`
+- `cargo test -p tracewake-core`

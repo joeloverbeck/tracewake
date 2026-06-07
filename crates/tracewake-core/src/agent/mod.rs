@@ -3,7 +3,9 @@
 pub mod candidate;
 pub mod decision;
 pub mod generation;
+pub mod htn;
 pub mod intention;
+pub mod methods;
 pub mod need;
 pub mod routine;
 pub mod trace;
@@ -15,9 +17,14 @@ pub use decision::{select_goal_and_trace, DecisionInput, DecisionSelection};
 pub use generation::{
     generate_candidate_goals, CandidateGenerationInput, CandidateGenerationOutput,
 };
+pub use htn::{
+    mark_mid_method_failure, select_method_from_templates, select_phase3a_method, MethodSelection,
+    MethodSelectionFailure,
+};
 pub use intention::{
     ActorIntentions, Intention, IntentionSource, IntentionStatus, IntentionTransitionError,
 };
+pub use methods::{all_steps_are_proposals, family_for_goal, phase3a_routine_templates};
 pub use need::{
     NeedBand, NeedChangeCause, NeedKind, NeedParseError, NeedPressure, NeedState,
     NeedThresholdCrossing, ThresholdDirection,
