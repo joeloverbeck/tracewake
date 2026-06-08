@@ -1,6 +1,6 @@
 # Spec 0002 — TUI Proof-Surface Hardening and Debug-Quarantine Certification Spec
 
-**Status:** Proposed new active spec-layer file.  
+**Status:** COMPLETED.
 **Target type:** Hardening / anti-contamination certification remediation.  
 **Intended repository path:** `docs/4-specs/0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`  
 **Deliverable filename:** `0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`  
@@ -508,6 +508,28 @@ A later decomposition should avoid re-litigating intent and should group work ro
 8. transcript/replay stability updates.
 
 Do not add duplicate APIs “for compatibility.” The spec-tier rules forbid alias paths and stale live companions; once the new boundary exists, old raw-builder paths must be removed or made test-internal under explicit sealed-context construction.
+
+## Outcome
+
+Completed: 2026-06-08
+
+Result: TUI proof-surface hardening remediation accepted for the audited seam at `a906a70`.
+
+What changed:
+- Implemented and archived tickets `0002TUIPROOSUR-001` through `0002TUIPROOSUR-013`.
+- Added sealed holder-known context IDs/hashes/frontiers, source-context proposal validation, typed availability/reason/provenance surfaces, two-layer why-not reports, current-view command submission, no-human operator quarantine, typed notebook leads, deterministic transcript sections, positive proof artifacts, and adversarial gates.
+- Demoted source/display substring checks to smoke-only where retained, with typed artifacts and boundary behavior as the primary proof.
+
+Deviations:
+- This outcome is scoped to the TUI proof-surface hardening seam only. It does not claim `P0-CERT`, `SPINE-CERT`, `EPI-CERT`, or full repository certification.
+- Some capstone forged/stale attempts are rejected at the TUI current-view semantic-action boundary, while existing core pipeline tests prove stale/forged source-context rejection before mutation.
+- No terminal backend dependency was introduced; deterministic stdout/view-model tests remain the proof surface.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
 
 ## Appendix A — Exact source ledger summary
 
