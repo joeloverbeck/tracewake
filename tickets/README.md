@@ -8,7 +8,7 @@ To keep architecture clean, robust, and extensible, every new ticket must be cre
 
 1. No backwards-compatibility shims or alias paths in new work.
 2. If current code and ticket assumptions diverge, update the ticket first before implementation.
-3. `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (`INV-001`…`INV-098`) is the non-negotiable design contract, sitting at the top of the foundation → architecture → execution → reference authority order (`docs/README.md`). Tickets must align with its doctrine: causal event-sourcing and deterministic replay, belief-before-truth epistemics with actor-knowledge filtering, ordinary-life and possession parity, no-scripting authoring, validation and hard-fail gates, and the LLM/language boundary.
+3. `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (`INV-001`…`INV-110`, including the `## 2026 hardening invariants` truth-firewall set INV-099–110) is the non-negotiable design contract, sitting at the top of the foundation → architecture → execution → reference authority order (`docs/README.md`). Tickets must align with its doctrine: causal event-sourcing and deterministic replay, belief-before-truth epistemics with actor-knowledge filtering, ordinary-life and possession parity, no-scripting authoring, validation and hard-fail gates, and the LLM/language boundary.
 
 ## Required Ticket Sections
 

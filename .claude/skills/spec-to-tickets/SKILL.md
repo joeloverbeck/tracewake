@@ -7,13 +7,13 @@ arguments:
     description: "Path to the spec file (e.g., specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md or docs/4-specs/0001_PHASE_0_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md)"
     required: true
   - name: namespace
-    description: "Ticket namespace prefix, used as <PREFIX>-<NNN>.md (e.g., 0002PHA1KERTUI). If omitted, the skill derives one matching the repo's existing ticket-prefix convention (spec number + Phase + abbreviated title slug, e.g. 0002PHA1KERTUI / 0003PHA1AEXETUI) and asks the user to confirm."
+    description: "Ticket namespace prefix, used as <PREFIX>-<NNN>.md (e.g., 0002PHA1KERTUI). If omitted, the skill derives one matching the repo's existing ticket-prefix convention (spec number + Phase + abbreviated title slug for phase specs, e.g. 0002PHA1KERTUI / 0003PHA1AEXETUI; spec number + title slug for non-phase certification/hardening specs, e.g. 0002TUIPROOSUR) and asks the user to confirm."
     required: false
 ---
 
 # Spec to Tickets
 
-Break a Tracewake spec into small, actionable implementation tickets a reviewer can merge one at a time, each validated against the current codebase and aligned with the foundation doc pack — `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (the constitution, `INV-001`…`INV-098`) atop the architecture / execution / reference authority tiers.
+Break a Tracewake spec into small, actionable implementation tickets a reviewer can merge one at a time, each validated against the current codebase and aligned with the foundation doc pack — `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (the constitution, `INV-001`…`INV-110` — the `## 2026 hardening invariants` block adds the truth-firewall / cognition-authority set INV-099–110) atop the architecture / execution / reference authority tiers.
 
 <HARD-GATE>
 Do NOT Write any ticket file at `tickets/<PREFIX>-<NNN>.md` until ALL of the following hold:
@@ -96,7 +96,7 @@ Before Step 1, verify:
 2. `tickets/_TEMPLATE.md` exists and is readable.
 3. `tickets/README.md` exists and is readable.
 4. `<spec_path>` exists and is readable. If it is a glob (e.g. `specs/0002_*`), resolve first: exactly one match → use it (note the resolution); zero or many → abort or ask to disambiguate. Specs live under `specs/` and `docs/4-specs/`.
-5. `<namespace>` is provided, OR derive one matching the repo's existing ticket-prefix convention — spec number + Phase + abbreviated title slug (`0002PHA1KERTUI`, `0003PHA1AEXETUI`); e.g. `specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md` → `0002PHA1KERTUI` — and ask the user to confirm or override before Step 1.
+5. `<namespace>` is provided, OR derive one matching the repo's existing ticket-prefix convention — for a phase spec, spec number + Phase + abbreviated title slug (`0002PHA1KERTUI`, `0003PHA1AEXETUI`); e.g. `specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md` → `0002PHA1KERTUI`. For a non-phase certification/hardening spec (no `PHASE_N` token in the title — common in Tracewake, e.g. a `P0-CERT`-keyed spec), omit the Phase token: spec number + abbreviated title slug; e.g. `specs/0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md` → `0002TUIPROOSUR`. Ask the user to confirm or override before Step 1.
 
 If any of checks 1–4 fails, abort with a clear missing-file error. If check 5's Phase/title parsing is ambiguous, ask the user for the namespace directly.
 
