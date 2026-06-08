@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-014: Named spine conformance suite + scoped acceptance artifact (capstone)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new named conformance test surface mapping each `SPINE-AC-*` to a test by responsible layer; new acceptance-artifact format / scoped-certification-wording doc
@@ -80,3 +80,29 @@ Add `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` (or a section the implem
 
 1. `cargo test --workspace`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed on 2026-06-08.
+
+Changes:
+
+- Added named conformance indices for core, content, and TUI seams:
+  - `crates/tracewake-core/tests/spine_conformance.rs`
+  - `crates/tracewake-content/tests/schema_conformance.rs`
+  - `crates/tracewake-tui/tests/tui_seam_conformance.rs`
+- Added `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` with exact-commit, gates-run, changed-files, per-requirement evidence, residual convention-only, and scoped certification wording sections.
+
+Deviations:
+
+- The conformance suite indexes and source-checks the named evidence tests instead of re-running their assertions inline. This keeps the capstone as the discoverable acceptance surface while preserving the prior tickets as the behavioral proof owners.
+
+Verification:
+
+- `cargo test -p tracewake-core --test spine_conformance`
+- `cargo test -p tracewake-content --test schema_conformance`
+- `cargo test -p tracewake-tui --test tui_seam_conformance`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
