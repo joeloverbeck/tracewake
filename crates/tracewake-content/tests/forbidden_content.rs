@@ -2,8 +2,9 @@ use tracewake_content::fixtures::{self, validate_fixture_contract_metadata, Fixt
 use tracewake_content::schema::InitialBeliefSchema;
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes, ValidationPhase};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
-use tracewake_core::ids::{BeliefId, EventId, ItemId, SchemaVersion};
+use tracewake_core::agent::RoutineStep;
+use tracewake_core::epistemics::{Channel, Confidence, Proposition, SourceRef};
+use tracewake_core::ids::{BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -123,6 +124,77 @@ fn forbidden_content_unknown_behavior_looking_routine_field_is_blocking_error() 
         .any(|error| error.code == "unknown_field"));
     assert!(report.errors.iter().any(|error| {
         error.phase == ValidationPhase::NoScript && error.code == "authored_shortcut_effect"
+    }));
+}
+
+#[test]
+fn forbidden_content_outcome_chain_routine_markers_are_rejected() {
+    let mut fixture = fixtures::no_hidden_truth_planning_001().fixture;
+    fixture.routine_templates[0]
+        .debug_labels
+        .push("guaranteed_success_without_pipeline".to_string());
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "authored_outcome_chain"
+    }));
+}
+
+#[test]
+fn forbidden_content_planner_intended_initial_facts_require_provenance() {
+    let mut fixture = fixtures::strongbox_001().fixture;
+    fixture
+        .initial_beliefs
+        .push(valid_seed("belief_actor_known_food_source"));
+    let missing = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    assert!(missing.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "missing_actor_known_provenance"
+    }));
+
+    let mut fixture = fixtures::strongbox_001().fixture;
+    let mut with_channel = valid_seed("belief_actor_known_food_source");
+    with_channel.channel = Some(Channel::DirectSight);
+    fixture.initial_beliefs.push(with_channel);
+    fixture.canonicalize();
+    validate_fixture(&fixture, &registry()).expect("explicit channel provenance is accepted");
+}
+
+#[test]
+fn forbidden_content_acceptance_gaming_debug_labels_are_rejected() {
+    let mut fixture = fixtures::no_hidden_truth_planning_001().fixture;
+    fixture.routine_templates[0]
+        .debug_labels
+        .push("debug_acceptance_marker".to_string());
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "authored_outcome_chain"
+    }));
+}
+
+#[test]
+fn forbidden_content_player_conditioned_ordinary_life_markers_are_rejected() {
+    let mut fixture = fixtures::ordinary_workday_001().fixture;
+    fixture.routine_templates[0]
+        .fallback_rules
+        .push("player_conditioned_success".to_string());
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "authored_outcome_chain"
+    }));
+}
+
+#[test]
+fn forbidden_content_success_implying_routine_step_names_are_rejected() {
+    let mut fixture = fixtures::no_hidden_truth_planning_001().fixture;
+    fixture.routine_templates[0].steps = vec![RoutineStep::ContinueCurrentStep {
+        action_id: SemanticActionId::new("eat.guaranteed_success").unwrap(),
+    }];
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "authored_outcome_chain"
     }));
 }
 

@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-009: Content-validation anti-script hardening
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content`: extend `validate_no_script` to reject authored outcome chains / provenance-less preloaded planner facts; adversarial content fixtures
@@ -83,3 +83,26 @@ Add adversarial failing fixtures (one per rejection class) and confirm existing 
 
 1. `cargo test -p tracewake-content forbidden_content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+- Extended `validate_no_script` to reject authored outcome-chain markers in routine debug labels, reservable resources, fallback rules, and routine step proposals.
+- Added fail-closed validation for planner-intended actor-known initial beliefs without observation-channel provenance.
+- Added negative validation coverage for guaranteed outcome chains, provenance-less planner facts, acceptance-gaming debug labels, player-conditioned ordinary-life markers, and success-implying routine step names.
+- Added a positive validation case proving the same planner-intended initial fact is accepted when an explicit observation channel is declared.
+
+Deviation from plan:
+
+- No new schema field was required. The existing `InitialBeliefSchema.channel` field is the actor-known provenance marker for these validation rules.
+
+Verification:
+
+- `cargo test -p tracewake-content forbidden_content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
