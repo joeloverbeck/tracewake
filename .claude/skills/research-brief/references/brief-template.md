@@ -14,13 +14,18 @@ section only when genuinely N/A and say so.
 
 ### 1. Context
 
-One or two sentences. Begin with the manifest pointer, then repo identity:
+One or two sentences. Begin with the manifest pointer, then repo identity, then the **exact
+fetch-baseline commit** Session 2 must read every file from (the verified repo HEAD per the
+Step 6 baseline-commit rule — never a commit string copied from a report without confirming it
+contains the §2 read-list):
 
 > The uploaded manifest is the path inventory of the `joeloverbeck/tracewake` repo —
 > a causality-first living-world simulation in Rust (event-sourced kernel, subjective
 > epistemics, fallible institutions, TUI-first). Docs are layered authority:
 > `0-foundation` → `1-architecture` → `2-execution` → `3-reference` → `4-specs`; earlier
-> tiers govern later ones.
+> tiers govern later ones. Fetch every file from commit `<HEAD>` — the manifest reflects that
+> tree. (If a referenced report cites a different "commit of record," note the divergence here
+> and use the verified HEAD, not the report's string.)
 
 ### 2. Read in full (authority order)
 
@@ -96,7 +101,7 @@ Exactly what Session 2 outputs — leave no ambiguity:
 A short acceptance checklist Session 2 runs against its own output before returning —
 e.g. every replacement preserves the load-bearing content of the original; no new doctrine
 weakens an upstream tier; every external claim is cited; the deliverable set matches §7
-exactly.
+exactly; the §1 fetch-baseline commit contains every file named in the §2 read-in-full list.
 
 ---
 

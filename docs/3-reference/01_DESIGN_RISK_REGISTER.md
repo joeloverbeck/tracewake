@@ -2,32 +2,54 @@
 
 ## Status
 
-This reference document is Tracewake's operational watchlist for unresolved, recurring, or easily regressing design risks. It is for future AI coding/spec sessions, code review, data authoring review, test review, and phase-exit review.
+This reference document is Tracewake's operational watchlist for unresolved, recurring, or easily regressing design risks. It is for future AI coding/spec sessions, code review, data authoring review, test review, and phase/gate-exit review.
 
-It is not a constitution, architecture contract, roadmap, issue tracker, or list of accepted tradeoffs. Settled doctrine belongs in the foundation and architecture layers. Phase sequencing belongs in the execution layer. This register exists because Tracewake has relapse modes that can appear locally reasonable while destroying the product premise.
+The register is now realigned to the post-overhaul foundation, architecture, and execution spine. It is not a constitution, architecture contract, roadmap, issue tracker, gate-definition source, or list of accepted tradeoffs. Settled doctrine belongs in the foundation and architecture layers. Gate semantics and certification order belong in the execution layer.
 
-The risk register and glossary must remain separate. The register tracks failure modes. The glossary controls terms.
+This register exists because Tracewake has relapse modes that can appear locally reasonable while destroying the product premise. The risk register and glossary must remain separate. The register tracks failure modes. The glossary controls terms.
+
+## Authority boundary
+
+This file owns only compact risk memory: recurring symptoms, guardrails, evidence to watch, escalation triggers, retirement criteria, and review cadence. It may name execution gate codes as cross-references, but it does not define those gates or certify that code has passed them.
+
+Gate definitions live in:
+
+- `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md` for `P0-DOC`, `P0-CERT`, `TFW`, `PIPE`, `NO-DIRECT`, `NO-HUMAN`, `POS-PARITY`, `REPLAY`, `FIXTURE`, and `DIAG`.
+- `docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md` for `SPINE-CERT`, `EPI-CERT`, `ORD-LIFE-CERT`, `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, and `SECOND-PROOF-ENTRY`.
+
+## Depends on
+
+- `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`
+- `docs/0-foundation/14_ACTOR_KNOWN_COGNITION_TRANSACTION_AND_TRUTH_FIREWALL.md`
+- `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`
+- `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
+- `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`
+- `docs/2-execution/01_POST_0008_BASELINE_ARCHIVED_SPEC_STATUS_AND_CODE_AUDIT_BOUNDARY.md`
+- `docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md`
+- `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+- `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`
+- `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
 
 ## How to use this register
 
 Review this register:
 
 - at the start of any AI session that relies on repository content;
-- at every phase exit;
+- at every phase exit, gate exit, certification claim, and expansion handoff;
 - before accepting a new schema, fixture, domain pack, event family, projection, TUI surface, debug command, or language surface;
 - before enabling any live LLM surface beyond deterministic templates or deterministic mocks;
 - before scaling population, geography, history, regional processes, or LOD;
-- after any regression in validation, replay, epistemic filtering, possession parity, TUI playability, or debug explanation.
+- after any regression in validation, replay, holder-known filtering, possession parity, TUI playability, debug quarantine, source discipline, or diagnostics.
 
 Status values:
 
 - **Watch** — expected risk; monitor with tests, reviews, metrics, and source discipline.
 - **Active** — symptoms are present in docs, fixtures, code, schemas, UI, tests, prompts, or demos.
-- **Escalated** — blocks analysis, implementation acceptance, or phase exit.
+- **Escalated** — blocks analysis, implementation acceptance, certification, or phase/gate exit.
 - **Dormant** — no symptoms in the current phase, but likely to recur under future pressure.
 - **Retired** — removed only after sustained regression coverage and no plausible near-term recurrence.
 
-A risk can be retired only when the team can name the tests, fixtures, reviews, metrics, or architectural boundaries that would catch its return. Source-discipline risks should be treated as permanent watch risks for AI-assisted work.
+A risk can be retired only when the team can name the tests, fixtures, reviews, metrics, or architectural boundaries that would catch its return. Source-discipline, contamination, and terminology risks should be treated as permanent watch risks for AI-assisted work.
 
 ## Risk watchlist
 
@@ -53,11 +75,11 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 
 ### R-02 — Provenance Collapse
 
-- **Why it matters:** Tracewake's design depends on knowing where information came from. AI sessions fail the same way simulated actors fail if fetched source, inference, external research, old memory, and generated wording blur together.
-- **Symptoms:** Claims have no source; a doc says “the repository does X” without fetched evidence; external research becomes product doctrine without a boundary; generated replacement text does not distinguish exact source, deliberate synthesis, and invented convenience.
-- **Mitigation / guardrails:** Keep a source ledger. Distinguish fetched source doctrine, compact reference synthesis, deliberate inference, and external research. Prefer “guardrail” wording over claims of implementation reality unless source evidence proves implementation reality.
-- **Evidence to watch:** Review notes, replacement docs, prompt packets, issue comments, and tests that cannot answer “where did this assertion come from?”
-- **Escalation trigger:** A phase decision, schema, or implementation review depends on unproven provenance or silently imported context.
+- **Why it matters:** Tracewake's design depends on knowing where information came from. AI sessions fail the same way simulated holders fail if fetched source, inference, external research, old memory, and generated wording blur together.
+- **Symptoms:** Claims have no source; a doc says “the repository does X” without fetched evidence; external research becomes product doctrine without a boundary; generated replacement text does not distinguish exact source, compact reference synthesis, deliberate inference, and invented convenience.
+- **Mitigation / guardrails:** Keep a source ledger. Distinguish fetched source doctrine, compact reference synthesis, deliberate inference, and external research. Prefer guardrail wording over claims of implementation reality unless source evidence proves implementation reality.
+- **Evidence to watch:** Review notes, replacement docs, prompt packets, issue comments, tests, and certification artifacts that cannot answer “where did this assertion come from?”
+- **Escalation trigger:** A phase decision, gate claim, schema, or implementation review depends on unproven provenance or silently imported context.
 - **Retirement criteria:** Retire only for a bounded artifact class with automated provenance checks and review enforcement; otherwise keep active as an AI-session risk.
 - **Status / review cadence:** Watch. Review at every AI handoff and source-backed design review.
 
@@ -98,37 +120,37 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Mitigation / guardrails:** Run no-human simulations from the beginning. Compare embodied and no-human event distributions. Ban human-conditioned world logic in ordinary systems. Keep possession as controller metadata. Require ordinary-actor parity for world-affecting actions.
 - **Evidence to watch:** Human-conditioned event rates, action definitions unavailable to unpossessed actors, fixture fields naming the human controller, idle loops that depend on possession, tests that pass only with a controller bound.
 - **Escalation trigger:** Any ordinary-play system checks possession or human-controller identity to decide world events, knowledge, opportunity, scheduling, success, or protection.
-- **Retirement criteria:** Sustained no-human, possession-parity, scheduler, TUI, and fixture validation coverage.
-- **Status / review cadence:** Watch. Review at every runnable phase exit and whenever TUI affordances or scheduler behavior change.
+- **Retirement criteria:** Sustained `NO-HUMAN`, `POS-PARITY`, scheduler, TUI, and fixture validation coverage.
+- **Status / review cadence:** Watch. Review at every runnable phase/gate exit and whenever TUI affordances or scheduler behavior change.
 
 ### R-07 — Quest Relapse
 
 - **Why it matters:** Quest ontology imports objective truth, intended human involvement, completion flags, guaranteed rewards, waiting actors, and authored solution paths.
 - **Symptoms:** Core types, schema fields, UI labels, tests, or fixtures named `Quest`, `Objective`, `QuestTarget`, `Completion`, `Reward`, `QuestGiver`, or equivalent; notice boards behave like task menus; leads point to hidden truth; actors wait for acceptance.
-- **Mitigation / guardrails:** Model incidents, requests, contracts, obligations, records, notices, rumors, leads, suspicions, procedures, proof, payment, and custody transfer instead. Treat leads as actor-known projections with source, uncertainty, and staleness.
+- **Mitigation / guardrails:** Model incidents, requests, contracts, obligations, records, notices, rumors, leads, suspicions, procedures, proof, payment, and custody transfer instead. Treat leads as holder-known projections with source, uncertainty, and staleness.
 - **Evidence to watch:** Objective markers, completion flags, reward spawning, accepted-task conditions, tests asserting solved state instead of world state, belief state, record state, obligation state, and institutional state.
-- **Escalation trigger:** Quest-like schema, fixture, planner state, or TUI action enters core ontology or acceptance tests.
+- **Escalation trigger:** Quest-like schema, fixture, planner state, TUI action, or acceptance test enters core ontology.
 - **Retirement criteria:** Stable glossary enforcement, schema validation rejecting forbidden core terms, and fixtures proving non-quest alternatives.
 - **Status / review cadence:** Watch. Escalate immediately if quest-like ontology enters core.
 
 ### R-08 — Action-Pipeline Bypass
 
-- **Why it matters:** The shared action pipeline is the enforcement point for parity, causality, knowledge, norms, traces, scheduling, replay, and event commit.
+- **Why it matters:** The shared action pipeline is the enforcement point for parity, causality, knowledge, norms, traces, scheduling, replay, event commit, and diagnostics.
 - **Symptoms:** UI mutates state; fixture scripts move items during ordinary play; domain packs write events directly; planners update components; language surfaces commit facts; storage adapters become domain models; debug commands look identical to ordinary actions.
-- **Mitigation / guardrails:** Route every world-affecting ordinary-play change through command or action proposal, validation report, scheduling or resolution, event commit, projection rebuild, and debug explanation. Keep debug/test metadata explicitly marked and non-diegetic.
+- **Mitigation / guardrails:** Route every world-affecting ordinary-play change through command or action proposal, validation report, scheduling or resolution, event commit, projection rebuild, replay, and debug explanation. Keep debug/test metadata explicitly marked and non-diegetic.
 - **Evidence to watch:** Direct component writes outside event application, state changes without validation reports, authored timed outcome chains, boundary code owning domain rules, tests that inspect current state without event causality.
-- **Escalation trigger:** Any ordinary-play mutation bypasses validation and event commit.
+- **Escalation trigger:** Any ordinary-play mutation bypasses validation and event commit, or claims `PIPE` while skipping shared proposal/validation/replay evidence.
 - **Retirement criteria:** Static boundaries, review checks, and tests that fail on direct mutation outside event application.
 - **Status / review cadence:** Watch. Escalate immediately on ordinary-play bypass.
 
 ### R-09 — Epistemic Leakage
 
-- **Why it matters:** Play depends on divergence between truth, belief, observation, memory, claim, speech, trace, record, institutional fact, projection, debug truth, and surface wording.
-- **Symptoms:** Embodied mode shows hidden culprit, true item location, lie labels, private beliefs, or debug summaries; institutions read event-log truth; speech reveals unsupported facts; actor notebooks inherit knowledge from prior possession.
-- **Mitigation / guardrails:** Require knowledge contexts on planner, institution, language, and view-model queries. Use actor-known projections for embodied UI. Test multi-possession scenarios, false beliefs, stale records, contradiction, rumor, and wrong suspicion.
+- **Why it matters:** Play depends on divergence between truth, holder-known context, belief, observation, memory, claim, speech, trace, record, institutional fact, projection, debug truth, and surface wording.
+- **Symptoms:** Embodied mode shows hidden culprit, true item location, lie labels, private beliefs, or debug summaries; institutions read event-log truth; speech reveals unsupported facts; actor notebooks inherit knowledge from prior possession; affordance menus are generated from raw truth and then visually filtered.
+- **Mitigation / guardrails:** Require sealed holder-known contexts on planner, institution, language, lead, LOD, and view-model queries. Use actor-known projections for embodied UI. Test multi-possession scenarios, false beliefs, stale records, contradiction, rumor, wrong suspicion, and adversarial hidden truth.
 - **Evidence to watch:** View models built from raw state then manually filtered, tests checking truth instead of holder/source/confidence, hidden event references in prompt packets, actor notebooks sourced from debug projections.
-- **Escalation trigger:** Hidden truth becomes visible, actionable, or inferable in embodied mode without modeled observation, memory, record read, speech act, or trace.
-- **Retirement criteria:** Durable leakage tests, actor-known query APIs, possession-parity fixtures, and debug/embodied projection separation.
+- **Escalation trigger:** Hidden truth becomes visible, actionable, or inferable in embodied mode without modeled observation, memory, record read, speech act, trace, or other permitted provenance.
+- **Retirement criteria:** Durable leakage tests, holder-known query APIs, possession-parity fixtures, debug/embodied projection separation, and `TFW` certification evidence.
 - **Status / review cadence:** Watch. Escalate on any hidden truth in embodied mode.
 
 ### R-10 — LLM, Prose, and Presentation Authority Breach
@@ -137,17 +159,17 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Symptoms:** Dialogue creates facts; generated text changes state; prompt packets include hidden truth; live model output is required for tests; summaries erase uncertainty; a UI label declares proof, guilt, completion, or reward without institutional state.
 - **Mitigation / guardrails:** Use structured speech acts, deterministic templates, deterministic mocks, actor-filtered prompt packets, output validation, unsupported-claim rejection, and LLM-disabled operation as the baseline. Presentation may render or parse proposals; it may not author authority.
 - **Evidence to watch:** Test flakiness tied to live generation, generated records without speech/report events, prompt packets containing private truth, acceptance tests golden-locking LLM wording, UI text consumed as rules.
-- **Escalation trigger:** LLM/prose/UI output is used as ground truth, actor knowledge, institutional judgment, planner state, event source, proof, or record authority.
+- **Escalation trigger:** LLM/prose/UI output is used as ground truth, holder knowledge, institutional judgment, planner state, event source, proof, or record authority.
 - **Retirement criteria:** Live LLM features are behind validation boundaries, deterministic acceptance paths exist, and prompt/output tests prove no authority leakage.
 - **Status / review cadence:** Watch now; Active when any live language surface is prototyped.
 
 ### R-11 — Debug Truth Leakage
 
-- **Why it matters:** Tracewake needs omniscient debugging, but debug truth must never become actor knowledge, embodied UI fact, ordinary action precondition, or institutional knowledge.
+- **Why it matters:** Tracewake needs omniscient debugging, but debug truth must never become holder knowledge, embodied UI fact, ordinary action precondition, institutional knowledge, or acceptance evidence masquerading as ordinary play.
 - **Symptoms:** Debug and embodied views share untagged projections; debug notes satisfy action preconditions; actor notebooks include hidden truth; possession history becomes world fact; debug injections are used in ordinary play; forensic summaries appear as actor-known summaries.
-- **Mitigation / guardrails:** Keep debug view models visibly non-diegetic. Separate human/debug notes from actor notebooks. Route debug injections through explicit debug/test events. Test that embodied views, agents, language packets, and institutions cannot consume debug-only projections.
+- **Mitigation / guardrails:** Keep debug view models visibly non-diegetic. Separate human/debug notes from actor notebooks. Route debug injections through explicit debug/test events. Test that embodied views, agents, language packets, institutions, and fixtures cannot consume debug-only projections.
 - **Evidence to watch:** Shared projection types without mode tags, debug fields in embodied prompt packets, notebooks sourced from causal graph truth, tests requiring debug commands to complete normal flows.
-- **Escalation trigger:** Debug truth affects ordinary play, actor belief, institutional procedure, TUI affordance availability, or ordinary validation.
+- **Escalation trigger:** Debug truth affects ordinary play, actor belief, institution procedure, TUI affordance availability, ordinary validation, or certification evidence for embodied knowledge.
 - **Retirement criteria:** Separate projection APIs, debug-mode tests, and negative tests proving debug facts cannot be consumed by embodied systems.
 - **Status / review cadence:** Watch. Escalate on any debug truth in embodied mode.
 
@@ -155,11 +177,11 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 
 - **Why it matters:** Institutions are fallible social machines. If guards, clerks, ledgers, notices, or procedures know truth automatically, wrong suspicion, stale records, and social consequence collapse.
 - **Symptoms:** Guards know violations instantly; records appear because a violation occurred; proof thresholds read true culprit; sanctions occur without detection or procedure; notices update from truth; suspicion formulas use actual culprit.
-- **Mitigation / guardrails:** Separate violation, detection, suspicion, report, record, proof, sanction, notice, and closure. Require institutional knowledge, reports, records, roles, resources, jurisdiction, bias, evidence thresholds, and procedure status.
+- **Mitigation / guardrails:** Separate violation, detection, suspicion, report, record, proof, sanction, notice, closure, and appeal/failure. Require institution-known context: reports, records, roles, resources, jurisdiction, bias, evidence thresholds, public artifacts, and procedure status.
 - **Evidence to watch:** Institutional belief without source, records without reporter/receiver/writer, cases opened by ground truth, procedures with no lifecycle, global legal state, automated notices sourced from truth.
 - **Escalation trigger:** An institution reads ground truth or creates records/sanctions without modeled report, evidence, authority, and lifecycle.
-- **Retirement criteria:** Phase 4 fixtures prove wrong suspicion, false reports, stale records, failed procedures, institutional disagreement, and correction paths.
-- **Status / review cadence:** Watch. Active during institution implementation.
+- **Retirement criteria:** `PHASE-4-ENTRY` and later institution fixtures prove wrong suspicion, false reports, stale records, failed procedures, institutional disagreement, and correction paths.
+- **Status / review cadence:** Watch. Active during institution implementation and any Phase 4 entry claim.
 
 ### R-13 — Event Log, Replay, and Projection Discipline Erosion
 
@@ -168,18 +190,18 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Mitigation / guardrails:** Commit causally meaningful events with typed causes, content versions, random draw labels, and projection hints where useful. Use snapshots, summary events, projection rebuilds, event versioning, and upcasters without losing active ancestry.
 - **Evidence to watch:** Events per simulated day, replay time, projection rebuild time, old-fixture replay failures, missing causal references after compaction, active records or beliefs pointing to summarized-away detail.
 - **Escalation trigger:** Authoritative state cannot be rebuilt loudly and deterministically from event log, content versions, schemas, snapshots, upcasters, and random streams.
-- **Retirement criteria:** Deterministic replay, projection rebuild, migration, and old-fixture compatibility tests cover every accepted event family.
+- **Retirement criteria:** `REPLAY`/`SPINE-CERT` evidence plus deterministic replay, projection rebuild, migration, and old-fixture compatibility tests for every accepted event family.
 - **Status / review cadence:** Watch. Review at every event, replay, storage, snapshot, or projection change.
 
 ### R-14 — Causal Explainability Opacity
 
 - **Why it matters:** Tracewake's event log must answer why. IDs without useful causes cannot explain action availability, wrong beliefs, traces, records, random branches, or consequences.
 - **Symptoms:** Events have IDs but weak cause links; debug answers are prose guesses; beliefs lack provenance; wrong suspicion cannot be traced; random branches are unexplained; rejected actions leave no recoverable validation report.
-- **Mitigation / guardrails:** Use typed causal links, validation reports, belief sources, trace origins, record provenance, random-draw audit labels, projection rebuild reports, and debug queries shaped around “what caused this?” and “who knows what?”
+- **Mitigation / guardrails:** Use typed causal links, validation reports, belief sources, trace origins, record provenance, random-draw audit labels, projection rebuild reports, sealed context IDs, and debug queries shaped around “what caused this?” and “who knows what?”
 - **Evidence to watch:** Events missing causes, orphan beliefs/records/traces, debug `unknown` answers, unqueryable validation reports, fixtures that cannot explain failure or contradiction cases.
-- **Escalation trigger:** A phase claim depends on causal behavior that cannot be explained from events, validation reports, projections, and source-backed beliefs.
+- **Escalation trigger:** A gate or phase claim depends on causal behavior that cannot be explained from events, context packets, validation reports, projections, and source-backed beliefs.
 - **Retirement criteria:** Golden fixtures include expected causal explanations and fail when provenance is missing.
-- **Status / review cadence:** Watch. Review whenever a new event family, belief source, trace type, record type, or projection is added.
+- **Status / review cadence:** Watch. Review whenever a new event family, belief source, trace type, record type, context packet, or projection is added.
 
 ### R-15 — TUI-First Playability Erosion
 
@@ -187,7 +209,7 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Symptoms:** Mechanics ship without TUI or view-model tests; debug commands substitute for embodied actions; future graphical assumptions shape data; the terminal UX cannot explain available actions, uncertainty, why-not reasons, or actor-known leads.
 - **Mitigation / guardrails:** Require semantic TUI action selection, actor-filtered view models, actor notebook, why-not explanations, transcript replay, debug/embodied separation, and playable or view-model-testable access in every runnable phase.
 - **Evidence to watch:** Headless features marked accepted, no stable semantic action IDs, UI code enforcing world rules, acceptance demos that require debug mode, user-visible summaries sourced from truth.
-- **Escalation trigger:** A feature is considered accepted while unreachable or uninspectable through embodied TUI/view-model surfaces appropriate to its phase.
+- **Escalation trigger:** A feature is considered accepted while unreachable or uninspectable through embodied TUI/view-model surfaces appropriate to its gate.
 - **Retirement criteria:** TUI/view-model acceptance coverage for all ordinary-play features and stable boundaries for future clients.
 - **Status / review cadence:** Watch. Review every feature acceptance claim.
 
@@ -197,8 +219,8 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Symptoms:** Actors freeze when unpossessed; routines exist only as backdrop; hunger, fatigue, work, storage, sleep, and social behavior do not matter; incidents require human proximity; no-human runs produce no discoverable consequences.
 - **Mitigation / guardrails:** Implement needs, routines, interruptions, search, storage, work, sleep, eating, social contact, household expectations, and local reports as ordinary systems. Run no-human day fixtures from early phases.
 - **Evidence to watch:** No-human event distribution, routine interruption traces, ordinary action failures, discovered absence without human intervention, records or reports created by unpossessed actors.
-- **Escalation trigger:** A phase claims life, institutions, or first-proof progress without no-human evidence.
-- **Retirement criteria:** Sustained no-human runs produce replayable, inspectable ordinary-life traces and first-proof-relevant consequences.
+- **Escalation trigger:** A phase or gate asserts life, institutions, or first-proof progress without `NO-HUMAN` evidence.
+- **Retirement criteria:** Sustained no-human runs produce replayable, inspectable ordinary-life traces and first-proof-relevant consequences under `ORD-LIFE-CERT` and `FIRST-PROOF-CERT`.
 - **Status / review cadence:** Watch. Active during routine and institution phases.
 
 ### R-17 — Agent Competence or Planner Explosion
@@ -206,16 +228,16 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Why it matters:** Tracewake needs ordinary competence without opaque or unbounded planning. Actors must act under partial knowledge, needs, roles, routines, relationships, and constraints.
 - **Symptoms:** Lifeless routines; every actor replans every tick; utility jitter; planner time dominates; plans mutate state directly; agents know truth for convenience; failed actions produce no fallback; actors cannot lie, refuse, report, search, or adapt.
 - **Mitigation / guardrails:** Use durable intentions, needs, projects, roles, relationships, bounded local planning, symbolic methods, planner budgets, fallback actions, reservations, and planner traces. Keep cognition inspectable and actor-known.
-- **Evidence to watch:** Planner failures, stuck actors, repeated rejection storms, excessive planning nodes, choices with no belief or motive source, routines with no interruption or failure modes.
-- **Escalation trigger:** Planner behavior becomes either inert backdrop or opaque high-cost authority that bypasses actor knowledge and action validation.
-- **Retirement criteria:** Performance budgets, planner trace fixtures, failure/fallback tests, and routine interruption tests.
+- **Evidence to watch:** Planner failures, stuck actors, repeated rejection storms, excessive planning nodes, choices with no belief or motive source, routines with no interruption or failure modes, candidate generation without a sealed context.
+- **Escalation trigger:** Planner behavior becomes either inert backdrop or opaque high-cost authority that bypasses holder knowledge and action validation.
+- **Retirement criteria:** Performance budgets, planner trace fixtures, failure/fallback tests, routine interruption tests, and `TFW`/`DIAG` evidence.
 - **Status / review cadence:** Watch. Active during routine/planner implementation.
 
 ### R-18 — Schema and Authoring Drift
 
 - **Why it matters:** Tracewake depends on authored possibility space. If schemas drift, writers and programmers will smuggle in scripts, synonyms, hidden truth, and non-replayable facts.
-- **Symptoms:** Inconsistent names for the same concept; records without author/provenance; beliefs without sources; content packages bypass validation; fixture setup forces outcomes; data fields encode player identity, true culprit for institutions, or objective completion.
-- **Mitigation / guardrails:** Keep logical contracts ahead of syntax. Validate stable IDs, references, source-backed beliefs, record artifacts, action-registry parity, no human-controller fields in world logic, no quest fields, no outcome chains, and content-version compatibility.
+- **Symptoms:** Inconsistent names for the same concept; records without author/provenance; beliefs without sources; content packages bypass validation; fixture setup forces outcomes; data fields encode player identity, true culprit for institutions, objective completion, or hidden planner targets.
+- **Mitigation / guardrails:** Keep logical contracts ahead of syntax. Validate stable IDs, references, source-backed beliefs, sealed-context provenance inputs, record artifacts, action-registry parity, no human-controller fields in world logic, no quest fields, no outcome chains, and content-version compatibility.
 - **Evidence to watch:** Schema migrations without old fixtures, content examples containing forbidden core terms, direct inventory mutation in fixtures, author confusion around canonical terms, missing provenance fields.
 - **Escalation trigger:** A schema or fixture can encode hidden truth, forced outcome, or privileged human involvement as ordinary play.
 - **Retirement criteria:** Validation rejects forbidden ontology and fixtures prove canonical alternatives.
@@ -224,30 +246,30 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 ### R-19 — Validation Theater
 
 - **Why it matters:** Tests can make a bad simulation look safe if they assert happy paths, current truth, or demo behavior instead of doctrine-threatening failure modes.
-- **Symptoms:** Manual demos replace no-human runs; tests check success only; institutions are tested against truth rather than institutional knowledge; LLM wording appears in golden tests; replay failures are tolerated; metrics are collected but ignored.
+- **Symptoms:** Manual demos replace no-human runs; tests check success only; institutions are tested against truth rather than institution-known context; LLM wording appears in golden tests; replay failures are tolerated; metrics are collected but ignored.
 - **Mitigation / guardrails:** Require negative tests, property tests, no-human runs, deterministic replay, projection rebuild, epistemic leakage tests, possession parity, TUI/view-model tests, debug explanation assertions, and fixture variants with false/stale/contradictory information.
 - **Evidence to watch:** Green builds with no wrong-belief scenario, no rejection/failure fixtures, no replay tests, tests that pass while embodied UI cannot play the feature, metrics with no threshold or review response.
-- **Escalation trigger:** A phase claims acceptance without failure evidence and replayable explanation evidence.
+- **Escalation trigger:** A phase, spec, or gate asserts acceptance without failure evidence, adversarial contamination evidence, and replayable explanation evidence.
 - **Retirement criteria:** Acceptance gates fail loudly on leakage, bypass, no-human regression, replay mismatch, forbidden terms, and weak explanations.
-- **Status / review cadence:** Watch. Escalate when a phase claims acceptance without negative evidence.
+- **Status / review cadence:** Watch. Escalate when a phase/gate asserts acceptance without negative evidence.
 
 ### R-20 — Scale Before Clarity
 
 - **Why it matters:** Population, regional scope, procedural history, travel, and LOD can hide shallow causality. A large world that cannot explain one missing item is hollow.
-- **Symptoms:** More actors, settlements, routes, factions, notices, history, procedural generation, or performance work before the first village works; low-detail people become props; active leads depend on compacted causes; metrics emphasize population count over causal coverage.
-- **Mitigation / guardrails:** Prove the small village first: replay, no-human simulation, actor knowledge, records, wrong suspicion, TUI, and debug explanation. Expand only when the first proof remains strong under replay and inspection.
-- **Evidence to watch:** Fixture size, causal coverage, no-human event quality, first-proof completion criteria, debug explanation depth, unresolved Phase 0-4 gates.
-- **Escalation trigger:** A scale or procedural-generation feature competes with the first proof before Phase 4 acceptance.
-- **Retirement criteria:** First proof is complete and scale features preserve all phase gates under replay and no-human runs.
+- **Symptoms:** More actors, settlements, routes, factions, notices, history, procedural generation, or performance work before the first village is gate-certified; low-detail people become props; active leads depend on compacted causes; metrics emphasize population count over causal coverage.
+- **Mitigation / guardrails:** Certify the small village first under the live gate sequence: replay, no-human simulation, holder-known context, records, wrong suspicion, TUI, fixtures, and debug explanation. Expand only after `FIRST-PROOF-CERT` and relevant entry gates pass.
+- **Evidence to watch:** Fixture size, causal coverage, no-human event quality, first-proof certification evidence, debug explanation depth, unresolved `P0-CERT` through `FIRST-PROOF-CERT` gates.
+- **Escalation trigger:** A scale or procedural-generation feature competes with first-proof certification before `PHASE-4-ENTRY` or `SECOND-PROOF-ENTRY` allows it.
+- **Retirement criteria:** First proof is certified and scale features preserve all relevant gates under replay and no-human runs.
 - **Status / review cadence:** Watch. Escalate before any population, region, route, or procedural-history expansion.
 
 ### R-21 — LOD Ancestry Loss
 
 - **Why it matters:** LOD is necessary for scale, but summaries that erase active causes destroy forensic and epistemic value.
 - **Symptoms:** Low-detail actors become props; summary events hide origins of beliefs, records, leads, suspicions, or procedures; demotion erases traces; promotion invents missing ancestry; compaction makes replay explanation impossible.
-- **Mitigation / guardrails:** Use explicit promotion/demotion metadata or events, summary events with retained causal facts, promotable low-detail identities, active-ancestry preservation, and compaction blocks for active traces, records, suspicions, leads, and procedures.
+- **Mitigation / guardrails:** Use explicit promotion/demotion metadata or events, summary events with retained causal facts, promotable low-detail identities, active-ancestry preservation, and compaction blocks for active traces, records, suspicions, leads, procedures, and holder-known promotion inputs.
 - **Evidence to watch:** Active records pointing to missing events, promoted actors lacking home/role/beliefs/projects, debug unable to explain retained/lost detail, no-human regional run divergence under replay.
-- **Escalation trigger:** LOD or compaction loses ancestry needed for actor knowledge, institutional records, active leads, wrong suspicion, or debug explanation.
+- **Escalation trigger:** LOD or compaction loses ancestry needed for holder knowledge, institutional records, active leads, wrong suspicion, procedure state, or debug explanation.
 - **Retirement criteria:** Promotion, demotion, summary, compaction, replay, and explanation tests cover active ancestry.
 - **Status / review cadence:** Dormant until LOD work; review before summary, compaction, regional, or scale features.
 
@@ -273,20 +295,34 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 
 ### R-24 — Deferred-Term Premature Hardening
 
-- **Why it matters:** Notices, travel, route threats, bounties, companions, proof/payment flows, and regional history are useful later, but they can drag first-proof work into quest, director, or scale-before-clarity failure.
+- **Why it matters:** Notices, travel, route threats, bounties, companions, proof/payment flows, regional history, LOD, and broad story-sifting are useful later, but they can drag first-proof work into quest, director, or scale-before-clarity failure.
 - **Symptoms:** Notice board becomes the central task menu; bounties encode objective completion; companions become privileged party slots; travel hazards appear for pacing; payment spawns as reward; proof is a global success flag; road threats outrank missing-property proof.
-- **Mitigation / guardrails:** Keep deferred terms behind the second-proof boundary unless a small local artifact is necessary for the first proof. Model them as records, contracts, obligations, actors, procedures, route beliefs, payments, custody transfers, and boundary events, not as task ontology.
-- **Evidence to watch:** Phase 0-4 fixture scope, schema names, TUI labels, content examples, procedure statuses, notice lifecycle, companion autonomy, route-risk causes.
+- **Mitigation / guardrails:** Keep deferred terms behind the relevant execution entry gate unless a small local artifact is necessary for the first proof. Model them as records, contracts, obligations, actors, procedures, route beliefs, payments, custody transfers, and boundary events, not as task ontology.
+- **Evidence to watch:** First-proof fixture scope, schema names, TUI labels, content examples, procedure statuses, notice lifecycle, companion autonomy, route-risk causes, and references to `SECOND-PROOF-ENTRY`.
 - **Escalation trigger:** A deferred concept becomes central to first-proof acceptance or enters core ontology in quest-like form.
-- **Retirement criteria:** First proof is complete and second-proof docs/tests preserve canonical modeling boundaries.
+- **Retirement criteria:** First proof is certified and second-proof docs/tests preserve canonical modeling boundaries.
 - **Status / review cadence:** Watch. Review whenever deferred vocabulary appears in first-proof work.
 
 ### R-25 — Terminology Drift
 
 - **Why it matters:** Tracewake's ontology is fragile. Casual synonyms can import wrong authority, wrong viewpoint, or wrong gameplay assumptions before anyone notices.
-- **Symptoms:** Core docs, schemas, tests, prompts, or code use player-centric, quest-centric, director-centric, or presentation-authority terms; the same concept has multiple names; glossary labels are ignored in fixtures; review comments normalize restricted terms.
+- **Symptoms:** Core docs, schemas, tests, prompts, or code use player-centric, quest-centric, director-centric, implementation-certification, or presentation-authority terms; the same concept has multiple names; glossary labels are ignored in fixtures; review comments normalize restricted terms.
 - **Mitigation / guardrails:** Use the glossary as a naming gate. Reject forbidden-as-core terms in engine, schema, fixture, event, planner, validation, and acceptance terminology. Allow player-facing-only terms only as surface labels over canonical state.
-- **Evidence to watch:** Identifiers, schema fields, event names, fixture names, TUI labels, prompt templates, comments, and golden-test names.
-- **Escalation trigger:** A forbidden or restricted term enters core ontology, or ambiguous synonyms obscure authority, source, actor knowledge, or institutional status.
-- **Retirement criteria:** Automated or review-enforced terminology checks, plus accepted replacements in docs, schemas, and tests.
+- **Evidence to watch:** Identifiers, schema fields, event names, fixture names, TUI labels, prompt templates, comments, golden-test names, and certification artifact names.
+- **Escalation trigger:** A forbidden or restricted term enters core ontology, ambiguous synonyms obscure authority/source/holder knowledge/institutional status, or old “phase landed” language replaces gate evidence.
+- **Retirement criteria:** Automated or review-enforced terminology checks, plus accepted replacements in docs, schemas, tests, and gate artifacts.
 - **Status / review cadence:** Watch. Review during schema/content/test naming and reference-layer edits.
+
+### R-26 — Archived Phase 3A Treated as Post-Overhaul Certification
+
+- **Why it matters:** Archived specs `0005` through `0008` landed historical implementation work, but the live execution layer explicitly says they are not certification under the post-overhaul foundation, architecture, and execution doctrine. Treating them as certification bypasses `P0-CERT`, hides anti-contamination gaps, and prematurely opens Phase 4 or second-proof scope.
+- **Symptoms:** A prompt, spec, ticket, review, README, test comment, or implementation plan says Phase 3A is complete/certified because specs `0005` through `0008` were completed; a future spec starts institutions, wrong suspicion, notices, travel, LOD, LLM surfaces, or expansion without citing the live certification sequence; audit evidence relies on historical ticket status rather than gate artifacts.
+- **Mitigation / guardrails:** Cite archived specs only as historical evidence and durable idea sources where live execution promotes them. Require future specs to declare a live posture: certification, remediation, expansion after required entry gates, or documentation alignment. Before expansion, require `P0-CERT` and the appropriate sequence through `SPINE-CERT`, `EPI-CERT`, `ORD-LIFE-CERT`, `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, or `SECOND-PROOF-ENTRY` as defined by execution docs.
+- **Evidence to watch:** Status tables, README doctrine status, spec preambles, issue titles, gate checklists, CI labels, comments using “landed,” “complete,” or “done” as certification, and references to archived Phase 3A files as current doctrine.
+- **Escalation trigger:** Any analysis, spec, or implementation plan treats archived specs `0005` through `0008` as proof that post-overhaul certification has passed, or uses them to bypass `P0-CERT` or a later entry gate.
+- **Retirement criteria:** Do not retire until sustained review tooling and documentation patterns make historical-vs-certified status unambiguous across prompts, specs, tickets, README maps, and gate artifacts. Even then, keep as Watch while archived specs remain frequently cited.
+- **Status / review cadence:** Active for post-overhaul documentation realignment and future baseline audits; review at every session start and every expansion proposal.
+
+## Maintenance rule
+
+Add a risk only when a recurring relapse mode needs compact memory across coding, spec writing, fixture authoring, schema review, prompt construction, and gate review. Retire a risk only with named evidence that would catch its return. Do not use this register to define new doctrine, redefine gate semantics, certify code, or create implementation work.

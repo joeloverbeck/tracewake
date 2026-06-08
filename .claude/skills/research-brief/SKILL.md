@@ -59,18 +59,18 @@ Launch Explore agents for broad surveys. Verify any repo claim in `research_targ
 
 ## Step 3: Light online research (optional)
 
-Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. Note if skipped.
+Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. If skipped, announce it in-session as a one-liner (e.g., "Online research: skipped — repo-internal realignment") so the audit trail is visible independent of the brief body.
 
 ## Step 4: Interview to 95% confidence
 
-Reach **95% confidence about what the user actually wants** — not what they think they should want — before drafting. After each answer, display:
+Reach **95% confidence about what the user actually wants** — not what they think they should want — before drafting. Display this block after each answer (or, when a batch is sent, once before the batch and once after it):
 
 ```
 Confidence: X%
 Gaps: [specific remaining unknowns]
 ```
 
-Rules: one question per message; prefer bounded multiple-choice (`AskUserQuestion` when available); probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. Announce "95% — drafting the brief" when reached.
+Rules: ask one *conceptual* question at a time when probing motivation or uncertainty sequentially, where each answer reshapes the next; but batch independent, already-scoped bounded choices into a single `AskUserQuestion` call (≤4 questions). Prefer bounded multiple-choice (`AskUserQuestion` when available). Probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. Announce "95% — drafting the brief" when reached.
 
 **Early exit**: if the user says "just go," announce current confidence, list remaining gaps, and carry them into the brief as labeled assumptions (`assumption: X`) so Session 2 — which will not ask — treats them as decisions the user can later correct.
 
@@ -90,6 +90,8 @@ On approval, do BOTH:
 
 1. **Write the brief** to `reports/<topic>-research-brief.md`, following the canonical anatomy in `references/brief-template.md`. `<topic>` is a short kebab-case slug of the target.
 2. **Refresh the manifest**: write the current repository path inventory to `reports/manifest_<today>.txt`, where `<today>` is the real current date (`date +%F`) and the inventory is `git ls-files`. Leave any older-dated manifest in place for the user to clean.
+
+**Baseline-commit rule.** The brief instructs Session 2 to fetch every file from one exact commit, and the manifest (`git ls-files`) reflects the working tree. Derive that fetch-baseline commit from verified repo HEAD (`git rev-parse HEAD`) at manifest-refresh time so the two agree. NEVER adopt a commit string copied from a report, doc, or `research_target` without confirming it contains every file in the §2 read-in-full list (`git ls-tree <commit> <path>` / `git cat-file -e <commit>:<path>`) — a "commit of record" cited inside a report is that report's *own* baseline and often predates later merges. If a referenced source cites a different commit, call out the divergence inside the brief rather than propagating it.
 
 Resolve both paths against the worktree root if in a worktree. Do NOT commit.
 
