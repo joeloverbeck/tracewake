@@ -725,6 +725,8 @@ fn accepted_report(
         status: ReportStatus::Accepted,
         failed_stage: None,
         reason_codes: Vec::new(),
+        actor_visible_facts: actor_visible_facts(&checked_facts),
+        debug_only_facts: debug_only_facts(&checked_facts),
         checked_facts,
         actor_visible_summary: "Accepted.".to_string(),
         debug_summary: "proposal accepted by shared pipeline".to_string(),
@@ -849,6 +851,10 @@ fn source_context_check(
     checked_facts.push(CheckedFact::new(
         "holder_known_context_id",
         source.holder_known_context_id.as_str(),
+    ));
+    checked_facts.push(CheckedFact::new(
+        "holder_known_context_hash",
+        source.holder_known_context_hash.as_str(),
     ));
     checked_facts.push(CheckedFact::new(
         "holder_known_context_frontier",
@@ -989,6 +995,32 @@ fn reject(
     )))
 }
 
+fn actor_visible_facts(checked_facts: &[CheckedFact]) -> Vec<CheckedFact> {
+    checked_facts
+        .iter()
+        .filter(|fact| is_actor_visible_fact(fact))
+        .cloned()
+        .collect()
+}
+
+fn debug_only_facts(checked_facts: &[CheckedFact]) -> Vec<CheckedFact> {
+    checked_facts
+        .iter()
+        .filter(|fact| !is_actor_visible_fact(fact))
+        .cloned()
+        .collect()
+}
+
+fn is_actor_visible_fact(fact: &CheckedFact) -> bool {
+    matches!(
+        fact.key(),
+        crate::actions::report::CheckedFactKey::ActionId
+            | crate::actions::report::CheckedFactKey::ActorId
+            | crate::actions::report::CheckedFactKey::Reason
+            | crate::actions::report::CheckedFactKey::TickCount
+    )
+}
+
 fn reject_committed(
     context: &mut PipelineContext<'_>,
     proposal: &Proposal,
@@ -1032,6 +1064,8 @@ fn rejection_report(
         status: ReportStatus::Rejected,
         failed_stage: Some(failed_stage),
         reason_codes: reason_codes.clone(),
+        actor_visible_facts: actor_visible_facts(&checked_facts),
+        debug_only_facts: debug_only_facts(&checked_facts),
         checked_facts,
         actor_visible_summary: actor_visible_summary.into(),
         debug_summary: debug_summary.into(),
@@ -1465,6 +1499,10 @@ mod tests {
         run_pipeline(&mut context, proposal).report
     }
 
+    fn has_fact(facts: &[CheckedFact], stable_key: &str) -> bool {
+        facts.iter().any(|fact| fact.stable_key() == stable_key)
+    }
+
     #[test]
     fn human_source_context_missing_rejects_before_action_lookup() {
         let registry = ActionRegistry::new();
@@ -1530,6 +1568,29 @@ mod tests {
         );
         assert_eq!(report.reason_codes, vec![ReasonCode::ProposalSourceStale]);
         assert!(!report.actor_visible_summary.contains("hkc."));
+        assert!(has_fact(&report.actor_visible_facts, "action_id"));
+        assert!(has_fact(&report.debug_only_facts, "source_kind"));
+        assert!(has_fact(
+            &report.debug_only_facts,
+            "holder_known_context_id"
+        ));
+        assert!(has_fact(
+            &report.debug_only_facts,
+            "holder_known_context_hash"
+        ));
+        assert!(has_fact(
+            &report.debug_only_facts,
+            "holder_known_context_frontier"
+        ));
+        assert!(!has_fact(&report.actor_visible_facts, "source_kind"));
+        assert!(!has_fact(
+            &report.actor_visible_facts,
+            "holder_known_context_id"
+        ));
+        assert!(!has_fact(
+            &report.actor_visible_facts,
+            "holder_known_context_hash"
+        ));
     }
 
     #[test]
@@ -1582,6 +1643,10 @@ mod tests {
         );
         assert_eq!(report.reason_codes, vec![ReasonCode::ProposalSourceForged]);
         assert!(!report.actor_visible_summary.contains("hidden_room"));
+        assert!(has_fact(&report.debug_only_facts, "source_kind"));
+        assert!(has_fact(&report.debug_only_facts, "semantic_action_id"));
+        assert!(!has_fact(&report.actor_visible_facts, "source_kind"));
+        assert!(!has_fact(&report.actor_visible_facts, "semantic_action_id"));
     }
 
     #[test]

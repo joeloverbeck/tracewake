@@ -21,6 +21,12 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             why_not.failure_kind.stable_id(),
             why_not.reason_codes.join(",")
         ));
+        if !why_not.actor_visible_facts.is_empty() {
+            lines.push(format!(
+                "Why-not facts: {}",
+                why_not.actor_visible_facts.join(",")
+            ));
+        }
     } else if let Some(summary) = &view.last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
     }

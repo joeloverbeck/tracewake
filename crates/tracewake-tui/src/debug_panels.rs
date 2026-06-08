@@ -52,6 +52,8 @@ pub fn render_action_rejection_panel(report: &ActionRejectionDebugReport) -> Str
             ),
             format!("actor_summary={}", report.actor_visible_summary),
             format!("debug_summary={}", report.debug_summary),
+            format!("actor_fact_count={}", report.actor_visible_facts.len()),
+            format!("debug_fact_count={}", report.debug_only_facts.len()),
             format!("mutation_attempted={}", report.mutation_attempted),
         ],
     )

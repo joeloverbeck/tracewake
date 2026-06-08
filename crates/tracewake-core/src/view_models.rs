@@ -62,6 +62,7 @@ pub struct WhyNotView {
     pub failure_kind: WhyNotFailureKind,
     pub actor_known_summary: String,
     pub reason_codes: Vec<String>,
+    pub actor_visible_facts: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -96,6 +97,11 @@ impl From<&ValidationReport> for WhyNotView {
                 .reason_codes
                 .iter()
                 .map(|reason| reason.stable_id().to_string())
+                .collect(),
+            actor_visible_facts: report
+                .actor_visible_facts
+                .iter()
+                .map(crate::actions::CheckedFact::render_pair)
                 .collect(),
         }
     }
@@ -951,6 +957,8 @@ mod tests {
             failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
             reason_codes,
             checked_facts: Vec::new(),
+            actor_visible_facts: Vec::new(),
+            debug_only_facts: Vec::new(),
             actor_visible_summary: actor_visible_summary.to_string(),
             debug_summary: "debug detail".to_string(),
             would_mutate: false,

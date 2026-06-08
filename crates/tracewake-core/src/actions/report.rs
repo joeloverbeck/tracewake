@@ -213,6 +213,8 @@ pub struct ValidationReport {
     pub failed_stage: Option<crate::actions::pipeline::PipelineStage>,
     pub reason_codes: Vec<ReasonCode>,
     pub checked_facts: Vec<CheckedFact>,
+    pub actor_visible_facts: Vec<CheckedFact>,
+    pub debug_only_facts: Vec<CheckedFact>,
     pub actor_visible_summary: String,
     pub debug_summary: String,
     pub would_mutate: bool,
@@ -260,5 +262,15 @@ mod tests {
         assert_eq!(fact.value(), "actor_tomas");
         assert_eq!(fact.source().stable_id(), "validation");
         assert_eq!(fact.render_pair(), "actor_id=actor_tomas");
+    }
+
+    #[test]
+    fn checked_fact_key_classifies_debug_only_validator_fact() {
+        let fact = CheckedFact::new("holder_known_context_hash", "hkc_hash_001");
+
+        assert_eq!(
+            fact.key(),
+            &CheckedFactKey::Unsupported("holder_known_context_hash".to_string())
+        );
     }
 }

@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-007: Two-layer non-leaking why-not
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`ValidationReport`/`WhyNotView` actor/debug fact split), `tracewake-tui` (actor vs debug why-not render)
@@ -82,3 +82,30 @@ Render debug why-not (validation-only truth) in the non-diegetic debug panel, ga
 1. `cargo test -p tracewake-core hidden_truth_gates && cargo test -p tracewake-tui tui_acceptance`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
 3. The hidden-truth gate + tui-acceptance pair is the correct boundary: one proves the typed non-leak, the other proves the render split.
+
+## Outcome
+
+Completed: 2026-06-08
+
+Changed:
+- Added separate `actor_visible_facts` and `debug_only_facts` collections to `ValidationReport` while preserving the combined `checked_facts` stream for existing provenance consumers.
+- Populated the split in the shared action pipeline and added holder-known context hash to source-context validation facts.
+- Mapped `WhyNotView` only from actor-visible facts and rendered those facts in the embodied TUI why-not path.
+- Moved debug why-not fact access to `ActionRejectionDebugReport`'s capability-backed debug path, with `precondition_trace` derived only from debug-only facts and TUI debug panels showing actor/debug fact counts.
+- Added/updated tests proving source-context validator facts such as `source_kind`, `semantic_action_id`, holder-known context id/hash/frontier stay out of actor-visible why-not facts.
+
+Deviations:
+- The original plan said the combined fact stream would be removed. It remains as `checked_facts` because current provenance references still consume it; actor and debug render paths use the new split collections.
+- Holder-known context id/hash are treated as debug-only validator provenance, not actor-visible facts. The context id encodes actor/tick/frontier, and the actor path does not need it to explain the rejection safely.
+
+Verification:
+- `cargo test -p tracewake-core why_not_view`
+- `cargo test -p tracewake-core report`
+- `cargo test -p tracewake-core source_context`
+- `cargo test -p tracewake-tui debug_panels`
+- `cargo test -p tracewake-core`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

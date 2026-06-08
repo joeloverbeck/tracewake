@@ -37,7 +37,8 @@ pub struct ActionRejectionDebugReport {
     pub reason_codes: Vec<ReasonCode>,
     pub actor_visible_summary: String,
     pub debug_summary: String,
-    pub checked_facts: Vec<CheckedFact>,
+    pub actor_visible_facts: Vec<CheckedFact>,
+    pub debug_only_facts: Vec<CheckedFact>,
     pub precondition_trace: Vec<String>,
     pub events_created: Vec<EventId>,
     pub mutation_attempted: bool,
@@ -251,9 +252,10 @@ pub fn action_rejection_report(
         reason_codes: validation_report.reason_codes.clone(),
         actor_visible_summary: validation_report.actor_visible_summary.clone(),
         debug_summary: validation_report.debug_summary.clone(),
-        checked_facts: validation_report.checked_facts.clone(),
+        actor_visible_facts: validation_report.actor_visible_facts.clone(),
+        debug_only_facts: validation_report.debug_only_facts.clone(),
         precondition_trace: validation_report
-            .checked_facts
+            .debug_only_facts
             .iter()
             .map(CheckedFact::render_pair)
             .collect(),
@@ -820,7 +822,9 @@ mod tests {
             report.failed_stage,
             Some(crate::actions::pipeline::PipelineStage::ActionDefinitionLookup)
         );
-        assert!(!report.checked_facts.is_empty());
+        assert!(!report.actor_visible_facts.is_empty());
+        assert!(report.debug_only_facts.is_empty());
+        assert!(report.precondition_trace.is_empty());
         assert!(!report.mutation_attempted);
         assert_eq!(report.checksum_before, report.checksum_after);
         assert_eq!(mutable_state.actors[&actor_id()], before_actor);
