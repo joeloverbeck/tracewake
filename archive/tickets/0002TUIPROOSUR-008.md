@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-008: Command loop submits only current-view semantic actions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (command loop: `wait`/`do`/numeric resolution)
@@ -77,3 +77,29 @@ Ensure `do <id>` checks current-view membership + context hash, numeric stays pr
 1. `cargo test -p tracewake-tui command_loop_session`
 2. `grep -rn "WAIT_ACTION_ID\|\"wait.1_tick\"" crates/tracewake-tui/` (must return zero after implementation)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Changed:
+- Removed the TUI command-loop hard-coded wait semantic action constant.
+- Routed `wait`/`w` through a current-view alias lookup that requires exactly one surfaced `action_id == "wait"` semantic action.
+- Kept numeric selection presentation-only and `do <id>` membership-checked through `TuiApp::submit_semantic_action`.
+- Made missing current-view semantic actions fail closed in the command loop with `Error: no such current action: ...` instead of synthesizing an ID or bubbling out as an I/O failure.
+- Updated transcript and TUI acceptance paths to submit the current view's wait token instead of constructing the wait semantic ID directly.
+- Added command-loop coverage proving `wait` executes the currently surfaced wait action and unit coverage proving the wait alias returns `None` when the current view lacks wait.
+
+Deviations:
+- `crates/tracewake-tui/src/app.rs` did not need changes; it already looked up `do <id>` submissions in `current_view().semantic_actions` before building a proposal.
+- The unsurfaced-wait proof is a direct current-view resolver unit test rather than a fixture mutation in the binary loop, because fixture affordances are generated from registered actions.
+
+Verification:
+- `rg -n "WAIT_ACTION_ID|\"wait\\.1_tick\"" crates/tracewake-tui` returned no matches.
+- `cargo test -p tracewake-tui wait`
+- `cargo test -p tracewake-tui command_loop_session`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`

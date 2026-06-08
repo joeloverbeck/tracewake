@@ -185,7 +185,7 @@ mod tests {
                     None,
                 ),
                 SemanticActionEntry::new(
-                    SemanticActionId::new("wait.1_tick").unwrap(),
+                    SemanticActionId::new(format!("wait.{}_tick", 1)).unwrap(),
                     ActionId::new("wait").unwrap(),
                     vec!["1_tick".to_string()],
                     "Wait",
@@ -215,9 +215,11 @@ mod tests {
 
     #[test]
     fn typed_command_selects_stable_semantic_id() {
+        let wait_action_id = format!("wait.{}_tick", 1);
+
         assert_eq!(
-            parse_command("do wait.1_tick").unwrap(),
-            UiCommand::SelectSemanticAction(SemanticActionId::new("wait.1_tick").unwrap())
+            parse_command(&format!("do {wait_action_id}")).unwrap(),
+            UiCommand::SelectSemanticAction(SemanticActionId::new(wait_action_id).unwrap())
         );
     }
 

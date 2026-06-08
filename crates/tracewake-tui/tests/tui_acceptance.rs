@@ -218,9 +218,8 @@ fn tui_playability_reaches_action_rejection_wait_and_debug() {
         .unwrap_or_default()
         .contains("Action Rejection"));
 
-    let waited = app
-        .submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())
-        .unwrap();
+    let wait_action = semantic_action_for_action_id(&app, "wait");
+    let waited = app.submit_semantic_action(&wait_action).unwrap();
     assert_eq!(waited.report.status, ReportStatus::Accepted);
     assert!(app
         .render_debug_event_log_panel()
@@ -296,6 +295,16 @@ fn assert_no_embodied_culprit_leak(rendered: &str) {
     }
 }
 
+fn semantic_action_for_action_id(app: &TuiApp, action_id: &str) -> SemanticActionId {
+    app.current_view()
+        .unwrap()
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == action_id)
+        .map(|action| action.semantic_action_id.clone())
+        .expect("current view surfaces requested action")
+}
+
 fn phase3a_possess_continue_debug_transcript() -> String {
     let mut app = TuiApp::from_golden(fixtures::possession_does_not_reset_intention_001()).unwrap();
     app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
@@ -307,11 +316,10 @@ fn phase3a_possess_continue_debug_transcript() -> String {
         .map(|action| action.semantic_action_id.clone());
 
     let mut transcript = vec![app.render_current_view().unwrap()];
-    let waited = app
-        .submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())
-        .unwrap();
+    let wait_action = semantic_action_for_action_id(&app, "wait");
+    let waited = app.submit_semantic_action(&wait_action).unwrap();
     assert_eq!(waited.report.status, ReportStatus::Accepted);
-    transcript.push("Accepted: wait.1_tick".to_string());
+    transcript.push(format!("Accepted: {}", wait_action.as_str()));
     if let Some(continue_action) = continue_action {
         let continued = app.submit_semantic_action(&continue_action).unwrap();
         assert_eq!(continued.report.status, ReportStatus::Accepted);

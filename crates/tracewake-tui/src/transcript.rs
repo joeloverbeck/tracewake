@@ -23,7 +23,14 @@ pub fn capture_representative_transcript() -> Result<String, AppError> {
         crate::render::render_notebook(&app.notebook_view()?),
     ));
 
-    app.submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())?;
+    let wait_action_id = app
+        .current_view()?
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == "wait")
+        .map(|action| action.semantic_action_id.clone())
+        .ok_or_else(|| AppError::SemanticActionNotFound("wait".to_string()))?;
+    app.submit_semantic_action(&wait_action_id)?;
     sections.push(section("view.after_wait", app.render_current_view()?));
 
     sections.push(section(

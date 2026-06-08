@@ -2,13 +2,13 @@ use std::io::{BufRead, Write};
 
 use tracewake_core::actions::ReportStatus;
 use tracewake_core::ids::SemanticActionId;
+use tracewake_core::view_models::EmbodiedViewModel;
 
-use crate::app::TuiApp;
+use crate::app::{AppError, TuiApp};
 use crate::input::{parse_command, semantic_id_for_selection, DebugCommand, InputError, UiCommand};
 use crate::render::render_notebook;
 
 const PROMPT: &str = "tracewake>";
-const WAIT_ACTION_ID: &str = "wait.1_tick";
 
 pub fn run_command_loop<R, W>(app: &mut TuiApp, reader: R, mut writer: W) -> std::io::Result<()>
 where
@@ -58,7 +58,10 @@ fn dispatch_command<W: Write>(
             submit_and_render(app, &semantic_action_id, writer)
         }
         UiCommand::WaitOneTick => {
-            let semantic_action_id = SemanticActionId::new(WAIT_ACTION_ID).expect("valid wait ID");
+            let view = app_result(app.current_view())?;
+            let Some(semantic_action_id) = semantic_id_for_wait_alias(&view) else {
+                return writeln!(writer, "Error: no such current action: wait");
+            };
             submit_and_render(app, &semantic_action_id, writer)
         }
         UiCommand::RunNoHumanDay => {
@@ -86,7 +89,13 @@ fn submit_and_render<W: Write>(
     semantic_action_id: &SemanticActionId,
     writer: &mut W,
 ) -> std::io::Result<()> {
-    let result = app_result(app.submit_semantic_action(semantic_action_id))?;
+    let result = match app.submit_semantic_action(semantic_action_id) {
+        Ok(result) => result,
+        Err(AppError::SemanticActionNotFound(action_id)) => {
+            return writeln!(writer, "Error: no such current action: {action_id}");
+        }
+        Err(error) => return Err(std::io::Error::other(format!("{error:?}"))),
+    };
     match result.report.status {
         ReportStatus::Accepted => writeln!(writer, "Accepted: {}", semantic_action_id.as_str())?,
         ReportStatus::Rejected => {
@@ -94,6 +103,18 @@ fn submit_and_render<W: Write>(
         }
     }
     writeln!(writer, "{}", app_result(app.render_current_view())?)
+}
+
+fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticActionId> {
+    let mut matching_wait_actions = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.action_id.as_str() == "wait");
+    let semantic_action_id = matching_wait_actions.next()?.semantic_action_id.clone();
+    if matching_wait_actions.next().is_some() {
+        return None;
+    }
+    Some(semantic_action_id)
 }
 
 fn render_debug<W: Write>(
@@ -214,6 +235,33 @@ mod tests {
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Observations"));
         assert!(rendered.contains("Error: unknown command: bogus"));
         assert!(rendered.contains(PROMPT));
+    }
+
+    #[test]
+    fn wait_alias_resolves_only_from_current_view_actions() {
+        let mut app = TuiApp::load_default().unwrap();
+        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
+        let view = app.current_view().unwrap();
+        let expected_wait_action = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.action_id.as_str() == "wait")
+            .expect("fixture surfaces wait action")
+            .semantic_action_id
+            .clone();
+
+        assert_eq!(
+            semantic_id_for_wait_alias(&view),
+            Some(expected_wait_action)
+        );
+
+        let mut without_wait = view.clone();
+        without_wait
+            .semantic_actions
+            .retain(|entry| entry.action_id.as_str() != "wait");
+
+        assert_eq!(semantic_id_for_wait_alias(&without_wait), None);
     }
 
     #[test]
