@@ -23,6 +23,7 @@ Archived specs remain historical evidence of intended/attempted work; they are *
 - `archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md` — Phase 3A needs/routines/no-human-day; archived as historical work, acceptance **not earned** at exact-commit audit. See `SPEC_LEDGER.md`, `archive/reports/PHASE_3A_IMPLEMENTATION_AUDIT.md`, and `archive/reports/PHASE_3A_STATUS_ERRATA.md`.
 - `archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md` — landed useful corrective Phase 3A hardening work, but post-0006 reassessment at commit `93759ded3967936431c359a4ec8eefa1619b518b` found that integrated Phase 3A ordinary-life readiness was not fully earned at that audit point; the follow-up result is Spec 0007.
 - `archive/specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md` — landed second Phase 3A hardening work, later superseded as the final readiness authority by Spec 0008 anti-contamination gates. Full Phase 3 still defers minimal social speech/testimony and broader story setup to Phase 3B.
+- `archive/specs/0008_PHASE_3A_ANTI_CONTAMINATION_HARDENING_SPEC.md` — accepted Phase 3A anti-contamination hardening gate; establishes the current Phase 3A readiness authority for later phase dependency decisions.
 
 ## Current phase-status note
 

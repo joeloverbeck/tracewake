@@ -1,6 +1,6 @@
 # Spec 0008 — Phase 3A Anti-Contamination Hardening
 
-Status: **REQUIRED / BLOCKING**  
+Status: **COMPLETED / ACCEPTED**
 Target repository: `joeloverbeck/tracewake`  
 Target commit: `8e3cf3eccb94372b7873846ae952441fc1ca44d0`  
 Spec type: requirements-first hardening specification  
@@ -948,3 +948,27 @@ The future implementation session must produce the following **code** deliverabl
 10. Keep the already-delivered replacement docs (ledger, status errata, actor-known autonomy architecture clarification) accurate as the code lands, and flip the ledger/status from "still hardening" to "Phase 3A ready" only once the §13 acceptance gates pass.
 
 No implementation ticket breakdown is part of this specification.
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+- The 0008 Phase 3A anti-contamination ticket family was implemented and archived as `archive/tickets/0008PHA3AANTCON-001.md` through `archive/tickets/0008PHA3AANTCON-011.md`.
+- The implementation established the canonical no-human actor-decision transaction, sealed/provenance-rich actor-known planning context, typed decision/stuck records, shared-pipeline validation authority, chronological duration-completion handling, adversarial fixtures, content no-script hardening, anti-regression guards, typed debug/TUI projections, and the integrated no-human typed-ancestry capstone.
+- Current status docs were flipped from Spec 0008 blocking/hardening to Spec 0008 accepted Phase 3A readiness, while preserving this spec's audited-target findings as historical context.
+
+Deviation from plan:
+
+- The final capstone exposed two narrow production ancestry defects: synthetic intention-start trace ids and missing proposal metadata on duration completion events. These were fixed before readiness was accepted.
+- The active specs README also required update because it still cited Spec 0007 as the Phase 3A readiness authority.
+
+Verification:
+
+- `cargo test -p tracewake-core --test no_human_capstone`
+- `rg -n "Phase 3A is still in hardening|blocked until Spec 0008|Phase 3A no-human ordinary-life readiness is evidenced by Spec 0007|Spec 0008 is now the blocking|Phase 3B and Phase 4 remain blocked|may not be marked safe until Spec 0008" docs/4-specs archive/reports -g '*.md'`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
