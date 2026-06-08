@@ -131,7 +131,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 22);
+    assert_eq!(all.len(), 27);
 
     let ids = all
         .iter()
@@ -142,9 +142,13 @@ fn all_fixtures_load_deterministically_and_validate() {
         BTreeSet::from([
             "container_item_move_001".to_string(),
             "debug_attach_001".to_string(),
+            "debug_omniscience_excluded_001".to_string(),
             "door_access_001".to_string(),
             "expectation_contradiction_001".to_string(),
             "food_unavailable_replan_001".to_string(),
+            "hidden_food_closed_container_001".to_string(),
+            "hidden_food_unknown_route_001".to_string(),
+            "hidden_route_edge_001".to_string(),
             "knowledge_blocker_accuse_001".to_string(),
             "no_human_advance_001".to_string(),
             "no_human_day_001".to_string(),
@@ -162,6 +166,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "strongbox_001".to_string(),
             "view_filtering_001".to_string(),
             "view_model_local_actions_001".to_string(),
+            "workplace_assignment_provenance_001".to_string(),
         ])
     );
 

@@ -1,8 +1,12 @@
 mod container_item_move_001;
 mod debug_attach_001;
+mod debug_omniscience_excluded_001;
 mod door_access_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
+mod hidden_food_closed_container_001;
+mod hidden_food_unknown_route_001;
+mod hidden_route_edge_001;
 mod knowledge_blocker_accuse_001;
 mod no_hidden_truth_planning_001;
 mod no_human_advance_001;
@@ -20,6 +24,7 @@ mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
+mod workplace_assignment_provenance_001;
 
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
@@ -44,9 +49,13 @@ use crate::serialization::serialize_fixture;
 
 pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
+pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
 pub use door_access_001::door_access_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
+pub use hidden_food_closed_container_001::hidden_food_closed_container_001;
+pub use hidden_food_unknown_route_001::hidden_food_unknown_route_001;
+pub use hidden_route_edge_001::hidden_route_edge_001;
 pub use knowledge_blocker_accuse_001::knowledge_blocker_accuse_001;
 pub use no_hidden_truth_planning_001::no_hidden_truth_planning_001;
 pub use no_human_advance_001::no_human_advance_001;
@@ -64,6 +73,7 @@ pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
 pub use view_model_local_actions_001::view_model_local_actions_001;
+pub use workplace_assignment_provenance_001::workplace_assignment_provenance_001;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GoldenFixture {
@@ -115,6 +125,11 @@ pub fn all() -> Vec<GoldenFixture> {
         ordinary_workday_001(),
         sleep_eat_work_001(),
         food_unavailable_replan_001(),
+        hidden_food_closed_container_001(),
+        hidden_food_unknown_route_001(),
+        workplace_assignment_provenance_001(),
+        hidden_route_edge_001(),
+        debug_omniscience_excluded_001(),
         routine_blocked_diagnostic_001(),
         planner_trace_001(),
         routine_no_teleport_001(),
@@ -122,6 +137,88 @@ pub fn all() -> Vec<GoldenFixture> {
         no_hidden_truth_planning_001(),
         no_human_day_001(),
     ]
+}
+
+fn hidden_truth_adversarial_fixture(
+    fixture_id_value: &'static str,
+    purpose: &'static str,
+    setup: Vec<&'static str>,
+    acceptance_assertions: Vec<&'static str>,
+) -> GoldenFixture {
+    let mut fixture = FixtureSchema {
+        fixture_id: fixture_id(fixture_id_value),
+        schema_version: schema_version(),
+        actors: vec![actor_schema("actor_mara", "home_mara")],
+        places: vec![
+            place_schema("home_mara", "Mara home", &["hidden_workshop"]),
+            place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
+        ],
+        doors: Vec::new(),
+        containers: vec![container_schema(
+            "hidden_pantry",
+            "home_mara",
+            false,
+            false,
+            &[],
+            false,
+        )],
+        items: Vec::new(),
+        affordances: vec![
+            affordance("eat", "food_hidden_pantry"),
+            affordance("move", "hidden_workshop"),
+            affordance("work_block", "workplace_hidden"),
+        ],
+        initial_beliefs: Vec::new(),
+        initial_needs: vec![initial_need("actor_mara", NeedKind::Hunger, 880)],
+        homes: vec![home_schema("actor_mara", "home_mara")],
+        sleep_places: Vec::new(),
+        food_supplies: vec![food_supply_in_container(
+            "food_hidden_pantry",
+            "hidden_pantry",
+            1,
+            220,
+        )],
+        workplaces: vec![workplace_schema(
+            "workplace_hidden",
+            "hidden_workshop",
+            &["actor_mara"],
+            4,
+            true,
+        )],
+        routine_templates: vec![routine_template_schema(
+            "routine_mara_hidden_truth_guard",
+            RoutineFamily::EatMeal,
+            vec![routine_step("consume_accessible_food", "eat")],
+            &["food_missing", "food_inaccessible"],
+        )],
+        routine_assignments: vec![routine_assignment_schema(
+            "actor_mara",
+            "routine_mara_hidden_truth_guard",
+            0,
+            6,
+        )],
+        day_windows: vec![day_window_schema("actor_mara", 0, 8)],
+    };
+    fixture.canonicalize();
+    GoldenFixture {
+        fixture,
+        contract: FixtureContract {
+            fixture_id: fixture_id_value,
+            purpose,
+            setup,
+            allowed_actions: vec![
+                "construct actor-known context from modeled visible inputs",
+                "run planner/transaction with actor-known provenance only",
+                "reject hidden physical truth absent observation or belief",
+            ],
+            expected_events_or_reports: vec![
+                "hidden physical facts are absent from actor-known context",
+                "planner proof provenance is actor-known-only",
+                "debug-only facts are not admitted to planning context",
+            ],
+            acceptance_assertions,
+        },
+    }
 }
 
 pub fn validate_fixture_contract_metadata(

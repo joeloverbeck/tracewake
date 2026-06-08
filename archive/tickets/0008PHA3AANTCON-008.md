@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-008: Hidden-truth adversarial fixtures + planner gates
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content`: new adversarial fixtures (hidden food/route/workplace/container/debug-omniscience); `tracewake-core`: gates asserting planners cannot use hidden truth
@@ -80,3 +80,28 @@ New core test asserting, per fixture, that the no-human transaction's chosen pro
 
 1. `cargo test -p tracewake-core --test hidden_truth_gates`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+1. Added five registered adversarial fixtures: `hidden_food_closed_container_001`, `hidden_food_unknown_route_001`, `workplace_assignment_provenance_001`, `hidden_route_edge_001`, and `debug_omniscience_excluded_001`.
+2. Added `crates/tracewake-core/tests/hidden_truth_gates.rs` with five provenance-oriented gates covering closed-container food, unknown-route food, workplace assignment provenance, hidden route edges, and debug-omniscience exclusion.
+3. Updated the content fixture registry and fixture-count/id expectations for the five new fixtures.
+4. The core gates assert actor-known provenance and planner/transaction outcomes without importing content fixtures into `tracewake-core`, preserving core's zero-dependency boundary.
+
+Deviations:
+
+1. The five content fixtures share a common adversarial fixture factory to keep the scenario data consistent; each fixture has distinct contract metadata for its §10.2 scenario.
+2. Core gates construct actor-known contexts directly rather than depending on content fixtures, so the provenance checks stay inside the core crate without adding a dev-dependency on `tracewake-content`.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test hidden_truth_gates` passed.
+2. `cargo test -p tracewake-content` passed.
+3. `cargo fmt --all --check` passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+5. `cargo build --workspace --all-targets --locked` passed.
+6. `cargo test --workspace` passed.
