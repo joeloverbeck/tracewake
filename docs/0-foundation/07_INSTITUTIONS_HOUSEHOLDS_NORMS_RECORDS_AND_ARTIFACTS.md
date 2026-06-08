@@ -419,3 +419,67 @@ How can it fail, go stale, be contradicted, be forged, be lost, or be abused?
 Can NPCs use or suffer the same machinery?
 Can the TUI show the actor-known version and debug show the causal version?
 ```
+
+## 2026 hardening: institutions as fallible procedural cognition
+
+Institutions are not omniscient containers for correct answers. They are fallible social machines made of actors, roles, offices, records, artifacts, budgets, procedures, norms, thresholds, jurisdiction, routines, reputation, incentives, and failure modes.
+
+An institution may know, suspect, decide, post, pay, punish, or ignore only through modeled institutional knowledge:
+
+- received reports;
+- testimony;
+- records and ledgers;
+- notices;
+- inspections;
+- patrol observations;
+- role duties and office hours;
+- procedure state;
+- evidence thresholds;
+- budgets and authorized resources;
+- prior institutional memory;
+- explicit LOD summary ancestry.
+
+It must not react because the hidden world truth says a crime, threat, debt, route danger, monster migration, or contract completion occurred.
+
+## Records and artifacts as belief carriers
+
+Records are durable carriers of claims, not truth. A record may be accurate, false, stale, forged, incomplete, misfiled, unread, destroyed, contradicted, or procedurally valid but unjust.
+
+A record, notice, contract, ledger, bounty posting, patrol report, tax roll, court finding, work assignment, or household note requires:
+
+- physical or storage identity;
+- author, issuer, scribe, or procedure source;
+- claim/proposition content;
+- creation time and place;
+- reader/access history where relevant;
+- amendment/revocation/staleness lifecycle;
+- relation to an institution, household, actor, or procedure;
+- provenance and causal ancestry sufficient for replay.
+
+A notice board is not a task menu. A bounty is not a quest. A contract is not an objective. They are world artifacts that can be missed, misread, refused, contested, completed without recognition, paid late, left stale, or exploited.
+
+## Institutional procedure chain
+
+Institutional consequences must remain decomposed:
+
+```text
+event or claim -> observation/report/testimony/record -> intake or discovery -> procedure opened or ignored -> evidence threshold considered -> provisional belief/suspicion/decision -> action by role-bearing actors -> record/notice/order/payment/sanction -> appeal, contradiction, staleness, or closure
+```
+
+No stage implies the next automatically.
+
+Examples:
+
+- A caravan survivor reports a monster attack; the authority may believe, doubt, delay, record, investigate, post a notice, offer payment, warn travelers, or ignore it depending on institutional knowledge, resources, norms, jurisdiction, and priorities.
+- A guard may suspect the wrong actor because testimony, bias, opportunity, or stale records support that suspicion.
+- A work assignment may exist because a household or workplace made it known to an actor, not because the scheduler knows a true workplace table.
+
+## Budgets, resources, and role obligations
+
+Institutions and households cannot create consequences from nowhere. Payment, bounty, wages, rations, tools, jail space, patrol time, office availability, clerical labor, seals, paper, rumor channels, and authority attention are resources. They may be abstracted at first, but must not be treated as plot fuel.
+
+Role obligations are actor-known or institution-known only when assigned, learned, remembered, recorded, scheduled, or publicly normative. They can conflict with needs, fear, relationships, fatigue, hunger, corruption, bias, and survival.
+
+## Genre-neutral institutions
+
+Fantasy guilds, Lovecraftian cult archives, post-apocalyptic councils, mundane town offices, households, caravans, patrols, clinics, temples, courts, and workshops are domain-pack institutions. The constitutional rules remain the same: institutions act through agents, records, resources, procedures, and beliefs, not hidden truth or narrative necessity.

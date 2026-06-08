@@ -308,3 +308,58 @@ surface prose cannot mutate authoritative state
 ```
 
 If language can invent reality, the feature is not Tracewake.
+
+## 2026 hardening: language is a surface over structured speech acts
+
+LLMs, templates, parsers, and prose renderers may help with language. They must not become simulation brains.
+
+Allowed LLM or language-surface roles, behind validation:
+
+- render a structured speech act into natural language;
+- parse player/NPC utterance into candidate structured speech acts;
+- summarize actor-known memories for prompt compression;
+- suggest phrasing consistent with an actor's beliefs, personality, relationship, speech style, and context;
+- classify ambiguous utterance candidates for deterministic validation;
+- generate non-authoritative debug summaries clearly marked as debug.
+
+Forbidden roles:
+
+- mutate authoritative state directly;
+- decide that a claim is true;
+- decide action success;
+- choose agent goals from hidden prompt context;
+- create records/notices/bounties/institutional facts without validated procedure;
+- reveal hidden truth through dialogue;
+- merge human/player knowledge into actor knowledge;
+- act as a drama director;
+- make live nondeterministic output required for replay or acceptance tests.
+
+## Prompt packet rule
+
+Any future LLM prompt packet for actor speech must be actor-filtered. It may include only information available to the speaker or listener role as appropriate:
+
+- current perceived context;
+- actor beliefs, memories, expectations, intentions, needs, role, relationship, and mood where modeled;
+- speech act purpose and allowed propositions;
+- known records/notices/read artifacts;
+- recent actor-known events;
+- stylistic constraints;
+- forbidden hidden facts and validation schema.
+
+A prompt packet must not include hidden truth "for better writing" if the output could influence ordinary actor speech, listener beliefs, or action proposals.
+
+## Lies, misunderstanding, persuasion, and hearsay
+
+A speech act can create beliefs only through listener interpretation and modeled uptake.
+
+- A lie is speaker-relative: it depends on what the speaker believes and intends.
+- A misunderstanding is listener-relative: it depends on perception, language, trust, knowledge, context, and ambiguity.
+- Persuasion modifies belief/confidence or intention only through modeled social reasoning.
+- Hearsay and rumor carry source quality and may degrade.
+- A true statement by a speaker who lacks basis may be a guess, rumor, or coincidence, not authoritative truth.
+
+LLM wording can render these states. It cannot decide them.
+
+## Determinism and replay
+
+Acceptance tests must run without live LLM calls. Future LLM surfaces require deterministic mocks or stored validated outputs for replay. The event log commits structured speech acts and their validated consequences, not raw language as authority. Raw text may be stored as surface artifact, evidence for debugging, or record content where modeled, but the simulation meaning must be structured enough to validate and replay.

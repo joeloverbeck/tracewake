@@ -342,3 +342,74 @@ What traces, records, or beliefs crossed the LOD boundary?
 What fidelity limits remain?
 Can debug mode reconstruct the causal path?
 ```
+
+## 2026 hardening: regional causality under the same epistemic rules
+
+Large-scale simulation must not become a license for hidden direction. A region can be abstracted, but abstraction must remain causal and epistemic.
+
+Regional processes may include:
+
+- travel and roads;
+- settlements and points of interest;
+- households and workplaces;
+- patrols and caravans;
+- wilderness zones and territories;
+- threat migration;
+- ecological pressure;
+- disease, weather, fire, resource depletion, replenishment, and trade pressure;
+- rumors, reports, notices, records, and institutional signals;
+- boundary events from outside the simulated region.
+
+These processes may be summarized, probabilistic, batched, or low-detail. They must still have sources, participants or aggregate holders, timing, causal ancestry, and information consequences.
+
+## LOD truth firewall
+
+LOD may reduce fidelity. It may not erase the difference between truth and knowledge.
+
+A low-detail process may know summary truth for validation or aggregation, but promoted actors and institutions may only act on:
+
+- remembered or summarized actor-known facts;
+- institutional records or public artifacts;
+- reports, rumors, observations, and route knowledge;
+- role assignments and obligations;
+- summary events with preserved information ancestry.
+
+Promotion must not grant the actor the hidden truth used by an aggregate process unless the summary event explicitly models that knowledge reaching the actor.
+
+## Summary events
+
+A summary event is acceptable only when it preserves enough information for later audit:
+
+```yaml
+SummaryRegionalEvent:
+  process: route_threat_migration
+  time_range: ...
+  causes:
+    - territorial_pressure
+    - food_scarcity
+    - bandit_displacement
+  truth_effects:
+    - threat territory changed
+    - caravan risk increased
+  information_effects:
+    - patrol rumor heard by guard_outpost_03
+    - no village actor directly observed the lair
+  provenance:
+    - prior events or content-seeded pressures
+  promotion_obligations:
+    - when local region is promoted, expose only reported/observed traces unless direct discovery occurs
+```
+
+The exact schema is architectural. The requirement is constitutional.
+
+## Scale target without impossible fidelity
+
+Tracewake should eventually support Skyrim-scale or similar regional density, but not by simulating every room and every thought at full resolution forever. The correct direction is layered fidelity:
+
+- high-detail possessed/local salient actors and places;
+- medium-detail local settlement ordinary life;
+- low-detail regional processes;
+- boundary events and summarized histories;
+- promotion/demotion with ancestry.
+
+A toy village that cannot scale is a failure. A giant region whose actors know truth by convenience is also a failure. The foundation requires scalable causal honesty.

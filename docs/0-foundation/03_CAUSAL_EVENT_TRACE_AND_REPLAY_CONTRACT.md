@@ -311,3 +311,57 @@ Can debug explain it without prose authority?
 ```
 
 If the chain cannot be explained, the feature is not foundation-compliant.
+
+## 2026 hardening: cognition and provenance are replay obligations
+
+Event sourcing in Tracewake is not only for physical state. It is also the audit substrate for cognition.
+
+A replay that reconstructs item locations while losing why an actor proposed an action is not sufficient. A foundation-conformant replay must preserve, rebuild, or fail loudly for the causal ancestry of:
+
+- observations and their perception channels;
+- belief updates, stale beliefs, contradictions, and memory changes;
+- action proposals and their actor-known inputs;
+- selected intentions, routine/method choices, local plans, rejected candidates, and stuck diagnostics;
+- validation results and actor-visible versus debug-only why-not information;
+- speech acts, reports, notices, records, rumors, testimony, lies, promises, and institutional decisions;
+- LOD summaries and promoted-region ancestry.
+
+## Decision trace contract
+
+A decision trace is not flavor text. It is replay-relevant diagnostic state.
+
+A conforming decision trace must be able to answer:
+
+```text
+Which actor decided?
+What triggered the decision?
+What did the actor know, believe, perceive, remember, expect, intend, need, and owe?
+Which candidate goals or actions were considered?
+Which were rejected and why?
+Which intention or routine continued, changed, failed, or completed?
+Which proposal entered the action pipeline?
+Which authoritative validation checks succeeded or failed?
+What did the actor learn from the result, if anything?
+What remained debug-only?
+```
+
+The exact schema may change, but the answers must not be reconstructed by parsing human display strings.
+
+## Provenance-carrying events
+
+Events that create or change knowledge-bearing state must carry sufficient provenance. This includes observation source, speaker/listener, record author, artifact identity, claim source, confidence or uncertainty where modeled, event time, acquisition time, and links to enabling causes.
+
+A belief update without holder and source is invalid. A record without issuer/author/source is invalid. A notice without origin and lifecycle is invalid. A summary event without ancestry is invalid for any later promoted behavior that depends on it.
+
+## Truth firewall in replay
+
+Replay must prove not merely that final state matches, but that hidden truth did not contaminate proposal generation. At minimum, replay/debug projections must support hidden-truth audits for high-salience or acceptance-gate decisions:
+
+- actor-known inputs contain no debug-only or validator-only facts;
+- validator truth used for success/failure does not appear in later cognition unless a modeled observation, report, record, or memory update exposed it;
+- embodied view-model derivation uses actor-known context;
+- debug-only comparisons stay non-diegetic.
+
+## LOD summaries
+
+LOD compaction and regional summaries may compress low-salience activity, but they must not erase the distinction between what happened and who knew it. Summary events must preserve causal ancestry, information ancestry, and promotion obligations sufficient to prevent promoted actors or institutions from awakening with unexplained truth.

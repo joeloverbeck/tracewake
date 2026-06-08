@@ -344,3 +344,60 @@ Can it run with no human present?
 ```
 
 If not, the feature is not done.
+
+## 2026 hardening: possession parity and debug quarantine
+
+Human possession is a viewpoint and input binding. It is never a cognition upgrade.
+
+The possessed actor must remain an ordinary actor with the same:
+
+- body limits;
+- needs and fatigue;
+- current intention and routine state;
+- memories and beliefs;
+- relationships and obligations;
+- knowledge sources and ignorance;
+- social risk;
+- action registry;
+- validation pipeline;
+- ability to guess, speculate, search, ask, lie, refuse, and fail.
+
+Possession must not transfer knowledge from the human's prior bodies, debug inspection, external notes, or player memory into actor-known state. If the human tries to act on out-of-character knowledge, the pipeline may allow only actions supportable as actor-known, reckless, speculative, search-based, or socially plausible attempts. It must not silently treat debug truth as actor knowledge.
+
+## Embodied view models
+
+Embodied view models must derive from actor-known context. They may include:
+
+- current perception;
+- remembered/known places and entities;
+- actor beliefs and expectations;
+- actor-readable records and notices;
+- affordances the actor can perceive or believe possible;
+- actor-filtered why-not;
+- uncertainty and stale-risk indicators when actor-relevant.
+
+They must exclude:
+
+- hidden item locations;
+- hidden culprits;
+- hidden motives;
+- debug truth;
+- institution truth not known to the actor;
+- other possessed actors' knowledge;
+- LLM-invented facts;
+- future quest/objective markers.
+
+## Debug mode
+
+Debug mode may reveal truth, hidden traces, causal graphs, all beliefs, planner state, scheduler state, hidden-truth audits, validation internals, projection diffs, and replay checksums. It must be visibly non-diegetic and structurally unable to feed ordinary cognition.
+
+Debug surfaces must not be the only way to use or inspect a runnable feature. First-slice systems must be playable in embodied mode and diagnosable in debug mode.
+
+## Why-not discipline
+
+Why-not output has two layers:
+
+- actor-visible reasons, such as "you do not see food here," "the office appears closed," "you do not know whom to accuse," or "you are too tired to continue";
+- debug-only reasons, such as true food location, true office staff location, true culprit, hidden route blocker, or validator internals.
+
+The actor-visible layer may inform future actor cognition only when modeled as perception, failed attempt, memory, or explicit feedback. The debug-only layer must remain quarantined.

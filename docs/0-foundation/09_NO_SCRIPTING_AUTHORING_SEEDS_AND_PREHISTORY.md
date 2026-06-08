@@ -331,3 +331,54 @@ Does it smuggle in drama direction, quest state, player privilege, genre assumpt
 ```
 
 If it guarantees an outcome, remove it or convert it into causal machinery.
+
+## 2026 hardening: no authored causal chains disguised as systems
+
+The no-scripting rule applies to hidden truth, institutions, routines, LOD summaries, notices, bounties, and language surfaces.
+
+Forbidden:
+
+```text
+spawn bounty because the plot needs a monster hunt
+make the guard suspect the true culprit because the theft happened
+send adventurers because the notice is a quest
+move a monster because the player needs danger
+make a caravan survivor report because a scenario chain requires a report
+choose food/work/sleep actions from raw state and explain them as routine behavior afterward
+```
+
+Allowed:
+
+```text
+a monster migrates because territory pressure, injury, hunger, weather, conflict, fear, or regional process events move it
+a caravan is attacked because route, timing, threat behavior, preparedness, and chance align
+a survivor reports because they survive, know a receiver, judge reporting useful, and can travel or speak
+an authority posts a notice because a report/procedure/resource threshold leads to that decision
+travelers act on a notice because they read it, believe or doubt it, have motives/resources, and decide to pursue it
+another actor may already have killed the monster because the world continued causally
+```
+
+The famous monster/bandits/caravan/bounty/adventurers chain is a diagnostic example of future emergent richness, not an authored acceptance script. Every link in such a chain must be independently optional, interruptible, misinformed, delayed, contradicted, or fail-able.
+
+## Seeds, fixtures, and prehistory
+
+Seeds may establish possibility space: entities, places, relationships, memories, records, routine assignments, tensions, histories, debts, injuries, territories, institutional roles, rumors, resources, and environmental pressures.
+
+Seeds must not establish hidden outcome obligations. A seed may say "there is a posted notice," "a hunter believes a beast moved north," or "the court record contains a false accusation." It must not say "the player will find the beast," "the thief will be revealed," or "the town will post a bounty after three days unless the player intervenes."
+
+Authored starting knowledge must still have provenance: prehistory event, memory source, record source, inherited institutional ledger, rumor source class, or explicit fixture setup marker. The marker may be abstract, but it cannot be absent.
+
+## Anti-contamination authoring review
+
+Content review must reject:
+
+- hidden objective states;
+- guaranteed causal chains;
+- culprit-truth fields consumed by ordinary cognition;
+- notice boards acting as task menus;
+- rewards spawned without institutional resource/payment process;
+- records without source;
+- routines without failure modes;
+- regional events without summary ancestry;
+- LLM prompts that include hidden truth as narrative context for ordinary speech;
+- fixtures whose tests pass because debug truth is accidentally available.

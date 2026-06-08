@@ -423,3 +423,45 @@ Scenario content and systems must be inspected for hidden outcome chains, player
 ### INV-098 — Feature acceptance is harsh
 
 A runnable feature is done only when it is caused, agent-possible, eventful, trace-aware, epistemically bounded, TUI-playable, debug-inspectable, no-human runnable, replay-safe, LLM-independent, non-scripted, and regression-tested.
+
+## 2026 hardening invariants: truth firewall and cognition authority
+
+These invariants are added because implementation work on needs, routines, no-human simulation, and anti-contamination exposed a gap: earlier foundation doctrine correctly rejected omniscience, but did not make the actor decision boundary explicit enough to prevent convenient scheduler/planner shortcuts.
+
+### Truth firewall
+
+**INV-099 — Truth may validate actions, but truth may not plan them.** Authoritative world state may decide whether an attempted action succeeds, fails, or is rejected. Authoritative hidden truth may not select an actor's goal, plan, routine, speech interpretation, embodied affordance, or institutional conclusion unless it has entered the relevant holder's actor-known or institution-known context through a modeled causal information path.
+
+**INV-100 — Hidden-truth cognition is forbidden.** No ordinary actor, possessed actor, autonomous agent, routine, HTN method, local planner, institution, notice process, speech parser, or LLM surface may read debug truth or hidden world state as cognition input.
+
+**INV-101 — Actor-known context is sealed.** Action proposal generation must consume a sealed actor-known context or directly equivalent boundary. The context must identify what the actor currently perceives, remembers, believes, expects, intends, is obliged to do, has been assigned, has read, has heard, or can infer under modeled rules. It must not contain validator-only truth.
+
+**INV-102 — Cognition inputs require provenance.** Every belief, memory, observation, claim, expectation, contradiction, actor-known affordance, routine premise, institutional assignment, rumor, notice, report, record, and action-relevant inference must carry source/provenance sufficient for replay and debug review. Missing provenance is a design smell and, for action-relevant cognition, a rejection condition.
+
+**INV-103 — The scheduler is not a cognition authority.** A scheduler may choose the next actor/time window, apply due scheduled effects, and invoke the decision transaction. It must not construct action proposals from raw state, routine labels, need thresholds, true item locations, true workplace locations, true route availability, true danger, or true institutional outcomes.
+
+**INV-104 — Routines and needs do not dispatch primitive actions directly.** Needs create pressures; routines provide defeasible method structure; intentions commit attention. None of them may bypass candidate generation, actor-known context, local planning, proposal construction, shared validation, and event commitment.
+
+**INV-105 — Actor decision traces are authoritative diagnostic data.** Decision traces, stuck diagnostics, hidden-truth audits, why-not reports, routine/intention lifecycle changes, and planner outputs must be typed or structurally inspectable. Display strings may summarize them, but display strings must not be the authoritative diagnostic substrate.
+
+**INV-106 — Validation failure feeds replanning without leakage.** When a proposal fails validation against authoritative truth, the actor may learn only modeled consequences: rejection reasons available to the actor, observations, failed attempts, social responses, or newly perceived blockers. Validator-only details remain debug-only unless a causal information channel exposes them.
+
+**INV-107 — Debug omniscience is quarantined.** Debug mode may compare actor belief to truth, inspect provenance graphs, inspect hidden state, and flag leakage. Debug output must not create actor knowledge, institution knowledge, records, rumors, notices, speech acts, or future plans unless an explicit debug/test event is marked as non-ordinary.
+
+**INV-108 — Human possession is cognition-neutral.** Binding a human controller to an actor changes input and viewpoint only. It does not grant hidden-truth planning, transfer knowledge from other possessions, reset intentions, improve routine competence, or create player-only candidate actions.
+
+**INV-109 — LLM output is never cognition authority without validation.** LLMs may render, parse, summarize, or propose structured speech acts behind validation. They may not introduce hidden truth, choose world actions, mutate state, create records, decide institutional outcomes, or plan from information outside the actor-filtered prompt packet.
+
+**INV-110 — LOD and summary processes must preserve the firewall.** Lower-detail simulation may summarize action and cognition, but summary events must retain enough causal and epistemic ancestry to explain what the actor, group, institution, or region could know and why later promoted simulation is not contaminated by hidden truth.
+
+## Enforcement reading
+
+Any implementation that produces plausible behavior by reading hidden truth has failed even if the test passes. Tests must be corrected when they reward:
+
+- actor proposals derived from raw physical state;
+- institutions reacting to true events rather than reports, observations, records, or procedures;
+- embodied views generated from truth rather than actor-known context;
+- routine labels that dispatch primitive actions without actor-known planning;
+- debug strings parsed as proof;
+- LLM prose treated as fact;
+- no-human simulation that advances only because shortcut state is available.
