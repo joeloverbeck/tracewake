@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use tracewake_core::agent::{
     Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineCondition,
     RoutineExecution, RoutineFamily, RoutineStep, RoutineStepProposal,
@@ -281,7 +283,13 @@ impl FixtureSchema {
     }
 
     pub fn to_physical_state(&self) -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut actors = BTreeMap::new();
+        let mut places = BTreeMap::new();
+        let mut doors = BTreeMap::new();
+        let mut containers = BTreeMap::new();
+        let mut items = BTreeMap::new();
+        let mut food_supplies = BTreeMap::new();
+        let mut workplaces = BTreeMap::new();
 
         for place in &self.places {
             let mut place_state =
@@ -289,15 +297,15 @@ impl FixtureSchema {
             place_state
                 .adjacent_place_ids
                 .extend(place.adjacent_place_ids.iter().cloned());
-            state.places.insert(place.place_id.clone(), place_state);
+            places.insert(place.place_id.clone(), place_state);
         }
 
         for actor in &self.actors {
-            state.actors.insert(
+            actors.insert(
                 actor.actor_id.clone(),
                 ActorBody::new(actor.actor_id.clone(), actor.current_place_id.clone()),
             );
-            if let Some(place) = state.places.get_mut(&actor.current_place_id) {
+            if let Some(place) = places.get_mut(&actor.current_place_id) {
                 place.local_actor_ids.insert(actor.actor_id.clone());
             }
         }
@@ -310,13 +318,13 @@ impl FixtureSchema {
             );
             door_state.is_open = door.is_open;
             door_state.is_locked = door.is_locked;
-            if let Some(place) = state.places.get_mut(&door.endpoint_a) {
+            if let Some(place) = places.get_mut(&door.endpoint_a) {
                 place.connected_door_ids.insert(door.door_id.clone());
             }
-            if let Some(place) = state.places.get_mut(&door.endpoint_b) {
+            if let Some(place) = places.get_mut(&door.endpoint_b) {
                 place.connected_door_ids.insert(door.door_id.clone());
             }
-            state.doors.insert(door.door_id.clone(), door_state);
+            doors.insert(door.door_id.clone(), door_state);
         }
 
         for container in &self.containers {
@@ -330,14 +338,12 @@ impl FixtureSchema {
                 .contents
                 .extend(container.contents.iter().cloned());
             container_state.contents_visible_when_closed = container.contents_visible_when_closed;
-            if let Some(place) = state.places.get_mut(&container.place_id) {
+            if let Some(place) = places.get_mut(&container.place_id) {
                 place
                     .local_container_ids
                     .insert(container.container_id.clone());
             }
-            state
-                .containers
-                .insert(container.container_id.clone(), container_state);
+            containers.insert(container.container_id.clone(), container_state);
         }
 
         for item in &self.items {
@@ -345,22 +351,22 @@ impl FixtureSchema {
             item_state.portable = item.portable;
             match &item.location {
                 Location::AtPlace(place_id) => {
-                    if let Some(place) = state.places.get_mut(place_id) {
+                    if let Some(place) = places.get_mut(place_id) {
                         place.local_item_ids.insert(item.item_id.clone());
                     }
                 }
                 Location::CarriedBy(actor_id) => {
-                    if let Some(actor) = state.actors.get_mut(actor_id) {
+                    if let Some(actor) = actors.get_mut(actor_id) {
                         actor.carried_item_ids.insert(item.item_id.clone());
                     }
                 }
                 Location::InContainer(_) => {}
             }
-            state.items.insert(item.item_id.clone(), item_state);
+            items.insert(item.item_id.clone(), item_state);
         }
 
         for food in &self.food_supplies {
-            state.food_supplies.insert(
+            food_supplies.insert(
                 food.food_supply_id.clone(),
                 FoodSupplyState::new(
                     food.food_supply_id.clone(),
@@ -386,19 +392,27 @@ impl FixtureSchema {
             workplace_state.max_fatigue_to_start = workplace.max_fatigue_to_start;
             workplace_state.max_hunger_to_start = workplace.max_hunger_to_start;
             workplace_state.access_open = workplace.access_open;
-            state
-                .workplaces
-                .insert(workplace.workplace_id.clone(), workplace_state);
+            workplaces.insert(workplace.workplace_id.clone(), workplace_state);
         }
 
-        state
+        PhysicalState::from_seed_parts(
+            actors,
+            places,
+            doors,
+            containers,
+            items,
+            food_supplies,
+            workplaces,
+        )
     }
 
     pub fn to_agent_state(&self) -> AgentState {
-        let mut state = AgentState::default();
+        let mut needs_by_actor: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
+        let mut intentions = BTreeMap::new();
+        let mut active_intention_by_actor = BTreeMap::new();
+        let mut routine_executions = BTreeMap::new();
         for need in &self.initial_needs {
-            state
-                .needs_by_actor
+            needs_by_actor
                 .entry(need.actor_id.clone())
                 .or_default()
                 .insert(
@@ -411,10 +425,7 @@ impl FixtureSchema {
                 );
         }
         for actor in &self.actors {
-            let needs = state
-                .needs_by_actor
-                .entry(actor.actor_id.clone())
-                .or_default();
+            let needs = needs_by_actor.entry(actor.actor_id.clone()).or_default();
             for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
                 needs.entry(kind).or_insert_with(|| {
                     NeedState::initial(kind, 100, NeedChangeCause::FixtureInitial)
@@ -460,13 +471,11 @@ impl FixtureSchema {
                 assignment.start_tick,
                 trace_id.clone(),
             );
-            state
-                .active_intention_by_actor
+            active_intention_by_actor
                 .entry(assignment.actor_id.clone())
                 .or_insert_with(|| intention_id.clone());
-            state.intentions.entry(intention_id).or_insert(intention);
-            state
-                .routine_executions
+            intentions.entry(intention_id).or_insert(intention);
+            routine_executions
                 .entry(routine_execution_id.clone())
                 .or_insert_with(|| {
                     RoutineExecution::new(
@@ -482,7 +491,14 @@ impl FixtureSchema {
                     )
                 });
         }
-        state
+        AgentState::from_seed_parts(
+            needs_by_actor,
+            intentions,
+            active_intention_by_actor,
+            routine_executions,
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
     }
 }
 

@@ -7,6 +7,7 @@ use crate::epistemics::{
     Belief, Channel, Confidence, Contradiction, ContradictionKind, EpistemicProjection, HolderKind,
     Observation, ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
 };
+use crate::events::mutation::{AgentMutationCapability, WorldMutationCapability};
 use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, FoodSupplyId,
@@ -107,6 +108,15 @@ pub fn apply_event(
     state: &mut PhysicalState,
     event: &EventEnvelope,
 ) -> Result<ApplyOutcome, ApplyError> {
+    let capability = WorldMutationCapability::mint();
+    apply_event_with_capability(state, event, capability)
+}
+
+fn apply_event_with_capability(
+    state: &mut PhysicalState,
+    event: &EventEnvelope,
+    _capability: WorldMutationCapability,
+) -> Result<ApplyOutcome, ApplyError> {
     if !event.has_supported_schema_version() {
         return Err(ApplyError::UnsupportedSchemaVersion(
             event.event_schema_version.as_str().to_string(),
@@ -206,6 +216,15 @@ pub fn apply_epistemic_event(
 pub fn apply_agent_event(
     state: &mut AgentState,
     event: &EventEnvelope,
+) -> Result<ApplyOutcome, ApplyError> {
+    let capability = AgentMutationCapability::mint();
+    apply_agent_event_with_capability(state, event, capability)
+}
+
+fn apply_agent_event_with_capability(
+    state: &mut AgentState,
+    event: &EventEnvelope,
+    _capability: AgentMutationCapability,
 ) -> Result<ApplyOutcome, ApplyError> {
     if !event.has_supported_schema_version() {
         return Err(ApplyError::UnsupportedSchemaVersion(
@@ -1541,6 +1560,27 @@ mod tests {
             apply_event(&mut state, &moved),
             Err(ApplyError::PreconditionMismatch { .. })
         ));
+        assert_eq!(state, before);
+    }
+
+    #[test]
+    fn stream_mismatch_rejects_before_mutation() {
+        let mut state = base_state();
+        let before = state.clone();
+        let mut moved = event(
+            EventKind::ActorMoved,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("from_place_id", "shop_front"),
+                PayloadField::new("to_place_id", "back_room"),
+            ],
+        );
+        moved.stream = EventStream::Diagnostic;
+
+        assert_eq!(
+            apply_event(&mut state, &moved),
+            Err(ApplyError::EventKindStreamMismatch)
+        );
         assert_eq!(state, before);
     }
 

@@ -488,6 +488,50 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_event_schema_version_replay_fails_loudly() {
+        let initial = initial_state();
+        let mut event = EventEnvelope::new_v1(
+            EventId::new("event_unknown_world_version").unwrap(),
+            EventKind::ActorMoved,
+            0,
+            0,
+            SimTick::new(3),
+            ordering_key("move"),
+            ContentManifestId::new("phase1_manifest").unwrap(),
+        );
+        event.payload = vec![
+            PayloadField::new("actor_id", "actor_tomas"),
+            PayloadField::new("from_place_id", "shop_front"),
+            PayloadField::new("to_place_id", "back_room"),
+        ];
+        event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
+
+        let mut live_state = initial.clone();
+        let live_result = crate::events::apply::apply_event(&mut live_state, &event);
+        assert_eq!(
+            live_result,
+            Err(crate::events::apply::ApplyError::UnsupportedSchemaVersion(
+                "event_schema_v999".to_string()
+            ))
+        );
+        assert_eq!(live_state, initial);
+
+        let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
+        let report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
+
+        assert_eq!(report.event_count_applied, 0);
+        assert_eq!(report.final_state, initial);
+        assert_eq!(report.unsupported_versions, ["event_schema_v999"]);
+        assert!(report.invariant_violations.is_empty());
+    }
+
+    #[test]
     fn agent_state_rebuild_is_deterministic_and_catches_need_delta_divergence() {
         let initial = initial_state();
         let log = EventLog::from_ordered_events_for_replay_tests(vec![

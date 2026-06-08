@@ -1,6 +1,10 @@
+use std::collections::BTreeSet;
+
 use tracewake_content::fixtures::{self, validate_fixture_contract_metadata, FixtureContract};
 use tracewake_content::schema::InitialBeliefSchema;
-use tracewake_content::validate::{validate_fixture, validate_fixture_bytes, ValidationPhase};
+use tracewake_content::validate::{
+    content_field_registry, validate_fixture, validate_fixture_bytes, ValidationPhase,
+};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::RoutineStep;
 use tracewake_core::epistemics::{Channel, Confidence, Proposition, SourceRef};
@@ -303,6 +307,72 @@ fn forbidden_content_epistemic_seed_reference_duplicate_and_version_failures_are
         .any(|error| error.code == "unsupported_epistemic_schema_version"));
 }
 
+#[test]
+fn content_prose_born_fact_rejected() {
+    let source = fixtures::prose_born_fact_rejected_001();
+    let report = validate_fixture_bytes(&source.bytes, &registry())
+        .unwrap_err()
+        .report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "prose_born_fact"
+    }));
+}
+
+#[test]
+fn content_new_field_requires_validator_and_canonical_serialization() {
+    let schema_fields = fixture_schema_fields();
+    let registrations = content_field_registry();
+    let registered_fields = registrations
+        .iter()
+        .map(|registration| registration.schema_field)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        schema_fields, registered_fields,
+        "every FixtureSchema field must have a content field registration"
+    );
+
+    let serialization_source = include_str!("../src/serialization.rs");
+    let validation_source = include_str!("../src/validate.rs");
+    let mut tags = BTreeSet::new();
+    let mut diagnostic_codes = BTreeSet::new();
+    for registration in registrations {
+        assert!(
+            !registration.provenance_decision.is_empty(),
+            "missing provenance/no-script decision for {}",
+            registration.schema_field
+        );
+        assert!(
+            !registration.diagnostic_code.is_empty(),
+            "missing diagnostic code for {}",
+            registration.schema_field
+        );
+        assert!(
+            tags.insert(registration.canonical_tag),
+            "duplicate canonical tag {}",
+            registration.canonical_tag
+        );
+        assert!(
+            diagnostic_codes.insert((registration.schema_field, registration.diagnostic_code)),
+            "duplicate field diagnostic registration for {}",
+            registration.schema_field
+        );
+        assert!(
+            serialization_source.contains(&format!("\"{}|", registration.canonical_tag))
+                || serialization_source.contains(&format!("[\"{}\"", registration.canonical_tag)),
+            "missing canonical serialization/deserialization rule for {} ({})",
+            registration.schema_field,
+            registration.canonical_tag
+        );
+        assert!(
+            validation_source.contains(&format!("\"{}\"", registration.diagnostic_code)),
+            "diagnostic code {} for {} is not emitted by validate.rs",
+            registration.diagnostic_code,
+            registration.schema_field
+        );
+    }
+}
+
 fn valid_seed(id: &str) -> InitialBeliefSchema {
     InitialBeliefSchema::new_expectation(
         BeliefId::new(id).unwrap(),
@@ -315,6 +385,29 @@ fn valid_seed(id: &str) -> InitialBeliefSchema {
         SourceRef::Event(EventId::new("event_authored_prehistory_tomas_coin").unwrap()),
         SimTick::ZERO,
     )
+}
+
+fn fixture_schema_fields() -> BTreeSet<&'static str> {
+    let schema_source = include_str!("../src/schema.rs");
+    let start = schema_source
+        .find("pub struct FixtureSchema")
+        .expect("FixtureSchema exists");
+    let body_start = schema_source[start..]
+        .find('{')
+        .map(|index| start + index + 1)
+        .expect("FixtureSchema has a body");
+    let body_end = schema_source[body_start..]
+        .find("\n}")
+        .map(|index| body_start + index)
+        .expect("FixtureSchema body closes");
+    schema_source[body_start..body_end]
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let field = trimmed.strip_prefix("pub ")?.split_once(':')?.0;
+            Some(field)
+        })
+        .collect()
 }
 
 fn encode(value: &str) -> String {

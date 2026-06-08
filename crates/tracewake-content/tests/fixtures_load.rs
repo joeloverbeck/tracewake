@@ -210,14 +210,14 @@ fn fixtures_load_phase3a_fixture_into_core_shapes_with_canonical_ordering() {
 
     assert!(loaded
         .canonical_world
-        .food_supplies
+        .food_supplies()
         .contains_key(&FoodSupplyId::new("food_soup_pot").unwrap()));
     assert!(loaded
         .canonical_world
-        .workplaces
+        .workplaces()
         .contains_key(&WorkplaceId::new("workplace_shop").unwrap()));
     assert_eq!(
-        loaded.canonical_agent_state.needs_by_actor[&ActorId::new("actor_tomas").unwrap()]
+        loaded.canonical_agent_state.needs_by_actor()[&ActorId::new("actor_tomas").unwrap()]
             [&NeedKind::Hunger]
             .value(),
         350

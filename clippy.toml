@@ -1,0 +1,16 @@
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "Tracewake outcome paths must use deterministic, key-ordered collections such as BTreeMap." },
+  { path = "std::collections::HashSet", reason = "Tracewake outcome paths must use deterministic, key-ordered collections such as BTreeSet." },
+  { path = "std::time::SystemTime", reason = "Tracewake outcome paths must use SimTick and event/replay material, never wall-clock time." },
+  { path = "std::time::Instant", reason = "Tracewake outcome paths must use SimTick and event/replay material, never wall-clock time." },
+]
+
+disallowed-methods = [
+  { path = "std::thread::spawn", reason = "Thread scheduling is nondeterministic for outcome-affecting simulation code." },
+  { path = "std::process::Command::new", reason = "Process execution cannot influence deterministic replay or simulation outcomes." },
+  { path = "std::fs::read", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
+  { path = "std::fs::read_to_string", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
+  { path = "std::fs::File::open", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
+  { path = "std::net::TcpStream::connect", reason = "Network timing and responses cannot influence deterministic replay." },
+  { path = "std::net::UdpSocket::bind", reason = "Network timing and responses cannot influence deterministic replay." },
+]

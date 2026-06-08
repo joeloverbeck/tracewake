@@ -120,23 +120,177 @@ pub struct PlaceState {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PhysicalState {
-    pub actors: BTreeMap<ActorId, ActorBody>,
-    pub places: BTreeMap<PlaceId, PlaceState>,
-    pub doors: BTreeMap<DoorId, DoorState>,
-    pub containers: BTreeMap<ContainerId, ContainerState>,
-    pub items: BTreeMap<ItemId, ItemState>,
-    pub food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
-    pub workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+    pub(crate) actors: BTreeMap<ActorId, ActorBody>,
+    pub(crate) places: BTreeMap<PlaceId, PlaceState>,
+    pub(crate) doors: BTreeMap<DoorId, DoorState>,
+    pub(crate) containers: BTreeMap<ContainerId, ContainerState>,
+    pub(crate) items: BTreeMap<ItemId, ItemState>,
+    pub(crate) food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
+    pub(crate) workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AgentState {
-    pub needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
-    pub intentions: BTreeMap<IntentionId, Intention>,
-    pub active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
-    pub routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
-    pub decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
-    pub stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+    pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+    pub(crate) intentions: BTreeMap<IntentionId, Intention>,
+    pub(crate) active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
+    pub(crate) routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
+    pub(crate) decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
+    pub(crate) stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+}
+
+impl PhysicalState {
+    pub fn from_seed_parts(
+        actors: BTreeMap<ActorId, ActorBody>,
+        places: BTreeMap<PlaceId, PlaceState>,
+        doors: BTreeMap<DoorId, DoorState>,
+        containers: BTreeMap<ContainerId, ContainerState>,
+        items: BTreeMap<ItemId, ItemState>,
+        food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
+        workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+    ) -> Self {
+        Self {
+            actors,
+            places,
+            doors,
+            containers,
+            items,
+            food_supplies,
+            workplaces,
+        }
+    }
+
+    pub fn actors(&self) -> &BTreeMap<ActorId, ActorBody> {
+        &self.actors
+    }
+
+    pub fn places(&self) -> &BTreeMap<PlaceId, PlaceState> {
+        &self.places
+    }
+
+    pub fn doors(&self) -> &BTreeMap<DoorId, DoorState> {
+        &self.doors
+    }
+
+    pub fn containers(&self) -> &BTreeMap<ContainerId, ContainerState> {
+        &self.containers
+    }
+
+    pub fn items(&self) -> &BTreeMap<ItemId, ItemState> {
+        &self.items
+    }
+
+    pub fn food_supplies(&self) -> &BTreeMap<FoodSupplyId, FoodSupplyState> {
+        &self.food_supplies
+    }
+
+    pub fn workplaces(&self) -> &BTreeMap<WorkplaceId, WorkplaceState> {
+        &self.workplaces
+    }
+
+    pub fn seed_actors_mut(&mut self) -> &mut BTreeMap<ActorId, ActorBody> {
+        &mut self.actors
+    }
+
+    pub fn seed_places_mut(&mut self) -> &mut BTreeMap<PlaceId, PlaceState> {
+        &mut self.places
+    }
+
+    pub fn seed_doors_mut(&mut self) -> &mut BTreeMap<DoorId, DoorState> {
+        &mut self.doors
+    }
+
+    pub fn seed_containers_mut(&mut self) -> &mut BTreeMap<ContainerId, ContainerState> {
+        &mut self.containers
+    }
+
+    pub fn seed_items_mut(&mut self) -> &mut BTreeMap<ItemId, ItemState> {
+        &mut self.items
+    }
+
+    pub fn seed_food_supplies_mut(&mut self) -> &mut BTreeMap<FoodSupplyId, FoodSupplyState> {
+        &mut self.food_supplies
+    }
+
+    pub fn seed_workplaces_mut(&mut self) -> &mut BTreeMap<WorkplaceId, WorkplaceState> {
+        &mut self.workplaces
+    }
+}
+
+impl AgentState {
+    pub fn from_seed_parts(
+        needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+        intentions: BTreeMap<IntentionId, Intention>,
+        active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
+        routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
+        decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
+        stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+    ) -> Self {
+        Self {
+            needs_by_actor,
+            intentions,
+            active_intention_by_actor,
+            routine_executions,
+            decision_traces,
+            stuck_diagnostics,
+        }
+    }
+
+    pub fn needs_by_actor(&self) -> &BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
+        &self.needs_by_actor
+    }
+
+    pub fn intentions(&self) -> &BTreeMap<IntentionId, Intention> {
+        &self.intentions
+    }
+
+    pub fn active_intention_by_actor(&self) -> &BTreeMap<ActorId, IntentionId> {
+        &self.active_intention_by_actor
+    }
+
+    pub fn routine_executions(&self) -> &BTreeMap<RoutineExecutionId, RoutineExecution> {
+        &self.routine_executions
+    }
+
+    pub fn decision_traces(&self) -> &BTreeMap<DecisionTraceId, DecisionTraceRecord> {
+        &self.decision_traces
+    }
+
+    pub fn stuck_diagnostics(&self) -> &BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
+        &self.stuck_diagnostics
+    }
+
+    pub fn seed_needs_by_actor_mut(
+        &mut self,
+    ) -> &mut BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
+        &mut self.needs_by_actor
+    }
+
+    pub fn seed_intentions_mut(&mut self) -> &mut BTreeMap<IntentionId, Intention> {
+        &mut self.intentions
+    }
+
+    pub fn seed_active_intention_by_actor_mut(&mut self) -> &mut BTreeMap<ActorId, IntentionId> {
+        &mut self.active_intention_by_actor
+    }
+
+    pub fn seed_routine_executions_mut(
+        &mut self,
+    ) -> &mut BTreeMap<RoutineExecutionId, RoutineExecution> {
+        &mut self.routine_executions
+    }
+
+    pub fn seed_decision_traces_mut(
+        &mut self,
+    ) -> &mut BTreeMap<DecisionTraceId, DecisionTraceRecord> {
+        &mut self.decision_traces
+    }
+
+    pub fn seed_stuck_diagnostics_mut(
+        &mut self,
+    ) -> &mut BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
+        &mut self.stuck_diagnostics
+    }
 }
 
 impl PlaceState {

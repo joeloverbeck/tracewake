@@ -27,6 +27,16 @@ fn transcript_snapshot_is_byte_identical_across_runs() {
 }
 
 #[test]
+fn tui_transcript_snapshot_remains_byte_stable() {
+    let first = capture_representative_transcript().unwrap();
+    let second = capture_representative_transcript().unwrap();
+
+    assert_eq!(first.as_bytes(), second.as_bytes());
+    assert!(first.contains("DEBUG NON-DIEGETIC"));
+    assert!(first.contains("Why-not:"));
+}
+
+#[test]
 fn phase3a_debug_snapshot_is_byte_identical_across_runs() {
     let first = capture_phase3a_debug_snapshot();
     let second = capture_phase3a_debug_snapshot();

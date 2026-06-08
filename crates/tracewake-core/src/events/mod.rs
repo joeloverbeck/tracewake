@@ -1,12 +1,16 @@
 pub mod apply;
 mod envelope;
 pub mod log;
+mod mutation;
 
 pub use envelope::{
-    BeliefUpdatedPayload, ContainerCheckedPayload, EventCause, EventEnvelope,
-    EventEnvelopeBuildError, EventEnvelopeParseError, EventKind, EventKindMetadata, EventStream,
+    event_schema_registry, event_schema_registry_entry, BeliefUpdatedPayload,
+    ContainerCheckedPayload, EventCause, EventEnvelope, EventEnvelopeBuildError,
+    EventEnvelopeParseError, EventKind, EventKindMetadata, EventReplayHandling,
+    EventSchemaMigration, EventSchemaRegistryEntry, EventSchemaVersion, EventStream,
     ExpectationContradictedPayload, InitialBeliefSeededPayload, InitialBeliefSourceKind,
-    ObservationRecordedPayload, PayloadField, RandomDrawRef, EVENT_SCHEMA_V1,
+    ObservationRecordedPayload, PayloadField, RandomDrawRef, EVENT_SCHEMA_REGISTRY,
+    EVENT_SCHEMA_V1,
 };
 
 #[cfg(test)]

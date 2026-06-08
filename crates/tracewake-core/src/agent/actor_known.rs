@@ -181,6 +181,34 @@ pub struct RestrictedProvenance {
     note: String,
 }
 
+/// Holder-specific planning context for ordinary actor cognition.
+///
+/// External crates can read this context through accessors, but cannot
+/// construct it from raw authoritative truth.
+///
+/// ```compile_fail
+/// use tracewake_core::agent::ActorKnownPlanningContext;
+/// use tracewake_core::ids::{ActorId, PlaceId};
+///
+/// let _context = ActorKnownPlanningContext::from_observed_parts(
+///     ActorId::new("actor_mara").unwrap(),
+///     PlaceId::new("home_mara").unwrap(),
+///     Default::default(),
+///     Default::default(),
+///     Default::default(),
+///     Default::default(),
+///     Default::default(),
+///     Default::default(),
+///     Vec::new(),
+/// );
+/// ```
+///
+/// ```compile_fail
+/// use tracewake_core::agent::ActorKnownPlanningContext;
+/// use tracewake_core::state::PhysicalState;
+///
+/// let _context = ActorKnownPlanningContext::from(PhysicalState::default());
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ActorKnownPlanningContext {
     actor_id: ActorId,

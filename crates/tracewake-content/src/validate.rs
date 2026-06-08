@@ -57,6 +57,141 @@ pub struct ContentValidationError {
     pub message: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContentFieldRegistration {
+    pub schema_field: &'static str,
+    pub canonical_tag: &'static str,
+    pub validation_phase: ValidationPhase,
+    pub provenance_decision: &'static str,
+    pub diagnostic_code: &'static str,
+}
+
+pub const CONTENT_FIELD_REGISTRY: &[ContentFieldRegistration] = &[
+    ContentFieldRegistration {
+        schema_field: "fixture_id",
+        canonical_tag: "fixture",
+        validation_phase: ValidationPhase::Id,
+        provenance_decision: "stable_fixture_identity",
+        diagnostic_code: "missing_stable_id",
+    },
+    ContentFieldRegistration {
+        schema_field: "schema_version",
+        canonical_tag: "schema",
+        validation_phase: ValidationPhase::ParseSchema,
+        provenance_decision: "typed_schema_identity",
+        diagnostic_code: "missing_field",
+    },
+    ContentFieldRegistration {
+        schema_field: "actors",
+        canonical_tag: "actor",
+        validation_phase: ValidationPhase::Referential,
+        provenance_decision: "ordinary_actor_state_only",
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "places",
+        canonical_tag: "place",
+        validation_phase: ValidationPhase::PhysicalTopology,
+        provenance_decision: "typed_topology_only",
+        diagnostic_code: "door_adjacency_inconsistency",
+    },
+    ContentFieldRegistration {
+        schema_field: "doors",
+        canonical_tag: "door",
+        validation_phase: ValidationPhase::State,
+        provenance_decision: "typed_physical_state_only",
+        diagnostic_code: "locked_open_state",
+    },
+    ContentFieldRegistration {
+        schema_field: "containers",
+        canonical_tag: "container",
+        validation_phase: ValidationPhase::Location,
+        provenance_decision: "typed_physical_state_only",
+        diagnostic_code: "container_item_mismatch",
+    },
+    ContentFieldRegistration {
+        schema_field: "items",
+        canonical_tag: "item",
+        validation_phase: ValidationPhase::Location,
+        provenance_decision: "typed_physical_state_only",
+        diagnostic_code: "container_item_mismatch",
+    },
+    ContentFieldRegistration {
+        schema_field: "affordances",
+        canonical_tag: "affordance",
+        validation_phase: ValidationPhase::ActionRegistryParity,
+        provenance_decision: "registered_action_parity_only",
+        diagnostic_code: "unknown_action",
+    },
+    ContentFieldRegistration {
+        schema_field: "initial_beliefs",
+        canonical_tag: "initial_belief",
+        validation_phase: ValidationPhase::EpistemicSeed,
+        provenance_decision: "actor_known_source_required",
+        diagnostic_code: "unsupported_source_kind",
+    },
+    ContentFieldRegistration {
+        schema_field: "initial_needs",
+        canonical_tag: "initial_need",
+        validation_phase: ValidationPhase::State,
+        provenance_decision: "typed_need_seed_only",
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "homes",
+        canonical_tag: "home",
+        validation_phase: ValidationPhase::Referential,
+        provenance_decision: "typed_routine_context_only",
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "sleep_places",
+        canonical_tag: "sleep_place",
+        validation_phase: ValidationPhase::Referential,
+        provenance_decision: "typed_routine_context_only",
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "food_supplies",
+        canonical_tag: "food_supply",
+        validation_phase: ValidationPhase::Referential,
+        provenance_decision: "typed_resource_state_only",
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "workplaces",
+        canonical_tag: "workplace",
+        validation_phase: ValidationPhase::Referential,
+        provenance_decision: "typed_work_state_only",
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "routine_templates",
+        canonical_tag: "routine_template",
+        validation_phase: ValidationPhase::NoScript,
+        provenance_decision: "no_authored_outcome_chain",
+        diagnostic_code: "authored_outcome_chain",
+    },
+    ContentFieldRegistration {
+        schema_field: "routine_assignments",
+        canonical_tag: "routine_assignment",
+        validation_phase: ValidationPhase::State,
+        provenance_decision: "typed_schedule_only",
+        diagnostic_code: "bad_tick_order",
+    },
+    ContentFieldRegistration {
+        schema_field: "day_windows",
+        canonical_tag: "day_window",
+        validation_phase: ValidationPhase::State,
+        provenance_decision: "typed_schedule_only",
+        diagnostic_code: "bad_tick_order",
+    },
+];
+
+pub fn content_field_registry() -> &'static [ContentFieldRegistration] {
+    CONTENT_FIELD_REGISTRY
+}
+
 impl ContentValidationError {
     fn new(
         phase: ValidationPhase,
@@ -191,32 +326,21 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
                 "forbidden_form",
                 format!("forbidden content form {tag}"),
             ));
-        } else if !matches!(
-            tag,
-            "fixture"
-                | "schema"
-                | "actor"
-                | "place"
-                | "door"
-                | "container"
-                | "item"
-                | "affordance"
-                | "initial_belief"
-                | "initial_need"
-                | "home"
-                | "sleep_place"
-                | "food_supply"
-                | "workplace"
-                | "routine_template"
-                | "routine_assignment"
-                | "day_window"
-        ) {
+        } else if !is_registered_content_tag(tag) {
             errors.push(ContentValidationError::new(
                 ValidationPhase::ParseSchema,
                 format!("line[{line_no}].{tag}"),
                 "unknown_field",
                 format!("unknown content section {tag}"),
             ));
+            if contains_prose_born_fact_marker(line) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::NoScript,
+                    format!("line[{line_no}].{tag}"),
+                    "prose_born_fact",
+                    "prose or notes must not imply culprit, outcome, or hidden truth facts",
+                ));
+            }
             if tag.starts_with("routine_") && contains_direct_state_or_script_marker(line) {
                 errors.push(ContentValidationError::new(
                     ValidationPhase::NoScript,
@@ -228,27 +352,7 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
         }
 
         let parts = line.split('|').collect::<Vec<_>>();
-        if matches!(
-            tag,
-            "fixture"
-                | "schema"
-                | "actor"
-                | "place"
-                | "door"
-                | "container"
-                | "item"
-                | "affordance"
-                | "initial_belief"
-                | "initial_need"
-                | "home"
-                | "sleep_place"
-                | "food_supply"
-                | "workplace"
-                | "routine_template"
-                | "routine_assignment"
-                | "day_window"
-        ) && parts.get(1).is_some_and(|value| value.is_empty())
-        {
+        if is_registered_content_tag(tag) && parts.get(1).is_some_and(|value| value.is_empty()) {
             errors.push(ContentValidationError::new(
                 ValidationPhase::Id,
                 format!("line[{line_no}].{tag}.id"),
@@ -258,6 +362,12 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
         }
     }
     errors
+}
+
+fn is_registered_content_tag(value: &str) -> bool {
+    CONTENT_FIELD_REGISTRY
+        .iter()
+        .any(|registration| registration.canonical_tag == value)
 }
 
 fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
@@ -1047,6 +1157,31 @@ fn contains_direct_state_or_script_marker(value: &str) -> bool {
         || PHASE3A_SHORTCUT_MARKERS
             .iter()
             .any(|marker| value.contains(marker))
+}
+
+fn contains_prose_born_fact_marker(value: &str) -> bool {
+    let normalized = value.to_ascii_lowercase();
+    let has_prose_field = normalized.starts_with("note|")
+        || normalized.starts_with("notes|")
+        || normalized.starts_with("prose|")
+        || normalized.starts_with("description|")
+        || normalized.starts_with("flavor_text|");
+    let implies_simulation_fact = [
+        "culprit",
+        "true culprit",
+        "hidden truth",
+        "hidden_true",
+        "did it",
+        "stole",
+        "scripted outcome",
+        "outcome",
+        "final event",
+        "must happen",
+        "really happened",
+    ]
+    .iter()
+    .any(|marker| normalized.contains(marker));
+    has_prose_field && implies_simulation_fact
 }
 
 fn is_known_routine_failure_mode(value: &str) -> bool {
@@ -1906,7 +2041,7 @@ mod tests {
         let world = validate_fixture(&fixture(), &registry()).unwrap();
         assert!(world
             .physical_state
-            .places
+            .places()
             .contains_key(&PlaceId::new("shop_front").unwrap()));
     }
 

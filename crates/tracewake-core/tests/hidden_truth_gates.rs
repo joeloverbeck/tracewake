@@ -19,6 +19,9 @@ use tracewake_core::state::{
 };
 use tracewake_core::time::SimTick;
 
+const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
+const DEBUG_CAPABILITY_RS: &str = include_str!("../src/debug_capability.rs");
+
 fn actor_id() -> ActorId {
     ActorId::new("actor_mara").unwrap()
 }
@@ -51,7 +54,7 @@ fn registry() -> ActionRegistry {
 
 fn agent_state(hunger: u16) -> AgentState {
     let mut state = AgentState::default();
-    state.needs_by_actor.insert(
+    state.seed_needs_by_actor_mut().insert(
         actor_id(),
         BTreeMap::from([
             (
@@ -108,6 +111,44 @@ fn proof_sources_are_actor_known(context: &tracewake_core::agent::ActorKnownPlan
 }
 
 #[test]
+fn actor_known_context_unforgeable_from_truth() {
+    assert!(
+        ACTOR_KNOWN_RS.contains("pub(crate) fn from_observed_parts"),
+        "actor-known planning context construction must stay crate-private"
+    );
+    assert!(
+        !ACTOR_KNOWN_RS.contains("pub fn from_observed_parts"),
+        "actor-known planning context construction must not become public"
+    );
+    assert!(
+        !ACTOR_KNOWN_RS.contains("impl From<PhysicalState> for ActorKnownPlanningContext")
+            && !ACTOR_KNOWN_RS.contains("impl From<&PhysicalState> for ActorKnownPlanningContext")
+            && !ACTOR_KNOWN_RS.contains("from_physical_state"),
+        "actor-known planning context must not gain a privileged raw-truth constructor"
+    );
+    assert!(
+        ACTOR_KNOWN_RS.contains("```compile_fail")
+            && ACTOR_KNOWN_RS.contains("ActorKnownPlanningContext::from_observed_parts")
+            && ACTOR_KNOWN_RS.contains("ActorKnownPlanningContext::from(PhysicalState::default())"),
+        "actor-known unforgeability must be documented by compile-fail examples"
+    );
+    assert!(
+        DEBUG_CAPABILITY_RS.contains("pub(crate) const fn mint"),
+        "debug capability minting must stay crate-private"
+    );
+    assert!(
+        !DEBUG_CAPABILITY_RS.contains("pub const fn mint")
+            && !DEBUG_CAPABILITY_RS.contains("pub fn mint"),
+        "debug capability minting must not become public"
+    );
+    assert!(
+        DEBUG_CAPABILITY_RS.contains("DebugCapability::mint()")
+            && DEBUG_CAPABILITY_RS.contains("```compile_fail"),
+        "debug capability minting must be covered by compile-fail documentation"
+    );
+}
+
+#[test]
 fn hidden_food_closed_container_is_not_actor_known_food_source() {
     let context = context(BTreeMap::new(), BTreeSet::new(), BTreeMap::new());
     proof_sources_are_actor_known(&context);
@@ -132,16 +173,16 @@ fn hidden_food_closed_container_is_not_actor_known_food_source() {
 #[test]
 fn embodied_affordances_exclude_hidden_food_in_closed_container() {
     let mut world = PhysicalState::default();
-    world.places.insert(
+    world.seed_places_mut().insert(
         place_id("home_mara"),
         PlaceState::new(place_id("home_mara"), "Mara home"),
     );
-    world.actors.insert(
+    world.seed_actors_mut().insert(
         actor_id(),
         ActorBody::new(actor_id(), place_id("home_mara")),
     );
 
-    world.food_supplies.insert(
+    world.seed_food_supplies_mut().insert(
         food_supply_id("food_empty_pantry_mara"),
         FoodSupplyState::new(
             food_supply_id("food_empty_pantry_mara"),
@@ -151,11 +192,11 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
         ),
     );
     let hidden_container_id = container_id("hidden_pantry");
-    world.containers.insert(
+    world.seed_containers_mut().insert(
         hidden_container_id.clone(),
         ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("home_mara")),
     );
-    world.food_supplies.insert(
+    world.seed_food_supplies_mut().insert(
         food_supply_id("food_hidden_pantry"),
         FoodSupplyState::new(
             food_supply_id("food_hidden_pantry"),

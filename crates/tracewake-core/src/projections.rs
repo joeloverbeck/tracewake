@@ -972,6 +972,10 @@ pub fn proposal_from_semantic_action_entry(
     source_view: Option<&EmbodiedViewModel>,
     controller_id: Option<&ControllerId>,
 ) -> Proposal {
+    assert!(
+        origin != ProposalOrigin::Human || source_view.is_some(),
+        "human semantic-action proposal construction requires a current embodied view source context"
+    );
     let mut proposal = Proposal::new(
         proposal_id,
         origin,
@@ -1024,6 +1028,25 @@ pub fn proposal_from_semantic_action_entry(
             .insert("intention_status".to_string(), "active".to_string());
     }
     proposal
+}
+
+pub fn proposal_from_current_view_semantic_action(
+    proposal_id: ProposalId,
+    actor_id: ActorId,
+    requested_tick: SimTick,
+    entry: &SemanticActionEntry,
+    source_view: &EmbodiedViewModel,
+    controller_id: &ControllerId,
+) -> Proposal {
+    proposal_from_semantic_action_entry(
+        proposal_id,
+        ProposalOrigin::Human,
+        Some(actor_id),
+        requested_tick,
+        entry,
+        Some(source_view),
+        Some(controller_id),
+    )
 }
 
 #[cfg(test)]
