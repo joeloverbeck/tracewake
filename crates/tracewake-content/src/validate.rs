@@ -1229,6 +1229,120 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
             ));
         }
     }
+    for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+        let planner_intended = planner_intended_seed_text(belief).any(contains_planner_seed_marker);
+        if planner_intended && belief.channel.is_none() {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::NoScript,
+                format!("initial_beliefs[{index}]"),
+                "missing_actor_known_provenance",
+                "planner-intended actor-known initial beliefs must declare an observation channel",
+            ));
+        }
+    }
+    for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+        for (index, value) in template.debug_labels.iter().enumerate() {
+            reject_script_marker_text(
+                value,
+                format!("routine_templates[{template_index}].debug_labels[{index}]"),
+                errors,
+            );
+        }
+        if let Some(value) = &template.reservable_resource {
+            reject_script_marker_text(
+                value,
+                format!("routine_templates[{template_index}].reservable_resource"),
+                errors,
+            );
+        }
+        for (index, step) in template.steps.iter().enumerate() {
+            match step.proposed() {
+                RoutineStepProposal::Action(action_id) => reject_script_marker_text(
+                    action_id.as_str(),
+                    format!("routine_templates[{template_index}].steps[{index}]"),
+                    errors,
+                ),
+                RoutineStepProposal::Diagnostic(diagnostic) => reject_script_marker_text(
+                    diagnostic,
+                    format!("routine_templates[{template_index}].steps[{index}]"),
+                    errors,
+                ),
+                RoutineStepProposal::Wait(reason) => reject_script_marker_text(
+                    reason,
+                    format!("routine_templates[{template_index}].steps[{index}]"),
+                    errors,
+                ),
+            }
+        }
+        for (index, fallback) in template.fallback_rules.iter().enumerate() {
+            reject_script_marker_text(
+                fallback,
+                format!("routine_templates[{template_index}].fallback_rules[{index}]"),
+                errors,
+            );
+        }
+    }
+}
+
+fn planner_intended_seed_text(
+    belief: &crate::schema::InitialBeliefSchema,
+) -> impl Iterator<Item = String> + '_ {
+    [
+        belief.belief_id.as_str().to_string(),
+        belief.proposition.serialize_canonical(),
+        match &belief.source {
+            SourceRef::Event(event_id) => event_id.as_str().to_string(),
+            SourceRef::Action(action_id) => action_id.as_str().to_string(),
+            SourceRef::Cause(cause) => format!("{cause:?}"),
+        },
+    ]
+    .into_iter()
+}
+
+fn contains_planner_seed_marker(value: String) -> bool {
+    let markers = [
+        "actor_known",
+        "planner_visible",
+        "known_food",
+        "known_route",
+        "known_workplace",
+        "food_source",
+        "route_edge",
+        "workplace_access",
+    ];
+    markers.iter().any(|marker| value.contains(marker))
+}
+
+fn reject_script_marker_text(value: &str, path: String, errors: &mut Vec<ContentValidationError>) {
+    if contains_authored_outcome_marker(value) {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::NoScript,
+            path,
+            "authored_outcome_chain",
+            format!("authored outcome-chain marker {value} is forbidden"),
+        ));
+    }
+}
+
+fn contains_authored_outcome_marker(value: &str) -> bool {
+    let markers = [
+        "guaranteed_success",
+        "always_succeeds",
+        "success_without_action",
+        "without_pipeline",
+        "synthetic_action_chain",
+        "acceptance_marker",
+        "debug_acceptance",
+        "expected_final_event",
+        "player_conditioned",
+        "protagonist_conditioned",
+        "player_only",
+        "protagonist_only",
+    ];
+    markers.iter().any(|marker| value.contains(marker))
+        || value
+            .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+            .any(|token| is_script_key(token) || is_player_key(token))
 }
 
 fn validate_phase3a_no_shortcuts(

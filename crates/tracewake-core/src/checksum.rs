@@ -270,19 +270,19 @@ pub fn compute_agent_state_checksum(
         ));
     }
 
-    for (trace_id, canonical) in &state.decision_traces {
+    for (trace_id, trace) in &state.decision_traces {
         lines.push(format!(
             "decision_trace|id={}|canonical={}",
             trace_id.as_str(),
-            canonical
+            trace.serialize_canonical()
         ));
     }
 
-    for (diagnostic_id, canonical) in &state.stuck_diagnostics {
+    for (diagnostic_id, diagnostic) in &state.stuck_diagnostics {
         lines.push(format!(
             "stuck_diagnostic|id={}|canonical={}",
             diagnostic_id.as_str(),
-            canonical
+            diagnostic.serialize_canonical()
         ));
     }
 

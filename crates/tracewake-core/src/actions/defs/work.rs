@@ -2,14 +2,16 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
+use crate::agent::NeedKind;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContentManifestId, EventId, WorkplaceId};
 use crate::scheduler::OrderingKey;
-use crate::state::{PhysicalState, WorkplaceState};
+use crate::state::{AgentState, PhysicalState, WorkplaceState};
 use crate::time::SimTick;
 
 pub fn build_work_start_events(
     state: &PhysicalState,
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -59,7 +61,17 @@ pub fn build_work_start_events(
             "actor not assigned to workplace",
         )]);
     }
-    if need_param(proposal, "current_fatigue") > workplace.max_fatigue_to_start {
+    let Some(current_fatigue) = need_value(agent_state, &actor_id, NeedKind::Fatigue) else {
+        return Ok(vec![work_failed_event(
+            proposal,
+            ordering_key,
+            content_manifest_id,
+            workplace,
+            "need",
+            "fatigue state missing for work",
+        )]);
+    };
+    if i32::from(current_fatigue) > workplace.max_fatigue_to_start {
         return Ok(vec![work_failed_event(
             proposal,
             ordering_key,
@@ -69,7 +81,17 @@ pub fn build_work_start_events(
             "fatigue too high for work",
         )]);
     }
-    if need_param(proposal, "current_hunger") > workplace.max_hunger_to_start {
+    let Some(current_hunger) = need_value(agent_state, &actor_id, NeedKind::Hunger) else {
+        return Ok(vec![work_failed_event(
+            proposal,
+            ordering_key,
+            content_manifest_id,
+            workplace,
+            "need",
+            "hunger state missing for work",
+        )]);
+    };
+    if i32::from(current_hunger) > workplace.max_hunger_to_start {
         return Ok(vec![work_failed_event(
             proposal,
             ordering_key,
@@ -215,6 +237,7 @@ fn work_completed_event(
     )
     .unwrap();
     event.actor_id = Some(actor_id.clone());
+    event.proposal_id = work_started_event.proposal_id.clone();
     event.participants = vec![actor_id.to_string(), workplace_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
@@ -334,12 +357,16 @@ fn workplace_target(proposal: &Proposal) -> Result<WorkplaceId, ActionRejection>
     })
 }
 
-fn need_param(proposal: &Proposal, key: &str) -> i32 {
-    proposal
-        .parameters
-        .get(key)
-        .and_then(|value| value.parse::<i32>().ok())
-        .unwrap_or(0)
+fn need_value(
+    agent_state: &AgentState,
+    actor_id: &crate::ids::ActorId,
+    need_kind: NeedKind,
+) -> Option<u16> {
+    agent_state
+        .needs_by_actor
+        .get(actor_id)
+        .and_then(|needs| needs.get(&need_kind))
+        .map(crate::agent::NeedState::value)
 }
 
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> &'a str {
@@ -391,12 +418,14 @@ mod tests {
     use crate::actions::proposal::ProposalOrigin;
     use crate::actions::registry::ActionRegistry;
     use crate::actions::report::ReportStatus;
+    use crate::agent::{NeedChangeCause, NeedState};
     use crate::events::log::EventLog;
     use crate::ids::{ActionId, ActorId, PlaceId, ProposalId};
     use crate::scheduler::{
         duration_completion_ordering_key, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
     use crate::state::{ActorBody, PlaceState};
+    use std::collections::BTreeMap;
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
@@ -423,6 +452,21 @@ mod tests {
             WorkplaceState::new(workplace_id(), place_id(), "service_completed_placeholder"),
         );
         state
+    }
+
+    fn agent_state_with_needs(fatigue: i32, hunger: i32) -> AgentState {
+        let mut agent_state = AgentState::default();
+        let mut needs = BTreeMap::new();
+        needs.insert(
+            NeedKind::Fatigue,
+            NeedState::initial(NeedKind::Fatigue, fatigue, NeedChangeCause::FixtureInitial),
+        );
+        needs.insert(
+            NeedKind::Hunger,
+            NeedState::initial(NeedKind::Hunger, hunger, NeedChangeCause::FixtureInitial),
+        );
+        agent_state.needs_by_actor.insert(actor_id(), needs);
+        agent_state
     }
 
     fn proposal() -> Proposal {
@@ -453,6 +497,7 @@ mod tests {
     fn work_start_is_duration_based_and_non_economic() {
         let events = build_work_start_events(
             &state(),
+            &agent_state_with_needs(100, 100),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -474,6 +519,7 @@ mod tests {
     fn work_completion_emits_output_marker_and_need_costs() {
         let start = build_work_start_events(
             &state(),
+            &agent_state_with_needs(100, 100),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -511,14 +557,11 @@ mod tests {
     }
 
     #[test]
-    fn work_fails_for_need_or_access_blocker_without_completion() {
-        let mut proposal = proposal();
-        proposal
-            .parameters
-            .insert("current_fatigue".to_string(), "901".to_string());
+    fn work_fails_from_authoritative_need_state_without_completion() {
         let events = build_work_start_events(
             &state(),
-            &proposal,
+            &agent_state_with_needs(901, 100),
+            &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
         )
@@ -535,8 +578,132 @@ mod tests {
     }
 
     #[test]
+    fn work_forged_need_parameters_do_not_override_authoritative_state() {
+        let mut state = state();
+        let mut agent_state = agent_state_with_needs(901, 100);
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_work();
+        let mut proposal = proposal();
+        proposal
+            .parameters
+            .insert("current_fatigue".to_string(), "0".to_string());
+        proposal
+            .parameters
+            .insert("current_hunger".to_string(), "0".to_string());
+
+        let result = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal,
+        );
+
+        assert_eq!(result.report.status, ReportStatus::Accepted);
+        assert_eq!(
+            result.appended_events[0].event_type,
+            EventKind::WorkBlockFailed
+        );
+        assert!(result.appended_events[0]
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "fatigue too high for work"));
+    }
+
+    #[test]
+    fn work_missing_or_malformed_need_parameters_do_not_default_to_safe_pass() {
+        let mut state = state();
+        let mut agent_state = agent_state_with_needs(100, 901);
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_work();
+        let mut proposal = proposal();
+        proposal
+            .parameters
+            .insert("current_fatigue".to_string(), "not-a-number".to_string());
+
+        let result = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal,
+        );
+
+        assert_eq!(result.report.status, ReportStatus::Accepted);
+        assert_eq!(
+            result.appended_events[0].event_type,
+            EventKind::WorkBlockFailed
+        );
+        assert!(result.appended_events[0]
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "hunger too high for work"));
+    }
+
+    #[test]
+    fn work_stale_proposal_fails_against_current_authoritative_state() {
+        let mut state = state();
+        let mut agent_state = agent_state_with_needs(100, 100);
+        let mut proposal = proposal();
+        proposal
+            .parameters
+            .insert("current_fatigue".to_string(), "100".to_string());
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_work();
+
+        agent_state
+            .needs_by_actor
+            .get_mut(&actor_id())
+            .unwrap()
+            .insert(
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 901, NeedChangeCause::TickDelta),
+            );
+
+        let result = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal,
+        );
+
+        assert_eq!(result.report.status, ReportStatus::Accepted);
+        assert_eq!(
+            result.appended_events[0].event_type,
+            EventKind::WorkBlockFailed
+        );
+        assert!(result.appended_events[0]
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "fatigue too high for work"));
+    }
+
+    #[test]
     fn scheduler_origin_work_uses_shared_pipeline() {
         let mut state = state();
+        let mut agent_state = agent_state_with_needs(100, 100);
         let mut log = EventLog::new();
         let mut registry = ActionRegistry::new();
         registry.register_phase3a_work();
@@ -547,7 +714,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
-                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                agent_state: &mut agent_state,
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -567,6 +734,7 @@ mod tests {
     #[test]
     fn overlapping_body_exclusive_action_is_reservation_conflict() {
         let mut state = state();
+        let mut agent_state = agent_state_with_needs(100, 100);
         let mut log = EventLog::new();
         let mut registry = ActionRegistry::new();
         registry.register_phase3a_work();
@@ -576,7 +744,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
-                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                agent_state: &mut agent_state,
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,
@@ -607,7 +775,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
-                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                agent_state: &mut agent_state,
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,

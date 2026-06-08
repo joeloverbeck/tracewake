@@ -158,6 +158,7 @@ fn build_sleep_end_events(
     )
     .unwrap();
     lifecycle.actor_id = Some(actor_id.clone());
+    lifecycle.proposal_id = sleep_started_event.proposal_id.clone();
     lifecycle.participants = vec![actor_id.to_string()];
     lifecycle.payload = vec![
         PayloadField::new("actor_id", actor_id.as_str()),

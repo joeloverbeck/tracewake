@@ -25,6 +25,7 @@ archive/specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.m
 archive/specs/0004_PHASE_2A_EPISTEMIC_SUBSTRATE_EXPECTATION_CONTRADICTION_AND_POSSESSION_PARITY_IMPLEMENTATION_SPEC.md
 archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md
 archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md
+archive/specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md
 archive/tickets/0002PHA1KERTUI-001.md
 archive/tickets/0002PHA1KERTUI-002.md
 archive/tickets/0002PHA1KERTUI-003.md
@@ -106,6 +107,19 @@ archive/tickets/0006PHA3ANEEROU-007.md
 archive/tickets/0006PHA3ANEEROU-008.md
 archive/tickets/0006PHA3ANEEROU-009.md
 archive/tickets/0006PHA3ANEEROU-010.md
+archive/tickets/0007PHA3ASECHAR-001.md
+archive/tickets/0007PHA3ASECHAR-002.md
+archive/tickets/0007PHA3ASECHAR-003.md
+archive/tickets/0007PHA3ASECHAR-004.md
+archive/tickets/0007PHA3ASECHAR-005.md
+archive/tickets/0007PHA3ASECHAR-006.md
+archive/tickets/0007PHA3ASECHAR-007.md
+archive/tickets/0007PHA3ASECHAR-008.md
+archive/tickets/0007PHA3ASECHAR-009.md
+archive/tickets/0007PHA3ASECHAR-010.md
+archive/tickets/0007PHA3ASECHAR-011.md
+archive/tickets/0007PHA3ASECHAR-012.md
+archive/tickets/0007PHA3ASECHAR-013.md
 archive/tickets/0007TUIFIXSEL-001.md
 crates/tracewake-content/Cargo.toml
 crates/tracewake-content/src/fixtures/container_item_move_001.rs

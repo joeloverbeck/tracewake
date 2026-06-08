@@ -455,9 +455,12 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             NeedChangeCause::FixtureInitial,
         )],
         active_intention: None,
-        actor_known_facts: vec![ActorKnownFact::modeled(
+        actor_known_facts: vec![ActorKnownFact::observed_now(
+            actor_id.clone(),
             "actor_knows_food_source",
+            "food_market_stew",
             "planner_trace_001:visible_food",
+            None,
         )],
         routine_window_goal: Some(GoalKind::GoToWork),
     });
@@ -473,18 +476,18 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
         &actor_id,
         &EpistemicProjection::new(manifest_id.clone()),
         &agent_state,
-        &VisibleLocalPlanningState {
-            current_place_id: "home_tomas".parse().unwrap(),
-            visible_edges: BTreeMap::from([(
+        &VisibleLocalPlanningState::new(
+            "home_tomas".parse().unwrap(),
+            BTreeMap::from([(
                 "home_tomas".parse().unwrap(),
                 BTreeSet::from(["market_square".parse().unwrap()]),
             )]),
-            visible_closed_doors: BTreeMap::new(),
-            visible_containers_by_place: BTreeMap::new(),
-            visible_food_sources: BTreeSet::from(["food_market_stew".to_string()]),
-            visible_sleep_places: BTreeSet::new(),
-            visible_workplaces: BTreeMap::new(),
-        },
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_market_stew".to_string()]),
+            BTreeSet::new(),
+            BTreeMap::new(),
+        ),
     );
     let rejected_template = RoutineTemplate::new(
         RoutineTemplateId::new("routine_a_rejected_eat_workplace").unwrap(),
@@ -523,7 +526,7 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
     let method = select_method_from_templates(
         &selection.selected_goal,
         &actor_known_state,
-        &actor_known_state.actor_known_facts,
+        actor_known_state.actor_known_facts(),
         SimTick::new(2),
         &[selected_template, rejected_template],
     )
@@ -733,23 +736,23 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
         &actor_id,
         &epistemic_projection,
         &agent_state,
-        &VisibleLocalPlanningState {
-            current_place_id: "home_mara".parse().unwrap(),
-            visible_edges: BTreeMap::new(),
-            visible_closed_doors: BTreeMap::new(),
-            visible_containers_by_place: BTreeMap::new(),
-            visible_food_sources: BTreeSet::new(),
-            visible_sleep_places: BTreeSet::new(),
-            visible_workplaces: BTreeMap::new(),
-        },
+        &VisibleLocalPlanningState::new(
+            "home_mara".parse().unwrap(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+        ),
     );
     assert!(!actor_known_state
-        .known_food_sources
+        .known_food_sources()
         .contains("food_hidden_pantry"));
     assert!(actor_known_state
-        .proof_sources
+        .proof_sources()
         .iter()
-        .any(|source| source == "agent_needs_present=agent_state:needs_present"));
+        .any(|source| source == "agent_needs_present=remembered_belief:agent_state:needs_present"));
 
     let plan_failure = plan_local_actions(
         &actor_known_state,

@@ -250,6 +250,7 @@ pub fn apply_agent_event(
                 .map(|_| ApplyOutcome::Applied)
         }
         EventKind::DecisionTraceRecorded => {
+            require_payload_version(&payload, "trace_schema_version", "1")?;
             let trace_id = crate::ids::DecisionTraceId::new(required(&payload, "trace_id")?)
                 .map_err(|_| ApplyError::BadPayload {
                     key: "trace_id",
@@ -257,12 +258,26 @@ pub fn apply_agent_event(
                         .unwrap_or_default()
                         .to_string(),
                 })?;
-            state
-                .decision_traces
-                .insert(trace_id, required(&payload, "trace_canonical")?.to_string());
+            let record = crate::agent::DecisionTraceRecord::deserialize_canonical(
+                required(&payload, "trace_canonical")?.as_bytes(),
+            )
+            .map_err(|_| ApplyError::BadPayload {
+                key: "trace_canonical",
+                value: required(&payload, "trace_canonical")
+                    .unwrap_or_default()
+                    .to_string(),
+            })?;
+            if record.trace_id != trace_id {
+                return Err(ApplyError::BadPayload {
+                    key: "trace_id",
+                    value: trace_id.to_string(),
+                });
+            }
+            state.decision_traces.insert(trace_id, record);
             Ok(ApplyOutcome::Applied)
         }
         EventKind::StuckDiagnosticRecorded => {
+            require_payload_version(&payload, "diagnostic_schema_version", "1")?;
             let diagnostic_id =
                 crate::ids::StuckDiagnosticId::new(required(&payload, "diagnostic_id")?).map_err(
                     |_| ApplyError::BadPayload {
@@ -272,10 +287,22 @@ pub fn apply_agent_event(
                             .to_string(),
                     },
                 )?;
-            state.stuck_diagnostics.insert(
-                diagnostic_id,
-                required(&payload, "diagnostic_canonical")?.to_string(),
-            );
+            let record = crate::agent::StuckDiagnostic::deserialize_canonical(
+                required(&payload, "diagnostic_canonical")?.as_bytes(),
+            )
+            .map_err(|_| ApplyError::BadPayload {
+                key: "diagnostic_canonical",
+                value: required(&payload, "diagnostic_canonical")
+                    .unwrap_or_default()
+                    .to_string(),
+            })?;
+            if record.diagnostic_id != diagnostic_id {
+                return Err(ApplyError::BadPayload {
+                    key: "diagnostic_id",
+                    value: diagnostic_id.to_string(),
+                });
+            }
+            state.stuck_diagnostics.insert(diagnostic_id, record);
             Ok(ApplyOutcome::Applied)
         }
         EventKind::NeedThresholdCrossed
@@ -313,6 +340,22 @@ fn required<'a>(
         .get(key)
         .copied()
         .ok_or(ApplyError::MissingPayload(key))
+}
+
+fn require_payload_version(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+    expected: &'static str,
+) -> Result<(), ApplyError> {
+    let actual = required(payload, key)?;
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(ApplyError::BadPayload {
+            key,
+            value: actual.to_string(),
+        })
+    }
 }
 
 fn required_epistemic<'a>(
@@ -1667,15 +1710,23 @@ mod tests {
         let trace_event = caused_agent_event(
             EventKind::DecisionTraceRecorded,
             vec![
+                PayloadField::new("trace_schema_version", "1"),
                 PayloadField::new("trace_id", "trace_breakfast"),
-                PayloadField::new("trace_canonical", "decision_trace_v1|minimal"),
+                PayloadField::new(
+                    "trace_canonical",
+                    "decision_trace_v1|trace_breakfast|actor_tomas|1|2|completed|0|true|74657374",
+                ),
             ],
         );
         let diagnostic_event = caused_agent_event(
             EventKind::StuckDiagnosticRecorded,
             vec![
-                PayloadField::new("diagnostic_id", "diagnostic_food_missing"),
-                PayloadField::new("diagnostic_canonical", "stuck_diagnostic_v1|minimal"),
+                PayloadField::new("diagnostic_schema_version", "1"),
+                PayloadField::new("diagnostic_id", "stuck_food_missing"),
+                PayloadField::new(
+                    "diagnostic_canonical",
+                    "stuck_diagnostic_v1|stuck_food_missing|actor_tomas|1|2|-|-|-|-|-|-|-|resource|666f6f64|6163746f725f6b6e6f776e|6465627567|7265747279|replanning",
+                ),
             ],
         );
 
@@ -1689,13 +1740,39 @@ mod tests {
         );
 
         assert_eq!(
-            state.decision_traces[&DecisionTraceId::new("trace_breakfast").unwrap()],
-            "decision_trace_v1|minimal"
+            state.decision_traces[&DecisionTraceId::new("trace_breakfast").unwrap()]
+                .serialize_canonical(),
+            "decision_trace_v1|trace_breakfast|actor_tomas|1|2|completed|0|true|74657374"
         );
         assert_eq!(
             state.stuck_diagnostics
-                [&crate::ids::StuckDiagnosticId::new("diagnostic_food_missing").unwrap()],
-            "stuck_diagnostic_v1|minimal"
+                [&crate::ids::StuckDiagnosticId::new("stuck_food_missing").unwrap()]
+                .serialize_canonical(),
+            "stuck_diagnostic_v1|stuck_food_missing|actor_tomas|1|2|-|-|-|-|-|-|-|resource|666f6f64|6163746f725f6b6e6f776e|6465627567|7265747279|replanning"
         );
+    }
+
+    #[test]
+    fn agent_trace_event_rejects_unsupported_payload_version() {
+        let mut state = agent_state();
+        let trace_event = caused_agent_event(
+            EventKind::DecisionTraceRecorded,
+            vec![
+                PayloadField::new("trace_schema_version", "2"),
+                PayloadField::new("trace_id", "trace_breakfast"),
+                PayloadField::new(
+                    "trace_canonical",
+                    "decision_trace_v1|trace_breakfast|actor_tomas|1|2|completed|0|true|74657374",
+                ),
+            ],
+        );
+
+        assert!(matches!(
+            apply_agent_event(&mut state, &trace_event),
+            Err(ApplyError::BadPayload {
+                key: "trace_schema_version",
+                ..
+            })
+        ));
     }
 }

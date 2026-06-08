@@ -6,6 +6,7 @@ pub mod report;
 
 pub use pipeline::{
     run_pipeline, validate_proposal, PipelineContext, PipelineResult, PipelineStage,
+    ProposalValidationContext,
 };
 pub use proposal::{Proposal, ProposalOrigin};
 pub use registry::{ActionDefinition, ActionEffect, ActionRegistry};

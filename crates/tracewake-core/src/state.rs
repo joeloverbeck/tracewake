@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::agent::{Intention, NeedKind, NeedState, RoutineExecution};
+use crate::agent::{
+    DecisionTraceRecord, Intention, NeedKind, NeedState, RoutineExecution, StuckDiagnosticRecord,
+};
 use crate::ids::{
     ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, FoodSupplyId, IntentionId,
     ItemId, PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId, WorkplaceId,
@@ -133,8 +135,8 @@ pub struct AgentState {
     pub intentions: BTreeMap<IntentionId, Intention>,
     pub active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
     pub routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
-    pub decision_traces: BTreeMap<DecisionTraceId, String>,
-    pub stuck_diagnostics: BTreeMap<StuckDiagnosticId, String>,
+    pub decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
+    pub stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
 }
 
 impl PlaceState {

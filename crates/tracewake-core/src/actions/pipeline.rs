@@ -108,28 +108,36 @@ enum PipelineDecision {
 struct PipelineReadContext<'a> {
     registry: &'a ActionRegistry,
     state: &'a PhysicalState,
+    agent_state: &'a AgentState,
     controller_bindings: Option<&'a ControllerBindings>,
     epistemic_projection: Option<&'a EpistemicProjection>,
     content_manifest_id: &'a ContentManifestId,
     ordering_key: &'a OrderingKey,
 }
 
+#[derive(Clone, Copy)]
+pub struct ProposalValidationContext<'a> {
+    pub registry: &'a ActionRegistry,
+    pub state: &'a PhysicalState,
+    pub agent_state: &'a AgentState,
+    pub controller_bindings: Option<&'a ControllerBindings>,
+    pub epistemic_projection: Option<&'a EpistemicProjection>,
+    pub content_manifest_id: &'a ContentManifestId,
+    pub ordering_key: &'a OrderingKey,
+}
+
 pub fn validate_proposal(
-    registry: &ActionRegistry,
-    state: &PhysicalState,
-    controller_bindings: Option<&ControllerBindings>,
-    epistemic_projection: Option<&EpistemicProjection>,
-    content_manifest_id: &ContentManifestId,
-    ordering_key: &OrderingKey,
+    validation_context: ProposalValidationContext<'_>,
     proposal: &Proposal,
 ) -> ValidationReport {
     let context = PipelineReadContext {
-        registry,
-        state,
-        controller_bindings,
-        epistemic_projection,
-        content_manifest_id,
-        ordering_key,
+        registry: validation_context.registry,
+        state: validation_context.state,
+        agent_state: validation_context.agent_state,
+        controller_bindings: validation_context.controller_bindings,
+        epistemic_projection: validation_context.epistemic_projection,
+        content_manifest_id: validation_context.content_manifest_id,
+        ordering_key: validation_context.ordering_key,
     };
     match decide_proposal(context, proposal) {
         PipelineDecision::Accepted {
@@ -145,6 +153,7 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
     let read_context = PipelineReadContext {
         registry: context.registry,
         state: context.state,
+        agent_state: context.agent_state,
         controller_bindings: context.controller_bindings,
         epistemic_projection: context.epistemic_projection.as_deref(),
         content_manifest_id: &context.content_manifest_id,
@@ -621,6 +630,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
             ActionEffect::Work => {
                 let events = match build_work_start_events(
                     context.state,
+                    context.agent_state,
                     proposal,
                     context.ordering_key,
                     context.content_manifest_id,
@@ -1080,7 +1090,7 @@ mod tests {
     use crate::events::apply::apply_event;
     use crate::ids::{ActionId, ActorId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, ContainerState, DoorState, PlaceState};
+    use crate::state::{ActorBody, AgentState, ContainerState, DoorState, PlaceState};
     use crate::time::SimTick;
 
     fn action_id(value: &str) -> ActionId {
@@ -1291,12 +1301,15 @@ mod tests {
         let proposal = check_container_proposal("proposal_closed_container");
 
         let preflight = validate_proposal(
-            &registry,
-            &state,
-            None,
-            None,
-            &content_manifest_id(),
-            &ordering_key(),
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+            },
             &proposal,
         );
         let committed = committed_report_for(&registry, &mut state.clone(), &proposal);
@@ -1314,12 +1327,15 @@ mod tests {
         let proposal = move_proposal("proposal_closed_door");
 
         let preflight = validate_proposal(
-            &registry,
-            &state,
-            None,
-            None,
-            &content_manifest_id(),
-            &ordering_key(),
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+            },
             &proposal,
         );
         let committed = committed_report_for(&registry, &mut state.clone(), &proposal);
@@ -1360,30 +1376,39 @@ mod tests {
         let rejected_check = check_container_proposal("proposal_reject_check");
 
         let accepted_check_report = validate_proposal(
-            &registry,
-            &state,
-            None,
-            Some(&projection),
-            &content_manifest_id(),
-            &ordering_key(),
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: Some(&projection),
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+            },
             &accepted_check,
         );
         let accepted_wait_report = validate_proposal(
-            &registry,
-            &state,
-            None,
-            Some(&projection),
-            &content_manifest_id(),
-            &ordering_key(),
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: Some(&projection),
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+            },
             &accepted_wait,
         );
         let rejected_check_report = validate_proposal(
-            &registry,
-            &rejected_state,
-            None,
-            Some(&projection),
-            &content_manifest_id(),
-            &ordering_key(),
+            ProposalValidationContext {
+                registry: &registry,
+                state: &rejected_state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: Some(&projection),
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+            },
             &rejected_check,
         );
 

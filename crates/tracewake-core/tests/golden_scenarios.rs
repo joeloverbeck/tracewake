@@ -771,8 +771,12 @@ fn phase3a_agent_state_replay_projection_is_deterministic() {
         EventKind::DecisionTraceRecorded,
         2,
         vec![
+            PayloadField::new("trace_schema_version", "1"),
             PayloadField::new("trace_id", "trace_breakfast"),
-            PayloadField::new("trace_canonical", "decision_trace_v1|breakfast"),
+            PayloadField::new(
+                "trace_canonical",
+                "decision_trace_v1|trace_breakfast|actor_tomas|1|2|completed|0|true|74657374",
+            ),
         ],
     ))
     .unwrap();

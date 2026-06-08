@@ -31,12 +31,119 @@ impl DecisionOutcome {
             DecisionOutcome::Completed => "completed",
         }
     }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "continued" => Some(Self::Continued),
+            "switched" => Some(Self::Switched),
+            "waited" => Some(Self::Waited),
+            "replanned" => Some(Self::Replanned),
+            "failed" => Some(Self::Failed),
+            "completed" => Some(Self::Completed),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HiddenTruthAudit {
     pub actor_known_only: bool,
     pub notes: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DecisionTraceRecord {
+    pub trace_id: DecisionTraceId,
+    pub actor_id: ActorId,
+    pub window_start_tick: SimTick,
+    pub window_end_tick: SimTick,
+    pub outcome: DecisionOutcome,
+    pub candidate_goal_count: usize,
+    pub hidden_truth_audit_result: HiddenTruthAudit,
+}
+
+impl DecisionTraceRecord {
+    pub fn from_trace(trace: &DecisionTrace) -> Self {
+        Self {
+            trace_id: trace.trace_id.clone(),
+            actor_id: trace.actor_id.clone(),
+            window_start_tick: trace.window_start_tick,
+            window_end_tick: trace.window_end_tick,
+            outcome: trace.outcome,
+            candidate_goal_count: trace.candidate_goals_considered.len(),
+            hidden_truth_audit_result: trace.hidden_truth_audit_result.clone(),
+        }
+    }
+
+    pub fn serialize_canonical(&self) -> String {
+        format!(
+            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}",
+            self.trace_id.serialize_canonical(),
+            self.actor_id.serialize_canonical(),
+            self.window_start_tick.value(),
+            self.window_end_tick.value(),
+            self.outcome.stable_id(),
+            self.candidate_goal_count,
+            encode_bool(self.hidden_truth_audit_result.actor_known_only),
+            encode_text_payload(&self.hidden_truth_audit_result.notes)
+        )
+    }
+
+    pub fn deserialize_canonical(value: &[u8]) -> Result<Self, DecisionTraceRecordParseError> {
+        let value =
+            std::str::from_utf8(value).map_err(|_| DecisionTraceRecordParseError::InvalidUtf8)?;
+        let fields: Vec<_> = value.split('|').collect();
+        if fields.len() != 9 || fields[0] != "decision_trace_v1" {
+            return Err(DecisionTraceRecordParseError::InvalidShape);
+        }
+        Ok(Self {
+            trace_id: DecisionTraceId::new(fields[1])
+                .map_err(DecisionTraceRecordParseError::InvalidId)?,
+            actor_id: ActorId::new(fields[2]).map_err(DecisionTraceRecordParseError::InvalidId)?,
+            window_start_tick: SimTick::new(
+                fields[3]
+                    .parse()
+                    .map_err(|_| DecisionTraceRecordParseError::InvalidTick)?,
+            ),
+            window_end_tick: SimTick::new(
+                fields[4]
+                    .parse()
+                    .map_err(|_| DecisionTraceRecordParseError::InvalidTick)?,
+            ),
+            outcome: DecisionOutcome::parse(fields[5])
+                .ok_or(DecisionTraceRecordParseError::InvalidOutcome)?,
+            candidate_goal_count: fields[6]
+                .parse()
+                .map_err(|_| DecisionTraceRecordParseError::InvalidCount)?,
+            hidden_truth_audit_result: HiddenTruthAudit {
+                actor_known_only: decode_bool(fields[7])
+                    .ok_or(DecisionTraceRecordParseError::InvalidBool)?,
+                notes: decode_text_payload(fields[8])?,
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DecisionTraceRecordParseError {
+    InvalidUtf8,
+    InvalidShape,
+    InvalidTick,
+    InvalidOutcome,
+    InvalidCount,
+    InvalidBool,
+    InvalidTextPayload,
+    InvalidId(crate::ids::IdError),
+}
+
+impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError {
+    fn from(value: StuckDiagnosticParseError) -> Self {
+        match value {
+            StuckDiagnosticParseError::InvalidTextPayload
+            | StuckDiagnosticParseError::InvalidUtf8 => Self::InvalidTextPayload,
+            _ => Self::InvalidShape,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -255,6 +362,8 @@ pub struct StuckDiagnostic {
     pub resulting_status: StuckResultingStatus,
 }
 
+pub type StuckDiagnosticRecord = StuckDiagnostic;
+
 impl StuckDiagnostic {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -428,6 +537,14 @@ fn encode_bool(value: bool) -> &'static str {
         "true"
     } else {
         "false"
+    }
+}
+
+fn decode_bool(value: &str) -> Option<bool> {
+    match value {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
     }
 }
 

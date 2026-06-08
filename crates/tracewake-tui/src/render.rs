@@ -14,7 +14,14 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         view.place_id.as_str()
     ));
 
-    if let Some(summary) = &view.last_rejection_summary {
+    if let Some(why_not) = &view.last_rejection_why_not {
+        lines.push(format!(
+            "Why-not: {} kind={} reasons={}",
+            why_not.actor_known_summary,
+            why_not.failure_kind.stable_id(),
+            why_not.reason_codes.join(",")
+        ));
+    } else if let Some(summary) = &view.last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
     }
     if let Some(context_id) = &view.knowledge_context_id {
@@ -227,6 +234,7 @@ mod tests {
             )],
             phase3a_status: None,
             last_rejection_summary: None,
+            last_rejection_why_not: None,
             knowledge_context_id: None,
             notebook: None,
             debug_available: true,
@@ -264,6 +272,7 @@ mod tests {
             semantic_actions: Vec::new(),
             phase3a_status: None,
             last_rejection_summary: None,
+            last_rejection_why_not: None,
             knowledge_context_id: None,
             notebook: None,
             debug_available: true,

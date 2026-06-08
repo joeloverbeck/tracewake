@@ -1,5 +1,6 @@
 //! Agent cognition substrate for ordinary-life simulation.
 
+pub mod actor_known;
 pub mod candidate;
 pub mod decision;
 pub mod generation;
@@ -10,11 +11,17 @@ pub mod need;
 pub mod planner;
 pub mod routine;
 pub mod trace;
+pub mod transaction;
 
+pub use actor_known::{
+    ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, VisibleLocalPlanningState,
+};
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
 };
-pub use decision::{select_goal_and_trace, DecisionInput, DecisionSelection};
+pub use decision::{
+    select_goal_and_trace, DecisionInput, DecisionSelection, IntentionLifecycleEffect,
+};
 pub use generation::{
     generate_candidate_goals, generate_candidate_goals_from_agent_state,
     need_crossing_triggers_candidate_reevaluation, CandidateGenerationInput,
@@ -33,16 +40,21 @@ pub use need::{
     NeedThresholdCrossing, ThresholdDirection,
 };
 pub use planner::{
-    build_actor_known_planning_state, derive_hidden_truth_audit, plan_local_actions,
-    ActorKnownFact, ActorKnownFactProofSource, ActorKnownPlanningState, LocalPlan,
+    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
+    derive_hidden_truth_audit, plan_local_actions, ActorKnownPlanningState, LocalPlan,
     LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
-    VisibleLocalPlanningState, DEFAULT_PLANNER_BUDGET,
+    DEFAULT_PLANNER_BUDGET,
 };
 pub use routine::{
     RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError,
     RoutineStepProposal, RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
 };
 pub use trace::{
-    BlockerCategory, DecisionOutcome, DecisionTrace, HiddenTruthAudit, RejectedDecisionItem,
-    StuckDiagnostic, StuckDiagnosticParseError, StuckResultingStatus,
+    BlockerCategory, DecisionOutcome, DecisionTrace, DecisionTraceRecord,
+    DecisionTraceRecordParseError, HiddenTruthAudit, RejectedDecisionItem, StuckDiagnostic,
+    StuckDiagnosticParseError, StuckDiagnosticRecord, StuckResultingStatus,
+};
+pub use transaction::{
+    ActorDecisionProposalOutcome, ActorDecisionTransaction, ActorDecisionTransactionInput,
+    ActorDecisionTransactionOutcome,
 };

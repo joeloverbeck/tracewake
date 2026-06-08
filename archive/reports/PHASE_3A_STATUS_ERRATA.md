@@ -1,83 +1,108 @@
-# Phase 3A Status Errata — Spec Ledger and Index Correction
+# Phase 3A Status Errata
 
-Repository target audited: `joeloverbeck/tracewake` at `ec1e73f91b7330d87ce12ae93f8cf57ea3671306`  
-Related archived spec: `archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md`
+Replacement content produced by **Spec 0008 — Phase 3A Anti-Contamination Hardening**.
 
-## 1. Purpose
+Target repository: `joeloverbeck/tracewake`  
+Target commit audited: `8e3cf3eccb94372b7873846ae952441fc1ca44d0`  
+Freshness claim: the target-commit audit remains historical; current readiness is governed by the Spec 0008 acceptance gates.
 
-This errata records a status correction. It does not rewrite archived Spec 0005. It records that archived 0005 is historical evidence of intended/attempted work, but exact-commit audit found that Phase 3A acceptance was not earned.
+## Corrected status
 
-## 2. Status problem
+**Phase 3A is not accepted as complete at the audited target commit.**
 
-`docs/4-specs/SPEC_LEDGER.md` currently describes Spec 0005 as landed with the Phase 3A substrate complete: bounded needs, durable intentions, defeasible routines, sleep/eat/work/continue/wait actions through the shared pipeline, no-human day runner/metrics, replay/debug proof, fixtures, and TUI panels.
+**Phase 3A is accepted as ready on the Spec 0008-hardened substrate.**
 
-The implementation has many of those shapes, but the behavioral proof is materially insufficient:
+Specs 0005, 0006, and 0007 remain important historical specs, but their status claims must not be read as proof that Phase 3A is safe for Phase 3B or Phase 4. The target commit still permits architecture-contaminating shortcuts around no-human autonomy, actor-known knowledge boundaries, durable intention/routine causality, validator authority, typed diagnostics, replay proof, and adversarial tests.
 
-- the no-human day runner submits wait proposals rather than an ordinary day of wake/eat/move/work/rest/sleep;
-- live action execution does not apply Phase 3A agent events into live `AgentState`;
-- HTN method applicability accepts string-prefix and substring conditions;
-- hidden-truth planning safety is not impossible by construction;
-- tests and fixtures prove smoke/synthetic/snapshot behavior more than integrated ordinary-life behavior.
+## Corrected interpretation of prior specs
 
-The ledger should not let a later coding agent proceed to Phase 3B or Phase 4 assuming Phase 3A is safe.
+### Spec 0005
 
-## 3. Recommended ledger wording
-
-Recommended replacement meaning for the Spec 0005 ledger entry:
+Spec 0005 defined the correct Phase 3A intent:
 
 ```text
-0005 — Phase 3A: Needs, Routines, and No-Human Day
-Status: Archived as historical implementation work. Exact-commit audit at ec1e73f91b7330d87ce12ae93f8cf57ea3671306 found that Phase 3A acceptance was not earned. The implementation contains useful scaffolding and partial surfaces, but the no-human ordinary-life substrate is not robust enough to support later phases. Corrective Spec 0006 is required before Phase 3B or Phase 4.
+actor beliefs/needs/duties
+ -> candidate goals
+ -> durable intention
+ -> HTN routine method
+ -> actor-known local planning
+ -> shared pipeline
+ -> event/replay/TUI/debug explanation
 ```
 
-Recommended replacement meaning for the “required result” language:
+Any prior statement that Spec 0005 was fully implemented must be treated as historical overclaim unless it is backed by later Spec 0008 acceptance gates.
 
-```text
-Intended result: bounded needs, durable intentions, defeasible routines, sleep/eat/work/continue/wait through the shared action/event pipeline, actor-known planning, no-human day metrics, replay/debug visibility, TUI panels, and adversarial fixtures. Audit result: these are not yet proven behaviorally; current code over-relies on wait-only no-human advancement, replay-side agent-state application, string preconditions, synthetic logs, and fixture/debug snapshots.
-```
+### Spec 0006
 
-Recommended next-spec language:
+Spec 0006 correctly identified first-hardening gaps: wait-only/no-human smoke behavior, incomplete live `AgentState`, string-heavy HTN/diagnostics, hidden-truth self-attestation, inert intentions/routines, `continue_routine` marker ambiguity, weak tests, and misleading status claims.
 
-```text
-Next blocking product-behavior spec: 0006 Phase 3A Needs, Routines, and No-Human Day Hardening. No Phase 3B, Phase 4, or ordinary-life-dependent expansion should proceed until 0006 passes its no-human/replay/debug/TUI/actor-known gates.
-```
+Spec 0006 did not permanently close those risks. It remains superseded by Spec 0008.
 
-## 4. Recommended `docs/4-specs/README.md` correction
+### Spec 0007
 
-`docs/4-specs/README.md` should stop implying that only the early current specs matter. It should either list archived specs explicitly or point to `SPEC_LEDGER.md` as the authoritative status source.
+Spec 0007 correctly raised the bar and demanded no-human ordinary-life proof through actor-known planning, live needs, durable intentions, routines, HTN/local planning, shared validation, event ancestry, replay, and debug/TUI surfaces.
 
-Recommended narrow wording:
+At the target commit, Spec 0007 is **not sufficient** as a Phase 3A exit proof. The audited code still shows these blocker patterns:
 
-```text
-Current and historical implementation specs are tracked in SPEC_LEDGER.md. Archived specs remain historical evidence, not proof that the corresponding phase is safe if later audit errata says otherwise. Corrective hardening specs block later phase work when they repair a materially incomplete archived phase.
-```
+1. The no-human path can construct an empty epistemic projection and build actor-known-looking planning inputs from raw physical state.
+2. The scheduler can direct-dispatch sleep/eat/work/movement from routine family or need thresholds before full candidate/intention/HTN/local-planner arbitration.
+3. Intention lifecycle, routine step, and decision trace records can be appended after the proposal rather than causally driving it.
+4. Work validation can read `current_fatigue` and `current_hunger` from caller-provided proposal parameters and default missing/malformed values to zero.
+5. Authoritative decision traces and stuck diagnostics are stored as strings rather than typed records.
+6. `continue_routine` remains a non-progress marker unless paired with a follow-on ordinary action; integrated no-human proof must enforce that.
+7. Tests still rely too much on event labels, substring absence, and friendly fixtures rather than adversarial provenance and causal ancestry.
 
-If committed alongside the hardening package, add entries for:
+Any document or comment that says Spec 0007 completed Phase 3A readiness must be corrected or understood as superseded by this errata.
 
-```text
-PHASE_3A_IMPLEMENTATION_AUDIT.md — exact-commit audit finding Phase 3A acceptance not earned.
-0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md — blocking corrective spec before Phase 3B/4.
-PHASE_3A_STATUS_ERRATA.md — ledger/index status correction for archived 0005.
-```
+## Spec 0008 correction
 
-## 5. Non-goals
+Spec 0008 was the blocking Phase 3A hardening spec. Phase 3A may be marked ready only on revisions where the Spec 0008 gates pass.
 
-This errata does not:
+Spec 0008 acceptance requires, at minimum:
 
-- edit archived 0005;
-- decompose work into implementation tickets;
-- design Phase 4;
-- claim the scaffolding is useless;
-- require deleting Phase 3A code;
-- weaken any foundation/architecture/execution gate.
+- one canonical actor-decision transaction for no-human ordinary actions;
+- sealed/provenance-rich actor-known planning context;
+- no direct routine-family or need-threshold primitive proposal dispatch in scheduler;
+- actual epistemic/belief/observation inputs or explicit typed limitations;
+- authoritative validator access to live `AgentState`;
+- no current-need echoes in proposal parameters;
+- typed decision traces and stuck diagnostics in live state, events, replay, debug reports, and TUI projections;
+- chronological duration completion handling at transaction boundaries;
+- adversarial hidden-truth fixtures;
+- stale/forged proposal parameter tests;
+- marker-only continuation tests;
+- static/anti-regression tests for forbidden shortcuts;
+- replacement docs and ledger updates.
+- the integrated no-human typed-ancestry replay capstone.
 
-## 6. Recommended status after correction
+## Phase-gate impact
 
-Use this status until the corrective spec passes:
+Phase 3B and Phase 4 are unblocked only for work based on the Spec 0008-hardened substrate.
 
-```text
-Phase 3A status: Nominally implemented, materially deficient, correction required.
-Proceed to Phase 3B/4: no.
-Blocking corrective work: Spec 0006 Phase 3A hardening.
-Evidence basis: exact-commit Phase 3A implementation audit.
-```
+Do not begin Phase 3B speech/testimony or Phase 4 institutions/records/wrong-suspicion work on top of the audited target commit as though Phase 3A ordinary life is architecturally safe. Later phases depend on actor-known boundaries, durable intentions, typed traces, and replayable no-human ordinary life. Building on the audited shortcut seams would spread contamination into testimony, records, institutions, and causal explanation.
+
+## Accepted status wording
+
+Allowed for the audited target commit or any revision before Spec 0008 gates pass:
+
+- “Phase 3A has useful scaffolding but remains in anti-contamination hardening.”
+- “Specs 0005/0006/0007 are archived historical steps; Spec 0008 is the active blocker.”
+- “No-human ordinary-life proof is not accepted until actor-known autonomy transaction gates pass.”
+
+Allowed for revisions where Spec 0008 gates pass:
+
+- “Phase 3A readiness is accepted by Spec 0008 gates.”
+- “No-human ordinary-life proof is accepted on the Spec 0008-hardened substrate.”
+- “Phase 3B/Phase 4 may build on the Spec 0008 Phase 3A substrate while keeping their own acceptance gates explicit.”
+
+Not allowed for revisions before Spec 0008 gates pass:
+
+- “Phase 3A is complete.”
+- “No-human ordinary life is proven.”
+- “Actor-known planning is safe by construction.”
+- “Spec 0007 closed the ordinary-life proof.”
+- “Phase 4 can build on current Phase 3A autonomy.”
+
+## Replacement note
+
+This file replaces the previous Phase 3A status errata. It is intentionally severe because Phase 3A is foundation-sensitive: later layers will inherit any hidden-truth leakage, inert intention/routine state, proposal-echo validation, or string-only diagnostic architecture left in this layer.

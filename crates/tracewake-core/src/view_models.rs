@@ -1,4 +1,4 @@
-use crate::actions::report::ValidationReport;
+use crate::actions::report::{ReasonCode, ValidationReport};
 use crate::events::{EventEnvelope, EventStream};
 use crate::ids::{
     ActionId, ActorId, ContainerId, DoorId, ItemId, PlaceId, SemanticActionId, ViewModelId,
@@ -29,6 +29,7 @@ pub struct EmbodiedViewModel {
     pub semantic_actions: Vec<SemanticActionEntry>,
     pub phase3a_status: Option<Phase3AEmbodiedStatus>,
     pub last_rejection_summary: Option<String>,
+    pub last_rejection_why_not: Option<WhyNotView>,
     pub knowledge_context_id: Option<String>,
     pub notebook: Option<NotebookView>,
     pub debug_available: bool,
@@ -48,6 +49,50 @@ pub struct NeedStatusEntry {
     pub value: u16,
     pub band_label: String,
     pub last_cause: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WhyNotView {
+    pub failure_kind: WhyNotFailureKind,
+    pub actor_known_summary: String,
+    pub reason_codes: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum WhyNotFailureKind {
+    ActorKnownUncertainty,
+    GroundTruthValidationFailure,
+    Access,
+    ReservationOrBodyConstraint,
+    AuthoredContentInvalidity,
+    UnsupportedAction,
+}
+
+impl WhyNotFailureKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::ActorKnownUncertainty => "actor_known_uncertainty",
+            Self::GroundTruthValidationFailure => "ground_truth_validation_failure",
+            Self::Access => "access",
+            Self::ReservationOrBodyConstraint => "reservation_or_body_constraint",
+            Self::AuthoredContentInvalidity => "authored_content_invalidity",
+            Self::UnsupportedAction => "unsupported_action",
+        }
+    }
+}
+
+impl From<&ValidationReport> for WhyNotView {
+    fn from(report: &ValidationReport) -> Self {
+        Self {
+            failure_kind: classify_why_not(report),
+            actor_known_summary: report.actor_visible_summary.clone(),
+            reason_codes: report
+                .reason_codes
+                .iter()
+                .map(|reason| reason.stable_id().to_string())
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -274,6 +319,64 @@ pub struct DebugTruthBeliefMismatchView {
     pub mismatch_summary: String,
 }
 
+fn classify_why_not(report: &ValidationReport) -> WhyNotFailureKind {
+    if report.reason_codes.iter().any(|reason| {
+        matches!(
+            reason,
+            ReasonCode::KnowledgePreconditionNotMet
+                | ReasonCode::TargetNotVisible
+                | ReasonCode::TargetNotReachable
+                | ReasonCode::NoCurrentIntention
+                | ReasonCode::IntentionTerminal
+                | ReasonCode::RoutineStepBlocked
+        )
+    }) {
+        return WhyNotFailureKind::ActorKnownUncertainty;
+    }
+    if report.reason_codes.iter().any(|reason| {
+        matches!(
+            reason,
+            ReasonCode::DoorClosedBlocksMovement
+                | ReasonCode::DoorLocked
+                | ReasonCode::ContainerClosed
+                | ReasonCode::ContainerLocked
+                | ReasonCode::DestinationNotOpen
+                | ReasonCode::ActorNotAtRequiredPlace
+        )
+    }) {
+        return WhyNotFailureKind::Access;
+    }
+    if report.reason_codes.iter().any(|reason| {
+        matches!(
+            reason,
+            ReasonCode::TargetReserved | ReasonCode::ReservationConflict
+        )
+    }) {
+        return WhyNotFailureKind::ReservationOrBodyConstraint;
+    }
+    if report.reason_codes.iter().any(|reason| {
+        matches!(
+            reason,
+            ReasonCode::InvalidParameter
+                | ReasonCode::ControllerUnbound
+                | ReasonCode::ControllerActorMismatch
+        )
+    }) {
+        return WhyNotFailureKind::AuthoredContentInvalidity;
+    }
+    if report.reason_codes.iter().any(|reason| {
+        matches!(
+            reason,
+            ReasonCode::UnknownActionId
+                | ReasonCode::PhaseUnsupportedAction
+                | ReasonCode::UnsupportedTargetKind
+        )
+    }) {
+        return WhyNotFailureKind::UnsupportedAction;
+    }
+    WhyNotFailureKind::GroundTruthValidationFailure
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DebugHolderBeliefs {
     pub holder_actor_id: ActorId,
@@ -310,6 +413,9 @@ pub struct DebugContradictionEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::actions::pipeline::PipelineStage;
+    use crate::actions::{ReasonCode, ReportStatus, ValidationReport};
+    use crate::ids::{ProposalId, ValidationReportId};
 
     #[test]
     fn semantic_action_id_is_stable_and_target_specific() {
@@ -448,5 +554,63 @@ mod tests {
         assert!(mismatch.debug_only);
         assert!(mismatch.ground_truth_location.contains("actor_mara"));
         assert!(mismatch.held_belief_summary.contains("missing"));
+    }
+
+    #[test]
+    fn why_not_view_distinguishes_actor_known_from_ground_truth_failures() {
+        let actor_known = validation_report(
+            "proposal_actor_known",
+            "You do not know a reachable food source.",
+            vec![ReasonCode::KnowledgePreconditionNotMet],
+        );
+        let actor_known_view = WhyNotView::from(&actor_known);
+
+        assert_eq!(
+            actor_known_view.failure_kind,
+            WhyNotFailureKind::ActorKnownUncertainty
+        );
+        assert_eq!(
+            actor_known_view.reason_codes,
+            ["knowledge_precondition_not_met"]
+        );
+        assert_eq!(
+            actor_known_view.actor_known_summary,
+            "You do not know a reachable food source."
+        );
+
+        let ground_truth = validation_report(
+            "proposal_world_state",
+            "That is not possible from here.",
+            vec![ReasonCode::WorldStateMismatch],
+        );
+        assert_eq!(
+            WhyNotView::from(&ground_truth).failure_kind,
+            WhyNotFailureKind::GroundTruthValidationFailure
+        );
+    }
+
+    fn validation_report(
+        proposal_id: &str,
+        actor_visible_summary: &str,
+        reason_codes: Vec<ReasonCode>,
+    ) -> ValidationReport {
+        ValidationReport {
+            validation_report_id: ValidationReportId::new(format!("validation_{proposal_id}"))
+                .unwrap(),
+            proposal_id: ProposalId::new(proposal_id).unwrap(),
+            actor_id: None,
+            action_id: ActionId::new("eat").unwrap(),
+            target_ids: Vec::new(),
+            status: ReportStatus::Rejected,
+            failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
+            reason_codes,
+            checked_facts: Vec::new(),
+            actor_visible_summary: actor_visible_summary.to_string(),
+            debug_summary: "debug detail".to_string(),
+            would_mutate: false,
+            event_ids: Vec::new(),
+            checksum_before: None,
+            checksum_after: None,
+        }
     }
 }

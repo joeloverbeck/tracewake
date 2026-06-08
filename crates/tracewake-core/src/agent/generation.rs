@@ -177,7 +177,7 @@ fn hunger_candidate(
     let knows_food = input
         .actor_known_facts
         .iter()
-        .any(|fact| fact.stable_id == "actor_knows_food_source" && fact.is_actor_known());
+        .any(|fact| fact.stable_id() == "actor_knows_food_source" && fact.is_actor_known());
     candidate(
         input,
         if knows_food { "eat" } else { "find_food" },
@@ -288,7 +288,13 @@ mod tests {
     }
 
     fn known_food_fact() -> ActorKnownFact {
-        ActorKnownFact::modeled("actor_knows_food_source", "test:visible_food")
+        ActorKnownFact::observed_now(
+            actor_id(),
+            "actor_knows_food_source",
+            "food_soup",
+            "test:visible_food",
+            None,
+        )
     }
 
     #[test]
@@ -327,9 +333,12 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: None,
-            actor_known_facts: vec![ActorKnownFact::modeled(
+            actor_known_facts: vec![ActorKnownFact::observed_now(
+                actor_id(),
                 "actor_knows_sleep_place",
+                "home_tomas",
                 "test:visible_sleep_place",
+                None,
             )],
             routine_window_goal: Some(GoalKind::GoToWork),
         };
@@ -351,9 +360,12 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: None,
-            actor_known_facts: vec![ActorKnownFact::modeled(
+            actor_known_facts: vec![ActorKnownFact::observed_now(
+                actor_id(),
                 "actor_current_place_visible",
+                "home_tomas",
                 "test:visible_place",
+                None,
             )],
             routine_window_goal: None,
         });
