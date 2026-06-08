@@ -255,7 +255,7 @@ pub fn action_rejection_report(
         precondition_trace: validation_report
             .checked_facts
             .iter()
-            .map(|fact| format!("{}={}", fact.key, fact.value))
+            .map(CheckedFact::render_pair)
             .collect(),
         events_created: validation_report.event_ids.clone(),
         mutation_attempted: false,

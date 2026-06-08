@@ -116,9 +116,18 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     lines.push("Actions:".to_string());
     for (index, action) in view.semantic_actions.iter().enumerate() {
         let disabled = action
-            .why_disabled
-            .as_ref()
-            .map(|reason| format!(" disabled: {reason}"))
+            .availability
+            .actor_safe_summary()
+            .map(|summary| {
+                let reason_codes = action
+                    .availability
+                    .reason_codes()
+                    .iter()
+                    .map(|reason| reason.stable_id())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!(" disabled: {summary} reasons={reason_codes}")
+            })
             .unwrap_or_default();
         lines.push(format!(
             "{}. {} [{}]{}",

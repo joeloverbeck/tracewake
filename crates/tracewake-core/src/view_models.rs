@@ -183,7 +183,7 @@ pub struct SemanticActionEntry {
     pub target_ids: Vec<String>,
     pub label: String,
     pub enabled: bool,
-    pub why_disabled: Option<String>,
+    pub availability: ActionAvailability,
 }
 
 impl SemanticActionEntry {
@@ -193,15 +193,145 @@ impl SemanticActionEntry {
         target_ids: Vec<String>,
         label: impl Into<String>,
         enabled: bool,
-        why_disabled: Option<String>,
+        unavailable_summary: Option<String>,
     ) -> Self {
+        let availability = if enabled {
+            ActionAvailability::Available
+        } else {
+            ActionAvailability::disabled(
+                vec![ReasonCode::WorldStateMismatch],
+                unavailable_summary
+                    .unwrap_or_else(|| "That is not currently possible.".to_string()),
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+        Self::with_availability(
+            semantic_action_id,
+            action_id,
+            target_ids,
+            label,
+            availability,
+        )
+    }
+
+    pub fn with_availability(
+        semantic_action_id: SemanticActionId,
+        action_id: ActionId,
+        target_ids: Vec<String>,
+        label: impl Into<String>,
+        availability: ActionAvailability,
+    ) -> Self {
+        let enabled = availability.is_available();
         Self {
             semantic_action_id,
             action_id,
             target_ids,
             label: label.into(),
             enabled,
-            why_disabled,
+            availability,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ActionAvailability {
+    Available,
+    Disabled {
+        reason_codes: Vec<ReasonCode>,
+        actor_safe_summary: String,
+        provenance_refs: Vec<ActionAvailabilityProvenance>,
+        debug_only_diagnostics: Vec<String>,
+    },
+}
+
+impl ActionAvailability {
+    pub const fn available() -> Self {
+        Self::Available
+    }
+
+    pub fn disabled(
+        reason_codes: Vec<ReasonCode>,
+        actor_safe_summary: impl Into<String>,
+        provenance_refs: Vec<ActionAvailabilityProvenance>,
+        debug_only_diagnostics: Vec<String>,
+    ) -> Self {
+        Self::Disabled {
+            reason_codes,
+            actor_safe_summary: actor_safe_summary.into(),
+            provenance_refs,
+            debug_only_diagnostics,
+        }
+    }
+
+    pub const fn is_available(&self) -> bool {
+        matches!(self, Self::Available)
+    }
+
+    pub fn reason_codes(&self) -> &[ReasonCode] {
+        match self {
+            Self::Available => &[],
+            Self::Disabled { reason_codes, .. } => reason_codes,
+        }
+    }
+
+    pub fn actor_safe_summary(&self) -> Option<&str> {
+        match self {
+            Self::Available => None,
+            Self::Disabled {
+                actor_safe_summary, ..
+            } => Some(actor_safe_summary),
+        }
+    }
+
+    pub fn provenance_refs(&self) -> &[ActionAvailabilityProvenance] {
+        match self {
+            Self::Available => &[],
+            Self::Disabled {
+                provenance_refs, ..
+            } => provenance_refs,
+        }
+    }
+
+    pub fn debug_only_diagnostics(&self) -> &[String] {
+        match self {
+            Self::Available => &[],
+            Self::Disabled {
+                debug_only_diagnostics,
+                ..
+            } => debug_only_diagnostics,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ActionAvailabilityProvenance {
+    pub kind: ActionAvailabilityProvenanceKind,
+    pub reference: String,
+}
+
+impl ActionAvailabilityProvenance {
+    pub fn new(kind: ActionAvailabilityProvenanceKind, reference: impl Into<String>) -> Self {
+        Self {
+            kind,
+            reference: reference.into(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ActionAvailabilityProvenanceKind {
+    HolderKnownContext,
+    ValidationReport,
+    ValidatorFact,
+}
+
+impl ActionAvailabilityProvenanceKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::HolderKnownContext => "holder_known_context",
+            Self::ValidationReport => "validation_report",
+            Self::ValidatorFact => "validator_fact",
         }
     }
 }
@@ -613,6 +743,59 @@ mod tests {
         );
         assert_ne!(entry.semantic_action_id.as_str(), "0");
         assert_eq!(entry.target_ids, ["strongbox_tomas"]);
+        assert!(entry.availability.is_available());
+    }
+
+    #[test]
+    fn action_availability_carries_typed_reason_and_provenance() {
+        let entry = SemanticActionEntry::with_availability(
+            SemanticActionId::new("check.container.strongbox_tomas").unwrap(),
+            ActionId::new("check_container").unwrap(),
+            vec!["strongbox_tomas".to_string()],
+            "Check strongbox",
+            ActionAvailability::disabled(
+                vec![ReasonCode::ContainerClosed],
+                "The container is closed.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    "knowledge.actor_tomas.0",
+                )],
+                vec!["container_id=strongbox_tomas".to_string()],
+            ),
+        );
+
+        assert!(!entry.enabled);
+        assert_eq!(
+            entry.availability.reason_codes(),
+            &[ReasonCode::ContainerClosed]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
+            Some("The container is closed.")
+        );
+        assert_eq!(
+            entry.availability.provenance_refs()[0].kind,
+            ActionAvailabilityProvenanceKind::HolderKnownContext
+        );
+    }
+
+    #[test]
+    fn action_availability_reason_codes_do_not_depend_on_display_text() {
+        let original = ActionAvailability::disabled(
+            vec![ReasonCode::DoorClosedBlocksMovement],
+            "The door is closed.",
+            Vec::new(),
+            Vec::new(),
+        );
+        let reworded = ActionAvailability::disabled(
+            vec![ReasonCode::DoorClosedBlocksMovement],
+            "You cannot pass through the closed door.",
+            Vec::new(),
+            Vec::new(),
+        );
+
+        assert_eq!(original.reason_codes(), reworded.reason_codes());
+        assert_ne!(original.actor_safe_summary(), reworded.actor_safe_summary());
     }
 
     #[test]

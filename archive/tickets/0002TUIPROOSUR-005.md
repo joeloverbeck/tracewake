@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-005: Typed action availability + typed checked facts
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`SemanticActionEntry` schema, new `ActionAvailability`, typed `CheckedFact`)
@@ -82,3 +82,26 @@ Have the affordance builder (ticket 003) populate `ActionAvailability` from seal
 1. `cargo test -p tracewake-core view_models && cargo test -p tracewake-core report`
 2. `grep -rn "why_disabled" crates/` (must return zero after implementation)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Replaced `SemanticActionEntry.why_disabled` with typed `ActionAvailability`, including typed `ReasonCode` lists, actor-safe summaries, provenance references, and a separate debug-only diagnostics slot. Validator-backed affordances now populate availability from typed validation reports and include holder-known context, validation report, and checked-fact provenance. The renderer formats availability summaries and reason codes as display output only.
+
+Typed `CheckedFact` with `CheckedFactKey`, `CheckedFactSource`, accessors, and stable render formatting while preserving existing validator construction call sites. Debug rejection traces now render checked facts through the typed accessor instead of public string fields.
+
+Deviations from the original plan: this ticket kept the existing `enabled` flag as a convenience mirror of `ActionAvailability::is_available()` so current selection/render call sites remain narrow. The broader actor/debug post-rejection split remains deferred to ticket 007 as planned.
+
+Verification:
+
+1. `cargo test -p tracewake-core view_models`
+2. `cargo test -p tracewake-core report`
+3. `cargo test -p tracewake-core --test hidden_truth_gates`
+4. `cargo test -p tracewake-tui --test embodied_flow`
+5. `grep -rn "why_disabled" crates/` (no matches)
+6. `cargo test -p tracewake-core`
+7. `cargo fmt --all --check`
+8. `cargo clippy --workspace --all-targets -- -D warnings`
+9. `cargo test --workspace`
+10. `cargo build --workspace --all-targets --locked`

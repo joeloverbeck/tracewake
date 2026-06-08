@@ -1,13 +1,13 @@
 use crate::actions::{
     validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalValidationContext,
-    ReportStatus, ValidationReport,
+    ReasonCode, ReportStatus, ValidationReport,
 };
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, ItemId, PlaceId, ProposalId,
-    SemanticActionId, ViewModelId, WorkplaceId,
+    ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, HolderKnownContextId, ItemId,
+    PlaceId, ProposalId, SemanticActionId, ViewModelId, WorkplaceId,
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -15,6 +15,7 @@ use crate::state::AgentState;
 use crate::state::{ActorBody, PhysicalState};
 use crate::time::SimTick;
 use crate::view_models::{
+    ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
     DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
     NotebookContradictionEntry, NotebookObservationEntry, NotebookView, Phase3AEmbodiedStatus,
     SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit,
@@ -30,6 +31,7 @@ pub enum ProjectionError {
 pub struct EmbodiedProjectionSource<'a> {
     state: &'a PhysicalState,
     agent_state: Option<&'a AgentState>,
+    knowledge_context_id: HolderKnownContextId,
     actor_known_food_sources: Vec<FoodSupplyId>,
     actor_known_workplaces: Vec<WorkplaceId>,
 }
@@ -47,6 +49,7 @@ impl<'a> EmbodiedProjectionSource<'a> {
         Self {
             state,
             agent_state,
+            knowledge_context_id: context.holder_known_context_id().clone(),
             actor_known_food_sources,
             actor_known_workplaces,
         }
@@ -381,6 +384,7 @@ pub fn build_embodied_view_model(
         content_manifest_id,
         viewer_actor_id,
         sim_tick,
+        knowledge_context_id: context.holder_known_context_id().clone(),
     };
     let mut semantic_actions = semantic_actions(
         &preflight_context,
@@ -582,21 +586,36 @@ fn phase3a_semantic_actions(
         };
         let at_workplace = workplace.place_id == actor.current_place_id;
         let enabled = at_workplace && workplace.access_open;
-        let why_disabled = if !at_workplace {
-            Some("You are not at that workplace.".to_string())
-        } else if !workplace.access_open {
-            Some("That workplace is not available.".to_string())
+        let availability = if enabled {
+            ActionAvailability::available()
+        } else if !at_workplace {
+            ActionAvailability::disabled(
+                vec![ReasonCode::ActorNotAtRequiredPlace],
+                "You are not at that workplace.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    source.knowledge_context_id.as_str(),
+                )],
+                Vec::new(),
+            )
         } else {
-            None
+            ActionAvailability::disabled(
+                vec![ReasonCode::TargetNotReachable],
+                "That workplace is not available.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    source.knowledge_context_id.as_str(),
+                )],
+                Vec::new(),
+            )
         };
-        actions.push(SemanticActionEntry::new(
+        actions.push(SemanticActionEntry::with_availability(
             SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
                 .unwrap(),
             ActionId::new("work_block").unwrap(),
             vec![workplace.workplace_id.to_string()],
             format!("Work at {}", workplace.workplace_id.as_str()),
-            enabled,
-            why_disabled,
+            availability,
         ));
     }
 
@@ -642,7 +661,7 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct SemanticActionPreflightContext<'a> {
     state: &'a PhysicalState,
     agent_state: &'a AgentState,
@@ -650,6 +669,7 @@ struct SemanticActionPreflightContext<'a> {
     content_manifest_id: &'a ContentManifestId,
     viewer_actor_id: &'a ActorId,
     sim_tick: SimTick,
+    knowledge_context_id: HolderKnownContextId,
 }
 
 fn semantic_actions(
@@ -827,13 +847,38 @@ fn with_validator_availability(
         &proposal,
     );
     let enabled = report.status == ReportStatus::Accepted;
-    SemanticActionEntry::new(
+    let availability = if enabled {
+        ActionAvailability::available()
+    } else {
+        let mut provenance_refs = vec![
+            ActionAvailabilityProvenance::new(
+                ActionAvailabilityProvenanceKind::HolderKnownContext,
+                preflight.knowledge_context_id.as_str(),
+            ),
+            ActionAvailabilityProvenance::new(
+                ActionAvailabilityProvenanceKind::ValidationReport,
+                report.validation_report_id.as_str(),
+            ),
+        ];
+        provenance_refs.extend(report.checked_facts.iter().map(|fact| {
+            ActionAvailabilityProvenance::new(
+                ActionAvailabilityProvenanceKind::ValidatorFact,
+                fact.render_pair(),
+            )
+        }));
+        ActionAvailability::disabled(
+            report.reason_codes.clone(),
+            report.actor_visible_summary,
+            provenance_refs,
+            Vec::new(),
+        )
+    };
+    SemanticActionEntry::with_availability(
         entry.semantic_action_id,
         entry.action_id,
         entry.target_ids,
         entry.label,
-        enabled,
-        (!enabled).then_some(report.actor_visible_summary),
+        availability,
     )
 }
 
@@ -1147,9 +1192,18 @@ mod tests {
 
         assert!(!entry.enabled);
         assert_eq!(
-            entry.why_disabled.as_deref(),
+            entry.availability.reason_codes(),
+            &[ReasonCode::ContainerClosed]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
             Some("The container is closed.")
         );
+        assert!(entry
+            .availability
+            .provenance_refs()
+            .iter()
+            .any(|source| { source.kind == ActionAvailabilityProvenanceKind::HolderKnownContext }));
     }
 
     #[test]
@@ -1169,7 +1223,14 @@ mod tests {
             .unwrap();
 
         assert!(!entry.enabled);
-        assert_eq!(entry.why_disabled.as_deref(), Some("The door is closed."));
+        assert_eq!(
+            entry.availability.reason_codes(),
+            &[ReasonCode::DoorClosedBlocksMovement]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
+            Some("The door is closed.")
+        );
     }
 
     #[test]
@@ -1190,7 +1251,11 @@ mod tests {
 
         assert!(!entry.enabled);
         assert_eq!(
-            entry.why_disabled.as_deref(),
+            entry.availability.reason_codes(),
+            &[ReasonCode::ContainerLocked]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
             Some("The container is locked.")
         );
     }
@@ -1441,8 +1506,8 @@ mod tests {
                     .iter()
                     .any(|target| target == "food_hidden_pantry")
                 || entry
-                    .why_disabled
-                    .as_deref()
+                    .availability
+                    .actor_safe_summary()
                     .is_some_and(|why| why.contains("food_hidden_pantry"))
         }));
         assert!(view

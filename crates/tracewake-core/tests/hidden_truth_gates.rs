@@ -192,8 +192,8 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
                 .iter()
                 .any(|target| target == "food_hidden_pantry")
             || entry
-                .why_disabled
-                .as_deref()
+                .availability
+                .actor_safe_summary()
                 .is_some_and(|why| why.contains("food_hidden_pantry"))
     }));
 }
