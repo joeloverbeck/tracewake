@@ -55,7 +55,7 @@ The point of authoring here is that Claude can read the repo directly — so the
 
 - the **authority-ordered read list** (`docs/0-foundation` → `1-architecture` → `2-execution` → `3-reference` → `4-specs`, then relevant `reports/`, `specs/`, `archive/`), each with a one-line reason it is load-bearing for *this* target;
 - the **relevant code seams** Session 2 should inspect (name files/modules, don't paste them — Session 2 reads them itself);
-- any **prior report / spec / archived work** that already bears on the target, so the brief frames the task as a delta rather than a cold start.
+- any **prior report / spec / archived work** that already bears on the target, so the brief frames the task as a delta rather than a cold start. When the target is one pass of a multi-block campaign or a follow-up to an earlier brief, name the predecessor `reports/<...>-research-brief.md` explicitly and state what it already delivered (see `references/brief-template.md` §1) so Session 2 does not re-commission completed work.
 
 Launch Explore agents for broad surveys. Verify any repo claim in `research_target` or `reference_path` against the actual tree; flag contradictions prominently.
 
@@ -81,7 +81,7 @@ Rules: ask one *conceptual* question at a time when probing motivation or uncert
 Before writing, present in chat:
 
 1. the **settled intentions** — the resolved decisions the interview produced (these become §3 of the brief and are what make Session 2 "locked");
-2. the **deliverable spec** — exactly which downloadable markdown docs Session 2 must produce (replace vs. new, filenames);
+2. the **deliverable spec** — exactly which downloadable markdown docs Session 2 must produce (replace vs. new, filenames); for *determination-plus-conditional* targets ("decide if X is needed, and if so produce X"), state both the required verdict and whether the artifact is produced unconditionally or only on a positive verdict (see `references/brief-template.md` §7);
 3. the **read-in-full list** (authority-ordered, with the one-line reasons).
 
 Before presenting, confirm both audit-trail announcements were emitted earlier this run: the Step 1 `Classification:` line and the Step 3 online-research run-or-skip one-liner. If either was missed, emit it now.

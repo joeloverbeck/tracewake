@@ -27,6 +27,11 @@ contains the §2 read-list):
 > tree. (If a referenced report cites a different "commit of record," note the divergence here
 > and use the verified HEAD, not the report's string.)
 
+If this brief **continues a prior one** (a multi-block campaign, or a follow-up to earlier
+research), name the predecessor `reports/<...>-research-brief.md` and state what it already
+delivered, so Session 2 treats this as a *delta* — not a cold start — and does not re-commission
+completed work.
+
 ### 2. Read in full (authority order)
 
 An explicit, tiered path list — every file Session 2 must read before producing — each
@@ -101,6 +106,16 @@ Exactly what Session 2 outputs — leave no ambiguity:
 > do not ask clarifying questions — the requirements above are final. If a genuine
 > contradiction makes a requirement impossible, state it in the deliverable and proceed
 > with the most faithful interpretation.
+
+**Determination-plus-conditional targets.** When the research target is "decide whether X is
+needed, and *if so* produce X" (common for hardening / anti-contamination passes), the deliverable
+is contingent on a judgment Session 2 must make first. Do not leave the contingency implicit. The
+brief must (a) instruct Session 2 to produce a clearly labeled, evidence-based **determination /
+verdict** ("is a new spec warranted, and why"), and (b) state — as a settled intention resolved in
+the interview — whether the artifact is produced **unconditionally** (verdict embedded inside it) or
+**only if the verdict is positive**. Prefer "always produce, with the verdict as a section" when the
+artifact's value survives a negative verdict (e.g. it locks already-correct properties); reserve
+"produce only if positive" for when a negative verdict means there is genuinely nothing to author.
 
 ### 8. Self-check
 
