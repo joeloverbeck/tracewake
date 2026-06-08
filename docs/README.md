@@ -50,7 +50,8 @@ The architecture layer translates foundation doctrine into subsystem contracts. 
 - `11_INCIDENTS_LEADS_AND_STORY_SIFTING_PROJECTIONS.md` — questless incidents, requests, obligations, leads, actor-known summaries, and observer-only story sifting.
 - `12_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md` — dynamic level of detail, regional processes, boundary events, promotion/demotion, summary events, world history, and scale staging.
 - `13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md` — validation gates, no-human runs, deterministic replay checks, observability artifacts, metrics, and acceptance levels.
-- `14_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — architecture-relevant research decisions and source notes.
+- `14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md` — canonical actor-decision transaction, actor-known planning context and provenance kinds, needs/intentions/routines/HTN/local planning, shared-pipeline validation, typed decision/stuck diagnostics, replay projections, and anti-contamination acceptance gates.
+- `15_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — architecture-relevant research decisions and source notes.
 
 ## 2-execution/ — implementation and validation planning layer
 

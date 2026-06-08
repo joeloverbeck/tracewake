@@ -93,7 +93,8 @@ Read in order unless working on a specific subsystem.
 | `11_INCIDENTS_LEADS_AND_STORY_SIFTING_PROJECTIONS.md` | Incidents, leads, notices, story-sifting projections, observer queries, and no-director/no-quest enforcement. |
 | `12_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md` | LOD boundaries, regional processes, promotion, ancestry retention, prehistory, long simulation, and scale gates. |
 | `13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md` | Acceptance artifacts, invariants, golden fixtures, replay proof, no-human proof, provenance review, and metric meaning. |
-| `14_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` | Stable research decisions and source-handling principles relevant to architecture. |
+| `14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md` | Canonical actor-decision transaction, actor-known planning context and provenance kinds, needs/intentions/routines/HTN/local planning, shared-pipeline validation, typed decision/stuck diagnostics, replay projections, and anti-contamination acceptance gates. |
+| `15_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` | Stable research decisions and source-handling principles relevant to architecture. |
 
 ## Universal architecture questions
 
