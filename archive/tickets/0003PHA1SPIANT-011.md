@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-011: Typed, provenance-bearing, actor/debug-separated diagnostics discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` (`actions/report.rs` actor/debug field separation if needed; diagnostic-discipline source-scan tests)
@@ -77,3 +77,22 @@ Add a test asserting a diagnostic that loses `ReasonCode`/`ValidationPhase`/`Che
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `diagnostics_never_assert_display_label_as_authority` to scan test sources for forbidden display-summary-as-authority patterns where typed `ReasonCode`/stable IDs should be used.
+- Added `validation_report_keeps_typed_provenance_and_actor_debug_split` to lock `ValidationReport` fields for `PipelineStage`, `ReasonCode`, `CheckedFact`, `CheckedFactSource`, and separate actor-visible/debug-only fact vectors.
+- Reused the existing report API; no runtime diagnostic shape change was needed.
+
+Deviations from original plan:
+- None. The existing actor/debug split was structurally present, so the ticket landed as guard coverage.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -10,6 +10,7 @@ const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
+const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 
@@ -144,6 +145,40 @@ fn production_sources() -> Vec<(String, String)> {
                     .to_string();
                 let source = std::fs::read_to_string(&path).expect("source file is readable");
                 sources.push((relative, production(&source).to_string()));
+            }
+        }
+    }
+    sources
+}
+
+#[allow(
+    clippy::disallowed_methods,
+    reason = "anti-regression test scans test sources; this helper is not simulation outcome code"
+)]
+fn test_sources() -> Vec<(String, String)> {
+    let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("tracewake-core has a workspace parent");
+    let mut stack = vec![
+        repo_root.join("tracewake-core/tests"),
+        repo_root.join("tracewake-content/tests"),
+        repo_root.join("tracewake-tui/tests"),
+    ];
+    let mut sources = Vec::new();
+    while let Some(path) = stack.pop() {
+        for entry in std::fs::read_dir(path).expect("test directory is readable") {
+            let entry = entry.expect("test directory entry is readable");
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                let relative = path
+                    .strip_prefix(repo_root)
+                    .expect("test path is under workspace crates")
+                    .display()
+                    .to_string();
+                let source = std::fs::read_to_string(&path).expect("test file is readable");
+                sources.push((relative, source));
             }
         }
     }
@@ -672,6 +707,162 @@ fn forged_or_stale_source_context_rejected_by_reason_code() {
             "source-context negatives must assert typed reason codes, not actor-facing labels"
         );
     }
+}
+
+#[test]
+fn diagnostics_never_assert_display_label_as_authority() {
+    struct ForbiddenDiagnosticAssertion {
+        snippet: &'static str,
+        reason: &'static str,
+    }
+
+    let forbidden = [
+        ForbiddenDiagnosticAssertion {
+            snippet: "assert_eq!(report.actor_visible_summary",
+            reason: "actor-facing summaries are presentation; assert ReasonCode/stable_id fields",
+        },
+        ForbiddenDiagnosticAssertion {
+            snippet: "assert_eq!(result.report.actor_visible_summary",
+            reason: "actor-facing summaries are presentation; assert ReasonCode/stable_id fields",
+        },
+        ForbiddenDiagnosticAssertion {
+            snippet: "assert_eq!(why_not.actor_known_summary",
+            reason: "why-not summaries are presentation; assert reason codes and checked facts",
+        },
+        ForbiddenDiagnosticAssertion {
+            snippet: ".actor_visible_summary.contains(\"door_closed",
+            reason: "stable reason-code strings belong to ReasonCode::stable_id assertions",
+        },
+        ForbiddenDiagnosticAssertion {
+            snippet: ".actor_visible_summary.contains(\"container_closed",
+            reason: "stable reason-code strings belong to ReasonCode::stable_id assertions",
+        },
+        ForbiddenDiagnosticAssertion {
+            snippet: ".actor_visible_summary.contains(\"knowledge_precondition",
+            reason: "stable reason-code strings belong to ReasonCode::stable_id assertions",
+        },
+    ];
+
+    let mut violations = Vec::new();
+    for (path, source) in test_sources() {
+        let source = source
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("snippet:"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for assertion in &forbidden {
+            if source.contains(assertion.snippet) {
+                violations.push(format!(
+                    "{} contains {}: {}",
+                    path, assertion.snippet, assertion.reason
+                ));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "diagnostic tests must not use display labels as semantic authority:\n{}",
+        violations.join("\n")
+    );
+
+    let synthetic_bad_assertion = [
+        "assert_eq!(report.",
+        "actor_visible_summary, \"door closed\")",
+    ]
+    .concat();
+    assert!(
+        forbidden
+            .iter()
+            .any(|assertion| synthetic_bad_assertion.contains(assertion.snippet)),
+        "the display-label assertion guard must catch direct summary equality"
+    );
+}
+
+#[test]
+fn validation_report_keeps_typed_provenance_and_actor_debug_split() {
+    use tracewake_core::actions::pipeline::PipelineStage;
+    use tracewake_core::actions::report::{CheckedFactKey, CheckedFactSource};
+    use tracewake_core::actions::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
+    use tracewake_core::ids::{ActionId, ActorId, ProposalId, ValidationReportId};
+
+    for required in [
+        "pub failed_stage: Option<crate::actions::pipeline::PipelineStage>",
+        "pub reason_codes: Vec<ReasonCode>",
+        "pub checked_facts: Vec<CheckedFact>",
+        "pub actor_visible_facts: Vec<CheckedFact>",
+        "pub debug_only_facts: Vec<CheckedFact>",
+        "source: CheckedFactSource",
+        "pub actor_visible_summary: String",
+        "pub debug_summary: String",
+    ] {
+        assert!(
+            ACTIONS_REPORT_RS.contains(required),
+            "diagnostic report typing/separation changed or was removed: {required}"
+        );
+    }
+    assert!(
+        source_contains_in_order(
+            ACTIONS_REPORT_RS,
+            "pub actor_visible_facts: Vec<CheckedFact>",
+            "pub debug_only_facts: Vec<CheckedFact>"
+        ),
+        "actor-visible facts and debug-only facts must remain structurally separate fields"
+    );
+    assert_absent(ACTIONS_REPORT_RS, "pub facts: Vec<String>");
+    assert_absent(ACTIONS_REPORT_RS, "pub reason_codes: Vec<String>");
+
+    let actor_fact = CheckedFact::new("door_id", "door_house_street");
+    let debug_fact = CheckedFact::new("holder_known_context_hash", "hkc_hash_hidden");
+    let report = ValidationReport {
+        validation_report_id: ValidationReportId::new("validation_report_diag_guard").unwrap(),
+        proposal_id: ProposalId::new("proposal_diag_guard").unwrap(),
+        actor_id: Some(ActorId::new("actor_tomas").unwrap()),
+        action_id: ActionId::new("move").unwrap(),
+        target_ids: vec!["back_room".to_string()],
+        status: ReportStatus::Rejected,
+        failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
+        reason_codes: vec![ReasonCode::DoorClosedBlocksMovement],
+        checked_facts: vec![actor_fact.clone(), debug_fact.clone()],
+        actor_visible_facts: vec![actor_fact.clone()],
+        debug_only_facts: vec![debug_fact.clone()],
+        actor_visible_summary: "The way is blocked.".to_string(),
+        debug_summary: "validator saw closed door and holder-known hash".to_string(),
+        would_mutate: false,
+        event_ids: Vec::new(),
+        checksum_before: None,
+        checksum_after: None,
+    };
+
+    assert_eq!(
+        report.failed_stage,
+        Some(PipelineStage::PhysicalPreconditionValidation)
+    );
+    assert_eq!(
+        report.reason_codes,
+        vec![ReasonCode::DoorClosedBlocksMovement]
+    );
+    assert_eq!(
+        report
+            .reason_codes
+            .iter()
+            .map(|reason| reason.stable_id())
+            .collect::<Vec<_>>(),
+        vec!["door_closed_blocks_movement"]
+    );
+    assert_eq!(report.actor_visible_facts, vec![actor_fact.clone()]);
+    assert_eq!(report.debug_only_facts, vec![debug_fact.clone()]);
+    assert_eq!(actor_fact.key(), &CheckedFactKey::DoorId);
+    assert_eq!(
+        debug_fact.key(),
+        &CheckedFactKey::Unsupported("holder_known_context_hash".to_string())
+    );
+    assert_eq!(actor_fact.source(), CheckedFactSource::Validation);
+    assert_eq!(debug_fact.source().stable_id(), "validation");
+    assert!(
+        !report.actor_visible_facts.contains(&debug_fact),
+        "debug-only checked facts must not be reused as actor-visible why-not facts"
+    );
 }
 
 #[test]
