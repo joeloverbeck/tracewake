@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-006: Scheduler / no-human no-direct-dispatch conformance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` (named scheduler conformance test; reviewed marker-event allowlist)
@@ -72,3 +72,21 @@ Add a runtime assertion that a scheduler no-human advance changes authoritative 
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `scheduler_never_direct_dispatches_primitive_action`, a named scheduler conformance guard.
+- Added a documented scheduler marker/event allowlist for duration-completion builders, no-human process markers, and replayable agent-stream diagnostics.
+- Source-scanned `scheduler.rs` against direct primitive action imports/builders and asserted ordinary scheduler proposals still route through `run_pipeline` and actor autonomy through `ActorDecisionTransaction::run`.
+- Added a runtime comparison proving a no-human scheduled wait adds only diagnostic scheduler markers while its ordinary event sequence matches direct shared-pipeline execution.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards scheduler_never_direct_dispatches_primitive_action`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`

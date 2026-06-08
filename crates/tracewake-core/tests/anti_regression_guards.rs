@@ -23,6 +23,12 @@ struct NondeterminismAllowlistEntry {
     responsible_layer: &'static str,
 }
 
+struct SchedulerMarkerAllowlistEntry {
+    snippet: &'static str,
+    rationale: &'static str,
+    responsible_layer: &'static str,
+}
+
 const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
     BannedApiToken {
         token: "HashMap",
@@ -79,6 +85,29 @@ const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
 ];
 
 const NONDETERMINISM_ALLOWLIST: &[NondeterminismAllowlistEntry] = &[];
+
+const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
+    SchedulerMarkerAllowlistEntry {
+        snippet: "build_sleep_completion_events",
+        rationale: "scheduler may complete previously accepted duration actions; initial sleep start still goes through the action pipeline",
+        responsible_layer: "core/scheduler",
+    },
+    SchedulerMarkerAllowlistEntry {
+        snippet: "build_work_completion_events",
+        rationale: "scheduler may complete previously accepted duration actions; initial work start still goes through the action pipeline",
+        responsible_layer: "core/scheduler",
+    },
+    SchedulerMarkerAllowlistEntry {
+        snippet: "append_marker",
+        rationale: "no-human process start/completion diagnostics are marker events, not primitive action dispatch",
+        responsible_layer: "core/scheduler",
+    },
+    SchedulerMarkerAllowlistEntry {
+        snippet: "append_and_apply_agent_event",
+        rationale: "agent-stream routine, need, trace, and diagnostic records are replayable scheduler diagnostics, not physical primitive dispatch",
+        responsible_layer: "core/scheduler",
+    },
+];
 
 fn production(source: &str) -> &str {
     source.split("#[cfg(test)]").next().unwrap_or(source)
@@ -143,6 +172,42 @@ fn nondeterminism_api_is_allowlisted(path: &str, token: &str) -> bool {
         .any(|entry| entry.path == path && entry.token == token)
 }
 
+fn scheduler_marker_allowlist_is_documented(snippet: &str) -> bool {
+    SCHEDULER_MARKER_EVENT_ALLOWLIST.iter().any(|entry| {
+        entry.snippet == snippet
+            && !entry.rationale.is_empty()
+            && !entry.responsible_layer.is_empty()
+    })
+}
+
+fn low_pressure_agent_state(
+    actor_id: tracewake_core::ids::ActorId,
+) -> tracewake_core::state::AgentState {
+    use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+
+    let mut state = tracewake_core::state::AgentState::default();
+    state.seed_needs_by_actor_mut().insert(
+        actor_id,
+        [
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 100, NeedChangeCause::FixtureInitial),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 100, NeedChangeCause::FixtureInitial),
+            ),
+            (
+                NeedKind::Safety,
+                NeedState::initial(NeedKind::Safety, 100, NeedChangeCause::FixtureInitial),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+    state
+}
+
 #[test]
 fn nondeterminism_api_gate() {
     assert!(
@@ -183,6 +248,178 @@ fn nondeterminism_api_gate() {
     let synthetic_violation_pattern =
         "Adding HashMap to a tracewake-core production source must fail this test unless a narrow allowlist entry explains the exception.";
     assert!(synthetic_violation_pattern.contains("must fail this test"));
+}
+
+#[test]
+fn scheduler_never_direct_dispatches_primitive_action() {
+    use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
+    use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
+    use tracewake_core::actions::registry::ActionRegistry;
+    use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
+    use tracewake_core::events::log::EventLog;
+    use tracewake_core::events::{EventKind, EventStream};
+    use tracewake_core::ids::{
+        ActionId, ActorId, ContentManifestId, ContentVersion, FixtureId, PlaceId, ProcessId,
+        ProposalId,
+    };
+    use tracewake_core::scheduler::no_human::{advance_no_human, NoHumanStateMut};
+    use tracewake_core::scheduler::{
+        OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+    };
+    use tracewake_core::state::{ActorBody, PhysicalState};
+    use tracewake_core::time::SimTick;
+
+    let scheduler = production(SCHEDULER_RS);
+    for forbidden in [
+        "actions::defs::accuseprobe",
+        "actions::defs::checkcontainer",
+        "actions::defs::continue_routine",
+        "actions::defs::eat",
+        "actions::defs::movement",
+        "actions::defs::openclose",
+        "actions::defs::takeplace",
+        "actions::defs::wait",
+        "build_check_container_event",
+        "build_continue_routine_event",
+        "build_eat_events",
+        "build_move_event",
+        "build_open_close_event",
+        "build_take_place_event",
+        "build_wait_events",
+        "validate_truthful_accuse_probe",
+    ] {
+        assert_absent(scheduler, forbidden);
+    }
+
+    for allowed in [
+        "build_sleep_completion_events",
+        "build_work_completion_events",
+        "append_marker",
+        "append_and_apply_agent_event",
+    ] {
+        assert!(
+            scheduler_marker_allowlist_is_documented(allowed),
+            "scheduler marker allowlist lacks rationale for {allowed}"
+        );
+        assert!(
+            scheduler.contains(allowed),
+            "reviewed scheduler marker/event constructor is absent or renamed: {allowed}"
+        );
+    }
+
+    assert!(
+        scheduler.contains("run_pipeline(&mut context, &proposal)"),
+        "scheduler ordinary no-human proposals must route through the shared pipeline"
+    );
+    assert!(
+        scheduler.contains("ActorDecisionTransaction::run"),
+        "scheduler autonomous proposals must come from the actor decision transaction"
+    );
+
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let place_id = PlaceId::new("shop_front").unwrap();
+    let mut scheduled_state = PhysicalState::default();
+    scheduled_state
+        .seed_actors_mut()
+        .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), place_id));
+    let mut scheduled_agent_state = low_pressure_agent_state(actor_id.clone());
+    let mut scheduled_log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
+    let proposal = Proposal::new(
+        ProposalId::new("proposal_wait").unwrap(),
+        ProposalOrigin::Scheduler,
+        Some(actor_id.clone()),
+        ActionId::new("wait").unwrap(),
+        SimTick::ZERO,
+    );
+    let context = ChecksumContext {
+        fixture_id: FixtureId::new("scheduler_no_direct_dispatch").unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick: SimTick::ZERO,
+        world_stream_position_applied: 0,
+    };
+    let before_checksum = compute_physical_checksum(&scheduled_state, &context).checksum;
+
+    let report = advance_no_human(
+        NoHumanStateMut {
+            physical: &mut scheduled_state,
+            agent: &mut scheduled_agent_state,
+        },
+        &mut scheduled_log,
+        &registry,
+        content_manifest_id.clone(),
+        SimTick::ZERO,
+        1,
+        vec![proposal.clone()],
+    );
+
+    let after_checksum = compute_physical_checksum(&scheduled_state, &context).checksum;
+    assert_eq!(
+        after_checksum, before_checksum,
+        "wait proposal does not physically mutate; scheduler marker events must not alter physical state"
+    );
+    assert_eq!(report.marker_event_ids.len(), 2);
+    assert_eq!(report.ordinary_pipeline_events, 3);
+    assert_eq!(
+        scheduled_log
+            .events()
+            .iter()
+            .filter(|event| event.stream == EventStream::Diagnostic)
+            .count(),
+        2
+    );
+
+    let mut direct_state = PhysicalState::default();
+    direct_state.seed_actors_mut().insert(
+        actor_id.clone(),
+        ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
+    );
+    let mut direct_agent_state = low_pressure_agent_state(actor_id.clone());
+    let mut direct_log = EventLog::new();
+    let mut direct_context = PipelineContext {
+        registry: &registry,
+        state: &mut direct_state,
+        agent_state: &mut direct_agent_state,
+        log: &mut direct_log,
+        controller_bindings: None,
+        epistemic_projection: None,
+        content_manifest_id,
+        ordering_key: OrderingKey::new(
+            SimTick::ZERO,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Process(ProcessId::new("no_human_advance").unwrap()),
+            ProposalSequence::new(0),
+            ActionId::new("wait").unwrap(),
+            Vec::new(),
+            "proposal_wait",
+        ),
+    };
+    let direct = run_pipeline(&mut direct_context, &proposal);
+    let scheduled_ordinary_kinds = scheduled_log
+        .events()
+        .iter()
+        .filter(|event| event.stream != EventStream::Diagnostic)
+        .map(|event| event.event_type)
+        .collect::<Vec<_>>();
+    let direct_ordinary_kinds = direct
+        .appended_events
+        .iter()
+        .map(|event| event.event_type)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        scheduled_ordinary_kinds, direct_ordinary_kinds,
+        "scheduler ordinary effects must match the shared pipeline output"
+    );
+    assert_eq!(
+        scheduled_ordinary_kinds,
+        vec![
+            EventKind::ActorWaited,
+            EventKind::NeedDeltaApplied,
+            EventKind::NeedDeltaApplied,
+        ]
+    );
 }
 
 #[test]
