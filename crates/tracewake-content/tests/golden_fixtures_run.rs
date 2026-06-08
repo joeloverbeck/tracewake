@@ -239,7 +239,7 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
     assert!(has_event(&log, EventKind::WorkBlockCompleted));
     let actor_id: ActorId = "actor_tomas".parse().unwrap();
     assert_eq!(
-        state.actors[&actor_id].current_place_id.as_str(),
+        state.actors()[&actor_id].current_place_id.as_str(),
         "workshop_tomas"
     );
 }
@@ -599,7 +599,7 @@ fn routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry() {
     assert!(!has_event(&log, EventKind::WorkBlockStarted));
     let actor_id = "actor_tomas".parse().unwrap();
     assert_eq!(
-        state.actors[&actor_id].current_place_id.as_str(),
+        state.actors()[&actor_id].current_place_id.as_str(),
         "home_tomas"
     );
     let failure = log
@@ -630,12 +630,12 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
     let intention_id: IntentionId = "intention_mara_work".parse().unwrap();
     let routine_execution_id: RoutineExecutionId = "routine_exec_mara_work".parse().unwrap();
     assert_eq!(
-        agent_state.active_intention_by_actor.get(&actor_id),
+        agent_state.active_intention_by_actor().get(&actor_id),
         Some(&intention_id)
     );
-    assert!(agent_state.intentions.contains_key(&intention_id));
+    assert!(agent_state.intentions().contains_key(&intention_id));
     assert!(agent_state
-        .routine_executions
+        .routine_executions()
         .contains_key(&routine_execution_id));
     let before_agent_state = agent_state.clone();
     let mut log = EventLog::new();
@@ -699,7 +699,7 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
 fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
     let (mut state, mut agent_state, manifest_id) = load(fixtures::no_hidden_truth_planning_001());
     let hidden_food_id: FoodSupplyId = "food_hidden_pantry".parse().unwrap();
-    assert!(state.food_supplies.contains_key(&hidden_food_id));
+    assert!(state.food_supplies().contains_key(&hidden_food_id));
 
     let actor_id: ActorId = "actor_mara".parse().unwrap();
     let generated = generate_candidate_goals(&CandidateGenerationInput {
@@ -1170,7 +1170,7 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     let initial_state = state.clone();
     let initial_agent_state = agent_state.clone();
     let mut log = EventLog::new();
-    let expected_roster = state.actors.keys().cloned().collect::<Vec<_>>();
+    let expected_roster = state.actors().keys().cloned().collect::<Vec<_>>();
 
     let report = run_no_human_day(
         &mut state,
@@ -1227,8 +1227,8 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     assert!(replay.epistemic_application_errors.is_empty());
     assert!(real_metrics.contains("no_human_day_metrics_v1"));
     assert_eq!(
-        rebuild.final_agent_state.decision_traces,
-        agent_state.decision_traces
+        rebuild.final_agent_state.decision_traces(),
+        agent_state.decision_traces()
     );
     assert_eq!(
         compute_agent_state_checksum(&agent_state, &context).checksum,

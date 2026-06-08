@@ -1906,7 +1906,7 @@ mod tests {
         let world = validate_fixture(&fixture(), &registry()).unwrap();
         assert!(world
             .physical_state
-            .places
+            .places()
             .contains_key(&PlaceId::new("shop_front").unwrap()));
     }
 

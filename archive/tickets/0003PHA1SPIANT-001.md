@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-001: Seal authoritative state mutation behind an event-application capability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`state.rs` field visibility + read accessors; new `events::mutation` capability module; every in-workspace consumer of `PhysicalState`/`AgentState` fields across `tracewake-core`, `tracewake-content`, `tracewake-tui`)
@@ -115,3 +115,24 @@ Update all 35 consumer files: read sites → accessors; write sites → capabili
 1. `cargo build --workspace --all-targets --locked`
 2. `cargo test --workspace`
 3. `cargo clippy --workspace --all-targets -- -D warnings` — the reseal must not introduce warnings (narrower than full pipeline but the relevant boundary for a visibility refactor).
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- `PhysicalState` and `AgentState` authoritative collections are no longer public fields; public access is through shared-reference accessors.
+- Added explicit seed construction surfaces (`from_seed_parts` and `seed_*_mut`) and migrated fixture/test construction away from public field writes.
+- Added private `events::mutation` capabilities and confined world/agent capability minting to `events::apply`.
+- Updated content, TUI, and integration-test consumers to use accessors for reads.
+- Added anti-regression guards proving state fields are not public, mutation capability minting stays private to event application, production seed mutators stay quarantined to `state.rs`, and production direct collection inserts stay out of non-apply code.
+
+Deviations from original plan:
+- The final seal uses `pub(crate)` state fields plus source-scan guards rather than fully private fields, matching the ticket allowance for crate-internal ergonomics while blocking external crates and integration tests from direct mutation.
+- Seed construction is exposed as explicitly named construction APIs so existing fixture and regression tests can build initial states without using the runtime event-application path.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`

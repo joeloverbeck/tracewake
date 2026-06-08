@@ -4,6 +4,9 @@ const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
 const STATE_RS: &str = include_str!("../src/state.rs");
+const EVENTS_MOD_RS: &str = include_str!("../src/events/mod.rs");
+const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
+const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
@@ -17,6 +20,30 @@ fn assert_absent(haystack: &str, needle: &str) {
         !haystack.contains(needle),
         "forbidden shortcut reintroduced: {needle}"
     );
+}
+
+fn production_sources() -> Vec<(String, String)> {
+    let src_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut stack = vec![src_root];
+    let mut sources = Vec::new();
+    while let Some(path) = stack.pop() {
+        for entry in std::fs::read_dir(path).expect("source directory is readable") {
+            let entry = entry.expect("source directory entry is readable");
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                let relative = path
+                    .strip_prefix(env!("CARGO_MANIFEST_DIR"))
+                    .expect("source path is under manifest dir")
+                    .display()
+                    .to_string();
+                let source = std::fs::read_to_string(&path).expect("source file is readable");
+                sources.push((relative, production(&source).to_string()));
+            }
+        }
+    }
+    sources
 }
 
 #[test]
@@ -92,6 +119,111 @@ fn guard_002_agent_state_keeps_typed_trace_and_diagnostic_records() {
     );
     assert_absent(STATE_RS, "BTreeMap<DecisionTraceId, String>");
     assert_absent(STATE_RS, "BTreeMap<StuckDiagnosticId, String>");
+}
+
+#[test]
+fn guard_001_authoritative_state_fields_are_not_publicly_mutable() {
+    for forbidden in [
+        "pub actors:",
+        "pub places:",
+        "pub doors:",
+        "pub containers:",
+        "pub items:",
+        "pub food_supplies:",
+        "pub workplaces:",
+        "pub needs_by_actor:",
+        "pub intentions:",
+        "pub active_intention_by_actor:",
+        "pub routine_executions:",
+        "pub decision_traces:",
+        "pub stuck_diagnostics:",
+    ] {
+        assert_absent(STATE_RS, forbidden);
+    }
+
+    for required in [
+        "pub(crate) actors:",
+        "pub(crate) places:",
+        "pub(crate) doors:",
+        "pub(crate) containers:",
+        "pub(crate) items:",
+        "pub(crate) food_supplies:",
+        "pub(crate) workplaces:",
+        "pub(crate) needs_by_actor:",
+        "pub(crate) intentions:",
+        "pub(crate) active_intention_by_actor:",
+        "pub(crate) routine_executions:",
+        "pub(crate) decision_traces:",
+        "pub(crate) stuck_diagnostics:",
+    ] {
+        assert!(
+            STATE_RS.contains(required),
+            "authoritative state field visibility changed: {required}"
+        );
+    }
+}
+
+#[test]
+fn guard_001_mutation_capability_is_private_to_event_application() {
+    assert!(
+        EVENTS_MOD_RS.contains("mod mutation;"),
+        "mutation capability module must stay private to events"
+    );
+    assert_absent(EVENTS_MOD_RS, "pub mod mutation;");
+    assert!(EVENTS_MUTATION_RS.contains("pub struct WorldMutationCapability"));
+    assert!(EVENTS_MUTATION_RS.contains("pub struct AgentMutationCapability"));
+    assert!(
+        EVENTS_MUTATION_RS.contains("_private: ()"),
+        "mutation capabilities must keep private fields"
+    );
+    assert!(
+        EVENTS_APPLY_RS.contains("WorldMutationCapability::mint()"),
+        "world mutation capability must be minted by event application"
+    );
+    assert!(
+        EVENTS_APPLY_RS.contains("AgentMutationCapability::mint()"),
+        "agent mutation capability must be minted by event application"
+    );
+}
+
+#[test]
+fn guard_001_no_production_seed_mutation_outside_state_definition() {
+    for (path, source) in production_sources() {
+        if path == "src/state.rs" {
+            continue;
+        }
+        assert!(
+            !source.contains("seed_"),
+            "{path} uses seed construction mutators in production"
+        );
+    }
+}
+
+#[test]
+fn guard_001_no_direct_state_collection_insert_outside_event_application() {
+    let forbidden_writes = [
+        ".actors.insert",
+        ".places.insert",
+        ".doors.insert",
+        ".containers.insert",
+        ".items.insert",
+        ".food_supplies.insert",
+        ".workplaces.insert",
+        ".needs_by_actor.insert",
+        ".intentions.insert",
+        ".active_intention_by_actor.insert",
+        ".routine_executions.insert",
+        ".decision_traces.insert",
+        ".stuck_diagnostics.insert",
+    ];
+    for (path, source) in production_sources() {
+        if path == "src/events/apply.rs" {
+            continue;
+        }
+        for forbidden in forbidden_writes {
+            assert_absent(&source, forbidden);
+        }
+    }
 }
 
 #[test]

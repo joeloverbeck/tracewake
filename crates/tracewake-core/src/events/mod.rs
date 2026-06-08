@@ -1,6 +1,7 @@
 pub mod apply;
 mod envelope;
 pub mod log;
+mod mutation;
 
 pub use envelope::{
     BeliefUpdatedPayload, ContainerCheckedPayload, EventCause, EventEnvelope,

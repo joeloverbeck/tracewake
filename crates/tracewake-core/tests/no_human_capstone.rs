@@ -27,8 +27,8 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
     let (mut world, mut agent_state, expected_roster) = capstone_world_and_agents();
     let initial_world = world.clone();
     let initial_agent_state = agent_state.clone();
-    let initial_actor_count = world.actors.len();
-    let initial_routine_count = agent_state.routine_executions.len();
+    let initial_actor_count = world.actors().len();
+    let initial_routine_count = agent_state.routine_executions().len();
     let mut log = EventLog::new();
     let registry = capstone_registry();
     let content_manifest_id = ContentManifestId::new("phase3a_capstone_manifest").unwrap();
@@ -115,18 +115,21 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
     assert!(rebuild.state_diff.is_empty());
     assert_eq!(rebuild.final_checksum, live_physical_checksum);
     assert_eq!(rebuild.final_agent_checksum, live_agent_checksum);
-    assert_eq!(rebuild.final_agent_state.intentions, agent_state.intentions);
     assert_eq!(
-        rebuild.final_agent_state.routine_executions,
-        agent_state.routine_executions
+        rebuild.final_agent_state.intentions(),
+        agent_state.intentions()
     );
     assert_eq!(
-        rebuild.final_agent_state.decision_traces,
-        agent_state.decision_traces
+        rebuild.final_agent_state.routine_executions(),
+        agent_state.routine_executions()
     );
     assert_eq!(
-        rebuild.final_agent_state.stuck_diagnostics,
-        agent_state.stuck_diagnostics
+        rebuild.final_agent_state.decision_traces(),
+        agent_state.decision_traces()
+    );
+    assert_eq!(
+        rebuild.final_agent_state.stuck_diagnostics(),
+        agent_state.stuck_diagnostics()
     );
     assert_eq!(
         no_human_day_metrics(&EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap())
@@ -268,7 +271,7 @@ fn assert_decision_trace_ancestry(log: &EventLog, agent_state: &AgentState) {
         );
         assert_eq!(
             agent_state
-                .decision_traces
+                .decision_traces()
                 .get(&record.trace_id)
                 .expect("live agent state stores trace"),
             &record
@@ -278,7 +281,7 @@ fn assert_decision_trace_ancestry(log: &EventLog, agent_state: &AgentState) {
 
     assert!(!trace_ids_from_events.is_empty());
     let trace_ids_from_state = agent_state
-        .decision_traces
+        .decision_traces()
         .keys()
         .cloned()
         .collect::<BTreeSet<DecisionTraceId>>();
@@ -331,7 +334,7 @@ fn assert_intention_and_routine_ancestry(log: &EventLog, agent_state: &AgentStat
         if event.event_type == EventKind::IntentionStarted {
             let trace_id = DecisionTraceId::new(payload(event, "trace_id")).unwrap();
             assert!(
-                agent_state.decision_traces.contains_key(&trace_id),
+                agent_state.decision_traces().contains_key(&trace_id),
                 "started intention references missing decision trace {}",
                 trace_id.as_str()
             );
@@ -345,7 +348,7 @@ fn assert_intention_and_routine_ancestry(log: &EventLog, agent_state: &AgentStat
             let execution_id = RoutineExecutionId::new(payload(event, "routine_execution_id"))
                 .expect("routine event carries typed execution id");
             assert!(
-                agent_state.routine_executions.contains_key(&execution_id),
+                agent_state.routine_executions().contains_key(&execution_id),
                 "routine event references missing execution {}",
                 execution_id.as_str()
             );
@@ -488,7 +491,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         ("office_anna", "Anna office"),
         ("workshop_tomas", "Tomas workshop"),
     ] {
-        world.places.insert(
+        world.seed_places_mut().insert(
             PlaceId::new(place_id).unwrap(),
             PlaceState::new(PlaceId::new(place_id).unwrap(), label),
         );
@@ -514,7 +517,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         add_actor(&mut world, actor_id, place_id);
     }
 
-    world.food_supplies.insert(
+    world.seed_food_supplies_mut().insert(
         FoodSupplyId::new("food_stew_home_bruno").unwrap(),
         FoodSupplyState::new(
             FoodSupplyId::new("food_stew_home_bruno").unwrap(),
@@ -533,7 +536,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         .assigned_actor_ids
         .insert(ActorId::new("actor_anna").unwrap());
     closed_workplace.access_open = false;
-    world.workplaces.insert(
+    world.seed_workplaces_mut().insert(
         WorkplaceId::new("workplace_anna_closed").unwrap(),
         closed_workplace,
     );
@@ -549,7 +552,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     open_workplace.work_duration_ticks = 4;
     open_workplace.access_open = true;
     world
-        .workplaces
+        .seed_workplaces_mut()
         .insert(WorkplaceId::new("workplace_tomas").unwrap(), open_workplace);
 
     let mut agent_state = AgentState::default();
@@ -561,7 +564,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         ("actor_tomas", 520, 260),
     ] {
         let actor_id = ActorId::new(actor_id).unwrap();
-        agent_state.needs_by_actor.insert(
+        agent_state.seed_needs_by_actor_mut().insert(
             actor_id,
             BTreeMap::from([
                 (
@@ -616,7 +619,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         24,
     );
 
-    let expected_roster = world.actors.keys().cloned().collect::<Vec<_>>();
+    let expected_roster = world.actors().keys().cloned().collect::<Vec<_>>();
     (world, agent_state, expected_roster)
 }
 
@@ -624,13 +627,13 @@ fn connect_places(world: &mut PhysicalState, left: &str, right: &str) {
     let left = PlaceId::new(left).unwrap();
     let right = PlaceId::new(right).unwrap();
     world
-        .places
+        .seed_places_mut()
         .get_mut(&left)
         .unwrap()
         .adjacent_place_ids
         .insert(right.clone());
     world
-        .places
+        .seed_places_mut()
         .get_mut(&right)
         .unwrap()
         .adjacent_place_ids
@@ -640,12 +643,12 @@ fn connect_places(world: &mut PhysicalState, left: &str, right: &str) {
 fn add_actor(world: &mut PhysicalState, actor_id: &str, place_id: &str) {
     let actor_id = ActorId::new(actor_id).unwrap();
     let place_id = PlaceId::new(place_id).unwrap();
-    world.actors.insert(
+    world.seed_actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), place_id.clone()),
     );
     world
-        .places
+        .seed_places_mut()
         .get_mut(&place_id)
         .unwrap()
         .local_actor_ids
@@ -662,7 +665,7 @@ fn add_routine_execution(
     end_tick: u64,
 ) {
     let execution_id = RoutineExecutionId::new(execution_id).unwrap();
-    agent_state.routine_executions.insert(
+    agent_state.seed_routine_executions_mut().insert(
         execution_id.clone(),
         RoutineExecution::new(
             execution_id.clone(),

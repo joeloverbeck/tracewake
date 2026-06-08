@@ -133,7 +133,7 @@ impl TuiApp {
     }
 
     pub fn bind_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
-        if !self.state.actors.contains_key(&actor_id) {
+        if !self.state.actors().contains_key(&actor_id) {
             return Err(AppError::ActorNotFound(actor_id));
         }
         self.controller_bindings.attach(
@@ -413,7 +413,7 @@ impl TuiApp {
     }
 
     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
-        if !self.state.actors.contains_key(actor_id) {
+        if !self.state.actors().contains_key(actor_id) {
             return Err(AppError::ActorNotFound(actor_id.clone()));
         }
         let beliefs = self
@@ -430,7 +430,7 @@ impl TuiApp {
         &self,
         actor_id: &ActorId,
     ) -> Result<DebugObservationsView, AppError> {
-        if !self.state.actors.contains_key(actor_id) {
+        if !self.state.actors().contains_key(actor_id) {
             return Err(AppError::ActorNotFound(actor_id.clone()));
         }
         let observations = self

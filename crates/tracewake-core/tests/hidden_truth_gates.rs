@@ -51,7 +51,7 @@ fn registry() -> ActionRegistry {
 
 fn agent_state(hunger: u16) -> AgentState {
     let mut state = AgentState::default();
-    state.needs_by_actor.insert(
+    state.seed_needs_by_actor_mut().insert(
         actor_id(),
         BTreeMap::from([
             (
@@ -132,16 +132,16 @@ fn hidden_food_closed_container_is_not_actor_known_food_source() {
 #[test]
 fn embodied_affordances_exclude_hidden_food_in_closed_container() {
     let mut world = PhysicalState::default();
-    world.places.insert(
+    world.seed_places_mut().insert(
         place_id("home_mara"),
         PlaceState::new(place_id("home_mara"), "Mara home"),
     );
-    world.actors.insert(
+    world.seed_actors_mut().insert(
         actor_id(),
         ActorBody::new(actor_id(), place_id("home_mara")),
     );
 
-    world.food_supplies.insert(
+    world.seed_food_supplies_mut().insert(
         food_supply_id("food_empty_pantry_mara"),
         FoodSupplyState::new(
             food_supply_id("food_empty_pantry_mara"),
@@ -151,11 +151,11 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
         ),
     );
     let hidden_container_id = container_id("hidden_pantry");
-    world.containers.insert(
+    world.seed_containers_mut().insert(
         hidden_container_id.clone(),
         ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("home_mara")),
     );
-    world.food_supplies.insert(
+    world.seed_food_supplies_mut().insert(
         food_supply_id("food_hidden_pantry"),
         FoodSupplyState::new(
             food_supply_id("food_hidden_pantry"),
