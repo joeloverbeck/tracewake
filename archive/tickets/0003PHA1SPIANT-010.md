@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-010: Content schema field-registration, no-prose-born-fact fixture, and typed diagnostics
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`validate.rs` field-registration discipline, `serialization.rs` canonical rule coverage, new forbidden-content fixture, `forbidden_content.rs` tests)
@@ -81,3 +81,25 @@ Ensure at least one adversarial fixture exists per forbidden-content family; kee
 
 1. `cargo test -p tracewake-content --test forbidden_content`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added a `CONTENT_FIELD_REGISTRY` manifest in `tracewake-content::validate` covering every top-level `FixtureSchema` field with a canonical tag, validation phase, provenance/no-script decision, and diagnostic code.
+- Routed raw content tag recognition through the registration manifest and added a typed `NoScript/prose_born_fact` diagnostic for prose/notes that imply culprit, outcome, or hidden truth facts.
+- Added `prose_born_fact_rejected_001` as an adversarial negative fixture and exported it through `fixtures`.
+- Added `content_prose_born_fact_rejected` and `content_new_field_requires_validator_and_canonical_serialization` to `forbidden_content.rs`.
+
+Deviations from original plan:
+- The prose-born-fact fixture is a raw `SourceFile`, not a `GoldenFixture`, because the intended behavior is rejection before deserialization admits an unknown prose field.
+
+Verification:
+- `cargo test -p tracewake-content --test forbidden_content content_prose_born_fact_rejected`
+- `cargo test -p tracewake-content --test forbidden_content content_new_field_requires_validator_and_canonical_serialization`
+- `cargo test -p tracewake-content --test forbidden_content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
