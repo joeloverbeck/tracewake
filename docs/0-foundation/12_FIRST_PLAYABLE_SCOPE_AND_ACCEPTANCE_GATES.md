@@ -535,3 +535,54 @@ The first proof is done when a player can:
 17. explain who knows what, why, from what source, with what confidence, and how they may be wrong.
 
 Anything less is a prototype note, not foundation-compatible completion.
+
+## 2026 hardening: acceptance gates for hidden-truth cognition
+
+The first playable scope must now reject any phase claim that cannot prove actor-known cognition.
+
+Additional gates:
+
+### Truth firewall gate
+
+For every salient autonomous or possessed action, acceptance evidence must show:
+
+- the actor-known context used for proposal generation;
+- provenance for action-relevant cognition inputs;
+- no debug-only or validator-only truth in planning context;
+- validator truth used only at validation/resolution;
+- actor-visible feedback separated from debug-only feedback;
+- replay agreement for decision traces and outcomes.
+
+### Actor decision transaction gate
+
+No-human ordinary life must pass through the canonical actor decision transaction or equivalent architecture. A direct scheduler shortcut is a failure even if it produces plausible event logs.
+
+Forbidden pass conditions:
+
+```text
+hunger -> directly choose true food source
+routine label -> directly emit move/work/sleep action
+workplace table -> directly choose true workplace without actor-known assignment provenance
+empty epistemic projection -> claim actor-known safety
+string diagnostic -> treated as typed proof
+continue_routine -> counted as progress without ordinary action ancestry
+```
+
+### Resourcefulness gate
+
+A serious ordinary-life proof must include at least some modeled failure and recovery:
+
+- unavailable food, blocked routine, closed office, occupied bed, missing item, rejected work, failed route, or similar blocker;
+- actor-visible failure or uncertainty;
+- replan, wait, ask, search, abandon, seek help, or produce stuck diagnostic;
+- debug explanation of why the actor did not use hidden truth.
+
+The minimum first playable does not need the full monster/caravan/notice/regional chain. It does need the machinery that would eventually allow such a chain to happen without scripts.
+
+### Institution and record gate
+
+Any report, notice, bounty, contract, case, payment, sanction, or work assignment must have modeled source and procedure. Acceptance must reject institutional omniscience.
+
+### LLM-disabled gate
+
+LLM-disabled operation remains normal. Any future LLM speech surface must validate structured speech acts and must not be necessary for deterministic acceptance.

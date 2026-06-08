@@ -175,3 +175,31 @@ Gathering an army must eventually arise from recruitment, belief, loyalty, fear,
 ## Strong decision
 
 Build a village whose people can be wrong for the right reasons. Do not build a world that flatters the player, waits for the player, reads the player's mind, scripts outcomes for the player, or lets language invent reality.
+
+## 2026 hardening: emergent richness requires a truth firewall
+
+Tracewake's ambition is not merely to make agents perform recognizable routines. The project target is a simulation that can eventually produce long, surprising causal chains that other games would usually script: displaced threats, altered trade routes, reported incidents, institutional responses, notices, contracts, travel, investigation, mistaken conclusions, and stale aftermath.
+
+That ambition requires a stricter charter rule:
+
+```text
+Truth may validate actions, but truth may not plan them.
+```
+
+The project must prefer a weaker-looking but honest actor over a clever-looking contaminated actor. An agent that finds food, work, danger, culprits, routes, witnesses, or opportunities by querying hidden physical truth has failed the project even when the resulting behavior looks plausible. Emergence is only real when the causal and epistemic route to the behavior is modeled.
+
+## Foundation-level success standard
+
+A Tracewake behavior is not good enough because it is entertaining, fluent, or superficially humanlike. It is good enough when it satisfies all of the following:
+
+- the behavior arises from ordinary actor pressures, commitments, memories, relationships, roles, perceptions, and accessible affordances;
+- the proposal can be explained from actor-known inputs before validation;
+- validation may use authoritative state without leaking hidden truth into future cognition;
+- the resulting events, observations, belief updates, records, traces, and projections are replayable;
+- debug can explain both the truth and the actor's limited view of truth;
+- the same machinery works with no human controller bound;
+- no director, quest objective, LLM narration, UI marker, or script had to push the world toward the result.
+
+## Genre-neutral implication
+
+Fantasy, Lovecraftian, post-apocalyptic, detective, mundane, and other domain packs may add bodies, institutions, threats, rituals, monsters, hazards, technology, records, and speech styles. They must not add genre-specific exceptions to the truth firewall. A monster, disease, demon, caravan, patrol, notice board, court, radio tower, cult ledger, or village rumor network remains causal machinery, not a hidden director.

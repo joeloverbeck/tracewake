@@ -218,3 +218,50 @@ The same chain can happen with no human present.
 ```
 
 If a design does not protect that, it is not Tracewake foundation work.
+
+## 2026 hardening: foundation doc 14
+
+This foundation set now includes:
+
+- `14_ACTOR_KNOWN_COGNITION_TRANSACTION_AND_TRUTH_FIREWALL.md` — the constitutional boundary between authoritative truth and actor cognition.
+
+This document exists because the earlier foundation was directionally correct but still left too much room for implementation drift in no-human autonomy. In particular, it did not state a hard enough rule that world truth may validate an attempted action but must not plan that action for an actor who lacks causal access to the truth.
+
+## Updated foundation spine
+
+The foundation now has four inseparable authority boundaries:
+
+1. **Event authority** — meaningful mutation enters through events and replay must rebuild it.
+2. **Epistemic authority** — actor and institutional knowledge must be holder-specific, source-backed, and fallible.
+3. **Action authority** — proposals are validated by shared world rules and ordinary action affordances.
+4. **Cognition authority** — action proposal, goal selection, planning, routine selection, speech interpretation, and embodied view rendering must be fed only by sealed actor-known context.
+
+The fourth boundary is now explicit because no-human ordinary life and future regional simulation will otherwise reward convenient shortcuts: choosing true food locations, true jobs, true culprits, true routes, true threats, or true institutional outcomes from state that the actor has not observed, remembered, inferred, been told, read, or been assigned through modeled provenance.
+
+## Updated review questions
+
+A foundation-conformant feature must now answer these questions:
+
+- What caused the state change?
+- Who knows or believes it?
+- How could that holder be wrong?
+- What provenance supports the belief, memory, observation, claim, expectation, routine premise, record, notice, or institutional fact?
+- Did an actor decision pass through a sealed actor-known transaction or a documented equivalent?
+- Did authoritative truth validate the action without planning it?
+- Could the same action be proposed without human possession and without debug truth?
+- Can replay reconstruct the decision trace, not merely the final world state?
+- Can the embodied TUI show only what the possessed actor can legitimately perceive, believe, remember, or attempt?
+- Can debug reveal hidden truth without leaking it back into actor cognition?
+
+## Added non-negotiable formula
+
+```text
+Truth may validate actions, but truth may not plan them.
+```
+
+This formula is shorthand, not a slogan. It means:
+
+- validators may check authoritative world state;
+- the world may generate observations when a causal perception path exists;
+- physical, social, institutional, and ecological consequences may update truth;
+- hidden truth must not feed cognition, planning, routine selection, dialogue interpretation, embodied affordance generation, or institution decisions unless it first enters the relevant holder's actor-known or institution-known context through a modeled causal information path.

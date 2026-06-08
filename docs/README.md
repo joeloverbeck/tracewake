@@ -93,3 +93,17 @@ When adding or changing documents:
 - prefer source-bound concepts over synonyms that imply quests, protagonist privilege, omniscience, scripts, or LLM authority.
 
 Tracewake's recurring test is simple: every feature must preserve event-sourced causality, subjective epistemics, ordinary agents, possession parity, fallible institutions, questless leads, TUI-first playability, validation/replay, and no simulation fact born from prose.
+
+## 2026 foundation hardening note
+
+The `0-foundation` layer now includes an explicit actor-known cognition transaction and truth firewall doctrine.
+
+This does not replace the architecture-layer transaction document. It constitutionalizes the boundary above architecture:
+
+- authoritative truth may validate actions, generate observations, and apply consequences;
+- authoritative hidden truth must not select goals, plans, routines, speech interpretations, view-model affordances, or agent cognition;
+- every cognition input must be actor-known, provenance-bearing, and replayable;
+- debug truth is non-diegetic and must not become simulation authority;
+- architecture, execution, tests, and implementation must treat transaction bypasses as foundation violations, not merely technical debt.
+
+Use this note when triaging drift: if a subsystem can explain what happened but not what the actor knew before proposing an action, it is not foundation-conformant.

@@ -385,3 +385,66 @@ LLMs are not needed
 no-human simulation still runs
 TUI/debug can inspect decisions
 ```
+
+## 2026 hardening: cognition architecture stance
+
+Tracewake should use a symbolic, inspectable, deterministic authoritative cognition spine. The foundation blesses the following mixture, while leaving data structures and algorithms to architecture:
+
+- BDI-style separation of beliefs, motives/desires/pressures, and durable intentions;
+- HTN-style decomposition for routines, household duties, institutional procedures, and ordinary tasks;
+- bounded GOAP/utility/local planning only as tools inside the actor-known transaction;
+- plan repair and replanning when expectations fail or action validation rejects a proposal;
+- typed decision traces and stuck diagnostics;
+- actor-known, provenance-bearing inputs only.
+
+The foundation rejects:
+
+- LLM agents as authoritative brains;
+- utility scores as the entire mind;
+- behavior trees as hidden authored plot conditionals;
+- HTN methods as scripts with guaranteed outcomes;
+- global GOAP over hidden truth;
+- schedules or need thresholds that directly dispatch primitive actions;
+- planner explanations written after the action was chosen from unrelated truth.
+
+## Actor resourcefulness
+
+Ordinary competence is constitutional. Agents must not merely perform happy-path demo routines. Over time, agent cognition must be able to express:
+
+- plan repair after blocked routes, missing resources, closed offices, occupied beds, failed work, rejection, danger, or contradictions;
+- information seeking: search, inspect, ask, read, wait, follow up, verify, compare accounts;
+- help seeking: ask household members, authorities, coworkers, companions, strangers, or institutions when actor-known context supports it;
+- tool and supply acquisition: fetch keys, food, money, tools, transport, written materials, protection, or aid;
+- risk assessment and avoidance: hunger, fatigue, safety, social cost, law, reputation, route danger, weather, witnesses, and uncertainty;
+- coordination: meet, request, recruit, accompany, delegate, report, promise, refuse, testify, warn, and negotiate;
+- opportunistic goal pursuit: notice a chance, exploit it, abandon it, or defer it based on actor-known motives and risks;
+- long-term projects: debts, duties, grudges, friendships, property recovery, survival, reputation, institutional roles, and household obligations.
+
+Not every feature is first-playable, but the foundation must not make later resourcefulness impossible.
+
+## Intention lifecycle
+
+An intention is a live commitment, not a tick-local score winner. It must have source and lifecycle:
+
+```text
+candidate pressure or project -> adopted intention -> method/local plan -> proposal attempts -> success/failure/interruption -> continuation, repair, suspension, completion, abandonment, or replacement
+```
+
+Possession must not reset intentions. LOD demotion must not erase intentions that later promoted behavior depends on. A routine may resume, fail, or be superseded, but the transition must be explainable.
+
+## Actor decision transaction
+
+Every ordinary autonomous action must pass through the foundation doc 14 transaction or an equivalent hard boundary:
+
+1. select actor and trigger;
+2. build sealed actor-known context;
+3. gather needs, routines, intentions, obligations, memories, expectations, and perceived affordances;
+4. propose candidate goals/actions from actor-known inputs only;
+5. explain candidates through typed decision traces;
+6. select action or stuck/replan outcome;
+7. validate against authoritative world state;
+8. apply event(s);
+9. generate observations, projections, belief updates, and routine/intention lifecycle changes;
+10. preserve replay determinism.
+
+Architecture may refine this ordering, but may not weaken the boundary.

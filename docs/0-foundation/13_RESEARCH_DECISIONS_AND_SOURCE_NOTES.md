@@ -408,3 +408,114 @@ Use symbolic epistemic agents, event-sourced causality, typed claims, fallible i
 Let story be discovered after the fact.
 
 Do not let quests, LLMs, graphics, scale, or drama direction become the foundation.
+
+## 2026 reevaluation research decisions
+
+This pass accepted research influences only where they strengthen Tracewake's constitutional purpose: causality-first emergence, actor-known cognition, ordinary life, fallible institutions, replay, and no scripting.
+
+### BDI agents
+
+Accepted: the separation of beliefs, desires/pressures, and intentions. Tracewake needs durable commitments, reconsideration, and inspectable reasons rather than tick-local utility jitter.
+
+Limited/rejected: formal BDI logics are not required as implementation substrate. BDI is a conceptual discipline, not a mandate for a specific theorem prover.
+
+Changed documents: `02`, `05`, `12`, and new `14`.
+
+### HTN planning
+
+Accepted: HTN-style methods are a strong fit for ordinary routines and institutional procedures: eat, sleep, work, report, post notice, patrol, investigate, contract, and recover missing property.
+
+Limited/rejected: HTN methods must not become scripts. They decompose goals under actor-known context and may fail, replan, or be interrupted.
+
+Changed documents: `05`, `06`, `07`, `09`, `12`, and `14`.
+
+### GOAP, utility planning, and behavior trees
+
+Accepted: bounded local planning and utility scoring are useful tools for concrete steps and arbitration under limited budgets.
+
+Limited/rejected: GOAP is not the whole mind; utility is not the whole mind; behavior trees are acceptable only as reactive local control or presentation-level machinery. None may query hidden truth or encode authored plot beats.
+
+Changed documents: `05`, `06`, `12`, and `14`.
+
+### Plan repair and partial observability
+
+Accepted: failed expectations and validation failures should trigger resourceful replanning, information seeking, help seeking, waiting, search, verification, or stuck diagnostics.
+
+Limited/rejected: full epistemic-planning or POMDP machinery is not required for the first playable. The required constitutional point is practical: actors plan from partial, provenance-bearing knowledge and can be wrong.
+
+Changed documents: `04`, `05`, `06`, `12`, and `14`.
+
+### Talk of the Town and social belief ecology
+
+Accepted: knowledge should originate, propagate, deteriorate, contradict, and terminate through observed events, social exchange, memory, and evidence. Belief histories and source chains are essential.
+
+Limited/rejected: Tracewake must not reduce social knowledge to dialogue flavor or transcript snippets.
+
+Changed documents: `04`, `07`, `11`, `12`, and `14`.
+
+### Prom Week / Comme il Faut
+
+Accepted: social facts, norms, relationships, and reusable social consequence machinery can produce story-like outcomes without quest scripts.
+
+Limited/rejected: authored social games must remain causal procedures, not predetermined beats.
+
+Changed documents: `07`, `09`, and `12`.
+
+### Dwarf Fortress
+
+Accepted: long procedural history, interacting systems, physical/social causality, and non-player-centered simulation are strong precedents.
+
+Limited/rejected: Tracewake should not chase maximum scale before proving a forensic, actor-known ordinary-life kernel.
+
+Changed documents: `01`, `09`, `10`, `12`.
+
+### RimWorld and AI directors
+
+Accepted: needs, jobs, routines, mood pressures, and social friction are relevant ordinary-life lessons.
+
+Rejected: the storyteller/director model is constitutionally wrong for Tracewake. No hidden pacing authority may spawn or steer events for drama.
+
+Changed documents: `01`, `02`, `09`, `12`.
+
+### Skyrim Radiant-style quests
+
+Accepted: procedural variation of requests, roles, locations, and rewards can be useful later.
+
+Rejected: quest ontology, objectives, completion flags, and player-directed task generation are forbidden as core.
+
+Changed documents: `07`, `09`, `12`.
+
+### Generative Agents and LLM social simulation
+
+Accepted: memory streams, reflection-like summaries, routines, and language-rich social surfaces are useful research directions.
+
+Rejected: LLMs as authoritative world mutators, planners, truth sources, or live acceptance dependencies.
+
+Changed documents: `11`, `02`, `04`, `05`, `12`, `14`.
+
+### Event sourcing, CQRS/projections, and provenance
+
+Accepted: append-only event history, replay, projections, causal graph links, and provenance models are central to Tracewake. W3C PROV-style concepts are useful as conceptual vocabulary: entity, activity, agent, usage, generation, derivation, attribution, and association.
+
+Limited/rejected: Tracewake does not need to adopt RDF/OWL or enterprise CQRS architecture. It needs the discipline: source-backed facts and replayable causal ancestry.
+
+Changed documents: `03`, `04`, `07`, `10`, `12`, `14`.
+
+## Material source list
+
+- Anand Rao and Michael Georgeff, "BDI Agents: From Theory to Practice" — https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf
+- Kutluhan Erol, James Hendler, and Dana Nau, "HTN Planning: Complexity and Expressivity" — https://cdn.aaai.org/AAAI/1994/AAAI94-071.pdf
+- Dana Nau et al., SHOP2 HTN planning publications — https://www.cs.umd.edu/projects/shop/
+- Jeff Orkin, "Three States and a Plan: The A.I. of F.E.A.R." — https://www.gamedevs.org/uploads/three-states-plan-ai-of-fear.pdf
+- Behavior tree survey, "Towards a Unified Behavior Trees Framework for Robot Control" — https://arxiv.org/abs/1709.00084
+- Plan repair/replanning literature, including Nebel and Koehler, "Plan Reuse versus Plan Generation" — https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/1430
+- James Ryan et al., "Simulating Character Knowledge Phenomena in Talk of the Town" — https://www.gameaipro.com/GameAIPro3/GameAIPro3_Chapter37_Simulating_Character_Knowledge_Phenomena_in_Talk_of_the_Town.pdf
+- McCoy et al., "Prom Week: Social Physics as Gameplay" — https://www.ben-samuel.com/wp-content/uploads/2015/09/FDG-2011-Prom-Week-Social-Physics-as-Gameplay.pdf
+- Tarn Adams, "Three Problems for Simulation-Based Story Generation" — https://digitalcommons.du.edu/cgi/viewcontent.cgi?article=1080&context=collaborativelibrarianship
+- Ludeon Studios, "AI Storytellers" — https://ludeon.com/blog/2013/12/ai-storytellers/
+- Joon Sung Park et al., "Generative Agents: Interactive Simulacra of Human Behavior" — https://arxiv.org/abs/2304.03442
+- Martin Fowler, "Event Sourcing" — https://martinfowler.com/eaaDev/EventSourcing.html
+- W3C PROV-DM — https://www.w3.org/TR/prov-dm/
+- W3C PROV-O — https://www.w3.org/TR/prov-o/
+
+These sources are not imported wholesale. They justify specific constraints: actor-known BDI-style cognition, HTN-like procedures, bounded local planning, plan repair, social belief provenance, non-director emergence, LLM non-authority, event-sourced replay, and provenance-bearing information flow.

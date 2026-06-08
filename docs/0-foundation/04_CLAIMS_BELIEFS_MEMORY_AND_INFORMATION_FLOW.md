@@ -378,3 +378,74 @@ Can debug explain truth/belief/record divergence?
 ```
 
 If the answer is “the UI text says so,” the feature is not foundation-compliant.
+
+## 2026 hardening: epistemic taxonomy
+
+The following distinctions are constitutional. Architecture may refine schemas, but must not collapse these concepts.
+
+| Term | Constitutional meaning |
+|---|---|
+| Authoritative truth | The event-sourced world state and causal history. It validates actions and emits consequences. It is not automatically known. |
+| Actor-known truth | Truth that has reached a specific actor through perception, memory, belief, record, testimony, assignment, or modeled inference. It may later become stale. |
+| Belief | A holder-specific stance toward a proposition with source, confidence/uncertainty, acquisition time, and contradiction handling. It may be false. |
+| Claim | A proposition asserted, implied, spoken, written, reported, remembered, inferred, or rendered by some source. It is not automatically true. |
+| Observation | Channel-specific perception or discovery. It is not interpretation. It may be partial, noisy, mistaken, or insufficient. |
+| Memory | Retained actor information shaped by source, salience, recency, emotion, repetition, contradiction, relationship, role, and possible forgetting/distortion. |
+| Hearsay | A claim received from another holder without direct observation by the receiver. It carries speaker/listener/source provenance. |
+| Rumor | Hearsay that may propagate, mutate, lose source quality, gain salience, or contradict other accounts. |
+| Lie | A validated speech act where the speaker intentionally asserts something contrary to the speaker's belief or withholds relevant truth under modeled motive/context. A false statement is not automatically a lie. |
+| Stale belief | A belief whose source may once have been accurate but may no longer match current truth. It requires time/source tracking and possible verification. |
+| Expectation | A belief-like predicted or normative state an actor or institution uses to notice absence, delay, failure, breach, or contradiction. |
+| Contradiction | A detected mismatch between belief/expectation/claim/record and observation, report, or later information. It belongs to a holder or procedure. |
+| Debug-only omniscience | Non-diegetic inspection of truth and mismatches. It is forbidden as actor/institution cognition input. |
+
+## Provenance requirements
+
+Every action-relevant belief, expectation, contradiction, routine premise, institutional fact, record, notice, rumor, testimony, and memory must be provenance-bearing.
+
+Acceptable provenance includes, when modeled:
+
+- direct sight, sound, touch, smell, or other perception channel;
+- observation of an absence under a prior expectation;
+- speech act heard or received;
+- report filed;
+- record read or authored;
+- notice posted or read;
+- memory retained from a prior event;
+- routine/home/work/role assignment known to the actor;
+- institutional procedure step;
+- social inference from known relationships, norms, or reputation;
+- LOD summary with retained source ancestry;
+- explicit fixture/prehistory seed marked as starting knowledge, not ordinary-play truth leakage.
+
+Unacceptable provenance includes:
+
+- raw world-state lookup by a planner;
+- debug view or hidden-truth audit output;
+- branch/test label;
+- LLM prose;
+- UI marker;
+- current repository/session memory;
+- an untyped boolean claiming actor-known safety;
+- display strings parsed as proof.
+
+## False beliefs and negative information
+
+Tracewake must support false beliefs as first-class causal objects. A false belief can motivate search, accusation, avoidance, secrecy, institutional action, mistaken contracts, stale notices, or failed plans.
+
+Negative information is also first-class when it has an epistemic basis. An actor may believe "the food is absent" only after a search/inspection/perception path or a trusted report, not because the pantry truth table says so. Absence can contradict an expectation only for a holder that had an expectation.
+
+## Belief transfer through social and material carriers
+
+Information can move through:
+
+- speech, including questions, answers, reports, accusations, lies, refusals, promises, testimony, gossip, and rumor;
+- artifacts, including ledgers, notes, notices, contracts, maps, signs, seals, damaged objects, containers, and bodies;
+- institutions, including intake procedures, offices, role memories, records, evidence thresholds, orders, and sanctions;
+- environment traces, including sounds, tracks, missing items, disturbed containers, smoke, road damage, footprints, smell, or changed presence.
+
+Each transfer can degrade, mutate, be misunderstood, be contradicted, be distrusted, be forgotten, or be withheld.
+
+## Actor-known cognition rule
+
+Only provenance-bearing actor-known facts may feed cognition. Planning from unstated truth is forbidden even when the resulting action is plausible. The action validator may later reject a proposal based on truth; the actor does not thereby learn hidden details unless the rejection produces modeled perception, feedback, report, or memory.

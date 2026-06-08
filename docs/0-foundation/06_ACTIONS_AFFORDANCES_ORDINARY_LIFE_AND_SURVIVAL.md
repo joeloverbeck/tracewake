@@ -335,3 +335,60 @@ Can the TUI expose it through actor-filtered view models?
 Can no-human simulation use it?
 Can replay/debug explain it?
 ```
+
+## 2026 hardening: perceived affordance versus actual affordance
+
+Tracewake must distinguish what an actor can try from what the world will allow.
+
+- **Perceived affordance**: an actor-known possible action exposed through perception, memory, role, record, speech, learned habit, or inference. It can be wrong or stale.
+- **Actual affordance**: a capability the authoritative world can validate at resolution time.
+- **Embodied menu affordance**: a filtered projection of actor-known/perceived affordances plus why-not capable proposals.
+- **Debug affordance**: a non-diegetic inspection of possible truth-space actions and blockers.
+
+An actor may try to open a door believed unlocked and fail because it is locked. An actor may search a container believed to contain food and find nothing. An actor may ask for help at an office believed open and discover no receiver is present. The failed attempt may itself become evidence, memory, trace, or plan-repair input. The planner must not skip the attempt by reading hidden truth.
+
+## Action proposal and validation split
+
+Action proposal is actor-known. Validation is authoritative.
+
+Allowed:
+
+```text
+actor believes pantry has food -> proposes inspect/eat/get food -> validator checks actual pantry -> success, failure, rejection, observation, or contradiction
+```
+
+Forbidden:
+
+```text
+planner reads actual pantry -> chooses only the true food source -> explains afterward that actor wanted food
+```
+
+Validation may reject impossible, unavailable, socially blocked, dangerous, or unauthorized actions. It must return structured actor-visible and debug-only reasons so the transaction can replan without leaking hidden truth.
+
+## Ordinary life as anti-demo behavior
+
+Ordinary life is not a meter demo. It must force actors to sustain plausible lives under partial information:
+
+- food can be unavailable, inaccessible, reserved, spoiled, costly, stolen, hidden, socially forbidden, or believed absent;
+- sleep can be blocked, interrupted, unsafe, socially inappropriate, or impossible because of location or duty;
+- work can be missed, delayed, refused, interrupted, under-resourced, closed, unpaid, socially costly, or misremembered;
+- travel can require known routes, time, access, safety assessment, companions, supplies, and current beliefs;
+- help seeking can be available, absent, refused, misunderstood, delayed, or socially expensive;
+- survival can compete with norms, obligations, reputation, curiosity, fear, fatigue, hunger, and long-term projects.
+
+A no-human day that merely cycles `eat/work/sleep` through privileged truth is not ordinary life. A weaker day with honest failures and repairs is better.
+
+## Required action families for resourcefulness
+
+The constitutional action space must remain open to these families even if many are deferred:
+
+- inspect/search/verify;
+- ask/report/testify/lie/refuse/promise/request;
+- read/write/post/remove/amend records and notices;
+- obtain/use/carry/store/guard/repair tools and supplies;
+- wait/rest/sleep/eat/work/travel;
+- seek help, recruit, accompany, warn, flee, hide, avoid, patrol;
+- negotiate permission, violate permission, suffer detection, confess, accuse, pay, owe, compensate;
+- abandon, reconsider, resume, and continue an intention.
+
+These are ordinary action families, not quest verbs.
