@@ -4,7 +4,19 @@ use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
 use crate::app::{AppError, TuiApp};
 use crate::render::render_rejection;
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TranscriptSection {
+    pub name: String,
+    pub body: String,
+}
+
 pub fn capture_representative_transcript() -> Result<String, AppError> {
+    Ok(render_transcript_sections(
+        &capture_representative_transcript_sections()?,
+    ))
+}
+
+pub fn capture_representative_transcript_sections() -> Result<Vec<TranscriptSection>, AppError> {
     let mut app = TuiApp::from_golden(fixtures::door_access_001())?;
     app.bind_actor(ActorId::new("actor_sena").unwrap())?;
 
@@ -23,7 +35,14 @@ pub fn capture_representative_transcript() -> Result<String, AppError> {
         crate::render::render_notebook(&app.notebook_view()?),
     ));
 
-    app.submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())?;
+    let wait_action_id = app
+        .current_view()?
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == "wait")
+        .map(|action| action.semantic_action_id.clone())
+        .ok_or_else(|| AppError::SemanticActionNotFound("wait".to_string()))?;
+    app.submit_semantic_action(&wait_action_id)?;
     sections.push(section("view.after_wait", app.render_current_view()?));
 
     sections.push(section(
@@ -65,11 +84,22 @@ pub fn capture_representative_transcript() -> Result<String, AppError> {
         ),
     ));
 
-    Ok(sections.join("\n\n"))
+    Ok(sections)
 }
 
-fn section(name: &str, body: String) -> String {
-    format!("== {name} ==\n{body}")
+pub fn render_transcript_sections(sections: &[TranscriptSection]) -> String {
+    sections
+        .iter()
+        .map(|section| format!("== {} ==\n{}", section.name, section.body))
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+fn section(name: &str, body: String) -> TranscriptSection {
+    TranscriptSection {
+        name: name.to_string(),
+        body,
+    }
 }
 
 #[cfg(test)]
@@ -78,9 +108,12 @@ mod tests {
 
     #[test]
     fn representative_transcript_is_deterministic() {
-        let first = capture_representative_transcript().unwrap();
-        let second = capture_representative_transcript().unwrap();
+        let first_sections = capture_representative_transcript_sections().unwrap();
+        let second_sections = capture_representative_transcript_sections().unwrap();
+        let first = render_transcript_sections(&first_sections);
+        let second = render_transcript_sections(&second_sections);
 
+        assert_eq!(first_sections, second_sections);
         assert_eq!(first, second);
         assert!(first.contains("== view.initial =="));
         assert!(first.contains("== action.move.to.back_room =="));

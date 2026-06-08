@@ -1,13 +1,20 @@
 use tracewake_content::fixtures;
 use tracewake_core::ids::ActorId;
 use tracewake_tui::app::TuiApp;
-use tracewake_tui::transcript::capture_representative_transcript;
+use tracewake_tui::transcript::{
+    capture_representative_transcript, capture_representative_transcript_sections,
+    render_transcript_sections,
+};
 
 #[test]
 fn transcript_snapshot_is_byte_identical_across_runs() {
-    let first = capture_representative_transcript().unwrap();
-    let second = capture_representative_transcript().unwrap();
+    let first_sections = capture_representative_transcript_sections().unwrap();
+    let second_sections = capture_representative_transcript_sections().unwrap();
+    let first = render_transcript_sections(&first_sections);
+    let second = render_transcript_sections(&second_sections);
 
+    assert_eq!(first_sections, second_sections);
+    assert_eq!(first, capture_representative_transcript().unwrap());
     assert_eq!(first.as_bytes(), second.as_bytes());
     assert!(first.contains("== view.initial =="));
     assert!(first.contains("== notebook.actor_sena =="));

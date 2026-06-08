@@ -23,8 +23,8 @@ use tracewake_core::ids::{
     ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model_with_agent_state, build_notebook_view,
-    proposal_from_semantic_action_entry, ProjectionError,
+    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
+    proposal_from_semantic_action_entry, EmbodiedProjectionSource, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -38,7 +38,7 @@ use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
     DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView, EmbodiedViewModel,
-    NotebookView, SemanticActionEntry, DEBUG_EPISTEMICS_MARKER,
+    NotebookView, SemanticActionEntry,
 };
 
 use crate::debug_panels::{
@@ -153,25 +153,24 @@ impl TuiApp {
             .bound_actor_id
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
-        let mut view = build_embodied_view_model_with_agent_state(
+        let context = tracewake_core::epistemics::KnowledgeContext::embodied_at_frontier(
+            actor_id.clone(),
+            self.scheduler.current_tick,
+            self.log.events().len() as u64,
+        );
+        let source = EmbodiedProjectionSource::from_sealed_context(
+            &context,
             &self.state,
             Some(&self.agent_state),
+        );
+        let mut view = build_embodied_view_model(
+            &context,
+            &source,
             &self.registry,
             &self.content_manifest_id,
-            actor_id,
-            self.scheduler.current_tick,
             self.last_rejection.as_ref(),
         )
         .map_err(AppError::from)?;
-        let context = tracewake_core::epistemics::KnowledgeContext::embodied(
-            actor_id.clone(),
-            self.scheduler.current_tick,
-        );
-        view.knowledge_context_id = Some(format!(
-            "knowledge.{}.{}",
-            actor_id.as_str(),
-            self.scheduler.current_tick.value()
-        ));
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
         Ok(view)
     }
@@ -191,13 +190,13 @@ impl TuiApp {
             .find(|entry| &entry.semantic_action_id == semantic_action_id)
             .cloned()
             .ok_or_else(|| AppError::SemanticActionNotFound(semantic_action_id.to_string()))?;
-        self.submit_entry(&entry, Some(view.view_model_id))
+        self.submit_entry(&entry, &view)
     }
 
     fn submit_entry(
         &mut self,
         entry: &SemanticActionEntry,
-        source_view_model_id: Option<tracewake_core::ids::ViewModelId>,
+        source_view: &EmbodiedViewModel,
     ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let sequence = self.scheduler.assign_proposal_sequence();
@@ -207,7 +206,7 @@ impl TuiApp {
             Some(actor_id.clone()),
             self.scheduler.current_tick,
             entry,
-            source_view_model_id,
+            Some(source_view),
             Some(&self.controller_id),
         );
 
@@ -399,20 +398,18 @@ impl TuiApp {
             .collect();
         let checksum = self.epistemic_projection.compute_checksum().checksum;
 
-        DebugEpistemicsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            context_mode: "debug".to_string(),
+        DebugEpistemicsView::new(
+            "debug",
             observations,
             beliefs_by_holder,
             contradictions,
-            possession_metadata: Vec::new(),
-            projection_summary: format!(
+            Vec::new(),
+            format!(
                 "{} checksum={}",
                 self.epistemic_projection.projection_version.as_str(),
                 checksum.as_str()
             ),
-        }
+        )
     }
 
     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
@@ -426,12 +423,7 @@ impl TuiApp {
             .filter(|belief| belief.holder == HolderKind::Actor(actor_id.clone()))
             .map(debug_belief_entry)
             .collect();
-        Ok(DebugBeliefsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            holder_actor_id: actor_id.clone(),
-            beliefs,
-        })
+        Ok(DebugBeliefsView::new(actor_id.clone(), beliefs))
     }
 
     pub fn debug_observations_view(
@@ -448,12 +440,7 @@ impl TuiApp {
             .filter(|observation| observation.observer_actor_id == *actor_id)
             .map(debug_observation_entry)
             .collect();
-        Ok(DebugObservationsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            observer_actor_id: actor_id.clone(),
-            observations,
-        })
+        Ok(DebugObservationsView::new(actor_id.clone(), observations))
     }
 }
 

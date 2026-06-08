@@ -13,12 +13,13 @@ use crate::actions::defs::takeplace::{
 use crate::actions::defs::wait::build_wait_events;
 use crate::actions::defs::work::build_work_start_events;
 use crate::actions::defs::ActionRejection;
-use crate::actions::proposal::Proposal;
-use crate::actions::proposal::ProposalOrigin;
+use crate::actions::proposal::{Proposal, ProposalOrigin, ProposalSource};
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
 use crate::controller::{ControllerBindings, ControllerError};
-use crate::epistemics::{detect_expected_absences, Confidence, EpistemicProjection};
+use crate::epistemics::{
+    detect_expected_absences, Confidence, EpistemicProjection, KnowledgeContext,
+};
 use crate::events::apply::{
     apply_epistemic_event, apply_event, apply_event_stream, EventApplicationContext,
 };
@@ -32,6 +33,7 @@ use crate::state::{AgentState, PhysicalState};
 pub enum PipelineStage {
     OriginIntake,
     ControllerBindingCheck,
+    SourceContextValidation,
     ActionDefinitionLookup,
     ActorLookup,
     TargetBinding,
@@ -56,6 +58,7 @@ impl PipelineStage {
         &[
             PipelineStage::OriginIntake,
             PipelineStage::ControllerBindingCheck,
+            PipelineStage::SourceContextValidation,
             PipelineStage::ActionDefinitionLookup,
             PipelineStage::ActorLookup,
             PipelineStage::TargetBinding,
@@ -113,6 +116,7 @@ struct PipelineReadContext<'a> {
     epistemic_projection: Option<&'a EpistemicProjection>,
     content_manifest_id: &'a ContentManifestId,
     ordering_key: &'a OrderingKey,
+    current_event_frontier: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -124,6 +128,7 @@ pub struct ProposalValidationContext<'a> {
     pub epistemic_projection: Option<&'a EpistemicProjection>,
     pub content_manifest_id: &'a ContentManifestId,
     pub ordering_key: &'a OrderingKey,
+    pub current_event_frontier: u64,
 }
 
 pub fn validate_proposal(
@@ -138,6 +143,7 @@ pub fn validate_proposal(
         epistemic_projection: validation_context.epistemic_projection,
         content_manifest_id: validation_context.content_manifest_id,
         ordering_key: validation_context.ordering_key,
+        current_event_frontier: validation_context.current_event_frontier,
     };
     match decide_proposal(context, proposal) {
         PipelineDecision::Accepted {
@@ -158,6 +164,7 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         epistemic_projection: context.epistemic_projection.as_deref(),
         content_manifest_id: &context.content_manifest_id,
         ordering_key: &context.ordering_key,
+        current_event_frontier: context.log.events().len() as u64,
     };
     let decision = decide_proposal(read_context, proposal);
     let (candidate_events, checked_facts, would_mutate) = match decision {
@@ -447,6 +454,9 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
     if let Some(result) = controller_binding_check(context, proposal, checked_facts.clone()) {
         return result;
     }
+    if let Some(result) = source_context_check(context, proposal, checked_facts.clone()) {
+        return result;
+    }
 
     // Later placeholder stages remain explicit so new mechanics can activate
     // the shared pipeline without creating side mutation paths.
@@ -715,6 +725,8 @@ fn accepted_report(
         status: ReportStatus::Accepted,
         failed_stage: None,
         reason_codes: Vec::new(),
+        actor_visible_facts: actor_visible_facts(&checked_facts),
+        debug_only_facts: debug_only_facts(&checked_facts),
         checked_facts,
         actor_visible_summary: "Accepted.".to_string(),
         debug_summary: "proposal accepted by shared pipeline".to_string(),
@@ -795,6 +807,159 @@ fn controller_binding_check(
     }
 }
 
+fn source_context_check(
+    context: PipelineReadContext<'_>,
+    proposal: &Proposal,
+    mut checked_facts: Vec<CheckedFact>,
+) -> Option<PipelineDecision> {
+    if proposal.origin != ProposalOrigin::Human {
+        return None;
+    }
+
+    let Some(actor_id) = proposal.actor_id.as_ref() else {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceMissing],
+            checked_facts,
+            "That action does not have a current view source.",
+            "human-origin proposal did not name an actor for source validation",
+        ));
+    };
+
+    let Some(ProposalSource::TuiSemanticAction(source)) = proposal.source.as_ref() else {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceMissing],
+            checked_facts,
+            "That action does not have a current view source.",
+            "human-origin proposal did not include a TUI semantic-action source packet",
+        ));
+    };
+
+    checked_facts.push(CheckedFact::new(
+        "source_kind",
+        ProposalSource::TuiSemanticAction(source.clone()).stable_id(),
+    ));
+    checked_facts.push(CheckedFact::new(
+        "semantic_action_id",
+        source.semantic_action_id.as_str(),
+    ));
+    checked_facts.push(CheckedFact::new(
+        "holder_known_context_id",
+        source.holder_known_context_id.as_str(),
+    ));
+    checked_facts.push(CheckedFact::new(
+        "holder_known_context_hash",
+        source.holder_known_context_hash.as_str(),
+    ));
+    checked_facts.push(CheckedFact::new(
+        "holder_known_context_frontier",
+        source.holder_known_context_frontier.to_string(),
+    ));
+
+    if source.actor_id != *actor_id {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceActorMismatch],
+            checked_facts,
+            "That action belongs to another actor's view.",
+            "proposal source actor did not match proposal actor",
+        ));
+    }
+    if source.context_tick != proposal.requested_tick
+        || source.context_tick != context.ordering_key.sim_tick
+    {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceStale],
+            checked_facts,
+            "That action is from a stale view.",
+            "proposal source tick did not match requested/current ordering tick",
+        ));
+    }
+    if source.holder_known_context_frontier != context.current_event_frontier {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceStale],
+            checked_facts,
+            "That action is from a stale view.",
+            "proposal source frontier did not match current event frontier",
+        ));
+    }
+    if source.source_view_model_id
+        != proposal
+            .source_view_model_id
+            .clone()
+            .unwrap_or_else(|| source.source_view_model_id.clone())
+    {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceContextMismatch],
+            checked_facts,
+            "That action does not match its view source.",
+            "proposal source view model did not match legacy source view field",
+        ));
+    }
+
+    let expected_context = KnowledgeContext::embodied_at_frontier(
+        actor_id.clone(),
+        source.context_tick,
+        context.current_event_frontier,
+    );
+    if source.holder_known_context_id != *expected_context.holder_known_context_id()
+        || source.holder_known_context_hash != *expected_context.holder_known_context_hash()
+    {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceContextMismatch],
+            checked_facts,
+            "That action does not match the actor's current knowledge context.",
+            "proposal source context id/hash did not match reconstructed sealed context",
+        ));
+    }
+
+    if !semantic_action_matches_action(&source.semantic_action_id, &proposal.action_id) {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceForged],
+            checked_facts,
+            "That action token does not match the requested action.",
+            "semantic action id did not match proposal action id",
+        ));
+    }
+
+    None
+}
+
+fn semantic_action_matches_action(
+    semantic_action_id: &crate::ids::SemanticActionId,
+    action_id: &crate::ids::ActionId,
+) -> bool {
+    let semantic = semantic_action_id.as_str();
+    let action = action_id.as_str();
+    if semantic == action || semantic.starts_with(&format!("{action}.")) {
+        return true;
+    }
+    let dotted_action = action.replace('_', ".");
+    semantic == dotted_action || semantic.starts_with(&format!("{dotted_action}."))
+}
+
 fn reject_action(
     context: PipelineReadContext<'_>,
     proposal: &Proposal,
@@ -828,6 +993,32 @@ fn reject(
         actor_visible_summary,
         debug_summary,
     )))
+}
+
+fn actor_visible_facts(checked_facts: &[CheckedFact]) -> Vec<CheckedFact> {
+    checked_facts
+        .iter()
+        .filter(|fact| is_actor_visible_fact(fact))
+        .cloned()
+        .collect()
+}
+
+fn debug_only_facts(checked_facts: &[CheckedFact]) -> Vec<CheckedFact> {
+    checked_facts
+        .iter()
+        .filter(|fact| !is_actor_visible_fact(fact))
+        .cloned()
+        .collect()
+}
+
+fn is_actor_visible_fact(fact: &CheckedFact) -> bool {
+    matches!(
+        fact.key(),
+        crate::actions::report::CheckedFactKey::ActionId
+            | crate::actions::report::CheckedFactKey::ActorId
+            | crate::actions::report::CheckedFactKey::Reason
+            | crate::actions::report::CheckedFactKey::TickCount
+    )
 }
 
 fn reject_committed(
@@ -873,6 +1064,8 @@ fn rejection_report(
         status: ReportStatus::Rejected,
         failed_stage: Some(failed_stage),
         reason_codes: reason_codes.clone(),
+        actor_visible_facts: actor_visible_facts(&checked_facts),
+        debug_only_facts: debug_only_facts(&checked_facts),
         checked_facts,
         actor_visible_summary: actor_visible_summary.into(),
         debug_summary: debug_summary.into(),
@@ -1085,10 +1278,11 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::actions::{ActionDefinition, ProposalOrigin};
+    use crate::actions::{ActionDefinition, ProposalOrigin, ProposalSourceContext};
     use crate::controller::ControllerBindings;
+    use crate::epistemics::KnowledgeContext;
     use crate::events::apply::apply_event;
-    use crate::ids::{ActionId, ActorId, ProposalId};
+    use crate::ids::{ActionId, ActorId, ProposalId, SemanticActionId, ViewModelId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
     use crate::state::{ActorBody, AgentState, ContainerState, DoorState, PlaceState};
     use crate::time::SimTick;
@@ -1109,6 +1303,32 @@ mod tests {
             action_id("look"),
             SimTick::ZERO,
         )
+    }
+
+    fn attach_tui_source(proposal: &mut Proposal, semantic_action_id: &str, frontier: u64) {
+        let actor_id = proposal.actor_id.clone().unwrap();
+        let context = KnowledgeContext::embodied_at_frontier(
+            actor_id.clone(),
+            proposal.requested_tick,
+            frontier,
+        );
+        let source_view_model_id = ViewModelId::new(format!(
+            "view.{}.{}",
+            actor_id.as_str(),
+            proposal.requested_tick.value()
+        ))
+        .unwrap();
+        proposal.source_view_model_id = Some(source_view_model_id.clone());
+        proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+            source_view_model_id,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier,
+            context_tick: proposal.requested_tick,
+            actor_id,
+            semantic_action_id: SemanticActionId::new(semantic_action_id).unwrap(),
+            provenance_ancestry: Vec::new(),
+        }));
     }
 
     fn ordering_key() -> OrderingKey {
@@ -1188,6 +1408,53 @@ mod tests {
         registry
     }
 
+    fn human_bindings() -> ControllerBindings {
+        let mut bindings = ControllerBindings::new();
+        let mut binding_log = EventLog::new();
+        bindings.attach(
+            crate::ids::ControllerId::new("controller_human").unwrap(),
+            actor_id("actor_tomas"),
+            crate::state::ControllerMode::Embodied,
+            SimTick::ZERO,
+            &mut binding_log,
+            content_manifest_id(),
+        );
+        bindings
+    }
+
+    fn human_validation_report(
+        registry: &ActionRegistry,
+        state: &PhysicalState,
+        proposal: &Proposal,
+        bindings: &ControllerBindings,
+        current_event_frontier: u64,
+    ) -> ValidationReport {
+        let ordering_key = OrderingKey::new(
+            proposal.requested_tick,
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Controller(
+                crate::ids::ControllerId::new("controller_human").unwrap(),
+            ),
+            ProposalSequence::new(0),
+            proposal.action_id.clone(),
+            proposal.target_ids.clone(),
+            "source-test",
+        );
+        validate_proposal(
+            ProposalValidationContext {
+                registry,
+                state,
+                agent_state: &AgentState::default(),
+                controller_bindings: Some(bindings),
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key,
+                current_event_frontier,
+            },
+            proposal,
+        )
+    }
+
     fn check_container_proposal(proposal_id: &str) -> Proposal {
         let mut proposal = Proposal::new(
             ProposalId::new(proposal_id).unwrap(),
@@ -1232,6 +1499,156 @@ mod tests {
         run_pipeline(&mut context, proposal).report
     }
 
+    fn has_fact(facts: &[CheckedFact], stable_key: &str) -> bool {
+        facts.iter().any(|fact| fact.stable_key() == stable_key)
+    }
+
+    #[test]
+    fn human_source_context_missing_rejects_before_action_lookup() {
+        let registry = ActionRegistry::new();
+        let state = state();
+        let bindings = human_bindings();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_missing_source").unwrap(),
+            ProposalOrigin::Human,
+            Some(actor_id("actor_tomas")),
+            action_id("unknown_action"),
+            SimTick::ZERO,
+        );
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+
+        let report = human_validation_report(&registry, &state, &proposal, &bindings, 0);
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(
+            report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert_eq!(report.reason_codes, vec![ReasonCode::ProposalSourceMissing]);
+        assert!(!report.actor_visible_summary.contains("unknown_action"));
+    }
+
+    #[test]
+    fn human_source_context_fresh_view_passes_source_validation() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(action_id("look")));
+        let state = state();
+        let bindings = human_bindings();
+        let mut proposal = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut proposal, "look", 0);
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+
+        let report = human_validation_report(&registry, &state, &proposal, &bindings, 0);
+
+        assert_eq!(report.status, ReportStatus::Accepted);
+    }
+
+    #[test]
+    fn human_source_context_stale_frontier_rejects_before_action_validation() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(action_id("look")));
+        let state = state();
+        let bindings = human_bindings();
+        let mut proposal = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut proposal, "look", 0);
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+
+        let report = human_validation_report(&registry, &state, &proposal, &bindings, 1);
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(
+            report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert_eq!(report.reason_codes, vec![ReasonCode::ProposalSourceStale]);
+        assert!(!report.actor_visible_summary.contains("hkc."));
+        assert!(has_fact(&report.actor_visible_facts, "action_id"));
+        assert!(has_fact(&report.debug_only_facts, "source_kind"));
+        assert!(has_fact(
+            &report.debug_only_facts,
+            "holder_known_context_id"
+        ));
+        assert!(has_fact(
+            &report.debug_only_facts,
+            "holder_known_context_hash"
+        ));
+        assert!(has_fact(
+            &report.debug_only_facts,
+            "holder_known_context_frontier"
+        ));
+        assert!(!has_fact(&report.actor_visible_facts, "source_kind"));
+        assert!(!has_fact(
+            &report.actor_visible_facts,
+            "holder_known_context_id"
+        ));
+        assert!(!has_fact(
+            &report.actor_visible_facts,
+            "holder_known_context_hash"
+        ));
+    }
+
+    #[test]
+    fn human_source_context_cross_actor_rejects() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(action_id("look")));
+        let state = state();
+        let bindings = human_bindings();
+        let mut proposal = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut proposal, "look", 0);
+        if let Some(ProposalSource::TuiSemanticAction(source)) = proposal.source.as_mut() {
+            source.actor_id = actor_id("actor_elena");
+        }
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+
+        let report = human_validation_report(&registry, &state, &proposal, &bindings, 0);
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(
+            report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert_eq!(
+            report.reason_codes,
+            vec![ReasonCode::ProposalSourceActorMismatch]
+        );
+        assert!(!report.actor_visible_summary.contains("actor_elena"));
+    }
+
+    #[test]
+    fn human_source_context_forged_action_token_rejects() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(action_id("look")));
+        let state = state();
+        let bindings = human_bindings();
+        let mut proposal = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut proposal, "move.to.hidden_room", 0);
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+
+        let report = human_validation_report(&registry, &state, &proposal, &bindings, 0);
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(
+            report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert_eq!(report.reason_codes, vec![ReasonCode::ProposalSourceForged]);
+        assert!(!report.actor_visible_summary.contains("hidden_room"));
+        assert!(has_fact(&report.debug_only_facts, "source_kind"));
+        assert!(has_fact(&report.debug_only_facts, "semantic_action_id"));
+        assert!(!has_fact(&report.actor_visible_facts, "source_kind"));
+        assert!(!has_fact(&report.actor_visible_facts, "semantic_action_id"));
+    }
+
     #[test]
     fn same_proposal_validates_same_for_human_and_scheduler_origin() {
         let mut registry = ActionRegistry::new();
@@ -1250,6 +1667,7 @@ mod tests {
             ContentManifestId::new("phase1_manifest").unwrap(),
         );
         let mut human_proposal = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut human_proposal, "look", 0);
         human_proposal
             .parameters
             .insert("controller_id".to_string(), "controller_human".to_string());
@@ -1309,6 +1727,7 @@ mod tests {
                 epistemic_projection: None,
                 content_manifest_id: &content_manifest_id(),
                 ordering_key: &ordering_key(),
+                current_event_frontier: 0,
             },
             &proposal,
         );
@@ -1335,6 +1754,7 @@ mod tests {
                 epistemic_projection: None,
                 content_manifest_id: &content_manifest_id(),
                 ordering_key: &ordering_key(),
+                current_event_frontier: 0,
             },
             &proposal,
         );
@@ -1384,6 +1804,7 @@ mod tests {
                 epistemic_projection: Some(&projection),
                 content_manifest_id: &content_manifest_id(),
                 ordering_key: &ordering_key(),
+                current_event_frontier: 0,
             },
             &accepted_check,
         );
@@ -1396,6 +1817,7 @@ mod tests {
                 epistemic_projection: Some(&projection),
                 content_manifest_id: &content_manifest_id(),
                 ordering_key: &ordering_key(),
+                current_event_frontier: 0,
             },
             &accepted_wait,
         );
@@ -1408,6 +1830,7 @@ mod tests {
                 epistemic_projection: Some(&projection),
                 content_manifest_id: &content_manifest_id(),
                 ordering_key: &ordering_key(),
+                current_event_frontier: 0,
             },
             &rejected_check,
         );
@@ -1462,11 +1885,12 @@ mod tests {
     #[test]
     fn pipeline_contains_epistemic_slot_and_later_inert_slots() {
         let stages = PipelineStage::all();
+        assert!(stages.contains(&PipelineStage::SourceContextValidation));
         assert!(stages.contains(&PipelineStage::KnowledgePerceptionPlaceholder));
         assert!(stages.contains(&PipelineStage::SocialNormPlaceholder));
         assert!(stages.contains(&PipelineStage::CostDurationCheck));
         assert!(stages.contains(&PipelineStage::ReservationConflictCheck));
-        assert_eq!(stages.len(), 19);
+        assert_eq!(stages.len(), 20);
     }
 
     #[test]

@@ -34,6 +34,11 @@ pub enum ReasonCode {
     WorldStateMismatch,
     TargetReserved,
     KnowledgePreconditionNotMet,
+    ProposalSourceMissing,
+    ProposalSourceActorMismatch,
+    ProposalSourceContextMismatch,
+    ProposalSourceStale,
+    ProposalSourceForged,
     NoCurrentIntention,
     IntentionTerminal,
     RoutineStepBlocked,
@@ -69,6 +74,11 @@ impl ReasonCode {
             ReasonCode::WorldStateMismatch => "world_state_mismatch",
             ReasonCode::TargetReserved => "target_reserved",
             ReasonCode::KnowledgePreconditionNotMet => "knowledge_precondition_not_met",
+            ReasonCode::ProposalSourceMissing => "proposal_source_missing",
+            ReasonCode::ProposalSourceActorMismatch => "proposal_source_actor_mismatch",
+            ReasonCode::ProposalSourceContextMismatch => "proposal_source_context_mismatch",
+            ReasonCode::ProposalSourceStale => "proposal_source_stale",
+            ReasonCode::ProposalSourceForged => "proposal_source_forged",
             ReasonCode::NoCurrentIntention => "no_current_intention",
             ReasonCode::IntentionTerminal => "intention_terminal",
             ReasonCode::RoutineStepBlocked => "routine_step_blocked",
@@ -78,17 +88,117 @@ impl ReasonCode {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CheckedFactKey {
+    ActionId,
+    ActorId,
+    BodyExclusive,
+    ContainerId,
+    DoorId,
+    DurationTicks,
+    FromPlaceId,
+    ItemId,
+    NeedKind,
+    PipelineSlot,
+    PlaceId,
+    Reason,
+    TargetId,
+    TickCount,
+    ToPlaceId,
+    Unsupported(String),
+}
+
+impl CheckedFactKey {
+    pub fn from_stable_key(key: impl Into<String>) -> Self {
+        let key = key.into();
+        match key.as_str() {
+            "action_id" => Self::ActionId,
+            "actor_id" => Self::ActorId,
+            "body_exclusive" => Self::BodyExclusive,
+            "container_id" => Self::ContainerId,
+            "door_id" => Self::DoorId,
+            "duration_ticks" => Self::DurationTicks,
+            "from_place_id" => Self::FromPlaceId,
+            "item_id" => Self::ItemId,
+            "need_kind" => Self::NeedKind,
+            "pipeline_slots_9_11" => Self::PipelineSlot,
+            "place_id" => Self::PlaceId,
+            "reason" => Self::Reason,
+            "target_id" => Self::TargetId,
+            "ticks" => Self::TickCount,
+            "to_place_id" => Self::ToPlaceId,
+            _ => Self::Unsupported(key),
+        }
+    }
+
+    pub fn stable_key(&self) -> &str {
+        match self {
+            Self::ActionId => "action_id",
+            Self::ActorId => "actor_id",
+            Self::BodyExclusive => "body_exclusive",
+            Self::ContainerId => "container_id",
+            Self::DoorId => "door_id",
+            Self::DurationTicks => "duration_ticks",
+            Self::FromPlaceId => "from_place_id",
+            Self::ItemId => "item_id",
+            Self::NeedKind => "need_kind",
+            Self::PipelineSlot => "pipeline_slots_9_11",
+            Self::PlaceId => "place_id",
+            Self::Reason => "reason",
+            Self::TargetId => "target_id",
+            Self::TickCount => "ticks",
+            Self::ToPlaceId => "to_place_id",
+            Self::Unsupported(key) => key.as_str(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CheckedFactSource {
+    Validation,
+}
+
+impl CheckedFactSource {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::Validation => "validation",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CheckedFact {
-    pub key: String,
-    pub value: String,
+    key: CheckedFactKey,
+    value: String,
+    source: CheckedFactSource,
 }
 
 impl CheckedFact {
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Self {
         Self {
-            key: key.into(),
+            key: CheckedFactKey::from_stable_key(key),
             value: value.into(),
+            source: CheckedFactSource::Validation,
         }
+    }
+
+    pub const fn key(&self) -> &CheckedFactKey {
+        &self.key
+    }
+
+    pub fn stable_key(&self) -> &str {
+        self.key.stable_key()
+    }
+
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+
+    pub const fn source(&self) -> CheckedFactSource {
+        self.source
+    }
+
+    pub fn render_pair(&self) -> String {
+        format!("{}={}", self.stable_key(), self.value)
     }
 }
 
@@ -103,6 +213,8 @@ pub struct ValidationReport {
     pub failed_stage: Option<crate::actions::pipeline::PipelineStage>,
     pub reason_codes: Vec<ReasonCode>,
     pub checked_facts: Vec<CheckedFact>,
+    pub actor_visible_facts: Vec<CheckedFact>,
+    pub debug_only_facts: Vec<CheckedFact>,
     pub actor_visible_summary: String,
     pub debug_summary: String,
     pub would_mutate: bool,
@@ -132,8 +244,33 @@ mod tests {
             "no_current_intention"
         );
         assert_eq!(
+            ReasonCode::ProposalSourceStale.stable_id(),
+            "proposal_source_stale"
+        );
+        assert_eq!(
             ReasonCode::ReservationConflict.stable_id(),
             "reservation_conflict"
+        );
+    }
+
+    #[test]
+    fn checked_fact_preserves_typed_key_and_render_pair() {
+        let fact = CheckedFact::new("actor_id", "actor_tomas");
+
+        assert_eq!(fact.key(), &CheckedFactKey::ActorId);
+        assert_eq!(fact.stable_key(), "actor_id");
+        assert_eq!(fact.value(), "actor_tomas");
+        assert_eq!(fact.source().stable_id(), "validation");
+        assert_eq!(fact.render_pair(), "actor_id=actor_tomas");
+    }
+
+    #[test]
+    fn checked_fact_key_classifies_debug_only_validator_fact() {
+        let fact = CheckedFact::new("holder_known_context_hash", "hkc_hash_001");
+
+        assert_eq!(
+            fact.key(),
+            &CheckedFactKey::Unsupported("holder_known_context_hash".to_string())
         );
     }
 }

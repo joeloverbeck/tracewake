@@ -56,6 +56,8 @@ Steps 1–7 are the audit. Step 8 (follow-up implementation) fires only if the u
    - **MEDIUM** — friction that cost non-trivial improvisation or non-obvious judgment to work around; the right outcome still emerged, but the path wasn't smooth.
    - **LOW** — wording refinement, coverage gap, or polish that didn't block progress.
 
+   **Present-but-unsurfaced instructions** — when the skill already contains the right instruction but it failed in practice this session (missed because it was buried, mis-placed, or easy to skip), grade it by *impact*: a wrong or dropped output makes it HIGH, mere friction makes it MEDIUM. Classify it as an **Improvement** (a prominence/placement refinement), not an Issue. "Missing guardrail/instruction" in the HIGH definition covers an instruction that is effectively missing at the moment of use, not only one absent from the file.
+
    **Pre-finalization verification** — before finalizing any finding tagged MEDIUM or higher whose Suggestion or Skill-gap field claims content is absent, missing, or undocumented, or mis-cites a specific location (phrasings like "Add X", "there is no documented Y", "the skill never mentions Z", "`INV-NNN` currently reads…"), verify the claim by a Read or grep of the cited file/section *before* writing the finding. The 30-second check keeps the report's premises true to the file's actual state, rather than to which content you happened to load. LOW findings are exempt from the mandatory check, but verify ad-hoc when you're unsure a claim holds.
 
 7. **Present the report** using the template below. Output it to the conversation — do not write a file, do not modify the target.
@@ -131,7 +133,7 @@ After the report, the user may ask you to implement specific findings (or all of
 
 ## Cross-skill note
 
-This repo currently has sibling skills `brainstorm` and `reassess-spec`. A cross-skill check matters only when a follow-up edit introduces or changes terminology, a convention, or an output path that a sibling skill also relies on — in that case, grep the relevant sibling(s) for the affected token and record the outcome (`Scanned <sibling> via grep for <token> — no inconsistencies`, or name what was adjusted). When no edit touches a shared surface, omit any cross-skill section entirely. As the skill ecosystem grows, extend the scan to whichever siblings share the affected surface.
+List `.claude/skills/` to get the current sibling set — do not rely on a hardcoded enumeration, which goes stale as skills are added (as of writing: `brainstorm`, `reassess-spec`, `research-brief`, `spec-to-tickets`; re-list to confirm). A cross-skill check matters only when a follow-up edit introduces or changes terminology, a convention, or an output path (e.g. `reports/`, `specs/`, `tickets/`, or a shared concept like spec/ticket numbering or the ledger) that a sibling skill also relies on — in that case, grep the relevant sibling(s) for the affected token and record the outcome (`Scanned <sibling> via grep for <token> — no inconsistencies`, or name what was adjusted). When no edit touches a shared surface, omit any cross-skill section entirely. As the skill ecosystem grows, extend the scan to whichever siblings share the affected surface.
 
 ## Auxiliary investigation and announcements
 

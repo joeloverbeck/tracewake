@@ -1,13 +1,15 @@
 use crate::actions::{
-    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalValidationContext,
-    ReportStatus, ValidationReport,
+    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalSource,
+    ProposalSourceContext, ProposalValidationContext, ReasonCode, ReportStatus, ValidationReport,
 };
+use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
+use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, ItemId, PlaceId, ProposalId,
-    SemanticActionId, ViewModelId,
+    ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, HolderKnownContextId, ItemId,
+    PlaceId, ProposalId, SemanticActionId, ViewModelId, WorkplaceId,
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -15,16 +17,102 @@ use crate::state::AgentState;
 use crate::state::{ActorBody, PhysicalState};
 use crate::time::SimTick;
 use crate::view_models::{
+    ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
     DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
-    NotebookContradictionEntry, NotebookObservationEntry, NotebookView, Phase3AEmbodiedStatus,
-    SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit,
-    VisibleItem, VisibleItemSource, WhyNotView,
+    NotebookContradictionEntry, NotebookLeadEntry, NotebookObservationEntry, NotebookView,
+    Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer,
+    VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotView,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProjectionError {
     ActorNotFound(ActorId),
     PlaceNotFound(PlaceId),
+}
+
+pub struct EmbodiedProjectionSource<'a> {
+    state: &'a PhysicalState,
+    agent_state: Option<&'a AgentState>,
+    knowledge_context_id: HolderKnownContextId,
+    actor_known_food_sources: Vec<FoodSupplyId>,
+    actor_known_workplaces: Vec<WorkplaceId>,
+}
+
+impl<'a> EmbodiedProjectionSource<'a> {
+    pub fn from_sealed_context(
+        context: &'a KnowledgeContext,
+        state: &'a PhysicalState,
+        agent_state: Option<&'a AgentState>,
+    ) -> Self {
+        let viewer_actor_id = &context.viewer_actor_id;
+        let actor_known_food_sources =
+            actor_known_food_sources_for_context(context, state, viewer_actor_id);
+        let actor_known_workplaces = actor_known_workplaces_for_context(state, viewer_actor_id);
+        Self {
+            state,
+            agent_state,
+            knowledge_context_id: context.holder_known_context_id().clone(),
+            actor_known_food_sources,
+            actor_known_workplaces,
+        }
+    }
+}
+
+fn actor_known_food_sources_for_context(
+    context: &KnowledgeContext,
+    state: &PhysicalState,
+    viewer_actor_id: &ActorId,
+) -> Vec<FoodSupplyId> {
+    let Some(actor) = state.actors.get(viewer_actor_id) else {
+        return Vec::new();
+    };
+    let mut food_sources = state
+        .food_supplies
+        .values()
+        .filter(|food| actor_can_see_food_source(state, actor, viewer_actor_id, food))
+        .map(|food| food.food_supply_id.clone())
+        .collect::<Vec<_>>();
+    if context.mode == crate::epistemics::ViewMode::Embodied {
+        food_sources.sort();
+        food_sources.dedup();
+    }
+    food_sources
+}
+
+fn actor_can_see_food_source(
+    state: &PhysicalState,
+    actor: &ActorBody,
+    viewer_actor_id: &ActorId,
+    food: &crate::state::FoodSupplyState,
+) -> bool {
+    match &food.location {
+        Location::AtPlace(place_id) => place_id == &actor.current_place_id,
+        Location::CarriedBy(actor_id) => actor_id == viewer_actor_id,
+        Location::InContainer(container_id) => {
+            state.containers.get(container_id).is_some_and(|container| {
+                container.location == Location::AtPlace(actor.current_place_id.clone())
+                    && container.is_open
+            })
+        }
+    }
+}
+
+fn actor_known_workplaces_for_context(
+    state: &PhysicalState,
+    viewer_actor_id: &ActorId,
+) -> Vec<WorkplaceId> {
+    let mut workplaces = state
+        .workplaces
+        .values()
+        .filter(|workplace| {
+            workplace.assigned_actor_ids.is_empty()
+                || workplace.assigned_actor_ids.contains(viewer_actor_id)
+        })
+        .map(|workplace| workplace.workplace_id.clone())
+        .collect::<Vec<_>>();
+    workplaces.sort();
+    workplaces.dedup();
+    workplaces
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -191,33 +279,16 @@ fn is_player_term(value: &str) -> bool {
 }
 
 pub fn build_embodied_view_model(
-    state: &PhysicalState,
+    context: &KnowledgeContext,
+    source: &EmbodiedProjectionSource<'_>,
     registry: &ActionRegistry,
     content_manifest_id: &ContentManifestId,
-    viewer_actor_id: &ActorId,
-    sim_tick: SimTick,
     last_rejection: Option<&ValidationReport>,
 ) -> Result<EmbodiedViewModel, ProjectionError> {
-    build_embodied_view_model_with_agent_state(
-        state,
-        None,
-        registry,
-        content_manifest_id,
-        viewer_actor_id,
-        sim_tick,
-        last_rejection,
-    )
-}
-
-pub fn build_embodied_view_model_with_agent_state(
-    state: &PhysicalState,
-    agent_state: Option<&AgentState>,
-    registry: &ActionRegistry,
-    content_manifest_id: &ContentManifestId,
-    viewer_actor_id: &ActorId,
-    sim_tick: SimTick,
-    last_rejection: Option<&ValidationReport>,
-) -> Result<EmbodiedViewModel, ProjectionError> {
+    let viewer_actor_id = &context.viewer_actor_id;
+    let sim_tick = context.current_tick;
+    let state = source.state;
+    let agent_state = source.agent_state;
     let actor = state
         .actors
         .get(viewer_actor_id)
@@ -315,6 +386,8 @@ pub fn build_embodied_view_model_with_agent_state(
         content_manifest_id,
         viewer_actor_id,
         sim_tick,
+        knowledge_context_id: context.holder_known_context_id().clone(),
+        knowledge_context_frontier: context.event_frontier,
     };
     let mut semantic_actions = semantic_actions(
         &preflight_context,
@@ -327,6 +400,7 @@ pub fn build_embodied_view_model_with_agent_state(
     semantic_actions.extend(phase3a_semantic_actions(
         state,
         agent_state,
+        source,
         actor,
         viewer_actor_id,
     ));
@@ -354,37 +428,17 @@ pub fn build_embodied_view_model_with_agent_state(
         phase3a_status: agent_state.map(|agent_state| phase3a_status(agent_state, viewer_actor_id)),
         last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
         last_rejection_why_not: last_rejection.map(WhyNotView::from),
-        knowledge_context_id: None,
+        holder_known_context_id: context.holder_known_context_id().clone(),
+        holder_known_context_hash: context.holder_known_context_hash().clone(),
+        holder_known_context_frontier: context.event_frontier,
+        holder_known_context_source_summary: format!(
+            "allowed={} provenance={}",
+            context.allowed_sources.len(),
+            context.provenance_entries().len()
+        ),
         notebook: None,
         debug_available: true,
     })
-}
-
-pub fn build_embodied_view_model_with_notebook(
-    state: &PhysicalState,
-    registry: &ActionRegistry,
-    content_manifest_id: &ContentManifestId,
-    viewer_actor_id: &ActorId,
-    sim_tick: SimTick,
-    last_rejection: Option<&ValidationReport>,
-    projection: &EpistemicProjection,
-) -> Result<EmbodiedViewModel, ProjectionError> {
-    let mut view = build_embodied_view_model(
-        state,
-        registry,
-        content_manifest_id,
-        viewer_actor_id,
-        sim_tick,
-        last_rejection,
-    )?;
-    let context = KnowledgeContext::embodied(viewer_actor_id.clone(), sim_tick);
-    view.knowledge_context_id = Some(format!(
-        "knowledge.{}.{}",
-        viewer_actor_id.as_str(),
-        sim_tick.value()
-    ));
-    view.notebook = Some(build_notebook_view(projection, &context));
-    Ok(view)
 }
 
 pub fn build_notebook_view(
@@ -432,10 +486,15 @@ pub fn build_notebook_view(
         .collect::<Vec<_>>();
     contradictions.sort();
 
-    let possible_leads = beliefs
+    let mut typed_leads = projection
+        .contradictions_for_context(context)
+        .into_iter()
+        .filter_map(|contradiction| typed_notebook_lead(projection, context, contradiction))
+        .collect::<Vec<_>>();
+    typed_leads.sort();
+    let possible_leads = typed_leads
         .iter()
-        .filter(|belief| belief.summary.contains("missing from expected location"))
-        .map(|belief| format!("Source-bound lead from {}", belief.belief_id))
+        .map(|lead| lead.summary.clone())
         .collect();
 
     NotebookView {
@@ -443,7 +502,66 @@ pub fn build_notebook_view(
         source_bound_beliefs: beliefs,
         recent_observations: observations,
         known_contradictions: contradictions,
+        typed_leads,
         possible_leads,
+    }
+}
+
+fn typed_notebook_lead(
+    projection: &EpistemicProjection,
+    context: &KnowledgeContext,
+    contradiction: &Contradiction,
+) -> Option<NotebookLeadEntry> {
+    if contradiction.kind != ContradictionKind::ExpectedItemAbsentFromContainer {
+        return None;
+    }
+    let Proposition::ItemMissingFromExpectedLocation {
+        item_id,
+        expected_location,
+    } = &contradiction.observed_proposition
+    else {
+        return None;
+    };
+    let observation = projection
+        .observations_by_id
+        .get(&contradiction.contradicting_observation_id)?;
+    let possible_next_actions = match expected_location {
+        Location::InContainer(container_id) => {
+            vec![format!("check.container.{}", container_id.as_str())]
+        }
+        Location::AtPlace(place_id) => vec![format!("inspect.place.{}", place_id.as_str())],
+        Location::CarriedBy(actor_id) => vec![format!("ask.actor.{}", actor_id.as_str())],
+    };
+
+    Some(NotebookLeadEntry {
+        lead_id: format!("lead.{}", contradiction.contradiction_id.as_str()),
+        contradiction_id: contradiction.contradiction_id.as_str().to_string(),
+        belief_id: contradiction
+            .prior_expectation_belief_id
+            .as_str()
+            .to_string(),
+        observation_id: observation.observation_id.as_str().to_string(),
+        source_kind: source_kind(&observation.source).to_string(),
+        source_summary: source_summary(&observation.source),
+        confidence_label: observation.confidence.serialize_canonical(),
+        detected_tick: contradiction.detected_tick.value(),
+        staleness_label: staleness_label(context, contradiction.detected_tick),
+        how_this_may_be_wrong: "The item may have moved through an unobserved ordinary event."
+            .to_string(),
+        possible_next_actions,
+        summary: format!(
+            "Source-bound lead from {}: {} missing from expected location",
+            contradiction.contradiction_id.as_str(),
+            item_id.as_str()
+        ),
+    })
+}
+
+fn source_kind(source: &SourceRef) -> &'static str {
+    match source {
+        SourceRef::Event(_) => "event",
+        SourceRef::Action(_) => "action",
+        SourceRef::Cause(_) => "cause",
     }
 }
 
@@ -452,6 +570,18 @@ fn source_summary(source: &SourceRef) -> String {
         SourceRef::Event(event_id) => format!("event:{}", event_id.as_str()),
         SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
         SourceRef::Cause(cause) => format!("cause:{cause:?}"),
+    }
+}
+
+fn staleness_label(context: &KnowledgeContext, detected_tick: SimTick) -> String {
+    let elapsed = context
+        .current_tick
+        .value()
+        .saturating_sub(detected_tick.value());
+    if elapsed == 0 {
+        "current_tick".to_string()
+    } else {
+        format!("{} ticks old", elapsed)
     }
 }
 
@@ -500,6 +630,7 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
 fn phase3a_semantic_actions(
     state: &PhysicalState,
     agent_state: Option<&AgentState>,
+    source: &EmbodiedProjectionSource<'_>,
     actor: &ActorBody,
     viewer_actor_id: &ActorId,
 ) -> Vec<SemanticActionEntry> {
@@ -513,54 +644,58 @@ fn phase3a_semantic_actions(
         None,
     ));
 
-    for food in state.food_supplies.values() {
-        let reachable = match &food.location {
-            Location::AtPlace(place_id) => place_id == &actor.current_place_id,
-            Location::CarriedBy(actor_id) => actor_id == viewer_actor_id,
-            Location::InContainer(container_id) => {
-                state.containers.get(container_id).is_some_and(|container| {
-                    container.location == Location::AtPlace(actor.current_place_id.clone())
-                        && container.is_open
-                })
-            }
+    for food_supply_id in &source.actor_known_food_sources {
+        let Some(food) = state.food_supplies.get(food_supply_id) else {
+            continue;
         };
-        if reachable {
-            actions.push(SemanticActionEntry::new(
-                SemanticActionId::new(format!("eat.food.{}", food.food_supply_id.as_str()))
-                    .unwrap(),
-                ActionId::new("eat").unwrap(),
-                vec![food.food_supply_id.to_string()],
-                format!("Eat {}", food.food_supply_id.as_str()),
-                !food.is_empty(),
-                food.is_empty()
-                    .then_some("No servings are available here.".to_string()),
-            ));
-        }
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new(format!("eat.food.{}", food.food_supply_id.as_str())).unwrap(),
+            ActionId::new("eat").unwrap(),
+            vec![food.food_supply_id.to_string()],
+            format!("Eat {}", food.food_supply_id.as_str()),
+            !food.is_empty(),
+            food.is_empty()
+                .then_some("No servings are available here.".to_string()),
+        ));
     }
 
-    for workplace in state.workplaces.values() {
-        let assigned = workplace.assigned_actor_ids.is_empty()
-            || workplace.assigned_actor_ids.contains(viewer_actor_id);
-        if assigned {
-            let at_workplace = workplace.place_id == actor.current_place_id;
-            let enabled = at_workplace && workplace.access_open;
-            let why_disabled = if !at_workplace {
-                Some("You are not at that workplace.".to_string())
-            } else if !workplace.access_open {
-                Some("That workplace is not available.".to_string())
-            } else {
-                None
-            };
-            actions.push(SemanticActionEntry::new(
-                SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
-                    .unwrap(),
-                ActionId::new("work_block").unwrap(),
-                vec![workplace.workplace_id.to_string()],
-                format!("Work at {}", workplace.workplace_id.as_str()),
-                enabled,
-                why_disabled,
-            ));
-        }
+    for workplace_id in &source.actor_known_workplaces {
+        let Some(workplace) = state.workplaces.get(workplace_id) else {
+            continue;
+        };
+        let at_workplace = workplace.place_id == actor.current_place_id;
+        let enabled = at_workplace && workplace.access_open;
+        let availability = if enabled {
+            ActionAvailability::available()
+        } else if !at_workplace {
+            ActionAvailability::disabled(
+                vec![ReasonCode::ActorNotAtRequiredPlace],
+                "You are not at that workplace.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    source.knowledge_context_id.as_str(),
+                )],
+                Vec::new(),
+            )
+        } else {
+            ActionAvailability::disabled(
+                vec![ReasonCode::TargetNotReachable],
+                "That workplace is not available.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    source.knowledge_context_id.as_str(),
+                )],
+                Vec::new(),
+            )
+        };
+        actions.push(SemanticActionEntry::with_availability(
+            SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
+                .unwrap(),
+            ActionId::new("work_block").unwrap(),
+            vec![workplace.workplace_id.to_string()],
+            format!("Work at {}", workplace.workplace_id.as_str()),
+            availability,
+        ));
     }
 
     if let Some((intention_id, intention)) = agent_state.and_then(|agent_state| {
@@ -594,10 +729,7 @@ fn phase3a_semantic_actions(
 }
 
 pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
-    DebugEventLogView {
-        debug_only: true,
-        events: log.events().iter().map(DebugEventSummary::from).collect(),
-    }
+    DebugEventLogView::new(log.events().iter().map(DebugEventSummary::from).collect())
 }
 
 fn visible_item_source(location: &Location) -> VisibleItemSource {
@@ -608,7 +740,7 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct SemanticActionPreflightContext<'a> {
     state: &'a PhysicalState,
     agent_state: &'a AgentState,
@@ -616,6 +748,8 @@ struct SemanticActionPreflightContext<'a> {
     content_manifest_id: &'a ContentManifestId,
     viewer_actor_id: &'a ActorId,
     sim_tick: SimTick,
+    knowledge_context_id: HolderKnownContextId,
+    knowledge_context_frontier: u64,
 }
 
 fn semantic_actions(
@@ -789,17 +923,43 @@ fn with_validator_availability(
             epistemic_projection: None,
             content_manifest_id: preflight.content_manifest_id,
             ordering_key: &ordering_key,
+            current_event_frontier: preflight.knowledge_context_frontier,
         },
         &proposal,
     );
     let enabled = report.status == ReportStatus::Accepted;
-    SemanticActionEntry::new(
+    let availability = if enabled {
+        ActionAvailability::available()
+    } else {
+        let mut provenance_refs = vec![
+            ActionAvailabilityProvenance::new(
+                ActionAvailabilityProvenanceKind::HolderKnownContext,
+                preflight.knowledge_context_id.as_str(),
+            ),
+            ActionAvailabilityProvenance::new(
+                ActionAvailabilityProvenanceKind::ValidationReport,
+                report.validation_report_id.as_str(),
+            ),
+        ];
+        provenance_refs.extend(report.checked_facts.iter().map(|fact| {
+            ActionAvailabilityProvenance::new(
+                ActionAvailabilityProvenanceKind::ValidatorFact,
+                fact.render_pair(),
+            )
+        }));
+        ActionAvailability::disabled(
+            report.reason_codes.clone(),
+            report.actor_visible_summary,
+            provenance_refs,
+            Vec::new(),
+        )
+    };
+    SemanticActionEntry::with_availability(
         entry.semantic_action_id,
         entry.action_id,
         entry.target_ids,
         entry.label,
-        enabled,
-        (!enabled).then_some(report.actor_visible_summary),
+        availability,
     )
 }
 
@@ -809,7 +969,7 @@ pub fn proposal_from_semantic_action_entry(
     actor_id: Option<ActorId>,
     requested_tick: SimTick,
     entry: &SemanticActionEntry,
-    source_view_model_id: Option<ViewModelId>,
+    source_view: Option<&EmbodiedViewModel>,
     controller_id: Option<&ControllerId>,
 ) -> Proposal {
     let mut proposal = Proposal::new(
@@ -820,7 +980,24 @@ pub fn proposal_from_semantic_action_entry(
         requested_tick,
     );
     proposal.target_ids = entry.target_ids.clone();
-    proposal.source_view_model_id = source_view_model_id;
+    if let Some(view) = source_view {
+        proposal.source_view_model_id = Some(view.view_model_id.clone());
+        proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+            source_view_model_id: view.view_model_id.clone(),
+            holder_known_context_id: view.holder_known_context_id.clone(),
+            holder_known_context_hash: view.holder_known_context_hash.clone(),
+            holder_known_context_frontier: view.holder_known_context_frontier,
+            context_tick: view.sim_tick,
+            actor_id: view.viewer_actor_id.clone(),
+            semantic_action_id: entry.semantic_action_id.clone(),
+            provenance_ancestry: entry
+                .availability
+                .provenance_refs()
+                .iter()
+                .map(|source| format!("{}:{}", source.kind.stable_id(), source.reference))
+                .collect(),
+        }));
+    }
     if let Some(controller_id) = controller_id {
         proposal
             .parameters
@@ -925,15 +1102,10 @@ mod tests {
     }
 
     fn view_for(state: &PhysicalState) -> EmbodiedViewModel {
-        build_embodied_view_model(
-            state,
-            &registry(),
-            &content_manifest_id(),
-            &actor_id("actor_tomas"),
-            SimTick::new(1),
-            None,
-        )
-        .unwrap()
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, state, None);
+        build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+            .unwrap()
     }
 
     fn state() -> PhysicalState {
@@ -1118,9 +1290,18 @@ mod tests {
 
         assert!(!entry.enabled);
         assert_eq!(
-            entry.why_disabled.as_deref(),
+            entry.availability.reason_codes(),
+            &[ReasonCode::ContainerClosed]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
             Some("The container is closed.")
         );
+        assert!(entry
+            .availability
+            .provenance_refs()
+            .iter()
+            .any(|source| { source.kind == ActionAvailabilityProvenanceKind::HolderKnownContext }));
     }
 
     #[test]
@@ -1140,7 +1321,14 @@ mod tests {
             .unwrap();
 
         assert!(!entry.enabled);
-        assert_eq!(entry.why_disabled.as_deref(), Some("The door is closed."));
+        assert_eq!(
+            entry.availability.reason_codes(),
+            &[ReasonCode::DoorClosedBlocksMovement]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
+            Some("The door is closed.")
+        );
     }
 
     #[test]
@@ -1161,7 +1349,11 @@ mod tests {
 
         assert!(!entry.enabled);
         assert_eq!(
-            entry.why_disabled.as_deref(),
+            entry.availability.reason_codes(),
+            &[ReasonCode::ContainerLocked]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
             Some("The container is locked.")
         );
     }
@@ -1247,10 +1439,50 @@ mod tests {
         assert!(rendered.contains("Contradicts your earlier expectation."));
         assert!(rendered.contains("1000"));
         assert!(rendered.contains("event:event_observation"));
+        assert_eq!(notebook.typed_leads.len(), 1);
+        let lead = &notebook.typed_leads[0];
+        assert_eq!(lead.contradiction_id, "contradiction_tomas_missing_coin");
+        assert_eq!(lead.observation_id, "obs_tomas_checked_strongbox");
+        assert_eq!(lead.source_kind, "event");
+        assert_eq!(lead.source_summary, "event:event_observation");
+        assert_eq!(lead.confidence_label, "1000");
+        assert_eq!(lead.staleness_label, "1 ticks old");
+        assert_eq!(
+            lead.possible_next_actions,
+            vec!["check.container.strongbox_tomas".to_string()]
+        );
         assert!(!rendered.contains("actor_mara"));
         assert!(!rendered.contains("culprit"));
         assert!(!rendered.contains("previous"));
         assert!(!rendered.contains("debug note"));
+    }
+
+    #[test]
+    fn notebook_leads_come_from_typed_contradictions_not_belief_wording() {
+        let mut projection = projection_with_missing_coin_belief();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(4));
+        let baseline = build_notebook_view(&projection, &context);
+        assert_eq!(baseline.typed_leads.len(), 1);
+
+        projection
+            .beliefs_by_id
+            .get_mut(&crate::ids::BeliefId::new("belief_tomas_missing_coin").unwrap())
+            .unwrap()
+            .proposition = Proposition::SoundHeardNearPlace {
+            place_id: place_id("shop_front"),
+        };
+        let reworded = build_notebook_view(&projection, &context);
+        assert_eq!(reworded.typed_leads.len(), 1);
+
+        projection
+            .contradictions_by_id
+            .get_mut(&crate::ids::ContradictionId::new("contradiction_tomas_missing_coin").unwrap())
+            .unwrap()
+            .observed_proposition = Proposition::SoundHeardNearPlace {
+            place_id: place_id("shop_front"),
+        };
+        let typed_kind_changed = build_notebook_view(&projection, &context);
+        assert!(typed_kind_changed.typed_leads.is_empty());
     }
 
     #[test]
@@ -1268,18 +1500,22 @@ mod tests {
     #[test]
     fn embodied_view_can_carry_actor_known_notebook() {
         let projection = projection_with_missing_coin_belief();
-        let view = build_embodied_view_model_with_notebook(
-            &state(),
-            &registry(),
-            &content_manifest_id(),
-            &actor_id("actor_tomas"),
-            SimTick::new(4),
-            None,
-            &projection,
-        )
-        .unwrap();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(4));
+        let state = state();
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+        let mut view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+        view.notebook = Some(build_notebook_view(&projection, &context));
 
-        assert!(view.knowledge_context_id.is_some());
+        assert_eq!(
+            view.holder_known_context_id,
+            context.holder_known_context_id().clone()
+        );
+        assert_eq!(
+            view.holder_known_context_hash,
+            context.holder_known_context_hash().clone()
+        );
         assert_eq!(
             view.notebook.unwrap().source_bound_beliefs[0].acquired_tick,
             3
@@ -1308,6 +1544,20 @@ mod tests {
             FoodSupplyState::new(
                 FoodSupplyId::new("food_hidden_back_room").unwrap(),
                 Location::AtPlace(place_id("back_room")),
+                1,
+                200,
+            ),
+        );
+        let hidden_container_id = container_id("hidden_pantry");
+        state.containers.insert(
+            hidden_container_id.clone(),
+            ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("shop_front")),
+        );
+        state.food_supplies.insert(
+            FoodSupplyId::new("food_hidden_pantry").unwrap(),
+            FoodSupplyState::new(
+                FoodSupplyId::new("food_hidden_pantry").unwrap(),
+                Location::InContainer(hidden_container_id),
                 1,
                 200,
             ),
@@ -1358,16 +1608,12 @@ mod tests {
             ),
         );
 
-        let view = build_embodied_view_model_with_agent_state(
-            &state,
-            Some(&agent_state),
-            &registry(),
-            &content_manifest_id(),
-            &actor_id("actor_tomas"),
-            SimTick::new(2),
-            None,
-        )
-        .unwrap();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(2));
+        let source =
+            EmbodiedProjectionSource::from_sealed_context(&context, &state, Some(&agent_state));
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
 
         let status = view.phase3a_status.as_ref().unwrap();
         assert_eq!(status.need_summaries.len(), 1);
@@ -1387,6 +1633,21 @@ mod tests {
             .semantic_actions
             .iter()
             .any(|entry| entry.semantic_action_id.as_str() == "eat.food.food_hidden_back_room"));
+        assert!(!view.semantic_actions.iter().any(|entry| {
+            entry
+                .semantic_action_id
+                .as_str()
+                .contains("food_hidden_pantry")
+                || entry.label.contains("food_hidden_pantry")
+                || entry
+                    .target_ids
+                    .iter()
+                    .any(|target| target == "food_hidden_pantry")
+                || entry
+                    .availability
+                    .actor_safe_summary()
+                    .is_some_and(|why| why.contains("food_hidden_pantry"))
+        }));
         assert!(view
             .semantic_actions
             .iter()

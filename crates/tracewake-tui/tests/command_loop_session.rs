@@ -68,6 +68,14 @@ fn numeric_selection_executes_stable_semantic_action_id() {
 }
 
 #[test]
+fn wait_command_executes_current_view_wait_action() {
+    let output = run_session("wait\nquit\n");
+    let wait_action_id = first_menu_id_with_label(&output, "Wait");
+
+    assert!(output.contains(&format!("Accepted: {wait_action_id}")));
+}
+
+#[test]
 fn debug_item_does_not_leak_to_following_view_or_change_checksum() {
     let output = run_session("debug item coin_stack_01\ndebug projection\nview\nquit\n");
 
@@ -97,9 +105,9 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
         "run no-human-day\ndebug routines\ndebug replay\nquit\n",
     );
 
-    assert!(output.contains("Ran no-human day: start=0 final=32 actors=4 windows=5"));
-    assert!(output.contains("ordinary_events=29"));
     assert!(output.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(!output.contains("Ran no-human day:"));
+    assert!(!output.contains("ordinary_events="));
     assert!(output.contains("routine_events=8"));
     assert!(output.contains("work_failed=2"));
     assert!(output.contains("routine_interruptions=2"));
@@ -119,6 +127,18 @@ fn first_menu_id(output: &str, one_based_index: usize) -> String {
         .lines()
         .find(|line| line.starts_with(&prefix))
         .expect("menu line exists");
+    let (_, id_with_suffix) = line.rsplit_once('[').expect("menu line has stable ID");
+    let (id, _) = id_with_suffix
+        .split_once(']')
+        .expect("menu line closes stable ID");
+    id.to_string()
+}
+
+fn first_menu_id_with_label(output: &str, label: &str) -> String {
+    let line = output
+        .lines()
+        .find(|line| line.contains(label) && line.contains('['))
+        .expect("menu line with label exists");
     let (_, id_with_suffix) = line.rsplit_once('[').expect("menu line has stable ID");
     let (id, _) = id_with_suffix
         .split_once(']')

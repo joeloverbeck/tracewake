@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     build_actor_known_planning_state, plan_local_actions, ActorDecisionTransaction,
     ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
@@ -7,8 +8,15 @@ use tracewake_core::agent::{
     RoutineStep,
 };
 use tracewake_core::epistemics::EpistemicProjection;
-use tracewake_core::ids::{ActorId, ContentManifestId, PlaceId, WorkplaceId};
-use tracewake_core::state::AgentState;
+use tracewake_core::epistemics::KnowledgeContext;
+use tracewake_core::ids::{
+    ActorId, ContainerId, ContentManifestId, FoodSupplyId, PlaceId, WorkplaceId,
+};
+use tracewake_core::location::Location;
+use tracewake_core::projections::{build_embodied_view_model, EmbodiedProjectionSource};
+use tracewake_core::state::{
+    ActorBody, AgentState, ContainerState, FoodSupplyState, PhysicalState, PlaceState,
+};
 use tracewake_core::time::SimTick;
 
 fn actor_id() -> ActorId {
@@ -21,6 +29,24 @@ fn place_id(value: &str) -> PlaceId {
 
 fn workplace_id(value: &str) -> WorkplaceId {
     WorkplaceId::new(value).unwrap()
+}
+
+fn container_id(value: &str) -> ContainerId {
+    ContainerId::new(value).unwrap()
+}
+
+fn food_supply_id(value: &str) -> FoodSupplyId {
+    FoodSupplyId::new(value).unwrap()
+}
+
+fn registry() -> ActionRegistry {
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
+    registry
 }
 
 fn agent_state(hunger: u16) -> AgentState {
@@ -101,6 +127,75 @@ fn hidden_food_closed_container_is_not_actor_known_food_source() {
     .unwrap_err();
     assert_eq!(failure.reason, "food source is not actor-known");
     assert!(failure.trace.hidden_truth_audit_result.actor_known_only);
+}
+
+#[test]
+fn embodied_affordances_exclude_hidden_food_in_closed_container() {
+    let mut world = PhysicalState::default();
+    world.places.insert(
+        place_id("home_mara"),
+        PlaceState::new(place_id("home_mara"), "Mara home"),
+    );
+    world.actors.insert(
+        actor_id(),
+        ActorBody::new(actor_id(), place_id("home_mara")),
+    );
+
+    world.food_supplies.insert(
+        food_supply_id("food_empty_pantry_mara"),
+        FoodSupplyState::new(
+            food_supply_id("food_empty_pantry_mara"),
+            Location::AtPlace(place_id("home_mara")),
+            0,
+            180,
+        ),
+    );
+    let hidden_container_id = container_id("hidden_pantry");
+    world.containers.insert(
+        hidden_container_id.clone(),
+        ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("home_mara")),
+    );
+    world.food_supplies.insert(
+        food_supply_id("food_hidden_pantry"),
+        FoodSupplyState::new(
+            food_supply_id("food_hidden_pantry"),
+            Location::InContainer(hidden_container_id),
+            1,
+            220,
+        ),
+    );
+
+    let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let projection_source =
+        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
+    let view = build_embodied_view_model(
+        &knowledge_context,
+        &projection_source,
+        &registry(),
+        &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
+        None,
+    )
+    .unwrap();
+
+    assert!(view
+        .semantic_actions
+        .iter()
+        .any(|entry| { entry.semantic_action_id.as_str() == "eat.food.food_empty_pantry_mara" }));
+    assert!(!view.semantic_actions.iter().any(|entry| {
+        entry
+            .semantic_action_id
+            .as_str()
+            .contains("food_hidden_pantry")
+            || entry.label.contains("food_hidden_pantry")
+            || entry
+                .target_ids
+                .iter()
+                .any(|target| target == "food_hidden_pantry")
+            || entry
+                .availability
+                .actor_safe_summary()
+                .is_some_and(|why| why.contains("food_hidden_pantry"))
+    }));
 }
 
 #[test]

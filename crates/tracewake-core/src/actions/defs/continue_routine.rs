@@ -172,13 +172,14 @@ fn reject(
 mod tests {
     use super::*;
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
-    use crate::actions::proposal::ProposalOrigin;
+    use crate::actions::proposal::{ProposalOrigin, ProposalSource, ProposalSourceContext};
     use crate::actions::registry::ActionRegistry;
     use crate::actions::report::ReportStatus;
     use crate::controller::ControllerBindings;
+    use crate::epistemics::KnowledgeContext;
     use crate::events::log::EventLog;
     use crate::events::EventKind;
-    use crate::ids::{ActorId, ControllerId, PlaceId, ProposalId};
+    use crate::ids::{ActorId, ControllerId, PlaceId, ProposalId, SemanticActionId, ViewModelId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
     use crate::state::{ActorBody, ControllerMode, PlaceState};
     use crate::time::SimTick;
@@ -219,6 +220,24 @@ mod tests {
             .parameters
             .insert("next_action_id".to_string(), "work_block".to_string());
         proposal
+    }
+
+    fn attach_tui_source(proposal: &mut Proposal) {
+        let context =
+            KnowledgeContext::embodied_at_frontier(actor_id(), proposal.requested_tick, 0);
+        let source_view_model_id = ViewModelId::new("view.actor_tomas.5").unwrap();
+        proposal.source_view_model_id = Some(source_view_model_id.clone());
+        proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+            source_view_model_id,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier,
+            context_tick: proposal.requested_tick,
+            actor_id: actor_id(),
+            semantic_action_id: SemanticActionId::new("continue.routine.intention_workday")
+                .unwrap(),
+            provenance_ancestry: Vec::new(),
+        }));
     }
 
     fn ordering_key() -> OrderingKey {
@@ -326,6 +345,7 @@ mod tests {
         let mut bindings = None;
         if origin == ProposalOrigin::Human {
             let controller_id = ControllerId::new("controller_human").unwrap();
+            attach_tui_source(&mut proposal);
             proposal
                 .parameters
                 .insert("controller_id".to_string(), controller_id.to_string());

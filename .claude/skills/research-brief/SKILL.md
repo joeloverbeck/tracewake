@@ -47,6 +47,8 @@ Read `research_target` (and `reference_path` in full if given). Classify into on
 
 Announce the classification on its own line as your **first user-facing output**, before any exploration tool call — emit `Classification: <type>` so the audit trail records it independent of your reasoning. When ambiguous, give a one-sentence justification.
 
+A target may carry a **dominant type plus a secondary** (e.g. a hardening pass whose deliverable is a new spec). When so, classify by the dominant type to pick the primary read-set, then union in the secondary type's load-bearing reads, and name both in the announcement (`Classification: <dominant> (secondary: <type>)`).
+
 ## Step 2: Explore the repo to ground the brief
 
 The point of authoring here is that Claude can read the repo directly — so the *user never types out what the researcher should read*. Build, from exploration:
@@ -59,7 +61,7 @@ Launch Explore agents for broad surveys. Verify any repo claim in `research_targ
 
 ## Step 3: Light online research (optional)
 
-Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. If skipped, announce it in-session as a one-liner (e.g., "Online research: skipped — repo-internal realignment") so the audit trail is visible independent of the brief body.
+Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. If skipped, announce it in-session as a one-liner (e.g., "Online research: skipped — repo-internal realignment") so the audit trail is visible independent of the brief body. **The research is optional; the run-or-skip announcement is not** — emit it either way, as a peer of the Step 1 `Classification:` line.
 
 ## Step 4: Interview to 95% confidence
 
@@ -70,7 +72,7 @@ Confidence: X%
 Gaps: [specific remaining unknowns]
 ```
 
-Rules: ask one *conceptual* question at a time when probing motivation or uncertainty sequentially, where each answer reshapes the next; but batch independent, already-scoped bounded choices into a single `AskUserQuestion` call (≤4 questions). Prefer bounded multiple-choice (`AskUserQuestion` when available). Probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. On receiving batched answers, re-display the `Confidence / Gaps` after-block before proceeding — unless confidence reaches threshold, in which case the "95% — drafting the brief" announcement subsumes it. Announce "95% — drafting the brief" when reached.
+Rules: ask one *conceptual* question at a time when probing motivation or uncertainty sequentially, where each answer reshapes the next; but batch independent, already-scoped bounded choices into a single `AskUserQuestion` call (≤4 questions). A reshaping conceptual question *may* ride in a batch with bounded ones only when the bounded options stay valid across every plausible answer to it (and you supply recommendations); if any bounded option would change meaning depending on the reshaping answer, ask the reshaping question standalone first. Prefer bounded multiple-choice (`AskUserQuestion` when available). Probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. On receiving batched answers, re-display the `Confidence / Gaps` after-block before proceeding — unless confidence reaches threshold, in which case the "95% — drafting the brief" announcement subsumes it. Announce "95% — drafting the brief" when reached.
 
 **Early exit**: if the user says "just go," announce current confidence, list remaining gaps, and carry them into the brief as labeled assumptions (`assumption: X`) so Session 2 — which will not ask — treats them as decisions the user can later correct.
 
@@ -81,6 +83,8 @@ Before writing, present in chat:
 1. the **settled intentions** — the resolved decisions the interview produced (these become §3 of the brief and are what make Session 2 "locked");
 2. the **deliverable spec** — exactly which downloadable markdown docs Session 2 must produce (replace vs. new, filenames);
 3. the **read-in-full list** (authority-ordered, with the one-line reasons).
+
+Before presenting, confirm both audit-trail announcements were emitted earlier this run: the Step 1 `Classification:` line and the Step 3 online-research run-or-skip one-liner. If either was missed, emit it now.
 
 Get approval (per the HARD-GATE). Revise on pushback before writing.
 

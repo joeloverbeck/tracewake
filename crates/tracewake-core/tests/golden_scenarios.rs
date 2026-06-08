@@ -814,7 +814,7 @@ fn debug_item_location_reports_last_location_event() {
 
     let report = item_location_report(&state, &log, &coin_id(), &context(&log));
 
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     assert_eq!(
         report.last_location_event_id,
         Some(result.appended_events[0].event_id.clone())
@@ -829,7 +829,7 @@ fn debug_rejection_report_names_failed_stage() {
 
     let report = action_rejection_report(&result.report, &state, &context(&log));
 
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     assert!(report.failed_stage.is_some());
     assert!(!report.mutation_attempted);
 }

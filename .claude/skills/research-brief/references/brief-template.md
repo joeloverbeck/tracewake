@@ -89,6 +89,12 @@ Exactly what Session 2 outputs — leave no ambiguity:
 - each **downloadable markdown document**, by filename and whether it **replaces** an
   existing file or is **new**;
 - for replacements, name the file being replaced and what must be preserved vs. changed;
+- when the deliverable is a **numbered spec**, derive its number and path from the live
+  spec ledger + specs README (e.g. `docs/4-specs/SPEC_LEDGER.md`), not from the archive:
+  prefer the next free *live* number (a realigned ledger may restart numbering, so an
+  archived `0002` does not block a live `0002`), and carry any residual placement
+  ambiguity (`specs/` staging vs. final `docs/4-specs/`) as a labeled `assumption:` line
+  rather than asserting it;
 - the **locked / no-questions** instruction, verbatim intent:
 
 > Produce the deliverables directly as downloadable markdown documents. Do not interview,

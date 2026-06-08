@@ -47,6 +47,7 @@ Archived specs remain history. They may explain why the upper-tier overhaul happ
 | `archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md` | Exposed need for stronger actor-known planning, lifecycle, replay, and no-human integration. | Landed historically; not sufficient certification under the current doctrine. |
 | `archive/specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md` | Exposed further gaps in integrated no-human proof, live agent state, string-heavy diagnostics, and hidden-truth resistance. | Landed historically; not proof that current gates are solved. |
 | `archive/specs/0008_PHASE_3A_ANTI_CONTAMINATION_HARDENING_SPEC.md` | Exposed anti-contamination problems around actor-known transaction shape, planner inputs, forged/stale proposal parameters, marker actions, friendly tests, and overclaiming docs. | Landed historically; not live doctrine where it conflicts with the realigned spine. |
+| `archive/specs/0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md` | Scoped TUI proof-surface hardening remediation across sealed context, proposal source validation, debug quarantine, typed diagnostics, transcript/replay, positive proof artifacts, and adversarial gates. | Accepted for the audited TUI seam at `a906a70`; not full-project certification. |
 
 ## Next known execution move
 

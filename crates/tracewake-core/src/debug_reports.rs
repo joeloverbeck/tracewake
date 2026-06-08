@@ -2,6 +2,7 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::report::{CheckedFact, ReasonCode, ValidationReport};
 use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use crate::controller::ControllerBindings;
+use crate::debug_capability::DebugCapability;
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ActorId, DebugReportId, EventId, ItemId, ProposalId, ValidationReportId};
@@ -24,7 +25,7 @@ pub struct ItemLocationDebugReport {
     pub relevant_events: Vec<DebugEventSummary>,
     pub inconsistencies: Vec<String>,
     pub physical_checksum: PhysicalChecksum,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -36,34 +37,46 @@ pub struct ActionRejectionDebugReport {
     pub reason_codes: Vec<ReasonCode>,
     pub actor_visible_summary: String,
     pub debug_summary: String,
-    pub checked_facts: Vec<CheckedFact>,
+    pub actor_visible_facts: Vec<CheckedFact>,
+    pub debug_only_facts: Vec<CheckedFact>,
     pub precondition_trace: Vec<String>,
     pub events_created: Vec<EventId>,
     pub mutation_attempted: bool,
     pub checksum_before: PhysicalChecksum,
     pub checksum_after: PhysicalChecksum,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectionRebuildDebugReport {
     pub report_id: DebugReportId,
     pub rebuild: ProjectionRebuildReport,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReplayDebugReport {
     pub report_id: DebugReportId,
     pub replay: ReplayReport,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
 }
 
+/// Privileged controller-binding report.
+///
+/// ```compile_fail
+/// use tracewake_core::debug_reports::ControllerBindingDebugReport;
+/// use tracewake_core::ids::DebugReportId;
+///
+/// let _report = ControllerBindingDebugReport {
+///     report_id: DebugReportId::new("debug.controller").unwrap(),
+///     bindings: Vec::new(),
+/// };
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ControllerBindingDebugReport {
     pub report_id: DebugReportId,
     pub bindings: Vec<String>,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,7 +86,7 @@ pub struct Phase3ADebugReport {
     pub rows: Vec<String>,
     pub decision_traces: Vec<Phase3ADecisionTraceView>,
     pub stuck_diagnostics: Vec<Phase3AStuckDiagnosticView>,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,7 +94,49 @@ pub struct NoHumanDayDebugReport {
     pub report_id: DebugReportId,
     pub metrics: NoHumanDayMetrics,
     pub canonical_summary: String,
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
+}
+
+impl ItemLocationDebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl ActionRejectionDebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl ProjectionRebuildDebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl ReplayDebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl ControllerBindingDebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl Phase3ADebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl NoHumanDayDebugReport {
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -175,7 +230,7 @@ pub fn item_location_report(
         relevant_events,
         inconsistencies: Vec::new(),
         physical_checksum,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -197,17 +252,18 @@ pub fn action_rejection_report(
         reason_codes: validation_report.reason_codes.clone(),
         actor_visible_summary: validation_report.actor_visible_summary.clone(),
         debug_summary: validation_report.debug_summary.clone(),
-        checked_facts: validation_report.checked_facts.clone(),
+        actor_visible_facts: validation_report.actor_visible_facts.clone(),
+        debug_only_facts: validation_report.debug_only_facts.clone(),
         precondition_trace: validation_report
-            .checked_facts
+            .debug_only_facts
             .iter()
-            .map(|fact| format!("{}={}", fact.key, fact.value))
+            .map(CheckedFact::render_pair)
             .collect(),
         events_created: validation_report.event_ids.clone(),
         mutation_attempted: false,
         checksum_before: checksum.clone(),
         checksum_after: checksum,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -218,7 +274,7 @@ pub fn projection_rebuild_debug_report(
     ProjectionRebuildDebugReport {
         report_id,
         rebuild,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -226,7 +282,7 @@ pub fn replay_debug_report(report_id: DebugReportId, replay: ReplayReport) -> Re
     ReplayDebugReport {
         report_id,
         replay,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -249,7 +305,7 @@ pub fn controller_binding_report(
     ControllerBindingDebugReport {
         report_id,
         bindings,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -439,7 +495,7 @@ pub fn no_human_day_debug_report(log: &EventLog) -> NoHumanDayDebugReport {
         report_id: DebugReportId::new("debug.phase3a.no_human_day").unwrap(),
         metrics,
         canonical_summary,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -469,7 +525,7 @@ fn phase3a_report(
         rows,
         decision_traces,
         stuck_diagnostics,
-        debug_only: true,
+        debug_capability: DebugCapability::mint(),
     }
 }
 
@@ -711,7 +767,7 @@ mod tests {
 
         let report = item_location_report(&state, &log, &item_id(), &checksum_context());
 
-        assert!(report.debug_only);
+        assert!(report.debug_only());
         assert_eq!(
             report.current_location.unwrap(),
             "actor:actor_tomas -> place:shop_front"
@@ -761,12 +817,14 @@ mod tests {
         let after_checksum =
             compute_physical_checksum(&mutable_state, &checksum_context()).checksum;
 
-        assert!(report.debug_only);
+        assert!(report.debug_only());
         assert_eq!(
             report.failed_stage,
             Some(crate::actions::pipeline::PipelineStage::ActionDefinitionLookup)
         );
-        assert!(!report.checked_facts.is_empty());
+        assert!(!report.actor_visible_facts.is_empty());
+        assert!(report.debug_only_facts.is_empty());
+        assert!(report.precondition_trace.is_empty());
         assert!(!report.mutation_attempted);
         assert_eq!(report.checksum_before, report.checksum_after);
         assert_eq!(mutable_state.actors[&actor_id()], before_actor);
@@ -780,7 +838,7 @@ mod tests {
         let log = EventLog::new();
         let report = item_location_report(&state, &log, &item_id(), &checksum_context());
 
-        assert!(report.debug_only);
+        assert!(report.debug_only());
         assert_eq!(
             report.last_location_event_id.unwrap().as_str(),
             "fixture_origin.coin_stack_01"
@@ -881,7 +939,7 @@ mod tests {
         let actor = phase3a_actor_report(&agent_state, &actor_mara);
 
         for report in [&needs, &routines, &planner, &stuck, &actor] {
-            assert!(report.debug_only);
+            assert!(report.debug_only());
         }
         assert!(needs
             .rows
@@ -949,7 +1007,7 @@ mod tests {
 
         let report = no_human_day_debug_report(&log);
 
-        assert!(report.debug_only);
+        assert!(report.debug_only());
         assert_eq!(report.metrics.projection_version, "no_human_day_metrics_v1");
         assert!(report.canonical_summary.contains("no_human_day_metrics_v1"));
         assert_eq!(log, before);

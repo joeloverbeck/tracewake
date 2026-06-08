@@ -1,13 +1,23 @@
 use std::collections::BTreeSet;
 
+use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash};
 use crate::epistemics::observation::{PrivacyScope, EPISTEMIC_RECORD_SCHEMA_V1};
-use crate::ids::{ActorId, SchemaVersion};
+use crate::ids::{ActorId, HolderKnownContextId, SchemaVersion};
 use crate::time::SimTick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ViewMode {
     Embodied,
     Debug,
+}
+
+impl ViewMode {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            ViewMode::Embodied => "embodied",
+            ViewMode::Debug => "debug",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -19,6 +29,20 @@ pub enum AllowedKnowledgeSource {
     OwnSourceBackedBelief,
 }
 
+impl AllowedKnowledgeSource {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            AllowedKnowledgeSource::OwnDirectObservation => "own_direct_observation",
+            AllowedKnowledgeSource::OwnSearchOrTouchObservation => {
+                "own_search_or_touch_observation"
+            }
+            AllowedKnowledgeSource::OwnSoundObservation => "own_sound_observation",
+            AllowedKnowledgeSource::OwnAbsenceMarker => "own_absence_marker",
+            AllowedKnowledgeSource::OwnSourceBackedBelief => "own_source_backed_belief",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ForbiddenKnowledgeSource {
     UnobservedEventLogTruth,
@@ -28,17 +52,151 @@ pub enum ForbiddenKnowledgeSource {
     PreviousPossessedActorKnowledge,
 }
 
+impl ForbiddenKnowledgeSource {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            ForbiddenKnowledgeSource::UnobservedEventLogTruth => "unobserved_event_log_truth",
+            ForbiddenKnowledgeSource::HiddenItemLocation => "hidden_item_location",
+            ForbiddenKnowledgeSource::OtherActorsPrivateBeliefs => "other_actors_private_beliefs",
+            ForbiddenKnowledgeSource::HumanDebugNotes => "human_debug_notes",
+            ForbiddenKnowledgeSource::PreviousPossessedActorKnowledge => {
+                "previous_possessed_actor_knowledge"
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ScopeFilter {
     ActorPrivate(ActorId),
     DebugAll,
 }
 
+impl ScopeFilter {
+    fn canonical_key(&self) -> String {
+        match self {
+            ScopeFilter::ActorPrivate(actor_id) => {
+                format!("actor_private:{}", actor_id.as_str())
+            }
+            ScopeFilter::DebugAll => "debug_all".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum KnowledgeProvenanceKind {
+    Perception,
+    Memory,
+    Observation,
+    Record,
+    Belief,
+    Reservation,
+    ActionAffordanceFact,
+}
+
+impl KnowledgeProvenanceKind {
+    pub const fn stable_id(&self) -> &'static str {
+        match self {
+            KnowledgeProvenanceKind::Perception => "perception",
+            KnowledgeProvenanceKind::Memory => "memory",
+            KnowledgeProvenanceKind::Observation => "observation",
+            KnowledgeProvenanceKind::Record => "record",
+            KnowledgeProvenanceKind::Belief => "belief",
+            KnowledgeProvenanceKind::Reservation => "reservation",
+            KnowledgeProvenanceKind::ActionAffordanceFact => "action_affordance_fact",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct KnowledgeProvenanceEntry {
+    kind: KnowledgeProvenanceKind,
+    source: AllowedKnowledgeSource,
+    source_key: String,
+}
+
+impl KnowledgeProvenanceEntry {
+    pub fn actor_known_source(
+        kind: KnowledgeProvenanceKind,
+        source: AllowedKnowledgeSource,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind,
+            source,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn kind(&self) -> &KnowledgeProvenanceKind {
+        &self.kind
+    }
+
+    pub fn source(&self) -> AllowedKnowledgeSource {
+        self.source
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}:{}:{}",
+            self.kind.stable_id(),
+            self.source.stable_id(),
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ForbiddenTruthAudit {
+    excluded_sources: BTreeSet<ForbiddenKnowledgeSource>,
+    passed: bool,
+}
+
+impl ForbiddenTruthAudit {
+    fn passed_excluding(excluded_sources: BTreeSet<ForbiddenKnowledgeSource>) -> Self {
+        Self {
+            excluded_sources,
+            passed: true,
+        }
+    }
+
+    pub fn passed(&self) -> bool {
+        self.passed
+    }
+
+    pub fn excluded_sources(&self) -> &BTreeSet<ForbiddenKnowledgeSource> {
+        &self.excluded_sources
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum KnowledgeContextStatus {
+    Current,
+    Stale,
+    Invalid,
+}
+
+impl KnowledgeContextStatus {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            KnowledgeContextStatus::Current => "current",
+            KnowledgeContextStatus::Stale => "stale",
+            KnowledgeContextStatus::Invalid => "invalid",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KnowledgeContext {
     pub viewer_actor_id: ActorId,
+    pub bound_actor_id: ActorId,
     pub mode: ViewMode,
     pub current_tick: SimTick,
+    pub event_frontier: u64,
     pub allowed_sources: BTreeSet<AllowedKnowledgeSource>,
     pub forbidden_sources: BTreeSet<ForbiddenKnowledgeSource>,
     pub perception_scope: ScopeFilter,
@@ -46,38 +204,124 @@ pub struct KnowledgeContext {
     pub observation_scope: ScopeFilter,
     pub projection_schema_version: SchemaVersion,
     pub debug_non_diegetic: bool,
+    holder_known_context_id: HolderKnownContextId,
+    holder_known_context_hash: HolderKnownContextHash,
+    provenance_entries: Vec<KnowledgeProvenanceEntry>,
+    forbidden_truth_audit: ForbiddenTruthAudit,
+    status: KnowledgeContextStatus,
 }
 
 impl KnowledgeContext {
     pub fn embodied(viewer_actor_id: ActorId, current_tick: SimTick) -> Self {
+        Self::embodied_at_frontier(viewer_actor_id, current_tick, 0)
+    }
+
+    pub fn embodied_at_frontier(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+    ) -> Self {
         let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
+        Self::seal(
+            viewer_actor_id.clone(),
+            viewer_actor_id,
+            ViewMode::Embodied,
+            current_tick,
+            event_frontier,
+            embodied_allowed_sources(),
+            forbidden_sources(),
+            actor_scope.clone(),
+            actor_scope.clone(),
+            actor_scope,
+            false,
+            baseline_embodied_provenance(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn seal(
+        viewer_actor_id: ActorId,
+        bound_actor_id: ActorId,
+        mode: ViewMode,
+        current_tick: SimTick,
+        event_frontier: u64,
+        allowed_sources: BTreeSet<AllowedKnowledgeSource>,
+        forbidden_sources: BTreeSet<ForbiddenKnowledgeSource>,
+        perception_scope: ScopeFilter,
+        belief_scope: ScopeFilter,
+        observation_scope: ScopeFilter,
+        debug_non_diegetic: bool,
+        mut provenance_entries: Vec<KnowledgeProvenanceEntry>,
+    ) -> Self {
+        provenance_entries.sort();
+        provenance_entries.dedup();
+        let projection_schema_version = SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap();
+        let holder_known_context_id = HolderKnownContextId::new(format!(
+            "hkc.{}.{}.{}",
+            viewer_actor_id.as_str(),
+            current_tick.value(),
+            event_frontier
+        ))
+        .unwrap();
+        let status = KnowledgeContextStatus::Current;
+        let forbidden_truth_audit =
+            ForbiddenTruthAudit::passed_excluding(forbidden_sources.clone());
+        let holder_known_context_hash = compute_holder_known_context_hash(canonical_hash_inputs(
+            &holder_known_context_id,
+            &viewer_actor_id,
+            &bound_actor_id,
+            mode,
+            current_tick,
+            event_frontier,
+            &allowed_sources,
+            &forbidden_sources,
+            &perception_scope,
+            &belief_scope,
+            &observation_scope,
+            &projection_schema_version,
+            debug_non_diegetic,
+            &provenance_entries,
+            &forbidden_truth_audit,
+            status,
+        ))
+        .hash;
+
         Self {
             viewer_actor_id,
-            mode: ViewMode::Embodied,
+            bound_actor_id,
+            mode,
             current_tick,
-            allowed_sources: embodied_allowed_sources(),
-            forbidden_sources: forbidden_sources(),
-            perception_scope: actor_scope.clone(),
-            belief_scope: actor_scope.clone(),
-            observation_scope: actor_scope,
-            projection_schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
-            debug_non_diegetic: false,
+            event_frontier,
+            allowed_sources,
+            forbidden_sources,
+            perception_scope,
+            belief_scope,
+            observation_scope,
+            projection_schema_version,
+            debug_non_diegetic,
+            holder_known_context_id,
+            holder_known_context_hash,
+            provenance_entries,
+            forbidden_truth_audit,
+            status,
         }
     }
 
     pub fn debug(viewer_actor_id: ActorId, current_tick: SimTick) -> Self {
-        Self {
+        Self::seal(
+            viewer_actor_id.clone(),
             viewer_actor_id,
-            mode: ViewMode::Debug,
+            ViewMode::Debug,
             current_tick,
-            allowed_sources: embodied_allowed_sources(),
-            forbidden_sources: forbidden_sources(),
-            perception_scope: ScopeFilter::DebugAll,
-            belief_scope: ScopeFilter::DebugAll,
-            observation_scope: ScopeFilter::DebugAll,
-            projection_schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
-            debug_non_diegetic: true,
-        }
+            0,
+            embodied_allowed_sources(),
+            forbidden_sources(),
+            ScopeFilter::DebugAll,
+            ScopeFilter::DebugAll,
+            ScopeFilter::DebugAll,
+            true,
+            baseline_embodied_provenance(),
+        )
     }
 
     pub fn permits_scope(&self, privacy_scope: &PrivacyScope) -> bool {
@@ -89,6 +333,26 @@ impl KnowledgeContext {
             (ViewMode::Embodied, PrivacyScope::PublicPlaceholder) => true,
             (ViewMode::Embodied, PrivacyScope::InstitutionPlaceholder(_)) => false,
         }
+    }
+
+    pub fn holder_known_context_id(&self) -> &HolderKnownContextId {
+        &self.holder_known_context_id
+    }
+
+    pub fn holder_known_context_hash(&self) -> &HolderKnownContextHash {
+        &self.holder_known_context_hash
+    }
+
+    pub fn provenance_entries(&self) -> &[KnowledgeProvenanceEntry] {
+        &self.provenance_entries
+    }
+
+    pub fn forbidden_truth_audit(&self) -> &ForbiddenTruthAudit {
+        &self.forbidden_truth_audit
+    }
+
+    pub fn status(&self) -> KnowledgeContextStatus {
+        self.status
     }
 }
 
@@ -112,6 +376,95 @@ fn forbidden_sources() -> BTreeSet<ForbiddenKnowledgeSource> {
     ])
 }
 
+fn baseline_embodied_provenance() -> Vec<KnowledgeProvenanceEntry> {
+    vec![
+        KnowledgeProvenanceEntry::actor_known_source(
+            KnowledgeProvenanceKind::Perception,
+            AllowedKnowledgeSource::OwnDirectObservation,
+            "context_source_policy",
+        ),
+        KnowledgeProvenanceEntry::actor_known_source(
+            KnowledgeProvenanceKind::Observation,
+            AllowedKnowledgeSource::OwnSearchOrTouchObservation,
+            "context_source_policy",
+        ),
+        KnowledgeProvenanceEntry::actor_known_source(
+            KnowledgeProvenanceKind::Observation,
+            AllowedKnowledgeSource::OwnSoundObservation,
+            "context_source_policy",
+        ),
+        KnowledgeProvenanceEntry::actor_known_source(
+            KnowledgeProvenanceKind::Record,
+            AllowedKnowledgeSource::OwnAbsenceMarker,
+            "context_source_policy",
+        ),
+        KnowledgeProvenanceEntry::actor_known_source(
+            KnowledgeProvenanceKind::Belief,
+            AllowedKnowledgeSource::OwnSourceBackedBelief,
+            "context_source_policy",
+        ),
+    ]
+}
+
+#[allow(clippy::too_many_arguments)]
+fn canonical_hash_inputs(
+    holder_known_context_id: &HolderKnownContextId,
+    viewer_actor_id: &ActorId,
+    bound_actor_id: &ActorId,
+    mode: ViewMode,
+    current_tick: SimTick,
+    event_frontier: u64,
+    allowed_sources: &BTreeSet<AllowedKnowledgeSource>,
+    forbidden_sources: &BTreeSet<ForbiddenKnowledgeSource>,
+    perception_scope: &ScopeFilter,
+    belief_scope: &ScopeFilter,
+    observation_scope: &ScopeFilter,
+    projection_schema_version: &SchemaVersion,
+    debug_non_diegetic: bool,
+    provenance_entries: &[KnowledgeProvenanceEntry],
+    forbidden_truth_audit: &ForbiddenTruthAudit,
+    status: KnowledgeContextStatus,
+) -> Vec<String> {
+    let mut lines = vec![
+        format!("context_id={}", holder_known_context_id.as_str()),
+        format!("viewer_actor={}", viewer_actor_id.as_str()),
+        format!("bound_actor={}", bound_actor_id.as_str()),
+        format!("mode={}", mode.stable_id()),
+        format!("tick={}", current_tick.value()),
+        format!("event_frontier={event_frontier}"),
+        format!("perception_scope={}", perception_scope.canonical_key()),
+        format!("belief_scope={}", belief_scope.canonical_key()),
+        format!("observation_scope={}", observation_scope.canonical_key()),
+        format!("schema={}", projection_schema_version.as_str()),
+        format!("debug_non_diegetic={debug_non_diegetic}"),
+        format!("audit_passed={}", forbidden_truth_audit.passed()),
+        format!("status={}", status.stable_id()),
+    ];
+
+    lines.extend(
+        allowed_sources
+            .iter()
+            .map(|source| format!("allowed={}", source.stable_id())),
+    );
+    lines.extend(
+        forbidden_sources
+            .iter()
+            .map(|source| format!("forbidden={}", source.stable_id())),
+    );
+    lines.extend(
+        forbidden_truth_audit
+            .excluded_sources()
+            .iter()
+            .map(|source| format!("audit_excluded={}", source.stable_id())),
+    );
+    lines.extend(
+        provenance_entries
+            .iter()
+            .map(|entry| format!("provenance={}", entry.canonical_key())),
+    );
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,6 +478,9 @@ mod tests {
         let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(5));
 
         assert_eq!(context.mode, ViewMode::Embodied);
+        assert_eq!(context.viewer_actor_id, actor_id("actor_tomas"));
+        assert_eq!(context.bound_actor_id, actor_id("actor_tomas"));
+        assert_eq!(context.event_frontier, 0);
         assert!(context
             .allowed_sources
             .contains(&AllowedKnowledgeSource::OwnDirectObservation));
@@ -156,6 +512,62 @@ mod tests {
         assert!(context
             .forbidden_sources
             .contains(&ForbiddenKnowledgeSource::PreviousPossessedActorKnowledge));
+    }
+
+    #[test]
+    fn embodied_context_seals_id_hash_provenance_frontier_and_audit() {
+        let context =
+            KnowledgeContext::embodied_at_frontier(actor_id("actor_tomas"), SimTick::new(5), 11);
+
+        assert_eq!(
+            context.holder_known_context_id().as_str(),
+            "hkc.actor_tomas.5.11"
+        );
+        assert!(context
+            .holder_known_context_hash()
+            .as_str()
+            .starts_with("hkc1-"));
+        assert_eq!(context.bound_actor_id, actor_id("actor_tomas"));
+        assert_eq!(context.current_tick, SimTick::new(5));
+        assert_eq!(context.event_frontier, 11);
+        assert_eq!(context.status(), KnowledgeContextStatus::Current);
+        assert!(!context.provenance_entries().is_empty());
+        assert!(context.provenance_entries().iter().any(|entry| {
+            entry.kind() == &KnowledgeProvenanceKind::Belief
+                && entry.source() == AllowedKnowledgeSource::OwnSourceBackedBelief
+        }));
+        assert!(context.forbidden_truth_audit().passed());
+        for source in context.forbidden_sources.iter() {
+            assert!(context
+                .forbidden_truth_audit()
+                .excluded_sources()
+                .contains(source));
+        }
+    }
+
+    #[test]
+    fn embodied_context_hash_is_deterministic_and_input_sensitive() {
+        let first =
+            KnowledgeContext::embodied_at_frontier(actor_id("actor_tomas"), SimTick::new(5), 11);
+        let second =
+            KnowledgeContext::embodied_at_frontier(actor_id("actor_tomas"), SimTick::new(5), 11);
+        let changed_actor =
+            KnowledgeContext::embodied_at_frontier(actor_id("actor_elena"), SimTick::new(5), 11);
+        let changed_frontier =
+            KnowledgeContext::embodied_at_frontier(actor_id("actor_tomas"), SimTick::new(5), 12);
+
+        assert_eq!(
+            first.holder_known_context_hash(),
+            second.holder_known_context_hash()
+        );
+        assert_ne!(
+            first.holder_known_context_hash(),
+            changed_actor.holder_known_context_hash()
+        );
+        assert_ne!(
+            first.holder_known_context_hash(),
+            changed_frontier.holder_known_context_hash()
+        );
     }
 
     #[test]

@@ -8,6 +8,6 @@ pub use pipeline::{
     run_pipeline, validate_proposal, PipelineContext, PipelineResult, PipelineStage,
     ProposalValidationContext,
 };
-pub use proposal::{Proposal, ProposalOrigin};
+pub use proposal::{Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext};
 pub use registry::{ActionDefinition, ActionEffect, ActionRegistry};
 pub use report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};

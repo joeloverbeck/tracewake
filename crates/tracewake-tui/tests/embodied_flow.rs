@@ -12,6 +12,18 @@ fn bind_render_submit_rerender_and_show_why_not() {
     let first = app.render_current_view().unwrap();
     assert!(first.contains("Actor: actor_tomas"));
     assert!(first.contains("open.container.strongbox_tomas"));
+    let first_view = app.current_view().unwrap();
+    assert_eq!(
+        first_view.holder_known_context_id.as_str(),
+        "hkc.actor_tomas.0.1"
+    );
+    assert!(first_view
+        .holder_known_context_hash
+        .as_str()
+        .starts_with("hkc1-"));
+    assert!(first.contains("Knowledge context: id=hkc.actor_tomas.0.1 hash=hkc1-"));
+    assert!(first.contains("tick=0 frontier=1 sources=allowed=5 provenance=5"));
+    assert!(!first.contains("Knowledge context: knowledge."));
 
     let accepted = app
         .submit_semantic_action(&SemanticActionId::new("open.container.strongbox_tomas").unwrap())
@@ -61,7 +73,9 @@ fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth(
 }
 
 #[test]
-fn tui_does_not_call_event_applier() {
+fn source_scan_smoke_tui_does_not_call_event_applier() {
+    // Smoke-only guard: the adversarial gate suite proves the command boundary
+    // through typed current-view semantic actions and checksum behavior.
     let app_source = include_str!("../src/app.rs");
     let render_source = include_str!("../src/render.rs");
     let input_source = include_str!("../src/input.rs");

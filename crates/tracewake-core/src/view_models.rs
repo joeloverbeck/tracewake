@@ -1,7 +1,10 @@
 use crate::actions::report::{ReasonCode, ValidationReport};
+use crate::checksum::HolderKnownContextHash;
+use crate::debug_capability::DebugCapability;
 use crate::events::{EventEnvelope, EventStream};
 use crate::ids::{
-    ActionId, ActorId, ContainerId, DoorId, ItemId, PlaceId, SemanticActionId, ViewModelId,
+    ActionId, ActorId, ContainerId, DoorId, HolderKnownContextId, ItemId, PlaceId,
+    SemanticActionId, ViewModelId,
 };
 use crate::time::SimTick;
 
@@ -30,7 +33,10 @@ pub struct EmbodiedViewModel {
     pub phase3a_status: Option<Phase3AEmbodiedStatus>,
     pub last_rejection_summary: Option<String>,
     pub last_rejection_why_not: Option<WhyNotView>,
-    pub knowledge_context_id: Option<String>,
+    pub holder_known_context_id: HolderKnownContextId,
+    pub holder_known_context_hash: HolderKnownContextHash,
+    pub holder_known_context_frontier: u64,
+    pub holder_known_context_source_summary: String,
     pub notebook: Option<NotebookView>,
     pub debug_available: bool,
 }
@@ -56,6 +62,7 @@ pub struct WhyNotView {
     pub failure_kind: WhyNotFailureKind,
     pub actor_known_summary: String,
     pub reason_codes: Vec<String>,
+    pub actor_visible_facts: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -91,6 +98,11 @@ impl From<&ValidationReport> for WhyNotView {
                 .iter()
                 .map(|reason| reason.stable_id().to_string())
                 .collect(),
+            actor_visible_facts: report
+                .actor_visible_facts
+                .iter()
+                .map(crate::actions::CheckedFact::render_pair)
+                .collect(),
         }
     }
 }
@@ -101,6 +113,7 @@ pub struct NotebookView {
     pub source_bound_beliefs: Vec<NotebookBeliefEntry>,
     pub recent_observations: Vec<NotebookObservationEntry>,
     pub known_contradictions: Vec<NotebookContradictionEntry>,
+    pub typed_leads: Vec<NotebookLeadEntry>,
     pub possible_leads: Vec<String>,
 }
 
@@ -126,6 +139,22 @@ pub struct NotebookObservationEntry {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NotebookContradictionEntry {
     pub contradiction_id: String,
+    pub summary: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookLeadEntry {
+    pub lead_id: String,
+    pub contradiction_id: String,
+    pub belief_id: String,
+    pub observation_id: String,
+    pub source_kind: String,
+    pub source_summary: String,
+    pub confidence_label: String,
+    pub detected_tick: u64,
+    pub staleness_label: String,
+    pub how_this_may_be_wrong: String,
+    pub possible_next_actions: Vec<String>,
     pub summary: String,
 }
 
@@ -177,7 +206,7 @@ pub struct SemanticActionEntry {
     pub target_ids: Vec<String>,
     pub label: String,
     pub enabled: bool,
-    pub why_disabled: Option<String>,
+    pub availability: ActionAvailability,
 }
 
 impl SemanticActionEntry {
@@ -187,15 +216,145 @@ impl SemanticActionEntry {
         target_ids: Vec<String>,
         label: impl Into<String>,
         enabled: bool,
-        why_disabled: Option<String>,
+        unavailable_summary: Option<String>,
     ) -> Self {
+        let availability = if enabled {
+            ActionAvailability::Available
+        } else {
+            ActionAvailability::disabled(
+                vec![ReasonCode::WorldStateMismatch],
+                unavailable_summary
+                    .unwrap_or_else(|| "That is not currently possible.".to_string()),
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+        Self::with_availability(
+            semantic_action_id,
+            action_id,
+            target_ids,
+            label,
+            availability,
+        )
+    }
+
+    pub fn with_availability(
+        semantic_action_id: SemanticActionId,
+        action_id: ActionId,
+        target_ids: Vec<String>,
+        label: impl Into<String>,
+        availability: ActionAvailability,
+    ) -> Self {
+        let enabled = availability.is_available();
         Self {
             semantic_action_id,
             action_id,
             target_ids,
             label: label.into(),
             enabled,
-            why_disabled,
+            availability,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ActionAvailability {
+    Available,
+    Disabled {
+        reason_codes: Vec<ReasonCode>,
+        actor_safe_summary: String,
+        provenance_refs: Vec<ActionAvailabilityProvenance>,
+        debug_only_diagnostics: Vec<String>,
+    },
+}
+
+impl ActionAvailability {
+    pub const fn available() -> Self {
+        Self::Available
+    }
+
+    pub fn disabled(
+        reason_codes: Vec<ReasonCode>,
+        actor_safe_summary: impl Into<String>,
+        provenance_refs: Vec<ActionAvailabilityProvenance>,
+        debug_only_diagnostics: Vec<String>,
+    ) -> Self {
+        Self::Disabled {
+            reason_codes,
+            actor_safe_summary: actor_safe_summary.into(),
+            provenance_refs,
+            debug_only_diagnostics,
+        }
+    }
+
+    pub const fn is_available(&self) -> bool {
+        matches!(self, Self::Available)
+    }
+
+    pub fn reason_codes(&self) -> &[ReasonCode] {
+        match self {
+            Self::Available => &[],
+            Self::Disabled { reason_codes, .. } => reason_codes,
+        }
+    }
+
+    pub fn actor_safe_summary(&self) -> Option<&str> {
+        match self {
+            Self::Available => None,
+            Self::Disabled {
+                actor_safe_summary, ..
+            } => Some(actor_safe_summary),
+        }
+    }
+
+    pub fn provenance_refs(&self) -> &[ActionAvailabilityProvenance] {
+        match self {
+            Self::Available => &[],
+            Self::Disabled {
+                provenance_refs, ..
+            } => provenance_refs,
+        }
+    }
+
+    pub fn debug_only_diagnostics(&self) -> &[String] {
+        match self {
+            Self::Available => &[],
+            Self::Disabled {
+                debug_only_diagnostics,
+                ..
+            } => debug_only_diagnostics,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ActionAvailabilityProvenance {
+    pub kind: ActionAvailabilityProvenanceKind,
+    pub reference: String,
+}
+
+impl ActionAvailabilityProvenance {
+    pub fn new(kind: ActionAvailabilityProvenanceKind, reference: impl Into<String>) -> Self {
+        Self {
+            kind,
+            reference: reference.into(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ActionAvailabilityProvenanceKind {
+    HolderKnownContext,
+    ValidationReport,
+    ValidatorFact,
+}
+
+impl ActionAvailabilityProvenanceKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::HolderKnownContext => "holder_known_context",
+            Self::ValidationReport => "validation_report",
+            Self::ValidatorFact => "validator_fact",
         }
     }
 }
@@ -216,14 +375,21 @@ pub enum DebugViewModel {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugControllerBindingView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub current_binding: Option<String>,
     pub binding_history: Vec<String>,
 }
 
+/// Privileged event-log view.
+///
+/// ```compile_fail
+/// use tracewake_core::view_models::DebugEventLogView;
+///
+/// let _view = DebugEventLogView { events: Vec::new() };
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugEventLogView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub events: Vec<DebugEventSummary>,
 }
 
@@ -258,33 +424,32 @@ impl From<&EventEnvelope> for DebugEventSummary {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugItemLocationView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub item_id: ItemId,
     pub location_summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugActionRejectionView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub report: ValidationReport,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugProjectionRebuildView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugReplayReportView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugEpistemicsView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub context_mode: String,
     pub observations: Vec<DebugObservationEntry>,
     pub beliefs_by_holder: Vec<DebugHolderBeliefs>,
@@ -295,28 +460,195 @@ pub struct DebugEpistemicsView {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugBeliefsView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub holder_actor_id: ActorId,
     pub beliefs: Vec<DebugBeliefEntry>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugObservationsView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub observer_actor_id: ActorId,
     pub observations: Vec<DebugObservationEntry>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugTruthBeliefMismatchView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub item_id: ItemId,
     pub ground_truth_location: String,
     pub held_belief_summary: String,
     pub mismatch_summary: String,
+}
+
+impl DebugControllerBindingView {
+    pub fn new(current_binding: Option<String>, binding_history: Vec<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            current_binding,
+            binding_history,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugEventLogView {
+    pub fn new(events: Vec<DebugEventSummary>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            events,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugItemLocationView {
+    pub fn new(item_id: ItemId, location_summary: impl Into<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            item_id,
+            location_summary: location_summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugActionRejectionView {
+    pub fn new(report: ValidationReport) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            report,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugProjectionRebuildView {
+    pub fn new(summary: impl Into<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            summary: summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugReplayReportView {
+    pub fn new(summary: impl Into<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            summary: summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugEpistemicsView {
+    pub fn new(
+        context_mode: impl Into<String>,
+        observations: Vec<DebugObservationEntry>,
+        beliefs_by_holder: Vec<DebugHolderBeliefs>,
+        contradictions: Vec<DebugContradictionEntry>,
+        possession_metadata: Vec<String>,
+        projection_summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            context_mode: context_mode.into(),
+            observations,
+            beliefs_by_holder,
+            contradictions,
+            possession_metadata,
+            projection_summary: projection_summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
+}
+
+impl DebugBeliefsView {
+    pub fn new(holder_actor_id: ActorId, beliefs: Vec<DebugBeliefEntry>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            holder_actor_id,
+            beliefs,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
+}
+
+impl DebugObservationsView {
+    pub fn new(observer_actor_id: ActorId, observations: Vec<DebugObservationEntry>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            observer_actor_id,
+            observations,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
+}
+
+impl DebugTruthBeliefMismatchView {
+    pub fn new(
+        item_id: ItemId,
+        ground_truth_location: impl Into<String>,
+        held_belief_summary: impl Into<String>,
+        mismatch_summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            item_id,
+            ground_truth_location: ground_truth_location.into(),
+            held_belief_summary: held_belief_summary.into(),
+            mismatch_summary: mismatch_summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
 }
 
 fn classify_why_not(report: &ValidationReport) -> WhyNotFailureKind {
@@ -434,17 +766,67 @@ mod tests {
         );
         assert_ne!(entry.semantic_action_id.as_str(), "0");
         assert_eq!(entry.target_ids, ["strongbox_tomas"]);
+        assert!(entry.availability.is_available());
+    }
+
+    #[test]
+    fn action_availability_carries_typed_reason_and_provenance() {
+        let entry = SemanticActionEntry::with_availability(
+            SemanticActionId::new("check.container.strongbox_tomas").unwrap(),
+            ActionId::new("check_container").unwrap(),
+            vec!["strongbox_tomas".to_string()],
+            "Check strongbox",
+            ActionAvailability::disabled(
+                vec![ReasonCode::ContainerClosed],
+                "The container is closed.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    "knowledge.actor_tomas.0",
+                )],
+                vec!["container_id=strongbox_tomas".to_string()],
+            ),
+        );
+
+        assert!(!entry.enabled);
+        assert_eq!(
+            entry.availability.reason_codes(),
+            &[ReasonCode::ContainerClosed]
+        );
+        assert_eq!(
+            entry.availability.actor_safe_summary(),
+            Some("The container is closed.")
+        );
+        assert_eq!(
+            entry.availability.provenance_refs()[0].kind,
+            ActionAvailabilityProvenanceKind::HolderKnownContext
+        );
+    }
+
+    #[test]
+    fn action_availability_reason_codes_do_not_depend_on_display_text() {
+        let original = ActionAvailability::disabled(
+            vec![ReasonCode::DoorClosedBlocksMovement],
+            "The door is closed.",
+            Vec::new(),
+            Vec::new(),
+        );
+        let reworded = ActionAvailability::disabled(
+            vec![ReasonCode::DoorClosedBlocksMovement],
+            "You cannot pass through the closed door.",
+            Vec::new(),
+            Vec::new(),
+        );
+
+        assert_eq!(original.reason_codes(), reworded.reason_codes());
+        assert_ne!(original.actor_safe_summary(), reworded.actor_safe_summary());
     }
 
     #[test]
     fn debug_and_embodied_view_models_are_distinct_types() {
-        let debug = DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView {
-            debug_only: true,
-            summary: "rebuilt".to_string(),
-        });
+        let debug = DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new("rebuilt"));
 
         match debug {
-            DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only),
+            DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only()),
             _ => panic!("wrong debug view variant"),
         }
     }
@@ -463,6 +845,21 @@ mod tests {
             }],
             recent_observations: Vec::new(),
             known_contradictions: Vec::new(),
+            typed_leads: vec![NotebookLeadEntry {
+                lead_id: "lead.contradiction_tomas_missing_coin".to_string(),
+                contradiction_id: "contradiction_tomas_missing_coin".to_string(),
+                belief_id: "belief_tomas_missing_coin".to_string(),
+                observation_id: "obs_tomas_checked_strongbox".to_string(),
+                source_kind: "event".to_string(),
+                source_summary: "event:event_observation".to_string(),
+                confidence_label: "1000".to_string(),
+                detected_tick: 3,
+                staleness_label: "1 ticks old".to_string(),
+                how_this_may_be_wrong:
+                    "The item may have moved through an unobserved ordinary event.".to_string(),
+                possible_next_actions: vec!["check.container.strongbox_tomas".to_string()],
+                summary: "Source-bound lead from contradiction_tomas_missing_coin".to_string(),
+            }],
             possible_leads: vec!["Source-bound lead from belief_tomas_missing_coin".to_string()],
         };
 
@@ -472,18 +869,16 @@ mod tests {
 
     #[test]
     fn debug_epistemics_view_is_non_diegetic_and_lists_all_holders() {
-        let view = DebugEpistemicsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            context_mode: "debug".to_string(),
-            observations: vec![DebugObservationEntry {
+        let view = DebugEpistemicsView::new(
+            "debug",
+            vec![DebugObservationEntry {
                 observation_id: "obs_tomas_checked_strongbox".to_string(),
                 observer_actor_id: ActorId::new("actor_tomas").unwrap(),
                 channel: "touch_or_search".to_string(),
                 confidence: "1000".to_string(),
                 source: "event:event_observation".to_string(),
             }],
-            beliefs_by_holder: vec![
+            vec![
                 DebugHolderBeliefs {
                     holder_actor_id: ActorId::new("actor_tomas").unwrap(),
                     beliefs: vec![DebugBeliefEntry {
@@ -499,19 +894,19 @@ mod tests {
                     beliefs: Vec::new(),
                 },
             ],
-            contradictions: vec![DebugContradictionEntry {
+            vec![DebugContradictionEntry {
                 contradiction_id: "contradiction_tomas_missing_coin".to_string(),
                 holder_actor_id: ActorId::new("actor_tomas").unwrap(),
                 expectation_belief_id: "belief_tomas_expected_coin".to_string(),
                 observation_id: "obs_tomas_checked_strongbox".to_string(),
                 summary: "expected item absent from container".to_string(),
             }],
-            possession_metadata: vec!["controller_human->actor_tomas@2".to_string()],
-            projection_summary: "epistemic_projection_v1".to_string(),
-        };
+            vec!["controller_human->actor_tomas@2".to_string()],
+            "epistemic_projection_v1",
+        );
 
-        assert!(view.debug_only);
-        assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+        assert!(view.debug_only());
+        assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
         assert_eq!(view.beliefs_by_holder.len(), 2);
         assert_eq!(
             DebugViewModel::Epistemics(view.clone()),
@@ -521,37 +916,26 @@ mod tests {
 
     #[test]
     fn focused_debug_views_are_marked_non_diegetic() {
-        let beliefs = DebugBeliefsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            holder_actor_id: ActorId::new("actor_tomas").unwrap(),
-            beliefs: Vec::new(),
-        };
-        let observations = DebugObservationsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            observer_actor_id: ActorId::new("actor_tomas").unwrap(),
-            observations: Vec::new(),
-        };
+        let beliefs = DebugBeliefsView::new(ActorId::new("actor_tomas").unwrap(), Vec::new());
+        let observations =
+            DebugObservationsView::new(ActorId::new("actor_tomas").unwrap(), Vec::new());
 
-        assert!(beliefs.debug_only);
-        assert!(observations.debug_only);
-        assert_eq!(beliefs.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
-        assert_eq!(observations.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+        assert!(beliefs.debug_only());
+        assert!(observations.debug_only());
+        assert_eq!(beliefs.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
+        assert_eq!(observations.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
     }
 
     #[test]
     fn truth_belief_mismatch_shows_truth_and_belief_side_by_side() {
-        let mismatch = DebugTruthBeliefMismatchView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            item_id: ItemId::new("coin_stack_01").unwrap(),
-            ground_truth_location: "actor:actor_mara".to_string(),
-            held_belief_summary: "coin_stack_01 is missing from expected location".to_string(),
-            mismatch_summary: "truth and holder belief diverge".to_string(),
-        };
+        let mismatch = DebugTruthBeliefMismatchView::new(
+            ItemId::new("coin_stack_01").unwrap(),
+            "actor:actor_mara",
+            "coin_stack_01 is missing from expected location",
+            "truth and holder belief diverge",
+        );
 
-        assert!(mismatch.debug_only);
+        assert!(mismatch.debug_only());
         assert!(mismatch.ground_truth_location.contains("actor_mara"));
         assert!(mismatch.held_belief_summary.contains("missing"));
     }
@@ -605,6 +989,8 @@ mod tests {
             failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
             reason_codes,
             checked_facts: Vec::new(),
+            actor_visible_facts: Vec::new(),
+            debug_only_facts: Vec::new(),
             actor_visible_summary: actor_visible_summary.to_string(),
             debug_summary: "debug detail".to_string(),
             would_mutate: false,

@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReportStatus,
+    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ProposalSource,
+    ProposalSourceContext, ReportStatus,
 };
 use tracewake_core::agent::{
     NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
@@ -10,12 +11,13 @@ use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
+use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventKind, EventStream};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
     DecisionTraceId, FixtureId, FoodSupplyId, ItemId, PlaceId, ProposalId, RoutineExecutionId,
-    RoutineTemplateId, WorkplaceId,
+    RoutineTemplateId, SemanticActionId, ViewModelId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -414,6 +416,20 @@ fn run_sleep(
     let mut bindings = None;
     if is_human_origin {
         let controller_id = ControllerId::new("controller_human").unwrap();
+        let source_context =
+            KnowledgeContext::embodied_at_frontier(actor_id(), proposal.requested_tick, 0);
+        let source_view_model_id = ViewModelId::new("view.actor_tomas.0").unwrap();
+        proposal.source_view_model_id = Some(source_view_model_id.clone());
+        proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+            source_view_model_id,
+            holder_known_context_id: source_context.holder_known_context_id().clone(),
+            holder_known_context_hash: source_context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: source_context.event_frontier,
+            context_tick: proposal.requested_tick,
+            actor_id: actor_id(),
+            semantic_action_id: SemanticActionId::new("sleep.here").unwrap(),
+            provenance_ancestry: Vec::new(),
+        }));
         proposal
             .parameters
             .insert("controller_id".to_string(), controller_id.to_string());
