@@ -11,6 +11,75 @@ const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 
+struct BannedApiToken {
+    token: &'static str,
+    reason: &'static str,
+}
+
+struct NondeterminismAllowlistEntry {
+    path: &'static str,
+    token: &'static str,
+    rationale: &'static str,
+    responsible_layer: &'static str,
+}
+
+const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
+    BannedApiToken {
+        token: "HashMap",
+        reason: "randomized hash seeding can alter outcome iteration order; use BTreeMap",
+    },
+    BannedApiToken {
+        token: "HashSet",
+        reason: "randomized hash seeding can alter outcome iteration order; use BTreeSet",
+    },
+    BannedApiToken {
+        token: "SystemTime",
+        reason: "wall-clock time cannot be replayed; use SimTick and event material",
+    },
+    BannedApiToken {
+        token: "Instant",
+        reason: "wall-clock time cannot be replayed; use SimTick and event material",
+    },
+    BannedApiToken {
+        token: "rand::",
+        reason: "randomness must be seedable, scoped, recorded, and replayable",
+    },
+    BannedApiToken {
+        token: "thread::spawn",
+        reason: "thread scheduling is nondeterministic for outcome paths",
+    },
+    BannedApiToken {
+        token: "std::thread::spawn",
+        reason: "thread scheduling is nondeterministic for outcome paths",
+    },
+    BannedApiToken {
+        token: "std::fs::",
+        reason: "outcome paths must consume validated content, not ad hoc filesystem reads",
+    },
+    BannedApiToken {
+        token: "File::open",
+        reason: "outcome paths must consume validated content, not ad hoc filesystem reads",
+    },
+    BannedApiToken {
+        token: "std::net::",
+        reason: "network timing and responses cannot influence replay",
+    },
+    BannedApiToken {
+        token: "TcpStream",
+        reason: "network timing and responses cannot influence replay",
+    },
+    BannedApiToken {
+        token: "UdpSocket",
+        reason: "network timing and responses cannot influence replay",
+    },
+    BannedApiToken {
+        token: "Command::new",
+        reason: "process execution cannot influence deterministic outcomes",
+    },
+];
+
+const NONDETERMINISM_ALLOWLIST: &[NondeterminismAllowlistEntry] = &[];
+
 fn production(source: &str) -> &str {
     source.split("#[cfg(test)]").next().unwrap_or(source)
 }
@@ -22,6 +91,10 @@ fn assert_absent(haystack: &str, needle: &str) {
     );
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "anti-regression test scans source files; this helper is not simulation outcome code"
+)]
 fn production_sources() -> Vec<(String, String)> {
     let src_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut stack = vec![src_root];
@@ -62,6 +135,54 @@ fn state_struct_fields(struct_name: &str) -> Vec<String> {
             Some(field.split(':').next().unwrap().to_string())
         })
         .collect()
+}
+
+fn nondeterminism_api_is_allowlisted(path: &str, token: &str) -> bool {
+    NONDETERMINISM_ALLOWLIST
+        .iter()
+        .any(|entry| entry.path == path && entry.token == token)
+}
+
+#[test]
+fn nondeterminism_api_gate() {
+    assert!(
+        NONDETERMINISM_ALLOWLIST.is_empty(),
+        "tracewake-core outcome paths must keep the nondeterminism allowlist empty until a narrow, rationale-bearing exception is reviewed"
+    );
+
+    for entry in NONDETERMINISM_ALLOWLIST {
+        assert!(
+            !entry.path.is_empty()
+                && !entry.token.is_empty()
+                && !entry.rationale.is_empty()
+                && !entry.responsible_layer.is_empty(),
+            "nondeterminism allowlist entries require path, token, rationale, and responsible layer"
+        );
+    }
+
+    let mut violations = Vec::new();
+    for (path, source) in production_sources() {
+        for banned in BANNED_NONDETERMINISM_TOKENS {
+            if source.contains(banned.token)
+                && !nondeterminism_api_is_allowlisted(&path, banned.token)
+            {
+                violations.push(format!(
+                    "{} contains {}: {}",
+                    path, banned.token, banned.reason
+                ));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "nondeterministic API use in tracewake-core outcome path:\n{}",
+        violations.join("\n")
+    );
+
+    let synthetic_violation_pattern =
+        "Adding HashMap to a tracewake-core production source must fail this test unless a narrow allowlist entry explains the exception.";
+    assert!(synthetic_violation_pattern.contains("must fail this test"));
 }
 
 #[test]

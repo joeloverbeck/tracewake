@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-005: Nondeterminism banned-API gate (clippy + source scan)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — new workspace `clippy.toml`; new no-dependency source-scan conformance test in `tracewake-core`
@@ -77,3 +77,20 @@ Keep the allowlist inline in the test with a per-entry rationale + responsible l
 1. `cargo clippy --workspace --all-targets -- -D warnings`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added workspace `clippy.toml` bans for nondeterministic standard-library types and methods: unordered hash collections, wall-clock time, thread spawn, process launch, ad hoc filesystem reads, and network entry points.
+- Added `nondeterminism_api_gate`, a no-dependency source-scan conformance test over `tracewake-core` production sources.
+- Kept the core outcome-path allowlist empty and required any future allowlist entry to carry path, token, rationale, and responsible layer.
+- Added a narrow clippy allow only around the test helper that reads source files for the guard itself.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards nondeterminism_api_gate`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
