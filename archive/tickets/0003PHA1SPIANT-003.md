@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-003: Total, mechanically-tested event-kind stream/mutation metadata
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`events/envelope.rs` event-kind metadata centralization; conformance + adversarial tests in `events/apply.rs` / core tests)
@@ -80,3 +80,25 @@ Add a test constructing a controller/diagnostic/replay-debug event carrying a ph
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Extended `EventKindMetadata` with the current schema version and replay-handling metadata.
+- Added `EventReplayHandling` to make replay/apply treatment explicit for world, agent, epistemic, and non-mutating streams.
+- Added `event_kind_metadata_is_total`, proving every `EventKind` has exactly one complete metadata entry and every physical-mutating kind maps to `EventStream::World`.
+- Added `non_world_stream_cannot_change_physical_checksum`, using a diagnostic event with physical-looking payload fields to prove non-world routing leaves the physical checksum unchanged.
+- Added `stream_mismatch_rejects_before_mutation` in event application tests.
+
+Deviations from original plan:
+- No event kind was added or renamed. Replay handling metadata is derived from the authoritative stream mapping to avoid a second independent mapping surface.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core stream_mismatch_rejects_before_mutation`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`

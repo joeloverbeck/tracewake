@@ -200,7 +200,9 @@ impl EventKind {
         EventKindMetadata {
             kind: self,
             stream: self.stream(),
+            schema_version: EventSchemaVersion::V1,
             physical_mutating: self.physical_mutating(),
+            replay_handling: EventReplayHandling::for_stream(self.stream()),
         }
     }
 
@@ -391,7 +393,30 @@ impl EventKind {
 pub struct EventKindMetadata {
     pub kind: EventKind,
     pub stream: EventStream,
+    pub schema_version: EventSchemaVersion,
     pub physical_mutating: bool,
+    pub replay_handling: EventReplayHandling,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EventReplayHandling {
+    ApplyWorld,
+    ApplyAgent,
+    ApplyEpistemicProjection,
+    NonMutatingNoOp,
+}
+
+impl EventReplayHandling {
+    pub const fn for_stream(stream: EventStream) -> Self {
+        match stream {
+            EventStream::World => EventReplayHandling::ApplyWorld,
+            EventStream::Agent => EventReplayHandling::ApplyAgent,
+            EventStream::Epistemic => EventReplayHandling::ApplyEpistemicProjection,
+            EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {
+                EventReplayHandling::NonMutatingNoOp
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

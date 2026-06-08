@@ -1564,6 +1564,27 @@ mod tests {
     }
 
     #[test]
+    fn stream_mismatch_rejects_before_mutation() {
+        let mut state = base_state();
+        let before = state.clone();
+        let mut moved = event(
+            EventKind::ActorMoved,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("from_place_id", "shop_front"),
+                PayloadField::new("to_place_id", "back_room"),
+            ],
+        );
+        moved.stream = EventStream::Diagnostic;
+
+        assert_eq!(
+            apply_event(&mut state, &moved),
+            Err(ApplyError::EventKindStreamMismatch)
+        );
+        assert_eq!(state, before);
+    }
+
+    #[test]
     fn unsupported_schema_version_errors() {
         let mut state = base_state();
         let before = state.clone();

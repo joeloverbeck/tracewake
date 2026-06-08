@@ -225,6 +225,101 @@ fn adding_event_schema_version_requires_migrator_registration() {
 }
 
 #[test]
+fn event_kind_metadata_is_total() {
+    use tracewake_core::events::{EventKind, EventReplayHandling, EventSchemaVersion, EventStream};
+
+    let registry = EventKind::registry();
+    assert_eq!(
+        registry.len(),
+        EventKind::all().len(),
+        "every EventKind variant must have one metadata entry"
+    );
+
+    for kind in EventKind::all() {
+        let entries = registry
+            .iter()
+            .filter(|metadata| metadata.kind == *kind)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            entries.len(),
+            1,
+            "event kind {:?} lacks exactly one metadata entry",
+            kind
+        );
+        let metadata = entries[0];
+        assert_eq!(metadata.stream, kind.stream());
+        assert_eq!(metadata.schema_version, EventSchemaVersion::V1);
+        assert_eq!(metadata.physical_mutating, kind.physical_mutating());
+        assert_eq!(
+            metadata.replay_handling,
+            EventReplayHandling::for_stream(metadata.stream)
+        );
+        if metadata.physical_mutating {
+            assert_eq!(
+                metadata.stream,
+                EventStream::World,
+                "physical-mutating event {:?} must be a world-stream event",
+                kind
+            );
+        }
+    }
+}
+
+#[test]
+fn non_world_stream_cannot_change_physical_checksum() {
+    use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
+    use tracewake_core::events::apply::{apply_event, ApplyOutcome};
+    use tracewake_core::events::{EventEnvelope, EventKind, PayloadField};
+    use tracewake_core::ids::{
+        ActionId, ActorId, ContentManifestId, ContentVersion, EventId, FixtureId,
+    };
+    use tracewake_core::scheduler::{
+        OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+    };
+    use tracewake_core::state::PhysicalState;
+    use tracewake_core::time::SimTick;
+
+    let context = ChecksumContext {
+        fixture_id: FixtureId::new("anti_regression_fixture").unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick: SimTick::new(7),
+        world_stream_position_applied: 3,
+    };
+    let mut state = PhysicalState::default();
+    let before = compute_physical_checksum(&state, &context).checksum;
+    let mut event = EventEnvelope::new_v1(
+        EventId::new("event_non_world_physical_payload").unwrap(),
+        EventKind::ActionRejected,
+        0,
+        0,
+        SimTick::new(7),
+        OrderingKey::new(
+            SimTick::new(7),
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(ActorId::new("actor_tomas").unwrap()),
+            ProposalSequence::new(0),
+            ActionId::new("move").unwrap(),
+            vec!["back_room".to_string()],
+            "tie",
+        ),
+        ContentManifestId::new("phase1_manifest").unwrap(),
+    );
+    event.payload = vec![
+        PayloadField::new("actor_id", "actor_tomas"),
+        PayloadField::new("from_place_id", "shop_front"),
+        PayloadField::new("to_place_id", "back_room"),
+        PayloadField::new("door_id", "door_shop_back"),
+    ];
+
+    assert_eq!(
+        apply_event(&mut state, &event),
+        Ok(ApplyOutcome::NonWorldNoOp)
+    );
+    let after = compute_physical_checksum(&state, &context).checksum;
+    assert_eq!(after, before);
+}
+
+#[test]
 fn guard_001_no_production_seed_mutation_outside_state_definition() {
     for (path, source) in production_sources() {
         if path == "src/state.rs" {
