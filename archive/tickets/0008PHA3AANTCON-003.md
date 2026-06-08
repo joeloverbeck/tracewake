@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-003: Pipeline read-context exposes `AgentState`; work validator reads authoritative state
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core`: `PipelineReadContext` gains read-only `AgentState`; `work.rs` validates need constraints from authoritative state; proposal live-state echo parameters forbidden
@@ -85,3 +85,27 @@ Drop `current_hunger`/`current_fatigue` from accepted work-proposal parameters. 
 
 1. `cargo test -p tracewake-core actions::defs::work`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added required read-only `AgentState` authority to proposal validation via `ProposalValidationContext` and the internal `PipelineReadContext`.
+- Threaded authoritative agent state through committed pipeline validation and semantic-action preflight validation.
+- Changed work-start validation to read fatigue and hunger from `AgentState` and fail closed with `WorkBlockFailed` when authoritative needs are missing or above workplace thresholds.
+- Removed the work validator's `need_param` fallback path for `current_fatigue` and `current_hunger`.
+- Added work tests for forged, missing/malformed, and stale proposal need parameters against current authoritative state.
+
+Deviations from original plan:
+- `validate_proposal` was converted to take `ProposalValidationContext` rather than adding another positional argument, because the required `AgentState` made the old signature exceed the workspace clippy argument-count gate.
+- Scheduler live-need echo producer removal remains deferred to `0008PHA3AANTCON-006`, per this ticket's out-of-scope section.
+
+Verification:
+- `cargo test -p tracewake-core actions::defs::work`
+- `cargo test -p tracewake-core actions::pipeline`
+- `cargo test -p tracewake-core projections`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

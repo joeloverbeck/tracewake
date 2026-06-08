@@ -1,5 +1,6 @@
 use crate::actions::{
-    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ReportStatus, ValidationReport,
+    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalValidationContext,
+    ReportStatus, ValidationReport,
 };
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
@@ -306,8 +307,10 @@ pub fn build_embodied_view_model_with_agent_state(
         .collect::<Vec<_>>();
     local_actors.sort();
 
+    let fallback_agent_state = AgentState::default();
     let preflight_context = SemanticActionPreflightContext {
         state,
+        agent_state: agent_state.unwrap_or(&fallback_agent_state),
         registry,
         content_manifest_id,
         viewer_actor_id,
@@ -607,6 +610,7 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
 #[derive(Clone, Copy)]
 struct SemanticActionPreflightContext<'a> {
     state: &'a PhysicalState,
+    agent_state: &'a AgentState,
     registry: &'a ActionRegistry,
     content_manifest_id: &'a ContentManifestId,
     viewer_actor_id: &'a ActorId,
@@ -776,12 +780,15 @@ fn with_validator_availability(
         proposal.proposal_id.as_str().to_string(),
     );
     let report = validate_proposal(
-        preflight.registry,
-        preflight.state,
-        None,
-        None,
-        preflight.content_manifest_id,
-        &ordering_key,
+        ProposalValidationContext {
+            registry: preflight.registry,
+            state: preflight.state,
+            agent_state: preflight.agent_state,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: preflight.content_manifest_id,
+            ordering_key: &ordering_key,
+        },
         &proposal,
     );
     let enabled = report.status == ReportStatus::Accepted;
