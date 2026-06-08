@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-012: Positive proof fixtures and typed acceptance tests
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-content` (harden existing fixtures), `tracewake-core`/`tracewake-tui` (positive proof tests)
@@ -79,3 +79,31 @@ Add/extend tests realizing §7.1 items 1–6 (embodied action path; actor-safe w
 1. `cargo test -p tracewake-tui && cargo test -p tracewake-core`
 2. `cargo test -p tracewake-content`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added a positive proof acceptance test that builds six typed review artifacts before checking rendered transcript surfaces.
+- Covered embodied view/proposal/event/checksum proof via `view_model_local_actions_001`.
+- Covered actor-safe why-not proof via the existing `door_access_001` rejection surface, including typed reason codes, actor-visible checked facts, and unchanged physical checksum.
+- Covered source-bound notebook proof via `expectation_contradiction_001` typed leads.
+- Covered debug quarantine proof via `debug_omniscience_excluded_001`, asserting debug item-location render does not mutate embodied view, event count, or physical checksum.
+- Covered possession parity via `possession_parity_001`, proving ordinary take events expose ordinary place affordances for `actor_mara`.
+- Covered deterministic transcript/replay proof by comparing typed transcript sections before rendering text.
+
+Deviations:
+- No production logic or fixture source files needed changes; the existing fixtures already exposed the typed surfaces once exercised through acceptance tests.
+- The actor-safe why-not artifact uses `door_access_001` because it is the existing TUI-facing typed rejection fixture with actor-visible reason codes. The hidden-food actor-known gates remain covered by the existing content/core hidden-truth tests.
+- Rejected actions may still emit typed audit event ids; the test asserts rejection status and unchanged physical checksum instead of requiring an empty event-id set.
+
+Verification:
+- `cargo test -p tracewake-tui positive_proof_fixtures_emit_typed_artifacts_first`
+- `cargo test -p tracewake-tui`
+- `cargo test -p tracewake-core`
+- `cargo test -p tracewake-content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -5,7 +5,36 @@ use tracewake_tui::app::TuiApp;
 use tracewake_tui::input::semantic_id_for_selection;
 use tracewake_tui::render::render_notebook;
 use tracewake_tui::run::run_command_loop;
-use tracewake_tui::transcript::capture_representative_transcript;
+use tracewake_tui::transcript::{
+    capture_representative_transcript, capture_representative_transcript_sections,
+};
+
+#[derive(Debug)]
+struct PositiveProofArtifact {
+    responsible_layer: &'static str,
+    scenario_id: &'static str,
+    actor_id: String,
+    context_id: String,
+    semantic_id: Option<String>,
+    report_status: Option<ReportStatus>,
+    event_ids: Vec<String>,
+    typed_reason_codes: Vec<String>,
+    provenance: Vec<String>,
+    debug_capability_present: bool,
+    surfaces_checked: Vec<&'static str>,
+    checksum_result: &'static str,
+}
+
+impl PositiveProofArtifact {
+    fn assert_review_fields(&self) {
+        assert!(!self.responsible_layer.is_empty());
+        assert!(!self.scenario_id.is_empty());
+        assert!(!self.actor_id.is_empty());
+        assert!(self.context_id.starts_with("hkc."));
+        assert!(!self.surfaces_checked.is_empty());
+        assert!(!self.checksum_result.is_empty());
+    }
+}
 
 #[test]
 fn tui_selects_semantic_action_id_not_menu_index() {
@@ -47,6 +76,238 @@ fn debug_truth_does_not_enter_embodied_view() {
     assert!(!before.contains("coin_stack_01"));
     assert_eq!(before, after);
     assert_eq!(checksum_before, app.physical_checksum());
+}
+
+#[test]
+fn positive_proof_fixtures_emit_typed_artifacts_first() {
+    let mut artifacts = Vec::new();
+
+    let mut embodied = TuiApp::from_golden(fixtures::view_model_local_actions_001()).unwrap();
+    embodied
+        .bind_actor(ActorId::new("actor_lina").unwrap())
+        .unwrap();
+    let before_checksum = embodied.physical_checksum();
+    let view = embodied.current_view().unwrap();
+    let semantic_id = semantic_action_for_action_id(&embodied, "open");
+    let accepted = embodied.submit_semantic_action(&semantic_id).unwrap();
+    assert_eq!(accepted.report.status, ReportStatus::Accepted);
+    assert!(!accepted.report.event_ids.is_empty());
+    assert_ne!(embodied.physical_checksum(), before_checksum);
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "view_model_local_actions_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        semantic_id: Some(semantic_id.as_str().to_string()),
+        report_status: Some(accepted.report.status),
+        event_ids: accepted
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_hash.as_str().to_string()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["embodied_view", "proposal_report", "event_ids", "checksum"],
+        checksum_result: "changed_after_accepted_world_event",
+    });
+
+    let mut why_not = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+    why_not
+        .bind_actor(ActorId::new("actor_sena").unwrap())
+        .unwrap();
+    let before_checksum = why_not.physical_checksum();
+    let view = why_not.current_view().unwrap();
+    let rejected = why_not
+        .submit_semantic_action(&SemanticActionId::new("move.to.back_room").unwrap())
+        .unwrap();
+    assert_eq!(rejected.report.status, ReportStatus::Rejected);
+    assert_eq!(why_not.physical_checksum(), before_checksum);
+    assert!(rejected.report.actor_visible_summary.contains("door"));
+    assert!(!rejected.report.actor_visible_summary.contains("debug"));
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-core",
+        scenario_id: "door_access_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        semantic_id: Some("move.to.back_room".to_string()),
+        report_status: Some(rejected.report.status),
+        event_ids: rejected
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: rejected
+            .report
+            .reason_codes
+            .iter()
+            .map(|reason| reason.stable_id().to_string())
+            .collect(),
+        provenance: rejected
+            .report
+            .actor_visible_facts
+            .iter()
+            .map(tracewake_core::actions::CheckedFact::render_pair)
+            .collect(),
+        debug_capability_present: false,
+        surfaces_checked: vec!["why_not", "typed_reason_codes", "actor_visible_facts"],
+        checksum_result: "unchanged_after_rejection",
+    });
+
+    let mut notebook = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    notebook
+        .bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let opened = notebook
+        .submit_semantic_action(&SemanticActionId::new("open.container.strongbox_tomas").unwrap())
+        .unwrap();
+    assert_eq!(opened.report.status, ReportStatus::Accepted);
+    let checked = notebook
+        .submit_semantic_action(&SemanticActionId::new("check.container.strongbox_tomas").unwrap())
+        .unwrap();
+    assert_eq!(checked.report.status, ReportStatus::Accepted);
+    let view = notebook.current_view().unwrap();
+    let notebook_view = notebook.notebook_view().unwrap();
+    assert_eq!(notebook_view.typed_leads.len(), 1);
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-core",
+        scenario_id: "expectation_contradiction_001",
+        actor_id: notebook_view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        semantic_id: Some("check.container.strongbox_tomas".to_string()),
+        report_status: Some(checked.report.status),
+        event_ids: checked
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: notebook_view
+            .typed_leads
+            .iter()
+            .map(|lead| format!("{}:{}", lead.source_kind, lead.source_summary))
+            .collect(),
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["notebook", "typed_leads", "source_refs"],
+        checksum_result: "observation_event_recorded",
+    });
+
+    let mut debug = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    debug
+        .bind_actor(ActorId::new("actor_mara").unwrap())
+        .unwrap();
+    let before_view = debug.render_current_view().unwrap();
+    let before_checksum = debug.physical_checksum();
+    let before_events = debug.event_count();
+    let debug_panel = debug.render_debug_item_location_panel(
+        &tracewake_core::ids::ItemId::new("food_hidden_pantry").unwrap(),
+    );
+    assert!(debug_panel.contains("DEBUG NON-DIEGETIC"));
+    assert_eq!(debug.render_current_view().unwrap(), before_view);
+    assert_eq!(debug.physical_checksum(), before_checksum);
+    assert_eq!(debug.event_count(), before_events);
+    let view = debug.current_view().unwrap();
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "debug_omniscience_excluded_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        semantic_id: None,
+        report_status: None,
+        event_ids: Vec::new(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_hash.as_str().to_string()],
+        debug_capability_present: true,
+        surfaces_checked: vec!["debug_panel", "checksum", "event_count", "embodied_view"],
+        checksum_result: "unchanged_after_debug_panel",
+    });
+
+    let mut possession = TuiApp::from_golden(fixtures::possession_parity_001()).unwrap();
+    possession
+        .bind_actor(ActorId::new("actor_mara").unwrap())
+        .unwrap();
+    let take_action = semantic_action_for_action_id(&possession, "take");
+    let before_checksum = possession.physical_checksum();
+    let taken = possession.submit_semantic_action(&take_action).unwrap();
+    assert_eq!(taken.report.status, ReportStatus::Accepted);
+    assert!(!taken.report.event_ids.is_empty());
+    assert_ne!(possession.physical_checksum(), before_checksum);
+    let view = possession.current_view().unwrap();
+    assert!(view
+        .semantic_actions
+        .iter()
+        .any(|action| action.action_id.as_str() == "place"));
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-core",
+        scenario_id: "possession_parity_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        semantic_id: view
+            .semantic_actions
+            .first()
+            .map(|action| action.semantic_action_id.as_str().to_string()),
+        report_status: Some(taken.report.status),
+        event_ids: taken
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_source_summary.clone()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["possession_view", "semantic_actions"],
+        checksum_result: "changed_after_ordinary_take",
+    });
+
+    let first_sections = capture_representative_transcript_sections().unwrap();
+    let second_sections = capture_representative_transcript_sections().unwrap();
+    assert_eq!(first_sections, second_sections);
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "replay_item_location_001",
+        actor_id: "actor_sena".to_string(),
+        context_id: "hkc.actor_sena.0.1".to_string(),
+        semantic_id: None,
+        report_status: None,
+        event_ids: Vec::new(),
+        typed_reason_codes: Vec::new(),
+        provenance: first_sections
+            .iter()
+            .map(|section| section.name.clone())
+            .collect(),
+        debug_capability_present: first_sections
+            .iter()
+            .any(|section| section.body.contains("DEBUG NON-DIEGETIC")),
+        surfaces_checked: vec!["transcript_sections", "replay_panel"],
+        checksum_result: "byte_identical_sections",
+    });
+
+    assert_eq!(artifacts.len(), 6);
+    for artifact in &artifacts {
+        artifact.assert_review_fields();
+    }
+    assert!(artifacts
+        .iter()
+        .any(|artifact| !artifact.event_ids.is_empty()));
+    assert!(artifacts
+        .iter()
+        .any(|artifact| !artifact.typed_reason_codes.is_empty()));
+    assert!(artifacts
+        .iter()
+        .any(|artifact| artifact.debug_capability_present));
+    assert!(artifacts
+        .iter()
+        .any(|artifact| !artifact.provenance.is_empty()));
+    assert!(artifacts
+        .iter()
+        .any(|artifact| artifact.report_status.is_some()));
+    assert!(artifacts
+        .iter()
+        .any(|artifact| artifact.semantic_id.is_some()));
 }
 
 #[test]
