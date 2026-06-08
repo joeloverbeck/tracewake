@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-001: Sealed holder-known context packet + deterministic context hash
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (extends `epistemics::KnowledgeContext`; new typed context id in `ids.rs`; deterministic context hash in `checksum.rs`)
@@ -84,3 +84,23 @@ Add a `HolderKnownContextId` newtype in `crates/tracewake-core/src/ids.rs` follo
 1. `cargo test -p tracewake-core epistemics::knowledge_context`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
 3. The targeted module test is the correct boundary for the packet shape; the full-workspace run guards against consumer breakage from the additive change.
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `HolderKnownContextId` and `HolderKnownContextHash` typed substrate.
+- Extended `KnowledgeContext` with sealed holder-known context identity, deterministic hash, holder/bound actor identity, event frontier, provenance entries, forbidden-truth audit result, and status accessors.
+- Added deterministic context-hash support over sorted canonical inputs.
+- Added unit coverage for sealed packet fields, forbidden-source audit completeness, hash determinism, and input sensitivity.
+
+Deviations from original plan:
+- The existing raw view-model builders are intentionally unchanged here; ticket 002 owns routing `EmbodiedViewModel` construction through the sealed packet.
+
+Verification results:
+- `cargo test -p tracewake-core epistemics::knowledge_context` passed.
+- `cargo test -p tracewake-core checksum::tests::holder_known_context_hash_is_order_independent_and_input_sensitive` passed.
+- `cargo test -p tracewake-core` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.

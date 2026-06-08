@@ -294,6 +294,48 @@ pub fn compute_agent_state_checksum(
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct HolderKnownContextHash(String);
+
+impl HolderKnownContextHash {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn from_canonical_lines(lines: &[String]) -> Self {
+        let physical = PhysicalChecksum::from_canonical_lines(lines);
+        Self(format!(
+            "hkc1-{}",
+            physical.as_str().trim_start_matches("twc1-")
+        ))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HolderKnownContextHashReport {
+    pub hash: HolderKnownContextHash,
+    pub canonical_input: Vec<String>,
+}
+
+impl HolderKnownContextHashReport {
+    pub fn recompute_from_canonical_input(&self) -> HolderKnownContextHash {
+        HolderKnownContextHash::from_canonical_lines(&self.canonical_input)
+    }
+}
+
+pub fn compute_holder_known_context_hash(
+    canonical_inputs: impl IntoIterator<Item = String>,
+) -> HolderKnownContextHashReport {
+    let mut lines: Vec<String> = canonical_inputs.into_iter().collect();
+    lines.sort();
+    lines.dedup();
+    let hash = HolderKnownContextHash::from_canonical_lines(&lines);
+    HolderKnownContextHashReport {
+        hash,
+        canonical_input: lines,
+    }
+}
+
 fn join_ids<'a>(ids: impl Iterator<Item = &'a str>) -> String {
     ids.collect::<Vec<_>>().join(",")
 }
@@ -447,5 +489,29 @@ mod tests {
         assert_ne!(binding_a.controller_id, binding_b.controller_id);
         assert_ne!(debug_panel_a, debug_panel_b);
         assert_eq!(checksum_a, checksum_b);
+    }
+
+    #[test]
+    fn holder_known_context_hash_is_order_independent_and_input_sensitive() {
+        let first = compute_holder_known_context_hash([
+            "viewer=actor_tomas".to_string(),
+            "tick=7".to_string(),
+            "source=own_direct_observation".to_string(),
+        ]);
+        let second = compute_holder_known_context_hash([
+            "source=own_direct_observation".to_string(),
+            "tick=7".to_string(),
+            "viewer=actor_tomas".to_string(),
+        ]);
+        let changed = compute_holder_known_context_hash([
+            "viewer=actor_tomas".to_string(),
+            "tick=8".to_string(),
+            "source=own_direct_observation".to_string(),
+        ]);
+
+        assert_eq!(first.hash, second.hash);
+        assert_eq!(first.canonical_input, second.canonical_input);
+        assert_eq!(first.recompute_from_canonical_input(), first.hash);
+        assert_ne!(first.hash, changed.hash);
     }
 }

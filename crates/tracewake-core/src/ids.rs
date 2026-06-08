@@ -157,6 +157,7 @@ stable_id_type!(ProposalId);
 stable_id_type!(DebugReportId);
 stable_id_type!(ProjectionId);
 stable_id_type!(ViewModelId);
+stable_id_type!(HolderKnownContextId);
 
 /// Derive a deterministic UUID-shaped stable ID from content location.
 ///
