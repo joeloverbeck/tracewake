@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-011: Deterministic typed transcript and replay stability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (canonical ordering of rendered-for-test view-model lists), `tracewake-tui` (transcript)
@@ -76,3 +76,29 @@ Assert (via `&`-only signatures + a test) that debug panels cannot mutate the ev
 1. `cargo test -p tracewake-tui transcript_snapshot`
 2. `cargo test -p tracewake-core golden_scenarios`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Changed:
+- Added typed `TranscriptSection` artifacts to `tracewake-tui::transcript`.
+- Split representative transcript capture into ordered section capture plus rendering, so tests can assert deterministic typed sections before rendered bytes.
+- Updated transcript snapshot coverage to compare repeated section artifacts, rendered transcript bytes, and the compatibility `capture_representative_transcript()` output.
+- Kept existing phase3a debug snapshot, golden scenario replay/checksum, and debug read-only tests as the enforcement surface for debug immutability and replay stability.
+
+Deviations:
+- No core ordering code changes were needed in this ticket. The relevant view-model collections were already sorted in the core builders, including the typed notebook leads added by ticket 010.
+- `cargo test -p tracewake-core golden_scenarios` matched zero tests by name, so the explicit integration target `cargo test -p tracewake-core --test golden_scenarios` was run.
+
+Verification:
+- `cargo test -p tracewake-tui transcript_snapshot`
+- `cargo test -p tracewake-tui phase3a_debug_snapshot_is_byte_identical_across_runs`
+- `cargo test -p tracewake-core golden_scenarios` (0 matching test names)
+- `cargo test -p tracewake-core --test golden_scenarios`
+- `cargo test -p tracewake-core`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
