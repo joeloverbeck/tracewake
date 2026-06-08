@@ -232,6 +232,22 @@ External research supports the same shape:
 - Provenance models distinguish entities, activities, agents, derivation, generation, usage, and attribution. Tracewake’s actor-known facts need comparable provenance instead of self-attesting tags.
 - Property-based and mutation testing are appropriate because simple golden-label tests cannot prove the absence of hidden-oracle shortcuts.
 
+### 4.1 Binding constitutional invariants
+
+This spec exists to enforce the constitution, so the relevant `INV-NNN` ids from `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` are named explicitly. Each deliverable in §8–§10 must satisfy at least as strictly as:
+
+- **INV-002 — Belief comes before truth** and **INV-024 — No telepathy**: the sealed actor-known context (§8.2) and hidden-truth gates (§10.2). Planners read believed/observed facts, not ground truth.
+- **INV-006 — Possession transfers no world knowledge**: intention/parity gates (§10.3.4).
+- **INV-032 — V1 agents are symbolic and inspectable**, **INV-041 — Agent decisions need debug traces**: typed decision traces (§8.5, §8.6).
+- **INV-033 — BDI separation is doctrine**, **INV-039 — Needs are pressures, not puppet strings**: candidate/intention arbitration (§8.3); forbids direct need-threshold dispatch (Finding 4).
+- **INV-034 — Agents need durable intentions**: intention lifecycle (§8.3, §10.3).
+- **INV-035 — Routines are defeasible intentions**, **INV-036 — HTN methods are procedures, not story scripts**, **INV-037 — Bounded local planning is for concrete means**: routine/HTN/local-planning chain (§8.1, §8.3); forbids routine-family script dispatch (Finding 1, Finding 4).
+- **INV-009/INV-013/INV-015 — meaningful changes are eventful and leave traces; failure is eventful**: transactional failure/replan/stuck records (§8.5, §9.5).
+- **INV-017/INV-018 — randomness is seedable/auditable; deterministic replay is foundational**, **INV-019 — snapshots may not erase live ancestry**: replay parity and derived canonical serialization (§8.5, §9.5, §14.10).
+- **INV-020 — Event schema evolution is mandatory**: new/changed trace-diagnostic event kinds and payloads must be versioned (§9.5).
+- **INV-070 — Why-not explanations are mandatory**: actor-known vs ground-truth failure distinction (§8.6, §10.6).
+- **INV-091/INV-093/INV-097 — no-human tests, leakage tests, and no-script compliance tests are mandatory**: the adversarial, hidden-truth, and anti-script gates (§10).
+
 ## 5. Static code audit findings
 
 ### Finding 1 — the no-human path is still not one canonical cognition transaction
@@ -346,7 +362,7 @@ Severity: **Blocker**
 
 The archived Spec 0007 and current ledger/status posture claim the second hardening closed Phase 3A ordinary-life proof. The target commit still violates several Spec 0007 forbidden shortcuts. The ledger must be corrected.
 
-Required correction: replace `docs/4-specs/SPEC_LEDGER.md` and status errata to mark Phase 3A as still hardening. Phase 3B and Phase 4 remain blocked until Spec 0008 acceptance gates pass.
+Required correction: replace `docs/4-specs/SPEC_LEDGER.md` and status errata to mark Phase 3A as still hardening. Phase 3B and Phase 4 remain blocked until Spec 0008 acceptance gates pass. **Status: delivered** — both replacements shipped with this spec package in commit `24515f8` (see §11).
 
 ## 6. Defect list with severity
 
@@ -570,10 +586,13 @@ Required:
 - Make hidden-truth audit inspect provenance graph.
 - Add compile-time and test-time red flags for direct construction.
 
-### 9.3 `agent/generation.rs`, `agent/intention.rs`, `agent/routine.rs`, `agent/htn.rs`, `agent/methods.rs`
+### 9.3 `agent/candidate.rs`, `agent/decision.rs`, `agent/generation.rs`, `agent/intention.rs`, `agent/routine.rs`, `agent/htn.rs`, `agent/methods.rs`
+
+The candidate-generation and goal-selection infrastructure already exists and is already wired into the scheduler fallback (`crates/tracewake-core/src/scheduler.rs` ~line 586 calls `generate_candidate_goals_from_agent_state` and `select_goal_and_trace`). The canonical actor-decision transaction (§8.1) must **harden and subsume** these existing surfaces, not build a parallel decision path beside them — a duplicated path is precisely the contamination this spec forbids.
 
 Required:
 
+- The canonical transaction routes through `agent/candidate.rs` (`generate_candidate_goals_from_agent_state`, `CandidateGoal`/`GoalKind`/`CandidateGoalSource`) and `agent/decision.rs` (`select_goal_and_trace`, `DecisionInput`/`DecisionSelection`) as the single goal-selection chain. No second selection path may exist.
 - Make candidate generation the only entry point for need/routine/project pressures.
 - Ensure active intentions are durable commitments and are not bypassed by routine family.
 - Emit explicit continuation, interruption, completion, failure, and replacement records.
@@ -599,6 +618,7 @@ Required:
 Required:
 
 - Add structured payloads or typed event variants sufficient to rebuild decision traces and stuck diagnostics.
+- Version the new/changed trace-diagnostic event kinds and payloads per INV-020 (event schema evolution), so replay can reject unsupported history rather than silently invent repairs.
 - Change `AgentState` trace/diagnostic maps from strings to typed records.
 - Preserve deterministic canonical serialization as a derived representation.
 - Replay must rebuild typed records and no-human metrics, then compare live/replay state structurally.
@@ -724,13 +744,11 @@ Add fixtures/tests that reject:
 
 ## 11. Required documentation/status changes
 
-The implementation session must produce complete replacement docs, not diffs.
+The documentation/status replacements are complete docs, not diffs, and **shipped with this spec package** in commit `24515f8` (the spec-package commit). They are already present in the working tree and require no further implementation-session work beyond keeping them accurate:
 
-Required replacements included in this package:
-
-1. `docs/4-specs/SPEC_LEDGER.md` replacement.
-2. `archive/reports/PHASE_3A_STATUS_ERRATA.md` replacement.
-3. New architecture clarification doc: `docs/1-architecture/14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md`.
+1. `docs/4-specs/SPEC_LEDGER.md` replacement — **delivered** (already the Spec-0008 replacement: marks Phase 3A as still hardening, blocks Phase 3B/4, corrects the 0007 readiness overclaim).
+2. `archive/reports/PHASE_3A_STATUS_ERRATA.md` replacement — **delivered**.
+3. New architecture clarification doc `docs/1-architecture/14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md` — **delivered** as a draft marked "Proposed"; the implementation session finalizes/accepts it. Adding it renumbered the prior research-notes doc from `14_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` to `15_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md`.
 
 Required status claims:
 
@@ -770,6 +788,7 @@ Phase 3A may be called safe only when all of the following are true:
 - [ ] `work_block` cannot be tricked by forged, stale, missing, or malformed need parameters.
 - [ ] Sleep/eat/work completions update live and replay state in chronological transaction order.
 - [ ] Decision traces and stuck diagnostics are typed authoritative state.
+- [ ] New/changed trace-diagnostic event kinds and payloads are versioned per INV-020.
 - [ ] Debug/TUI surfaces derive from typed records.
 - [ ] Why-not output distinguishes actor-known uncertainty from ground-truth validation failure.
 - [ ] Replay rebuilds physical, epistemic, agent, intention, routine, decision-trace, stuck-diagnostic, and no-human metric state.
@@ -915,7 +934,7 @@ That is the contamination this spec is meant to stop.
 
 ## 17. Deliverables required from the implementation session
 
-The future implementation session must produce:
+The future implementation session must produce the following **code** deliverables (the documentation deliverables — ledger, status errata, and the actor-known autonomy architecture clarification doc — already shipped with this spec package in commit `24515f8`; see §11):
 
 1. Canonical actor-decision transaction or equivalent.
 2. Sealed/provenance-rich actor-known planning context.
@@ -926,6 +945,6 @@ The future implementation session must produce:
 7. Chronological completion handling at transaction boundaries.
 8. Adversarial fixtures and tests described in this spec.
 9. Static/anti-regression tests for forbidden shortcuts.
-10. Complete replacement docs: ledger, status errata, and actor-known autonomy architecture clarification.
+10. Keep the already-delivered replacement docs (ledger, status errata, actor-known autonomy architecture clarification) accurate as the code lands, and flip the ledger/status from "still hardening" to "Phase 3A ready" only once the §13 acceptance gates pass.
 
 No implementation ticket breakdown is part of this specification.
