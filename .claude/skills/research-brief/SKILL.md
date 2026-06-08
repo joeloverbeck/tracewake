@@ -45,7 +45,7 @@ Read `research_target` (and `reference_path` in full if given). Classify into on
 - **foundational / doc-overhaul** — overhaul a doc tier (or the cascade from an upstream tier change).
 - **other** — anything else; build the read set from exploration alone.
 
-Announce the classification on its own line. When ambiguous, give a one-sentence justification.
+Announce the classification on its own line as your **first user-facing output**, before any exploration tool call — emit `Classification: <type>` so the audit trail records it independent of your reasoning. When ambiguous, give a one-sentence justification.
 
 ## Step 2: Explore the repo to ground the brief
 
@@ -70,7 +70,7 @@ Confidence: X%
 Gaps: [specific remaining unknowns]
 ```
 
-Rules: ask one *conceptual* question at a time when probing motivation or uncertainty sequentially, where each answer reshapes the next; but batch independent, already-scoped bounded choices into a single `AskUserQuestion` call (≤4 questions). Prefer bounded multiple-choice (`AskUserQuestion` when available). Probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. Announce "95% — drafting the brief" when reached.
+Rules: ask one *conceptual* question at a time when probing motivation or uncertainty sequentially, where each answer reshapes the next; but batch independent, already-scoped bounded choices into a single `AskUserQuestion` call (≤4 questions). Prefer bounded multiple-choice (`AskUserQuestion` when available). Probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. On receiving batched answers, re-display the `Confidence / Gaps` after-block before proceeding — unless confidence reaches threshold, in which case the "95% — drafting the brief" announcement subsumes it. Announce "95% — drafting the brief" when reached.
 
 **Early exit**: if the user says "just go," announce current confidence, list remaining gaps, and carry them into the brief as labeled assumptions (`assumption: X`) so Session 2 — which will not ask — treats them as decisions the user can later correct.
 
@@ -89,9 +89,9 @@ Get approval (per the HARD-GATE). Revise on pushback before writing.
 On approval, do BOTH:
 
 1. **Write the brief** to `reports/<topic>-research-brief.md`, following the canonical anatomy in `references/brief-template.md`. `<topic>` is a short kebab-case slug of the target.
-2. **Refresh the manifest**: write the current repository path inventory to `reports/manifest_<today>.txt`, where `<today>` is the real current date (`date +%F`) and the inventory is `git ls-files`. Leave any older-dated manifest in place for the user to clean.
+2. **Refresh the manifest**: write the current repository path inventory to `reports/manifest_<today>.txt`, where `<today>` is the real current date (`date +%F`) and the inventory is the exact fetch-baseline commit's tree — `git ls-tree -r --name-only HEAD` (use the same `<baseline>` you pin in the brief's §1, not `git ls-files`, so the manifest provably equals the commit Session 2 fetches from). Leave any older-dated manifest in place for the user to clean; if a manifest already exists for `<today>` (e.g. from an earlier run at a different commit), regenerate it rather than trusting the stale one.
 
-**Baseline-commit rule.** The brief instructs Session 2 to fetch every file from one exact commit, and the manifest (`git ls-files`) reflects the working tree. Derive that fetch-baseline commit from verified repo HEAD (`git rev-parse HEAD`) at manifest-refresh time so the two agree. NEVER adopt a commit string copied from a report, doc, or `research_target` without confirming it contains every file in the §2 read-in-full list (`git ls-tree <commit> <path>` / `git cat-file -e <commit>:<path>`) — a "commit of record" cited inside a report is that report's *own* baseline and often predates later merges. If a referenced source cites a different commit, call out the divergence inside the brief rather than propagating it.
+**Baseline-commit rule.** The brief instructs Session 2 to fetch every file from one exact commit, so the manifest must list exactly that commit's tree. Derive the fetch-baseline commit from verified repo HEAD (`git rev-parse HEAD`) at manifest-refresh time, and generate the manifest from that same commit (`git ls-tree -r --name-only HEAD`) — do NOT use `git ls-files`, which reflects the staged index and silently diverges from HEAD under any uncommitted add/delete/rename. If you do fall back to `git ls-files`, first confirm `git status --porcelain` is clean (or reconcile every listed delta) and note the check in the Step 7 summary, since otherwise the manifest and the §1 fetch baseline will not agree. NEVER adopt a commit string copied from a report, doc, or `research_target` without confirming it contains every file in the §2 read-in-full list (`git ls-tree <commit> <path>` / `git cat-file -e <commit>:<path>`) — a "commit of record" cited inside a report is that report's *own* baseline and often predates later merges. If a referenced source cites a different commit, call out the divergence inside the brief rather than propagating it.
 
 Resolve both paths against the worktree root if in a worktree. Do NOT commit.
 
