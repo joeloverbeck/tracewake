@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-013: Doc/invariant `INV-###` reference linter
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — new no-dependency `cargo test` (or small binary) parsing the constitution and scanning live specs/tickets/tests for `INV-###` references
@@ -69,3 +69,22 @@ Ensure the linter treats gate-code strings (`P0-CERT`, `SPINE-CERT`, etc.) as op
 
 1. `cargo test -p tracewake-core --test doc_invariant_references`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `crates/tracewake-core/tests/doc_invariant_references.rs`, a no-dependency Rust linter test that parses `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` for defined `INV-###` headings.
+- The linter scans live `docs/4-specs/`, `specs/`, `tickets/`, and workspace test sources for `INV-###` references and fails on dangling citations.
+- Gate codes such as `P0-CERT` and `SPINE-CERT` remain opaque cross-references and are not interpreted as invariant definitions.
+
+Deviations from original plan:
+- None. The linter is an integration test under `tracewake-core` and is run by `cargo test --workspace`.
+
+Verification:
+- `cargo test -p tracewake-core --test doc_invariant_references`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
