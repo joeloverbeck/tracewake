@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-012: TUI proof-seam regression gate and adversarial checks
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (adversarial TUI tests; expanded direct-applier source scan)
@@ -81,3 +81,23 @@ Add `tui_current_view_submission_rejects_stale_selection` (stale view hash/front
 
 1. `cargo test -p tracewake-tui`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added the named `tui_current_view_submission_rejects_stale_selection` adversarial test, proving an action selected from a previous view is rejected after the holder-known context changes.
+- Added `debug_command_strings_are_not_embodied_commands`, proving debug command text renders only debug output and never becomes an embodied semantic action.
+- Added `tui_sources_do_not_call_event_application_directly`, expanding the TUI source scan across all TUI source files and requiring the shared `run_pipeline` submit path.
+- Added `tui_transcript_snapshot_remains_byte_stable` as the named SPINE-AC-012 transcript stability proof while preserving the existing snapshot content.
+
+Deviations from original plan:
+- None. Existing broader TUI adversarial coverage remained in place; this ticket added explicit SPINE-AC-012 names and the expanded scan.
+
+Verification:
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

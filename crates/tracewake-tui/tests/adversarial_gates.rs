@@ -275,6 +275,123 @@ fn adversarial_gates_stale_view_token_fails_after_state_change() {
 }
 
 #[test]
+fn tui_current_view_submission_rejects_stale_selection() {
+    let mut app = TuiApp::from_golden(fixtures::view_model_local_actions_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_lina").unwrap()).unwrap();
+    let old_view = app.current_view().unwrap();
+    let stale_open = semantic_action_for_action_id(&app, "open");
+    let old_context = (
+        old_view.holder_known_context_id.clone(),
+        old_view.holder_known_context_hash.clone(),
+        old_view.holder_known_context_frontier,
+    );
+
+    let accepted = app.submit_semantic_action(&stale_open).unwrap();
+    assert_eq!(accepted.report.status, ReportStatus::Accepted);
+    let new_view = app.current_view().unwrap();
+    assert_ne!(
+        (
+            new_view.holder_known_context_id.clone(),
+            new_view.holder_known_context_hash.clone(),
+            new_view.holder_known_context_frontier,
+        ),
+        old_context,
+        "accepted action must advance the current-view source context"
+    );
+    let before_stale_retry = app.physical_checksum();
+
+    let stale_retry = app.submit_semantic_action(&stale_open).unwrap_err();
+
+    assert!(matches!(stale_retry, AppError::SemanticActionNotFound(_)));
+    assert_eq!(app.physical_checksum(), before_stale_retry);
+    assert!(new_view
+        .semantic_actions
+        .iter()
+        .all(|entry| entry.semantic_action_id != stale_open));
+    let artifact = AdversarialReviewArtifact {
+        responsible_layer: "tui_input_binding",
+        scenario_id: "view_model_local_actions_001",
+        actor_id: old_view.viewer_actor_id.as_str().to_string(),
+        controller_id: Some("controller_human"),
+        context_id: old_view.holder_known_context_id.as_str().to_string(),
+        context_hash: old_view.holder_known_context_hash.as_str().to_string(),
+        semantic_id: Some(stale_open.as_str().to_string()),
+        typed_reason_codes: vec!["semantic_action_not_current".to_string()],
+        provenance_refs: vec![old_view.holder_known_context_source_summary],
+        debug_capability_present: old_view.debug_available,
+        actor_surfaces_checked: vec![
+            "old_view.holder_known_context",
+            "new_view.holder_known_context",
+            "current_view.semantic_actions",
+        ],
+        debug_surfaces_checked: vec![],
+        expected_result: "stale_current_view_selection_rejected_without_checksum_change",
+        contamination_failure_mode: "previous_view_selection_not_rebound_to_new_context",
+    };
+    artifact.assert_complete();
+}
+
+#[test]
+fn debug_command_strings_are_not_embodied_commands() {
+    let mut app = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
+    let before_view = app.current_view().unwrap();
+    let before_actions = semantic_ids(&before_view);
+    let before_context = (
+        before_view.holder_known_context_id.clone(),
+        before_view.holder_known_context_hash.clone(),
+        before_view.holder_known_context_frontier,
+    );
+    let before_checksum = app.physical_checksum();
+    let before_events = app.event_count();
+    let mut output = Vec::new();
+
+    run_command_loop(
+        &mut app,
+        b"debug item food_hidden_pantry\ndo debug.item.food_hidden_pantry\nview\nquit\n".as_slice(),
+        &mut output,
+    )
+    .unwrap();
+
+    let rendered = String::from_utf8(output).unwrap();
+    let after_view = app.current_view().unwrap();
+    assert!(rendered.contains("DEBUG NON-DIEGETIC: Item Location"));
+    assert!(rendered.contains("Error: no such current action"));
+    assert_eq!(semantic_ids(&after_view), before_actions);
+    assert_eq!(
+        (
+            after_view.holder_known_context_id.clone(),
+            after_view.holder_known_context_hash.clone(),
+            after_view.holder_known_context_frontier,
+        ),
+        before_context
+    );
+    assert_eq!(app.physical_checksum(), before_checksum);
+    assert_eq!(app.event_count(), before_events);
+    assert!(after_view
+        .semantic_actions
+        .iter()
+        .all(|entry| !entry.semantic_action_id.as_str().contains("debug")));
+    let artifact = AdversarialReviewArtifact {
+        responsible_layer: "tui_input_binding",
+        scenario_id: "debug_omniscience_excluded_001",
+        actor_id: after_view.viewer_actor_id.as_str().to_string(),
+        controller_id: Some("controller_human"),
+        context_id: after_view.holder_known_context_id.as_str().to_string(),
+        context_hash: after_view.holder_known_context_hash.as_str().to_string(),
+        semantic_id: Some("debug.item.food_hidden_pantry".to_string()),
+        typed_reason_codes: vec!["semantic_action_not_current".to_string()],
+        provenance_refs: vec![after_view.holder_known_context_source_summary],
+        debug_capability_present: after_view.debug_available,
+        actor_surfaces_checked: vec!["command_loop", "semantic_actions", "holder_known_context"],
+        debug_surfaces_checked: vec!["debug_item_location"],
+        expected_result: "debug_command_rendered_but_not_submitted_as_action",
+        contamination_failure_mode: "debug_command_string_not_embodied_affordance",
+    };
+    artifact.assert_complete();
+}
+
+#[test]
 fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth() {
     let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())

@@ -62,6 +62,44 @@ fn tui_transcript_is_deterministic() {
 }
 
 #[test]
+fn tui_sources_do_not_call_event_application_directly() {
+    let sources = [
+        ("app.rs", include_str!("../src/app.rs")),
+        ("debug_panels.rs", include_str!("../src/debug_panels.rs")),
+        ("input.rs", include_str!("../src/input.rs")),
+        ("launch.rs", include_str!("../src/launch.rs")),
+        ("lib.rs", include_str!("../src/lib.rs")),
+        ("main.rs", include_str!("../src/main.rs")),
+        ("render.rs", include_str!("../src/render.rs")),
+        ("run.rs", include_str!("../src/run.rs")),
+        ("transcript.rs", include_str!("../src/transcript.rs")),
+    ];
+    let mut violations = Vec::new();
+    for (path, source) in sources {
+        for forbidden in [
+            "apply_event(",
+            "apply_event_stream(",
+            "use tracewake_core::events::apply",
+            "tracewake_core::events::apply::",
+        ] {
+            if source.contains(forbidden) {
+                violations.push(format!("{path} contains {forbidden}"));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "TUI must mutate only through run_pipeline/current-view semantic submissions:\n{}",
+        violations.join("\n")
+    );
+    assert!(
+        include_str!("../src/app.rs").contains("run_pipeline(&mut context, &proposal)"),
+        "TUI submit path must retain the shared pipeline call"
+    );
+}
+
+#[test]
 fn debug_truth_does_not_enter_embodied_view() {
     let mut app = TuiApp::load_default().unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
