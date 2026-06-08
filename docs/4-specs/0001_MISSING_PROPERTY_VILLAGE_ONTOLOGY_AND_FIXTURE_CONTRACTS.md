@@ -1,166 +1,72 @@
-# Spec 0001 — Phase 0: Missing Property Village Ontology and Fixture Contracts
+# Spec 0001 — Missing Property Village Ontology and Fixture Contracts
 
-## 1. Status and authority
+This is the live first-proof village ontology and fixture-contract package for Tracewake's missing-property proof. It is not a new forward implementation spec, not a certification audit, and not a replacement for foundation, architecture, execution, or reference doctrine.
 
-This is a Phase 0 specification package for Tracewake.
+**Status:** realigned in place after the foundation / architecture / execution / reference overhaul.
 
-It is subordinate to the foundation, architecture, execution, and reference documents at target commit `3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e`. It is not a replacement constitution, not a revised architecture, not a coding plan, and not an implementation ticket list.
+**Admissibility posture:** `P0-CERT not applicable`. This document-only realignment does not certify code and does not perform the future `P0-CERT` audit named by `docs/2-execution/01_POST_0008_BASELINE_ARCHIVED_SPEC_STATUS_AND_CODE_AUDIT_BOUNDARY.md`.
 
-The purpose of this spec is to make Phase 0 concrete enough that a later Phase 1 implementation agent can begin kernel/TUI/event-log/replay work without inventing product doctrine, ontology, fixture semantics, schema boundaries, or test meaning.
+**Authority:** subordinate to `docs/0-foundation/`, `docs/1-architecture/`, `docs/2-execution/`, and `docs/3-reference/`. If this spec appears to define a gate, amend an invariant, replace architecture, or weaken execution, the higher tier wins and this spec must be corrected.
 
-Authority order for this spec:
+**Source discipline:** the target commit used for this realignment is audit/spec provenance only. It is not presented here as the current product baseline. The manifest is path inventory only; branch names, default-branch lookups, connector labels, and code-search snippets are not proof of target-commit content.
 
-1. foundation doctrine;
-2. architecture contracts;
-3. execution phase gates and fixtures;
-4. reference guardrails;
-5. current analysis and research synthesis;
-6. this spec package.
+## 1. Conformance declaration
 
-If a lower layer conflicts with a higher layer, the higher layer wins. If this spec conflicts with higher authority, correct this spec rather than weakening the higher authority.
+This spec conforms to the live spine by treating the first village as a proof surface for already-defined doctrine, not as a source of doctrine.
 
-## 2. Source and research basis
+| Guardrail | How this spec uses it |
+|---|---|
+| `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` | Preserves event-sourced causality, subjective epistemics, ordinary agents, possession parity, fallible institutions, questless leads, TUI-first playability, validation/replay, and the truth firewall. |
+| `docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md` | Keeps the missing-property first proof centered on ordinary village life, no-human progression, replay, TUI/debug separation, canonical regression seeds, and the missing-property proof. |
+| `docs/0-foundation/14_ACTOR_KNOWN_COGNITION_TRANSACTION_AND_TRUTH_FIREWALL.md` | Keeps the actor case of holder-known cognition explicit: truth may validate actor actions, but truth may not plan them. |
+| `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` | Uses `holder-known context` as the system-wide term and `actor-known` for actor cognition, planning, possession, speech, and ordinary action cases. |
+| `docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` | Keeps the village ontology tied to settlement, places, rooms, doors, containers, property, food, sleep, work, access, custody, ownership, and ordinary local economy. |
+| `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` | Treats fixtures and sketches as review artifacts that feed validation; it does not redefine acceptance semantics. |
+| `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` | Cross-references the first-proof gates by code only: `EVENT`, `TRUTH-FIREWALL`, `ACTOR-KNOWN`, `POSSESSION-PARITY`, `NO-HUMAN-ORDINARY-LIFE`, `MISSING-PROPERTY`, `VIEW-DEBUG-SPLIT`, `REPLAY`, and `FIXTURE-NEGATIVE`. |
+| `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | Keeps fixture and validation language anti-contaminated; no hidden truth, debug panel, script marker, or fixture outcome may become an actor input. |
+| `docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` | Keeps content as typed, provenance-bearing fixture data and forbids outcome-chain data. |
+| `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | Keeps fixture families reviewable as replayable golden scenarios and adversarial scenarios. |
+| `docs/3-reference/02_GLOSSARY.md` | Uses the realigned vocabulary: holder-known context, actor-known context, truth firewall, context sealing, provenance class, debug truth, embodied view, fixture, golden scenario, and no-human proof. |
 
-**Requested repository:** `joeloverbeck/tracewake`  
-**Target commit:** `3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e`  
-**Freshness claim:** user-supplied target commit only; not independently verified as latest `main`.  
-**Manifest role:** path inventory only.
+## 2. Scope and non-authority
 
-### Exact source discipline ledger
+This spec owns the first-proof village ontology and fixture contract beneath the live spine. It does not own:
 
-- Repository metadata used: no.
-- Default-branch lookup used: no.
-- Branch-name file fetch used: no.
-- Code search used: no.
-- Clone used: no.
-- URL fetch method: exact raw GitHub URLs under `joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e`.
-- Connector/tool namespace trusted as evidence: no.
-- Contamination observed: no source contamination. A local network fetch attempt failed before returning content and was not used as evidence.
+- gate definitions or certification status;
+- phase-entry authority;
+- architecture of the event log, scheduler, planner, epistemics, institutions, TUI, replay, LOD, or data-loading systems;
+- the future `P0-CERT` audit;
+- archived spec certification;
+- external research doctrine.
 
-Exact fetch ledgers belong to review/spec artifacts, not permanent foundation doctrine. Future source ledgers should be kept with audit material or spec-package provenance, not repeated as product doctrine.
-
-### Fetched repository files
-
-- [docs/0-foundation/00_FOUNDATION_INDEX.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/00_FOUNDATION_INDEX.md)
-- [docs/0-foundation/01_PROJECT_CHARTER.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/01_PROJECT_CHARTER.md)
-- [docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md)
-- [docs/0-foundation/03_CAUSAL_EVENT_TRACE_AND_REPLAY_CONTRACT.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/03_CAUSAL_EVENT_TRACE_AND_REPLAY_CONTRACT.md)
-- [docs/0-foundation/04_CLAIMS_BELIEFS_MEMORY_AND_INFORMATION_FLOW.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/04_CLAIMS_BELIEFS_MEMORY_AND_INFORMATION_FLOW.md)
-- [docs/0-foundation/05_AGENTS_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/05_AGENTS_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md)
-- [docs/0-foundation/06_ACTIONS_AFFORDANCES_ORDINARY_LIFE_AND_SURVIVAL.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/06_ACTIONS_AFFORDANCES_ORDINARY_LIFE_AND_SURVIVAL.md)
-- [docs/0-foundation/07_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_ARTIFACTS.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/07_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_ARTIFACTS.md)
-- [docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md)
-- [docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md)
-- [docs/0-foundation/10_SCALE_LOD_REGIONAL_BOUNDARIES_AND_LONG_SIMULATION.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/10_SCALE_LOD_REGIONAL_BOUNDARIES_AND_LONG_SIMULATION.md)
-- [docs/0-foundation/11_LLM_SPEECH_ACTS_AND_LANGUAGE_BOUNDARY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/11_LLM_SPEECH_ACTS_AND_LANGUAGE_BOUNDARY.md)
-- [docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md)
-- [docs/0-foundation/13_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/0-foundation/13_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md)
-- [docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md)
-- [docs/1-architecture/01_SYSTEM_AUTHORITY_RUST_WORKSPACE_AND_BOUNDARIES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/01_SYSTEM_AUTHORITY_RUST_WORKSPACE_AND_BOUNDARIES.md)
-- [docs/1-architecture/02_ACTION_AFFORDANCE_SCHEDULING_AND_PROPOSAL_PIPELINE.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/02_ACTION_AFFORDANCE_SCHEDULING_AND_PROPOSAL_PIPELINE.md)
-- [docs/1-architecture/03_EVENT_LOG_REPLAY_PROJECTIONS_AND_SAVE_PACKAGES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/03_EVENT_LOG_REPLAY_PROJECTIONS_AND_SAVE_PACKAGES.md)
-- [docs/1-architecture/04_STATE_CONTENT_AUTHORING_DOMAIN_PACKS_AND_SCHEMA_VALIDATION.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/04_STATE_CONTENT_AUTHORING_DOMAIN_PACKS_AND_SCHEMA_VALIDATION.md)
-- [docs/1-architecture/05_CLAIMS_BELIEFS_TRACES_MEMORY_AND_INFORMATION_FLOW.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/05_CLAIMS_BELIEFS_TRACES_MEMORY_AND_INFORMATION_FLOW.md)
-- [docs/1-architecture/06_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/06_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md)
-- [docs/1-architecture/07_AGENT_COGNITION_ROUTINES_PLANNING_AND_AGENT_LOD.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/07_AGENT_COGNITION_ROUTINES_PLANNING_AND_AGENT_LOD.md)
-- [docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md)
-- [docs/1-architecture/09_ORDINARY_LIFE_ECONOMY_SETTLEMENT_AND_SPATIAL_MODEL.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/09_ORDINARY_LIFE_ECONOMY_SETTLEMENT_AND_SPATIAL_MODEL.md)
-- [docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md)
-- [docs/1-architecture/11_INCIDENTS_LEADS_AND_STORY_SIFTING_PROJECTIONS.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/11_INCIDENTS_LEADS_AND_STORY_SIFTING_PROJECTIONS.md)
-- [docs/1-architecture/12_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/12_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md)
-- [docs/1-architecture/13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md)
-- [docs/1-architecture/14_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/1-architecture/14_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md)
-- [docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md)
-- [docs/2-execution/01_EXECUTION_CHARTER_SCOPE_AND_FIRST_PROOF.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/01_EXECUTION_CHARTER_SCOPE_AND_FIRST_PROOF.md)
-- [docs/2-execution/02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md)
-- [docs/2-execution/03_FIRST_PROOF_MISSING_EXPECTED_PROPERTY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/03_FIRST_PROOF_MISSING_EXPECTED_PROPERTY.md)
-- [docs/2-execution/04_PHASE_0_PAPER_ONTOLOGY_AND_FIXTURE_CONTRACTS.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/04_PHASE_0_PAPER_ONTOLOGY_AND_FIXTURE_CONTRACTS.md)
-- [docs/2-execution/05_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/05_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY.md)
-- [docs/2-execution/06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md)
-- [docs/2-execution/07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md)
-- [docs/2-execution/08_PHASE_4_INSTITUTIONS_RECORDS_AND_WRONG_SUSPICION.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/08_PHASE_4_INSTITUTIONS_RECORDS_AND_WRONG_SUSPICION.md)
-- [docs/2-execution/09_DATA_AUTHORING_VALIDATION_AND_GOLDEN_FIXTURES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/09_DATA_AUTHORING_VALIDATION_AND_GOLDEN_FIXTURES.md)
-- [docs/2-execution/10_TESTING_DEBUGGING_OBSERVABILITY_AND_METRICS.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/10_TESTING_DEBUGGING_OBSERVABILITY_AND_METRICS.md)
-- [docs/2-execution/11_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/11_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md)
-- [docs/2-execution/12_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/2-execution/12_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md)
-- [docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md)
-- [docs/3-reference/01_DESIGN_RISK_REGISTER.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/3-reference/01_DESIGN_RISK_REGISTER.md)
-- [docs/3-reference/02_GLOSSARY.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/3-reference/02_GLOSSARY.md)
-- [docs/README.md](https://raw.githubusercontent.com/joeloverbeck/tracewake/3b45d7dde9811f1a0ddbe9497f3d9e0c3743d74e/docs/README.md)
-
-### Research areas consulted
-
-Focused external research was used as pressure and correction, not as permission to override Tracewake doctrine casually. See `0001_RESEARCH_NOTES.md` for source summaries.
-
-Research areas consulted:
-
-- event sourcing, CQRS, replay, event schema/version concerns, and save packages;
-- deterministic simulation and seeded/auditable randomness;
-- BDI agents, durable intentions, HTN routines, and bounded GOAP/STRIPS-style planning;
-- smart objects and affordance-based interaction;
-- agent-based social simulation validation;
-- Talk of the Town-style character knowledge propagation, misremembering, and lying;
-- Prom Week / Comme il Faut-style social state and social rules;
-- Neighborly-style community-scale emergent narrative simulation;
-- normative multi-agent systems, institutional facts, norms, proof, sanctions, and roles;
-- dynamic level-of-detail and multi-resolution simulation;
-- emergent narrative and story-sifting as observer/projection layer rather than director;
-- game precedents and counterexamples, including Shadows of Doubt, Dwarf Fortress, The Sims-style routines, Ultima-style schedules, RimWorld storytellers, Left 4 Dead's AI Director, and Skyrim Radiant-style quest generation;
-- LLM social simulation validation risks and why LLMs must remain behind structured speech/rendering/parsing boundaries.
+Archived specs `0005`–`0008` are historical evidence that drove the spine overhaul. They are not live authority and do not certify the current implementation.
 
 ## 3. First-proof identity
 
-The first proof is:
+The first proof remains: a small ordinary village in which a physical item expected by one actor is missing from an expected place, and the simulation can progress, observe, report, suspect, remember, replay, and display that situation without omniscient scripts or quest logic.
 
-**Missing Expected Property / The Missing Property Village**
+The proof is successful only when the live execution gate set says it is successful. This spec provides the ontology and fixtures that the gate set can inspect.
 
-It proves that Tracewake can simulate an ordinary social world where a missing physical thing matters because an actor expected it, searched for it, formed partial beliefs from evidence, propagated claims through structured speech, and could be understood through both embodied and debug views without privileged player knowledge.
+The proof must preserve all of the following distinctions:
 
-The first-proof chain is:
-
-```text
-property expected somewhere
--> property moved or taken for modeled reasons
--> absence discovered through expectation/search/perception/instruction
--> partial knowledge propagates
--> report/record may occur
--> wrong suspicion may arise
--> possession parity proves no knowledge leak
--> debug explains truth, belief, traces, records, suspicion, and replay
--> no-human version can occur
-```
-
-This is not a notice-board proof, road-threat proof, bounty proof, companion proof, combat proof, graphical proof, procedural-town proof, or LLM conversation proof.
-
-The first proof must work whether the human possesses Tomas, Mara, Anna, Elias, another valid actor, or no actor. Human control changes the chosen action proposals. It does not grant truth access, quest knowledge, special verbs, special consequences, or director-triggered drama.
+- item existence versus item display;
+- item location versus item ownership;
+- ownership versus custody;
+- custody versus legal/social control;
+- access right versus physical ability;
+- physical absence versus theft;
+- suspicion versus proof;
+- actor-known belief versus debug truth;
+- household memory versus institution record;
+- ordinary routine pressure versus plot directive;
+- report claim versus validated fact;
+- no-human progression versus author-authored outcome.
 
 ## 4. Explicit non-goals
 
-Spec 0001 forbids the following within its scope:
+This spec does not authorize notice boards, road danger, bounty loops, companion mechanics, combat, culprit scripting, plot beats, authored clue chains, LLM dialogue mutation, procedural town generation, or graphical client work.
 
-- implementation tickets;
-- issue lists;
-- sprint plans;
-- Rust code;
-- crate layout decisions;
-- storage engine decisions;
-- terminal UI library decisions;
-- final content file syntax decisions;
-- final serialization format decisions;
-- detailed combat;
-- beasts, monsters, or magic;
-- route threat;
-- old quarry or wilderness site;
-- companion recruitment;
-- bounty/proof/payment loop;
-- notices as product feature;
-- freeform LLM dialogue;
-- graphical client;
-- large region;
-- procedural town generation;
-- quest/objective ontology.
-
-These exclusions are not a lack of ambition. They keep the first proof honest. The first proof must not hide ontology gaps behind genre systems, quest scaffolding, LLM improvisation, or UI drama.
+A missing-property situation is not a mystery quest. It is an ordinary-life, event-sourced, epistemically subjective world proof.
 
 ## 5. Actor roster contract
 
@@ -197,7 +103,7 @@ The first village is deliberately small. It is not a generated town, not a regio
 | `reeves_office` | institution building | `village_core` | public front / restricted rear | `institution_reeves_office` | public square, clerk counter, records room, private desk | front room visible; records restricted | speech carries inside; outside muffled | report, receive report, write record, question, refuse | Converts report speech into institutional claims. |
 | `office_counter` | room/desk zone | `reeves_office` | semi-public | `institution_reeves_office` | public front, records room door | Anna can see entrant; entrants see desk, not ledger contents | speech audible to nearby office actors | ask, report, acknowledge, refuse, wait | Intake surface for missing-property report. |
 | `records_room` | restricted room | `reeves_office` | restricted | `institution_reeves_office` | office counter via `door_records_room` | hidden from public front when door closed | muffled | open ledger, amend record, search records | Holds incident ledger artifact. |
-| `private_desk_reeve` | private work zone | `reeves_office` | restricted | Reeve / institution | office interior | seen only by office staff | private conversation if door/spacing allows | review, question, authorize | Later Phase 4 procedure sketch only. |
+| `private_desk_reeve` | private work zone | `reeves_office` | restricted | Reeve / institution | office interior | seen only by office staff | private conversation if door/spacing allows | review, question, authorize | Post-`PHASE-4-ENTRY` procedure sketch only. |
 | `house_tomas` | home | `village_core` | domestic private | `household_tomas`; village trespass norm | public lane, main room, bedroom, pantry | threshold visibility; interior private | door sounds and household voices | enter by permission, inspect, search with rights, take/place household goods | Home of expected property. |
 | `tomas_main_room` | room | `house_tomas` | household private | `household_tomas` | front door, bedroom door, pantry | visible from doorway only when open/near | voices audible at threshold | wait, speak, household work | Non-strongbox access ambiguity. |
 | `bedroom_tomas` | room | `house_tomas` | high private | `household_tomas` | main room via bedroom door | not visible from lane; strongbox visible only if actor enters/searches | door/footstep sounds possible | search, open strongbox if permitted/able | Location of `strongbox_tomas`. |
@@ -260,7 +166,7 @@ It is a physical, custody-tracked value token. It is not an abstract balance and
 |---|---|
 | ID | `coin_stack_01` |
 | Kind | physical value token: small stack/pouch of coins, count may be known exactly by Tomas and unknown/approximate to others |
-| Legal/social owner | Tomas / `household_tomas` depending later legal model; for Phase 0, Tomas is recognized owner and primary claimant |
+| Legal/social owner | Tomas / `household_tomas` depending later legal model; for this first-proof contract, Tomas is recognized owner and primary claimant |
 | Initial possessor | `strongbox_tomas` as containing physical object; Tomas is not physically holding it at start |
 | Initial custodian | Tomas as strongbox custodian |
 | Expected location | `strongbox_tomas`, sourced from `obs_tomas_coin_check_dminus1` and/or prior seeded accounting memory |
@@ -349,12 +255,12 @@ Debug possession switching is a non-diegetic debug operation, not an ordinary ac
 | `go_to_local_authority` | actor can move | route to `reeves_office` | actor believes authority relevant | office hours/access norms | local travel | fails if office closed/interrupted/refusal | `actor_moved`, maybe `intention_plan_updated` | route witness | visible when actor knows office and has reason | route/intent explanation | same. |
 | `receive_report` | Anna/Reeve/authorized office actor | reporter present/channel | understands structured report fields | institutional role required | medium | refused/delayed/incomplete | `report_received/refused/delayed`, `speech_act_committed` | office witness | visible to authorized actor when report offered | missing field reasons | same for human-possessed Anna and AI Anna. |
 | `create_or_update_institutional_record` | authorized recorder, usually Anna | ledger artifact accessible; writing materials | source speech/claim exists | institutional role and procedure | medium | rejected if no artifact/authorization/source; failure if interrupted | `institutional_record_opened/amended`, `memory_recorded` | ink/page access trace | visible only to authorized actor with source | record-as-claim explanation | same. |
-| `question_or_watch_under_procedure` | Phase 4 authority/guard role | target/place accessible; procedure authorized | record/suspicion basis exists | institutional procedure required | medium/long | rejected if no basis/authority; failure if target absent | `speech_act_committed`, `observation_created`, `suspicion_updated`, `record_amended` | watch/question traces | Phase 0 sketch only; not Phase 1 feature | basis/procedure/debug | same once implemented; no player-only interrogation. |
+| `question_or_watch_under_procedure` | post-`PHASE-4-ENTRY` authority/guard role | target/place accessible; procedure authorized | record/suspicion basis exists | institutional procedure required | medium/long | rejected if no basis/authority; failure if target absent | `speech_act_committed`, `observation_created`, `suspicion_updated`, `record_amended` | watch/question traces | first-proof ontology sketch only; not historical implementation work feature | basis/procedure/debug | same once implemented; no player-only interrogation. |
 | `continue_or_abandon_current_intention` | actor with current intention/routine | time and conditions change | actor has goal/routine/pressure/conflict | duties/social expectations | instant/short | cannot continue if impossible; abandonment may have consequence | `intention_plan_delayed/updated` | schedule deviation visible | visible as actor notebook/debug; embodied maybe “keep doing/stop” | intention cause chain | same; later cognition uses same event hooks. |
 
 ## 10. Event vocabulary
 
-Events are primitive semantic families for Phase 0 contract purposes. They are not final serialized types. They must be sufficient for event-log authority, replay, projections, belief updates, debug explanation, and later tests.
+Events are primitive semantic families for this first-proof contract. They are not final serialized types. They must be sufficient for event-log authority, replay, projections, belief updates, debug explanation, and later tests.
 
 Every event must have a stable event ID, timestamp/tick, responsible actor/process/institution, cause references, and replay-deterministic inputs. Events may be ground truth while projections and actor views remain filtered.
 
@@ -407,7 +313,7 @@ Claims are source-bound. A claim is not truth. A proposition can be true, false,
 
 ### 12.1 Belief shape
 
-A Phase 0 belief contract must include at least:
+This belief contract must include at least:
 
 - `belief_id`;
 - `holder_id` actor or institution/projection;
@@ -488,12 +394,7 @@ Mara sees an empty strongbox with no prior expectation
 
 ### 12.5 Memory depth staged for the first proof
 
-Phase 0 specifies memory contracts but does not require full memory simulation in Phase 1.
-
-- Phase 1 may store minimal event-derived observations and actor-current facts necessary for possession/view filtering.
-- Phase 2 must make expectation, absence, belief contradiction, and possession parity executable.
-- Phase 3 must support routine-driven no-human life and intention updates.
-- Phase 4 must support institutional memory, records, suspicion, and wrong-suspicion cases.
+This spec preserves the memory contract as first-proof ontology and fixture material. The current implementation and future certification sequence are governed by `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md`, `docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md`, `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`, `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`, and `docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`. Historical phase labels are evidence only; they are not certification.
 
 Memory must be fallible/stale-capable by contract even if early executable phases use simple retention.
 
@@ -525,7 +426,7 @@ Every speech act must include:
 | `report_missing_property` | reporter to Anna/Reeve/authorized receiver | item missing, expected location, ownership/custody, source expectation, search result | reporter belief chain | asserted report | confidence from expectation/search | receiver records report as claim | institution gains report/record belief, not truth | refused if no item/source/reporter/venue; delayed if office unavailable | formal intake template | debug shows fields accepted/rejected. |
 | `repeat_rumor_or_testimony` | speaker to listener/audience | heard claim with source chain | prior speech act or record read | hearsay/speculation | confidence degraded unless source trusted | listener tracks source if contract works | hearsay belief, rumor propagation | source forgotten if modeled; listener refuses gossip | hearsay template naming source if known | debug shows chain degradation. |
 | `institutional_intake_acknowledgment` | Anna/Reeve to reporter | report status, missing fields, next procedure | received report and institutional rules | acknowledgment/command/request | procedural certainty | reporter knows record/refusal/delay status | belief about institution opened/refused incident | incomplete fields, access/time constraints | office-formal template | debug shows no truth validation occurred. |
-| `refuse_or_withhold` | any actor | refusal reason if speakable; no proposition if silent | privacy, fear, duty, uncertainty | refusal/withholding | n/a or low | listener may form belief about refusal | suspicion or trust change possible | procedure may later compel/override if Phase 4 rules | relationship/status template | debug shows hidden reason only. |
+| `refuse_or_withhold` | any actor | refusal reason if speakable; no proposition if silent | privacy, fear, duty, uncertainty | refusal/withholding | n/a or low | listener may form belief about refusal | suspicion or trust change possible | procedure may later compel/override if post-`PHASE-4-ENTRY` work rules | relationship/status template | debug shows hidden reason only. |
 
 ## 14. Institution, household, norm, and record contracts
 
@@ -558,8 +459,8 @@ Roles:
 
 | Norm ID | Type | Applies to | Violation | Detection | Suspicion | Report | Record | Proof | Sanction | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `norm_property_theft` | regulative property norm | physical items with owner/custodian and access limits | actor intentionally takes/keeps item without permission or legitimate excuse | observation, missing expected property, trace, confession, recovery | actor-known basis combining motive/access/opportunity/evidence | property owner or witness may report | Anna records claims and sources | requires evidence chain, not debug truth | deferred; Phase 4 sketch only | Violation, detection, suspicion, report, record, proof, sanction, notice, and payment are distinct. |
-| `norm_trespass_privacy` | domestic/institution privacy norm | private rooms, homes, restricted records, containers | actor enters/searches/opens without permission/procedure | witness, trace, admission, observation | access violation may support suspicion but not theft proof | household/institution may complain | record if reported | requires source-bound evidence | deferred; Phase 4 sketch only | Prevents search-as-universal-solution. |
+| `norm_property_theft` | regulative property norm | physical items with owner/custodian and access limits | actor intentionally takes/keeps item without permission or legitimate excuse | observation, missing expected property, trace, confession, recovery | actor-known basis combining motive/access/opportunity/evidence | property owner or witness may report | Anna records claims and sources | requires evidence chain, not debug truth | deferred; post-`PHASE-4-ENTRY` work sketch only | Violation, detection, suspicion, report, record, proof, sanction, notice, and payment are distinct. |
+| `norm_trespass_privacy` | domestic/institution privacy norm | private rooms, homes, restricted records, containers | actor enters/searches/opens without permission/procedure | witness, trace, admission, observation | access violation may support suspicion but not theft proof | household/institution may complain | record if reported | requires source-bound evidence | deferred; post-`PHASE-4-ENTRY` work sketch only | Prevents search-as-universal-solution. |
 
 ### 14.4 Incident ledger record shape
 
@@ -603,138 +504,97 @@ A record can say “Tomas reports that his coins are missing from his strongbox.
 
 ## 15. Fixture suite and variants
 
-The Phase 0 fixture suite defines reviewable contracts. Executable tests arrive at later phase gates. All fixtures below are materially useful and none are deferred.
+The fixture suite is now treated as live first-proof contract material and code-adjacent review evidence. Some fixture families are already represented by executable content fixtures under `crates/tracewake-content/src/fixtures/`; this spec does not certify those fixtures. Certification belongs to the execution gate sequence and future `P0-CERT` work.
 
-### 15.1 Fixture summary
+### 15.1 Implemented fixture inventory
 
-| Fixture ID | Purpose | Executable phase where required |
+The following content fixture files exist in the target tree and are the live code-adjacent surface this ontology must stay consistent with:
+
+| Fixture file | Contract role in this spec | Gate references |
 |---|---|---|
-| `strongbox_001` | Physical container/item/custody baseline. | Phase 1 physical kernel; Phase 2 beliefs; Phase 4 institutions. |
-| `expectation_contradiction_001` | Tomas's expected item absence contradicts prior belief. | Phase 2. |
-| `possession_parity_001` | Human possession of different actors does not leak truth. | Phase 2. |
-| `report_record_001` | Structured missing-property report creates record-as-claim. | Phase 4. |
-| `wrong_suspicion_001` | Fallible suspicion can target wrong actor from partial evidence. | Phase 4. |
-| `no_human_day_001` | No-human simulation can produce ordinary movement and possible missing-property chain. | Phase 3 baseline; Phase 4 full institutional variant. |
-| `view_filtering_001` | Embodied views are actor-filtered; debug view is non-diegetic. | Phase 2. |
-| `replay_rebuild_001` | Event log can rebuild world/projections deterministically. | Phase 1 physical; Phase 2/4 projections. |
+| `container_item_move_001.rs` | Physical item movement, container location, and event causality. | `EVENT`, `MISSING-PROPERTY`, `REPLAY` |
+| `debug_attach_001.rs` | Debug attachment is non-diegetic and separate from embodied play. | `VIEW-DEBUG-SPLIT`, `TRUTH-FIREWALL` |
+| `debug_omniscience_excluded_001.rs` | Debug truth does not leak into embodied holder-known contexts. | `VIEW-DEBUG-SPLIT`, `TRUTH-FIREWALL`, `FIXTURE-NEGATIVE` |
+| `door_access_001.rs` | Door, access, room, and embodied visibility baseline. | `EVENT`, `ACTOR-KNOWN` |
+| `expectation_contradiction_001.rs` | Expected item absence contradicts prior actor-known belief. | `ACTOR-KNOWN`, `MISSING-PROPERTY`, `FIXTURE-NEGATIVE` |
+| `food_unavailable_replan_001.rs` | Ordinary need pressure replans without hidden truth. | `NO-HUMAN-ORDINARY-LIFE`, `TRUTH-FIREWALL` |
+| `hidden_food_closed_container_001.rs` | Closed-container hidden truth may not plan action. | `TRUTH-FIREWALL`, `ACTOR-KNOWN`, `FIXTURE-NEGATIVE` |
+| `hidden_food_unknown_route_001.rs` | Unknown route/food facts cannot be injected into planning. | `TRUTH-FIREWALL`, `ACTOR-KNOWN` |
+| `hidden_route_edge_001.rs` | Route knowledge is holder-known, not global truth for actors. | `TRUTH-FIREWALL`, `ACTOR-KNOWN` |
+| `knowledge_blocker_accuse_001.rs` | Accusation is blocked when the actor lacks actor-known basis. | `ACTOR-KNOWN`, `TRUTH-FIREWALL`, `FIXTURE-NEGATIVE` |
+| `no_hidden_truth_planning_001.rs` | Planner inputs exclude hidden truth. | `TRUTH-FIREWALL`, `ACTOR-KNOWN`, `FIXTURE-NEGATIVE` |
+| `no_human_advance_001.rs` | Time can advance without human action. | `NO-HUMAN-ORDINARY-LIFE`, `EVENT` |
+| `no_human_day_001.rs` | Ordinary day progression without player steering. | `NO-HUMAN-ORDINARY-LIFE`, `REPLAY` |
+| `no_human_epistemic_check_001.rs` | No-human progression preserves epistemic boundaries. | `NO-HUMAN-ORDINARY-LIFE`, `ACTOR-KNOWN`, `TRUTH-FIREWALL` |
+| `ordinary_workday_001.rs` | Work routine baseline for ordinary local economy. | `NO-HUMAN-ORDINARY-LIFE`, `EVENT` |
+| `planner_trace_001.rs` | Planner trace observability without hidden-truth planning. | `TRUTH-FIREWALL`, `ACTOR-KNOWN` |
+| `possession_does_not_reset_intention_001.rs` | Possession does not erase actor state or intention. | `POSSESSION-PARITY`, `ACTOR-KNOWN` |
+| `possession_parity_001.rs` | Human and non-human control use the same actor-known filters. | `POSSESSION-PARITY`, `ACTOR-KNOWN`, `TRUTH-FIREWALL` |
+| `replay_item_location_001.rs` | Rebuild/replay preserves item location from events. | `EVENT`, `REPLAY`, `MISSING-PROPERTY` |
+| `routine_blocked_diagnostic_001.rs` | Diagnostic output explains blockage without becoming diegetic truth. | `VIEW-DEBUG-SPLIT`, `TRUTH-FIREWALL` |
+| `routine_no_teleport_001.rs` | Routine execution must respect spatial/event constraints. | `EVENT`, `NO-HUMAN-ORDINARY-LIFE` |
+| `sleep_eat_work_001.rs` | Sleep, food, and work pressures remain ordinary-life mechanics. | `NO-HUMAN-ORDINARY-LIFE`, `EVENT` |
+| `sound_uncertainty_001.rs` | Observation may be uncertain and source-bound. | `ACTOR-KNOWN`, `TRUTH-FIREWALL` |
+| `strongbox_001.rs` | Tomas, `strongbox_tomas`, `coin_stack_01`, custody, access, and search baseline. | `EVENT`, `ACTOR-KNOWN`, `MISSING-PROPERTY`, `REPLAY` |
+| `view_filtering_001.rs` | Embodied views are filtered by holder-known context. | `VIEW-DEBUG-SPLIT`, `ACTOR-KNOWN`, `TRUTH-FIREWALL` |
+| `view_model_local_actions_001.rs` | Local affordances expose only holder-known selectable actions. | `VIEW-DEBUG-SPLIT`, `ACTOR-KNOWN` |
+| `workplace_assignment_provenance_001.rs` | Work assignment provenance is recorded rather than implied. | `EVENT`, `NO-HUMAN-ORDINARY-LIFE` |
 
-### 15.2 Fixture contracts
+Gate names above are cross-references only. Their definitions live in `docs/2-execution/`.
 
-#### `strongbox_001`
+### 15.2 Contract fixture families
+
+#### Strongbox / item / custody family
 
 - **Purpose:** Establish `strongbox_tomas` as a physical private container containing physical `coin_stack_01`, with ownership/custody/access separated.
-- **Setup:** Tomas's house, bedroom, strongbox, coins, Tomas prior memory, initial container state, access permissions.
-- **Initial entities:** `actor_tomas`, `actor_elena`, `strongbox_tomas`, `coin_stack_01`, `house_tomas`, relevant doors.
-- **Initial beliefs:** Tomas expects coins in strongbox; Elena may know strongbox usually contains money but not exact state unless variant grants source.
-- **Allowed pressures:** Tomas wage/tax obligation; Elena household routine.
-- **Forbidden scripts:** no forced theft, no forced discovery, no quest marker over strongbox.
-- **Expected positive assertions:** item is physically in strongbox at start; Tomas may open/search; actor without access may be rejected or marked intrusive; ownership != possession.
-- **Expected negative assertions:** actor outside room cannot see contents; no actor knows absence before search; coins are not abstract balance.
-- **Relevant views:** embodied Tomas before discovery; debug container truth view.
-- **Future test mapping:** unit tests for container/item state; content validation for owner/custodian/permitted users.
-- **Executable phase:** Phase 1 for physical state and event log; Phase 2 for expectations.
+- **Minimum material:** Tomas's house, bedroom, strongbox, coins, Tomas prior memory, initial container state, access permissions, and at least one search event.
+- **Positive assertions:** item location is event-derived; Tomas may open/search when actor-known and access preconditions pass; ownership does not equal current possession; replay rebuilds the same item location.
+- **Negative assertions:** actor outside room cannot see contents; no actor knows absence before observation or report; coins are not an abstract balance; debug truth cannot create a belief.
+- **Implemented surface:** `strongbox_001.rs`, `container_item_move_001.rs`, `replay_item_location_001.rs`.
 
-#### `expectation_contradiction_001`
+#### Expectation contradiction family
 
-- **Purpose:** Prove absence-as-evidence from prior expectation plus search.
-- **Setup:** Seed Tomas's prior observation; move/remove coins through modeled event or prehistory variant; Tomas searches strongbox.
-- **Initial entities:** Tomas, strongbox, coins, search action, expectation belief.
-- **Initial beliefs:** Tomas high-confidence expectation; others no automatic expectation.
-- **Allowed pressures:** need to pay Rafi; instruction from Tomas to Elena to check in variant.
-- **Forbidden scripts:** guaranteed search timing; automatic “stolen” label; empty container informing everyone.
-- **Expected positive assertions:** `expected_item_observed_absent` references prior expectation and search scope; Tomas forms missing claim.
-- **Expected negative assertions:** Mara/Anna do not know absence until told/observed; debug truth not injected.
-- **Views:** Tomas after discovery, actor notebook, debug truth/belief mismatch.
-- **Future test mapping:** belief update/golden view tests.
-- **Executable phase:** Phase 2.
+- **Purpose:** Prove absence-as-evidence from a sourced prior expectation plus a scoped search.
+- **Minimum material:** Tomas has a sourced expectation; the coins are absent from the searched scope; Tomas observes absence; the resulting claim remains actor-known and source-bound.
+- **Positive assertions:** the missing-property claim references prior expectation and search scope; Tomas can report missing property.
+- **Negative assertions:** Mara, Anna, and other holders do not know the absence until told, shown, or procedurally recorded; the absence is not automatically theft.
+- **Implemented surface:** `expectation_contradiction_001.rs`, `sound_uncertainty_001.rs`.
 
-#### `possession_parity_001`
+#### Possession parity and view filtering family
 
-- **Purpose:** Prove that human-controlled actors and AI-controlled actors use identical action/belief filters.
-- **Setup:** Run same event prefix while possessing Tomas, Mara, Anna, Elias, and no actor/debug mode.
-- **Initial entities:** full village minimum.
-- **Initial beliefs:** identical per actor across runs at same event prefix.
-- **Allowed pressures:** ordinary routines and user-selected actions.
-- **Forbidden scripts:** UI reveals truth because player controls a suspect/victim/clerk; possessed actor gets special verbs.
-- **Expected positive assertions:** each possessed actor sees only their own observations/beliefs; debug view shows truth only when explicitly in debug.
-- **Expected negative assertions:** possessing Mara after she hid coins reveals only Mara's actual memories/beliefs, not system labels like “culprit”; possessing Anna does not reveal report truth.
-- **Views:** embodied views for Tomas/Mara/Anna; debug comparison.
-- **Future test mapping:** leakage tests and TUI view-model tests.
-- **Executable phase:** Phase 2.
+- **Purpose:** Prove that human-controlled actors and autonomous actors use identical actor-known filters and that debug surfaces are visibly quarantined.
+- **Minimum material:** same event prefix under multiple possession states; at least one embodied actor, debug view, local action view, and no-human continuation.
+- **Positive assertions:** the same actor-known context drives selectable actions and descriptions regardless of human control; debug truth appears only in debug surfaces.
+- **Negative assertions:** possessing Anna does not reveal coin location; possessing Mara does not reveal Tomas's current belief unless learned; debug panels cannot update actor memory.
+- **Implemented surface:** `possession_parity_001.rs`, `possession_does_not_reset_intention_001.rs`, `view_filtering_001.rs`, `view_model_local_actions_001.rs`, `debug_attach_001.rs`, `debug_omniscience_excluded_001.rs`.
 
-#### `report_record_001`
+#### No-human ordinary-life family
 
-- **Purpose:** Prove that a missing-property report becomes a structured institutional record without becoming truth.
-- **Setup:** Tomas discovers absence and goes to `reeves_office`; Anna receives/refuses/delays depending fields; ledger entry may be opened.
-- **Initial entities:** Tomas, Anna, office, incident ledger, report speech action.
-- **Initial beliefs:** Tomas missing claim; Anna no direct truth, only receiver role.
-- **Allowed pressures:** office hours, Anna workload, Tomas embarrassment.
-- **Forbidden scripts:** record auto-fills culprit; report always accepted; report creates reward/objective.
-- **Expected positive assertions:** report includes reporter, item, expected location, source belief, search, confidence; record references speech act and beliefs.
-- **Expected negative assertions:** ledger does not assert theft proved; Anna does not know truth unless separately sourced.
-- **Views:** Anna after report, incident ledger view, why-not blocked report.
-- **Future test mapping:** golden record tests, institutional projection tests.
-- **Executable phase:** Phase 4.
+- **Purpose:** Prove that ordinary settlement life can advance without player steering and without authored outcome chains.
+- **Minimum material:** sleep, food, work, movement, access, routine blockage, replanning, workplace assignment, and deterministic replay boundaries.
+- **Positive assertions:** ordinary actions occur from needs, routines, intentions, access, and actor-known context; no-human advancement can produce relevant world changes without a quest controller.
+- **Negative assertions:** no teleporting routines; no hidden-food or hidden-route planning; no player-only causal step; no marker action standing in for ordinary activity.
+- **Implemented surface:** `no_human_advance_001.rs`, `no_human_day_001.rs`, `no_human_epistemic_check_001.rs`, `ordinary_workday_001.rs`, `sleep_eat_work_001.rs`, `food_unavailable_replan_001.rs`, `routine_blocked_diagnostic_001.rs`, `routine_no_teleport_001.rs`, `workplace_assignment_provenance_001.rs`.
 
-#### `wrong_suspicion_001`
+#### Anti-contamination adversarial family
 
-- **Purpose:** Prove fallible suspicion from partial evidence without truth leakage.
-- **Setup:** Seed motive/access-like observations for Rafi or Mara; actual mover may be different or no theft variant; Elias/Reeve/Anna form suspicion from basis.
-- **Initial entities:** Elias, Anna, Reeve, suspects, observation/speech/record sources.
-- **Initial beliefs:** partial claims only; no actor has complete truth unless they directly caused/observed it.
-- **Allowed pressures:** debt, wages, line-of-sight ambiguity, status bias.
-- **Forbidden scripts:** hidden culprit pointer, guaranteed accusation, institution solving case automatically.
-- **Expected positive assertions:** suspicion event names basis propositions and confidence; later contradiction can weaken suspicion.
-- **Expected negative assertions:** suspicion is not proof; no sanction without procedure/evidence.
-- **Views:** debug causal graph, why-not blocked accusation, actor notebook.
-- **Future test mapping:** suspicion basis tests and leakage tests.
-- **Executable phase:** Phase 4.
+- **Purpose:** Keep fixture data, planner traces, local actions, and diagnostics from becoming hidden scripts or omniscient inputs.
+- **Minimum material:** actor-known basis checks, no-hidden-truth planning checks, closed-container checks, unknown-route checks, and diagnostic quarantine.
+- **Positive assertions:** an action proposal can be rejected for lack of actor-known basis; diagnostic output identifies blockage without changing actor knowledge; planner trace is review evidence, not an actor input.
+- **Negative assertions:** forged or stale proposal parameters cannot authorize action; debug state cannot satisfy preconditions; fixture outcome cannot preordain selection.
+- **Implemented surface:** `knowledge_blocker_accuse_001.rs`, `no_hidden_truth_planning_001.rs`, `hidden_food_closed_container_001.rs`, `hidden_food_unknown_route_001.rs`, `hidden_route_edge_001.rs`, `planner_trace_001.rs`, `routine_blocked_diagnostic_001.rs`.
 
-#### `no_human_day_001`
+#### Institutional report and wrong-suspicion family
 
-- **Purpose:** Prove the village can advance without human possession and still produce ordinary life, observations, report opportunities, and possibly the missing-property chain.
-- **Setup:** no possessed actor; scheduler runs household/work routines and allowed pressures under seed.
-- **Initial entities:** full minimum village.
-- **Initial beliefs:** per actor seed memories and roles.
-- **Allowed pressures:** debt, wages, food, work, office hours, errands.
-- **Forbidden scripts:** events conditioned on player arrival; drama director stealing coins; guaranteed report/accusation.
-- **Expected positive assertions:** ordinary movement occurs; if missing-property chain occurs, it uses same actions/events as embodied play.
-- **Expected negative assertions:** no player objective/completion state; no special no-human shortcuts.
-- **Views:** debug timeline, no-human run markers.
-- **Future test mapping:** no-human golden tests, replay tests, metrics.
-- **Executable phase:** Phase 3 baseline; Phase 4 full report/suspicion variant.
-
-#### `view_filtering_001`
-
-- **Purpose:** Prove embodied and debug views are separated.
-- **Setup:** Same event prefix rendered as Tomas, Mara, Anna, Elias, and debug.
-- **Initial entities:** actors, beliefs, event log, projections.
-- **Initial beliefs:** actor-specific; debug has ground-truth/projection access.
-- **Allowed pressures:** none beyond scenario state.
-- **Forbidden scripts:** actor view displays event log truth, culprit labels, or hidden claims.
-- **Expected positive assertions:** embodied view preserves uncertainty; debug explicitly marks non-diegetic truth/belief mismatch.
-- **Expected negative assertions:** no actor sees records they cannot access; no stale belief auto-corrects.
-- **Views:** all required view sketches.
-- **Future test mapping:** TUI/view-model golden tests and leakage tests.
-- **Executable phase:** Phase 2.
-
-#### `replay_rebuild_001`
-
-- **Purpose:** Prove event log can rebuild physical and projection state deterministically.
-- **Setup:** Run fixed seed and action prefix; save event log; rebuild physical world, actor projections, institutional projections when available.
-- **Initial entities:** strongbox, coins, doors, actors, seed/run markers.
-- **Initial beliefs:** seeded expectations and memories.
-- **Allowed pressures:** deterministic scheduler choices under logged seeds.
-- **Forbidden scripts:** projection writes correcting canonical log; unstored random choices; branch-dependent hidden state.
-- **Expected positive assertions:** rebuilt world matches original projections for phase-supported state; debug can explain from event chain.
-- **Expected negative assertions:** final UI state is not source of truth; no unlogged randomness.
-- **Views:** replay debug, causal graph excerpt.
-- **Future test mapping:** replay/projection tests, property tests.
-- **Executable phase:** Phase 1 for physical projection; Phase 2+ for belief projections; Phase 4 for institutional projections.
+- **Purpose:** Preserve the missing-property institution path without certifying post-`PHASE-4-ENTRY` implementation.
+- **Minimum material:** a sourced missing-property report, an institution holder-known context, source-bound record entries, and fallible suspicion that remains distinct from proof.
+- **Positive assertions:** a report is a claim/record with source provenance; an institution can know that a report exists without knowing truth; suspicion remains basis-bound and revisable.
+- **Negative assertions:** records do not become omniscient truth; suspicion does not identify culprit; institutional procedure does not bypass actor/institution holder-known context.
+- **Implementation status:** live contract sketch only. The current fixture inventory contains supporting epistemic and accusation-blocking surfaces, but this family is governed by `docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` and any future specs beneath it.
 
 ## 16. Embodied and debug view-model sketches
 
-Embodied views are actor-filtered and uncertainty-preserving. Debug views are visibly non-diegetic.
+Embodied views are actor-known filtered and uncertainty-preserving. Debug views are visibly non-diegetic and outside every embodied holder-known context.
 
 ### 16.1 Embodied view as Tomas before discovery
 
@@ -911,64 +771,46 @@ Spec 0001 rejects the following shortcuts. A fixture, future implementation, or 
 
 Review question: could the same chain occur, or fail to occur, with no human attached? If not, it is probably scripted.
 
-## 18. Validation and future test mapping
+## 18. Validation mapping
 
-This section maps Phase 0 contracts to later test categories. It is not a ticket list, owner list, estimate, or implementation sequence beyond phase gates.
+This section maps this spec's material to live execution gate codes. It does not define gates, set pass/fail semantics, assign owners, or authorize phase entry.
 
-| Future test category | Contract material from Spec 0001 | Examples of later assertions | Phase gate |
-|---|---|---|---|
-| Unit tests | Primitive action and event families; container/item state; access adjudication | opening a closed door changes visibility; taking item moves physical possession; rejected action records why-not | Phase 1+. |
-| Property tests | Event invariants, item identity, replay determinism, no unowned hidden truth claims | an item cannot be in two physical containers at same tick; actor belief cannot appear without source | Phase 1+ physical; Phase 2+ epistemic. |
-| Golden tests | Fixture chains and rendered view sketches | `strongbox_001` expected events; Tomas after discovery view; Anna report record | Phase 1+ physical, Phase 2/4 projected. |
-| TUI/view-model tests | Embodied/debug view separation and actor filtering | Tomas sees absence after search; Anna sees report claim only; debug marks truth/belief mismatch | Phase 2+. |
-| Replay/projection tests | Event vocabulary and `replay_rebuild_001` | rebuilt physical state equals original; projection rebuild does not mutate event log | Phase 1+. |
-| No-human tests | `no_human_day_001`; routine/action parity | ordinary movement occurs without player; missing-property chain uses same action/event families | Phase 3 baseline; Phase 4 full. |
-| Content validation checks | stable IDs; required actor/place/container/item fields | every actor has role, relationships, access, beliefs; every container has owner/custodian/expected contents | Phase 0 review; Phase 1+ tooling. |
-| Leakage tests | possession parity; actor-filtered claims/beliefs | possessing Anna does not reveal coin location; possessing Mara does not expose debug culprit label | Phase 2+. |
+| Gate code | Spec material that may be inspected | Definition source |
+|---|---|---|
+| `EVENT` | action/event vocabulary; physical state changes; item movement; access attempts; report/record events; replayable fixture chains. | `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` |
+| `TRUTH-FIREWALL` | forbidden-collapse rules; anti-contamination fixture families; debug/embodied split; no hidden truth planning; source-bound claims. | `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` |
+| `ACTOR-KNOWN` | actor roster beliefs, expectations, observations, memories, speech/report preconditions, action preconditions, and possession parity material. | `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` |
+| `POSSESSION-PARITY` | possession parity fixtures and view sketches proving human control does not change actor-known filters. | `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` |
+| `NO-HUMAN-ORDINARY-LIFE` | sleep/eat/work fixtures, ordinary-workday fixtures, routine/replan fixtures, and no-human day material. | `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` |
+| `MISSING-PROPERTY` | `strongbox_tomas`, `coin_stack_01`, expectation contradiction, absence observation, report claim, suspicion/proof distinction. | `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` |
+| `VIEW-DEBUG-SPLIT` | embodied view sketches, debug view sketch, actor notebook, local action view, diagnostic quarantine. | `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` |
+| `REPLAY` | event vocabulary, fixture event chains, replay item location fixture, deterministic projection expectations. | `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` |
+| `FIXTURE-NEGATIVE` | explicit negative assertions in every fixture family and the forbidden-collapse checklist. | `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` |
 
-## 19. Phase 1 entry contract
+Content/schema validation material must also stay subordinate to `docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` and observability/review material must stay subordinate to `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
 
-After Spec 0001 is accepted, Phase 1 may start with the following approved inputs:
+## 19. Certification and future-spec boundary
 
-- approved primitive action vocabulary, with debug possession switching separated from ordinary play;
-- approved primitive event vocabulary for physical state, replay, and future projections;
-- approved proposition/claim vocabulary;
-- first village minimal fixture contract: actors, places, rooms, doors, containers, `coin_stack_01`;
-- stable ID policy: IDs are content-stable semantic identifiers, not display names and not final storage keys;
-- embodied and debug TUI view-model contracts, including actor filtering and non-diegetic debug separation;
-- golden scenario sketches for strongbox, expectation contradiction, possession parity, report/record, wrong suspicion, no-human, view filtering, and replay rebuild;
-- no-scripting review checklist;
-- data validation requirements for minimal entities: every actor/place/door/container/item must have required fields from this spec before being accepted into the first fixture.
+This spec is a live contract for the first-proof ontology and fixtures, but it is not itself a certification artifact.
 
-Phase 1 still must not implement or pretend to complete:
-
-- full epistemics;
-- full memory decay/misremembering;
-- full routines and planning;
-- full institutions or sanctions;
-- road travel or route threat;
-- notices as product feature;
-- bounties/payments as quest loop;
-- companions;
-- combat;
-- LLM speech surfaces or live LLM state mutation;
-- graphical client;
-- procedural town generation.
-
-Phase 1 is allowed to build a minimal kernel/TUI/event-log/replay slice that can host the Phase 0 fixtures without violating them.
+- `P0-CERT` is the next major execution move named by the execution tier; this spec does not perform it.
+- Historical specs `0005`–`0008` landed implementation work, then exposed gaps that drove the upper-tier overhaul; they remain history, not certification.
+- Future implementation specs may cite this file for ontology, fixture names, and negative assertions, but gate pass/fail authority stays in `docs/2-execution/`.
+- Future data/schema tickets may use this file as content contract material only when the higher-tier authoring and validation rules permit it.
+- No future spec may treat the village story as a quest script, culprit script, clue chain, or drama-director outline.
 
 ## 20. Retread-prevention
 
-Spec 0001 is the stable reference for Phase 0 ontology and fixtures. Future specs should cite it rather than re-litigating:
+Spec 0001 is the stable reference for the missing-property first-proof ontology and fixture contracts. Future specs should cite it rather than re-litigating:
 
 - first-proof identity;
 - actor roster baseline;
 - core place/container/item contracts;
 - ownership/custody/access/control/proof/belief distinctions;
 - action/event/proposition vocabularies;
-- fixture names and purposes;
+- fixture families and their positive/negative assertions;
 - embodied/debug view-model boundaries;
 - forbidden shortcuts;
-- Phase 1 entry requirements.
+- gate-reference mapping.
 
-Future specs may refine implementation shape, validation tooling, phase-specific executable tests, schemas, or UI layout only within their phase authority. They should not reopen notice boards, road threats, bounties, companions, quest objectives, LLM dialogue, or drama-director shortcuts as if Phase 0 had not settled the first proof.
+Future specs may refine implementation shape, validation tooling, executable test coverage, schemas, or UI layout only beneath higher-tier authority. They must not reopen notice boards, road threats, bounties, companions, quest objectives, LLM dialogue, or drama-director shortcuts as if the first proof had not already rejected them.

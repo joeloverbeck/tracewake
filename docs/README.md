@@ -26,19 +26,19 @@ This document owns the documentation map, authority order, and current live-docu
 
 ## Current doctrine status
 
-The foundation and architecture layers have been replaced and hardened after specs `0005` through `0008`, with the architecture layer corrected against the downstream staleness report so the holder-known context / truth-firewall split is treated as a system-wide spine, not a late Phase 3A clarification.
+The foundation, architecture, execution, and reference tiers have been realigned into the current spine. The spec tier has now been realigned beneath that spine as well.
 
-The execution layer is likewise replaced by the current `docs/2-execution/` set. Old execution filenames from the pre-replacement set are retired. If files such as `01_EXECUTION_CHARTER_SCOPE_AND_FIRST_PROOF.md`, `02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md`, or `07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md` reappear under live `docs/2-execution/`, they are archival debris and must not be used as doctrine.
+The live doctrine posture is:
 
-The reference layer has now been realigned in place against the post-overhaul foundation, architecture, and execution spine. `docs/3-reference/**` is no longer to be treated as subordinate-and-stale merely because the previous downstream report flagged it for a separate audit. The realigned reference tier remains lookup-only: it preserves source discipline, risk memory, and terminology control while pointing gate semantics back to `docs/2-execution/`.
+1. **Foundation (`0-foundation/`)** is the constitutional baseline. All later tiers remain subordinate to it.
+2. **Architecture (`1-architecture/`)** is the live design contract and current replacement for older architecture filenames.
+3. **Execution (`2-execution/`)** is the live implementation and certification posture. Historical specs may have landed code, but they do not certify the current system until the execution gate sequence says so.
+4. **Reference (`3-reference/`)** is the live review and vocabulary layer.
+5. **Specs (`4-specs/`)** are realigned as the active spec layer, currently containing one live first-proof ontology / fixture package plus the tier index and ledger.
 
-The live execution posture is:
+Archived implementation specs `0005`–`0008` remain historical evidence that drove the overhaul. They are not live authority and are not certification. `P0-CERT` remains the next major execution audit named by the execution tier; this docs realignment does not perform it.
 
-> Historical implementation has landed through archived specs `0005` through `0008`, but the implementation is not certified under the post-overhaul foundation, architecture, and execution doctrine. The replacement execution docs define the normative execution sequence and audit criteria. Future code audit must compare implementation against these docs, not the other way around.
-
-The reference posture is:
-
-> The reference tier may name gate codes and summarize risk/terminology hazards, but it does not define gates, certify code, or convert archived spec status into post-overhaul certification. Archived specs `0005` through `0008` are history unless live execution docs promote a concept and a gate artifact certifies the implementation.
+The downstream-staleness report's prior note that `4-specs/` was subordinate-and-stale is resolved by the realigned spec-tier files emitted with this update. The report itself remains historical and is not rewritten here.
 
 ## Authority order
 
@@ -126,15 +126,13 @@ No reference files have been added, removed, merged, or renamed in the realignme
 
 ## 4-specs/ — active spec layer
 
-The specs layer applies live doctrine to narrow implementation or corrective work. Specs may not replace architecture, amend the constitution, weaken execution gates, or cite archived work as live authority.
+Spec documents are the lowest doctrine tier. They operationalize the higher tiers; they do not replace them.
 
-- `README.md` — spec-layer usage and boundary.
-- `SPEC_LEDGER.md` — active spec tracking.
-- `0001_FOUNDATIONAL_DOC_AMENDMENTS.md` — historical foundational amendment work preserved under the spec layer.
-- `0001_PHASE_0_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` — Phase 0 proof-scope specification under its live authority boundary.
-- `0001_RESEARCH_NOTES.md` — research notes for the corresponding spec context.
+- `4-specs/README.md` — spec-tier index, reading order, and future-spec rules.
+- `4-specs/SPEC_LEDGER.md` — active spec ledger, source discipline, archived-spec posture, and next known execution move.
+- `4-specs/0001_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` — live first-proof missing-property village ontology and fixture contract, realigned beneath the current foundation / architecture / execution / reference spine.
 
-Specs must declare how they satisfy live foundation, architecture, execution, and reference guardrails. Where execution gate codes are involved, definitions come from `docs/2-execution/`, not from the spec itself.
+The spec layer was compacted during realignment: the former pre-overhaul companion-amendment and research-note material is no longer part of the live spec map, and the village ontology file no longer carries obsolete pre-implementation phase framing.
 
 ## archive/ — historical evidence
 
