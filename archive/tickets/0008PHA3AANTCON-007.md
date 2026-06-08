@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-007: Static / anti-regression + mutation guards for forbidden shortcuts
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test crate: static/anti-regression guard tests + mutation-style proofs that the suite fails when a bypass is reintroduced
@@ -71,3 +71,29 @@ For the highest-risk targets (routine-family dispatch, proposal-param need reads
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+1. Added `crates/tracewake-core/tests/anti_regression_guards.rs` with nine source-level guards covering the §10.7 shortcut targets.
+2. Guarded the scheduler against direct routine/need proposal bypasses, empty no-human epistemic projections, routine-family primitive dispatch, and continue-routine marker-only progress.
+3. Guarded validators against authoritative need reads from proposal parameters.
+4. Guarded `AgentState` trace/diagnostic storage as typed records, actor-known context construction as non-public, and hidden-truth audit derivation from provenance rather than stored tags.
+5. Added mutation-efficacy notes for routine-family dispatch, proposal-parameter need reads, and string diagnostic maps.
+6. Tightened the remaining implementation seams the guards exposed: actor-known observed-parts construction is crate-private, decision hidden-truth audit is derived from actor-known input labels, and decision audit notes no longer serialize raw actor-known inputs that could leak hidden fixture ids.
+
+Deviations:
+
+1. Mutation efficacy is documented in an executable guard test rather than an ignored mutation script; the test names the mutation and the guard expected to fail.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test anti_regression_guards` passed.
+2. `cargo test -p tracewake-content --test golden_fixtures_run no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs` passed after removing raw actor-known input labels from decision audit notes.
+3. `cargo fmt --all --check` passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+5. `cargo build --workspace --all-targets --locked` passed.
+6. `cargo test --workspace` passed.

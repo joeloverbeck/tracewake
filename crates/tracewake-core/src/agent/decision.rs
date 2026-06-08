@@ -80,6 +80,7 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
                 .unwrap_or_else(|| "lower_priority".to_string()),
         })
         .collect();
+    let hidden_truth_audit = hidden_truth_audit_from_actor_known_inputs(&input.actor_known_inputs);
     let trace = DecisionTrace::new(
         trace_id,
         input.actor_id,
@@ -98,10 +99,7 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
         None,
         Some("selected_by_priority_order".to_string()),
         None,
-        HiddenTruthAudit {
-            actor_known_only: true,
-            notes: "candidate inputs supplied by actor-known generation boundary".to_string(),
-        },
+        hidden_truth_audit,
         outcome,
         "deterministic candidate selection".to_string(),
     );
@@ -110,6 +108,21 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
         trace,
         lifecycle_effects,
     })
+}
+
+fn hidden_truth_audit_from_actor_known_inputs(actor_known_inputs: &[String]) -> HiddenTruthAudit {
+    let actor_known_only = actor_known_inputs.iter().all(|input| {
+        !input.contains("unproven")
+            && !input.contains("debug_omniscience")
+            && !input.contains("physical_truth")
+    });
+    HiddenTruthAudit {
+        actor_known_only,
+        notes: format!(
+            "candidate inputs supplied by actor-known generation boundary: count={}",
+            actor_known_inputs.len()
+        ),
+    }
 }
 
 pub fn selected_goal_id(selection: &DecisionSelection) -> &CandidateGoalId {

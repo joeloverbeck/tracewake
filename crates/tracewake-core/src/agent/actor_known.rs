@@ -195,8 +195,9 @@ pub struct ActorKnownPlanningContext {
 }
 
 impl ActorKnownPlanningContext {
+    #[allow(dead_code)]
     #[allow(clippy::too_many_arguments)]
-    pub fn from_observed_parts(
+    pub(crate) fn from_observed_parts(
         actor_id: ActorId,
         current_place_id: PlaceId,
         known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
