@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-005: Candidate/BDI/HTN arbitration hardening
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` agent modules: needs/routines/projects as candidate inputs only; durable intention lifecycle; routine methods produce local-planner goals
@@ -85,3 +85,24 @@ Spec 0008 Finding 4 (D-0008-04) §8.3: needs and routines can bypass BDI/HTN arb
 
 1. `cargo test -p tracewake-core agent::`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Extended `DecisionSelection` with explicit `IntentionLifecycleEffect` records for continuation, interruption, and adoption.
+- Made severe need arbitration return an interrupted active-intention effect plus a newly adopted need-pressure intention, with deterministic ancestry back to the decision trace.
+- Kept mild need pressure on the existing continuation path and asserted the continuation lifecycle effect.
+- Exported `IntentionLifecycleEffect` from the agent module for the upcoming actor-decision transaction.
+
+Deviations from original plan:
+- The scheduler bypass and routine-family direct dispatch remain untouched, as assigned to `0008PHA3AANTCON-006`.
+- The hardening landed in `agent/decision.rs` and `agent/mod.rs`; existing candidate generation and HTN typed-condition surfaces already satisfied this ticket's substrate requirements and remained unchanged.
+
+Verification:
+- `cargo test -p tracewake-core agent::`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
