@@ -115,6 +115,92 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
 }
 
 #[test]
+fn debug_panel_does_not_change_embodied_affordances() {
+    let mut app = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
+    let before_view = app.current_view().unwrap();
+    let before_checksum = app.physical_checksum();
+    let before_actions = before_view
+        .semantic_actions
+        .iter()
+        .map(|entry| {
+            (
+                entry.semantic_action_id.as_str().to_string(),
+                entry.action_id.as_str().to_string(),
+                entry.target_ids.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let before_context = (
+        before_view.view_model_id.clone(),
+        before_view.holder_known_context_id.clone(),
+        before_view.holder_known_context_hash.clone(),
+        before_view.holder_known_context_frontier,
+        before_view.holder_known_context_source_summary.clone(),
+    );
+
+    let _item = app.render_debug_item_location_panel(&ItemId::new("food_hidden_pantry").unwrap());
+    let _planner = app.render_debug_planner_panel(&ActorId::new("actor_mara").unwrap());
+    let _replay = app.render_debug_replay_panel();
+    let _epistemics = app.debug_epistemics_view();
+    let after_view = app.current_view().unwrap();
+    let after_actions = after_view
+        .semantic_actions
+        .iter()
+        .map(|entry| {
+            (
+                entry.semantic_action_id.as_str().to_string(),
+                entry.action_id.as_str().to_string(),
+                entry.target_ids.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let after_context = (
+        after_view.view_model_id.clone(),
+        after_view.holder_known_context_id.clone(),
+        after_view.holder_known_context_hash.clone(),
+        after_view.holder_known_context_frontier,
+        after_view.holder_known_context_source_summary.clone(),
+    );
+
+    assert_eq!(after_actions, before_actions);
+    assert_eq!(after_context, before_context);
+    assert_eq!(app.physical_checksum(), before_checksum);
+    assert!(!after_view
+        .holder_known_context_source_summary
+        .contains("debug"));
+
+    let artifact = AdversarialReviewArtifact {
+        responsible_layer: "debug_quarantine",
+        scenario_id: "debug_omniscience_excluded_001",
+        actor_id: after_view.viewer_actor_id.as_str().to_string(),
+        controller_id: Some("controller_human"),
+        context_id: after_view.holder_known_context_id.as_str().to_string(),
+        context_hash: after_view.holder_known_context_hash.as_str().to_string(),
+        semantic_id: None,
+        typed_reason_codes: Vec::new(),
+        provenance_refs: vec![after_view.holder_known_context_source_summary],
+        debug_capability_present: after_view.debug_available,
+        actor_surfaces_checked: vec![
+            "semantic_actions",
+            "view_model_id",
+            "holder_known_context_hash",
+            "holder_known_context_frontier",
+            "physical_checksum",
+        ],
+        debug_surfaces_checked: vec![
+            "debug_item_location",
+            "debug_planner",
+            "debug_replay",
+            "debug_epistemics",
+        ],
+        expected_result: "debug_rendering_does_not_change_embodied_affordances",
+        contamination_failure_mode: "debug_truth_perturbs_current_view_or_source_context",
+    };
+    artifact.assert_complete();
+}
+
+#[test]
 fn adversarial_gates_forged_privileged_semantic_id_is_not_current_action() {
     let mut app = TuiApp::from_golden(fixtures::hidden_food_closed_container_001()).unwrap();
     app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();

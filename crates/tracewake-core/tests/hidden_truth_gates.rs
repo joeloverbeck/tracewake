@@ -19,6 +19,9 @@ use tracewake_core::state::{
 };
 use tracewake_core::time::SimTick;
 
+const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
+const DEBUG_CAPABILITY_RS: &str = include_str!("../src/debug_capability.rs");
+
 fn actor_id() -> ActorId {
     ActorId::new("actor_mara").unwrap()
 }
@@ -105,6 +108,44 @@ fn proof_sources_are_actor_known(context: &tracewake_core::agent::ActorKnownPlan
         .proof_sources()
         .iter()
         .any(|source| source.contains("debug_omniscience") || source.contains("unproven")));
+}
+
+#[test]
+fn actor_known_context_unforgeable_from_truth() {
+    assert!(
+        ACTOR_KNOWN_RS.contains("pub(crate) fn from_observed_parts"),
+        "actor-known planning context construction must stay crate-private"
+    );
+    assert!(
+        !ACTOR_KNOWN_RS.contains("pub fn from_observed_parts"),
+        "actor-known planning context construction must not become public"
+    );
+    assert!(
+        !ACTOR_KNOWN_RS.contains("impl From<PhysicalState> for ActorKnownPlanningContext")
+            && !ACTOR_KNOWN_RS.contains("impl From<&PhysicalState> for ActorKnownPlanningContext")
+            && !ACTOR_KNOWN_RS.contains("from_physical_state"),
+        "actor-known planning context must not gain a privileged raw-truth constructor"
+    );
+    assert!(
+        ACTOR_KNOWN_RS.contains("```compile_fail")
+            && ACTOR_KNOWN_RS.contains("ActorKnownPlanningContext::from_observed_parts")
+            && ACTOR_KNOWN_RS.contains("ActorKnownPlanningContext::from(PhysicalState::default())"),
+        "actor-known unforgeability must be documented by compile-fail examples"
+    );
+    assert!(
+        DEBUG_CAPABILITY_RS.contains("pub(crate) const fn mint"),
+        "debug capability minting must stay crate-private"
+    );
+    assert!(
+        !DEBUG_CAPABILITY_RS.contains("pub const fn mint")
+            && !DEBUG_CAPABILITY_RS.contains("pub fn mint"),
+        "debug capability minting must not become public"
+    );
+    assert!(
+        DEBUG_CAPABILITY_RS.contains("DebugCapability::mint()")
+            && DEBUG_CAPABILITY_RS.contains("```compile_fail"),
+        "debug capability minting must be covered by compile-fail documentation"
+    );
 }
 
 #[test]

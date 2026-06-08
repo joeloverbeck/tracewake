@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-009: Prove actor-known and debug-capability unforgeability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (public-API / compile-fail tests around `agent/actor_known.rs` and `debug_capability.rs`; adversarial debug-no-leak test)
@@ -82,3 +82,23 @@ Add `debug_panel_does_not_change_embodied_affordances`: assert that rendering/op
 1. `cargo test -p tracewake-core --test hidden_truth_gates`
 2. `cargo test -p tracewake-tui --test adversarial_gates`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added compile-fail docs proving external crates cannot call `ActorKnownPlanningContext::from_observed_parts`, cannot construct it from `PhysicalState`, and cannot call `DebugCapability::mint`.
+- Added `actor_known_context_unforgeable_from_truth`, source-scanning the authority surfaces to keep actor-known construction crate-private, prevent raw-truth constructors, and keep debug capability minting crate-private.
+- Added `debug_panel_does_not_change_embodied_affordances`, proving debug rendering leaves semantic actions, current-view source context, holder-known hash/frontier, and physical checksum unchanged.
+
+Verification:
+- `cargo test -p tracewake-core --test hidden_truth_gates actor_known_context_unforgeable_from_truth`
+- `cargo test -p tracewake-tui --test adversarial_gates debug_panel_does_not_change_embodied_affordances`
+- `cargo test -p tracewake-core --doc`
+- `cargo test -p tracewake-core --test hidden_truth_gates`
+- `cargo test -p tracewake-tui --test adversarial_gates`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`

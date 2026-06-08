@@ -12,6 +12,12 @@ pub const DEBUG_NON_DIEGETIC_MARKER: &str = "DEBUG NON-DIEGETIC";
 ///     marker: "DEBUG NON-DIEGETIC",
 /// };
 /// ```
+///
+/// ```compile_fail
+/// use tracewake_core::debug_capability::DebugCapability;
+///
+/// let _capability = DebugCapability::mint();
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugCapability {
     marker: &'static str,
