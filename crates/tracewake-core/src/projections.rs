@@ -631,10 +631,7 @@ fn phase3a_semantic_actions(
 }
 
 pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
-    DebugEventLogView {
-        debug_only: true,
-        events: log.events().iter().map(DebugEventSummary::from).collect(),
-    }
+    DebugEventLogView::new(log.events().iter().map(DebugEventSummary::from).collect())
 }
 
 fn visible_item_source(location: &Location) -> VisibleItemSource {

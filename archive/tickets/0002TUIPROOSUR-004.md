@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-004: Sealed debug capability + debug constructor sealing
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (new `DebugCapability`/`NonDiegeticDebugContext`; debug report/view constructors), `tracewake-tui` (debug renderers)
@@ -84,3 +84,26 @@ Update `debug_panels.rs` renderers to accept only debug view/report types (which
 1. `cargo test -p tracewake-core debug_capability && cargo test -p tracewake-tui tui_acceptance`
 2. `grep -rn "pub debug_only" crates/` (must show only derived/render-metadata usage after implementation)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Implemented a sealed `DebugCapability` in `tracewake-core` and routed privileged debug report/view construction through private capability fields. Public `debug_only` and `non_diegetic_marker` authority fields were replaced with derived accessors, while TUI debug renderers continue to render the `DEBUG NON-DIEGETIC` marker from typed debug surfaces. Added compile-fail doctests proving external code cannot construct the capability, a privileged debug view, or a privileged debug report without the sealed field.
+
+Updated core and TUI call sites to use capability-backed constructors, including event-log projection building and TUI epistemics/belief/observation debug views. No backwards-compatible public bool/marker construction path was retained.
+
+Deviations from the original plan: constructors mint the capability inside core debug APIs instead of exposing a public constructor that accepts a capability. This keeps the authority boundary tighter while preserving the same public rendering behavior.
+
+Verification:
+
+1. `cargo test -p tracewake-core debug_capability`
+2. `cargo test -p tracewake-core --doc`
+3. `cargo test -p tracewake-tui --test tui_acceptance`
+4. `grep -rn "pub debug_only" crates/` (only `debug_only_details` diagnostic text fields remain)
+5. `cargo test -p tracewake-core`
+6. `cargo test -p tracewake-tui`
+7. `cargo fmt --all --check`
+8. `cargo clippy --workspace --all-targets -- -D warnings`
+9. `cargo build --workspace --all-targets --locked`
+10. `cargo test --workspace`

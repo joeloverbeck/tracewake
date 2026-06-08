@@ -1,5 +1,6 @@
 use crate::actions::report::{ReasonCode, ValidationReport};
 use crate::checksum::HolderKnownContextHash;
+use crate::debug_capability::DebugCapability;
 use crate::events::{EventEnvelope, EventStream};
 use crate::ids::{
     ActionId, ActorId, ContainerId, DoorId, HolderKnownContextId, ItemId, PlaceId,
@@ -221,14 +222,21 @@ pub enum DebugViewModel {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugControllerBindingView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub current_binding: Option<String>,
     pub binding_history: Vec<String>,
 }
 
+/// Privileged event-log view.
+///
+/// ```compile_fail
+/// use tracewake_core::view_models::DebugEventLogView;
+///
+/// let _view = DebugEventLogView { events: Vec::new() };
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugEventLogView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub events: Vec<DebugEventSummary>,
 }
 
@@ -263,33 +271,32 @@ impl From<&EventEnvelope> for DebugEventSummary {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugItemLocationView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub item_id: ItemId,
     pub location_summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugActionRejectionView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub report: ValidationReport,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugProjectionRebuildView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugReplayReportView {
-    pub debug_only: bool,
+    debug_capability: DebugCapability,
     pub summary: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugEpistemicsView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub context_mode: String,
     pub observations: Vec<DebugObservationEntry>,
     pub beliefs_by_holder: Vec<DebugHolderBeliefs>,
@@ -300,28 +307,195 @@ pub struct DebugEpistemicsView {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugBeliefsView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub holder_actor_id: ActorId,
     pub beliefs: Vec<DebugBeliefEntry>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugObservationsView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub observer_actor_id: ActorId,
     pub observations: Vec<DebugObservationEntry>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugTruthBeliefMismatchView {
-    pub debug_only: bool,
-    pub non_diegetic_marker: String,
+    debug_capability: DebugCapability,
     pub item_id: ItemId,
     pub ground_truth_location: String,
     pub held_belief_summary: String,
     pub mismatch_summary: String,
+}
+
+impl DebugControllerBindingView {
+    pub fn new(current_binding: Option<String>, binding_history: Vec<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            current_binding,
+            binding_history,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugEventLogView {
+    pub fn new(events: Vec<DebugEventSummary>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            events,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugItemLocationView {
+    pub fn new(item_id: ItemId, location_summary: impl Into<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            item_id,
+            location_summary: location_summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugActionRejectionView {
+    pub fn new(report: ValidationReport) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            report,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugProjectionRebuildView {
+    pub fn new(summary: impl Into<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            summary: summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugReplayReportView {
+    pub fn new(summary: impl Into<String>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            summary: summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+}
+
+impl DebugEpistemicsView {
+    pub fn new(
+        context_mode: impl Into<String>,
+        observations: Vec<DebugObservationEntry>,
+        beliefs_by_holder: Vec<DebugHolderBeliefs>,
+        contradictions: Vec<DebugContradictionEntry>,
+        possession_metadata: Vec<String>,
+        projection_summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            context_mode: context_mode.into(),
+            observations,
+            beliefs_by_holder,
+            contradictions,
+            possession_metadata,
+            projection_summary: projection_summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
+}
+
+impl DebugBeliefsView {
+    pub fn new(holder_actor_id: ActorId, beliefs: Vec<DebugBeliefEntry>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            holder_actor_id,
+            beliefs,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
+}
+
+impl DebugObservationsView {
+    pub fn new(observer_actor_id: ActorId, observations: Vec<DebugObservationEntry>) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            observer_actor_id,
+            observations,
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
+}
+
+impl DebugTruthBeliefMismatchView {
+    pub fn new(
+        item_id: ItemId,
+        ground_truth_location: impl Into<String>,
+        held_belief_summary: impl Into<String>,
+        mismatch_summary: impl Into<String>,
+    ) -> Self {
+        Self {
+            debug_capability: DebugCapability::mint(),
+            item_id,
+            ground_truth_location: ground_truth_location.into(),
+            held_belief_summary: held_belief_summary.into(),
+            mismatch_summary: mismatch_summary.into(),
+        }
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.debug_capability.debug_only()
+    }
+
+    pub fn non_diegetic_marker(&self) -> &'static str {
+        DEBUG_EPISTEMICS_MARKER
+    }
 }
 
 fn classify_why_not(report: &ValidationReport) -> WhyNotFailureKind {
@@ -443,13 +617,10 @@ mod tests {
 
     #[test]
     fn debug_and_embodied_view_models_are_distinct_types() {
-        let debug = DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView {
-            debug_only: true,
-            summary: "rebuilt".to_string(),
-        });
+        let debug = DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new("rebuilt"));
 
         match debug {
-            DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only),
+            DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only()),
             _ => panic!("wrong debug view variant"),
         }
     }
@@ -477,18 +648,16 @@ mod tests {
 
     #[test]
     fn debug_epistemics_view_is_non_diegetic_and_lists_all_holders() {
-        let view = DebugEpistemicsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            context_mode: "debug".to_string(),
-            observations: vec![DebugObservationEntry {
+        let view = DebugEpistemicsView::new(
+            "debug",
+            vec![DebugObservationEntry {
                 observation_id: "obs_tomas_checked_strongbox".to_string(),
                 observer_actor_id: ActorId::new("actor_tomas").unwrap(),
                 channel: "touch_or_search".to_string(),
                 confidence: "1000".to_string(),
                 source: "event:event_observation".to_string(),
             }],
-            beliefs_by_holder: vec![
+            vec![
                 DebugHolderBeliefs {
                     holder_actor_id: ActorId::new("actor_tomas").unwrap(),
                     beliefs: vec![DebugBeliefEntry {
@@ -504,19 +673,19 @@ mod tests {
                     beliefs: Vec::new(),
                 },
             ],
-            contradictions: vec![DebugContradictionEntry {
+            vec![DebugContradictionEntry {
                 contradiction_id: "contradiction_tomas_missing_coin".to_string(),
                 holder_actor_id: ActorId::new("actor_tomas").unwrap(),
                 expectation_belief_id: "belief_tomas_expected_coin".to_string(),
                 observation_id: "obs_tomas_checked_strongbox".to_string(),
                 summary: "expected item absent from container".to_string(),
             }],
-            possession_metadata: vec!["controller_human->actor_tomas@2".to_string()],
-            projection_summary: "epistemic_projection_v1".to_string(),
-        };
+            vec!["controller_human->actor_tomas@2".to_string()],
+            "epistemic_projection_v1",
+        );
 
-        assert!(view.debug_only);
-        assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+        assert!(view.debug_only());
+        assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
         assert_eq!(view.beliefs_by_holder.len(), 2);
         assert_eq!(
             DebugViewModel::Epistemics(view.clone()),
@@ -526,37 +695,26 @@ mod tests {
 
     #[test]
     fn focused_debug_views_are_marked_non_diegetic() {
-        let beliefs = DebugBeliefsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            holder_actor_id: ActorId::new("actor_tomas").unwrap(),
-            beliefs: Vec::new(),
-        };
-        let observations = DebugObservationsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            observer_actor_id: ActorId::new("actor_tomas").unwrap(),
-            observations: Vec::new(),
-        };
+        let beliefs = DebugBeliefsView::new(ActorId::new("actor_tomas").unwrap(), Vec::new());
+        let observations =
+            DebugObservationsView::new(ActorId::new("actor_tomas").unwrap(), Vec::new());
 
-        assert!(beliefs.debug_only);
-        assert!(observations.debug_only);
-        assert_eq!(beliefs.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
-        assert_eq!(observations.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+        assert!(beliefs.debug_only());
+        assert!(observations.debug_only());
+        assert_eq!(beliefs.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
+        assert_eq!(observations.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
     }
 
     #[test]
     fn truth_belief_mismatch_shows_truth_and_belief_side_by_side() {
-        let mismatch = DebugTruthBeliefMismatchView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            item_id: ItemId::new("coin_stack_01").unwrap(),
-            ground_truth_location: "actor:actor_mara".to_string(),
-            held_belief_summary: "coin_stack_01 is missing from expected location".to_string(),
-            mismatch_summary: "truth and holder belief diverge".to_string(),
-        };
+        let mismatch = DebugTruthBeliefMismatchView::new(
+            ItemId::new("coin_stack_01").unwrap(),
+            "actor:actor_mara",
+            "coin_stack_01 is missing from expected location",
+            "truth and holder belief diverge",
+        );
 
-        assert!(mismatch.debug_only);
+        assert!(mismatch.debug_only());
         assert!(mismatch.ground_truth_location.contains("actor_mara"));
         assert!(mismatch.held_belief_summary.contains("missing"));
     }

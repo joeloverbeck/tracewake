@@ -10,7 +10,7 @@ use tracewake_core::view_models::{
 const DEBUG_MARKER: &str = "DEBUG NON-DIEGETIC";
 
 pub fn render_item_location_panel(report: &ItemLocationDebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     lines(
         "Item Location",
         vec![
@@ -34,7 +34,7 @@ pub fn render_item_location_panel(report: &ItemLocationDebugReport) -> String {
 }
 
 pub fn render_action_rejection_panel(report: &ActionRejectionDebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     lines(
         "Action Rejection",
         vec![
@@ -58,7 +58,7 @@ pub fn render_action_rejection_panel(report: &ActionRejectionDebugReport) -> Str
 }
 
 pub fn render_event_log_panel(view: &DebugEventLogView) -> String {
-    assert!(view.debug_only);
+    assert!(view.debug_only());
     let mut rows = vec![format!("event_count={}", view.events.len())];
     rows.extend(view.events.iter().map(|event| {
         format!(
@@ -70,14 +70,14 @@ pub fn render_event_log_panel(view: &DebugEventLogView) -> String {
 }
 
 pub fn render_controller_binding_panel(report: &ControllerBindingDebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     let mut rows = vec![format!("binding_count={}", report.bindings.len())];
     rows.extend(report.bindings.iter().cloned());
     lines("Controller Binding", rows)
 }
 
 pub fn render_projection_rebuild_panel(report: &ProjectionRebuildDebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     lines(
         "Projection Rebuild",
         vec![
@@ -98,7 +98,7 @@ pub fn render_projection_rebuild_panel(report: &ProjectionRebuildDebugReport) ->
 }
 
 pub fn render_replay_panel(report: &ReplayDebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     lines(
         "Replay",
         vec![
@@ -120,8 +120,8 @@ pub fn render_replay_panel(report: &ReplayDebugReport) -> String {
 }
 
 pub fn render_debug_epistemics_panel(view: &DebugEpistemicsView) -> String {
-    assert!(view.debug_only);
-    assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    assert!(view.debug_only());
+    assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
     let mut rows = vec![
         format!("context_mode={}", view.context_mode),
         format!("projection={}", view.projection_summary),
@@ -160,8 +160,8 @@ pub fn render_debug_epistemics_panel(view: &DebugEpistemicsView) -> String {
 }
 
 pub fn render_debug_beliefs_panel(view: &DebugBeliefsView) -> String {
-    assert!(view.debug_only);
-    assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    assert!(view.debug_only());
+    assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
     let mut rows = vec![
         format!("actor={}", view.holder_actor_id.as_str()),
         format!("belief_count={}", view.beliefs.len()),
@@ -176,8 +176,8 @@ pub fn render_debug_beliefs_panel(view: &DebugBeliefsView) -> String {
 }
 
 pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
-    assert!(view.debug_only);
-    assert_eq!(view.non_diegetic_marker, DEBUG_EPISTEMICS_MARKER);
+    assert!(view.debug_only());
+    assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
     let mut rows = vec![
         format!("actor={}", view.observer_actor_id.as_str()),
         format!("observation_count={}", view.observations.len()),
@@ -195,7 +195,7 @@ pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
 }
 
 pub fn render_phase3a_debug_panel(report: &Phase3ADebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     let mut rows = vec![
         format!("typed_decision_traces={}", report.decision_traces.len()),
         format!("typed_stuck_diagnostics={}", report.stuck_diagnostics.len()),
@@ -205,7 +205,7 @@ pub fn render_phase3a_debug_panel(report: &Phase3ADebugReport) -> String {
 }
 
 pub fn render_no_human_day_panel(report: &NoHumanDayDebugReport) -> String {
-    assert!(report.debug_only);
+    assert!(report.debug_only());
     lines(
         "No Human Day",
         vec![

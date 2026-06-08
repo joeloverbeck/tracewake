@@ -38,7 +38,7 @@ use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
     DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView, EmbodiedViewModel,
-    NotebookView, SemanticActionEntry, DEBUG_EPISTEMICS_MARKER,
+    NotebookView, SemanticActionEntry,
 };
 
 use crate::debug_panels::{
@@ -398,20 +398,18 @@ impl TuiApp {
             .collect();
         let checksum = self.epistemic_projection.compute_checksum().checksum;
 
-        DebugEpistemicsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            context_mode: "debug".to_string(),
+        DebugEpistemicsView::new(
+            "debug",
             observations,
             beliefs_by_holder,
             contradictions,
-            possession_metadata: Vec::new(),
-            projection_summary: format!(
+            Vec::new(),
+            format!(
                 "{} checksum={}",
                 self.epistemic_projection.projection_version.as_str(),
                 checksum.as_str()
             ),
-        }
+        )
     }
 
     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
@@ -425,12 +423,7 @@ impl TuiApp {
             .filter(|belief| belief.holder == HolderKind::Actor(actor_id.clone()))
             .map(debug_belief_entry)
             .collect();
-        Ok(DebugBeliefsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            holder_actor_id: actor_id.clone(),
-            beliefs,
-        })
+        Ok(DebugBeliefsView::new(actor_id.clone(), beliefs))
     }
 
     pub fn debug_observations_view(
@@ -447,12 +440,7 @@ impl TuiApp {
             .filter(|observation| observation.observer_actor_id == *actor_id)
             .map(debug_observation_entry)
             .collect();
-        Ok(DebugObservationsView {
-            debug_only: true,
-            non_diegetic_marker: DEBUG_EPISTEMICS_MARKER.to_string(),
-            observer_actor_id: actor_id.clone(),
-            observations,
-        })
+        Ok(DebugObservationsView::new(actor_id.clone(), observations))
     }
 }
 
