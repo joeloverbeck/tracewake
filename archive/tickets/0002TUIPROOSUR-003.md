@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-003: Actor-visible affordances derived only from the sealed context
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (affordance / semantic-action generation in `projections.rs`)
@@ -74,3 +74,25 @@ Where truth-aware preflight remains, restrict it to classifying the availability
 1. `cargo test -p tracewake-core hidden_truth_gates`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
 3. The hidden-truth gate test is the correct boundary because it directly exercises the leak the requirement forbids.
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added actor-visible Phase 3A candidate lists to `EmbodiedProjectionSource`.
+- Changed Phase 3A affordance construction to iterate actor-known food/workplace candidates instead of enumerating all physical food/workplace records.
+- Kept truth-aware validation/preflight as availability classification for already surfaced candidates.
+- Added a hidden-truth integration gate proving closed-container hidden food does not appear in semantic action IDs, labels, targets, or disabled reasons, while a visible local food source still appears.
+
+Deviations from original plan:
+- The current route-knowledge model does not yet expose a separate sealed route-fact packet, so this ticket scopes the implementation to the Phase 3A food/work/routine target-discovery seam named by the ticket. Hidden-route planning remains covered by the existing typed planning gate.
+
+Verification results:
+- `cargo test -p tracewake-core --test hidden_truth_gates` passed.
+- `cargo test -p tracewake-core projections::tests::view_models_embodied_phase3a_status_is_viewer_scoped_and_actor_known` passed.
+- `cargo test -p tracewake-tui --test embodied_flow` passed.
+- `cargo test -p tracewake-core` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo test --workspace` passed.

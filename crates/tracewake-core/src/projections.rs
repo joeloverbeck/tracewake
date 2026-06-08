@@ -6,8 +6,8 @@ use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, ItemId, PlaceId, ProposalId,
-    SemanticActionId, ViewModelId,
+    ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, ItemId, PlaceId, ProposalId,
+    SemanticActionId, ViewModelId, WorkplaceId,
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -30,16 +30,84 @@ pub enum ProjectionError {
 pub struct EmbodiedProjectionSource<'a> {
     state: &'a PhysicalState,
     agent_state: Option<&'a AgentState>,
+    actor_known_food_sources: Vec<FoodSupplyId>,
+    actor_known_workplaces: Vec<WorkplaceId>,
 }
 
 impl<'a> EmbodiedProjectionSource<'a> {
     pub fn from_sealed_context(
-        _context: &'a KnowledgeContext,
+        context: &'a KnowledgeContext,
         state: &'a PhysicalState,
         agent_state: Option<&'a AgentState>,
     ) -> Self {
-        Self { state, agent_state }
+        let viewer_actor_id = &context.viewer_actor_id;
+        let actor_known_food_sources =
+            actor_known_food_sources_for_context(context, state, viewer_actor_id);
+        let actor_known_workplaces = actor_known_workplaces_for_context(state, viewer_actor_id);
+        Self {
+            state,
+            agent_state,
+            actor_known_food_sources,
+            actor_known_workplaces,
+        }
     }
+}
+
+fn actor_known_food_sources_for_context(
+    context: &KnowledgeContext,
+    state: &PhysicalState,
+    viewer_actor_id: &ActorId,
+) -> Vec<FoodSupplyId> {
+    let Some(actor) = state.actors.get(viewer_actor_id) else {
+        return Vec::new();
+    };
+    let mut food_sources = state
+        .food_supplies
+        .values()
+        .filter(|food| actor_can_see_food_source(state, actor, viewer_actor_id, food))
+        .map(|food| food.food_supply_id.clone())
+        .collect::<Vec<_>>();
+    if context.mode == crate::epistemics::ViewMode::Embodied {
+        food_sources.sort();
+        food_sources.dedup();
+    }
+    food_sources
+}
+
+fn actor_can_see_food_source(
+    state: &PhysicalState,
+    actor: &ActorBody,
+    viewer_actor_id: &ActorId,
+    food: &crate::state::FoodSupplyState,
+) -> bool {
+    match &food.location {
+        Location::AtPlace(place_id) => place_id == &actor.current_place_id,
+        Location::CarriedBy(actor_id) => actor_id == viewer_actor_id,
+        Location::InContainer(container_id) => {
+            state.containers.get(container_id).is_some_and(|container| {
+                container.location == Location::AtPlace(actor.current_place_id.clone())
+                    && container.is_open
+            })
+        }
+    }
+}
+
+fn actor_known_workplaces_for_context(
+    state: &PhysicalState,
+    viewer_actor_id: &ActorId,
+) -> Vec<WorkplaceId> {
+    let mut workplaces = state
+        .workplaces
+        .values()
+        .filter(|workplace| {
+            workplace.assigned_actor_ids.is_empty()
+                || workplace.assigned_actor_ids.contains(viewer_actor_id)
+        })
+        .map(|workplace| workplace.workplace_id.clone())
+        .collect::<Vec<_>>();
+    workplaces.sort();
+    workplaces.dedup();
+    workplaces
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -325,6 +393,7 @@ pub fn build_embodied_view_model(
     semantic_actions.extend(phase3a_semantic_actions(
         state,
         agent_state,
+        source,
         actor,
         viewer_actor_id,
     ));
@@ -478,6 +547,7 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
 fn phase3a_semantic_actions(
     state: &PhysicalState,
     agent_state: Option<&AgentState>,
+    source: &EmbodiedProjectionSource<'_>,
     actor: &ActorBody,
     viewer_actor_id: &ActorId,
 ) -> Vec<SemanticActionEntry> {
@@ -491,54 +561,43 @@ fn phase3a_semantic_actions(
         None,
     ));
 
-    for food in state.food_supplies.values() {
-        let reachable = match &food.location {
-            Location::AtPlace(place_id) => place_id == &actor.current_place_id,
-            Location::CarriedBy(actor_id) => actor_id == viewer_actor_id,
-            Location::InContainer(container_id) => {
-                state.containers.get(container_id).is_some_and(|container| {
-                    container.location == Location::AtPlace(actor.current_place_id.clone())
-                        && container.is_open
-                })
-            }
+    for food_supply_id in &source.actor_known_food_sources {
+        let Some(food) = state.food_supplies.get(food_supply_id) else {
+            continue;
         };
-        if reachable {
-            actions.push(SemanticActionEntry::new(
-                SemanticActionId::new(format!("eat.food.{}", food.food_supply_id.as_str()))
-                    .unwrap(),
-                ActionId::new("eat").unwrap(),
-                vec![food.food_supply_id.to_string()],
-                format!("Eat {}", food.food_supply_id.as_str()),
-                !food.is_empty(),
-                food.is_empty()
-                    .then_some("No servings are available here.".to_string()),
-            ));
-        }
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new(format!("eat.food.{}", food.food_supply_id.as_str())).unwrap(),
+            ActionId::new("eat").unwrap(),
+            vec![food.food_supply_id.to_string()],
+            format!("Eat {}", food.food_supply_id.as_str()),
+            !food.is_empty(),
+            food.is_empty()
+                .then_some("No servings are available here.".to_string()),
+        ));
     }
 
-    for workplace in state.workplaces.values() {
-        let assigned = workplace.assigned_actor_ids.is_empty()
-            || workplace.assigned_actor_ids.contains(viewer_actor_id);
-        if assigned {
-            let at_workplace = workplace.place_id == actor.current_place_id;
-            let enabled = at_workplace && workplace.access_open;
-            let why_disabled = if !at_workplace {
-                Some("You are not at that workplace.".to_string())
-            } else if !workplace.access_open {
-                Some("That workplace is not available.".to_string())
-            } else {
-                None
-            };
-            actions.push(SemanticActionEntry::new(
-                SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
-                    .unwrap(),
-                ActionId::new("work_block").unwrap(),
-                vec![workplace.workplace_id.to_string()],
-                format!("Work at {}", workplace.workplace_id.as_str()),
-                enabled,
-                why_disabled,
-            ));
-        }
+    for workplace_id in &source.actor_known_workplaces {
+        let Some(workplace) = state.workplaces.get(workplace_id) else {
+            continue;
+        };
+        let at_workplace = workplace.place_id == actor.current_place_id;
+        let enabled = at_workplace && workplace.access_open;
+        let why_disabled = if !at_workplace {
+            Some("You are not at that workplace.".to_string())
+        } else if !workplace.access_open {
+            Some("That workplace is not available.".to_string())
+        } else {
+            None
+        };
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
+                .unwrap(),
+            ActionId::new("work_block").unwrap(),
+            vec![workplace.workplace_id.to_string()],
+            format!("Work at {}", workplace.workplace_id.as_str()),
+            enabled,
+            why_disabled,
+        ));
     }
 
     if let Some((intention_id, intention)) = agent_state.and_then(|agent_state| {
@@ -1289,6 +1348,20 @@ mod tests {
                 200,
             ),
         );
+        let hidden_container_id = container_id("hidden_pantry");
+        state.containers.insert(
+            hidden_container_id.clone(),
+            ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("shop_front")),
+        );
+        state.food_supplies.insert(
+            FoodSupplyId::new("food_hidden_pantry").unwrap(),
+            FoodSupplyState::new(
+                FoodSupplyId::new("food_hidden_pantry").unwrap(),
+                Location::InContainer(hidden_container_id),
+                1,
+                200,
+            ),
+        );
         let mut workplace = WorkplaceState::new(
             WorkplaceId::new("workplace_tomas").unwrap(),
             place_id("shop_front"),
@@ -1360,6 +1433,21 @@ mod tests {
             .semantic_actions
             .iter()
             .any(|entry| entry.semantic_action_id.as_str() == "eat.food.food_hidden_back_room"));
+        assert!(!view.semantic_actions.iter().any(|entry| {
+            entry
+                .semantic_action_id
+                .as_str()
+                .contains("food_hidden_pantry")
+                || entry.label.contains("food_hidden_pantry")
+                || entry
+                    .target_ids
+                    .iter()
+                    .any(|target| target == "food_hidden_pantry")
+                || entry
+                    .why_disabled
+                    .as_deref()
+                    .is_some_and(|why| why.contains("food_hidden_pantry"))
+        }));
         assert!(view
             .semantic_actions
             .iter()
