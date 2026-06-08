@@ -46,6 +46,7 @@ pub use routine::{
     RoutineStepProposal, RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
 };
 pub use trace::{
-    BlockerCategory, DecisionOutcome, DecisionTrace, HiddenTruthAudit, RejectedDecisionItem,
-    StuckDiagnostic, StuckDiagnosticParseError, StuckResultingStatus,
+    BlockerCategory, DecisionOutcome, DecisionTrace, DecisionTraceRecord,
+    DecisionTraceRecordParseError, HiddenTruthAudit, RejectedDecisionItem, StuckDiagnostic,
+    StuckDiagnosticParseError, StuckDiagnosticRecord, StuckResultingStatus,
 };

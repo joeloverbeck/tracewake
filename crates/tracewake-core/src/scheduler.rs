@@ -1012,6 +1012,7 @@ pub mod no_human {
         event.proposal_id = Some(proposal.proposal_id.clone());
         event.participants = vec![actor_id.to_string(), trace_id.to_string()];
         event.payload = vec![
+            PayloadField::new("trace_schema_version", "1"),
             PayloadField::new("trace_id", trace_id.as_str()),
             PayloadField::new("trace_canonical", trace_canonical),
             PayloadField::new("actor_id", actor_id.as_str()),
@@ -1942,6 +1943,7 @@ pub mod no_human {
         event.process_id = Some(process_id.clone());
         event.participants = vec![actor_id.to_string()];
         event.payload = vec![
+            PayloadField::new("diagnostic_schema_version", "1"),
             PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
             PayloadField::new("diagnostic_canonical", canonical),
         ];

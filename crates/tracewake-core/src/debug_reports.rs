@@ -376,7 +376,7 @@ pub fn phase3a_stuck_report(agent_state: &AgentState) -> Phase3ADebugReport {
         rows.push(format!(
             "stuck={} {}",
             diagnostic_id.as_str(),
-            summarize_stuck_canonical(diagnostic)
+            summarize_stuck_canonical(&diagnostic.serialize_canonical())
         ));
     }
     phase3a_report("debug.phase3a.stuck", "Stuck", rows)
@@ -419,8 +419,14 @@ fn trace_rows_for_actor(agent_state: &AgentState, actor_id: &ActorId) -> Vec<Str
     agent_state
         .decision_traces
         .iter()
-        .filter(|(_, trace)| trace_mentions_actor(trace, actor_id))
-        .map(|(trace_id, trace)| format!("trace={} {}", trace_id.as_str(), trace))
+        .filter(|(_, trace)| &trace.actor_id == actor_id)
+        .map(|(trace_id, trace)| {
+            format!(
+                "trace={} {}",
+                trace_id.as_str(),
+                trace.serialize_canonical()
+            )
+        })
         .collect()
 }
 
@@ -428,19 +434,15 @@ fn stuck_rows_for_actor(agent_state: &AgentState, actor_id: &ActorId) -> Vec<Str
     agent_state
         .stuck_diagnostics
         .iter()
-        .filter(|(_, diagnostic)| diagnostic.contains(actor_id.as_str()))
+        .filter(|(_, diagnostic)| &diagnostic.actor_id == actor_id)
         .map(|(diagnostic_id, diagnostic)| {
             format!(
                 "stuck={} {}",
                 diagnostic_id.as_str(),
-                summarize_stuck_canonical(diagnostic)
+                summarize_stuck_canonical(&diagnostic.serialize_canonical())
             )
         })
         .collect()
-}
-
-fn trace_mentions_actor(trace: &str, actor_id: &ActorId) -> bool {
-    trace.split('|').nth(2) == Some(actor_id.as_str()) || trace.contains(actor_id.as_str())
 }
 
 fn summarize_stuck_canonical(diagnostic: &str) -> String {
@@ -492,7 +494,7 @@ mod tests {
     use crate::ids::{
         ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
         DecisionTraceId, FixtureId, IntentionId, PlaceId, ProposalId, RoutineExecutionId,
-        RoutineTemplateId, StuckDiagnosticId,
+        RoutineTemplateId, SemanticActionId, StuckDiagnosticId,
     };
     use crate::state::{
         ActorBody, AgentState, ContainerState, ItemState, PhysicalState, PlaceState,
@@ -706,14 +708,41 @@ mod tests {
             ),
         );
         agent_state.decision_traces.insert(
-            trace_id,
-            "decision_trace_v1|trace_mara_food|actor_mara|4|10|failed|2|true|candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only"
-                .to_string(),
+            trace_id.clone(),
+            crate::agent::DecisionTraceRecord {
+                trace_id,
+                actor_id: actor_mara.clone(),
+                window_start_tick: SimTick::new(4),
+                window_end_tick: SimTick::new(10),
+                outcome: crate::agent::DecisionOutcome::Failed,
+                candidate_goal_count: 2,
+                hidden_truth_audit_result: crate::agent::HiddenTruthAudit {
+                    actor_known_only: true,
+                    notes: "candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only".to_string(),
+                },
+            },
         );
         agent_state.stuck_diagnostics.insert(
             StuckDiagnosticId::new("stuck_mara_food").unwrap(),
-            "stuck_diagnostic_v1|stuck_mara_food|actor_mara|4|10|hunger|goal_mara_eat|intention_mara_eat|routine_mara_food_unavailable|routine_exec_mara_eat|none|eat.food_empty_pantry_mara|resource|empty_pantry|Mara knows no reachable food|blocked precondition: no actor-known serving|fallback_to_find_food|replanning"
-                .to_string(),
+            crate::agent::StuckDiagnostic::new(
+                StuckDiagnosticId::new("stuck_mara_food").unwrap(),
+                actor_mara.clone(),
+                SimTick::new(4),
+                SimTick::new(10),
+                Some(NeedKind::Hunger),
+                Some(CandidateGoalId::new("goal_mara_eat").unwrap()),
+                Some(IntentionId::new("intention_mara_eat").unwrap()),
+                Some(RoutineTemplateId::new("routine_mara_food_unavailable").unwrap()),
+                Some(RoutineExecutionId::new("routine_exec_mara_eat").unwrap()),
+                None,
+                Some(SemanticActionId::new("eat.food_empty_pantry_mara").unwrap()),
+                crate::agent::BlockerCategory::Resource,
+                "empty_pantry",
+                "Mara knows no reachable food",
+                "blocked precondition: no actor-known serving",
+                "fallback_to_find_food",
+                crate::agent::StuckResultingStatus::Replanning,
+            ),
         );
         let before = agent_state.clone();
 

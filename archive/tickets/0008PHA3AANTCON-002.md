@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-002: Typed decision-trace & stuck-diagnostic state, versioned events, replay
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core`: `AgentState` trace/diagnostic maps `String`→typed records; versioned event payloads/variants for `DecisionTraceRecorded`/`StuckDiagnosticRecorded`; replay rebuilds typed records
@@ -90,3 +90,19 @@ Give `DecisionTraceRecorded` / `StuckDiagnosticRecorded` (`events/envelope.rs`, 
 
 1. `cargo test -p tracewake-core replay::`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Implemented typed authoritative trace/diagnostic state. `AgentState::decision_traces` now stores `DecisionTraceRecord`, and `AgentState::stuck_diagnostics` stores `StuckDiagnosticRecord`. Canonical strings remain derived through `serialize_canonical()` for checksum and debug display. `DecisionTraceRecorded` and `StuckDiagnosticRecorded` now require payload schema version `1` and parse typed records before storing them; unsupported versions fail closed. Replay rebuilds typed maps through the normal event applier and existing live/replay structural equality checks now compare typed records.
+
+Deviations from original plan: `StuckDiagnosticRecord` is a type alias to the existing typed `StuckDiagnostic` because that type already had the required authoritative fields and canonical round-trip implementation. Scheduler still emits the current post-proposal/post-window records; transaction-owned emission remains with later tickets.
+
+Verification:
+
+- `cargo test -p tracewake-core replay::`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
