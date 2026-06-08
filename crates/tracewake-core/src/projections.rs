@@ -27,6 +27,21 @@ pub enum ProjectionError {
     PlaceNotFound(PlaceId),
 }
 
+pub struct EmbodiedProjectionSource<'a> {
+    state: &'a PhysicalState,
+    agent_state: Option<&'a AgentState>,
+}
+
+impl<'a> EmbodiedProjectionSource<'a> {
+    pub fn from_sealed_context(
+        _context: &'a KnowledgeContext,
+        state: &'a PhysicalState,
+        agent_state: Option<&'a AgentState>,
+    ) -> Self {
+        Self { state, agent_state }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoHumanDayMetrics {
     pub projection_version: String,
@@ -191,33 +206,16 @@ fn is_player_term(value: &str) -> bool {
 }
 
 pub fn build_embodied_view_model(
-    state: &PhysicalState,
+    context: &KnowledgeContext,
+    source: &EmbodiedProjectionSource<'_>,
     registry: &ActionRegistry,
     content_manifest_id: &ContentManifestId,
-    viewer_actor_id: &ActorId,
-    sim_tick: SimTick,
     last_rejection: Option<&ValidationReport>,
 ) -> Result<EmbodiedViewModel, ProjectionError> {
-    build_embodied_view_model_with_agent_state(
-        state,
-        None,
-        registry,
-        content_manifest_id,
-        viewer_actor_id,
-        sim_tick,
-        last_rejection,
-    )
-}
-
-pub fn build_embodied_view_model_with_agent_state(
-    state: &PhysicalState,
-    agent_state: Option<&AgentState>,
-    registry: &ActionRegistry,
-    content_manifest_id: &ContentManifestId,
-    viewer_actor_id: &ActorId,
-    sim_tick: SimTick,
-    last_rejection: Option<&ValidationReport>,
-) -> Result<EmbodiedViewModel, ProjectionError> {
+    let viewer_actor_id = &context.viewer_actor_id;
+    let sim_tick = context.current_tick;
+    let state = source.state;
+    let agent_state = source.agent_state;
     let actor = state
         .actors
         .get(viewer_actor_id)
@@ -354,37 +352,17 @@ pub fn build_embodied_view_model_with_agent_state(
         phase3a_status: agent_state.map(|agent_state| phase3a_status(agent_state, viewer_actor_id)),
         last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
         last_rejection_why_not: last_rejection.map(WhyNotView::from),
-        knowledge_context_id: None,
+        holder_known_context_id: context.holder_known_context_id().clone(),
+        holder_known_context_hash: context.holder_known_context_hash().clone(),
+        holder_known_context_frontier: context.event_frontier,
+        holder_known_context_source_summary: format!(
+            "allowed={} provenance={}",
+            context.allowed_sources.len(),
+            context.provenance_entries().len()
+        ),
         notebook: None,
         debug_available: true,
     })
-}
-
-pub fn build_embodied_view_model_with_notebook(
-    state: &PhysicalState,
-    registry: &ActionRegistry,
-    content_manifest_id: &ContentManifestId,
-    viewer_actor_id: &ActorId,
-    sim_tick: SimTick,
-    last_rejection: Option<&ValidationReport>,
-    projection: &EpistemicProjection,
-) -> Result<EmbodiedViewModel, ProjectionError> {
-    let mut view = build_embodied_view_model(
-        state,
-        registry,
-        content_manifest_id,
-        viewer_actor_id,
-        sim_tick,
-        last_rejection,
-    )?;
-    let context = KnowledgeContext::embodied(viewer_actor_id.clone(), sim_tick);
-    view.knowledge_context_id = Some(format!(
-        "knowledge.{}.{}",
-        viewer_actor_id.as_str(),
-        sim_tick.value()
-    ));
-    view.notebook = Some(build_notebook_view(projection, &context));
-    Ok(view)
 }
 
 pub fn build_notebook_view(
@@ -925,15 +903,10 @@ mod tests {
     }
 
     fn view_for(state: &PhysicalState) -> EmbodiedViewModel {
-        build_embodied_view_model(
-            state,
-            &registry(),
-            &content_manifest_id(),
-            &actor_id("actor_tomas"),
-            SimTick::new(1),
-            None,
-        )
-        .unwrap()
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, state, None);
+        build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+            .unwrap()
     }
 
     fn state() -> PhysicalState {
@@ -1268,18 +1241,22 @@ mod tests {
     #[test]
     fn embodied_view_can_carry_actor_known_notebook() {
         let projection = projection_with_missing_coin_belief();
-        let view = build_embodied_view_model_with_notebook(
-            &state(),
-            &registry(),
-            &content_manifest_id(),
-            &actor_id("actor_tomas"),
-            SimTick::new(4),
-            None,
-            &projection,
-        )
-        .unwrap();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(4));
+        let state = state();
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+        let mut view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+        view.notebook = Some(build_notebook_view(&projection, &context));
 
-        assert!(view.knowledge_context_id.is_some());
+        assert_eq!(
+            view.holder_known_context_id,
+            context.holder_known_context_id().clone()
+        );
+        assert_eq!(
+            view.holder_known_context_hash,
+            context.holder_known_context_hash().clone()
+        );
         assert_eq!(
             view.notebook.unwrap().source_bound_beliefs[0].acquired_tick,
             3
@@ -1358,16 +1335,12 @@ mod tests {
             ),
         );
 
-        let view = build_embodied_view_model_with_agent_state(
-            &state,
-            Some(&agent_state),
-            &registry(),
-            &content_manifest_id(),
-            &actor_id("actor_tomas"),
-            SimTick::new(2),
-            None,
-        )
-        .unwrap();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(2));
+        let source =
+            EmbodiedProjectionSource::from_sealed_context(&context, &state, Some(&agent_state));
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
 
         let status = view.phase3a_status.as_ref().unwrap();
         assert_eq!(status.need_summaries.len(), 1);

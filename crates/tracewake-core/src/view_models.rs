@@ -1,7 +1,9 @@
 use crate::actions::report::{ReasonCode, ValidationReport};
+use crate::checksum::HolderKnownContextHash;
 use crate::events::{EventEnvelope, EventStream};
 use crate::ids::{
-    ActionId, ActorId, ContainerId, DoorId, ItemId, PlaceId, SemanticActionId, ViewModelId,
+    ActionId, ActorId, ContainerId, DoorId, HolderKnownContextId, ItemId, PlaceId,
+    SemanticActionId, ViewModelId,
 };
 use crate::time::SimTick;
 
@@ -30,7 +32,10 @@ pub struct EmbodiedViewModel {
     pub phase3a_status: Option<Phase3AEmbodiedStatus>,
     pub last_rejection_summary: Option<String>,
     pub last_rejection_why_not: Option<WhyNotView>,
-    pub knowledge_context_id: Option<String>,
+    pub holder_known_context_id: HolderKnownContextId,
+    pub holder_known_context_hash: HolderKnownContextHash,
+    pub holder_known_context_frontier: u64,
+    pub holder_known_context_source_summary: String,
     pub notebook: Option<NotebookView>,
     pub debug_available: bool,
 }

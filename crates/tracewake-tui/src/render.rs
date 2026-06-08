@@ -24,9 +24,14 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     } else if let Some(summary) = &view.last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
     }
-    if let Some(context_id) = &view.knowledge_context_id {
-        lines.push(format!("Knowledge context: {context_id}"));
-    }
+    lines.push(format!(
+        "Knowledge context: id={} hash={} tick={} frontier={} sources={}",
+        view.holder_known_context_id.as_str(),
+        view.holder_known_context_hash.as_str(),
+        view.sim_tick.value(),
+        view.holder_known_context_frontier,
+        view.holder_known_context_source_summary
+    ));
     if let Some(status) = &view.phase3a_status {
         lines.push("Needs:".to_string());
         if status.need_summaries.is_empty() {
@@ -203,14 +208,20 @@ pub fn render_rejection(report: &ValidationReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tracewake_core::epistemics::KnowledgeContext;
     use tracewake_core::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
         EmbodiedViewModel, SemanticActionEntry, ViewMode, VisibleItem, VisibleItemSource,
     };
 
+    fn context() -> KnowledgeContext {
+        KnowledgeContext::embodied(ActorId::new("actor_lina").unwrap(), SimTick::ZERO)
+    }
+
     #[test]
     fn renderer_prints_semantic_action_ids() {
+        let context = context();
         let view = EmbodiedViewModel {
             view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
             mode: ViewMode::Embodied,
@@ -235,7 +246,10 @@ mod tests {
             phase3a_status: None,
             last_rejection_summary: None,
             last_rejection_why_not: None,
-            knowledge_context_id: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier,
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
             notebook: None,
             debug_available: true,
         };
@@ -248,6 +262,7 @@ mod tests {
 
     #[test]
     fn renderer_prints_carried_items_under_inventory_not_items() {
+        let context = context();
         let view = EmbodiedViewModel {
             view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
             mode: ViewMode::Embodied,
@@ -273,7 +288,10 @@ mod tests {
             phase3a_status: None,
             last_rejection_summary: None,
             last_rejection_why_not: None,
-            knowledge_context_id: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier,
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
             notebook: None,
             debug_available: true,
         };

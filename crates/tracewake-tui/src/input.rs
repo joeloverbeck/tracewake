@@ -154,11 +154,14 @@ pub fn semantic_id_for_selection(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tracewake_core::epistemics::KnowledgeContext;
     use tracewake_core::ids::{ActionId, SemanticActionId, ViewModelId};
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{SemanticActionEntry, ViewMode};
 
     fn view() -> EmbodiedViewModel {
+        let context =
+            KnowledgeContext::embodied(ActorId::new("actor_tomas").unwrap(), SimTick::ZERO);
         EmbodiedViewModel {
             view_model_id: ViewModelId::new("view.actor_tomas.0").unwrap(),
             mode: ViewMode::Embodied,
@@ -193,7 +196,10 @@ mod tests {
             phase3a_status: None,
             last_rejection_summary: None,
             last_rejection_why_not: None,
-            knowledge_context_id: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier,
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
             notebook: None,
             debug_available: true,
         }

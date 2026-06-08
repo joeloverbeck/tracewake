@@ -23,8 +23,8 @@ use tracewake_core::ids::{
     ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model_with_agent_state, build_notebook_view,
-    proposal_from_semantic_action_entry, ProjectionError,
+    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
+    proposal_from_semantic_action_entry, EmbodiedProjectionSource, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -153,25 +153,24 @@ impl TuiApp {
             .bound_actor_id
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
-        let mut view = build_embodied_view_model_with_agent_state(
+        let context = tracewake_core::epistemics::KnowledgeContext::embodied_at_frontier(
+            actor_id.clone(),
+            self.scheduler.current_tick,
+            self.log.events().len() as u64,
+        );
+        let source = EmbodiedProjectionSource::from_sealed_context(
+            &context,
             &self.state,
             Some(&self.agent_state),
+        );
+        let mut view = build_embodied_view_model(
+            &context,
+            &source,
             &self.registry,
             &self.content_manifest_id,
-            actor_id,
-            self.scheduler.current_tick,
             self.last_rejection.as_ref(),
         )
         .map_err(AppError::from)?;
-        let context = tracewake_core::epistemics::KnowledgeContext::embodied(
-            actor_id.clone(),
-            self.scheduler.current_tick,
-        );
-        view.knowledge_context_id = Some(format!(
-            "knowledge.{}.{}",
-            actor_id.as_str(),
-            self.scheduler.current_tick.value()
-        ));
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
         Ok(view)
     }

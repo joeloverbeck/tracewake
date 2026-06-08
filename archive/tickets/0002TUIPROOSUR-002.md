@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-002: Embodied view-model construction routes through the sealed packet
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (view-model builders, `EmbodiedViewModel` schema), `tracewake-tui` (`current_view`, renderer)
@@ -84,3 +84,26 @@ Render an actor-safe context line in `render_embodied_view`: context id/hash, ti
 1. `cargo test -p tracewake-tui embodied_flow`
 2. `grep -rn "knowledge_context_id: Option<String>\|knowledge\.{}\.{}" crates/` (must return zero after implementation)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Replaced `EmbodiedViewModel.knowledge_context_id: Option<String>` with typed `holder_known_context_id` and `holder_known_context_hash`, plus actor-safe frontier/source summary fields for rendering.
+- Routed `TuiApp::current_view` through a sealed `KnowledgeContext::embodied_at_frontier` and the core embodied builder.
+- Collapsed the old public raw-state builder variants; `build_embodied_view_model` now takes a sealed context and an opaque `EmbodiedProjectionSource`.
+- Rendered the actor-safe context line with context id, hash, tick, frontier, and source summary.
+- Added TUI embodied-flow assertions for typed context id/hash and the actor-safe rendered context line.
+
+Deviations from original plan:
+- The projection source wrapper still bridges from current world state while later tickets move more actor-visible facts into the sealed context; the public builder itself no longer accepts raw `&PhysicalState`/`&AgentState` parameters or the removed raw-state builder variants.
+
+Verification results:
+- `cargo test -p tracewake-tui --test embodied_flow` passed.
+- `cargo test -p tracewake-core` passed.
+- `cargo test -p tracewake-tui` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo test --workspace` passed.
+- `rg -n "knowledge_context_id: Option<String>|knowledge\\.\\{\\}\\.\\{\\}|build_embodied_view_model_with_agent_state|build_embodied_view_model_with_notebook" crates/` returned zero matches.
