@@ -10,6 +10,8 @@ const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
+const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 
 struct BannedApiToken {
     token: &'static str,
@@ -206,6 +208,104 @@ fn low_pressure_agent_state(
         .collect(),
     );
     state
+}
+
+fn source_bound_human_proposal(
+    proposal_id: &str,
+    actor_id: &tracewake_core::ids::ActorId,
+    action_id: &str,
+    semantic_action_id: &str,
+    tick: tracewake_core::time::SimTick,
+    frontier: u64,
+) -> tracewake_core::actions::Proposal {
+    use tracewake_core::actions::{
+        Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext,
+    };
+    use tracewake_core::epistemics::KnowledgeContext;
+    use tracewake_core::ids::{ActionId, ProposalId, SemanticActionId, ViewModelId};
+
+    let mut proposal = Proposal::new(
+        ProposalId::new(proposal_id).unwrap(),
+        ProposalOrigin::Human,
+        Some(actor_id.clone()),
+        ActionId::new(action_id).unwrap(),
+        tick,
+    );
+    let context = KnowledgeContext::embodied_at_frontier(actor_id.clone(), tick, frontier);
+    let source_view_model_id =
+        ViewModelId::new(format!("view.{}.{}", actor_id.as_str(), tick.value())).unwrap();
+    proposal.source_view_model_id = Some(source_view_model_id.clone());
+    proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+        source_view_model_id,
+        holder_known_context_id: context.holder_known_context_id().clone(),
+        holder_known_context_hash: context.holder_known_context_hash().clone(),
+        holder_known_context_frontier: context.event_frontier,
+        context_tick: tick,
+        actor_id: actor_id.clone(),
+        semantic_action_id: SemanticActionId::new(semantic_action_id).unwrap(),
+        provenance_ancestry: vec!["test:current_view".to_string()],
+    }));
+    proposal
+}
+
+fn human_source_report(
+    proposal: &tracewake_core::actions::Proposal,
+    current_event_frontier: u64,
+) -> tracewake_core::actions::ValidationReport {
+    use tracewake_core::actions::{
+        validate_proposal, ActionDefinition, ActionRegistry, ProposalValidationContext,
+    };
+    use tracewake_core::controller::ControllerBindings;
+    use tracewake_core::events::log::EventLog;
+    use tracewake_core::ids::{ActionId, ActorId, ContentManifestId, ControllerId, PlaceId};
+    use tracewake_core::scheduler::{
+        OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+    };
+    use tracewake_core::state::{ActorBody, AgentState, ControllerMode, PhysicalState};
+    use tracewake_core::time::SimTick;
+
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let controller_id = ControllerId::new("controller_human").unwrap();
+    let mut state = PhysicalState::default();
+    state.seed_actors_mut().insert(
+        actor_id.clone(),
+        ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
+    );
+    let mut registry = ActionRegistry::new();
+    registry.register(ActionDefinition::query_only(ActionId::new("look").unwrap()));
+    let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
+    let mut bindings = ControllerBindings::new();
+    let mut binding_log = EventLog::new();
+    bindings.attach(
+        controller_id.clone(),
+        actor_id,
+        ControllerMode::Embodied,
+        SimTick::ZERO,
+        &mut binding_log,
+        content_manifest_id.clone(),
+    );
+    let ordering_key = OrderingKey::new(
+        proposal.requested_tick,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Controller(controller_id),
+        ProposalSequence::new(0),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        "source-context-guard",
+    );
+    validate_proposal(
+        ProposalValidationContext {
+            registry: &registry,
+            state: &state,
+            agent_state: &AgentState::default(),
+            controller_bindings: Some(&bindings),
+            epistemic_projection: None,
+            content_manifest_id: &content_manifest_id,
+            ordering_key: &ordering_key,
+            current_event_frontier,
+        },
+        proposal,
+    )
 }
 
 #[test]
@@ -419,6 +519,168 @@ fn scheduler_never_direct_dispatches_primitive_action() {
             EventKind::NeedDeltaApplied,
             EventKind::NeedDeltaApplied,
         ]
+    );
+}
+
+#[test]
+fn forged_or_stale_source_context_rejected_by_reason_code() {
+    use tracewake_core::actions::{
+        Proposal, ProposalOrigin, ProposalSource, ReasonCode, ReportStatus,
+    };
+    use tracewake_core::ids::{ActionId, ActorId, HolderKnownContextId, ProposalId};
+    use tracewake_core::time::SimTick;
+
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let cases = [
+        (
+            "missing",
+            {
+                Proposal::new(
+                    ProposalId::new("proposal_missing_source").unwrap(),
+                    ProposalOrigin::Human,
+                    Some(actor_id.clone()),
+                    ActionId::new("look").unwrap(),
+                    SimTick::ZERO,
+                )
+            },
+            0,
+            ReasonCode::ProposalSourceMissing,
+        ),
+        (
+            "stale_frontier",
+            source_bound_human_proposal(
+                "proposal_stale_frontier",
+                &actor_id,
+                "look",
+                "look",
+                SimTick::ZERO,
+                0,
+            ),
+            1,
+            ReasonCode::ProposalSourceStale,
+        ),
+        (
+            "forged_semantic_action",
+            source_bound_human_proposal(
+                "proposal_forged_semantic",
+                &actor_id,
+                "look",
+                "move.to.hidden_room",
+                SimTick::ZERO,
+                0,
+            ),
+            0,
+            ReasonCode::ProposalSourceForged,
+        ),
+    ];
+
+    for (case_id, mut proposal, current_frontier, expected_reason) in cases {
+        proposal
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let report = human_source_report(&proposal, current_frontier);
+        assert_eq!(report.status, ReportStatus::Rejected, "{case_id}");
+        assert_eq!(report.reason_codes, vec![expected_reason], "{case_id}");
+        assert_eq!(
+            report
+                .reason_codes
+                .iter()
+                .map(|reason| reason.stable_id())
+                .collect::<Vec<_>>(),
+            vec![expected_reason.stable_id()],
+            "{case_id}"
+        );
+    }
+
+    let mut actor_mismatch = source_bound_human_proposal(
+        "proposal_actor_mismatch",
+        &actor_id,
+        "look",
+        "look",
+        SimTick::ZERO,
+        0,
+    );
+    if let Some(ProposalSource::TuiSemanticAction(source)) = actor_mismatch.source.as_mut() {
+        source.actor_id = ActorId::new("actor_elena").unwrap();
+    }
+    actor_mismatch
+        .parameters
+        .insert("controller_id".to_string(), "controller_human".to_string());
+    let report = human_source_report(&actor_mismatch, 0);
+    assert_eq!(
+        report.reason_codes,
+        vec![ReasonCode::ProposalSourceActorMismatch]
+    );
+
+    let mut stale_tick = source_bound_human_proposal(
+        "proposal_stale_tick",
+        &actor_id,
+        "look",
+        "look",
+        SimTick::ZERO,
+        0,
+    );
+    if let Some(ProposalSource::TuiSemanticAction(source)) = stale_tick.source.as_mut() {
+        source.context_tick = SimTick::new(1);
+    }
+    stale_tick
+        .parameters
+        .insert("controller_id".to_string(), "controller_human".to_string());
+    let report = human_source_report(&stale_tick, 0);
+    assert_eq!(report.reason_codes, vec![ReasonCode::ProposalSourceStale]);
+
+    let mut context_mismatch = source_bound_human_proposal(
+        "proposal_context_mismatch",
+        &actor_id,
+        "look",
+        "look",
+        SimTick::ZERO,
+        0,
+    );
+    if let Some(ProposalSource::TuiSemanticAction(source)) = context_mismatch.source.as_mut() {
+        source.holder_known_context_id = HolderKnownContextId::new("hkc.forged").unwrap();
+    }
+    context_mismatch
+        .parameters
+        .insert("controller_id".to_string(), "controller_human".to_string());
+    let report = human_source_report(&context_mismatch, 0);
+    assert_eq!(
+        report.reason_codes,
+        vec![ReasonCode::ProposalSourceContextMismatch]
+    );
+
+    for report in [
+        human_source_report(&actor_mismatch, 0),
+        human_source_report(&stale_tick, 0),
+        human_source_report(&context_mismatch, 0),
+    ] {
+        assert!(
+            report
+                .reason_codes
+                .iter()
+                .all(|reason| !reason.stable_id().is_empty()),
+            "source-context negatives must assert typed reason codes, not actor-facing labels"
+        );
+    }
+}
+
+#[test]
+fn privileged_tui_proposal_requires_current_view_source_context() {
+    let app = production(TUI_APP_RS);
+    assert!(
+        app.contains("proposal_from_current_view_semantic_action"),
+        "TUI semantic-action submission must use the current-view source-context constructor"
+    );
+    assert_absent(app, "proposal_from_semantic_action_entry");
+
+    let projections = production(PROJECTIONS_RS);
+    assert!(
+        projections.contains("pub fn proposal_from_current_view_semantic_action"),
+        "core must expose a current-view-only semantic-action proposal constructor"
+    );
+    assert!(
+        projections.contains("origin != ProposalOrigin::Human || source_view.is_some()"),
+        "optional semantic-action helper must fail closed for human-origin proposals without a source view"
     );
 }
 

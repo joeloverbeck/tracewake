@@ -1,8 +1,7 @@
 use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ProposalOrigin, ReportStatus,
-    ValidationReport,
+    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext, PhysicalChecksum,
@@ -24,7 +23,7 @@ use tracewake_core::ids::{
 };
 use tracewake_core::projections::{
     build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
-    proposal_from_semantic_action_entry, EmbodiedProjectionSource, ProjectionError,
+    proposal_from_current_view_semantic_action, EmbodiedProjectionSource, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -200,14 +199,13 @@ impl TuiApp {
     ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let sequence = self.scheduler.assign_proposal_sequence();
-        let proposal = proposal_from_semantic_action_entry(
+        let proposal = proposal_from_current_view_semantic_action(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
-            ProposalOrigin::Human,
-            Some(actor_id.clone()),
+            actor_id.clone(),
             self.scheduler.current_tick,
             entry,
-            Some(source_view),
-            Some(&self.controller_id),
+            source_view,
+            &self.controller_id,
         );
 
         let ordering_key = OrderingKey::new(

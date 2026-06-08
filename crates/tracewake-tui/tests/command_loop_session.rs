@@ -5,6 +5,10 @@ fn run_session(script: &str) -> String {
     run_session_with_args(&[], script)
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "TUI subprocess smoke test launches the binary; this is not simulation outcome code"
+)]
 fn run_session_with_args(args: &[&str], script: &str) -> String {
     let mut child = Command::new(env!("CARGO_BIN_EXE_tracewake-tui"))
         .args(args)

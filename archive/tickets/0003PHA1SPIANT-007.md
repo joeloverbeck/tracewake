@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-007: Seal and adversarially test proposal source-context binding
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`actions/proposal.rs` constructor sealing, `actions/report.rs` reason codes), `tracewake-tui` (`app.rs` submission path), adversarial pipeline tests
@@ -81,3 +81,25 @@ Add `forged_or_stale_source_context_rejected_by_reason_code` covering missing co
 
 1. `cargo test -p tracewake-tui --test adversarial_gates`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `proposal_from_current_view_semantic_action`, which requires an `EmbodiedViewModel` source context for human TUI semantic-action proposal construction.
+- Switched `TuiApp::submit_entry` to the current-view-only proposal helper.
+- Made the optional semantic-action helper fail closed for `ProposalOrigin::Human` when no source view is supplied.
+- Added `forged_or_stale_source_context_rejected_by_reason_code`, covering missing source context, stale frontier, stale tick, actor mismatch, context mismatch, and forged semantic action ID using typed `ReasonCode`s.
+- Added a source guard proving TUI submission uses the current-view helper.
+- Added narrow clippy allows for TUI subprocess smoke-test helpers that use `Command::new` outside simulation outcome code.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards forged_or_stale_source_context_rejected_by_reason_code`
+- `cargo test -p tracewake-core --test anti_regression_guards privileged_tui_proposal_requires_current_view_source_context`
+- `cargo test -p tracewake-tui --test adversarial_gates`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
