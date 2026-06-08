@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-009: Quarantine no-human execution as non-diegetic operator/proof tooling
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (operator-command classification, no-human dispatch/render)
@@ -76,3 +76,28 @@ Render the no-human result only via the debug/proof report behind the debug capa
 1. `cargo test -p tracewake-tui tui_acceptance`
 2. `cargo test -p tracewake-core no_human_capstone`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Changed:
+- Reclassified `run no-human-day` as `UiCommand::OperatorProof(OperatorProofCommand::RunNoHumanDay)`, separate from embodied command variants.
+- Removed the raw `Ran no-human day: ... ordinary_events=...` command-loop summary so the run report is rendered only through `render_debug_no_human_day_panel`.
+- Preserved the subsequent actor view render through `render_current_view()`, which rebuilds from the bound actor's sealed holder-known context.
+- Added acceptance coverage that the post-run embodied view's holder-known context frontier matches the event log frontier, contains no debug metric rows, and does not leak hidden pantry food.
+- Updated command-loop transcript coverage to require the no-human output to be `DEBUG NON-DIEGETIC: No Human Day` only, with no raw operator summary.
+
+Deviations:
+- `crates/tracewake-tui/src/app.rs` did not require code changes; `run_no_human_day`, `render_debug_no_human_day_panel`, and `current_view()` already provided the needed headless run, debug-only report, and sealed-context rebuild boundaries.
+- The requested `cargo test -p tracewake-tui tui_acceptance` filter matches no test names in the current suite, so the meaningful no-human acceptance proof was run with `cargo test -p tracewake-tui no_human_day` plus the full TUI suite.
+
+Verification:
+- `cargo test -p tracewake-tui tui_acceptance` (0 matching tests)
+- `cargo test -p tracewake-tui no_human_day`
+- `cargo test -p tracewake-core no_human_capstone`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

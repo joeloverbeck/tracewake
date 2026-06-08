@@ -105,9 +105,9 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
         "run no-human-day\ndebug routines\ndebug replay\nquit\n",
     );
 
-    assert!(output.contains("Ran no-human day: start=0 final=32 actors=4 windows=5"));
-    assert!(output.contains("ordinary_events=29"));
     assert!(output.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(!output.contains("Ran no-human day:"));
+    assert!(!output.contains("ordinary_events="));
     assert!(output.contains("routine_events=8"));
     assert!(output.contains("work_failed=2"));
     assert!(output.contains("routine_interruptions=2"));

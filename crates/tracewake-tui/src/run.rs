@@ -5,7 +5,10 @@ use tracewake_core::ids::SemanticActionId;
 use tracewake_core::view_models::EmbodiedViewModel;
 
 use crate::app::{AppError, TuiApp};
-use crate::input::{parse_command, semantic_id_for_selection, DebugCommand, InputError, UiCommand};
+use crate::input::{
+    parse_command, semantic_id_for_selection, DebugCommand, InputError, OperatorProofCommand,
+    UiCommand,
+};
 use crate::render::render_notebook;
 
 const PROMPT: &str = "tracewake>";
@@ -64,18 +67,8 @@ fn dispatch_command<W: Write>(
             };
             submit_and_render(app, &semantic_action_id, writer)
         }
-        UiCommand::RunNoHumanDay => {
-            let report = app.run_no_human_day();
-            writeln!(
-                writer,
-                "Ran no-human day: start={} final={} actors={} windows={} ordinary_events={} stuck_diagnostics={}",
-                report.start_tick.value(),
-                report.final_tick.value(),
-                report.actor_decision_order.len(),
-                report.window_ids.len(),
-                report.ordinary_pipeline_events,
-                report.stuck_diagnostic_event_ids.len()
-            )?;
+        UiCommand::OperatorProof(OperatorProofCommand::RunNoHumanDay) => {
+            app.run_no_human_day();
             writeln!(writer, "{}", app.render_debug_no_human_day_panel())?;
             writeln!(writer, "{}", app_result(app.render_current_view())?)
         }

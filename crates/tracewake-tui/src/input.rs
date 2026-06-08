@@ -10,9 +10,14 @@ pub enum UiCommand {
     SelectSemanticAction(SemanticActionId),
     SelectByMenuIndex(usize),
     WaitOneTick,
-    RunNoHumanDay,
+    OperatorProof(OperatorProofCommand),
     Debug(DebugCommand),
     Quit,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum OperatorProofCommand {
+    RunNoHumanDay,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -67,7 +72,9 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
         return Ok(UiCommand::WaitOneTick);
     }
     if trimmed == "run no-human-day" {
-        return Ok(UiCommand::RunNoHumanDay);
+        return Ok(UiCommand::OperatorProof(
+            OperatorProofCommand::RunNoHumanDay,
+        ));
     }
     if trimmed.chars().all(|ch| ch.is_ascii_digit()) {
         let one_based_selection = trimmed
@@ -232,7 +239,7 @@ mod tests {
         assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);
         assert_eq!(
             parse_command("run no-human-day").unwrap(),
-            UiCommand::RunNoHumanDay
+            UiCommand::OperatorProof(OperatorProofCommand::RunNoHumanDay)
         );
     }
 

@@ -116,8 +116,13 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     let before_events = app.event_count();
 
     let report = app.run_no_human_day();
-    let embodied = app.render_current_view().unwrap();
     let after_run_events = app.event_count();
+    let embodied_view = app.current_view().unwrap();
+    assert_eq!(
+        embodied_view.holder_known_context_frontier,
+        after_run_events as u64
+    );
+    let embodied = tracewake_tui::render::render_embodied_view(&embodied_view);
     let before_debug_checksum = app.physical_checksum();
     let metrics = app.render_debug_no_human_day_panel();
     let planner = app.render_debug_planner_panel(&ActorId::new("actor_mara").unwrap());
@@ -130,6 +135,9 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(embodied.contains("- hunger: value=421 band=rising cause=tick_delta"));
     assert!(embodied.contains("Intention:"));
     assert!(embodied.contains("active:routine_tomas_go_work:wait"));
+    assert!(!embodied.contains("DEBUG NON-DIEGETIC"));
+    assert!(!embodied.contains("routine_events="));
+    assert!(!embodied.contains("work_failed="));
     assert!(!embodied.contains("food_hidden_pantry"));
     assert!(metrics.contains("DEBUG NON-DIEGETIC: No Human Day"));
     assert!(metrics.contains("no_human_day_metrics_v1"));
@@ -165,9 +173,9 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     run_command_loop(&mut command_app, &script[..], &mut output).unwrap();
 
     let rendered = String::from_utf8(output).unwrap();
-    assert!(rendered.contains("Ran no-human day:"));
-    assert!(rendered.contains("ordinary_events="));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: No Human Day"));
+    assert!(!rendered.contains("Ran no-human day:"));
+    assert!(!rendered.contains("ordinary_events="));
     assert!(rendered.contains("work_failed=2"));
     assert!(rendered.contains("routine_interruptions=2"));
     assert!(rendered.contains("- hunger: value=421 band=rising cause=tick_delta"));
