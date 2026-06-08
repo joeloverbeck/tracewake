@@ -182,6 +182,16 @@ fn scheduler_marker_allowlist_is_documented(snippet: &str) -> bool {
     })
 }
 
+fn source_contains_in_order(source: &str, first: &str, second: &str) -> bool {
+    let Some(first_index) = source.find(first) else {
+        return false;
+    };
+    let Some(second_index) = source.find(second) else {
+        return false;
+    };
+    first_index < second_index
+}
+
 fn low_pressure_agent_state(
     actor_id: tracewake_core::ids::ActorId,
 ) -> tracewake_core::state::AgentState {
@@ -682,6 +692,159 @@ fn privileged_tui_proposal_requires_current_view_source_context() {
         projections.contains("origin != ProposalOrigin::Human || source_view.is_some()"),
         "optional semantic-action helper must fail closed for human-origin proposals without a source view"
     );
+}
+
+#[test]
+fn no_direct_apply_event_outside_event_replay_or_pipeline() {
+    let allowed_paths = [
+        "src/events/apply.rs",
+        "src/replay/rebuild.rs",
+        "src/actions/pipeline.rs",
+    ];
+    let mut violations = Vec::new();
+    for (path, source) in production_sources() {
+        let contains_direct_apply =
+            source.contains("apply_event(") || source.contains("apply_event_stream(");
+        if contains_direct_apply && !allowed_paths.iter().any(|allowed| *allowed == path) {
+            violations.push(path);
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "direct apply_event/apply_event_stream call outside event/replay/pipeline production code:\n{}",
+        violations.join("\n")
+    );
+    assert!(
+        production(include_str!("../src/actions/pipeline.rs")).contains("let mut dry_run = context.state.clone();"),
+        "pipeline dry-run validation must apply constructed events to cloned, non-authoritative state"
+    );
+}
+
+#[test]
+fn accepted_action_appends_before_authoritative_apply() {
+    use tracewake_core::actions::{
+        run_pipeline, validate_proposal, ActionRegistry, PipelineContext, Proposal, ProposalOrigin,
+        ProposalValidationContext, ReportStatus,
+    };
+    use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
+    use tracewake_core::events::log::EventLog;
+    use tracewake_core::ids::{
+        ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, FixtureId, PlaceId,
+        ProposalId,
+    };
+    use tracewake_core::scheduler::{
+        OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+    };
+    use tracewake_core::state::{ActorBody, AgentState, ContainerState, PhysicalState, PlaceState};
+    use tracewake_core::time::SimTick;
+
+    let pipeline = production(include_str!("../src/actions/pipeline.rs"));
+    assert!(
+        source_contains_in_order(
+            pipeline,
+            "context.log.append(event)",
+            "apply_event_stream(&mut application_context, &appended)"
+        ),
+        "run_pipeline must append each accepted event before applying it to authoritative state"
+    );
+
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let place_id = PlaceId::new("shop_front").unwrap();
+    let container_id = ContainerId::new("strongbox_tomas").unwrap();
+    let mut state = PhysicalState::default();
+    state.seed_places_mut().insert(
+        place_id.clone(),
+        PlaceState::new(place_id.clone(), "Shop front"),
+    );
+    state.seed_actors_mut().insert(
+        actor_id.clone(),
+        ActorBody::new(actor_id.clone(), place_id.clone()),
+    );
+    state.seed_containers_mut().insert(
+        container_id.clone(),
+        ContainerState::fixed_at_place(container_id.clone(), place_id),
+    );
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_movement_open_close();
+    let mut log = EventLog::new();
+    let mut agent_state = AgentState::default();
+    let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_open_strongbox").unwrap(),
+        ProposalOrigin::Test,
+        Some(actor_id.clone()),
+        ActionId::new("open").unwrap(),
+        SimTick::ZERO,
+    );
+    proposal.target_ids.push(container_id.as_str().to_string());
+    let ordering_key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id.clone()),
+        ProposalSequence::new(0),
+        ActionId::new("open").unwrap(),
+        proposal.target_ids.clone(),
+        "append-before-apply",
+    );
+    let checksum_context = ChecksumContext {
+        fixture_id: FixtureId::new("append_before_apply").unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick: SimTick::ZERO,
+        world_stream_position_applied: 0,
+    };
+    let before_checksum = compute_physical_checksum(&state, &checksum_context).checksum;
+    let before_log_len = log.events().len();
+
+    let result = run_pipeline(
+        &mut PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: content_manifest_id.clone(),
+            ordering_key: ordering_key.clone(),
+        },
+        &proposal,
+    );
+
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    assert!(log.events().len() > before_log_len);
+    let after_checksum = compute_physical_checksum(&state, &checksum_context).checksum;
+    assert_ne!(after_checksum, before_checksum);
+
+    let dry_run_state = state.clone();
+    let dry_run_checksum = compute_physical_checksum(&dry_run_state, &checksum_context).checksum;
+    let dry_run_log_len = log.events().len();
+    let mut rejected = proposal.clone();
+    rejected.proposal_id = ProposalId::new("proposal_bad_target").unwrap();
+    rejected.target_ids = vec!["missing_container".to_string()];
+    let report = validate_proposal(
+        ProposalValidationContext {
+            registry: &registry,
+            state: &dry_run_state,
+            agent_state: &AgentState::default(),
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: &content_manifest_id,
+            ordering_key: &ordering_key,
+            current_event_frontier: log.events().len() as u64,
+        },
+        &rejected,
+    );
+
+    assert_eq!(report.status, ReportStatus::Rejected);
+    assert_eq!(log.events().len(), dry_run_log_len);
+    assert_eq!(
+        compute_physical_checksum(&dry_run_state, &checksum_context).checksum,
+        dry_run_checksum
+    );
+
+    let synthetic_direct_apply =
+        "Adding apply_event(&mut authoritative_state, event) outside actions/pipeline, events, or replay must fail the source scan.";
+    assert!(synthetic_direct_apply.contains("must fail"));
 }
 
 #[test]

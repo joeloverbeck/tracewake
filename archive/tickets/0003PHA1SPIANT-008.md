@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-008: Mandatory pipeline append-before-apply + no-direct-apply source scan
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (pipeline conformance test; no-direct-`apply_event` source scan)
@@ -76,3 +76,21 @@ Assert validation/dry-run code paths operate on clones / non-authoritative tempo
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `accepted_action_appends_before_authoritative_apply`, combining a source-order check that `run_pipeline` appends before `apply_event_stream` with runtime proof that an accepted open action grows the log and changes the physical checksum.
+- Added dry-run isolation coverage proving `validate_proposal` on a rejected proposal changes neither event log length nor authoritative checksum.
+- Added `no_direct_apply_event_outside_event_replay_or_pipeline`, source-scanning production code for direct `apply_event` / `apply_event_stream` calls outside the explicit event/replay/pipeline allowlist.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards accepted_action_appends_before_authoritative_apply`
+- `cargo test -p tracewake-core --test anti_regression_guards no_direct_apply_event_outside_event_replay_or_pipeline`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
