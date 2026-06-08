@@ -218,8 +218,8 @@ pub mod no_human {
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
-        ActionId, ActorId, CandidateGoalId, ContentManifestId, DecisionTraceId, EventId,
-        IntentionId, ProcessId, RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
+        ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, ProcessId,
+        RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
     use crate::location::Location;
     use crate::scheduler::{
@@ -441,6 +441,7 @@ pub mod no_human {
                     window,
                     &proposal,
                     &content_manifest_id,
+                    &decision_trace_record,
                     active_before_proposal.as_ref(),
                     result.appended_events.first(),
                 );
@@ -951,6 +952,7 @@ pub mod no_human {
         .unwrap();
         event.actor_id = Some(actor_id.clone());
         event.process_id = Some(process_id.clone());
+        event.proposal_id = completion_event.proposal_id.clone();
         event.participants = vec![actor_id.to_string(), execution_id.to_string()];
         event.payload = vec![
             PayloadField::new("routine_execution_id", execution_id.as_str()),
@@ -1304,6 +1306,7 @@ pub mod no_human {
         window: &DayWindow,
         proposal: &Proposal,
         content_manifest_id: &ContentManifestId,
+        decision_trace_record: &DecisionTraceRecord,
         active_before_proposal: Option<&Intention>,
         ordinary_event: Option<&EventEnvelope>,
     ) {
@@ -1337,6 +1340,7 @@ pub mod no_human {
                 window,
                 proposal,
                 content_manifest_id,
+                decision_trace_record,
                 ordinary_event,
             ),
         );
@@ -1348,6 +1352,7 @@ pub mod no_human {
         window: &DayWindow,
         proposal: &Proposal,
         content_manifest_id: &ContentManifestId,
+        decision_trace_record: &DecisionTraceRecord,
         ordinary_event: &EventEnvelope,
     ) -> EventEnvelope {
         let action = proposal.action_id.as_str();
@@ -1365,13 +1370,7 @@ pub mod no_human {
             action
         ))
         .unwrap();
-        let trace_id = DecisionTraceId::new(format!(
-            "trace_{}_{}_{}",
-            actor_id.as_str(),
-            window.start_tick.value(),
-            action
-        ))
-        .unwrap();
+        let trace_id = decision_trace_record.trace_id.clone();
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(format!(
                 "event.intention_started.{}.{}",

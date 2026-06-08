@@ -4,11 +4,13 @@ Replacement content produced by **Spec 0008 — Phase 3A Anti-Contamination Hard
 
 Target repository: `joeloverbeck/tracewake`  
 Target commit audited: `8e3cf3eccb94372b7873846ae952441fc1ca44d0`  
-Freshness claim: user-supplied target commit only; this replacement does not verify current `main`.
+Freshness claim: the target-commit audit remains historical; current readiness is governed by the Spec 0008 acceptance gates.
 
 ## Corrected status
 
 **Phase 3A is not accepted as complete at the audited target commit.**
+
+**Phase 3A is accepted as ready on the Spec 0008-hardened substrate.**
 
 Specs 0005, 0006, and 0007 remain important historical specs, but their status claims must not be read as proof that Phase 3A is safe for Phase 3B or Phase 4. The target commit still permits architecture-contaminating shortcuts around no-human autonomy, actor-known knowledge boundaries, durable intention/routine causality, validator authority, typed diagnostics, replay proof, and adversarial tests.
 
@@ -52,11 +54,11 @@ At the target commit, Spec 0007 is **not sufficient** as a Phase 3A exit proof. 
 
 Any document or comment that says Spec 0007 completed Phase 3A readiness must be corrected or understood as superseded by this errata.
 
-## Blocking correction
+## Spec 0008 correction
 
-Spec 0008 is now the blocking Phase 3A hardening spec. Phase 3A may not be marked safe until Spec 0008 gates pass.
+Spec 0008 was the blocking Phase 3A hardening spec. Phase 3A may be marked ready only on revisions where the Spec 0008 gates pass.
 
-Spec 0008 requires, at minimum:
+Spec 0008 acceptance requires, at minimum:
 
 - one canonical actor-decision transaction for no-human ordinary actions;
 - sealed/provenance-rich actor-known planning context;
@@ -71,22 +73,29 @@ Spec 0008 requires, at minimum:
 - marker-only continuation tests;
 - static/anti-regression tests for forbidden shortcuts;
 - replacement docs and ledger updates.
+- the integrated no-human typed-ancestry replay capstone.
 
 ## Phase-gate impact
 
-Phase 3B and Phase 4 remain blocked.
+Phase 3B and Phase 4 are unblocked only for work based on the Spec 0008-hardened substrate.
 
-Do not begin Phase 3B speech/testimony or Phase 4 institutions/records/wrong-suspicion work on top of the audited target commit as though Phase 3A ordinary life is architecturally safe. Later phases depend on actor-known boundaries, durable intentions, typed traces, and replayable no-human ordinary life. Building on the current shortcut seams would spread contamination into testimony, records, institutions, and causal explanation.
+Do not begin Phase 3B speech/testimony or Phase 4 institutions/records/wrong-suspicion work on top of the audited target commit as though Phase 3A ordinary life is architecturally safe. Later phases depend on actor-known boundaries, durable intentions, typed traces, and replayable no-human ordinary life. Building on the audited shortcut seams would spread contamination into testimony, records, institutions, and causal explanation.
 
 ## Accepted status wording
 
-Allowed before Spec 0008 passes:
+Allowed for the audited target commit or any revision before Spec 0008 gates pass:
 
 - “Phase 3A has useful scaffolding but remains in anti-contamination hardening.”
 - “Specs 0005/0006/0007 are archived historical steps; Spec 0008 is the active blocker.”
 - “No-human ordinary-life proof is not accepted until actor-known autonomy transaction gates pass.”
 
-Not allowed before Spec 0008 passes:
+Allowed for revisions where Spec 0008 gates pass:
+
+- “Phase 3A readiness is accepted by Spec 0008 gates.”
+- “No-human ordinary-life proof is accepted on the Spec 0008-hardened substrate.”
+- “Phase 3B/Phase 4 may build on the Spec 0008 Phase 3A substrate while keeping their own acceptance gates explicit.”
+
+Not allowed for revisions before Spec 0008 gates pass:
 
 - “Phase 3A is complete.”
 - “No-human ordinary life is proven.”

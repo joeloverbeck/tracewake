@@ -237,6 +237,7 @@ fn work_completed_event(
     )
     .unwrap();
     event.actor_id = Some(actor_id.clone());
+    event.proposal_id = work_started_event.proposal_id.clone();
     event.participants = vec![actor_id.to_string(), workplace_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),

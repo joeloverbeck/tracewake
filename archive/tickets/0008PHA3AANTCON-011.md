@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-011: Capstone — integrated no-human ancestry gate + ledger "ready" flip
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test crate: integrated no-human capstone gate; docs: `SPEC_LEDGER.md`/status-errata flip from "still hardening" to "Phase 3A ready"
@@ -82,3 +82,29 @@ Once the gate passes, update `docs/4-specs/SPEC_LEDGER.md` and `archive/reports/
 
 1. `cargo test -p tracewake-core --test no_human_capstone`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+- Added `crates/tracewake-core/tests/no_human_capstone.rs`, a dedicated single-run no-human capstone that proves proposal, ordinary-event, decision-trace, intention, routine, metrics, no-leak, and replay ancestry through typed IDs and payloads.
+- Added checklist mapping inside the capstone so each Spec 0008 Phase 3A acceptance line is tied to the capstone or cited upstream gates.
+- Fixed no-human lifecycle ancestry so `IntentionStarted` uses the transaction `DecisionTraceRecord.trace_id` instead of a recomputed synthetic trace id.
+- Propagated originating proposal ids onto sleep/work duration completion events and duration routine-completion ancestry events.
+- Flipped current status docs from Spec 0008 blocking/hardening to Spec 0008 accepted Phase 3A readiness, while preserving audited-target warnings as historical context.
+
+Deviation from plan:
+
+- The capstone exposed two narrow production ancestry defects: synthetic intention trace ids and missing proposal metadata on duration completions. Both were fixed because the verification-only capstone could not truthfully pass otherwise.
+- The active specs README was also updated because it still pointed Phase 3A readiness at Spec 0007, conflicting with the ledger flip.
+
+Verification:
+
+- `cargo test -p tracewake-core --test no_human_capstone`
+- `rg -n "Phase 3A is still in hardening|blocked until Spec 0008|Phase 3A no-human ordinary-life readiness is evidenced by Spec 0007|Spec 0008 is now the blocking|Phase 3B and Phase 4 remain blocked|may not be marked safe until Spec 0008" docs/4-specs archive/reports -g '*.md'`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
