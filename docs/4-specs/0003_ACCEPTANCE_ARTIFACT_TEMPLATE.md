@@ -1,7 +1,7 @@
 # 0003 Acceptance Artifact Template
 
 Use this template for implementation review of
-`specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md`.
+`archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md`.
 
 ## Exact commit under test
 

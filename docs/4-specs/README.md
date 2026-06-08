@@ -13,6 +13,7 @@ The live set is intentionally compact:
 | `README.md` | This index and usage rule. |
 | `SPEC_LEDGER.md` | Spec ledger, source discipline, archival posture, and next known execution move. |
 | `0001_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` | Live first-proof missing-property village ontology and fixture contract. |
+| `0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` | Scoped review-artifact template for the archived Phase 1 / Phase 1A spine hardening remediation. |
 
 The former companion notes were removed from the live tier instead of kept for symmetry. Their useful conclusion has been superseded by the completed upper-tier overhaul, and stale research provenance is not product doctrine.
 

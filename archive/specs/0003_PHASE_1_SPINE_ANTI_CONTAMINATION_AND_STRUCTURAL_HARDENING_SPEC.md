@@ -2,7 +2,7 @@
 
 **Intended repository path:** `specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` for staging; final home `docs/4-specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md`. (Number `0003` continues the post-overhaul active spec sequence: `0001` is live, the post-overhaul `0002` TUI-proof spec is now archived. `0002` is deliberately not reused because two archived specs already carry it.)
 
-**Status:** New file. This spec does not replace, rewrite, or restate as local authority any foundation, architecture, execution, reference, archived-spec, or code file.
+**Status:** COMPLETED. This spec does not replace, rewrite, or restate as local authority any foundation, architecture, execution, reference, archived-spec, or code file.
 
 **Repository analyzed:** `joeloverbeck/tracewake`  
 **Analyzed commit:** `a1a31edb2659bff17fddd5882967d6f3b76381a7`  
@@ -753,30 +753,30 @@ The implementation of this spec is accepted only when all applicable items below
 
 ### 9.1 Workspace gates
 
-- [ ] `cargo fmt --all --check`
-- [ ] `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] `cargo build --workspace --all-targets --locked`
-- [ ] `cargo test --workspace`
+- [x] `cargo fmt --all --check`
+- [x] `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] `cargo build --workspace --all-targets --locked`
+- [x] `cargo test --workspace`
 
 The current CI already runs these shapes or close variants (`.github/workflows/ci.yml:20-62`) under a pinned toolchain (`rust-toolchain.toml:1-7`). Any new gate must remain expressible inside this pinned toolchain unless added as an explicitly optional suggestion outside this spec.
 
 ### 9.2 New structural gates
 
-- [ ] Authoritative state mutation is sealed behind event-application capability (`SPINE-AC-001`).
-- [ ] Event schema version registry/migrator/unknown-version failure tests exist (`SPINE-AC-002`).
-- [ ] Event kind stream/mutation metadata totality test exists (`SPINE-AC-003`).
-- [ ] Replay/checksum coverage test fails on uncovered authoritative fields (`SPINE-AC-004`).
-- [ ] Nondeterminism banned-API gate runs in CI through clippy config and/or no-dep source-scan tests (`SPINE-AC-005`).
-- [ ] Scheduler/no-human no-direct-dispatch conformance test exists (`SPINE-AC-006`).
-- [ ] Proposal source-context adversarial tests cover missing/stale/forged/mismatched contexts with typed reasons (`SPINE-AC-007`).
-- [ ] Pipeline append/apply order and no alternate accepted mutation path are tested (`SPINE-AC-008`).
-- [ ] Actor-known/debug capability public API tests or compile-fail tests prove unforgeability (`SPINE-AC-009`).
-- [ ] Content schema field registration, no-script, no-prose-born-fact, and canonical serialization tests exist (`SPINE-AC-010`).
-- [ ] Diagnostics tests use typed reason/provenance fields, not display text (`SPINE-AC-011`).
-- [ ] TUI re-verification suite remains in `cargo test --workspace` and includes stale-context/debug-no-affordance/adversarial checks (`SPINE-AC-012`).
-- [ ] Named spine/content/TUI conformance suite maps to each `SPINE-AC-*` requirement (`SPINE-AC-013`).
-- [ ] Doc/invariant linter fails dangling `INV-###` references in live specs/tickets/tests (`SPINE-AC-014`).
-- [ ] Implementation acceptance artifact uses scoped certification wording and file/line evidence (`SPINE-AC-015`).
+- [x] Authoritative state mutation is sealed behind event-application capability (`SPINE-AC-001`).
+- [x] Event schema version registry/migrator/unknown-version failure tests exist (`SPINE-AC-002`).
+- [x] Event kind stream/mutation metadata totality test exists (`SPINE-AC-003`).
+- [x] Replay/checksum coverage test fails on uncovered authoritative fields (`SPINE-AC-004`).
+- [x] Nondeterminism banned-API gate runs in CI through clippy config and/or no-dep source-scan tests (`SPINE-AC-005`).
+- [x] Scheduler/no-human no-direct-dispatch conformance test exists (`SPINE-AC-006`).
+- [x] Proposal source-context adversarial tests cover missing/stale/forged/mismatched contexts with typed reasons (`SPINE-AC-007`).
+- [x] Pipeline append/apply order and no alternate accepted mutation path are tested (`SPINE-AC-008`).
+- [x] Actor-known/debug capability public API tests or compile-fail tests prove unforgeability (`SPINE-AC-009`).
+- [x] Content schema field registration, no-script, no-prose-born-fact, and canonical serialization tests exist (`SPINE-AC-010`).
+- [x] Diagnostics tests use typed reason/provenance fields, not display text (`SPINE-AC-011`).
+- [x] TUI re-verification suite remains in `cargo test --workspace` and includes stale-context/debug-no-affordance/adversarial checks (`SPINE-AC-012`).
+- [x] Named spine/content/TUI conformance suite maps to each `SPINE-AC-*` requirement (`SPINE-AC-013`).
+- [x] Doc/invariant linter fails dangling `INV-###` references in live specs/tickets/tests (`SPINE-AC-014`).
+- [x] Implementation acceptance artifact uses scoped certification wording and file/line evidence (`SPINE-AC-015`).
 
 ### 9.3 Per-requirement enforcement status target
 
@@ -886,3 +886,25 @@ Adopt a small compile-fail test policy for authority boundaries: debug capabilit
 [^clippy-config]: Rust Clippy documentation, "Lint configuration", https://doc.rust-lang.org/clippy/lint_configuration.html
 [^thoughtworks-fitness]: Thoughtworks, "Fitness Function Driven Development", https://www.thoughtworks.com/insights/articles/fitness-function-driven-development
 [^ocap-guide]: Terse Systems, "Introduction to Object Capabilities", https://tersesystems.github.io/ocaps/guide/introduction.html
+
+## Outcome
+
+Completed on 2026-06-08.
+
+Changes:
+
+- Implemented and archived all `0003PHA1SPIANT-001` through `0003PHA1SPIANT-014` tickets.
+- Added structural state mutation sealing, event schema registry, event-kind metadata totality, replay/checksum coverage, nondeterminism gates, scheduler no-direct-dispatch guards, source-context binding, append-before-apply guards, actor-known/debug unforgeability, content schema registration/prose-born-fact rejection, typed diagnostic discipline, TUI proof-seam gates, doc/invariant reference linting, and named conformance indices.
+- Added the scoped acceptance artifact template at `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`.
+
+Deviations:
+
+- The capstone conformance suite indexes existing named behavioral tests instead of duplicating their assertions inline.
+- No live `docs/4-specs/SPEC_LEDGER.md` active-spec status was flipped because this staged spec was not listed as an active spec entry.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
