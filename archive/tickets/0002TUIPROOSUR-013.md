@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-013: Adversarial gates, typed review artifacts, and acceptance capstone
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core`/`tracewake-tui` (adversarial/negative test gates, typed-diagnostic review artifacts); dual-role capstone (ships adversarial test infrastructure)
@@ -88,3 +88,27 @@ Encode the §8 workspace gates and the per-requirement (TUI-AC-001…012) accept
 1. `cargo test -p tracewake-tui adversarial_gates`
 2. `cargo test -p tracewake-core anti_regression_guards hidden_truth_gates`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `crates/tracewake-tui/tests/adversarial_gates.rs` with ten adversarial gates and typed review artifacts covering debug-truth leakage, forged hidden action tokens, stale view tokens, possession rebind leakage, public command dispatch, TUI rule inference, why-not non-leakage, display-wording independence, no-human operator quarantine, and render/replay determinism.
+- Demoted the old TUI source scan in `embodied_flow.rs` to an explicitly smoke-only guard; the new adversarial suite is the primary proof for command-boundary behavior.
+- Each added gate records responsible layer, scenario, actor/controller/context IDs, semantic IDs when applicable, typed reason/provenance data, debug capability presence, checked actor/debug surfaces, expected result, and contamination failure mode.
+
+Deviations:
+- No production logic was required; the capstone exercises the hardened seams from tickets 001-012.
+- The ticket's combined core command `cargo test -p tracewake-core anti_regression_guards hidden_truth_gates` is not a valid Cargo invocation because Cargo accepts only one test-name filter. The equivalent focused lanes were run as `cargo test -p tracewake-core --test anti_regression_guards` and `cargo test -p tracewake-core --test hidden_truth_gates`.
+- Forged/stale privileged submissions are blocked at the TUI current-view semantic-action boundary in the new integration gates. The existing core pipeline tests continue to prove typed source-context stale/forged rejection before mutation.
+
+Verification:
+- `cargo test -p tracewake-tui adversarial_gates`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core --test hidden_truth_gates`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

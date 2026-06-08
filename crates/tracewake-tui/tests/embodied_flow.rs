@@ -73,7 +73,9 @@ fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth(
 }
 
 #[test]
-fn tui_does_not_call_event_applier() {
+fn source_scan_smoke_tui_does_not_call_event_applier() {
+    // Smoke-only guard: the adversarial gate suite proves the command boundary
+    // through typed current-view semantic actions and checksum behavior.
     let app_source = include_str!("../src/app.rs");
     let render_source = include_str!("../src/render.rs");
     let input_source = include_str!("../src/input.rs");
