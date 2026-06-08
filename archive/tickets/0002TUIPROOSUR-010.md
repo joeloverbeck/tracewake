@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-010: Typed, source-bound notebook leads and provenance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`NotebookView` typed lead/provenance structures, `build_notebook_view`)
@@ -77,3 +77,29 @@ Generate `possible_leads` in `build_notebook_view` from typed `ContradictionKind
 1. `cargo test -p tracewake-core hidden_truth_gates`
 2. `grep -rn "missing from expected location" crates/` (must show no classifier use after implementation — display-only at most)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Changed:
+- Added `NotebookLeadEntry` and `NotebookView.typed_leads` with source kind, source summary, confidence, staleness, contradiction/belief/observation IDs, possible next actions, and "how this may be wrong" text.
+- Replaced the `belief.summary.contains("missing from expected location")` lead classifier with typed lead construction from `ContradictionKind::ExpectedItemAbsentFromContainer` plus `Proposition::ItemMissingFromExpectedLocation`.
+- Kept `possible_leads` as a rendered compatibility field derived from typed leads, not from display text.
+- Added tests proving a wording/proposition change on the displayed belief does not alter lead existence, while changing the typed contradiction proposition removes the lead.
+- Extended notebook no-leak/source-bound assertions for typed lead provenance and actor-private culprit exclusion.
+
+Deviations:
+- The TUI renderer did not require changes because it already renders `possible_leads`; those strings are now derived from typed lead entries inside core.
+- The phrase `missing from expected location` remains in display/test/proposition-render text. The removed classifier use no longer appears in `build_notebook_view`.
+
+Verification:
+- `cargo test -p tracewake-core notebook`
+- `cargo test -p tracewake-core hidden_truth_gates` (0 matching test names)
+- `cargo test -p tracewake-core --test hidden_truth_gates`
+- `rg -n "missing from expected location" crates` shows display/test/proposition-render text only, with no classifier use.
+- `cargo test -p tracewake-core`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -113,6 +113,7 @@ pub struct NotebookView {
     pub source_bound_beliefs: Vec<NotebookBeliefEntry>,
     pub recent_observations: Vec<NotebookObservationEntry>,
     pub known_contradictions: Vec<NotebookContradictionEntry>,
+    pub typed_leads: Vec<NotebookLeadEntry>,
     pub possible_leads: Vec<String>,
 }
 
@@ -138,6 +139,22 @@ pub struct NotebookObservationEntry {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NotebookContradictionEntry {
     pub contradiction_id: String,
+    pub summary: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NotebookLeadEntry {
+    pub lead_id: String,
+    pub contradiction_id: String,
+    pub belief_id: String,
+    pub observation_id: String,
+    pub source_kind: String,
+    pub source_summary: String,
+    pub confidence_label: String,
+    pub detected_tick: u64,
+    pub staleness_label: String,
+    pub how_this_may_be_wrong: String,
+    pub possible_next_actions: Vec<String>,
     pub summary: String,
 }
 
@@ -828,6 +845,21 @@ mod tests {
             }],
             recent_observations: Vec::new(),
             known_contradictions: Vec::new(),
+            typed_leads: vec![NotebookLeadEntry {
+                lead_id: "lead.contradiction_tomas_missing_coin".to_string(),
+                contradiction_id: "contradiction_tomas_missing_coin".to_string(),
+                belief_id: "belief_tomas_missing_coin".to_string(),
+                observation_id: "obs_tomas_checked_strongbox".to_string(),
+                source_kind: "event".to_string(),
+                source_summary: "event:event_observation".to_string(),
+                confidence_label: "1000".to_string(),
+                detected_tick: 3,
+                staleness_label: "1 ticks old".to_string(),
+                how_this_may_be_wrong:
+                    "The item may have moved through an unobserved ordinary event.".to_string(),
+                possible_next_actions: vec!["check.container.strongbox_tomas".to_string()],
+                summary: "Source-bound lead from contradiction_tomas_missing_coin".to_string(),
+            }],
             possible_leads: vec!["Source-bound lead from belief_tomas_missing_coin".to_string()],
         };
 

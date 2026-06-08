@@ -2,6 +2,8 @@ use crate::actions::{
     validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalSource,
     ProposalSourceContext, ProposalValidationContext, ReasonCode, ReportStatus, ValidationReport,
 };
+use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
+use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
@@ -17,9 +19,9 @@ use crate::time::SimTick;
 use crate::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
     DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
-    NotebookContradictionEntry, NotebookObservationEntry, NotebookView, Phase3AEmbodiedStatus,
-    SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit,
-    VisibleItem, VisibleItemSource, WhyNotView,
+    NotebookContradictionEntry, NotebookLeadEntry, NotebookObservationEntry, NotebookView,
+    Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer,
+    VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotView,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -484,10 +486,15 @@ pub fn build_notebook_view(
         .collect::<Vec<_>>();
     contradictions.sort();
 
-    let possible_leads = beliefs
+    let mut typed_leads = projection
+        .contradictions_for_context(context)
+        .into_iter()
+        .filter_map(|contradiction| typed_notebook_lead(projection, context, contradiction))
+        .collect::<Vec<_>>();
+    typed_leads.sort();
+    let possible_leads = typed_leads
         .iter()
-        .filter(|belief| belief.summary.contains("missing from expected location"))
-        .map(|belief| format!("Source-bound lead from {}", belief.belief_id))
+        .map(|lead| lead.summary.clone())
         .collect();
 
     NotebookView {
@@ -495,7 +502,66 @@ pub fn build_notebook_view(
         source_bound_beliefs: beliefs,
         recent_observations: observations,
         known_contradictions: contradictions,
+        typed_leads,
         possible_leads,
+    }
+}
+
+fn typed_notebook_lead(
+    projection: &EpistemicProjection,
+    context: &KnowledgeContext,
+    contradiction: &Contradiction,
+) -> Option<NotebookLeadEntry> {
+    if contradiction.kind != ContradictionKind::ExpectedItemAbsentFromContainer {
+        return None;
+    }
+    let Proposition::ItemMissingFromExpectedLocation {
+        item_id,
+        expected_location,
+    } = &contradiction.observed_proposition
+    else {
+        return None;
+    };
+    let observation = projection
+        .observations_by_id
+        .get(&contradiction.contradicting_observation_id)?;
+    let possible_next_actions = match expected_location {
+        Location::InContainer(container_id) => {
+            vec![format!("check.container.{}", container_id.as_str())]
+        }
+        Location::AtPlace(place_id) => vec![format!("inspect.place.{}", place_id.as_str())],
+        Location::CarriedBy(actor_id) => vec![format!("ask.actor.{}", actor_id.as_str())],
+    };
+
+    Some(NotebookLeadEntry {
+        lead_id: format!("lead.{}", contradiction.contradiction_id.as_str()),
+        contradiction_id: contradiction.contradiction_id.as_str().to_string(),
+        belief_id: contradiction
+            .prior_expectation_belief_id
+            .as_str()
+            .to_string(),
+        observation_id: observation.observation_id.as_str().to_string(),
+        source_kind: source_kind(&observation.source).to_string(),
+        source_summary: source_summary(&observation.source),
+        confidence_label: observation.confidence.serialize_canonical(),
+        detected_tick: contradiction.detected_tick.value(),
+        staleness_label: staleness_label(context, contradiction.detected_tick),
+        how_this_may_be_wrong: "The item may have moved through an unobserved ordinary event."
+            .to_string(),
+        possible_next_actions,
+        summary: format!(
+            "Source-bound lead from {}: {} missing from expected location",
+            contradiction.contradiction_id.as_str(),
+            item_id.as_str()
+        ),
+    })
+}
+
+fn source_kind(source: &SourceRef) -> &'static str {
+    match source {
+        SourceRef::Event(_) => "event",
+        SourceRef::Action(_) => "action",
+        SourceRef::Cause(_) => "cause",
     }
 }
 
@@ -504,6 +570,18 @@ fn source_summary(source: &SourceRef) -> String {
         SourceRef::Event(event_id) => format!("event:{}", event_id.as_str()),
         SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
         SourceRef::Cause(cause) => format!("cause:{cause:?}"),
+    }
+}
+
+fn staleness_label(context: &KnowledgeContext, detected_tick: SimTick) -> String {
+    let elapsed = context
+        .current_tick
+        .value()
+        .saturating_sub(detected_tick.value());
+    if elapsed == 0 {
+        "current_tick".to_string()
+    } else {
+        format!("{} ticks old", elapsed)
     }
 }
 
@@ -1361,10 +1439,50 @@ mod tests {
         assert!(rendered.contains("Contradicts your earlier expectation."));
         assert!(rendered.contains("1000"));
         assert!(rendered.contains("event:event_observation"));
+        assert_eq!(notebook.typed_leads.len(), 1);
+        let lead = &notebook.typed_leads[0];
+        assert_eq!(lead.contradiction_id, "contradiction_tomas_missing_coin");
+        assert_eq!(lead.observation_id, "obs_tomas_checked_strongbox");
+        assert_eq!(lead.source_kind, "event");
+        assert_eq!(lead.source_summary, "event:event_observation");
+        assert_eq!(lead.confidence_label, "1000");
+        assert_eq!(lead.staleness_label, "1 ticks old");
+        assert_eq!(
+            lead.possible_next_actions,
+            vec!["check.container.strongbox_tomas".to_string()]
+        );
         assert!(!rendered.contains("actor_mara"));
         assert!(!rendered.contains("culprit"));
         assert!(!rendered.contains("previous"));
         assert!(!rendered.contains("debug note"));
+    }
+
+    #[test]
+    fn notebook_leads_come_from_typed_contradictions_not_belief_wording() {
+        let mut projection = projection_with_missing_coin_belief();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(4));
+        let baseline = build_notebook_view(&projection, &context);
+        assert_eq!(baseline.typed_leads.len(), 1);
+
+        projection
+            .beliefs_by_id
+            .get_mut(&crate::ids::BeliefId::new("belief_tomas_missing_coin").unwrap())
+            .unwrap()
+            .proposition = Proposition::SoundHeardNearPlace {
+            place_id: place_id("shop_front"),
+        };
+        let reworded = build_notebook_view(&projection, &context);
+        assert_eq!(reworded.typed_leads.len(), 1);
+
+        projection
+            .contradictions_by_id
+            .get_mut(&crate::ids::ContradictionId::new("contradiction_tomas_missing_coin").unwrap())
+            .unwrap()
+            .observed_proposition = Proposition::SoundHeardNearPlace {
+            place_id: place_id("shop_front"),
+        };
+        let typed_kind_changed = build_notebook_view(&projection, &context);
+        assert!(typed_kind_changed.typed_leads.is_empty());
     }
 
     #[test]
