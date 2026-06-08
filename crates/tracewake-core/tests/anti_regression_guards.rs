@@ -46,6 +46,24 @@ fn production_sources() -> Vec<(String, String)> {
     sources
 }
 
+fn state_struct_fields(struct_name: &str) -> Vec<String> {
+    let marker = format!("pub struct {struct_name} {{");
+    let body = STATE_RS
+        .split(&marker)
+        .nth(1)
+        .unwrap_or_else(|| panic!("{struct_name} declaration is present"))
+        .split("}\n")
+        .next()
+        .unwrap_or_else(|| panic!("{struct_name} body is present"));
+    body.lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let field = trimmed.strip_prefix("pub(crate) ")?;
+            Some(field.split(':').next().unwrap().to_string())
+        })
+        .collect()
+}
+
 #[test]
 fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
     let scheduler = production(SCHEDULER_RS);
@@ -317,6 +335,42 @@ fn non_world_stream_cannot_change_physical_checksum() {
     );
     let after = compute_physical_checksum(&state, &context).checksum;
     assert_eq!(after, before);
+}
+
+#[test]
+fn checksum_coverage_is_total_for_authoritative_state() {
+    use tracewake_core::checksum::{
+        AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
+    };
+
+    let physical_fields = state_struct_fields("PhysicalState");
+    let agent_fields = state_struct_fields("AgentState");
+    let physical_coverage = PHYSICAL_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .map(|entry| entry.field_name.to_string())
+        .collect::<Vec<_>>();
+    let agent_coverage = AGENT_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .map(|entry| entry.field_name.to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(physical_coverage, physical_fields);
+    assert_eq!(agent_coverage, agent_fields);
+
+    for entry in PHYSICAL_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .chain(AGENT_STATE_CHECKSUM_COVERAGE)
+    {
+        assert!(
+            !entry.field_family.is_empty(),
+            "checksum coverage entry {} lacks a field family",
+            entry.field_name
+        );
+    }
+
+    let synthetic_omission_pattern =
+        "Adding `pub(crate) new_field:` to PhysicalState or AgentState must fail this test until a matching checksum coverage entry and serializer branch are added.";
+    assert!(synthetic_omission_pattern.contains("must fail this test"));
 }
 
 #[test]

@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-004: Total replay/checksum coverage over authoritative state
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`checksum.rs` coverage declaration; `state.rs` coverage registration; replay-report typed divergence detail; conformance test)
@@ -85,3 +85,28 @@ Add tests mutating one field in each major state family and asserting the checks
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `StateChecksumCoverage` declarations for every authoritative `PhysicalState` and `AgentState` collection field.
+- Added `checksum_coverage_is_total_for_authoritative_state`, which parses the sealed state structs and fails if a field lacks checksum coverage metadata.
+- Added physical checksum response tests for actor location, door/container state, item/food state, and workplace assignment.
+- Added agent checksum response tests for need, intention/active-intention, routine execution, decision trace, and stuck diagnostic state.
+- Extended `ReplayReport` with typed `ReplayDivergenceDetail` carrying the first divergent event id and state field family.
+- Added a replay-report test proving typed divergence detail is populated.
+
+Deviations from original plan:
+- The coverage declaration lives next to checksum code rather than state definitions, keeping checksum ownership local while the conformance test still parses `state.rs` as the authoritative field list.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards checksum_coverage_is_total_for_authoritative_state`
+- `cargo test -p tracewake-core physical_checksum_changes_for_each_authoritative_field_family`
+- `cargo test -p tracewake-core agent_checksum_changes_for_each_authoritative_field_family`
+- `cargo test -p tracewake-core replay_divergence_reports_first_event_and_field_family`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`

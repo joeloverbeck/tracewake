@@ -4,6 +4,90 @@ use crate::location::Location;
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChecksumStateKind {
+    Physical,
+    Agent,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StateChecksumCoverage {
+    pub state_kind: ChecksumStateKind,
+    pub field_name: &'static str,
+    pub field_family: &'static str,
+}
+
+pub const PHYSICAL_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "actors",
+        field_family: "actor",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "places",
+        field_family: "place",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "doors",
+        field_family: "door",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "containers",
+        field_family: "container",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "items",
+        field_family: "item",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "food_supplies",
+        field_family: "food_supply",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "workplaces",
+        field_family: "workplace",
+    },
+];
+
+pub const AGENT_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "needs_by_actor",
+        field_family: "need",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "intentions",
+        field_family: "intention",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "active_intention_by_actor",
+        field_family: "active_intention",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "routine_executions",
+        field_family: "routine_execution",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "decision_traces",
+        field_family: "decision_trace",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "stuck_diagnostics",
+        field_family: "stuck_diagnostic",
+    },
+];
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChecksumContext {
     pub fixture_id: FixtureId,
@@ -364,10 +448,19 @@ fn routine_step_status_id(status: RoutineStepStatus) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::{ActorId, ContainerId, ControllerId, ItemId, PlaceId};
+    use crate::agent::{
+        BlockerCategory, DecisionOutcome, DecisionTraceRecord, HiddenTruthAudit, Intention,
+        IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
+        StuckDiagnostic, StuckResultingStatus,
+    };
+    use crate::ids::{
+        ActorId, CandidateGoalId, ContainerId, ControllerId, DecisionTraceId, DoorId, IntentionId,
+        ItemId, PlaceId, RoutineExecutionId, RoutineTemplateId, StuckDiagnosticId, WorkplaceId,
+    };
     use crate::location::Location;
     use crate::state::{
-        ActorBody, ContainerState, ControllerBinding, ItemState, PhysicalState, PlaceState,
+        ActorBody, ContainerState, ControllerBinding, DoorState, FoodSupplyState, ItemState,
+        PhysicalState, PlaceState, WorkplaceState,
     };
 
     fn actor_id(value: &str) -> ActorId {
@@ -384,6 +477,14 @@ mod tests {
 
     fn container_id(value: &str) -> ContainerId {
         ContainerId::new(value).unwrap()
+    }
+
+    fn door_id(value: &str) -> DoorId {
+        DoorId::new(value).unwrap()
+    }
+
+    fn workplace_id(value: &str) -> WorkplaceId {
+        WorkplaceId::new(value).unwrap()
     }
 
     fn context() -> ChecksumContext {
@@ -439,6 +540,153 @@ mod tests {
         state
     }
 
+    fn response_physical_state() -> PhysicalState {
+        let mut state = PhysicalState::default();
+        let shop = place_id("shop_front");
+        let back = place_id("back_room");
+        let mut shop_state = PlaceState::new(shop.clone(), "Shop front");
+        shop_state.adjacent_place_ids.insert(back.clone());
+        shop_state.local_actor_ids.insert(actor_id("actor_tomas"));
+        shop_state
+            .local_container_ids
+            .insert(container_id("strongbox_tomas"));
+        shop_state.local_item_ids.insert(item_id("coin_stack_01"));
+        let back_state = PlaceState::new(back.clone(), "Back room");
+        state.places.insert(shop.clone(), shop_state);
+        state.places.insert(back.clone(), back_state);
+        state.actors.insert(
+            actor_id("actor_tomas"),
+            ActorBody::new(actor_id("actor_tomas"), shop.clone()),
+        );
+        let mut door = DoorState::new(door_id("door_shop_back"), shop.clone(), back);
+        door.is_open = false;
+        state.doors.insert(door.door_id.clone(), door);
+        let mut container =
+            ContainerState::fixed_at_place(container_id("strongbox_tomas"), shop.clone());
+        container.contents.insert(item_id("coin_stack_02"));
+        state
+            .containers
+            .insert(container.container_id.clone(), container);
+        state.items.insert(
+            item_id("coin_stack_01"),
+            ItemState::new(item_id("coin_stack_01"), Location::AtPlace(shop.clone())),
+        );
+        state.food_supplies.insert(
+            crate::ids::FoodSupplyId::new("food_bread").unwrap(),
+            FoodSupplyState::new(
+                crate::ids::FoodSupplyId::new("food_bread").unwrap(),
+                Location::AtPlace(shop.clone()),
+                2,
+                20,
+            ),
+        );
+        let mut workplace = WorkplaceState::new(workplace_id("workshop"), shop, "work_done");
+        workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));
+        state
+            .workplaces
+            .insert(workplace.workplace_id.clone(), workplace);
+        state
+    }
+
+    fn response_agent_state() -> AgentState {
+        let mut state = AgentState::default();
+        state
+            .needs_by_actor
+            .entry(actor_id("actor_tomas"))
+            .or_default()
+            .insert(
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 300, NeedChangeCause::FixtureInitial),
+            );
+        let trace_id = DecisionTraceId::new("trace_breakfast").unwrap();
+        let intention_id = IntentionId::new("intention_breakfast").unwrap();
+        state.intentions.insert(
+            intention_id.clone(),
+            Intention::adopt(
+                intention_id.clone(),
+                actor_id("actor_tomas"),
+                IntentionSource::FixtureRoutineAssignment,
+                CandidateGoalId::new("goal_breakfast").unwrap(),
+                Some(RoutineTemplateId::new("routine_breakfast").unwrap()),
+                Some("eat".to_string()),
+                8,
+                SimTick::new(1),
+                trace_id.clone(),
+            ),
+        );
+        state
+            .active_intention_by_actor
+            .insert(actor_id("actor_tomas"), intention_id);
+        state.routine_executions.insert(
+            RoutineExecutionId::new("routine_exec_breakfast").unwrap(),
+            RoutineExecution::new(
+                RoutineExecutionId::new("routine_exec_breakfast").unwrap(),
+                actor_id("actor_tomas"),
+                RoutineTemplateId::new("routine_breakfast").unwrap(),
+                RoutineFamily::EatMeal,
+                SimTick::new(1),
+                Some(SimTick::new(2)),
+                Some(SimTick::new(8)),
+                Some("body".to_string()),
+                trace_id.clone(),
+            ),
+        );
+        state.decision_traces.insert(
+            trace_id.clone(),
+            DecisionTraceRecord {
+                trace_id: trace_id.clone(),
+                actor_id: actor_id("actor_tomas"),
+                window_start_tick: SimTick::new(1),
+                window_end_tick: SimTick::new(2),
+                outcome: DecisionOutcome::Continued,
+                candidate_goal_count: 1,
+                hidden_truth_audit_result: HiddenTruthAudit {
+                    actor_known_only: true,
+                    notes: "fixture".to_string(),
+                },
+            },
+        );
+        state.stuck_diagnostics.insert(
+            StuckDiagnosticId::new("stuck_breakfast").unwrap(),
+            StuckDiagnostic::new(
+                StuckDiagnosticId::new("stuck_breakfast").unwrap(),
+                actor_id("actor_tomas"),
+                SimTick::new(1),
+                SimTick::new(2),
+                Some(NeedKind::Hunger),
+                Some(CandidateGoalId::new("goal_breakfast").unwrap()),
+                Some(IntentionId::new("intention_breakfast").unwrap()),
+                Some(RoutineTemplateId::new("routine_breakfast").unwrap()),
+                Some(RoutineExecutionId::new("routine_exec_breakfast").unwrap()),
+                None,
+                None,
+                BlockerCategory::Resource,
+                "missing food",
+                "actor knows no food",
+                "debug",
+                "wait",
+                StuckResultingStatus::Waiting,
+            ),
+        );
+        state
+    }
+
+    fn assert_physical_checksum_changes(mut mutate: impl FnMut(&mut PhysicalState)) {
+        let mut state = response_physical_state();
+        let before = compute_physical_checksum(&state, &context()).checksum;
+        mutate(&mut state);
+        let after = compute_physical_checksum(&state, &context()).checksum;
+        assert_ne!(after, before);
+    }
+
+    fn assert_agent_checksum_changes(mut mutate: impl FnMut(&mut AgentState)) {
+        let mut state = response_agent_state();
+        let before = compute_agent_state_checksum(&state, &context()).checksum;
+        mutate(&mut state);
+        let after = compute_agent_state_checksum(&state, &context()).checksum;
+        assert_ne!(after, before);
+    }
+
     #[test]
     fn same_physical_state_checksums_identically() {
         let state = state_with_insert_order(false);
@@ -473,6 +721,93 @@ mod tests {
 
         assert_eq!(first.checksum, second.checksum);
         assert_eq!(first.canonical_input, second.canonical_input);
+    }
+
+    #[test]
+    fn physical_checksum_changes_for_each_authoritative_field_family() {
+        assert_physical_checksum_changes(|state| {
+            state
+                .actors
+                .get_mut(&actor_id("actor_tomas"))
+                .unwrap()
+                .current_place_id = place_id("back_room");
+        });
+        assert_physical_checksum_changes(|state| {
+            state
+                .doors
+                .get_mut(&door_id("door_shop_back"))
+                .unwrap()
+                .is_open = true;
+            state
+                .containers
+                .get_mut(&container_id("strongbox_tomas"))
+                .unwrap()
+                .is_locked = true;
+        });
+        assert_physical_checksum_changes(|state| {
+            state
+                .items
+                .get_mut(&item_id("coin_stack_01"))
+                .unwrap()
+                .portable = false;
+            state
+                .food_supplies
+                .get_mut(&crate::ids::FoodSupplyId::new("food_bread").unwrap())
+                .unwrap()
+                .servings = 1;
+        });
+        assert_physical_checksum_changes(|state| {
+            state
+                .workplaces
+                .get_mut(&workplace_id("workshop"))
+                .unwrap()
+                .assigned_actor_ids
+                .insert(actor_id("actor_mara"));
+        });
+    }
+
+    #[test]
+    fn agent_checksum_changes_for_each_authoritative_field_family() {
+        assert_agent_checksum_changes(|state| {
+            state
+                .needs_by_actor
+                .get_mut(&actor_id("actor_tomas"))
+                .unwrap()
+                .get_mut(&NeedKind::Hunger)
+                .unwrap()
+                .apply_delta(1, NeedChangeCause::TickDelta);
+        });
+        assert_agent_checksum_changes(|state| {
+            state
+                .intentions
+                .get_mut(&IntentionId::new("intention_breakfast").unwrap())
+                .unwrap()
+                .record_progress(SimTick::new(3), "open_pantry");
+            state
+                .active_intention_by_actor
+                .remove(&actor_id("actor_tomas"));
+        });
+        assert_agent_checksum_changes(|state| {
+            state
+                .routine_executions
+                .get_mut(&RoutineExecutionId::new("routine_exec_breakfast").unwrap())
+                .unwrap()
+                .fallback_attempts = 1;
+        });
+        assert_agent_checksum_changes(|state| {
+            state
+                .decision_traces
+                .get_mut(&DecisionTraceId::new("trace_breakfast").unwrap())
+                .unwrap()
+                .candidate_goal_count = 2;
+        });
+        assert_agent_checksum_changes(|state| {
+            state
+                .stuck_diagnostics
+                .get_mut(&StuckDiagnosticId::new("stuck_breakfast").unwrap())
+                .unwrap()
+                .concrete_blocker = "closed pantry".to_string();
+        });
     }
 
     #[test]

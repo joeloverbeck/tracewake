@@ -9,6 +9,24 @@ use crate::replay::rebuild::{diff_physical_state, rebuild_projection, Phase3ARep
 use crate::state::{AgentState, PhysicalState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ReplayDivergenceFieldFamily {
+    Actor,
+    Place,
+    Door,
+    Container,
+    Item,
+    FoodSupply,
+    Workplace,
+    Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReplayDivergenceDetail {
+    pub first_divergent_event_id: Option<String>,
+    pub field_family: ReplayDivergenceFieldFamily,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReplayReport {
     pub fixture_id: FixtureId,
     pub content_manifest_id: ContentManifestId,
@@ -31,6 +49,7 @@ pub struct ReplayReport {
     pub expected_checksum: Option<PhysicalChecksum>,
     pub matches_expected: bool,
     pub state_diff: Vec<String>,
+    pub first_divergence: Option<ReplayDivergenceDetail>,
 }
 
 pub fn run_replay(
@@ -63,6 +82,7 @@ pub fn run_replay(
     } else {
         expected_state_diff
     };
+    let first_divergence = first_divergence_detail(&state_diff, log, rebuild.event_count_applied);
     let checksum_matches = expected_checksum
         .as_ref()
         .map(|expected| expected == &rebuild.final_checksum)
@@ -112,6 +132,43 @@ pub fn run_replay(
         expected_checksum,
         matches_expected,
         state_diff,
+        first_divergence,
+    }
+}
+
+fn first_divergence_detail(
+    state_diff: &[String],
+    log: &EventLog,
+    event_count_applied: usize,
+) -> Option<ReplayDivergenceDetail> {
+    let first_diff = state_diff.first()?;
+    let first_divergent_event_id = event_count_applied
+        .checked_sub(1)
+        .and_then(|index| log.events().get(index))
+        .map(|event| event.event_id.as_str().to_string());
+    Some(ReplayDivergenceDetail {
+        first_divergent_event_id,
+        field_family: classify_state_diff_family(first_diff),
+    })
+}
+
+fn classify_state_diff_family(diff: &str) -> ReplayDivergenceFieldFamily {
+    if diff.starts_with("actors ") {
+        ReplayDivergenceFieldFamily::Actor
+    } else if diff.starts_with("places ") {
+        ReplayDivergenceFieldFamily::Place
+    } else if diff.starts_with("doors ") {
+        ReplayDivergenceFieldFamily::Door
+    } else if diff.starts_with("containers ") {
+        ReplayDivergenceFieldFamily::Container
+    } else if diff.starts_with("items ") {
+        ReplayDivergenceFieldFamily::Item
+    } else if diff.starts_with("food_supplies ") {
+        ReplayDivergenceFieldFamily::FoodSupply
+    } else if diff.starts_with("workplaces ") {
+        ReplayDivergenceFieldFamily::Workplace
+    } else {
+        ReplayDivergenceFieldFamily::Unknown
     }
 }
 
@@ -250,6 +307,36 @@ mod tests {
 
         assert!(!report.matches_expected);
         assert!(!report.state_diff.is_empty());
+    }
+
+    #[test]
+    fn replay_divergence_reports_first_event_and_field_family() {
+        let (initial, log, live) = live_take_run();
+        let mut divergent_expected = live.clone();
+        divergent_expected
+            .actors
+            .get_mut(&actor_id())
+            .unwrap()
+            .enabled = false;
+
+        let report = run_replay(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            Some(&divergent_expected),
+            None,
+            None,
+        );
+
+        assert!(!report.matches_expected);
+        assert_eq!(
+            report.first_divergence,
+            Some(ReplayDivergenceDetail {
+                first_divergent_event_id: Some(log.events()[0].event_id.as_str().to_string()),
+                field_family: ReplayDivergenceFieldFamily::Actor,
+            })
+        );
     }
 
     #[test]
