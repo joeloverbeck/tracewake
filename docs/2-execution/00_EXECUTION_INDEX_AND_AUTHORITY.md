@@ -2,162 +2,85 @@
 
 ## Status
 
-This folder defines the execution contract for the first implementable Tracewake proof.
+Live replacement execution index. This file replaces the previous execution index and retires the old `docs/2-execution/` document set.
 
-Execution documents define phase order, phase gates, fixture contracts, validation contracts, debug and observability expectations, data-authoring boundaries, first-proof limits, and second-proof deferrals.
+Historical implementation has landed through archived specs `0005` through `0008`, but the implementation is not certified under the post-overhaul foundation, architecture, and execution doctrine.
 
-They do **not** define:
+## Authority boundary
 
-- implementation tickets;
-- sprint plans;
-- Rust source code;
-- final crate choices;
-- final UI polish;
-- repository-audit evidence ledgers;
-- connector histories;
-- one-off migration notes.
+This document owns execution-layer reading order, replacement status, gate vocabulary, and the rule that execution planning cannot weaken foundation or architecture.
 
-Repository provenance for a review session belongs in that review artifact. It must not be embedded in committed execution authority documents.
+This document does not certify code, create tickets, decompose work, or override foundation or architecture.
 
-## Authority relationship
+## Depends on
 
-Execution obeys this authority order:
+- `docs/0-foundation/00_FOUNDATION_INDEX.md`
+- `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`
+- `docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md`
+- `docs/0-foundation/14_ACTOR_KNOWN_COGNITION_TRANSACTION_AND_TRUTH_FIREWALL.md`
+- `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`
+- `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`
+- `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`
+- `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
 
-```text
-foundation doctrine
--> architecture contracts
--> execution phase gates and fixtures
--> implementation specs/code
--> tests and validation reports
-```
+## Replacement and retirement rule
 
-When execution conflicts with foundation or architecture, execution is wrong.
-When later implementation is more convenient than the execution gates, the implementation is wrong.
-When a test rewards a shortcut that violates foundation doctrine, the test is wrong.
+All pre-replacement execution files are retired as live doctrine. Their concepts may survive only where promoted by this replacement set.
 
-Execution may decide:
+The retired old set included phase-local documents that treated Phase 3A hardening as if it naturally certified the baseline and positioned Phase 4 as the next work by default. That posture is unsafe after specs `0006`, `0007`, and `0008`. The live execution layer therefore inserts an explicit post-0008 baseline certification gate before Phase 4, wrong-suspicion work, notices, travel, regional expansion, or LLM surfaces.
 
-- which proof is first;
-- which phase proves which behavior;
-- which fixtures are mandatory;
-- which acceptance artifacts block progression;
-- which features remain deferred.
+## Live execution document map
 
-Execution may not weaken:
-
-- causality before drama;
-- belief before truth;
-- ordinary life before adventure;
-- no sacred player entity;
-- no quest ontology;
-- no authored outcome chains;
-- no hidden director;
-- no omniscient agent cognition;
-- no LLM simulation authority;
-- no abstract property model when physical custody is required;
-- TUI-first playability;
-- no-human simulation;
-- event sourcing, deterministic replay, and forensic provenance.
-
-## Execution document map
-
-Read in order.
-
-| File | Contract owned |
+| File | Owns |
 |---|---|
-| `00_EXECUTION_INDEX_AND_AUTHORITY.md` | Folder map, authority, execution discipline, and maintenance rules. |
-| `01_EXECUTION_CHARTER_SCOPE_AND_FIRST_PROOF.md` | First-proof charter, scope limits, narrowing decisions, and second-proof boundary. |
-| `02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md` | Strict phase ladder, progression rules, and global acceptance formula. |
-| `03_FIRST_PROOF_MISSING_EXPECTED_PROPERTY.md` | Detailed first-proof scenario, fixture requirements, and required causal chain. |
-| `04_PHASE_0_PAPER_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` | Paper ontology, fixture design, event/action/proposition vocabulary, and anti-scripting review. |
-| `05_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY.md` | Runnable kernel, TUI, physical actions, event log, replay, projection rebuild, and no-human seed. |
-| `06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md` | Beliefs, observations, memory, actor-filtered views, expectation contradiction, and possession parity. |
-| `07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md` | Needs, routines, ordinary life, autonomous theft opportunity, interruption, and no-human daily simulation. |
-| `08_PHASE_4_INSTITUTIONS_RECORDS_AND_WRONG_SUSPICION.md` | Report intake, records, clerks/authority, partial testimony, procedural validity, and wrong suspicion. |
-| `09_DATA_AUTHORING_VALIDATION_AND_GOLDEN_FIXTURES.md` | Domain packs, schema checks, fixture packs, golden scenarios, and content-validation discipline. |
-| `10_TESTING_DEBUGGING_OBSERVABILITY_AND_METRICS.md` | Replay proof, causality inspection, no-human proof, view-model checks, provenance review, and metrics. |
-| `11_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md` | Deferred second proof: notices, roads, travel, companions, threats, regional incidents, and expansion gates. |
-| `12_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` | Stable execution research decisions and source-handling policy. |
+| `00_EXECUTION_INDEX_AND_AUTHORITY.md` | Execution map, retirement rule, universal authority posture. |
+| `01_POST_0008_BASELINE_ARCHIVED_SPEC_STATUS_AND_CODE_AUDIT_BOUNDARY.md` | Status of archived specs, current code boundary, and certification posture. |
+| `02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` | First proof identity, current baseline status, and acceptance contract. |
+| `03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md` | Gate order, phase sequencing, and the rule that Phase 4 is blocked until certification gates pass. |
+| `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | Truth-firewall execution checks and mandatory anti-contamination gates for every future spec. |
+| `05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` | Actor transaction, scheduler, proposal, validation, and direct-dispatch audit criteria. |
+| `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | Needs, routines, durable intentions, ordinary-life proof, and no-human day certification. |
+| `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | Epistemic proof, possession parity, view-model filtering, and debug quarantine. |
+| `08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` | Authoring contracts, schema/provenance validation, and no outcome-chain data. |
+| `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | Golden fixture families, adversarial scenarios, and deterministic replay acceptance. |
+| `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` | Testing, diagnostics, metrics, trace artifacts, and review evidence. |
+| `11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` | Phase 4 entry contract and institution/record/wrong-suspicion lock. |
+| `12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md` | Locked deferral contract for notices, travel, regional scale, LOD, and second proof. |
+| `13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md` | Execution-level research decisions and forbidden misreads. |
 
-## Strict phase posture
+## Universal execution posture
 
-Tracewake execution uses a ladder, not a backlog heap.
+Every future spec, audit, fixture, or code change must answer the following before being accepted:
 
-A later phase may not be used to paper over a failed earlier phase. A broader feature may not compensate for a missing first-proof behavior. The first proof must be earned through ordinary, replayable, actor-grounded causes.
+1. Which foundation and architecture documents control this change?
+2. Which holder-known context supplies cognition or procedure input?
+3. Where is truth allowed to validate, and where is truth forbidden to plan?
+4. Which action proposals enter the shared validation/event pipeline?
+5. Which events, projections, diagnostics, and replay artifacts prove the behavior?
+6. Which debug surfaces expose truth, and how is that truth quarantined?
+7. Which golden fixtures prove success and which prove forbidden shortcuts fail?
+8. Which layer owns each failure diagnostic?
+9. Which archived specs or tickets are being treated only as historical evidence?
+10. Which gate prevents premature Phase 4 or second-proof expansion?
 
-The minimum ladder is:
+A document that cannot answer these questions is not ready to govern implementation.
 
-```text
-Phase 0: paper ontology and fixture contracts
-Phase 1: runnable kernel, TUI, event log, replay, physical property
-Phase 2: beliefs, view models, expectation contradiction, possession parity
-Phase 3: needs, routines, autonomous ordinary life, no-human operation
-Phase 4: institutions, records, report intake, wrong suspicion
-Second proof: notices, travel, regional expansion, and longer causal chains
-```
+## Canonical gate names
 
-## Universal phase gate
-
-A phase is not accepted because code exists or a demo looks plausible.
-
-A phase is accepted only when it has:
-
-1. a playable TUI path for that phase;
-2. no-human operation for that phase where applicable;
-3. deterministic replay for the relevant event chain;
-4. actor-grounded view-model checks;
-5. provenance/debug explanation for the relevant decisions;
-6. schema/fixture validation for authored data;
-7. regression fixtures proving the forbidden shortcuts are absent.
-
-## First-proof center
-
-The first proof is **The Missing Property Village**.
-
-The proof is narrow by design. It is about ordinary people, physical property, subjective expectation, absence, search, speech/report, institutional record-making, wrong suspicion, actor possession parity, no-human operation, and replayable causal explanation.
-
-The first proof is **not**:
-
-- roads;
-- caravans;
-- beasts;
-- combat;
-- adventurer parties;
-- companion recruitment;
-- bounty boards;
-- wilderness hunts;
-- LLM chatbots;
-- graphical presentation;
-- large regional simulation.
-
-Those may be future work only after the first proof survives its gates.
-
-## Execution anti-contamination rule
-
-Committed execution docs must not contain:
-
-- stale target commit IDs;
-- session-specific exact-URL fetch ledgers;
-- connector failure narratives;
-- branch names used as authority;
-- claims that a specific review commit is current `main`;
-- references to uploaded temporary source material as enduring product authority.
-
-Exact-commit evidence ledgers are required for audits, but they are audit outputs, not execution doctrine.
+| Gate | Meaning |
+|---|---|
+| `P0-DOC` | Foundation and architecture dependencies are named and no live doctrine is contradicted. |
+| `P0-CERT` | Post-0008 baseline certification: current implementation has been audited against replacement foundation, architecture, and execution docs. |
+| `TFW` | Truth-firewall gate: cognition/procedure/view input is holder-known; truth only validates. |
+| `PIPE` | Pipeline gate: every world-affecting action uses proposal, validation, event append, projection, and replay boundaries. |
+| `NO-DIRECT` | No scheduler/action/direct-dispatch shortcut exists. |
+| `NO-HUMAN` | Simulation progresses through ordinary actor transactions without a human controller. |
+| `POS-PARITY` | Possession changes input binding only; human and autonomous actors use the same world rules. |
+| `REPLAY` | Deterministic event log, projection rebuild, random-stream, and save/replay behavior are proven. |
+| `FIXTURE` | Golden fixtures prove success paths and forbidden shortcuts. |
+| `DIAG` | Failure diagnostics identify responsible layer and do not leak hidden truth to embodied holders. |
 
 ## Maintenance rule
 
-Correct this folder before implementation if it leaves a coding agent needing to ask any of these questions:
-
-- what counts as scripting;
-- how beliefs differ from facts;
-- what the first proof is proving;
-- how human possession differs from AI control;
-- how speech affects beliefs;
-- whether LLMs can mutate state;
-- whether money/property is physical;
-- whether story sifting can intervene;
-- how to test no-human operation;
-- how to prove replay/provenance.
-
-If those answers are unclear, execution is not ready.
+Execution documents may be radical about stale sequencing and conservative about authority. They may rename, merge, split, or retire old execution docs. They may not soften foundation or architecture to fit current implementation.

@@ -94,11 +94,11 @@ Confidence: X%
 Gaps: [specific list of remaining unknowns]
 ```
 
-Keep asking until confidence reaches 95%, then announce: "I'm at 95% confidence. Moving to approaches." Under auto mode with a 0-2 question interview, an inline prose alternative is fine (`Confidence: ~90% — gaps listed as named assumptions below`) provided the gaps surface as named assumptions in the very next message.
+Keep asking until confidence reaches 95%, then announce: "I'm at 95% confidence. Moving to approaches." Under auto mode with a 0-2 question interview, an inline prose alternative is fine (`Confidence: ~90% — gaps listed as named assumptions below`) provided the gaps surface as named assumptions in the very next message. The same inline form (`Confidence: ~X% — gaps: …`) is acceptable outside auto mode for a short, fully-bounded interview (≤2 rounds, no open-ended motivational gaps), provided the gaps stay explicit; reserve the literal two-line block for longer or open-ended discovery.
 
 ### Interview rules
 
-1. **One question per message.** Never batch questions in the discovery interview. (This does not restrict `AskUserQuestion`, whose multi-question schema is the sanctioned form for batching approach-selection or section-approval decisions outside the discovery loop.)
+1. **One question per message.** Keep open-ended, motivational probing to one question per message — never batch it. (This does not restrict `AskUserQuestion`, whose multi-question schema is the sanctioned form for batching approach-selection or section-approval decisions outside the discovery loop.) **Exception:** a single `AskUserQuestion` may batch 2–4 *bounded, non-motivational* discovery forks (operational choices among enumerable options) when the user has signaled an efficiency preference or the gaps are purely operational — collapsing rounds is then a service, not a shortcut. Strict one-question-per-message still governs anything probing the user's actual-vs-stated want.
 2. **Prefer multiple-choice** when the answer space is bounded; open-ended when it isn't. Use `AskUserQuestion` with labeled options when its schema is available; inline numbered options are an acceptable fallback (and are preferred in plan mode for speed).
 3. **Probe motivations before solutions.** Ask "What problem does this solve?" and "What happens if we don't?" before "What do you want built?" The first request often describes a solution, not the problem.
 4. **Challenge premature specificity.** If the user jumps to implementation details, ask why that specific approach matters. The constraint is often softer than stated.
@@ -108,6 +108,7 @@ Keep asking until confidence reaches 95%, then announce: "I'm at 95% confidence.
 8. **Handle delegation gracefully.** If the user says "you decide," re-evaluate the options against the invariants and project constraints, present your reasoned recommendation, and advance. Don't re-ask.
 9. **Verify load-bearing technical premises.** When a user (or reference) premise is load-bearing for the recommendation — library status, version compatibility, feature presence, external-tool behavior — verify it (package metadata, docs, targeted codebase read) before adapting the recommendation to it. The 30-second check prevents recommending against a true premise the user momentarily mis-stated.
 10. **Present empirical findings before asking questions.** When exploration produces concrete findings (data, root-cause evidence, confirmed/refuted hypotheses), present a concise summary — hypothesis, evidence, verdict per hypothesis — before the first interview question.
+11. **Absorb premise corrections.** If the user pushes back on a question's framing rather than answering it (declines to answer, supplies context that reshapes the question), treat the response as a premise correction — fold it in, raise confidence accordingly, and reissue only the questions that survive. Don't re-ask a fork the correction already resolved.
 
 ### Confidence scoring
 
@@ -247,7 +248,7 @@ Adjust options to the deliverable: for a spec, offer reassess / decompose into t
 
 - **YAGNI ruthlessly.** Strip optional extras from every design unless the user explicitly asked for them.
 - **No scope inflation.** The design covers what was asked. Resist "while we're at it" improvements.
-- **One question at a time** during the Step 2 discovery interview. (Does not restrict `AskUserQuestion` batching outside the loop.)
+- **One question at a time** for open-ended/motivational probing during the Step 2 discovery interview. (Does not restrict `AskUserQuestion` batching outside the loop, nor a single `AskUserQuestion` batching 2–4 bounded, non-motivational discovery forks per Interview rule 1.)
 - **No implementation before approval.** The HARD-GATE means what it says, subject only to the §User pre-authorization carve-out.
 - **The invariants are authoritative.** For product-behavior topics, if an approach violates an invariant (`INV-NNN`), flag it immediately and get explicit sign-off. Never design against the constitution silently; a feature that genuinely needs to diverge requires an invariants amendment first.
 - **Respect early exit.** If the user wants to skip ahead, let them — list your assumptions clearly.
