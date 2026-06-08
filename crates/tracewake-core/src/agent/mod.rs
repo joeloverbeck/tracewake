@@ -11,6 +11,7 @@ pub mod need;
 pub mod planner;
 pub mod routine;
 pub mod trace;
+pub mod transaction;
 
 pub use actor_known::{
     ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, VisibleLocalPlanningState,
@@ -51,4 +52,8 @@ pub use trace::{
     BlockerCategory, DecisionOutcome, DecisionTrace, DecisionTraceRecord,
     DecisionTraceRecordParseError, HiddenTruthAudit, RejectedDecisionItem, StuckDiagnostic,
     StuckDiagnosticParseError, StuckDiagnosticRecord, StuckResultingStatus,
+};
+pub use transaction::{
+    ActorDecisionProposalOutcome, ActorDecisionTransaction, ActorDecisionTransactionInput,
+    ActorDecisionTransactionOutcome,
 };

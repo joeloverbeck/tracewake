@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-004: Canonical actor-decision transaction module
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core`: new actor-decision transaction module (the single cognition path), built unwired
@@ -80,3 +80,28 @@ On success/failure/replan/stuck the transaction returns the typed `DecisionTrace
 
 1. `cargo test -p tracewake-core agent::transaction`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added `agent::transaction` with an unwired `ActorDecisionTransaction` substrate.
+- The transaction consumes a sealed `ActorKnownPlanningContext`, live `AgentState`, and an optional routine-window goal.
+- It runs the staged chain: active intention lookup → candidate generation → `select_goal_and_trace` → intention lifecycle effects → HTN method selection → local planning → proposal construction with ancestry parameters.
+- It returns a proposal outcome carrying the full decision trace, typed `DecisionTraceRecord`, lifecycle effects, and local plan, or a boxed typed `StuckDiagnosticRecord` on fail-closed paths.
+- Added transaction tests for linked candidate/intention/method/plan/proposal ancestry and empty-candidate stuck diagnostics.
+- Exported the transaction types from `agent::mod`.
+
+Deviations from original plan:
+- The module remains unwired, as specified; scheduler flip and bypass deletion remain owned by `0008PHA3AANTCON-006`.
+- The transaction returns both the full `DecisionTrace` and the compact typed `DecisionTraceRecord` because the existing record type stores replay payload fields while the full trace carries the detailed ancestry links needed by the transaction.
+
+Verification:
+- `rg -n "RoutineFamily|build_routine_or_need_proposal|current_fatigue|current_hunger" crates/tracewake-core/src/agent/transaction.rs` returned no matches.
+- `rg -n "select_goal_and_trace\\(" crates/tracewake-core/src/agent/transaction.rs` showed one transaction-path call.
+- `cargo test -p tracewake-core agent::transaction`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
