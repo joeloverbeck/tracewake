@@ -6,7 +6,63 @@ use crate::ids::{
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::time::SimTick;
 
-pub const EVENT_SCHEMA_V1: &str = "event_schema_v1";
+pub const EVENT_SCHEMA_V1: &str = EventSchemaVersion::V1.as_str();
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EventSchemaVersion {
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventSchemaMigration {
+    CurrentNoMigrationRequired,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EventSchemaRegistryEntry {
+    pub version: EventSchemaVersion,
+    pub migration: EventSchemaMigration,
+}
+
+pub const EVENT_SCHEMA_REGISTRY: &[EventSchemaRegistryEntry] = &[EventSchemaRegistryEntry {
+    version: EventSchemaVersion::V1,
+    migration: EventSchemaMigration::CurrentNoMigrationRequired,
+}];
+
+impl EventSchemaVersion {
+    pub const fn all() -> &'static [EventSchemaVersion] {
+        &[EventSchemaVersion::V1]
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            EventSchemaVersion::V1 => "event_schema_v1",
+        }
+    }
+
+    pub fn to_schema_version(self) -> SchemaVersion {
+        SchemaVersion::new(self.as_str()).expect("event schema registry uses valid stable ids")
+    }
+
+    pub fn from_schema_version(version: &SchemaVersion) -> Option<Self> {
+        EVENT_SCHEMA_REGISTRY
+            .iter()
+            .find(|entry| entry.version.as_str() == version.as_str())
+            .map(|entry| entry.version)
+    }
+}
+
+pub fn event_schema_registry() -> &'static [EventSchemaRegistryEntry] {
+    EVENT_SCHEMA_REGISTRY
+}
+
+pub fn event_schema_registry_entry(
+    version: &SchemaVersion,
+) -> Option<&'static EventSchemaRegistryEntry> {
+    EVENT_SCHEMA_REGISTRY
+        .iter()
+        .find(|entry| entry.version.as_str() == version.as_str())
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EventStream {
@@ -520,7 +576,7 @@ impl EventEnvelope {
         Self {
             event_id,
             event_type,
-            event_schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            event_schema_version: EventSchemaVersion::V1.to_schema_version(),
             stream: event_type.stream(),
             stream_position,
             global_order,
@@ -542,7 +598,7 @@ impl EventEnvelope {
     }
 
     pub fn has_supported_schema_version(&self) -> bool {
-        self.event_schema_version.as_str() == EVENT_SCHEMA_V1
+        event_schema_registry_entry(&self.event_schema_version).is_some()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1009,6 +1065,41 @@ mod tests {
 
     fn contradiction_id(value: &str) -> ContradictionId {
         ContradictionId::new(value).unwrap()
+    }
+
+    #[test]
+    fn event_schema_registry_has_one_current_version_with_migration_proof() {
+        let registry = event_schema_registry();
+        assert_eq!(registry.len(), 1);
+        assert_eq!(registry[0].version, EventSchemaVersion::V1);
+        assert_eq!(
+            registry[0].migration,
+            EventSchemaMigration::CurrentNoMigrationRequired
+        );
+        assert_eq!(EventSchemaVersion::V1.as_str(), EVENT_SCHEMA_V1);
+        assert_eq!(
+            EventSchemaVersion::from_schema_version(&SchemaVersion::new(EVENT_SCHEMA_V1).unwrap()),
+            Some(EventSchemaVersion::V1)
+        );
+    }
+
+    #[test]
+    fn unknown_event_schema_version_is_not_registry_supported() {
+        let unknown = SchemaVersion::new("event_schema_v999").unwrap();
+        assert!(event_schema_registry_entry(&unknown).is_none());
+        assert_eq!(EventSchemaVersion::from_schema_version(&unknown), None);
+
+        let mut event = EventEnvelope::new_v1(
+            event_id("event_unknown_schema"),
+            EventKind::ActorMoved,
+            0,
+            0,
+            SimTick::new(3),
+            ordering_key(),
+            ContentManifestId::new("phase1_manifest").unwrap(),
+        );
+        event.event_schema_version = unknown;
+        assert!(!event.has_supported_schema_version());
     }
 
     fn event_id(value: &str) -> EventId {

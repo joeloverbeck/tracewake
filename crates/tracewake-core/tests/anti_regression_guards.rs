@@ -187,6 +187,44 @@ fn guard_001_mutation_capability_is_private_to_event_application() {
 }
 
 #[test]
+fn adding_event_schema_version_requires_migrator_registration() {
+    use tracewake_core::events::{
+        event_schema_registry, EventSchemaMigration, EventSchemaVersion, EVENT_SCHEMA_V1,
+    };
+
+    let registry = event_schema_registry();
+    assert_eq!(
+        registry.len(),
+        EventSchemaVersion::all().len(),
+        "every typed event schema version must have one registry entry"
+    );
+    assert_eq!(registry.len(), 1, "only EVENT_SCHEMA_V1 is live today");
+
+    for version in EventSchemaVersion::all() {
+        let entries = registry
+            .iter()
+            .filter(|entry| entry.version == *version)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            entries.len(),
+            1,
+            "event schema version {} lacks exactly one registry entry",
+            version.as_str()
+        );
+        assert!(
+            matches!(
+                entries[0].migration,
+                EventSchemaMigration::CurrentNoMigrationRequired
+            ),
+            "event schema version {} lacks a migration/no-migration proof",
+            version.as_str()
+        );
+    }
+
+    assert_eq!(registry[0].version.as_str(), EVENT_SCHEMA_V1);
+}
+
+#[test]
 fn guard_001_no_production_seed_mutation_outside_state_definition() {
     for (path, source) in production_sources() {
         if path == "src/state.rs" {

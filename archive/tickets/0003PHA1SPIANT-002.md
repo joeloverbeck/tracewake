@@ -1,6 +1,6 @@
 # 0003PHA1SPIANT-002: Event schema-version registry, migrator gate, and loud unknown-version failure
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`events/envelope.rs` schema-version type/registry; `events/apply.rs` + `replay/rebuild.rs` version handling; new conformance tests)
@@ -82,3 +82,27 @@ Ensure `events/apply.rs` and `replay/rebuild.rs` reject unknown/unsupported vers
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+- Added a typed `EventSchemaVersion` registry in `events/envelope.rs`, with `EVENT_SCHEMA_V1` represented as `EventSchemaVersion::V1`.
+- Added explicit migration disposition metadata via `EventSchemaMigration`; the only live version is registered as `CurrentNoMigrationRequired`.
+- Routed `EventEnvelope::has_supported_schema_version` through the registry instead of a direct string comparison.
+- Re-exported the schema-version registry API from `events`.
+- Added registry unit tests proving exactly one current version is live and unknown schema versions are unsupported.
+- Added `adding_event_schema_version_requires_migrator_registration` in the anti-regression guards.
+- Added `unsupported_event_schema_version_replay_fails_loudly`, proving live apply rejects unknown versions before mutation and replay reports the unsupported version without applying it.
+
+Deviations from original plan:
+- No real second schema version or migrator was introduced, per ticket scope. The gate is exercised by the current no-migration proof and a synthetic unknown-future version.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core unsupported_event_schema_version_replay_fails_loudly`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
