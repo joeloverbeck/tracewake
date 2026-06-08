@@ -18,7 +18,7 @@ use crate::view_models::{
     DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
     NotebookContradictionEntry, NotebookObservationEntry, NotebookView, Phase3AEmbodiedStatus,
     SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit,
-    VisibleItem, VisibleItemSource,
+    VisibleItem, VisibleItemSource, WhyNotView,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -353,6 +353,7 @@ pub fn build_embodied_view_model_with_agent_state(
         semantic_actions,
         phase3a_status: agent_state.map(|agent_state| phase3a_status(agent_state, viewer_actor_id)),
         last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
+        last_rejection_why_not: last_rejection.map(WhyNotView::from),
         knowledge_context_id: None,
         notebook: None,
         debug_available: true,

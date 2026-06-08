@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-010: Debug/TUI typed projections + why-not distinction
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` debug reports / view models and `tracewake-tui` debug panels render from typed records; why-not distinguishes actor-known uncertainty from ground-truth failure
@@ -80,3 +80,29 @@ This consumes the typed records made authoritative in -002 and emitted by the tr
 
 1. `cargo test -p tracewake-core view_models`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+- Added typed Phase 3A debug projection rows for decision traces and stuck diagnostics, sourced directly from `DecisionTraceRecord` and `StuckDiagnosticRecord` fields.
+- Replaced planner/debug report labels that pointed at canonical string rows with typed-record labels, including a debug-only/non-authoritative omniscient-comparison marker.
+- Added a structured embodied why-not projection with `WhyNotFailureKind`, actor-known summary, and stable reason-code ids.
+- Updated TUI rendering to show typed why-not failure kinds and typed Phase 3A debug trace/stuck counts.
+- Added focused tests for actor-known-vs-ground-truth why-not classification and typed debug trace/stuck projection fields.
+
+Deviation from plan:
+
+- No persisted event schema change was required. This ticket changed read-only projections and TUI rendering over already-authoritative typed records.
+
+Verification:
+
+- `cargo test -p tracewake-core view_models`
+- `cargo test -p tracewake-core debug_reports_phase3a_surfaces_are_deterministic_and_read_only`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

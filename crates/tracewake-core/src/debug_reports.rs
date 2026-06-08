@@ -9,6 +9,7 @@ use crate::location::Location;
 use crate::projections::{no_human_day_metrics, NoHumanDayMetrics};
 use crate::replay::{ProjectionRebuildReport, ReplayReport};
 use crate::state::{AgentState, PhysicalState};
+use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ItemLocationDebugReport {
@@ -70,6 +71,8 @@ pub struct Phase3ADebugReport {
     pub report_id: DebugReportId,
     pub title: String,
     pub rows: Vec<String>,
+    pub decision_traces: Vec<Phase3ADecisionTraceView>,
+    pub stuck_diagnostics: Vec<Phase3AStuckDiagnosticView>,
     pub debug_only: bool,
 }
 
@@ -79,6 +82,39 @@ pub struct NoHumanDayDebugReport {
     pub metrics: NoHumanDayMetrics,
     pub canonical_summary: String,
     pub debug_only: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Phase3ADecisionTraceView {
+    pub trace_id: String,
+    pub actor_id: ActorId,
+    pub window_start_tick: SimTick,
+    pub window_end_tick: SimTick,
+    pub outcome: String,
+    pub candidate_goal_count: usize,
+    pub hidden_truth_actor_known_only: bool,
+    pub hidden_truth_notes: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Phase3AStuckDiagnosticView {
+    pub diagnostic_id: String,
+    pub actor_id: ActorId,
+    pub window_start_tick: SimTick,
+    pub window_end_tick: SimTick,
+    pub active_need: Option<String>,
+    pub active_goal_id: Option<String>,
+    pub active_intention_id: Option<String>,
+    pub routine_template_id: Option<String>,
+    pub routine_execution_id: Option<String>,
+    pub routine_step: Option<String>,
+    pub attempted_action: Option<String>,
+    pub blocker_category: String,
+    pub concrete_blocker: String,
+    pub actor_known_explanation: String,
+    pub debug_only_details: String,
+    pub retry_abandon_fallback_outcome: String,
+    pub resulting_status: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -235,7 +271,7 @@ pub fn phase3a_needs_report(agent_state: &AgentState) -> Phase3ADebugReport {
             ));
         }
     }
-    phase3a_report("debug.phase3a.needs", "Needs", rows)
+    phase3a_report("debug.phase3a.needs", "Needs", rows, Vec::new(), Vec::new())
 }
 
 pub fn phase3a_routines_report(agent_state: &AgentState) -> Phase3ADebugReport {
@@ -294,7 +330,13 @@ pub fn phase3a_routines_report(agent_state: &AgentState) -> Phase3ADebugReport {
             execution.fallback_attempts
         )
     }));
-    phase3a_report("debug.phase3a.routines", "Routines", rows)
+    phase3a_report(
+        "debug.phase3a.routines",
+        "Routines",
+        rows,
+        Vec::new(),
+        Vec::new(),
+    )
 }
 
 pub fn phase3a_actor_report(agent_state: &AgentState, actor_id: &ActorId) -> Phase3ADebugReport {
@@ -330,40 +372,47 @@ pub fn phase3a_actor_report(agent_state: &AgentState, actor_id: &ActorId) -> Pha
                 )
             }),
     );
-    rows.extend(trace_rows_for_actor(agent_state, actor_id));
-    rows.extend(stuck_rows_for_actor(agent_state, actor_id));
+    let decision_traces = decision_trace_views_for_actor(agent_state, actor_id);
+    rows.extend(decision_traces.iter().map(render_decision_trace_row));
+    let stuck_diagnostics = stuck_views_for_actor(agent_state, actor_id);
+    rows.extend(stuck_diagnostics.iter().map(render_stuck_row));
     phase3a_report(
         &format!("debug.phase3a.actor.{}", actor_id.as_str()),
         "Actor",
         rows,
+        decision_traces,
+        stuck_diagnostics,
     )
 }
 
 pub fn phase3a_planner_report(agent_state: &AgentState, actor_id: &ActorId) -> Phase3ADebugReport {
     let mut rows = vec![
         format!("actor={}", actor_id.as_str()),
-        "candidate_goals=canonical_trace_rows".to_string(),
-        "selected_method=canonical_trace_rows".to_string(),
-        "rejected_reasons=canonical_trace_rows".to_string(),
-        "blocked_preconditions=canonical_stuck_rows".to_string(),
-        "hidden_truth_audit=canonical_trace_rows".to_string(),
+        "candidate_goals=typed_decision_trace_records".to_string(),
+        "selected_method=typed_decision_trace_records".to_string(),
+        "rejected_reasons=typed_decision_trace_records".to_string(),
+        "blocked_preconditions=typed_stuck_diagnostic_records".to_string(),
+        "hidden_truth_audit=typed_decision_trace_records".to_string(),
+        "omniscient_comparison=debug_only_non_authoritative".to_string(),
     ];
-    let trace_rows = trace_rows_for_actor(agent_state, actor_id);
-    if trace_rows.is_empty() {
+    let decision_traces = decision_trace_views_for_actor(agent_state, actor_id);
+    if decision_traces.is_empty() {
         rows.push("trace=none".to_string());
     } else {
-        rows.extend(trace_rows);
+        rows.extend(decision_traces.iter().map(render_decision_trace_row));
     }
-    let stuck_rows = stuck_rows_for_actor(agent_state, actor_id);
-    if stuck_rows.is_empty() {
+    let stuck_diagnostics = stuck_views_for_actor(agent_state, actor_id);
+    if stuck_diagnostics.is_empty() {
         rows.push("blocked=none".to_string());
     } else {
-        rows.extend(stuck_rows);
+        rows.extend(stuck_diagnostics.iter().map(render_stuck_row));
     }
     phase3a_report(
         &format!("debug.phase3a.planner.{}", actor_id.as_str()),
         "Planner",
         rows,
+        decision_traces,
+        stuck_diagnostics,
     )
 }
 
@@ -372,14 +421,15 @@ pub fn phase3a_stuck_report(agent_state: &AgentState) -> Phase3ADebugReport {
         "stuck_diagnostic_count={}",
         agent_state.stuck_diagnostics.len()
     )];
-    for (diagnostic_id, diagnostic) in &agent_state.stuck_diagnostics {
-        rows.push(format!(
-            "stuck={} {}",
-            diagnostic_id.as_str(),
-            summarize_stuck_canonical(&diagnostic.serialize_canonical())
-        ));
-    }
-    phase3a_report("debug.phase3a.stuck", "Stuck", rows)
+    let mut stuck_diagnostics = stuck_views(agent_state);
+    rows.extend(stuck_diagnostics.iter().map(render_stuck_row));
+    phase3a_report(
+        "debug.phase3a.stuck",
+        "Stuck",
+        rows,
+        Vec::new(),
+        std::mem::take(&mut stuck_diagnostics),
+    )
 }
 
 pub fn no_human_day_debug_report(log: &EventLog) -> NoHumanDayDebugReport {
@@ -406,55 +456,133 @@ fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
         .any(|field| field.key == "item_id" && field.value == item_id.as_str())
 }
 
-fn phase3a_report(report_id: &str, title: &str, rows: Vec<String>) -> Phase3ADebugReport {
+fn phase3a_report(
+    report_id: &str,
+    title: &str,
+    rows: Vec<String>,
+    decision_traces: Vec<Phase3ADecisionTraceView>,
+    stuck_diagnostics: Vec<Phase3AStuckDiagnosticView>,
+) -> Phase3ADebugReport {
     Phase3ADebugReport {
         report_id: DebugReportId::new(report_id).unwrap(),
         title: title.to_string(),
         rows,
+        decision_traces,
+        stuck_diagnostics,
         debug_only: true,
     }
 }
 
-fn trace_rows_for_actor(agent_state: &AgentState, actor_id: &ActorId) -> Vec<String> {
+fn decision_trace_views_for_actor(
+    agent_state: &AgentState,
+    actor_id: &ActorId,
+) -> Vec<Phase3ADecisionTraceView> {
     agent_state
         .decision_traces
-        .iter()
-        .filter(|(_, trace)| &trace.actor_id == actor_id)
-        .map(|(trace_id, trace)| {
-            format!(
-                "trace={} {}",
-                trace_id.as_str(),
-                trace.serialize_canonical()
-            )
-        })
+        .values()
+        .filter(|trace| &trace.actor_id == actor_id)
+        .map(decision_trace_view)
         .collect()
 }
 
-fn stuck_rows_for_actor(agent_state: &AgentState, actor_id: &ActorId) -> Vec<String> {
+fn decision_trace_view(trace: &crate::agent::DecisionTraceRecord) -> Phase3ADecisionTraceView {
+    Phase3ADecisionTraceView {
+        trace_id: trace.trace_id.as_str().to_string(),
+        actor_id: trace.actor_id.clone(),
+        window_start_tick: trace.window_start_tick,
+        window_end_tick: trace.window_end_tick,
+        outcome: trace.outcome.stable_id().to_string(),
+        candidate_goal_count: trace.candidate_goal_count,
+        hidden_truth_actor_known_only: trace.hidden_truth_audit_result.actor_known_only,
+        hidden_truth_notes: trace.hidden_truth_audit_result.notes.clone(),
+    }
+}
+
+fn stuck_views(agent_state: &AgentState) -> Vec<Phase3AStuckDiagnosticView> {
     agent_state
         .stuck_diagnostics
-        .iter()
-        .filter(|(_, diagnostic)| &diagnostic.actor_id == actor_id)
-        .map(|(diagnostic_id, diagnostic)| {
-            format!(
-                "stuck={} {}",
-                diagnostic_id.as_str(),
-                summarize_stuck_canonical(&diagnostic.serialize_canonical())
-            )
-        })
+        .values()
+        .map(stuck_view)
         .collect()
 }
 
-fn summarize_stuck_canonical(diagnostic: &str) -> String {
-    let fields = diagnostic.split('|').collect::<Vec<_>>();
-    if fields.first() == Some(&"stuck_diagnostic_v1") && fields.len() >= 18 {
-        format!(
-            "actor={} blocker_category={} outcome={} concrete_blocker={} actor_known={} debug_detail={}",
-            fields[2], fields[12], fields[17], fields[13], fields[14], fields[15]
-        )
-    } else {
-        diagnostic.to_string()
+fn stuck_views_for_actor(
+    agent_state: &AgentState,
+    actor_id: &ActorId,
+) -> Vec<Phase3AStuckDiagnosticView> {
+    agent_state
+        .stuck_diagnostics
+        .values()
+        .filter(|diagnostic| &diagnostic.actor_id == actor_id)
+        .map(stuck_view)
+        .collect()
+}
+
+fn stuck_view(diagnostic: &crate::agent::StuckDiagnosticRecord) -> Phase3AStuckDiagnosticView {
+    Phase3AStuckDiagnosticView {
+        diagnostic_id: diagnostic.diagnostic_id.as_str().to_string(),
+        actor_id: diagnostic.actor_id.clone(),
+        window_start_tick: diagnostic.window_start_tick,
+        window_end_tick: diagnostic.window_end_tick,
+        active_need: diagnostic
+            .active_need
+            .map(|need| need.stable_id().to_string()),
+        active_goal_id: diagnostic
+            .active_goal_id
+            .as_ref()
+            .map(|id| id.as_str().to_string()),
+        active_intention_id: diagnostic
+            .active_intention_id
+            .as_ref()
+            .map(|id| id.as_str().to_string()),
+        routine_template_id: diagnostic
+            .routine_template_id
+            .as_ref()
+            .map(|id| id.as_str().to_string()),
+        routine_execution_id: diagnostic
+            .routine_execution_id
+            .as_ref()
+            .map(|id| id.as_str().to_string()),
+        routine_step: diagnostic
+            .routine_step
+            .as_ref()
+            .map(crate::agent::RoutineStep::serialize_canonical),
+        attempted_action: diagnostic
+            .attempted_action
+            .as_ref()
+            .map(|id| id.as_str().to_string()),
+        blocker_category: diagnostic.blocker_category.stable_id().to_string(),
+        concrete_blocker: diagnostic.concrete_blocker.clone(),
+        actor_known_explanation: diagnostic.actor_known_explanation.clone(),
+        debug_only_details: diagnostic.debug_only_details.clone(),
+        retry_abandon_fallback_outcome: diagnostic.retry_abandon_fallback_outcome.clone(),
+        resulting_status: diagnostic.resulting_status.stable_id().to_string(),
     }
+}
+
+fn render_decision_trace_row(trace: &Phase3ADecisionTraceView) -> String {
+    format!(
+        "trace={} actor={} outcome={} candidates={} actor_known_only={} hidden_truth_notes={}",
+        trace.trace_id,
+        trace.actor_id.as_str(),
+        trace.outcome,
+        trace.candidate_goal_count,
+        trace.hidden_truth_actor_known_only,
+        trace.hidden_truth_notes
+    )
+}
+
+fn render_stuck_row(diagnostic: &Phase3AStuckDiagnosticView) -> String {
+    format!(
+        "stuck={} actor={} blocker_category={} outcome={} concrete_blocker={} actor_known={} debug_detail={}",
+        diagnostic.diagnostic_id,
+        diagnostic.actor_id.as_str(),
+        diagnostic.blocker_category,
+        diagnostic.resulting_status,
+        diagnostic.concrete_blocker,
+        diagnostic.actor_known_explanation,
+        diagnostic.debug_only_details
+    )
 }
 
 fn location_summary(state: &PhysicalState, location: &Location) -> String {
@@ -767,14 +895,24 @@ mod tests {
             .rows
             .iter()
             .any(|row| row.contains("candidate_goals")));
+        assert_eq!(planner.decision_traces.len(), 1);
+        assert_eq!(planner.decision_traces[0].trace_id, "trace_mara_food");
+        assert_eq!(planner.decision_traces[0].outcome, "failed");
+        assert!(planner.decision_traces[0].hidden_truth_actor_known_only);
         assert!(planner
             .rows
             .iter()
-            .any(|row| row.contains("hidden_truth_audit")));
+            .any(|row| row.contains("typed_decision_trace_records")));
         assert!(stuck
             .rows
             .iter()
             .any(|row| row.contains("blocker_category=resource")));
+        assert_eq!(stuck.stuck_diagnostics.len(), 1);
+        assert_eq!(stuck.stuck_diagnostics[0].blocker_category, "resource");
+        assert_eq!(
+            stuck.stuck_diagnostics[0].actor_known_explanation,
+            "Mara knows no reachable food"
+        );
         assert!(stuck
             .rows
             .iter()

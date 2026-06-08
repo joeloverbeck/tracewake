@@ -192,6 +192,7 @@ mod tests {
             ],
             phase3a_status: None,
             last_rejection_summary: None,
+            last_rejection_why_not: None,
             knowledge_context_id: None,
             notebook: None,
             debug_available: true,

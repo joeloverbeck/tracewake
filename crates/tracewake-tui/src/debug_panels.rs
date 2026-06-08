@@ -196,7 +196,12 @@ pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
 
 pub fn render_phase3a_debug_panel(report: &Phase3ADebugReport) -> String {
     assert!(report.debug_only);
-    lines(&report.title, report.rows.clone())
+    let mut rows = vec![
+        format!("typed_decision_traces={}", report.decision_traces.len()),
+        format!("typed_stuck_diagnostics={}", report.stuck_diagnostics.len()),
+    ];
+    rows.extend(report.rows.clone());
+    lines(&report.title, rows)
 }
 
 pub fn render_no_human_day_panel(report: &NoHumanDayDebugReport) -> String {
