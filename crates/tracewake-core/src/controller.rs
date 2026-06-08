@@ -181,12 +181,16 @@ fn controller_event(
 mod tests {
     use super::*;
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
-    use crate::actions::proposal::{Proposal, ProposalOrigin};
+    use crate::actions::proposal::{
+        Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext,
+    };
     use crate::actions::registry::ActionRegistry;
     use crate::checksum::{compute_physical_checksum, ChecksumContext};
     use crate::epistemics::KnowledgeContext;
     use crate::events::apply::apply_event;
-    use crate::ids::{ActionId, ContentVersion, FixtureId, PlaceId, ProposalId};
+    use crate::ids::{
+        ActionId, ContentVersion, FixtureId, PlaceId, ProposalId, SemanticActionId, ViewModelId,
+    };
     use crate::projections::{build_embodied_view_model, EmbodiedProjectionSource};
     use crate::state::{ActorBody, PhysicalState, PlaceState};
 
@@ -324,6 +328,20 @@ mod tests {
             ActionId::new("look").unwrap(),
             SimTick::ZERO,
         );
+        let source_context =
+            KnowledgeContext::embodied_at_frontier(actor_id("actor_tomas"), SimTick::ZERO, 0);
+        let source_view_model_id = ViewModelId::new("view.actor_tomas.0").unwrap();
+        human_proposal.source_view_model_id = Some(source_view_model_id.clone());
+        human_proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+            source_view_model_id,
+            holder_known_context_id: source_context.holder_known_context_id().clone(),
+            holder_known_context_hash: source_context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: source_context.event_frontier,
+            context_tick: SimTick::ZERO,
+            actor_id: actor_id("actor_tomas"),
+            semantic_action_id: SemanticActionId::new("look").unwrap(),
+            provenance_ancestry: Vec::new(),
+        }));
         human_proposal
             .parameters
             .insert("controller_id".to_string(), controller_id().to_string());

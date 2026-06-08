@@ -190,13 +190,13 @@ impl TuiApp {
             .find(|entry| &entry.semantic_action_id == semantic_action_id)
             .cloned()
             .ok_or_else(|| AppError::SemanticActionNotFound(semantic_action_id.to_string()))?;
-        self.submit_entry(&entry, Some(view.view_model_id))
+        self.submit_entry(&entry, &view)
     }
 
     fn submit_entry(
         &mut self,
         entry: &SemanticActionEntry,
-        source_view_model_id: Option<tracewake_core::ids::ViewModelId>,
+        source_view: &EmbodiedViewModel,
     ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let sequence = self.scheduler.assign_proposal_sequence();
@@ -206,7 +206,7 @@ impl TuiApp {
             Some(actor_id.clone()),
             self.scheduler.current_tick,
             entry,
-            source_view_model_id,
+            Some(source_view),
             Some(&self.controller_id),
         );
 

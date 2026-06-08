@@ -1,6 +1,6 @@
 # 0002TUIPROOSUR-006: Proposal source-context identity + freshness/forgery validation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`Proposal` schema + `ProposalSource`, `proposal_from_semantic_action_entry`, pipeline validation ordering)
@@ -81,3 +81,25 @@ In the pipeline, check actor/controller binding, source-context freshness (hash/
 1. `cargo test -p tracewake-core hidden_truth_gates`
 2. `cargo test -p tracewake-core golden_scenarios`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Extended `Proposal` with typed `ProposalSource::TuiSemanticAction` carrying source view id, holder-known context id/hash/frontier, context tick, actor id, semantic action id, and provenance ancestry. TUI submission now builds proposals from the current embodied view so human-origin proposals carry the sealed source packet.
+
+Added `SourceContextValidation` before action-definition lookup. Human-origin proposals now fail closed when their source is missing, cross-actor, stale by tick/frontier, mismatched by reconstructed context id/hash, or forged by semantic-action/action-id mismatch. Source failures use typed `ProposalSource*` reason codes and actor-safe summaries without hidden identifiers. Existing direct human-origin tests were updated to carry valid source packets.
+
+Deviations from the original plan: `source_view_model_id` remains as a mirrored legacy field while the typed `ProposalSource` is the validation authority. `SemanticActionEntry` still has public constructors for existing external test view construction; validation enforces source identity at the proposal boundary.
+
+Verification:
+
+1. `cargo test -p tracewake-core human_source_context`
+2. `cargo test -p tracewake-core --test hidden_truth_gates`
+3. `cargo test -p tracewake-core --test golden_scenarios`
+4. `cargo test -p tracewake-core`
+5. `cargo test -p tracewake-tui`
+6. `cargo fmt --all --check`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`
+9. `cargo test --workspace`

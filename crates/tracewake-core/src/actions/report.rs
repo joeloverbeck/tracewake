@@ -34,6 +34,11 @@ pub enum ReasonCode {
     WorldStateMismatch,
     TargetReserved,
     KnowledgePreconditionNotMet,
+    ProposalSourceMissing,
+    ProposalSourceActorMismatch,
+    ProposalSourceContextMismatch,
+    ProposalSourceStale,
+    ProposalSourceForged,
     NoCurrentIntention,
     IntentionTerminal,
     RoutineStepBlocked,
@@ -69,6 +74,11 @@ impl ReasonCode {
             ReasonCode::WorldStateMismatch => "world_state_mismatch",
             ReasonCode::TargetReserved => "target_reserved",
             ReasonCode::KnowledgePreconditionNotMet => "knowledge_precondition_not_met",
+            ReasonCode::ProposalSourceMissing => "proposal_source_missing",
+            ReasonCode::ProposalSourceActorMismatch => "proposal_source_actor_mismatch",
+            ReasonCode::ProposalSourceContextMismatch => "proposal_source_context_mismatch",
+            ReasonCode::ProposalSourceStale => "proposal_source_stale",
+            ReasonCode::ProposalSourceForged => "proposal_source_forged",
             ReasonCode::NoCurrentIntention => "no_current_intention",
             ReasonCode::IntentionTerminal => "intention_terminal",
             ReasonCode::RoutineStepBlocked => "routine_step_blocked",
@@ -230,6 +240,10 @@ mod tests {
         assert_eq!(
             ReasonCode::NoCurrentIntention.stable_id(),
             "no_current_intention"
+        );
+        assert_eq!(
+            ReasonCode::ProposalSourceStale.stable_id(),
+            "proposal_source_stale"
         );
         assert_eq!(
             ReasonCode::ReservationConflict.stable_id(),

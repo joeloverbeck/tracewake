@@ -1,6 +1,6 @@
 use crate::actions::{
-    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalValidationContext,
-    ReasonCode, ReportStatus, ValidationReport,
+    validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalSource,
+    ProposalSourceContext, ProposalValidationContext, ReasonCode, ReportStatus, ValidationReport,
 };
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
@@ -385,6 +385,7 @@ pub fn build_embodied_view_model(
         viewer_actor_id,
         sim_tick,
         knowledge_context_id: context.holder_known_context_id().clone(),
+        knowledge_context_frontier: context.event_frontier,
     };
     let mut semantic_actions = semantic_actions(
         &preflight_context,
@@ -670,6 +671,7 @@ struct SemanticActionPreflightContext<'a> {
     viewer_actor_id: &'a ActorId,
     sim_tick: SimTick,
     knowledge_context_id: HolderKnownContextId,
+    knowledge_context_frontier: u64,
 }
 
 fn semantic_actions(
@@ -843,6 +845,7 @@ fn with_validator_availability(
             epistemic_projection: None,
             content_manifest_id: preflight.content_manifest_id,
             ordering_key: &ordering_key,
+            current_event_frontier: preflight.knowledge_context_frontier,
         },
         &proposal,
     );
@@ -888,7 +891,7 @@ pub fn proposal_from_semantic_action_entry(
     actor_id: Option<ActorId>,
     requested_tick: SimTick,
     entry: &SemanticActionEntry,
-    source_view_model_id: Option<ViewModelId>,
+    source_view: Option<&EmbodiedViewModel>,
     controller_id: Option<&ControllerId>,
 ) -> Proposal {
     let mut proposal = Proposal::new(
@@ -899,7 +902,24 @@ pub fn proposal_from_semantic_action_entry(
         requested_tick,
     );
     proposal.target_ids = entry.target_ids.clone();
-    proposal.source_view_model_id = source_view_model_id;
+    if let Some(view) = source_view {
+        proposal.source_view_model_id = Some(view.view_model_id.clone());
+        proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+            source_view_model_id: view.view_model_id.clone(),
+            holder_known_context_id: view.holder_known_context_id.clone(),
+            holder_known_context_hash: view.holder_known_context_hash.clone(),
+            holder_known_context_frontier: view.holder_known_context_frontier,
+            context_tick: view.sim_tick,
+            actor_id: view.viewer_actor_id.clone(),
+            semantic_action_id: entry.semantic_action_id.clone(),
+            provenance_ancestry: entry
+                .availability
+                .provenance_refs()
+                .iter()
+                .map(|source| format!("{}:{}", source.kind.stable_id(), source.reference))
+                .collect(),
+        }));
+    }
     if let Some(controller_id) = controller_id {
         proposal
             .parameters
