@@ -1,54 +1,14 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeSet, VecDeque};
 
-use crate::agent::{BlockerCategory, HiddenTruthAudit, RoutineStep};
-use crate::epistemics::EpistemicProjection;
-use crate::ids::{ActionId, ActorId, ContainerId, PlaceId, WorkplaceId};
-use crate::state::AgentState;
+pub use crate::agent::actor_known::{
+    build_actor_known_planning_state, derive_hidden_truth_audit, ActorKnownFact,
+    ActorKnownPlanningContext as ActorKnownPlanningState, ActorKnownProvenance,
+    VisibleLocalPlanningState,
+};
+use crate::agent::{ActorKnownPlanningContext, BlockerCategory, HiddenTruthAudit, RoutineStep};
+use crate::ids::{ActionId, ActorId, ContainerId, PlaceId};
 
 pub const DEFAULT_PLANNER_BUDGET: usize = 8;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ActorKnownFact {
-    pub stable_id: String,
-    pub proof_source: ActorKnownFactProofSource,
-}
-
-impl ActorKnownFact {
-    pub fn modeled(stable_id: impl Into<String>, proof_source: impl Into<String>) -> Self {
-        Self {
-            stable_id: stable_id.into(),
-            proof_source: ActorKnownFactProofSource::Modeled(proof_source.into()),
-        }
-    }
-
-    pub fn unproven(stable_id: impl Into<String>, note: impl Into<String>) -> Self {
-        Self {
-            stable_id: stable_id.into(),
-            proof_source: ActorKnownFactProofSource::NoModeledSource(note.into()),
-        }
-    }
-
-    pub fn is_actor_known(&self) -> bool {
-        matches!(self.proof_source, ActorKnownFactProofSource::Modeled(_))
-    }
-
-    pub fn proof_note(&self) -> String {
-        match &self.proof_source {
-            ActorKnownFactProofSource::Modeled(source) => {
-                format!("{}={source}", self.stable_id)
-            }
-            ActorKnownFactProofSource::NoModeledSource(note) => {
-                format!("{}=unproven:{note}", self.stable_id)
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ActorKnownFactProofSource {
-    Modeled(String),
-    NoModeledSource(String),
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PlannerGoal {
@@ -56,119 +16,6 @@ pub enum PlannerGoal {
     CheckContainer(ContainerId),
     EatKnownFood(String),
     WaitWithReason(String),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ActorKnownPlanningState {
-    pub actor_id: ActorId,
-    pub current_place_id: PlaceId,
-    pub known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-    pub known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
-    pub known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
-    pub known_food_sources: BTreeSet<String>,
-    pub known_sleep_places: BTreeSet<PlaceId>,
-    pub known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
-    pub proof_sources: Vec<String>,
-    pub actor_known_facts: Vec<ActorKnownFact>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VisibleLocalPlanningState {
-    pub current_place_id: PlaceId,
-    pub visible_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-    pub visible_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
-    pub visible_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
-    pub visible_food_sources: BTreeSet<String>,
-    pub visible_sleep_places: BTreeSet<PlaceId>,
-    pub visible_workplaces: BTreeMap<WorkplaceId, PlaceId>,
-}
-
-pub fn build_actor_known_planning_state(
-    actor_id: &ActorId,
-    epistemic_projection: &EpistemicProjection,
-    agent_state: &AgentState,
-    visible_local: &VisibleLocalPlanningState,
-) -> ActorKnownPlanningState {
-    let mut actor_known_facts = vec![ActorKnownFact::modeled(
-        "actor_current_place_visible",
-        format!(
-            "visible_local:current_place:{}",
-            visible_local.current_place_id.as_str()
-        ),
-    )];
-    if agent_state.needs_by_actor.contains_key(actor_id) {
-        actor_known_facts.push(ActorKnownFact::modeled(
-            "agent_needs_present",
-            "agent_state:needs_present",
-        ));
-    }
-    let actor_belief_count = epistemic_projection
-        .beliefs_by_holder
-        .get(actor_id)
-        .map_or(0, BTreeSet::len);
-    actor_known_facts.push(ActorKnownFact::modeled(
-        "actor_belief_projection",
-        format!("epistemic_projection:actor_beliefs:{actor_belief_count}"),
-    ));
-    for (from, tos) in &visible_local.visible_edges {
-        for to in tos {
-            actor_known_facts.push(ActorKnownFact::modeled(
-                "known_route_surface",
-                format!("visible_local:edge:{}->{}", from.as_str(), to.as_str()),
-            ));
-        }
-    }
-    for food_source in &visible_local.visible_food_sources {
-        actor_known_facts.push(ActorKnownFact::modeled(
-            "actor_knows_food_source",
-            format!("visible_local:food:{food_source}"),
-        ));
-    }
-    for sleep_place in &visible_local.visible_sleep_places {
-        actor_known_facts.push(ActorKnownFact::modeled(
-            "actor_knows_sleep_place",
-            format!("visible_local:sleep_place:{}", sleep_place.as_str()),
-        ));
-    }
-    for (workplace_id, place_id) in &visible_local.visible_workplaces {
-        actor_known_facts.push(ActorKnownFact::modeled(
-            "actor_knows_workplace",
-            format!(
-                "visible_local:workplace:{}@{}",
-                workplace_id.as_str(),
-                place_id.as_str()
-            ),
-        ));
-        actor_known_facts.push(ActorKnownFact::modeled(
-            "workplace_assignment_active",
-            format!(
-                "visible_local:workplace_assignment:{}",
-                workplace_id.as_str()
-            ),
-        ));
-    }
-    actor_known_facts.sort_by(|left, right| {
-        left.stable_id
-            .cmp(&right.stable_id)
-            .then_with(|| left.proof_note().cmp(&right.proof_note()))
-    });
-    let proof_sources = actor_known_facts
-        .iter()
-        .map(ActorKnownFact::proof_note)
-        .collect::<Vec<_>>();
-
-    ActorKnownPlanningState {
-        actor_id: actor_id.clone(),
-        current_place_id: visible_local.current_place_id.clone(),
-        known_edges: visible_local.visible_edges.clone(),
-        known_closed_doors: visible_local.visible_closed_doors.clone(),
-        known_containers_by_place: visible_local.visible_containers_by_place.clone(),
-        known_food_sources: visible_local.visible_food_sources.clone(),
-        known_sleep_places: visible_local.visible_sleep_places.clone(),
-        known_workplaces: visible_local.visible_workplaces.clone(),
-        proof_sources,
-        actor_known_facts,
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -211,7 +58,7 @@ pub struct LocalPlanFailure {
 
 #[allow(clippy::result_large_err)]
 pub fn plan_local_actions(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     request: &LocalPlanRequest,
 ) -> Result<LocalPlan, LocalPlanFailure> {
     match &request.goal {
@@ -242,11 +89,11 @@ pub fn plan_local_actions(
 
 #[allow(clippy::result_large_err)]
 fn plan_route(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     request: &LocalPlanRequest,
     target: &PlaceId,
 ) -> Result<LocalPlan, LocalPlanFailure> {
-    if state.current_place_id == *target {
+    if state.current_place_id() == target {
         return Ok(LocalPlan {
             proposals: Vec::new(),
             trace: trace(
@@ -260,8 +107,8 @@ fn plan_route(
         });
     }
 
-    let mut queue = VecDeque::from([(state.current_place_id.clone(), Vec::<PlaceId>::new())]);
-    let mut visited = BTreeSet::from([state.current_place_id.clone()]);
+    let mut queue = VecDeque::from([(state.current_place_id().clone(), Vec::<PlaceId>::new())]);
+    let mut visited = BTreeSet::from([state.current_place_id().clone()]);
     let mut candidates = Vec::new();
     let mut expansions = 0_usize;
 
@@ -277,7 +124,7 @@ fn plan_route(
         }
         expansions += 1;
         let neighbors = state
-            .known_edges
+            .known_edges()
             .get(&place_id)
             .cloned()
             .unwrap_or_default();
@@ -289,7 +136,7 @@ fn plan_route(
             let mut next_path = path.clone();
             next_path.push(neighbor.clone());
             if &neighbor == target {
-                let proposals = proposals_for_path(state, &state.current_place_id, &next_path);
+                let proposals = proposals_for_path(state, state.current_place_id(), &next_path);
                 return Ok(LocalPlan {
                     trace: trace(
                         state,
@@ -316,14 +163,14 @@ fn plan_route(
 }
 
 fn proposals_for_path(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     start: &PlaceId,
     path: &[PlaceId],
 ) -> Vec<PlannedProposal> {
     let mut proposals = Vec::new();
     let mut from = start.clone();
     for to in path {
-        if let Some(door_id) = state.known_closed_doors.get(&(from.clone(), to.clone())) {
+        if let Some(door_id) = state.known_closed_doors().get(&(from.clone(), to.clone())) {
             proposals.push(PlannedProposal {
                 action_id: ActionId::new("open").unwrap(),
                 target_ids: vec![door_id.clone()],
@@ -340,13 +187,13 @@ fn proposals_for_path(
 
 #[allow(clippy::result_large_err)]
 fn plan_check_container(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     request: &LocalPlanRequest,
     container_id: &ContainerId,
 ) -> Result<LocalPlan, LocalPlanFailure> {
     if state
-        .known_containers_by_place
-        .get(&state.current_place_id)
+        .known_containers_by_place()
+        .get(state.current_place_id())
         .is_some_and(|containers| containers.contains(container_id))
     {
         let proposal = PlannedProposal {
@@ -377,11 +224,11 @@ fn plan_check_container(
 
 #[allow(clippy::result_large_err)]
 fn plan_known_food(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     request: &LocalPlanRequest,
     food_source: &str,
 ) -> Result<LocalPlan, LocalPlanFailure> {
-    if state.known_food_sources.contains(food_source) {
+    if state.known_food_sources().contains(food_source) {
         let proposal = PlannedProposal {
             action_id: ActionId::new("eat").unwrap(),
             target_ids: vec![food_source.to_string()],
@@ -409,7 +256,7 @@ fn plan_known_food(
 }
 
 fn failure(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     request: &LocalPlanRequest,
     blocker: BlockerCategory,
     reason: &str,
@@ -430,7 +277,7 @@ fn failure(
 }
 
 fn trace(
-    state: &ActorKnownPlanningState,
+    state: &ActorKnownPlanningContext,
     request: &LocalPlanRequest,
     candidates_tried: Vec<String>,
     selected_plan: Vec<PlannedProposal>,
@@ -438,7 +285,7 @@ fn trace(
     blocker: Option<BlockerCategory>,
 ) -> LocalPlanTrace {
     LocalPlanTrace {
-        actor_id: state.actor_id.clone(),
+        actor_id: state.actor_id().clone(),
         inputs: request
             .actor_known_facts
             .iter()
@@ -452,29 +299,11 @@ fn trace(
     }
 }
 
-pub fn derive_hidden_truth_audit(
-    state: &ActorKnownPlanningState,
-    request_facts: &[ActorKnownFact],
-) -> HiddenTruthAudit {
-    let mut proof_notes = state.proof_sources.clone();
-    proof_notes.extend(request_facts.iter().map(ActorKnownFact::proof_note));
-    proof_notes.sort();
-    proof_notes.dedup();
-    let actor_known_only = state
-        .actor_known_facts
-        .iter()
-        .chain(request_facts.iter())
-        .all(ActorKnownFact::is_actor_known);
-    HiddenTruthAudit {
-        actor_known_only,
-        notes: format!("planner proof_sources={}", proof_notes.join(",")),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ids::SemanticActionId;
+    use std::collections::BTreeMap;
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
@@ -484,6 +313,14 @@ mod tests {
         PlaceId::new(value).unwrap()
     }
 
+    fn observed_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
+        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None)
+    }
+
+    fn remembered_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
+        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None)
+    }
+
     fn known_state() -> ActorKnownPlanningState {
         let home = place("home");
         let street = place("street");
@@ -491,24 +328,21 @@ mod tests {
         let mut known_edges = BTreeMap::new();
         known_edges.insert(home.clone(), BTreeSet::from([street.clone()]));
         known_edges.insert(street.clone(), BTreeSet::from([office.clone()]));
-        ActorKnownPlanningState {
-            actor_id: actor_id(),
-            current_place_id: home.clone(),
+        ActorKnownPlanningState::from_observed_parts(
+            actor_id(),
+            home.clone(),
             known_edges,
-            known_closed_doors: BTreeMap::from([(
-                (home, street.clone()),
-                "door_home_street".to_string(),
-            )]),
-            known_containers_by_place: BTreeMap::new(),
-            known_food_sources: BTreeSet::from(["food_soup_pot".to_string()]),
-            known_sleep_places: BTreeSet::from([place("home")]),
-            known_workplaces: BTreeMap::new(),
-            proof_sources: vec!["test:known_state".to_string()],
-            actor_known_facts: vec![ActorKnownFact::modeled(
+            BTreeMap::from([((home, street.clone()), "door_home_street".to_string())]),
+            BTreeMap::new(),
+            BTreeSet::from(["food_soup_pot".to_string()]),
+            BTreeSet::from([place("home")]),
+            BTreeMap::new(),
+            vec![observed_fact(
                 "actor_knows_food_source",
+                "food_soup_pot",
                 "test:known_state",
             )],
-        }
+        )
     }
 
     fn request(goal: PlannerGoal, budget: usize) -> LocalPlanRequest {
@@ -519,8 +353,8 @@ mod tests {
             goal,
             budget,
             actor_known_facts: vec![
-                ActorKnownFact::modeled("known_place", "test:home"),
-                ActorKnownFact::modeled("known_place", "test:office"),
+                remembered_fact("known_place", "home", "test:home"),
+                remembered_fact("known_place", "office", "test:office"),
             ],
         }
     }
@@ -613,8 +447,9 @@ mod tests {
                 },
                 goal: PlannerGoal::WaitWithReason("test".to_string()),
                 budget: 1,
-                actor_known_facts: vec![ActorKnownFact::modeled(
+                actor_known_facts: vec![remembered_fact(
                     "modeled_wait_reason",
+                    "test",
                     "test:visible_schedule",
                 )],
             },
@@ -625,7 +460,7 @@ mod tests {
             .trace
             .hidden_truth_audit_result
             .notes
-            .contains("modeled_wait_reason=test:visible_schedule"));
+            .contains("modeled_wait_reason=remembered_belief:test:visible_schedule"));
 
         let unproven = plan_local_actions(
             &known_state(),

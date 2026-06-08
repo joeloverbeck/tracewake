@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-001: Sealed actor-known planning context with provenance
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` agent module: new sealed `ActorKnownPlanningContext` (provenance-bearing), replaces public `ActorKnownPlanningState` / `VisibleLocalPlanningState`; hidden-truth audit recomputed from provenance graph
@@ -91,3 +91,20 @@ Recompute `HiddenTruthAudit` (`agent/trace.rs:37`) from the context's provenance
 
 1. `cargo test -p tracewake-core agent::actor_known`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+Implemented a sealed `ActorKnownPlanningContext` in `crates/tracewake-core/src/agent/actor_known.rs`.
+Actor-known facts now carry stable identity, semantic kind, value, actor, optional tick, and typed provenance. The prior public `ActorKnownPlanningState` and `VisibleLocalPlanningState` field construction path was replaced by private fields, explicit accessors, `VisibleLocalPlanningState::new`, `observe_visible_local`, and `build_actor_known_planning_state`. Planner, HTN, scheduler, and content tests now consume the sealed context through accessors. Hidden-truth audit computation now reads the context provenance graph instead of public `Modeled`/`NoModeledSource` tags.
+
+Deviations from original plan: no no-human behavior flip was made; scheduler still builds the visible-local input until the later transaction/scheduler tickets own that change. A narrow `from_observed_parts` constructor remains for deterministic test setup with explicit provenance-bearing facts rather than public mutable fields.
+
+Verification:
+
+- `cargo test -p tracewake-core agent::actor_known`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

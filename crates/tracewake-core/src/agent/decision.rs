@@ -128,9 +128,12 @@ mod tests {
                 NeedChangeCause::TickDelta,
             )],
             active_intention: Some(active.clone()),
-            actor_known_facts: vec![ActorKnownFact::modeled(
+            actor_known_facts: vec![ActorKnownFact::observed_now(
+                actor_id(),
                 "actor_knows_food_source",
+                "food_soup",
                 "test:visible_food",
+                None,
             )],
             routine_window_goal: None,
         });

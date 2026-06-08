@@ -539,33 +539,27 @@ pub mod no_human {
             agent_state,
             &visible_local,
         );
-        let wait_reason_fact = ActorKnownFact::modeled(
+        let wait_reason_fact = ActorKnownFact::remembered_belief(
+            actor_id.clone(),
             "modeled_wait_reason",
+            "bounded_idle",
             format!("window_id={}:bounded_idle", window.window_id),
+            Some(window.start_tick),
         );
-        let reevaluation_fact = ActorKnownFact::modeled(
+        let reevaluation_fact = ActorKnownFact::remembered_belief(
+            actor_id.clone(),
             "reevaluation_window_known",
+            window.window_id.as_str(),
             format!(
                 "window_id={}:{}..{}",
                 window.window_id,
                 window.start_tick.value(),
                 window.end_tick.value()
             ),
+            Some(window.start_tick),
         );
-        actor_known_state
-            .actor_known_facts
-            .extend([wait_reason_fact, reevaluation_fact]);
-        actor_known_state.actor_known_facts.sort_by(|left, right| {
-            left.stable_id
-                .cmp(&right.stable_id)
-                .then_with(|| left.proof_note().cmp(&right.proof_note()))
-        });
-        actor_known_state.proof_sources = actor_known_state
-            .actor_known_facts
-            .iter()
-            .map(ActorKnownFact::proof_note)
-            .collect();
-        let actor_known_facts = actor_known_state.actor_known_facts.clone();
+        actor_known_state.extend_actor_known_facts([wait_reason_fact, reevaluation_fact]);
+        let actor_known_facts = actor_known_state.actor_known_facts().to_vec();
         if let Some(proposal) = build_routine_or_need_proposal(
             &actor_known_state,
             agent_state,
@@ -717,7 +711,7 @@ pub mod no_human {
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
         registry.get(&ActionId::new("eat").unwrap())?;
-        let food = actor_known_state.known_food_sources.iter().next()?;
+        let food = actor_known_state.known_food_sources().iter().next()?;
         let mut proposal =
             ordinary_proposal("eat", actor_id, window, ActionId::new("eat").unwrap());
         proposal.target_ids.push(food.clone());
@@ -732,10 +726,10 @@ pub mod no_human {
     ) -> Option<Proposal> {
         registry.get(&ActionId::new("sleep").unwrap())?;
         let sleep_place = actor_known_state
-            .known_sleep_places
+            .known_sleep_places()
             .iter()
             .next()
-            .unwrap_or(&actor_known_state.current_place_id);
+            .unwrap_or(actor_known_state.current_place_id());
         let mut proposal =
             ordinary_proposal("sleep", actor_id, window, ActionId::new("sleep").unwrap());
         proposal.target_ids.push(sleep_place.as_str().to_string());
@@ -754,19 +748,19 @@ pub mod no_human {
         registry: &ActionRegistry,
     ) -> Option<Proposal> {
         let (workplace_id, workplace_place_id) =
-            actor_known_state.known_workplaces.iter().next()?;
-        if actor_known_state.current_place_id != *workplace_place_id {
+            actor_known_state.known_workplaces().iter().next()?;
+        if actor_known_state.current_place_id() != workplace_place_id {
             registry.get(&ActionId::new("move").unwrap())?;
             let destination = if actor_known_state
-                .known_edges
-                .get(&actor_known_state.current_place_id)
+                .known_edges()
+                .get(actor_known_state.current_place_id())
                 .is_some_and(|edges| edges.contains(workplace_place_id))
             {
                 workplace_place_id.as_str().to_string()
             } else {
                 actor_known_state
-                    .known_edges
-                    .get(&actor_known_state.current_place_id)?
+                    .known_edges()
+                    .get(actor_known_state.current_place_id())?
                     .iter()
                     .next()
                     .map(|place_id| place_id.as_str().to_string())?
@@ -827,15 +821,15 @@ pub mod no_human {
             .filter(|(_, workplace)| workplace.assigned_actor_ids.contains(actor_id))
             .map(|(workplace_id, workplace)| (workplace_id.clone(), workplace.place_id.clone()))
             .collect::<BTreeMap<_, _>>();
-        VisibleLocalPlanningState {
-            current_place_id: current_place_id.clone(),
+        VisibleLocalPlanningState::new(
+            current_place_id.clone(),
             visible_edges,
-            visible_closed_doors: BTreeMap::new(),
-            visible_containers_by_place: BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
             visible_food_sources,
-            visible_sleep_places: BTreeSet::from([current_place_id.clone()]),
+            BTreeSet::from([current_place_id.clone()]),
             visible_workplaces,
-        }
+        )
     }
 
     fn active_intention_for_actor(

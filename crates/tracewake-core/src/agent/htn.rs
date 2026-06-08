@@ -205,19 +205,19 @@ pub fn resolve_condition(
 ) -> ConditionResolution {
     match condition {
         RoutineCondition::ActorKnowsFoodSource => {
-            if actor_known_state.known_food_sources.is_empty() {
+            if actor_known_state.known_food_sources().is_empty() {
                 return unknown(condition, "no actor-known food source");
             }
             satisfied(condition, "actor_known_state:known_food_sources")
         }
         RoutineCondition::FoodSourceBelievedAccessible => {
-            if actor_known_state.known_food_sources.is_empty() {
+            if actor_known_state.known_food_sources().is_empty() {
                 return rejected(condition, "food source is not actor-known accessible");
             }
             satisfied(condition, "actor_known_state:known_food_sources")
         }
         RoutineCondition::ActorHasFoodSearchKnowledge => {
-            if actor_known_state.known_food_sources.is_empty()
+            if actor_known_state.known_food_sources().is_empty()
                 && !has_modeled_fact(actor_known_facts, "food_search_knowledge_local_visible")
             {
                 return unknown(condition, "no modeled actor-known food search source");
@@ -225,8 +225,8 @@ pub fn resolve_condition(
             satisfied(condition, "actor_known_state:food_search_source")
         }
         RoutineCondition::SearchSurfaceActorKnown => {
-            if actor_known_state.known_food_sources.is_empty()
-                && actor_known_state.known_containers_by_place.is_empty()
+            if actor_known_state.known_food_sources().is_empty()
+                && actor_known_state.known_containers_by_place().is_empty()
                 && !has_modeled_fact(actor_known_facts, "food_search_knowledge_local_visible")
             {
                 return unknown(condition, "no actor-known search surface");
@@ -234,7 +234,7 @@ pub fn resolve_condition(
             satisfied(condition, "actor_known_state:search_surface")
         }
         RoutineCondition::KnownRouteSurface => {
-            if actor_known_state.known_edges.is_empty()
+            if actor_known_state.known_edges().is_empty()
                 && !has_modeled_fact(actor_known_facts, condition.stable_id())
             {
                 return unknown(condition, "no actor-known route surface");
@@ -277,7 +277,7 @@ fn has_modeled_fact(actor_known_facts: &[ActorKnownFact], expected: &str) -> boo
 fn modeled_fact_proof(actor_known_facts: &[ActorKnownFact], expected: &str) -> Option<String> {
     actor_known_facts
         .iter()
-        .find(|fact| fact.stable_id == expected && fact.is_actor_known())
+        .find(|fact| fact.stable_id() == expected && fact.is_actor_known())
         .map(|fact| fact.proof_note())
 }
 
@@ -328,47 +328,80 @@ mod tests {
         )
     }
 
+    fn observed_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
+        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None)
+    }
+
+    fn remembered_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
+        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None)
+    }
+
     fn planning_state(known_food: &[&str]) -> ActorKnownPlanningState {
         let mut facts = vec![
-            ActorKnownFact::modeled("actor_knows_workplace", "test:work_assignment"),
-            ActorKnownFact::modeled("workplace_assignment_active", "test:work_assignment"),
-            ActorKnownFact::modeled("actor_at_workplace", "test:current_place"),
-            ActorKnownFact::modeled("actor_knows_home", "test:home_assignment"),
-            ActorKnownFact::modeled("actor_knows_sleep_place", "test:sleep_assignment"),
-            ActorKnownFact::modeled(
+            remembered_fact(
+                "actor_knows_workplace",
+                "workplace_tomas",
+                "test:work_assignment",
+            ),
+            remembered_fact(
+                "workplace_assignment_active",
+                "workplace_tomas",
+                "test:work_assignment",
+            ),
+            observed_fact(
+                "actor_at_workplace",
+                "workplace_tomas",
+                "test:current_place",
+            ),
+            remembered_fact("actor_knows_home", "home_tomas", "test:home_assignment"),
+            remembered_fact(
+                "actor_knows_sleep_place",
+                "home_tomas",
+                "test:sleep_assignment",
+            ),
+            observed_fact(
                 "sleep_place_believed_accessible",
+                "home_tomas",
                 "test:visible_sleep_place",
             ),
-            ActorKnownFact::modeled("active_intention_present", "test:intention_state"),
-            ActorKnownFact::modeled("next_step_available", "test:routine_execution"),
-            ActorKnownFact::modeled("modeled_wait_reason", "test:wait_reason"),
-            ActorKnownFact::modeled("reevaluation_window_known", "test:day_window"),
-            ActorKnownFact::modeled("known_route_surface", "test:visible_route"),
+            remembered_fact(
+                "active_intention_present",
+                "intention_active",
+                "test:intention_state",
+            ),
+            remembered_fact("next_step_available", "next_step", "test:routine_execution"),
+            remembered_fact("modeled_wait_reason", "wait", "test:wait_reason"),
+            remembered_fact("reevaluation_window_known", "day_window", "test:day_window"),
+            observed_fact(
+                "known_route_surface",
+                "home_tomas->market_square",
+                "test:visible_route",
+            ),
         ];
         if !known_food.is_empty() {
-            facts.push(ActorKnownFact::modeled(
+            facts.push(observed_fact(
                 "actor_knows_food_source",
+                "food_soup",
                 "test:known_food",
             ));
         }
-        ActorKnownPlanningState {
-            actor_id: actor_id(),
-            current_place_id: PlaceId::new("home_tomas").unwrap(),
-            known_edges: BTreeMap::from([(
+        ActorKnownPlanningState::from_observed_parts(
+            actor_id(),
+            PlaceId::new("home_tomas").unwrap(),
+            BTreeMap::from([(
                 PlaceId::new("home_tomas").unwrap(),
                 BTreeSet::from([PlaceId::new("market_square").unwrap()]),
             )]),
-            known_closed_doors: BTreeMap::new(),
-            known_containers_by_place: BTreeMap::new(),
-            known_food_sources: known_food
+            BTreeMap::new(),
+            BTreeMap::new(),
+            known_food
                 .iter()
                 .map(|food| (*food).to_string())
                 .collect::<BTreeSet<_>>(),
-            known_sleep_places: BTreeSet::from([PlaceId::new("home_tomas").unwrap()]),
-            known_workplaces: BTreeMap::new(),
-            proof_sources: vec!["test:actor_known_state".to_string()],
-            actor_known_facts: facts,
-        }
+            BTreeSet::from([PlaceId::new("home_tomas").unwrap()]),
+            BTreeMap::new(),
+            facts,
+        )
     }
 
     fn wait_step() -> RoutineStep {
@@ -390,7 +423,7 @@ mod tests {
             GoalKind::IdleWithReason,
         ] {
             let state = planning_state(&["food_soup"]);
-            let inputs = state.actor_known_facts.clone();
+            let inputs = state.actor_known_facts().to_vec();
             let selection =
                 select_phase3a_method(&candidate(goal_kind), &state, &inputs, SimTick::new(10))
                     .unwrap();
@@ -426,8 +459,9 @@ mod tests {
         let selection = select_phase3a_method(
             &candidate(GoalKind::Eat),
             &planning_state(&["food_soup"]),
-            &[ActorKnownFact::modeled(
+            &[observed_fact(
                 "actor_knows_food_source",
+                "food_soup",
                 "test:known_food",
             )],
             SimTick::new(10),
@@ -449,8 +483,9 @@ mod tests {
     #[test]
     fn selection_is_deterministic() {
         let goal = candidate(GoalKind::Eat);
-        let inputs = vec![ActorKnownFact::modeled(
+        let inputs = vec![observed_fact(
             "actor_knows_food_source",
+            "food_soup",
             "test:known_food",
         )];
         let state = planning_state(&["food_soup"]);

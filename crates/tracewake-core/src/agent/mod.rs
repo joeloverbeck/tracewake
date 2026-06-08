@@ -1,5 +1,6 @@
 //! Agent cognition substrate for ordinary-life simulation.
 
+pub mod actor_known;
 pub mod candidate;
 pub mod decision;
 pub mod generation;
@@ -11,6 +12,9 @@ pub mod planner;
 pub mod routine;
 pub mod trace;
 
+pub use actor_known::{
+    ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, VisibleLocalPlanningState,
+};
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
 };
@@ -34,9 +38,8 @@ pub use need::{
 };
 pub use planner::{
     build_actor_known_planning_state, derive_hidden_truth_audit, plan_local_actions,
-    ActorKnownFact, ActorKnownFactProofSource, ActorKnownPlanningState, LocalPlan,
-    LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
-    VisibleLocalPlanningState, DEFAULT_PLANNER_BUDGET,
+    ActorKnownPlanningState, LocalPlan, LocalPlanFailure, LocalPlanRequest, LocalPlanTrace,
+    PlannedProposal, PlannerGoal, DEFAULT_PLANNER_BUDGET,
 };
 pub use routine::{
     RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError,
