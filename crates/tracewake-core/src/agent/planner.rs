@@ -1,7 +1,8 @@
 use std::collections::{BTreeSet, VecDeque};
 
 pub use crate::agent::actor_known::{
-    build_actor_known_planning_state, derive_hidden_truth_audit, ActorKnownFact,
+    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
+    derive_hidden_truth_audit, ActorKnownFact,
     ActorKnownPlanningContext as ActorKnownPlanningState, ActorKnownProvenance,
     VisibleLocalPlanningState,
 };
@@ -15,6 +16,8 @@ pub enum PlannerGoal {
     ReachPlace(PlaceId),
     CheckContainer(ContainerId),
     EatKnownFood(String),
+    StartSleep(PlaceId),
+    StartWorkBlock(String),
     WaitWithReason(String),
 }
 
@@ -67,6 +70,10 @@ pub fn plan_local_actions(
             plan_check_container(state, request, container_id)
         }
         PlannerGoal::EatKnownFood(food_source) => plan_known_food(state, request, food_source),
+        PlannerGoal::StartSleep(sleep_place_id) => plan_start_sleep(state, request, sleep_place_id),
+        PlannerGoal::StartWorkBlock(workplace_id) => {
+            plan_start_work_block(state, request, workplace_id)
+        }
         PlannerGoal::WaitWithReason(reason) => {
             let proposal = PlannedProposal {
                 action_id: ActionId::new("wait").unwrap(),
@@ -85,6 +92,80 @@ pub fn plan_local_actions(
             })
         }
     }
+}
+
+#[allow(clippy::result_large_err)]
+fn plan_start_sleep(
+    state: &ActorKnownPlanningContext,
+    request: &LocalPlanRequest,
+    sleep_place_id: &PlaceId,
+) -> Result<LocalPlan, LocalPlanFailure> {
+    if state.current_place_id() == sleep_place_id
+        && state.known_sleep_places().contains(sleep_place_id)
+    {
+        let proposal = PlannedProposal {
+            action_id: ActionId::new("sleep").unwrap(),
+            target_ids: vec![sleep_place_id.as_str().to_string()],
+        };
+        return Ok(LocalPlan {
+            proposals: vec![proposal.clone()],
+            trace: trace(
+                state,
+                request,
+                vec![format!("sleep_place:{}", sleep_place_id.as_str())],
+                vec![proposal],
+                Vec::new(),
+                None,
+            ),
+        });
+    }
+
+    Err(failure(
+        state,
+        request,
+        BlockerCategory::Knowledge,
+        "sleep place is not actor-known at current place",
+        vec![format!("sleep_place:{}", sleep_place_id.as_str())],
+    ))
+}
+
+#[allow(clippy::result_large_err)]
+fn plan_start_work_block(
+    state: &ActorKnownPlanningContext,
+    request: &LocalPlanRequest,
+    workplace_id: &str,
+) -> Result<LocalPlan, LocalPlanFailure> {
+    if state
+        .known_workplaces()
+        .iter()
+        .any(|(known_workplace_id, place_id)| {
+            known_workplace_id.as_str() == workplace_id && place_id == state.current_place_id()
+        })
+    {
+        let proposal = PlannedProposal {
+            action_id: ActionId::new("work_block").unwrap(),
+            target_ids: vec![workplace_id.to_string()],
+        };
+        return Ok(LocalPlan {
+            proposals: vec![proposal.clone()],
+            trace: trace(
+                state,
+                request,
+                vec![format!("workplace:{workplace_id}")],
+                vec![proposal],
+                Vec::new(),
+                None,
+            ),
+        });
+    }
+
+    Err(failure(
+        state,
+        request,
+        BlockerCategory::Knowledge,
+        "workplace is not actor-known at current place",
+        vec![format!("workplace:{workplace_id}")],
+    ))
 }
 
 #[allow(clippy::result_large_err)]

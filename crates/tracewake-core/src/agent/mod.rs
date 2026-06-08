@@ -40,9 +40,10 @@ pub use need::{
     NeedThresholdCrossing, ThresholdDirection,
 };
 pub use planner::{
-    build_actor_known_planning_state, derive_hidden_truth_audit, plan_local_actions,
-    ActorKnownPlanningState, LocalPlan, LocalPlanFailure, LocalPlanRequest, LocalPlanTrace,
-    PlannedProposal, PlannerGoal, DEFAULT_PLANNER_BUDGET,
+    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
+    derive_hidden_truth_audit, plan_local_actions, ActorKnownPlanningState, LocalPlan,
+    LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
+    DEFAULT_PLANNER_BUDGET,
 };
 pub use routine::{
     RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError,

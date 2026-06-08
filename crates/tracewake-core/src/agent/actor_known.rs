@@ -337,12 +337,25 @@ pub fn build_actor_known_planning_state(
     agent_state: &AgentState,
     visible_local: &VisibleLocalPlanningState,
 ) -> ActorKnownPlanningContext {
-    observe_visible_local(actor_id, epistemic_projection, agent_state, visible_local)
+    observe_visible_local(
+        actor_id,
+        Some(epistemic_projection),
+        agent_state,
+        visible_local,
+    )
+}
+
+pub fn build_actor_known_planning_state_with_projection_limitation(
+    actor_id: &ActorId,
+    agent_state: &AgentState,
+    visible_local: &VisibleLocalPlanningState,
+) -> ActorKnownPlanningContext {
+    observe_visible_local(actor_id, None, agent_state, visible_local)
 }
 
 pub fn observe_visible_local(
     actor_id: &ActorId,
-    epistemic_projection: &EpistemicProjection,
+    epistemic_projection: Option<&EpistemicProjection>,
     agent_state: &AgentState,
     visible_local: &VisibleLocalPlanningState,
 ) -> ActorKnownPlanningContext {
@@ -365,17 +378,27 @@ pub fn observe_visible_local(
             None,
         ));
     }
-    let actor_belief_count = epistemic_projection
-        .beliefs_by_holder
-        .get(actor_id)
-        .map_or(0, BTreeSet::len);
-    facts.push(ActorKnownFact::remembered_belief(
-        actor_id.clone(),
-        "actor_belief_projection",
-        actor_belief_count.to_string(),
-        format!("epistemic_projection:actor_beliefs:{actor_belief_count}"),
-        None,
-    ));
+    if let Some(epistemic_projection) = epistemic_projection {
+        let actor_belief_count = epistemic_projection
+            .beliefs_by_holder
+            .get(actor_id)
+            .map_or(0, BTreeSet::len);
+        facts.push(ActorKnownFact::remembered_belief(
+            actor_id.clone(),
+            "actor_belief_projection",
+            actor_belief_count.to_string(),
+            format!("epistemic_projection:actor_beliefs:{actor_belief_count}"),
+            None,
+        ));
+    } else {
+        facts.push(ActorKnownFact::remembered_belief(
+            actor_id.clone(),
+            "actor_belief_projection_limitation",
+            "not_supplied",
+            "no_human_day:typed_projection_limitation",
+            None,
+        ));
+    }
     for (from, tos) in &visible_local.visible_edges {
         for to in tos {
             facts.push(ActorKnownFact::observed_now(
@@ -478,9 +501,11 @@ mod tests {
     #[test]
     fn visible_local_observation_stamps_every_planner_fact_with_provenance() {
         let actor_id = actor_id();
+        let epistemic_projection =
+            EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap());
         let context = observe_visible_local(
             &actor_id,
-            &EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap()),
+            Some(&epistemic_projection),
             &AgentState::default(),
             &visible_local(),
         );
@@ -498,9 +523,11 @@ mod tests {
 
     #[test]
     fn hidden_truth_audit_reads_provenance_graph_not_stored_boolean() {
+        let epistemic_projection =
+            EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap());
         let mut context = observe_visible_local(
             &actor_id(),
-            &EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap()),
+            Some(&epistemic_projection),
             &AgentState::default(),
             &visible_local(),
         );

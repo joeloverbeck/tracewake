@@ -206,23 +206,20 @@ pub mod no_human {
     use crate::actions::defs::sleep::build_sleep_completion_events;
     use crate::actions::defs::work::build_work_completion_events;
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
-    use crate::actions::proposal::{Proposal, ProposalOrigin};
+    use crate::actions::proposal::Proposal;
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
-        build_actor_known_planning_state, generate_candidate_goals_from_agent_state,
-        plan_local_actions, select_goal_and_trace, select_phase3a_method, ActorKnownFact,
-        ActorKnownPlanningState, BlockerCategory, DecisionInput, Intention, IntentionSource,
-        LiveCandidateGenerationInput, LocalPlanRequest, NeedBand, NeedKind, NeedState, PlannerGoal,
-        RoutineFamily, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
+        build_actor_known_planning_state_with_projection_limitation, ActorDecisionTransaction,
+        ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
+        BlockerCategory, DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind,
+        NeedState, RoutineFamily, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
     };
-    use crate::epistemics::EpistemicProjection;
     use crate::events::apply::apply_agent_event;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
         ActionId, ActorId, CandidateGoalId, ContentManifestId, DecisionTraceId, EventId,
-        IntentionId, ProcessId, ProposalId, RoutineExecutionId, SemanticActionId,
-        StuckDiagnosticId,
+        IntentionId, ProcessId, RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
     use crate::location::Location;
     use crate::scheduler::{
@@ -364,16 +361,27 @@ pub mod no_human {
                     &content_manifest_id,
                 );
                 last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
-                let Some(proposal) = build_agent_proposal(
+                append_due_completions(
+                    log,
+                    agent_state,
+                    &process_id,
+                    &mut scheduler,
+                    &content_manifest_id,
+                    &mut pending_sleep_starts,
+                    &mut pending_work_starts,
+                    window.start_tick,
+                );
+                let Some(agent_proposal) = build_agent_proposal(
                     state,
                     agent_state,
                     actor_id,
                     window,
-                    registry,
                     &content_manifest_id,
                 ) else {
                     continue;
                 };
+                let proposal = agent_proposal.proposal;
+                let decision_trace_record = agent_proposal.decision_trace_record;
                 let active_before_proposal = active_intention_for_actor(agent_state, actor_id);
                 let ordering_key = OrderingKey::new(
                     window.start_tick,
@@ -453,27 +461,22 @@ pub mod no_human {
                     actor_id,
                     window,
                     &proposal,
+                    &decision_trace_record,
                     &content_manifest_id,
                     result.appended_events.first(),
                 );
             }
         }
 
-        append_scheduled_sleep_completions(
+        append_due_completions(
             log,
             agent_state,
             &process_id,
             &mut scheduler,
             &content_manifest_id,
-            pending_sleep_starts,
-        );
-        append_scheduled_work_completions(
-            log,
-            agent_state,
-            &process_id,
-            &mut scheduler,
-            &content_manifest_id,
-            pending_work_starts,
+            &mut pending_sleep_starts,
+            &mut pending_work_starts,
+            final_tick,
         );
 
         let mut stuck_diagnostic_event_ids = Vec::new();
@@ -492,6 +495,8 @@ pub mod no_human {
                         window,
                         &content_manifest_id,
                     );
+                    apply_agent_event(agent_state, &event)
+                        .expect("stuck diagnostic event applies to live agent state");
                     stuck_diagnostic_event_ids.push(event.event_id);
                 }
             }
@@ -522,20 +527,22 @@ pub mod no_human {
         }
     }
 
+    struct BuiltAgentProposal {
+        proposal: Proposal,
+        decision_trace_record: DecisionTraceRecord,
+    }
+
     fn build_agent_proposal(
         state: &PhysicalState,
         agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
-        registry: &ActionRegistry,
-        content_manifest_id: &ContentManifestId,
-    ) -> Option<Proposal> {
+        _content_manifest_id: &ContentManifestId,
+    ) -> Option<BuiltAgentProposal> {
         let actor = state.actors.get(actor_id)?;
-        let epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
         let visible_local = visible_local_planning_state(state, actor_id, &actor.current_place_id);
-        let mut actor_known_state = build_actor_known_planning_state(
+        let mut actor_known_state = build_actor_known_planning_state_with_projection_limitation(
             actor_id,
-            &epistemic_projection,
             agent_state,
             &visible_local,
         );
@@ -558,243 +565,111 @@ pub mod no_human {
             ),
             Some(window.start_tick),
         );
-        actor_known_state.extend_actor_known_facts([wait_reason_fact, reevaluation_fact]);
-        let actor_known_facts = actor_known_state.actor_known_facts().to_vec();
-        if let Some(proposal) = build_routine_or_need_proposal(
-            &actor_known_state,
-            agent_state,
-            actor_id,
-            window,
-            registry,
-        ) {
-            return Some(proposal);
-        }
-        registry.get(&ActionId::new("wait").unwrap())?;
         let active_intention = active_intention_for_actor(agent_state, actor_id);
-        let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
+        let mut transaction_facts = vec![wait_reason_fact, reevaluation_fact];
+        if active_intention.is_some() {
+            transaction_facts.push(ActorKnownFact::remembered_belief(
+                actor_id.clone(),
+                "active_intention_present",
+                "active",
+                "agent_state:active_intention",
+                Some(window.start_tick),
+            ));
+            transaction_facts.push(ActorKnownFact::remembered_belief(
+                actor_id.clone(),
+                "next_step_available",
+                "modeled_next_step",
+                "agent_state:active_intention_next_step",
+                Some(window.start_tick),
+            ));
+        }
+        if !actor_known_state.known_food_sources().is_empty() {
+            transaction_facts.push(ActorKnownFact::observed_now(
+                actor_id.clone(),
+                "food_source_believed_accessible",
+                "visible_food_source",
+                "visible_local:food_accessible",
+                Some(window.start_tick),
+            ));
+        }
+        if actor_known_state
+            .known_sleep_places()
+            .contains(actor_known_state.current_place_id())
+        {
+            transaction_facts.push(ActorKnownFact::observed_now(
+                actor_id.clone(),
+                "sleep_place_believed_accessible",
+                actor_known_state.current_place_id().as_str(),
+                "visible_local:sleep_place_accessible",
+                Some(window.start_tick),
+            ));
+        }
+        if actor_known_state
+            .known_workplaces()
+            .values()
+            .any(|place_id| place_id == actor_known_state.current_place_id())
+        {
+            for stable_id in [
+                "actor_at_workplace",
+                "assigned_workplace_known",
+                "at_workplace",
+            ] {
+                transaction_facts.push(ActorKnownFact::observed_now(
+                    actor_id.clone(),
+                    stable_id,
+                    actor_known_state.current_place_id().as_str(),
+                    format!("visible_local:{stable_id}"),
+                    Some(window.start_tick),
+                ));
+            }
+        }
+        actor_known_state.extend_actor_known_facts(transaction_facts);
+        match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
-            active_intention: active_intention.clone(),
-            actor_known_facts: actor_known_facts.clone(),
-            routine_window_goal: None,
-        });
-        let candidate_fallbacks = generated.candidates.clone();
-        let selection = select_goal_and_trace(DecisionInput {
-            actor_id: actor_id.clone(),
-            decision_tick: window.start_tick,
-            candidates: generated.candidates,
-            active_intention,
-            actor_known_inputs: generated.actor_known_inputs_used,
-        })?;
-        let method = select_phase3a_method(
-            &selection.selected_goal,
-            &actor_known_state,
-            &actor_known_facts,
-            window.start_tick,
-        )
-        .or_else(|_| {
-            candidate_fallbacks
-                .iter()
-                .find(|candidate| candidate.goal_kind == crate::agent::GoalKind::IdleWithReason)
-                .ok_or(crate::agent::MethodSelectionFailure::NoApplicableMethod {
-                    family: crate::agent::RoutineFamily::Wait,
-                    reason: "idle fallback candidate missing".to_string(),
+            actor_known_context: &actor_known_state,
+            routine_window_family: routine_window_family(agent_state, actor_id, window),
+            include_idle_fallback: true,
+        }) {
+            ActorDecisionTransactionOutcome::Proposed(proposed) => {
+                let mut proposal = proposed.proposal;
+                if proposal.action_id.as_str() == "wait" {
+                    proposal.parameters.insert(
+                        "reason".to_string(),
+                        format!("no_human_day:{}", window.window_id),
+                    );
+                }
+                Some(BuiltAgentProposal {
+                    proposal,
+                    decision_trace_record: proposed.decision_trace_record,
                 })
-                .and_then(|candidate| {
-                    select_phase3a_method(
-                        candidate,
-                        &actor_known_state,
-                        &actor_known_facts,
-                        window.start_tick,
-                    )
-                })
-        })
-        .ok()?;
-        let wait_reason = format!("no_human_day:{}", window.window_id);
-        let plan = plan_local_actions(
-            &actor_known_state,
-            &LocalPlanRequest {
-                routine_step: method.template.steps.first().cloned().unwrap_or(
-                    crate::agent::RoutineStep::WaitUntil {
-                        reason: wait_reason.clone(),
-                    },
-                ),
-                goal: PlannerGoal::WaitWithReason(wait_reason.clone()),
-                budget: 1,
-                actor_known_facts,
-            },
-        )
-        .ok()?;
-        let planned = plan.proposals.first()?;
-        let mut proposal = Proposal::new(
-            ProposalId::new(format!(
-                "proposal_no_human_day_{}_{}_wait",
-                actor_id.as_str(),
-                window.window_id
-            ))
-            .unwrap(),
-            ProposalOrigin::Agent,
-            Some(actor_id.clone()),
-            planned.action_id.clone(),
-            window.start_tick,
-        );
-        proposal
-            .parameters
-            .insert("reason".to_string(), wait_reason);
-        Some(proposal)
+            }
+            ActorDecisionTransactionOutcome::Stuck { .. } => None,
+        }
     }
 
-    fn build_routine_or_need_proposal(
-        actor_known_state: &ActorKnownPlanningState,
+    fn routine_window_family(
         agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
-        registry: &ActionRegistry,
-    ) -> Option<Proposal> {
-        let family = agent_state
+    ) -> Option<RoutineFamily> {
+        agent_state
             .routine_executions
             .values()
             .filter(|execution| &execution.actor_id == actor_id)
             .filter(|execution| execution.start_tick <= window.end_tick)
+            .filter(|execution| {
+                !matches!(
+                    execution.step_status,
+                    crate::agent::RoutineStepStatus::Completed
+                        | crate::agent::RoutineStepStatus::Failed
+                        | crate::agent::RoutineStepStatus::Interrupted
+                        | crate::agent::RoutineStepStatus::Abandoned
+                )
+            })
             .min_by(|left, right| left.start_tick.cmp(&right.start_tick))
-            .map(|execution| execution.family);
-        if let Some(family) = family {
-            match family {
-                RoutineFamily::SleepNight => {
-                    return sleep_proposal(actor_known_state, actor_id, window, registry);
-                }
-                RoutineFamily::EatMeal | RoutineFamily::FindFood => {
-                    return eat_proposal(actor_known_state, actor_id, window, registry);
-                }
-                RoutineFamily::GoToWork | RoutineFamily::WorkBlock => {
-                    return work_or_move_proposal(
-                        actor_known_state,
-                        agent_state,
-                        actor_id,
-                        window,
-                        registry,
-                    );
-                }
-                RoutineFamily::MorningWake
-                | RoutineFamily::ReturnHome
-                | RoutineFamily::ContinueCurrentIntention
-                | RoutineFamily::Wait
-                | RoutineFamily::IdleWithReason => {}
-            }
-        }
-
-        let needs = agent_state.needs_by_actor.get(actor_id);
-        let hunger = needs
-            .and_then(|needs| needs.get(&crate::agent::NeedKind::Hunger))
-            .map_or(0, crate::agent::NeedState::value);
-        let fatigue = needs
-            .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
-            .map_or(0, crate::agent::NeedState::value);
-        if hunger >= 500 {
-            if let Some(proposal) = eat_proposal(actor_known_state, actor_id, window, registry) {
-                return Some(proposal);
-            }
-        }
-        if fatigue >= 500 {
-            if let Some(proposal) = sleep_proposal(actor_known_state, actor_id, window, registry) {
-                return Some(proposal);
-            }
-        }
-        None
-    }
-
-    fn eat_proposal(
-        actor_known_state: &ActorKnownPlanningState,
-        actor_id: &ActorId,
-        window: &DayWindow,
-        registry: &ActionRegistry,
-    ) -> Option<Proposal> {
-        registry.get(&ActionId::new("eat").unwrap())?;
-        let food = actor_known_state.known_food_sources().iter().next()?;
-        let mut proposal =
-            ordinary_proposal("eat", actor_id, window, ActionId::new("eat").unwrap());
-        proposal.target_ids.push(food.clone());
-        Some(proposal)
-    }
-
-    fn sleep_proposal(
-        actor_known_state: &ActorKnownPlanningState,
-        actor_id: &ActorId,
-        window: &DayWindow,
-        registry: &ActionRegistry,
-    ) -> Option<Proposal> {
-        registry.get(&ActionId::new("sleep").unwrap())?;
-        let sleep_place = actor_known_state
-            .known_sleep_places()
-            .iter()
-            .next()
-            .unwrap_or(actor_known_state.current_place_id());
-        let mut proposal =
-            ordinary_proposal("sleep", actor_id, window, ActionId::new("sleep").unwrap());
-        proposal.target_ids.push(sleep_place.as_str().to_string());
-        proposal.parameters.insert(
-            "sleep_place_id".to_string(),
-            sleep_place.as_str().to_string(),
-        );
-        Some(proposal)
-    }
-
-    fn work_or_move_proposal(
-        actor_known_state: &ActorKnownPlanningState,
-        agent_state: &AgentState,
-        actor_id: &ActorId,
-        window: &DayWindow,
-        registry: &ActionRegistry,
-    ) -> Option<Proposal> {
-        let (workplace_id, workplace_place_id) =
-            actor_known_state.known_workplaces().iter().next()?;
-        if actor_known_state.current_place_id() != workplace_place_id {
-            registry.get(&ActionId::new("move").unwrap())?;
-            let destination = if actor_known_state
-                .known_edges()
-                .get(actor_known_state.current_place_id())
-                .is_some_and(|edges| edges.contains(workplace_place_id))
-            {
-                workplace_place_id.as_str().to_string()
-            } else {
-                actor_known_state
-                    .known_edges()
-                    .get(actor_known_state.current_place_id())?
-                    .iter()
-                    .next()
-                    .map(|place_id| place_id.as_str().to_string())?
-            };
-            let mut proposal =
-                ordinary_proposal("move", actor_id, window, ActionId::new("move").unwrap());
-            proposal.target_ids.push(destination);
-            return Some(proposal);
-        }
-
-        registry.get(&ActionId::new("work_block").unwrap())?;
-        let mut proposal = ordinary_proposal(
-            "work",
-            actor_id,
-            window,
-            ActionId::new("work_block").unwrap(),
-        );
-        proposal.target_ids.push(workplace_id.as_str().to_string());
-        let needs = agent_state.needs_by_actor.get(actor_id);
-        proposal.parameters.insert(
-            "current_fatigue".to_string(),
-            needs
-                .and_then(|needs| needs.get(&crate::agent::NeedKind::Fatigue))
-                .map_or(0, crate::agent::NeedState::value)
-                .to_string(),
-        );
-        proposal.parameters.insert(
-            "current_hunger".to_string(),
-            needs
-                .and_then(|needs| needs.get(&crate::agent::NeedKind::Hunger))
-                .map_or(0, crate::agent::NeedState::value)
-                .to_string(),
-        );
-        Some(proposal)
+            .map(|execution| execution.family)
     }
 
     fn visible_local_planning_state(
@@ -840,78 +715,256 @@ pub mod no_human {
         agent_state.intentions.get(intention_id).cloned()
     }
 
-    fn append_scheduled_sleep_completions(
-        log: &mut EventLog,
-        agent_state: &mut AgentState,
-        process_id: &ProcessId,
-        scheduler: &mut DeterministicScheduler,
-        content_manifest_id: &ContentManifestId,
-        sleep_starts: Vec<EventEnvelope>,
-    ) {
-        for sleep_started in sleep_starts {
-            let Some(completion_tick) = scheduled_completion_tick(&sleep_started) else {
-                continue;
-            };
-            let actor_id = sleep_started
-                .actor_id
-                .as_ref()
-                .map(|actor_id| actor_id.as_str().to_string())
-                .unwrap_or_default();
-            let ordering_key = OrderingKey::new(
-                completion_tick,
-                SchedulePhase::NoHumanProcess,
-                SchedulerSourceId::Process(process_id.clone()),
-                scheduler.assign_proposal_sequence(),
-                ActionId::new("sleep_completed").unwrap(),
-                vec![actor_id],
-                format!("sleep_completed:{}", sleep_started.event_id.as_str()),
-            );
-            for event in build_sleep_completion_events(
-                &sleep_started,
-                &ordering_key,
-                content_manifest_id,
-                completion_tick,
-            ) {
-                append_and_apply_agent_event(log, agent_state, event);
+    enum PendingCompletion {
+        Sleep(EventEnvelope),
+        Work(EventEnvelope),
+    }
+
+    impl PendingCompletion {
+        fn tick(&self) -> Option<SimTick> {
+            match self {
+                Self::Sleep(event) | Self::Work(event) => scheduled_completion_tick(event),
+            }
+        }
+
+        fn event_id(&self) -> &EventId {
+            match self {
+                Self::Sleep(event) | Self::Work(event) => &event.event_id,
             }
         }
     }
 
-    fn append_scheduled_work_completions(
+    #[allow(clippy::too_many_arguments)]
+    fn append_due_completions(
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
         scheduler: &mut DeterministicScheduler,
         content_manifest_id: &ContentManifestId,
-        work_starts: Vec<EventEnvelope>,
+        pending_sleep_starts: &mut Vec<EventEnvelope>,
+        pending_work_starts: &mut Vec<EventEnvelope>,
+        due_tick: SimTick,
     ) {
-        for work_started in work_starts {
-            let Some(completion_tick) = scheduled_completion_tick(&work_started) else {
-                continue;
-            };
-            let actor_id = work_started
-                .actor_id
-                .as_ref()
-                .map(|actor_id| actor_id.as_str().to_string())
-                .unwrap_or_default();
-            let ordering_key = OrderingKey::new(
-                completion_tick,
-                SchedulePhase::NoHumanProcess,
-                SchedulerSourceId::Process(process_id.clone()),
-                scheduler.assign_proposal_sequence(),
-                ActionId::new("work_block_completed").unwrap(),
-                vec![actor_id],
-                format!("work_completed:{}", work_started.event_id.as_str()),
-            );
-            for event in build_work_completion_events(
-                &work_started,
-                &ordering_key,
-                content_manifest_id,
-                completion_tick,
-            ) {
-                append_and_apply_agent_event(log, agent_state, event);
+        let mut due_completions = Vec::new();
+        let mut retained_sleep_starts = Vec::new();
+        for sleep_started in pending_sleep_starts.drain(..) {
+            if scheduled_completion_tick(&sleep_started).is_some_and(|tick| tick <= due_tick) {
+                due_completions.push(PendingCompletion::Sleep(sleep_started));
+            } else {
+                retained_sleep_starts.push(sleep_started);
             }
         }
+        *pending_sleep_starts = retained_sleep_starts;
+
+        let mut retained_work_starts = Vec::new();
+        for work_started in pending_work_starts.drain(..) {
+            if scheduled_completion_tick(&work_started).is_some_and(|tick| tick <= due_tick) {
+                due_completions.push(PendingCompletion::Work(work_started));
+            } else {
+                retained_work_starts.push(work_started);
+            }
+        }
+        *pending_work_starts = retained_work_starts;
+
+        due_completions.sort_by(|left, right| {
+            left.tick()
+                .cmp(&right.tick())
+                .then_with(|| left.event_id().cmp(right.event_id()))
+        });
+        for completion in due_completions {
+            append_scheduled_completion(
+                log,
+                agent_state,
+                process_id,
+                scheduler,
+                content_manifest_id,
+                completion,
+            );
+        }
+    }
+
+    fn append_scheduled_completion(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        scheduler: &mut DeterministicScheduler,
+        content_manifest_id: &ContentManifestId,
+        completion: PendingCompletion,
+    ) {
+        match completion {
+            PendingCompletion::Sleep(sleep_started) => {
+                let Some(completion_tick) = scheduled_completion_tick(&sleep_started) else {
+                    return;
+                };
+                let actor_id = sleep_started
+                    .actor_id
+                    .as_ref()
+                    .map(|actor_id| actor_id.as_str().to_string())
+                    .unwrap_or_default();
+                let ordering_key = OrderingKey::new(
+                    completion_tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Process(process_id.clone()),
+                    scheduler.assign_proposal_sequence(),
+                    ActionId::new("sleep_completed").unwrap(),
+                    vec![actor_id],
+                    format!("sleep_completed:{}", sleep_started.event_id.as_str()),
+                );
+                for event in build_sleep_completion_events(
+                    &sleep_started,
+                    &ordering_key,
+                    content_manifest_id,
+                    completion_tick,
+                ) {
+                    let appended = append_and_apply_agent_event(log, agent_state, event);
+                    append_routine_step_completed_after_duration_completion(
+                        log,
+                        agent_state,
+                        process_id,
+                        content_manifest_id,
+                        &appended,
+                    );
+                }
+            }
+            PendingCompletion::Work(work_started) => {
+                let Some(completion_tick) = scheduled_completion_tick(&work_started) else {
+                    return;
+                };
+                let actor_id = work_started
+                    .actor_id
+                    .as_ref()
+                    .map(|actor_id| actor_id.as_str().to_string())
+                    .unwrap_or_default();
+                let ordering_key = OrderingKey::new(
+                    completion_tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Process(process_id.clone()),
+                    scheduler.assign_proposal_sequence(),
+                    ActionId::new("work_block_completed").unwrap(),
+                    vec![actor_id],
+                    format!("work_completed:{}", work_started.event_id.as_str()),
+                );
+                for event in build_work_completion_events(
+                    &work_started,
+                    &ordering_key,
+                    content_manifest_id,
+                    completion_tick,
+                ) {
+                    let appended = append_and_apply_agent_event(log, agent_state, event);
+                    append_routine_step_completed_after_duration_completion(
+                        log,
+                        agent_state,
+                        process_id,
+                        content_manifest_id,
+                        &appended,
+                    );
+                }
+            }
+        }
+    }
+
+    fn append_routine_step_completed_after_duration_completion(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        content_manifest_id: &ContentManifestId,
+        completion_event: &EventEnvelope,
+    ) {
+        let (family, ordinary_action_id) = match completion_event.event_type {
+            EventKind::SleepCompleted => (RoutineFamily::SleepNight, "sleep"),
+            EventKind::WorkBlockCompleted => (RoutineFamily::WorkBlock, "work_block"),
+            _ => return,
+        };
+        let Some(actor_id) = completion_event.actor_id.as_ref() else {
+            return;
+        };
+        let Some(execution_id) = agent_state
+            .routine_executions
+            .iter()
+            .filter(|(_, execution)| &execution.actor_id == actor_id)
+            .filter(|(_, execution)| execution.family == family)
+            .filter(|(_, execution)| execution.start_tick <= completion_event.sim_tick)
+            .filter(|(_, execution)| {
+                execution.step_status == crate::agent::RoutineStepStatus::InProgress
+            })
+            .min_by(|(_, left), (_, right)| {
+                left.start_tick
+                    .cmp(&right.start_tick)
+                    .then_with(|| left.execution_id.cmp(&right.execution_id))
+            })
+            .map(|(execution_id, _)| execution_id.clone())
+        else {
+            return;
+        };
+        append_and_apply_agent_event(
+            log,
+            agent_state,
+            build_duration_routine_step_completed_event(
+                process_id,
+                &execution_id,
+                actor_id,
+                ordinary_action_id,
+                content_manifest_id,
+                completion_event,
+            ),
+        );
+    }
+
+    fn build_duration_routine_step_completed_event(
+        process_id: &ProcessId,
+        execution_id: &RoutineExecutionId,
+        actor_id: &ActorId,
+        ordinary_action_id: &str,
+        content_manifest_id: &ContentManifestId,
+        completion_event: &EventEnvelope,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!(
+                "event.routine_step_completed.{}.{}",
+                execution_id.as_str(),
+                completion_event.event_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::RoutineStepCompleted,
+            0,
+            0,
+            completion_event.sim_tick,
+            OrderingKey::new(
+                completion_event.sim_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Process(process_id.clone()),
+                ProposalSequence::new(0),
+                ActionId::new("routine_step_completed").unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    execution_id.as_str().to_string(),
+                ],
+                format!(
+                    "routine_step_completed:{}:{}",
+                    actor_id.as_str(),
+                    completion_event.event_id.as_str()
+                ),
+            ),
+            content_manifest_id.clone(),
+            vec![EventCause::Event(completion_event.event_id.clone())],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.process_id = Some(process_id.clone());
+        event.participants = vec![actor_id.to_string(), execution_id.to_string()];
+        event.payload = vec![
+            PayloadField::new("routine_execution_id", execution_id.as_str()),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new(
+                "progress_tick",
+                completion_event.sim_tick.value().to_string(),
+            ),
+            PayloadField::new("ordinary_event_id", completion_event.event_id.as_str()),
+            PayloadField::new("ordinary_action_id", ordinary_action_id),
+        ];
+        event.effects_summary =
+            "duration routine step completed with ordinary completion ancestry".to_string();
+        event
     }
 
     fn scheduled_completion_tick(event: &EventEnvelope) -> Option<SimTick> {
@@ -931,6 +984,7 @@ pub mod no_human {
         actor_id: &ActorId,
         window: &DayWindow,
         proposal: &Proposal,
+        decision_trace_record: &DecisionTraceRecord,
         content_manifest_id: &ContentManifestId,
         ordinary_event: Option<&EventEnvelope>,
     ) {
@@ -945,6 +999,7 @@ pub mod no_human {
                 actor_id,
                 window,
                 proposal,
+                decision_trace_record,
                 content_manifest_id,
                 ordinary_event,
             ),
@@ -956,33 +1011,12 @@ pub mod no_human {
         actor_id: &ActorId,
         window: &DayWindow,
         proposal: &Proposal,
+        decision_trace_record: &DecisionTraceRecord,
         content_manifest_id: &ContentManifestId,
         ordinary_event: &EventEnvelope,
     ) -> EventEnvelope {
-        let trace_id = DecisionTraceId::new(format!(
-            "trace_{}_{}_{}",
-            actor_id.as_str(),
-            window.window_id,
-            proposal.action_id.as_str()
-        ))
-        .unwrap();
-        let outcome = match ordinary_event.event_type {
-            EventKind::ActionRejected
-            | EventKind::EatFailed
-            | EventKind::WorkBlockFailed
-            | EventKind::ContinueRoutineRejected => "failed",
-            EventKind::ActorWaited => "waited",
-            EventKind::ContinueRoutineAccepted => "continued",
-            _ => "completed",
-        };
-        let trace_canonical = format!(
-            "decision_trace_v1|{}|{}|{}|{}|{}|0|true|6e6f5f68756d616e5f646179",
-            trace_id.as_str(),
-            actor_id.as_str(),
-            window.start_tick.value(),
-            window.end_tick.value(),
-            outcome
-        );
+        let trace_id = decision_trace_record.trace_id.clone();
+        let trace_canonical = decision_trace_record.serialize_canonical();
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(format!(
                 "event.decision_trace.{}.{}",
@@ -1019,7 +1053,20 @@ pub mod no_human {
             PayloadField::new("window_id", window.window_id.as_str()),
             PayloadField::new("action_id", proposal.action_id.as_str()),
             PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
-            PayloadField::new("hidden_truth_audit", "actor_known_only"),
+            PayloadField::new(
+                "hidden_truth_audit_actor_known_only",
+                decision_trace_record
+                    .hidden_truth_audit_result
+                    .actor_known_only
+                    .to_string(),
+            ),
+            PayloadField::new(
+                "hidden_truth_audit_notes",
+                decision_trace_record
+                    .hidden_truth_audit_result
+                    .notes
+                    .clone(),
+            ),
         ];
         event.effects_summary =
             "no-human decision trace recorded from autonomous proposal".to_string();
@@ -1455,7 +1502,8 @@ pub mod no_human {
         let Some(ordinary_event) = ordinary_event else {
             return;
         };
-        let Some(execution_id) = active_routine_execution_for_actor(agent_state, actor_id) else {
+        let Some(execution_id) = active_routine_execution_for_actor(agent_state, actor_id, window)
+        else {
             return;
         };
         let Some(execution) = agent_state.routine_executions.get(&execution_id) else {
@@ -1521,11 +1569,13 @@ pub mod no_human {
     fn active_routine_execution_for_actor(
         agent_state: &AgentState,
         actor_id: &ActorId,
+        window: &DayWindow,
     ) -> Option<RoutineExecutionId> {
         agent_state
             .routine_executions
             .iter()
             .filter(|(_, execution)| &execution.actor_id == actor_id)
+            .filter(|(_, execution)| execution.start_tick <= window.start_tick)
             .filter(|(_, execution)| {
                 !matches!(
                     execution.step_status,
@@ -1718,27 +1768,6 @@ pub mod no_human {
         }
     }
 
-    fn ordinary_proposal(
-        label: &str,
-        actor_id: &ActorId,
-        window: &DayWindow,
-        action_id: ActionId,
-    ) -> Proposal {
-        Proposal::new(
-            ProposalId::new(format!(
-                "proposal_no_human_day_{}_{}_{}",
-                actor_id.as_str(),
-                window.window_id,
-                label
-            ))
-            .unwrap(),
-            ProposalOrigin::Agent,
-            Some(actor_id.clone()),
-            action_id,
-            window.start_tick,
-        )
-    }
-
     pub fn advance_no_human(
         state: NoHumanStateMut<'_>,
         log: &mut EventLog,
@@ -1826,6 +1855,9 @@ pub mod no_human {
     }
 
     fn is_no_human_progress_event(event: &EventEnvelope) -> bool {
+        if event.event_type == EventKind::ActionRejected {
+            return false;
+        }
         if event.event_type != EventKind::ContinueRoutineProposed {
             return true;
         }
@@ -1868,6 +1900,7 @@ pub mod no_human {
             content_manifest_id,
         );
         event.process_id = Some(process_id.clone());
+        event.causes = vec![EventCause::Process(process_id.clone())];
         event.payload = vec![PayloadField::new("tick_count", tick_count.to_string())];
         if kind == EventKind::NoHumanDayCompleted {
             event.payload.push(PayloadField::new(
@@ -2159,7 +2192,7 @@ pub mod no_human {
         }
 
         #[test]
-        fn routine_dispatch_uses_family_when_template_id_has_no_magic_substring() {
+        fn no_human_proposal_comes_from_transaction_candidate_for_routine_family() {
             let actor_id = actor_id();
             let kitchen = PlaceId::new("kitchen").unwrap();
             let mut state = PhysicalState::default();
@@ -2191,17 +2224,8 @@ pub mod no_human {
                     DecisionTraceId::new("trace_midday").unwrap(),
                 ),
             );
-            let mut registry = ActionRegistry::new();
-            registry.register_phase3a_eat();
-            let actor_known_state = build_actor_known_planning_state(
-                &actor_id,
-                &EpistemicProjection::new(content_manifest_id()),
-                &agent_state,
-                &visible_local_planning_state(&state, &actor_id, &kitchen),
-            );
-
-            let proposal = build_routine_or_need_proposal(
-                &actor_known_state,
+            let proposal = build_agent_proposal(
+                &state,
                 &agent_state,
                 &actor_id,
                 &DayWindow {
@@ -2209,12 +2233,26 @@ pub mod no_human {
                     start_tick: SimTick::ZERO,
                     end_tick: SimTick::new(4),
                 },
-                &registry,
+                &content_manifest_id(),
             )
-            .expect("typed eat family should dispatch to eat proposal");
+            .expect("transaction candidate should produce an eat proposal");
 
-            assert_eq!(proposal.action_id.as_str(), "eat");
-            assert_eq!(proposal.target_ids, ["meal_serving"]);
+            assert_eq!(proposal.proposal.action_id.as_str(), "eat");
+            assert_eq!(proposal.proposal.target_ids, ["meal_serving"]);
+            assert!(proposal
+                .proposal
+                .parameters
+                .contains_key("decision_trace_id"));
+            assert!(proposal
+                .proposal
+                .parameters
+                .contains_key("candidate_goal_id"));
+            assert!(
+                proposal
+                    .decision_trace_record
+                    .hidden_truth_audit_result
+                    .actor_known_only
+            );
         }
 
         #[test]
@@ -2740,8 +2778,8 @@ pub mod no_human {
             assert_eq!(report.start_tick, SimTick::ZERO);
             assert_eq!(report.final_tick, SimTick::new(8));
             assert_eq!(report.marker_event_ids.len(), 2);
-            assert_eq!(report.stuck_diagnostic_event_ids.len(), 0);
-            assert!(report.ordinary_pipeline_events > 0);
+            assert_eq!(report.stuck_diagnostic_event_ids.len(), 4);
+            assert_eq!(report.ordinary_pipeline_events, 0);
             assert!(log
                 .events()
                 .iter()

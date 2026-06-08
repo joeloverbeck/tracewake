@@ -4,7 +4,7 @@ use crate::agent::{
     select_phase3a_method, ActorKnownPlanningContext, BlockerCategory, CandidateGoal,
     DecisionInput, DecisionTrace, DecisionTraceRecord, GoalKind, IntentionLifecycleEffect,
     LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure, LocalPlanRequest, PlannerGoal,
-    RoutineStep, StuckDiagnosticRecord, StuckResultingStatus,
+    RoutineFamily, RoutineStep, StuckDiagnosticRecord, StuckResultingStatus,
 };
 use crate::ids::{ActorId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
@@ -16,7 +16,7 @@ pub struct ActorDecisionTransactionInput<'a> {
     pub decision_tick: SimTick,
     pub agent_state: &'a AgentState,
     pub actor_known_context: &'a ActorKnownPlanningContext,
-    pub routine_window_goal: Option<GoalKind>,
+    pub routine_window_family: Option<RoutineFamily>,
     pub include_idle_fallback: bool,
 }
 
@@ -49,7 +49,9 @@ impl ActorDecisionTransaction {
             agent_state: input.agent_state,
             active_intention: active_intention.clone(),
             actor_known_facts: actor_known_facts.clone(),
-            routine_window_goal: input.routine_window_goal,
+            routine_window_goal: input
+                .routine_window_family
+                .and_then(goal_for_routine_family),
         });
         let candidates = if input.include_idle_fallback {
             generated.candidates
@@ -60,6 +62,7 @@ impl ActorDecisionTransaction {
                 .filter(|candidate| candidate.goal_kind != GoalKind::IdleWithReason)
                 .collect()
         };
+        let candidate_fallbacks = candidates.clone();
         let Some(selection) = select_goal_and_trace(DecisionInput {
             actor_id: input.actor_id.clone(),
             decision_tick: input.decision_tick,
@@ -79,26 +82,46 @@ impl ActorDecisionTransaction {
             };
         };
 
-        let method = match select_phase3a_method(
-            &selection.selected_goal,
+        let selected_goal = selection.selected_goal.clone();
+        let method_goal = match select_phase3a_method(
+            &selected_goal,
             input.actor_known_context,
             &actor_known_facts,
             input.decision_tick,
         ) {
-            Ok(method) => method,
+            Ok(method) => (selected_goal, method),
             Err(error) => {
-                return ActorDecisionTransactionOutcome::Stuck {
-                    diagnostic: Box::new(stuck_diagnostic(
-                        &input.actor_id,
-                        input.decision_tick,
-                        Some(&selection.selected_goal),
-                        None,
-                        "no applicable method",
-                        format!("{error:?}"),
-                    )),
+                let Some((fallback_candidate, method)) = candidate_fallbacks
+                    .iter()
+                    .filter(|candidate| {
+                        candidate.candidate_goal_id != selection.selected_goal.candidate_goal_id
+                    })
+                    .find_map(|candidate| {
+                        select_phase3a_method(
+                            candidate,
+                            input.actor_known_context,
+                            &actor_known_facts,
+                            input.decision_tick,
+                        )
+                        .ok()
+                        .map(|method| (candidate.clone(), method))
+                    })
+                else {
+                    return ActorDecisionTransactionOutcome::Stuck {
+                        diagnostic: Box::new(stuck_diagnostic(
+                            &input.actor_id,
+                            input.decision_tick,
+                            Some(&selection.selected_goal),
+                            None,
+                            "no applicable method",
+                            format!("{error:?}"),
+                        )),
+                    };
                 };
+                (fallback_candidate, method)
             }
         };
+        let (method_goal, method) = method_goal;
 
         let step =
             method
@@ -111,7 +134,7 @@ impl ActorDecisionTransaction {
                 });
         let request = LocalPlanRequest {
             routine_step: step.clone(),
-            goal: planner_goal_for(&selection.selected_goal, input.actor_known_context),
+            goal: planner_goal_for(&method_goal, input.actor_known_context),
             budget: crate::agent::DEFAULT_PLANNER_BUDGET,
             actor_known_facts: actor_known_facts.clone(),
         };
@@ -122,7 +145,7 @@ impl ActorDecisionTransaction {
                     diagnostic: Box::new(stuck_diagnostic_for_plan_failure(
                         &input.actor_id,
                         input.decision_tick,
-                        &selection.selected_goal,
+                        &method_goal,
                         Some(step),
                         failure,
                     )),
@@ -134,7 +157,7 @@ impl ActorDecisionTransaction {
                 diagnostic: Box::new(stuck_diagnostic(
                     &input.actor_id,
                     input.decision_tick,
-                    Some(&selection.selected_goal),
+                    Some(&method_goal),
                     Some(step),
                     "empty local plan",
                     "selected method produced no concrete proposal",
@@ -162,6 +185,13 @@ impl ActorDecisionTransaction {
                 .cloned()
                 .unwrap_or_else(|| "actor_decision_idle".to_string());
             proposal.parameters.insert("reason".to_string(), reason);
+        } else if planned.action_id.as_str() == "sleep" {
+            proposal.target_ids = planned.target_ids.clone();
+            if let Some(sleep_place_id) = planned.target_ids.first() {
+                proposal
+                    .parameters
+                    .insert("sleep_place_id".to_string(), sleep_place_id.clone());
+            }
         } else {
             proposal.target_ids = planned.target_ids.clone();
         }
@@ -171,11 +201,7 @@ impl ActorDecisionTransaction {
         );
         proposal.parameters.insert(
             "candidate_goal_id".to_string(),
-            selection
-                .selected_goal
-                .candidate_goal_id
-                .as_str()
-                .to_string(),
+            method_goal.candidate_goal_id.as_str().to_string(),
         );
         proposal.parameters.insert(
             "routine_template_id".to_string(),
@@ -216,14 +242,56 @@ fn planner_goal_for(
             .cloned()
             .map(PlannerGoal::EatKnownFood)
             .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_food".to_string())),
-        GoalKind::GoToWork | GoalKind::PerformWorkBlock => actor_known_context
+        GoalKind::GoToWork => actor_known_context
             .known_workplaces()
             .values()
             .next()
             .cloned()
-            .map(PlannerGoal::ReachPlace)
+            .map(|workplace_place_id| {
+                if actor_known_context
+                    .known_edges()
+                    .get(actor_known_context.current_place_id())
+                    .is_some_and(|edges| edges.contains(&workplace_place_id))
+                {
+                    PlannerGoal::ReachPlace(workplace_place_id)
+                } else {
+                    actor_known_context
+                        .known_edges()
+                        .get(actor_known_context.current_place_id())
+                        .and_then(|edges| edges.iter().next().cloned())
+                        .map(PlannerGoal::ReachPlace)
+                        .unwrap_or(PlannerGoal::ReachPlace(workplace_place_id))
+                }
+            })
             .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_workplace".to_string())),
-        GoalKind::SleepOrRest | GoalKind::ReturnHome => actor_known_context
+        GoalKind::PerformWorkBlock => actor_known_context
+            .known_workplaces()
+            .iter()
+            .next()
+            .map(|(workplace_id, place_id)| {
+                if place_id == actor_known_context.current_place_id() {
+                    PlannerGoal::StartWorkBlock(workplace_id.as_str().to_string())
+                } else {
+                    PlannerGoal::ReachPlace(place_id.clone())
+                }
+            })
+            .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_workplace".to_string())),
+        GoalKind::SleepOrRest => actor_known_context
+            .known_sleep_places()
+            .iter()
+            .next()
+            .cloned()
+            .map(|sleep_place_id| {
+                if &sleep_place_id == actor_known_context.current_place_id() {
+                    PlannerGoal::StartSleep(sleep_place_id)
+                } else {
+                    PlannerGoal::ReachPlace(sleep_place_id)
+                }
+            })
+            .unwrap_or_else(|| {
+                PlannerGoal::WaitWithReason("no_actor_known_sleep_place".to_string())
+            }),
+        GoalKind::ReturnHome => actor_known_context
             .known_sleep_places()
             .iter()
             .next()
@@ -237,6 +305,19 @@ fn planner_goal_for(
         | GoalKind::LeaveUnsafePlace => {
             PlannerGoal::WaitWithReason("actor_decision_reevaluation".to_string())
         }
+    }
+}
+
+fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
+    match family {
+        RoutineFamily::SleepNight => Some(GoalKind::SleepOrRest),
+        RoutineFamily::EatMeal => Some(GoalKind::Eat),
+        RoutineFamily::FindFood => Some(GoalKind::FindFood),
+        RoutineFamily::GoToWork => Some(GoalKind::GoToWork),
+        RoutineFamily::WorkBlock => Some(GoalKind::PerformWorkBlock),
+        RoutineFamily::ReturnHome => Some(GoalKind::ReturnHome),
+        RoutineFamily::ContinueCurrentIntention => Some(GoalKind::ContinueCurrentIntention),
+        RoutineFamily::MorningWake | RoutineFamily::Wait | RoutineFamily::IdleWithReason => None,
     }
 }
 
@@ -366,7 +447,7 @@ mod tests {
             decision_tick: SimTick::new(12),
             agent_state: &agent_state,
             actor_known_context: &context,
-            routine_window_goal: None,
+            routine_window_family: None,
             include_idle_fallback: true,
         });
 
@@ -415,7 +496,7 @@ mod tests {
             decision_tick: SimTick::new(14),
             agent_state: &agent_state,
             actor_known_context: &context,
-            routine_window_goal: None,
+            routine_window_family: None,
             include_idle_fallback: false,
         });
 

@@ -1,6 +1,6 @@
 # 0008PHA3AANTCON-006: Atomic flip — scheduler delegates to the transaction; remove all bypasses; chronological completions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` scheduler: no-human run delegates to the actor-decision transaction; all direct-dispatch bypasses deleted; due completions processed in event-time order; `continue_routine` marker barred from progress
@@ -90,3 +90,33 @@ Compute `NoHumanDayReport` metrics from transaction outcomes, not event-label co
 
 1. `cargo test -p tracewake-core scheduler`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-08
+
+What changed:
+
+1. The no-human scheduler now delegates ordinary proposal construction to `ActorDecisionTransaction`; the removed bypass helpers no longer construct eat/sleep/work proposals directly from routine family or need thresholds.
+2. The scheduler passes only the active routine family to the transaction. The family-to-goal mapping lives in the transaction, and fallback tries later generated candidates before idle so an inapplicable urgent need does not suppress an applicable routine.
+3. The no-human actor-known path no longer fabricates an empty `EpistemicProjection::new(...)`; it records a typed no-human projection limitation in actor-known proof sources.
+4. Transaction records now feed `DecisionTraceRecorded` events through the canonical `DecisionTraceRecord`, including derived hidden-truth audit fields instead of a hard-coded `actor_known_only` payload.
+5. Sleep/work completions are drained in deterministic due order before later decisions observe state, and duration completions now complete matching in-progress routine steps through agent events.
+6. `ContinueRoutineProposed` and `ActionRejected` are not counted as no-human behavioral progress.
+7. TUI no-human assertions were updated to the new deterministic metrics produced by the transaction path and chronological duration completions.
+
+Deviations:
+
+1. `RoutineFamily` still appears in scheduler completion ancestry and test fixture setup, but no scheduler code maps routine families directly to ordinary proposals.
+2. The no-human visible-local boundary remains the scheduler's observation input to the actor-known builder; the empty epistemic projection was removed and replaced by an explicit typed limitation.
+
+Verification:
+
+1. `cargo test -p tracewake-core scheduler` passed.
+2. `cargo test -p tracewake-core agent::` passed.
+3. `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_real_run_replays_metrics_and_trace_projection` passed.
+4. Grep proof passed for removed bypasses in `crates/tracewake-core/src/scheduler.rs`: `build_routine_or_need_proposal`, `work_or_move_proposal`, `eat_proposal`, `sleep_proposal`, `current_fatigue`, `current_hunger`, empty `EpistemicProjection::new`, and hard-coded `PayloadField::new("hidden_truth_audit", "actor_known_only")`.
+5. `cargo fmt --all --check` passed.
+6. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+7. `cargo build --workspace --all-targets --locked` passed.
+8. `cargo test --workspace` passed.
