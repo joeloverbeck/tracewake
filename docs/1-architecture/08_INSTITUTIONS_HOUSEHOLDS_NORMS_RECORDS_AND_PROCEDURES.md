@@ -2,396 +2,170 @@
 
 ## Status
 
-This document defines institutions as fallible social machines, including households as first-class domestic institutions and the first public institution as a small local authority.
+Authoritative architecture contract.
 
-Institutions are not omniscient enforcement scripts. They are people, roles, obligations, permissions, prohibitions, records, procedures, resources, jurisdictions, biases, office hours, and failures.
+## Purpose / core rule
 
-## Core rule
+Institutions and households are fallible social machines. They act through records, roles, resources, jurisdiction, norms, public artifacts, reports, procedures, and institutional memory. They do not read hidden truth.
 
-Institutions act from institutional knowledge, records, role duties, resources, relationships, norms, and procedure. They do not read ground truth.
+Institutional procedure uses a parallel holder-known transaction:
 
 ```text
-violation may occur
- -> traces or observations may exist
- -> suspicion may form
- -> report may be made
- -> record may be opened
- -> evidence may be interpreted
- -> procedure may succeed or fail
- -> sanction may or may not occur
+institution trigger
+ -> sealed institution-known context
+ -> procedure candidate generation / role decision
+ -> proposal or institutional action through shared validation/event pipeline
+ -> records/notices/orders/sanctions/failures through modeled authority and resources
+ -> public/actor/institution knowledge updates through modeled channels
+ -> debug-visible truth comparison without leakage
 ```
 
-Violation, detection, suspicion, report, record, proof, and sanction remain distinct.
+## Authority owned
 
-## Authority
+This document owns institution-known procedure, households, roles, norms, records, reports, notices, orders, sanctions, proof thresholds, powers, resources, bias/failure, jurisdiction, and institutional debug boundaries.
 
-This subsystem owns:
+## Authority denied
 
-- household definitions and domestic authority;
-- roles, obligations, permissions, prohibitions, constitutive norms, evidence thresholds, jurisdiction, and status;
-- institutional records, reports, notices, orders, sanctions, and failures;
-- procedures and procedure state;
-- institutional belief/knowledge projections;
-- bias and corruption as causal processes.
+Institutions may not auto-detect violations, auto-convict, auto-sanction, auto-correct records, or convert event-log truth into institutional knowledge. Households may not function as script triggers. Norms may not be enforcement scripts.
 
-It is denied:
+## Contract
 
-- omniscient crime detection;
-- global wanted meters;
-- sanction from hidden truth;
-- records without authors/artifacts;
-- notices as quest boards;
-- procedure success because the player needs progress.
+### Institution-known context
 
-## Households as domestic institutions
+Minimum institution context:
 
-A household defines:
-
-- members;
-- domestic roles;
-- shared/private property expectations;
-- beds and storage;
-- food access;
-- domestic obligations;
-- privacy boundaries;
-- guest permissions;
-- internal reputation;
-- household memory and secrets;
-- expected presence and routines;
-- childcare/eldercare/inheritance hooks where modeled.
-
-Minimal first-slice household:
-
-```yaml
-Household:
-  id: household_tomas
-  members: [actor_tomas, actor_elena]
-  dwelling: house_tomas
-  domestic_roles:
-    actor_tomas: head_or_member
-    actor_elena: member
-  shared_resources:
-    food_storage: pantry_tomas
-  private_storage:
-    strongbox_tomas:
-      permitted_users: [actor_tomas]
-      known_expected_contents:
-        actor_tomas: [coin_stack_01]
-  privacy_norms:
-    - private_bedroom_access
-    - household_storage_access
-  routine_expectations:
-    sleep_places:
-      actor_tomas: bed_tomas
-      actor_elena: bed_tomas
+```text
+institution_known_context:
+  institution_id
+  context_id
+  trigger_id
+  tick_or_window
+  jurisdiction
+  roles_available
+  role_holders_known
+  procedure_state
+  records_known
+  reports_received
+  notices_posted
+  public_artifacts
+  resources_available
+  permissions_powers_obligations
+  evidence_thresholds
+  known_conflicts_or_staleness
+  institutional_memory
+  provenance_edges
+  context_hash
 ```
 
-Household norms are mechanics, not decoration.
+Every institutional decision must cite this context.
 
-## Public institution model
+### Roles and powers
 
-```yaml
-Institution:
-  id: reeves_office
-  kind: local_authority
-  jurisdiction:
-    places: [village_core, surrounding_farms, north_road_near_village]
-    people_scope: residents_and_visitors_under_local_norms
-  roles: [reeve, clerk, guard]
-  resources:
-    money: small_reserve
-    staff_time: limited
-    guards_available: 0_to_2
-    paper: finite
-    office: reeves_office_building
-  records:
-    - incident_ledger
-    - notice_board_register
-    - property_dispute_notes
-  norms:
-    - property_theft
-    - trespass_privacy
-  office_hours:
-    open: morning
-    closed: night
-  biases:
-    status_bias: medium
-    outsider_bias: medium
-    kinship_bias: variable
-```
+Roles are modeled social facts. A role may grant authority to receive a report, post a notice, inspect a property, summon a person, order restitution, levy a fine, or archive a record. The role does not grant omniscience and does not guarantee success.
 
-This is enough for missing-property reports. Courts, guilds, temples, armies, and markets are future patterns.
+Powers are constrained by:
 
-## Roles
-
-Roles confer powers, obligations, credibility, access, and prohibitions.
-
-```yaml
-RoleDefinition:
-  id: clerk
-  institution: reeves_office
-  obligations:
-    - receive_reports_during_office_hours
-    - maintain_incident_ledger
-    - post_authorized_notices
-  permissions:
-    - write_in_incident_ledger
-    - ask_basic_questions_about_reports
-    - access_office_records
-  prohibitions:
-    - alter_records_without_entry
-    - disclose_private_reports_without_basis
-  credibility_effects:
-    report_receiver: high
-    gossip_source: variable
-```
-
-A role-holder can violate role duties. Consequences require observation, record, report, inference, or later discovery.
-
-## Norms
-
-Norm types include:
-
-- prohibition;
-- obligation;
-- permission;
-- constitutive norm;
-- status norm;
-- procedure rule;
-- sanction rule;
+- jurisdiction;
+- procedure state;
+- resource availability;
 - evidence threshold;
-- jurisdiction rule;
-- privacy/access rule.
+- public legitimacy;
+- role holder presence/knowledge;
+- social resistance;
+- record completeness;
+- time and place.
 
-```yaml
-Norm:
-  id: property_theft
-  kind: prohibition
-  action_pattern: TakePropertyWithoutPermission
-  conditions:
-    - item_has_recognized_owner
-    - actor_lacks_permission
-    - no_emergency_exception
-  possible_violation_event: PropertyViolationClassified
-  detection_requirements:
-    - observation OR trace OR admission OR possession_evidence OR report
-  institutional_thresholds:
-    open_incident: low
-    question_named_suspect: medium
-    search_private_space: high_or_emergency
-    sanction: high
-```
+### Norms
 
-The norm engine may classify possible violation for procedure/debug. Guards and clerks know only what channels give them.
+Norms classify obligations, prohibitions, permissions, constitutive facts, evidence thresholds, procedures, and sanctions. A norm can be violated without detection. Detection can occur without proof. Proof can exist without enforcement. Enforcement can be mistaken, biased, delayed, resisted, or reversed.
 
-## Constitutive norms and institutional facts
+### Procedure chain
 
-Some facts exist because institutions create them by procedure:
+A procedure is an HTN-like institutional routine, not an outcome script.
 
-- a report is received;
-- a ledger entry exists;
-- a notice is officially posted;
-- a person is ordered to answer questions;
-- property enters institutional custody;
-- funds are reserved for payment;
-- a case is closed.
-
-Institutional facts have provenance and can be wrong, forged, contested, lost, ignored, or overturned.
-
-```yaml
-InstitutionalFact:
-  kind: IncidentRecordOpened
-  institution: reeves_office
-  created_by_event: evt_ledger_entry_created
-  authorized_by: role_clerk
-  claims:
-    - ItemMissing(coin_stack_01)
-    - LastExpectedIn(coin_stack_01, strongbox_tomas)
-  confidence: partial
-  status: open
-```
-
-## Records as artifacts
-
-Records have:
-
-- author;
-- issuer/authority;
-- physical or digital location;
-- structured claims;
-- creation event;
-- amendments;
-- readers;
-- copies;
-- destruction/forgery events;
-- institutional status;
-- access permissions;
-- stale risk.
-
-```yaml
-IncidentLedgerEntry:
-  id: ledger_entry_missing_coins_01
-  physical_artifact: ledger_page_43
-  reporter: actor_tomas
-  received_by: actor_anna_clerk
-  institution: reeves_office
-  received_at: 142-08-12T09:12
-  claims:
-    - ItemMissing(coin_stack_01)
-    - LastExpectedIn(coin_stack_01, strongbox_tomas)
-    - NoiseHeardNearPlace(room_tomas_bedroom)
-  status: open
-  evidence_refs:
-    - belief_tomas_strongbox_empty
-    - hearsay_elena_noise
-```
-
-Records can be read, hidden, copied, forged, destroyed, misfiled, contradicted, ignored, or cited.
-
-## Report lifecycle
-
-Minimal report lifecycle:
+Example missing-property intake:
 
 ```text
-actor forms report intention
- -> actor travels/waits/reaches receiver
- -> report speech act proposed
- -> receiver attention/social/procedure checks
- -> report speech event committed
- -> receiver interprets claims
- -> institution decides whether to record
- -> ledger entry written as artifact event
- -> institutional belief projection updates
- -> possible follow-up scheduled
+trigger: report_received(missing_coin_report)
+context: town_watch knows report, reporter, claimed property, role clerk_on_duty
+candidate: open intake record
+method: record complaint and schedule review
+proposal: create institutional record
+validation: role authority, office open, record resource available
+commit: record_created
+feedback: receipt notice to reporter, institution memory update
 ```
 
-A report is not accepted because a quest state needs it.
+Later stages may include review, interview, search request, watch notice, arbitration, restitution order, or closure. None is automatic.
 
-## Case lifecycle
+### Records
 
-Minimal missing-property case:
+Records are typed claim carriers. They include author/source, holder, visibility, creation event, amendment history, stale/expiry rules, and custody. A record can be false. Record correction requires events; it cannot silently mutate history.
+
+### Notices and orders
+
+Notices and orders are public or targeted artifacts with role authority, source record, issuer, scope, duration, visibility, and failure modes. A notice can be ignored, missed, stale, forged, or misunderstood. An order can fail due to lack of resources or social resistance.
+
+### Sanctions
+
+Sanctions are procedure outcomes that require modeled authority, evidence, role action, resources, and event commit. Sanction is not automatic consequence of violation. Mistaken sanctions are allowed and important.
+
+### Households
+
+Households are small institutions with memory, expectations, possessions, routines, duties, private records, access norms, and resource sharing. Household facts also require known context and provenance. A household cannot directly enforce outcomes; members act through ordinary actor proposals or household/institution procedures.
+
+### Bias, error, and corruption
+
+Institutions and households may misinterpret, ignore, overreact, discriminate, lose records, protect insiders, lack staff, or use stale rules. These are modeled states and procedures, not director choices.
+
+## Data examples
+
+Valid town-watch suspicion:
 
 ```text
-report received
- -> ledger entry created
- -> clerk asks basic questions if time/authority
- -> evidence threshold checked from institutional knowledge
- -> record remains open, waiting, rejected, referred, contradicted, or closed
- -> guard/reeve may question if threshold/resources allow
- -> notice may or may not be posted
+institution_belief:
+  holder: town_watch
+  proposition: actor_mara_possible_witness_or_suspect
+  stance: plausible
+  source: report_event + prior public record + clerk inference rule
+  confidence: low
+  procedure_state: intake_review
 ```
 
-No first-slice court is required.
-
-## Notice lifecycle
-
-A notice is a public artifact, not a quest board.
+Invalid institution omniscience:
 
 ```text
-institution/person has reason to announce
- -> authority/procedure check
- -> structured claims written
- -> physical notice created
- -> notice posted at board
- -> readers observe and form beliefs
- -> notice becomes stale, destroyed, forged, copied, ignored, removed, or contradicted
+institution_belief:
+  holder: town_watch
+  proposition: actor_mara_stole_coin
+  source: event_log_truth:item_moved_by_actor_mara
+  procedure_state: sanction_now
 ```
 
-A notice creates source-bound public information. It does not create objective progress or targets.
+## Required diagnostics / replay / TUI hooks
 
-## Jurisdiction
-
-Jurisdiction affects:
-
-- whether an institution cares;
-- whether a role has authority;
-- what norms apply;
-- what record is valid;
-- what procedure is available;
-- whose testimony is weighted;
-- whether evidence is admissible;
-- whether sanctions can be enforced;
-- whether another institution contests.
-
-First slice needs local jurisdiction only.
-
-## Bias and corruption
-
-Bias may affect credibility, priority, suspicion, evidence threshold, willingness to question, record wording, notice posting, and sanction severity.
-
-Corruption requires:
-
-- offer or pressure;
-- actor motive;
-- acceptance/refusal;
-- memory or record;
-- trace/risk;
-- later vulnerability.
-
-Do not implement corruption as hidden global modifier with no events.
-
-## Procedure failure
-
-Institutions can fail because:
-
-- office closed;
-- clerk absent;
-- guard hungry/tired/afraid;
-- paper unavailable;
-- funds unavailable;
-- report not believed;
-- wrong person questioned;
-- record misfiled;
-- notice stale;
-- witness intimidated;
-- bias distorts priority;
-- jurisdiction refused;
-- procedure interrupted.
-
-Failure is content and should create events, beliefs, and consequences where meaningful.
-
-## First public institution scope
-
-Implement first:
-
-- one reeve;
-- one clerk;
-- up to two guards if needed;
-- office with hours;
-- incident ledger;
-- notice board;
-- property/theft norm;
-- trespass/privacy norm;
-- report action;
-- simple questioning procedure;
-- proof/payment procedure only after ordinary life works.
-
-Do not center v1 on bounties, courts, guilds, temples, bandits, markets, or adventuring companies.
+- Institution-known context packets must be replayable and inspectable.
+- Procedure decisions must emit typed traces: candidate procedures, selected method, rejected methods, roles/resources used, evidence threshold, and failure reasons.
+- Records/notices/orders/sanctions must be events or event-derived projections.
+- Debug views may compare institutional belief and truth but must be non-diegetic.
+- Embodied actor views see institutional artifacts only if modeled visibility allows.
 
 ## Acceptance implications
 
-Institution features must test:
+The missing-property proof may use a local household or watch process only if reports, records, and procedure steps are modeled. Acceptance fails if a watch system reads culprit truth, auto-posts a clue, or sanctions without institution-known procedure.
 
-- no ground-truth reads;
-- report requires actor, receiver, speech act, and record decision;
-- record has artifact/provenance;
-- violation/detection/suspicion/proof/sanction separation;
-- office hours and staff availability;
-- bias/failure as causal and inspectable;
-- household permissions affect actions;
-- stale records/notices can remain wrong;
-- TUI shows actor-known institutional claims;
-- debug explains institutional knowledge versus truth.
+Adventure/bounty/expedition systems are later proofs. They must reuse this institution-known model; they cannot introduce quest boards as omniscient task generators.
 
 ## Anti-patterns
 
-- Global wanted meter.
-- Guards instantly know crimes.
-- Report accepted without receiver.
-- Ledger entry without writer or page.
-- Court outcome from quest state.
-- Bounty from nowhere.
-- Payment from nowhere.
-- Institution uses hidden true culprit.
-- Household is flavor text.
-- Sanction without detection/procedure or explicit exceptional authority event.
+- “Crime event happened, so the watch knows it.”
+- “Report equals proof.”
+- “Proof equals sanction.”
+- “Notice board means quest list.”
+- “Household assignment table means every member knows all household facts.”
+- “Institution records self-correct when truth changes.”
+- “A sanction is a validator side effect.”
+
+## Cross-document obligations
+
+Institution procedures use holder-known contexts from document 03, action validation from document 04, claims/records from document 06, speech/report acts from document 07, ordinary-life property from document 09, incidents/leads from document 11, LOD institutions from document 12, and acceptance artifacts from document 13.

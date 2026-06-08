@@ -1,100 +1,118 @@
 # Downstream Staleness and Code Implications Report
 
-## Scope
+## Status
 
-This report captures downstream staleness and code implications discovered during the 0-foundation reevaluation. It does not rewrite architecture, execution, reference documents, or code. It exists to prevent the implications of the strengthened foundation from being lost.
+Replacement report. The architecture layer has now been reviewed and replaced as part of the architecture replacement mission. This report no longer treats `docs/1-architecture/**` as unchecked downstream staleness.
 
 ## Evidence basis
 
-The staleness analysis relies on exact-commit reads of the requested foundation/spec/code files plus supporting reads of selected downstream documents.
+This report is based on exact target-commit reads of:
 
-The target commit remains:
+- `docs/README.md`;
+- every file under `docs/0-foundation/**`;
+- every file under the previous `docs/1-architecture/**` set;
+- representative Rust seams for scheduler/no-human simulation, proposal/validation pipeline, actor-known context, decision transaction, candidates, intentions, routines, local planning, traces/stuck diagnostics, epistemics, event/replay, TUI view models, TUI command loop, fixtures, and acceptance tests;
+- the uploaded manifest as path inventory only.
+
+The target commit was user-supplied. This report does not claim the commit is current `main`.
+
+## Architecture replacement outcome
+
+The architecture layer has been replaced with a normalized contract set:
 
 ```text
-8ff476f0e1b8a56599c7db05c960329e28768332
+docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md
+docs/1-architecture/01_AUTHORITY_BOUNDARIES_RUST_WORKSPACE_AND_DEPENDENCY_RULES.md
+docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md
+docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md
+docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md
+docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md
+docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md
+docs/1-architecture/07_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md
+docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md
+docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md
+docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md
+docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md
+docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md
+docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md
+docs/1-architecture/14_RESEARCH_DECISIONS_AND_FORBIDDEN_MISREADS.md
 ```
 
-## Likely stale `docs/1-architecture/**` documents
+The previous architecture document that framed actor-known autonomy as a Phase 3A clarification has been absorbed and normalized into the architecture spine. Holder-known context and truth-firewall rules now appear early and constrain every planning/procedure/view/LOD subsystem. The previous state/content authoring concerns are preserved in the authority, ordinary-life, validation, and research documents rather than left as an isolated stale contract.
 
-The architecture layer is closer to the strengthened doctrine than the foundation was. In particular, `docs/1-architecture/14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md` already states much of the correct transaction boundary. After this foundation pass, however, the architecture layer should be reviewed for conformance to the new foundation doc 14 rather than treating its own doc 14 as a one-off Phase 3A clarification.
+## Remaining downstream implications
 
-Likely affected documents:
+### `docs/2-execution/**`
 
-- `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` — update constitutional spine and universal questions to reference foundation doc 14 explicitly.
-- `docs/1-architecture/02_ACTION_AFFORDANCE_SCHEDULING_AND_PROPOSAL_PIPELINE.md` — strengthen proposal/validation split with the exact "truth may validate but not plan" doctrine.
-- `docs/1-architecture/03_EVENT_LOG_REPLAY_PROJECTIONS_AND_SAVE_PACKAGES.md` — ensure cognition, decision traces, stuck diagnostics, hidden-truth audits, and provenance graphs are explicit replay obligations.
-- `docs/1-architecture/05_CLAIMS_BELIEFS_TRACES_MEMORY_AND_INFORMATION_FLOW.md` — align taxonomy with the new foundation definitions for actor-known truth, hearsay, lie, stale belief, expectation, contradiction, and debug-only omniscience.
-- `docs/1-architecture/07_AGENT_COGNITION_ROUTINES_PLANNING_AND_AGENT_LOD.md` — ensure resourcefulness, plan repair, and sealed actor-known context are architectural gates, not aspirations.
-- `docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` — cross-reference the truth firewall and clarify why-not actor-visible/debug-only layering.
-- `docs/1-architecture/13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md` — add explicit gates for transaction bypasses and hidden-truth proposal contamination.
-- `docs/1-architecture/14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md` — probably good in substance, but should be reframed as implementing foundation doc 14 rather than being the highest statement of the doctrine.
-- `docs/1-architecture/15_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` — align research notes with the foundation research decisions and remove any mismatch of source authority.
+Execution documents may still contain old architecture filenames, phase-local phrasing, or weaker acceptance language. They should be realigned later to the replacement architecture map. Priority areas:
 
-## Likely stale `docs/2-execution/**` documents
+- truth-firewall and holder-known transaction gates;
+- no-human ordinary-life proof requiring decision/context/stuck diagnostics;
+- content validation for actor-known source tags;
+- TUI embodied/debug test coverage as non-negotiable;
+- institution-known procedure gates;
+- LOD promotion ancestry before second-proof expansion.
 
-Likely affected documents:
+This report does not create execution specs or tickets.
 
-- `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md` — add foundation doc 14 to the authority implications.
-- `docs/2-execution/02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md` — add truth-firewall and actor-decision-transaction progression gates.
-- `docs/2-execution/06_PHASE_2_EPISTEMICS_VIEW_MODELS_AND_POSSESSION_PARITY.md` — strengthen actor-known context, provenance-bearing cognition, and debug quarantine before Phase 3.
-- `docs/2-execution/07_PHASE_3_NEEDS_ROUTINES_AND_NO_HUMAN_LIFE.md` — update Phase 3 no-human gate to require sealed actor-known transaction evidence, not merely plausible day behavior.
-- `docs/2-execution/09_DATA_AUTHORING_VALIDATION_AND_GOLDEN_FIXTURES.md` — reject hidden truth in routine assignments, fixture possibility spaces, records, notices, and prehistory.
-- `docs/2-execution/10_TESTING_DEBUGGING_OBSERVABILITY_AND_METRICS.md` — add adversarial leakage tests: debug/validation truth is present, actor lacks it, and planner still cannot use it.
-- `docs/2-execution/11_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_AND_REGIONAL_EXPANSION.md` — align notices/travel/regional expansion with provenance-bearing summary events and institution-known procedure.
+### `docs/3-reference/**`
 
-## Likely stale `docs/3-reference/**` documents
+Reference documents should be updated later to include or sharpen terms and risk checks for:
 
-Likely affected documents:
+- holder-known context;
+- truth firewall;
+- actor-known and institution-known transaction;
+- validation truth;
+- actor-legible why-not;
+- debug-only truth;
+- provenance graph;
+- typed decision trace;
+- typed stuck diagnostic;
+- LOD promotion ancestry;
+- story-sifting projection;
+- LLM-disabled acceptance.
 
-- `docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md` — add session checklist questions for truth firewall, sealed actor-known transaction, and debug quarantine.
-- `docs/3-reference/01_DESIGN_RISK_REGISTER.md` — add risks for "truth validates but also plans," "scheduler cognition authority," "string diagnostic as proof," "routine label dispatch," "empty epistemic projection treated as safe," and "LOD promotion with unexplained knowledge."
-- `docs/3-reference/02_GLOSSARY.md` — add or sharpen terms: actor-known cognition transaction, truth firewall, pipeline validation truth, debug omniscience, unproven raw physical truth, provenance class, typed decision trace, stuck diagnostic, institution-known context.
+### `docs/4-specs/**` and archived specs/tickets
 
-## Code implications discovered
+Older specs and archived tickets are historical implementation material. They may contain useful examples and anti-regression history, but they are subordinate to foundation and the replacement architecture. Later corrective specs should cite the new architecture map instead of reviving phase-local shortcuts or stale filenames.
 
-No code changes were made. These are later-session implications.
+### Code hardening pressure
 
-### Scheduler perception seam
+Current Rust implementation is partial. It includes promising seams, but it should not be treated as doctrine.
 
-`crates/tracewake-core/src/scheduler.rs` now invokes `ActorDecisionTransaction`, which is directionally correct. However, the scheduler still appears to derive a `VisibleLocalPlanningState` from `PhysicalState` for local food sources, workplace assignments, and sleep places before building actor-known planning state. That may be acceptable only if it is treated as a perception/known-assignment adapter with explicit provenance and visibility limits. Later architecture/code work should verify that no raw physical truth enters planning without provenance.
+Observed implementation pressure:
 
-### Actor-known provenance is promising but should become the hard ingestion boundary
+- scheduler/no-human code has an autonomy path and no-human day reporting, but future hardening must continue proving that windows and needs trigger actor-known transactions rather than primitive scheduler actions;
+- action pipeline code separates proposals, validation reports, actor-visible summaries, debug summaries, and event application, but future hardening should make actor/debug failure semantics impossible to blur;
+- actor-known, decision, HTN/routine, intention, and trace code already points toward provenance-bearing decisions, but the architecture now requires this boundary structurally for every cognition/procedure subsystem, not by convention;
+- decision traces and stuck diagnostics exist as typed structures, but tests and future reports should avoid treating display/rendered summaries as proof;
+- epistemic projection code supports holder filtering, observations, beliefs, contradictions, and debug inspection; future work should extend the same discipline to institutions, speech, LOD, and leads;
+- TUI code and tests exercise embodied view models, semantic action IDs, why-not output, debug panels, and command parsing; architecture now treats this as acceptance-critical, not optional UI polish;
+- content fixtures and validation tests already include anti-contamination examples, but future content validation should reject missing provenance for records, routines, household knowledge, workplace/home/bed/food knowledge, notices, and prehistory;
+- LOD/regional/institution procedure models are not yet complete and must not inherit assumptions from the partial ordinary-life implementation.
 
-`crates/tracewake-core/src/agent/actor_known.rs` defines actor-known facts and provenance-like distinctions. This is the right seam. Later work should make sure all planner-facing facts are constructed through restricted constructors and audited structurally, not by convention.
+### Tests and fixtures
 
-### Decision trace proof remains partly string-adjacent
+Remaining test pressure:
 
-`crates/tracewake-core/src/agent/decision.rs` and scheduler trace output include canonical strings and hidden-truth audit indicators. The target should be typed or structurally inspectable diagnostics that display strings summarize. Tests should avoid treating display text as proof.
+- add adversarial tests where true food/work/sleep/route/suspect/proof exists in authoritative state but is absent from holder-known context;
+- assert context packets/provenance lists, not only hidden-truth audit strings;
+- ensure no-human success requires ordinary action proposals, validation, events, replay, and diagnostics;
+- prove institution-known procedures before any record/notice/sanction system can pass;
+- prove TUI actor-legible why-not never contains debug truth;
+- prove debug truth/belief comparisons are visibly non-diegetic and cannot feed embodied view models;
+- prove LLM-disabled operation for all acceptance-critical language flows.
 
-### `epistemic_projection: None` needs explicit limitation semantics
+### Reports and future corrective specs
 
-The no-human pipeline context may run with no projection and then build planning state with projection limitation. That is acceptable only if the limitation is visible, typed, and prevents broad claims of actor-known completeness. Later work should consider a mandatory `ActorKnowledgeInterface` or `ActorKnownContextBuilder` abstraction.
+Future reports should no longer say the architecture layer has not been checked. If they find architecture drift after this replacement, they should identify the exact document and exact unresolved contract.
 
-### Shared pipeline validation should read live authoritative state but leak only modeled feedback
+Future corrective specs should be narrow and subordinate. They should not re-litigate architecture. They should implement or harden the contracts now stated in `docs/1-architecture/**`.
 
-Validators may inspect truth. Later code review should ensure validation failure reasons are split into actor-visible and debug-only layers and that actor-visible feedback becomes cognition only through modeled events/observations/memory updates.
+## No unresolved architecture staleness claim
 
-### Routine and need shortcuts should remain guarded
+No broad unresolved architecture-staleness claim remains for `docs/1-architecture/**` after this replacement. Remaining risk is downstream alignment: execution docs, reference docs, specs, code, tests, and fixtures may lag behind the corrected architecture contract.
 
-Specs `0006`-`0008` already identified forbidden shortcuts: direct primitive actions from routine labels, direct actions from need thresholds, work forged by proposal need parameters, and `continue_routine` counted as progress. These should remain static/anti-regression checks.
+## Non-goals
 
-### Content validation needs provenance gates
-
-Fixture/content loaders should reject action-relevant actor knowledge, records, notices, routine assignments, work/home/bed knowledge, and prehistory claims that lack source tags.
-
-### LOD is not implemented here but must not inherit contaminated assumptions
-
-When LOD/regional simulation arrives, it must carry causal and epistemic ancestry in summary events before promoted actors can act on summary knowledge.
-
-## Later-session handling
-
-Recommended sequence:
-
-1. Update architecture docs to implement foundation doc 14.
-2. Update execution docs and acceptance gates to require transaction evidence and hidden-truth adversarial tests.
-3. Update reference glossary/risk checklist with new terms and shortcuts.
-4. Audit code for scheduler/planner ingestion boundaries.
-5. Audit tests to ensure they prove typed provenance rather than strings or plausibility.
-6. Add content-validation rules for provenance-bearing starting knowledge and routine assignments.
-
-No implementation tickets were produced because this session was a constitutional replacement session, not a code planning session.
+This report does not provide implementation tickets, execution specs, code patches, AGENT tasks, or branch plans. It is a replacement downstream report aligned to the corrected architecture set.

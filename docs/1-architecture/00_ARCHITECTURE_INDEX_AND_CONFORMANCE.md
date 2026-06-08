@@ -2,125 +2,136 @@
 
 ## Status
 
-This folder is the architecture contract layer for **Tracewake**.
+Authoritative architecture contract. This directory is a complete replacement set. Architecture files not listed in this document are retired and must not remain as live doctrine.
 
-The architecture layer translates foundation documents into subsystem boundaries, data contracts, authority rules, validation obligations, and anti-drift checks. It is not a second foundation, a task plan, a crate layout, an implementation ticket list, a migration note, or a literature review.
+The foundation layer outranks this layer. Architecture may make foundation doctrine more operational; it may not soften it.
 
-Foundation documents outrank this folder. If an architecture document appears to weaken, dodge, contradict, or blur a foundation constraint, the foundation wins and the architecture document must be fixed.
+## Purpose / core rule
 
-## Scope of this architecture set
+Every subsystem must preserve the universal Tracewake authority split:
 
-The architecture set defines stable contracts for the first implementable spine of Tracewake:
+```text
+holder-known context -> proposal / cognition / procedure decision
+authoritative truth -> validation / resolution / physical mutation / debug comparison
+modeled feedback -> future holder knowledge
+```
 
-- authoritative simulation boundaries;
-- command, proposal, action, affordance, and scheduling flow;
-- event log, replay, projections, save packages, and causal graph duties;
-- state/content authoring boundaries and schema validation;
-- claims, beliefs, traces, memory, and information flow;
-- structured speech acts and language/LLM boundaries;
-- transparent agent cognition, routines, planning, and agent LOD;
-- institutions, households, norms, records, and procedures;
-- ordinary-life economy, settlement, property, custody, and spatial model;
-- possession, TUI view models, debug boundaries, and client authority;
-- incidents, leads, and story-sifting projections;
-- LOD, regional processes, world history, and scale;
-- validation, observability, metrics, and acceptance artifacts.
+For ordinary actors, cognition must pass through the actor decision transaction. For institutions, procedure must pass through an institution-known transaction. For LOD and regional processes, aggregate truth may simulate summaries, but promoted holders receive only modeled knowledge with ancestry.
 
-It deliberately does **not** freeze:
+## Replacement map
 
-- crate names;
-- module layout;
-- terminal UI library;
-- storage engine;
-- ECS/database choice;
-- final serialization format;
-- exact planner algorithm;
-- final UI layout;
-- final content size.
-
-Those choices are subordinate to the contracts here.
-
-## Priority order
-
-Tracewake architecture obeys this priority:
-
-1. **Playable TUI simulation first.** The first serious target is an inspectable, TUI-playable ordinary-life village.
-2. **Research-grade emergent simulation engine second.** Replay, no-human simulation, causal inspection, deterministic validation, and review artifacts are non-negotiable.
-3. **Future graphical presentation later.** Graphical clients consume view models. They do not become simulation authority.
-
-## Constitutional spine preserved here
-
-All architecture contracts must preserve:
-
-- causality before drama;
-- belief before truth;
-- ordinary life before adventure;
-- no sacred player entity;
-- every world-affecting player action possible for an ordinary agent under equivalent actor conditions;
-- no quest ontology;
-- no authored outcome chains;
-- authored causal machinery and scenario pressures allowed;
-- institutions and households as fallible social machines;
-- typed claims/propositions as epistemic currency;
-- records, notices, debts, promises, reports, rumors, and leads as source-bound artifacts or projections;
-- symbolic, inspectable agents before generative agents;
-- LLMs as optional rendering/parsing surfaces behind validation, never authoritative brains;
-- TUI-first, playable always;
-- no-human simulation in every runnable phase;
-- event sourcing, deterministic replay, causal graph inspection, projection rebuild, and deterministic randomness;
-- Rust-first authoritative simulation;
-- genre-agnostic kernel;
-- first serious proof: the missing-property/theft ordinary-life miracle;
-- future scale, combat, magic, parties, courts, guilds, armies, regions, companions, and graphical clients passing through the same machinery.
-
-## Architecture document map
-
-Read in order unless working on a specific subsystem.
-
-| File | Contract owned |
+| Live architecture document | Primary contract |
 |---|---|
-| `00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` | Folder map, foundation conformance, universal feature questions, and architecture-layer maintenance rules. |
-| `01_SYSTEM_AUTHORITY_RUST_WORKSPACE_AND_BOUNDARIES.md` | Rust-first authority boundaries, logical subsystem seams, dependency direction, side-effect rules, and forbidden authority inversions. |
-| `02_ACTION_AFFORDANCE_SCHEDULING_AND_PROPOSAL_PIPELINE.md` | Unified command/proposal/action/affordance/scheduler contract for all world-affecting behavior. |
-| `03_EVENT_LOG_REPLAY_PROJECTIONS_AND_SAVE_PACKAGES.md` | Event log, causal graph, replay, projection rebuild, snapshots, event schema migration, random streams, and save-package contract. |
-| `04_STATE_CONTENT_AUTHORING_DOMAIN_PACKS_AND_SCHEMA_VALIDATION.md` | Entity/component state model, authored content, domain packs, scenario seeds, schemas, fixtures, and content validation. |
-| `05_CLAIMS_BELIEFS_TRACES_MEMORY_AND_INFORMATION_FLOW.md` | Typed claims, observation, belief, memory, traces, rumors, stale information, absence-as-evidence, and actor-knowledge filtering. |
-| `06_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` | Structured speech acts, deterministic language surfaces, LLM non-authority, validation, and replayable speech-state effects. |
-| `07_AGENT_COGNITION_ROUTINES_PLANNING_AND_AGENT_LOD.md` | Transparent cognition, needs, routines, intentions, bounded planning, resourcefulness, interruption, and agent-detail levels. |
-| `08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md` | Households, offices, authorities, clerks, procedures, reports, ledgers, wrong suspicion, and institutional failure modes. |
-| `09_ORDINARY_LIFE_ECONOMY_SETTLEMENT_AND_SPATIAL_MODEL.md` | Settlement map, rooms, containers, custody, physical value tokens, ordinary needs, workplaces, access, and local movement. |
-| `10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` | Human controller binding, possession parity, TUI view models, debug separation, inspection surfaces, and client non-authority. |
-| `11_INCIDENTS_LEADS_AND_STORY_SIFTING_PROJECTIONS.md` | Incidents, leads, notices, story-sifting projections, observer queries, and no-director/no-quest enforcement. |
-| `12_LOD_REGIONAL_PROCESSES_WORLD_HISTORY_AND_SCALE.md` | LOD boundaries, regional processes, promotion, ancestry retention, prehistory, long simulation, and scale gates. |
-| `13_VALIDATION_OBSERVABILITY_METRICS_AND_ACCEPTANCE_ARCHITECTURE.md` | Acceptance artifacts, invariants, golden fixtures, replay proof, no-human proof, provenance review, and metric meaning. |
-| `14_ACTOR_KNOWN_AUTONOMY_TRANSACTION.md` | Canonical actor-decision transaction, actor-known planning context and provenance kinds, needs/intentions/routines/HTN/local planning, shared-pipeline validation, typed decision/stuck diagnostics, replay projections, and anti-contamination acceptance gates. |
-| `15_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md` | Stable research decisions and source-handling principles relevant to architecture. |
+| `00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` | Architecture map, authority order, replacement rule, and universal conformance questions |
+| `01_AUTHORITY_BOUNDARIES_RUST_WORKSPACE_AND_DEPENDENCY_RULES.md` | Rust-first authority boundaries, dependency direction, content/domain-pack authority, and forbidden inversions |
+| `02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md` | Event sourcing, replay, projections, save manifests, random streams, event migration, and diagnostics as replay material |
+| `03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` | Holder-known context sealing, provenance, truth firewall, debug quarantine, and contamination review |
+| `04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md` | Shared action pipeline, proposals, validation truth, scheduler limits, actor-legible feedback, and failure semantics |
+| `05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` | Actor decision transaction, needs, commitments, intentions, routines, HTN methods, local planning, and stuck diagnostics |
+| `06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md` | Typed claims, observation, belief, memory, records, rumors, traces, and information flow |
+| `07_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` | Structured speech acts, speaker/listener interpretation contexts, language surfaces, and optional LLM boundary |
+| `08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md` | Institution-known procedure transaction, households, records, norms, roles, proof, sanctions, and fallibility |
+| `09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` | Missing-property first proof, ordinary life, settlement spatial model, property, work, sleep, food, and local economy |
+| `10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` | Possession, TUI-first embodied play, actor-legible why-not, debug-only truth, view models, and client boundaries |
+| `11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` | Questless incidents, leads, notices, reports, observer-only story sifting, and second-proof deferral |
+| `12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md` | LOD as ontology, summary processes, promotion/demotion, regional ancestry, prehistory, and scale |
+| `13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` | Acceptance gates, diagnostic artifacts, anti-contamination tests, replay proof, and review checklists |
+| `14_RESEARCH_DECISIONS_AND_FORBIDDEN_MISREADS.md` | Research distilled into decisions, consequences, and forbidden misreads |
 
-## Universal architecture questions
+Retired architecture names, including the old state/content authoring document, the old Phase 3A actor-known autonomy document, and the old research-notes document, are absorbed into this replacement map. Do not keep them as parallel live contracts.
 
-Every architecture proposal must answer these before acceptance:
+## Authority owned
 
-1. What is the authoritative state owner?
-2. What events can change that state?
-3. What is the cause model for those events?
-4. What data is actor-visible, institution-visible, debug-visible, or globally true but hidden?
-5. How does deterministic replay reproduce the behavior?
-6. How does no-human simulation exercise it?
-7. How does the TUI make it playable or inspectable at this phase?
-8. What would be the forbidden quest/director/omniscience shortcut for this subsystem, and how is it blocked?
-9. How are LLMs, prose, or UI surfaces prevented from becoming simulation authority?
-10. What fixture or golden scenario proves the contract?
+The architecture layer owns subsystem contracts, canonical data-flow boundaries, diagnostic obligations, and acceptance implications. It may name implementation seams as examples only. It does not prescribe tickets, sprint order, task decomposition, branch names, or code patches.
 
-## Maintenance rules
+## Authority denied
 
-Architecture documents should be corrected when they:
+The architecture layer may not:
 
-- contain session-specific audit ledgers, stale commit IDs, connector histories, or replacement-process notes;
-- blur foundation authority;
-- make a convenience tradeoff that would erase belief subjectivity, actor parity, physical custody, or replay;
-- create a hidden source of world mutation;
-- turn projections into causes;
-- allow language output to become fact;
-- postpone TUI playability or no-human operation out of the runnable phase.
+- change the project identity set by foundation;
+- weaken ordinary actor parity or TUI-first playability;
+- bless hidden-truth planning because current code happens to work that way;
+- create player-only world verbs;
+- treat display strings as proof;
+- convert research precedent into a mandate to copy another game;
+- defer the missing-property ordinary-life proof behind adventure systems.
 
-Stable source discipline belongs in architecture documents. Exact fetch ledgers, temporary manifest inventories, and mission-specific provenance belong in audit artifacts, not in committed architecture authority docs.
+## Universal conformance questions
+
+Every feature, subsystem, fixture, test, view model, and report must answer these questions:
+
+1. **Who is the holder?** Actor, institution, household, speaker, listener, embodied viewer, process, or LOD promotion recipient.
+2. **What did that holder know at the decision boundary?** List typed claims, observations, memories, records, roles, procedure state, resources, and stale/uncertain information.
+3. **Where did each input come from?** Every cognition/procedure input needs provenance: observation, memory, testimony, record, public artifact, schedule, role assignment, modeled rumor, summary event, or explicit “unknown.”
+4. **What was sealed before decision?** The holder-known context must be constructed before candidate generation, method selection, local planning, speech interpretation, affordance menu selection, or institutional procedure choice.
+5. **What did authoritative truth do?** Truth may validate, reject, resolve, mutate authoritative state, generate modeled observations, and support non-diegetic debug comparison.
+6. **What truth was forbidden?** Truth must not select goals, plans, routine steps, speech meaning, view-model affordances, institutional procedure outcomes, leads, story beats, or LOD promotion knowledge.
+7. **What feedback became future knowledge?** Rejections, observations, notices, reports, sanctions, and memories become future holder knowledge only through modeled channels.
+8. **What replayable evidence proves this?** Event log, context packet, provenance graph, decision trace, stuck diagnostic, validation report, TUI transcript, and debug artifact.
+
+A feature that cannot answer these questions is not architecture-conformant.
+
+## Required architectural spine
+
+For ordinary actors:
+
+```text
+trigger
+ -> sealed actor-known context with provenance
+ -> live needs / commitments / intentions / routines / obligations
+ -> candidate generation from actor-known pressures only
+ -> intention continuation/adoption/interruption/drop
+ -> HTN/routine/procedure method selection
+ -> bounded local planning from actor-known context
+ -> ordinary action proposal with ancestry
+ -> shared action pipeline validation against authoritative truth
+ -> event commit or rejection/failure semantics
+ -> actor-legible feedback and modeled observations
+ -> belief/projection updates
+ -> typed decision/stuck diagnostics
+ -> replay/debug/TUI projections
+```
+
+For institutions:
+
+```text
+institution trigger
+ -> sealed institution-known context from records, reports, role knowledge, resources,
+    jurisdiction, procedure state, public artifacts, and institutional memory
+ -> procedure candidate generation / role decision
+ -> proposal or institutional action through shared validation/event pipeline
+ -> records/notices/orders/sanctions/failures only through modeled authority and resources
+ -> public/actor/institution knowledge updates only through modeled channels
+ -> debug-visible truth comparison without leakage
+```
+
+For LOD and regional processes:
+
+```text
+summary truth may maintain aggregate simulation
+but promoted actors/institutions receive only knowledge with modeled ancestry
+```
+
+## Anti-patterns
+
+Reject any implementation that:
+
+- sends a need threshold directly into a primitive action;
+- sends a routine label directly into movement, work, sleep, eat, report, sanction, or travel;
+- reads a workplace table, household table, fixture truth, or route graph to choose an actor's plan without holder-known provenance;
+- uses validation truth to suggest a better action;
+- treats “the actor would know” as enough without a typed source;
+- returns actor-facing why-not text that reveals hidden truth;
+- uses debug truth in embodied affordance menus;
+- creates quest states, pacing managers, clue spawners, reward spawners, drama directors, or authored outcome chains;
+- requires an LLM for acceptance, replay, planning, or authoritative truth.
+
+## Cross-document obligations
+
+- The event/replay contract in document 02 must record enough evidence to replay decisions and diagnose contamination.
+- The holder-known contract in document 03 is the firewall used by documents 04 through 12.
+- The action pipeline in document 04 is the only route to world mutation for ordinary actions.
+- The actor transaction in document 05 is the only route from ordinary actor pressure to action proposal.
+- Institution procedures in document 08 must be as epistemically bounded as actor cognition.
+- TUI behavior in document 10 must expose actor-legible views and debug-only truth as separate products.
+- Acceptance in document 13 must fail plausible behavior if provenance or replay evidence is missing.
