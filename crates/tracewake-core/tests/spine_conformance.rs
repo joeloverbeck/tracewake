@@ -140,7 +140,8 @@ const SPINE_EVIDENCE: &[SpineEvidence] = &[
     SpineEvidence {
         requirement: "SPINE-AC-010",
         layer: "content/schema",
-        test_name: "content_new_field_requires_typed_validation_and_canonical_serialization_metadata",
+        test_name:
+            "content_new_field_requires_typed_validation_and_canonical_serialization_metadata",
         source_path: "crates/tracewake-content/tests/forbidden_content.rs",
     },
     SpineEvidence {

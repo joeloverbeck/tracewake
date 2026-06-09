@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-009: Add debug-quarantine negative tests
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` debug/view-model negative tests + a compile-fail fixture (via the ticket-002 runner); `tracewake-tui` adversarial debug tests
@@ -81,3 +81,28 @@ In `adversarial_gates.rs`, assert debug sections are marked non-diegetic, debug 
 
 1. `cargo test -p tracewake-core --test hidden_truth_gates && cargo test -p tracewake-tui --test adversarial_gates`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Added the negative fixture `tests/negative-fixtures/external_crate_cannot_construct_debug_report`, which attempts to construct a `ControllerBindingDebugReport` and mint `DebugCapability` from outside `tracewake-core`.
+- Registered that fixture in `crates/tracewake-core/tests/negative_fixture_runner.rs` and added the named test `debug_report_construction_without_capability_compile_fails`.
+- Added `debug_truth_never_enters_holder_known_context_hash` to `crates/tracewake-core/tests/hidden_truth_gates.rs`.
+- Added the named TUI transcript proof `tui_transcript_marks_debug_sections_non_diegetic` to `crates/tracewake-tui/tests/adversarial_gates.rs`.
+- Retained and verified the already-present TUI negatives for debug affordance stability, debug command strings, stale current-view submissions, and transcript byte stability.
+
+Deviations from original plan:
+
+- The compile-fail fixture is executed through the existing negative-fixture runner with `cargo clippy`, matching the ticket-002 harness pattern already present in the repo.
+
+Verification:
+
+- `cargo test -p tracewake-core --test hidden_truth_gates` — passed, 8 tests.
+- `cargo test -p tracewake-core --test negative_fixture_runner` — passed, 2 tests.
+- `cargo test -p tracewake-tui --test adversarial_gates` — passed, 14 tests.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.

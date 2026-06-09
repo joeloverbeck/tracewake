@@ -10,10 +10,13 @@ use tracewake_core::agent::{
     LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal, RoutineFamily,
     RoutineStep,
 };
+use tracewake_core::checksum::ChecksumContext;
+use tracewake_core::debug_reports::item_location_report;
 use tracewake_core::epistemics::EpistemicProjection;
 use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::ids::{
-    ActorId, ContainerId, ContentManifestId, FoodSupplyId, PlaceId, WorkplaceId,
+    ActorId, ContainerId, ContentManifestId, ContentVersion, FixtureId, FoodSupplyId, ItemId,
+    PlaceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_embodied_view_model, EmbodiedProjectionSource};
@@ -349,4 +352,93 @@ fn debug_omniscience_facts_are_excluded_from_planner_context() {
         "debug-only omniscience must not be accepted as actor-known",
     ));
     assert!(!context.audit_with(&[]).actor_known_only);
+}
+
+#[test]
+fn debug_truth_never_enters_holder_known_context_hash() {
+    let mut world = PhysicalSeed::default();
+    world.places_mut().insert(
+        place_id("home_mara"),
+        PlaceState::new(place_id("home_mara"), "Mara home"),
+    );
+    world.actors_mut().insert(
+        actor_id(),
+        ActorBody::new(actor_id(), place_id("home_mara")),
+    );
+    world.food_supplies_mut().insert(
+        food_supply_id("food_empty_pantry_mara"),
+        FoodSupplyState::new(
+            food_supply_id("food_empty_pantry_mara"),
+            Location::AtPlace(place_id("home_mara")),
+            0,
+            180,
+        ),
+    );
+    let hidden_container_id = container_id("hidden_pantry");
+    world.containers_mut().insert(
+        hidden_container_id.clone(),
+        ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("home_mara")),
+    );
+    world.food_supplies_mut().insert(
+        food_supply_id("food_hidden_pantry"),
+        FoodSupplyState::new(
+            food_supply_id("food_hidden_pantry"),
+            Location::InContainer(hidden_container_id),
+            1,
+            220,
+        ),
+    );
+    let world = world.build();
+    let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let projection_source =
+        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
+    let before_view = build_embodied_view_model(
+        &knowledge_context,
+        &projection_source,
+        &registry(),
+        &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
+        None,
+    )
+    .unwrap();
+
+    let debug_report = item_location_report(
+        &world,
+        &tracewake_core::events::log::EventLog::new(),
+        &ItemId::new("food_hidden_pantry").unwrap(),
+        &ChecksumContext {
+            fixture_id: FixtureId::new("debug_truth_hash_gate").unwrap(),
+            content_version: ContentVersion::new("hidden_truth_gate_manifest").unwrap(),
+            sim_tick: SimTick::ZERO,
+            world_stream_position_applied: 0,
+        },
+    );
+    assert!(debug_report.debug_only());
+    assert!(format!("{debug_report:?}").contains("food_hidden_pantry"));
+
+    let after_projection_source =
+        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
+    let after_view = build_embodied_view_model(
+        &knowledge_context,
+        &after_projection_source,
+        &registry(),
+        &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        after_view.holder_known_context_hash,
+        before_view.holder_known_context_hash
+    );
+    assert_eq!(
+        after_view.holder_known_context_source_summary,
+        before_view.holder_known_context_source_summary
+    );
+    assert!(!after_view
+        .holder_known_context_source_summary
+        .contains("debug"));
+    assert!(!after_view.semantic_actions.iter().any(|entry| entry
+        .target_ids
+        .iter()
+        .any(|target| target == "food_hidden_pantry")));
 }
