@@ -146,6 +146,10 @@ pub struct AgentState {
 }
 
 impl PhysicalState {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Seed construction mirrors authoritative state collections."
+    )]
     pub fn from_seed_parts(
         actors: BTreeMap<ActorId, ActorBody>,
         places: BTreeMap<PlaceId, PlaceState>,

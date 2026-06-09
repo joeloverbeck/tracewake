@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-010: Capstone — ORD-LIFE-CERT-scoped acceptance artifact + conformance index
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: No — verification-only; produces a `reports/` acceptance artifact and the §5.5 conformance index; exercises the pipeline the prior tickets composed
@@ -79,3 +79,23 @@ Document the exact commands (below) and the manual TUI embodied/debug walkthroug
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings`
 2. `cargo test --workspace`
 3. `cargo test -p tracewake-core --test no_human_capstone --test anti_regression_guards --test event_schema_replay_gates` — the named proof surfaces for the report.
+
+## Outcome (2026-06-09)
+
+Completed. Added `reports/0014_ord_life_cert_scoped_acceptance.md` with the
+ORD-LIFE-CERT-scoped acceptance artifact, non-certification statement,
+verification command outcomes, adversarial fixture evidence, typed metrics replay
+evidence, embodied/debug TUI evidence, responsible-layer matrix, and the §5.5
+Phase 3A conformance index.
+
+The capstone introduced no runtime behavior change. A narrow lint-only
+`clippy::too_many_arguments` allowance was added to `PhysicalState::from_seed_parts`
+because the sleep-affordance state collection made the seed constructor exceed
+the clippy arity threshold required by the capstone gate.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo test -p tracewake-core --test no_human_capstone --test anti_regression_guards --test event_schema_replay_gates`
+4. `cargo test --workspace`
