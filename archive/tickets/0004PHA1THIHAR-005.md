@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-005: Upgrade the invariant-reference linter to a structured coverage linter
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` tests (`doc_invariant_references.rs` structured-coverage upgrade)
@@ -77,3 +77,25 @@ Generate a reviewer-facing report listing unreferenced high-risk invariants and 
 
 1. `cargo test -p tracewake-core --test doc_invariant_references`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+Upgraded `doc_invariant_references.rs` from dangling-reference-only checking to structured live-spec invariant coverage:
+
+- live `specs/*.md` findings headed `### F-...` must carry `**Invariants:**` metadata with at least one known `INV-###`;
+- live `specs/*.md` acceptance requirements headed `### THIRD-AC-...` must carry `**Enforces:**` metadata with at least one known `INV-###`;
+- unknown invariant IDs in those structured fields fail the linter;
+- broad dangling-reference detection remains intact across the existing live reference set;
+- an advisory high-risk invariant review report is produced for reviewer signoff.
+
+Scope note: structured coverage is intentionally limited to live spec packages under `specs/`, matching the current machine-readable convention. Historical archive paths remain exempt, and the high-risk orphan report is advisory rather than blocking.
+
+Verified with:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core --test doc_invariant_references`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo test --workspace`
