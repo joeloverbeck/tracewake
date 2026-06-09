@@ -1,3 +1,7 @@
+mod support;
+
+use support::{AgentSeed, PhysicalSeed};
+
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
@@ -232,8 +236,8 @@ fn low_pressure_agent_state(
 ) -> tracewake_core::state::AgentState {
     use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
 
-    let mut state = tracewake_core::state::AgentState::default();
-    state.seed_needs_by_actor_mut().insert(
+    let mut state = AgentSeed::default();
+    state.needs_by_actor_mut().insert(
         actor_id,
         [
             (
@@ -252,7 +256,7 @@ fn low_pressure_agent_state(
         .into_iter()
         .collect(),
     );
-    state
+    state.build()
 }
 
 fn source_bound_human_proposal(
@@ -306,16 +310,17 @@ fn human_source_report(
     use tracewake_core::scheduler::{
         OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use tracewake_core::state::{ActorBody, AgentState, ControllerMode, PhysicalState};
+    use tracewake_core::state::{ActorBody, AgentState, ControllerMode};
     use tracewake_core::time::SimTick;
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let controller_id = ControllerId::new("controller_human").unwrap();
-    let mut state = PhysicalState::default();
-    state.seed_actors_mut().insert(
+    let mut state_seed = PhysicalSeed::default();
+    state_seed.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
     );
+    let state = state_seed.build();
     let mut registry = ActionRegistry::new();
     registry.register(ActionDefinition::query_only(ActionId::new("look").unwrap()));
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
@@ -411,7 +416,7 @@ fn scheduler_never_direct_dispatches_primitive_action() {
     use tracewake_core::scheduler::{
         OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use tracewake_core::state::{ActorBody, PhysicalState};
+    use tracewake_core::state::ActorBody;
     use tracewake_core::time::SimTick;
 
     let scheduler = production(SCHEDULER_RS);
@@ -463,10 +468,11 @@ fn scheduler_never_direct_dispatches_primitive_action() {
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let place_id = PlaceId::new("shop_front").unwrap();
-    let mut scheduled_state = PhysicalState::default();
-    scheduled_state
-        .seed_actors_mut()
+    let mut scheduled_seed = PhysicalSeed::default();
+    scheduled_seed
+        .actors_mut()
         .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), place_id));
+    let mut scheduled_state = scheduled_seed.build();
     let mut scheduled_agent_state = low_pressure_agent_state(actor_id.clone());
     let mut scheduled_log = EventLog::new();
     let mut registry = ActionRegistry::new();
@@ -516,11 +522,12 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         2
     );
 
-    let mut direct_state = PhysicalState::default();
-    direct_state.seed_actors_mut().insert(
+    let mut direct_seed = PhysicalSeed::default();
+    direct_seed.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
     );
+    let mut direct_state = direct_seed.build();
     let mut direct_agent_state = low_pressure_agent_state(actor_id.clone());
     let mut direct_log = EventLog::new();
     let mut direct_context = PipelineContext {
@@ -927,7 +934,7 @@ fn accepted_action_appends_before_authoritative_apply() {
     use tracewake_core::scheduler::{
         OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use tracewake_core::state::{ActorBody, AgentState, ContainerState, PhysicalState, PlaceState};
+    use tracewake_core::state::{ActorBody, AgentState, ContainerState, PlaceState};
     use tracewake_core::time::SimTick;
 
     let pipeline = production(include_str!("../src/actions/pipeline.rs"));
@@ -943,19 +950,20 @@ fn accepted_action_appends_before_authoritative_apply() {
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let place_id = PlaceId::new("shop_front").unwrap();
     let container_id = ContainerId::new("strongbox_tomas").unwrap();
-    let mut state = PhysicalState::default();
-    state.seed_places_mut().insert(
+    let mut seed = PhysicalSeed::default();
+    seed.places_mut().insert(
         place_id.clone(),
         PlaceState::new(place_id.clone(), "Shop front"),
     );
-    state.seed_actors_mut().insert(
+    seed.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), place_id.clone()),
     );
-    state.seed_containers_mut().insert(
+    seed.containers_mut().insert(
         container_id.clone(),
         ContainerState::fixed_at_place(container_id.clone(), place_id),
     );
+    let mut state = seed.build();
     let mut registry = ActionRegistry::new();
     registry.register_phase1_movement_open_close();
     let mut log = EventLog::new();

@@ -1,5 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+mod support;
+
+use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     build_actor_known_planning_state, plan_local_actions, ActorDecisionTransaction,
@@ -14,9 +17,7 @@ use tracewake_core::ids::{
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_embodied_view_model, EmbodiedProjectionSource};
-use tracewake_core::state::{
-    ActorBody, AgentState, ContainerState, FoodSupplyState, PhysicalState, PlaceState,
-};
+use tracewake_core::state::{ActorBody, AgentState, ContainerState, FoodSupplyState, PlaceState};
 use tracewake_core::time::SimTick;
 
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
@@ -53,8 +54,8 @@ fn registry() -> ActionRegistry {
 }
 
 fn agent_state(hunger: u16) -> AgentState {
-    let mut state = AgentState::default();
-    state.seed_needs_by_actor_mut().insert(
+    let mut state = AgentSeed::default();
+    state.needs_by_actor_mut().insert(
         actor_id(),
         BTreeMap::from([
             (
@@ -75,7 +76,7 @@ fn agent_state(hunger: u16) -> AgentState {
             ),
         ]),
     );
-    state
+    state.build()
 }
 
 fn context(
@@ -172,17 +173,17 @@ fn hidden_food_closed_container_is_not_actor_known_food_source() {
 
 #[test]
 fn embodied_affordances_exclude_hidden_food_in_closed_container() {
-    let mut world = PhysicalState::default();
-    world.seed_places_mut().insert(
+    let mut world = PhysicalSeed::default();
+    world.places_mut().insert(
         place_id("home_mara"),
         PlaceState::new(place_id("home_mara"), "Mara home"),
     );
-    world.seed_actors_mut().insert(
+    world.actors_mut().insert(
         actor_id(),
         ActorBody::new(actor_id(), place_id("home_mara")),
     );
 
-    world.seed_food_supplies_mut().insert(
+    world.food_supplies_mut().insert(
         food_supply_id("food_empty_pantry_mara"),
         FoodSupplyState::new(
             food_supply_id("food_empty_pantry_mara"),
@@ -192,11 +193,11 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
         ),
     );
     let hidden_container_id = container_id("hidden_pantry");
-    world.seed_containers_mut().insert(
+    world.containers_mut().insert(
         hidden_container_id.clone(),
         ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("home_mara")),
     );
-    world.seed_food_supplies_mut().insert(
+    world.food_supplies_mut().insert(
         food_supply_id("food_hidden_pantry"),
         FoodSupplyState::new(
             food_supply_id("food_hidden_pantry"),
@@ -205,6 +206,7 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
             220,
         ),
     );
+    let world = world.build();
 
     let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
     let projection_source =

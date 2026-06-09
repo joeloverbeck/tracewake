@@ -1,3 +1,6 @@
+mod support;
+
+use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReasonCode,
     ReportStatus,
@@ -126,17 +129,17 @@ fn hunger_delta_payload(delta: i32, cause_kind: &str) -> Vec<PayloadField> {
 }
 
 fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
-    let mut state = PhysicalState::default();
+    let mut state = PhysicalSeed::default();
     let shop = PlaceId::new("shop_front").unwrap();
     let back = PlaceId::new("back_room").unwrap();
     let mut shop_state = PlaceState::new(shop.clone(), "Shop front");
     shop_state.adjacent_place_ids.insert(back.clone());
     let mut back_state = PlaceState::new(back.clone(), "Back room");
     back_state.adjacent_place_ids.insert(shop.clone());
-    state.seed_places_mut().insert(shop.clone(), shop_state);
-    state.seed_places_mut().insert(back.clone(), back_state);
+    state.places_mut().insert(shop.clone(), shop_state);
+    state.places_mut().insert(back.clone(), back_state);
     state
-        .seed_actors_mut()
+        .actors_mut()
         .insert(actor_id(), ActorBody::new(actor_id(), shop.clone()));
 
     let mut door = DoorState::new(
@@ -145,15 +148,15 @@ fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
         back.clone(),
     );
     door.is_open = door_open;
-    state.seed_doors_mut().insert(door.door_id.clone(), door);
+    state.doors_mut().insert(door.door_id.clone(), door);
     state
-        .seed_places_mut()
+        .places_mut()
         .get_mut(&shop)
         .unwrap()
         .connected_door_ids
         .insert("door_shop_back".parse().unwrap());
     state
-        .seed_places_mut()
+        .places_mut()
         .get_mut(&back)
         .unwrap()
         .connected_door_ids
@@ -162,23 +165,23 @@ fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
     let mut container = ContainerState::fixed_at_place(box_id(), shop.clone());
     container.is_open = container_open;
     container.contents.insert(coin_id());
-    state.seed_containers_mut().insert(box_id(), container);
+    state.containers_mut().insert(box_id(), container);
     state
-        .seed_places_mut()
+        .places_mut()
         .get_mut(&shop)
         .unwrap()
         .local_container_ids
         .insert(box_id());
-    state.seed_items_mut().insert(
+    state.items_mut().insert(
         coin_id(),
         ItemState::new(coin_id(), Location::InContainer(box_id())),
     );
-    state
+    state.build()
 }
 
 fn phase3a_agent_state() -> AgentState {
-    let mut state = AgentState::default();
-    state.seed_needs_by_actor_mut().insert(
+    let mut state = AgentSeed::default();
+    state.needs_by_actor_mut().insert(
         actor_id(),
         [
             (
@@ -197,7 +200,7 @@ fn phase3a_agent_state() -> AgentState {
         .into_iter()
         .collect(),
     );
-    state
+    state.build()
 }
 
 fn proposal(action: &str, targets: &[&str], sequence: u64) -> Proposal {
@@ -366,32 +369,32 @@ fn run_probe_with_projection(
 }
 
 fn sound_state() -> PhysicalState {
-    let mut state = PhysicalState::default();
+    let mut state = PhysicalSeed::default();
     let house = PlaceId::new("house_tomas").unwrap();
     let street = PlaceId::new("street_lane").unwrap();
     let mut house_state = PlaceState::new(house.clone(), "Tomas house");
     house_state.adjacent_place_ids.insert(street.clone());
     let mut street_state = PlaceState::new(street.clone(), "Street lane");
     street_state.adjacent_place_ids.insert(house.clone());
-    state.seed_places_mut().insert(house.clone(), house_state);
-    state.seed_places_mut().insert(street.clone(), street_state);
+    state.places_mut().insert(house.clone(), house_state);
+    state.places_mut().insert(street.clone(), street_state);
     let mara = ActorId::new("actor_mara").unwrap();
     let elena = ActorId::new("actor_elena").unwrap();
     state
-        .seed_actors_mut()
+        .actors_mut()
         .insert(mara.clone(), ActorBody::new(mara, house.clone()));
     state
-        .seed_actors_mut()
+        .actors_mut()
         .insert(elena.clone(), ActorBody::new(elena, street));
     let mut container = ContainerState::fixed_at_place(box_id(), house);
     container.is_open = true;
     container.contents.insert(coin_id());
-    state.seed_containers_mut().insert(box_id(), container);
-    state.seed_items_mut().insert(
+    state.containers_mut().insert(box_id(), container);
+    state.items_mut().insert(
         coin_id(),
         ItemState::new(coin_id(), Location::InContainer(box_id())),
     );
-    state
+    state.build()
 }
 
 fn run_mara_take_with_projection(
@@ -550,15 +553,15 @@ fn check_container_records_observation_but_open_alone_does_not() {
 
 #[test]
 fn expected_absence_check_creates_contradiction_and_missing_belief() {
-    let mut state = initial_state(true, true);
-    state
-        .seed_containers_mut()
+    let mut seed = PhysicalSeed::from_state(&initial_state(true, true));
+    seed.containers_mut()
         .get_mut(&box_id())
         .unwrap()
         .contents
         .clear();
-    state.seed_items_mut().get_mut(&coin_id()).unwrap().location =
+    seed.items_mut().get_mut(&coin_id()).unwrap().location =
         Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let mut state = seed.build();
     let mut log = EventLog::new();
     let mut projection = EpistemicProjection::new(manifest_id());
     seed_tomas_coin_expectation(&mut projection);
@@ -595,15 +598,15 @@ fn expected_absence_check_creates_contradiction_and_missing_belief() {
 
 #[test]
 fn no_human_epistemic_check_records_evidence_without_controller() {
-    let mut state = initial_state(true, true);
-    state
-        .seed_containers_mut()
+    let mut seed = PhysicalSeed::from_state(&initial_state(true, true));
+    seed.containers_mut()
         .get_mut(&box_id())
         .unwrap()
         .contents
         .clear();
-    state.seed_items_mut().get_mut(&coin_id()).unwrap().location =
+    seed.items_mut().get_mut(&coin_id()).unwrap().location =
         Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let mut state = seed.build();
     let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
     let mut log = EventLog::new();
     let mut projection = EpistemicProjection::new(manifest_id());
@@ -637,22 +640,22 @@ fn no_human_epistemic_check_records_evidence_without_controller() {
 
 #[test]
 fn missing_property_belief_does_not_support_truthful_accusation() {
-    let mut state = initial_state(true, true);
-    state.seed_actors_mut().insert(
+    let mut seed = PhysicalSeed::from_state(&initial_state(true, true));
+    seed.actors_mut().insert(
         ActorId::new("actor_mara").unwrap(),
         ActorBody::new(
             ActorId::new("actor_mara").unwrap(),
             PlaceId::new("shop_front").unwrap(),
         ),
     );
-    state
-        .seed_containers_mut()
+    seed.containers_mut()
         .get_mut(&box_id())
         .unwrap()
         .contents
         .clear();
-    state.seed_items_mut().get_mut(&coin_id()).unwrap().location =
+    seed.items_mut().get_mut(&coin_id()).unwrap().location =
         Location::AtPlace(PlaceId::new("back_room").unwrap());
+    let mut state = seed.build();
     let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
     let mut log = EventLog::new();
     let mut projection = EpistemicProjection::new(manifest_id());

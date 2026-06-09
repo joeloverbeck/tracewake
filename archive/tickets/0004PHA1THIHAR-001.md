@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-001: Seal seed-mutation API behind a seed-build capability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`state.rs` authoritative-state mutation surface; optional new sealed seed builder/capability); migration of 5 `tracewake-core` integration test files
@@ -82,3 +82,22 @@ Rewrite each `seed_*_mut().insert(...)` / `.get_mut(...)` call site to assemble 
 
 1. `cargo test -p tracewake-core`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Removed the public `seed_*_mut` methods from `PhysicalState` and `AgentState`; authoritative state construction remains available through `from_seed_parts`.
+- Added a test-only seed helper under `crates/tracewake-core/tests/support/` and migrated the five core integration test consumers to build seed maps before producing real `PhysicalState` / `AgentState` values.
+- Preserved event-path mutation as the only post-seed production mutation route; no production compatibility aliases or shim mutators were added.
+
+Deviations from original plan:
+- Used a shared integration-test helper over `from_seed_parts` rather than adding any production seed-build capability. This keeps the exported production API narrower while still making test setup readable.
+
+Verification results:
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `if rg -q "pub fn seed_[a-z_]+_mut" crates/tracewake-core/src/state.rs; then exit 1; else exit 0; fi` — passed.
