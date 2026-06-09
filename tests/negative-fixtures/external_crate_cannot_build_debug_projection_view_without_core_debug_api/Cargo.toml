@@ -1,0 +1,9 @@
+[package]
+name = "external_crate_cannot_build_debug_projection_view_without_core_debug_api"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-core = { path = "../../../crates/tracewake-core" }
+
+[workspace]

@@ -69,6 +69,46 @@ const FIXTURES: &[NegativeFixture] = &[
         name: "external_crate_cannot_construct_debug_report",
         expected_stderr: "private",
     },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_knowledge_context_mode",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_knowledge_context_viewer",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_build_debug_knowledge_context",
+        expected_stderr: "this function takes 3 arguments but 2 arguments were supplied",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_read_raw_epistemic_projection_maps",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_insert_raw_epistemic_records",
+        expected_stderr: "private method",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_build_debug_projection_view_without_core_debug_api",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_construct_belief_literal",
+        expected_stderr: "are private",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_belief_source_or_scope",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_construct_observation_without_source",
+        expected_stderr: "other private field `source`",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_contradiction_links",
+        expected_stderr: "private field",
+    },
 ];
 
 fn fixture_root(fixture: &NegativeFixture) -> PathBuf {

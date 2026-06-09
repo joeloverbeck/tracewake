@@ -1,0 +1,9 @@
+[package]
+name = "external_crate_cannot_insert_raw_epistemic_records"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-core = { path = "../../../crates/tracewake-core" }
+
+[workspace]

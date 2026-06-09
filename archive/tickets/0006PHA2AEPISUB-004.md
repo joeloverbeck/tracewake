@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-004: Compile-fail negative fixtures for context/projection/record sealing
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new compile-fail negative fixtures under `tracewake-core/tests/negative-fixtures/`; `negative_fixture_runner` extended to cover them.
@@ -76,3 +76,24 @@ Extend `crates/tracewake-core/tests/negative_fixture_runner.rs` so the new fixtu
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo test --workspace`
 3. `cargo test -p tracewake-core --test negative_fixture_runner -- --nocapture` — narrow boundary: compile-fail outcomes are the entire contract of this ticket, so the runner is the correct verification surface.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Added compile-fail negative fixture crates for every named context, projection, and epistemic-record sealing leak path.
+- Registered the new fixtures in `negative_fixture_runner` with expected stderr fragments.
+- Covered all ten leak paths named in the verification layers, despite the ticket summary describing the count as nine.
+
+Deviations from original plan:
+- Fixtures were added under the repository-level `tests/negative-fixtures/` directory used by the existing runner, not under `crates/tracewake-core/tests/negative-fixtures/`.
+- No production code changes were needed.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --test negative_fixture_runner -- --nocapture`
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo test --workspace`
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`
