@@ -1,10 +1,11 @@
 use crate::actions::{Proposal, ProposalOrigin};
 use crate::agent::{
     generate_candidate_goals_from_agent_state, plan_local_actions, select_goal_and_trace,
-    select_phase3a_method, ActorKnownPlanningContext, BlockerCategory, CandidateGoal,
+    select_phase3a_method, ActorKnownPlanningContext, BlockerCategory, BlockerCode, CandidateGoal,
     DecisionInput, DecisionTrace, DecisionTraceRecord, GoalKind, IntentionLifecycleEffect,
     LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure, LocalPlanRequest, PlannerGoal,
-    RoutineFamily, RoutineStep, StuckDiagnosticRecord, StuckResultingStatus,
+    ResponsibleLayer, RoutineFamily, RoutineStep, StuckDiagnosticRecord, StuckResultingStatus,
+    TypedDiagnosticFields,
 };
 use crate::ids::{ActorId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
@@ -361,6 +362,22 @@ fn stuck_diagnostic(
     concrete_blocker: impl Into<String>,
     debug: impl Into<String>,
 ) -> StuckDiagnosticRecord {
+    let concrete_blocker = concrete_blocker.into();
+    let (responsible_layer, blocker_code) = match concrete_blocker.as_str() {
+        "no applicable candidate" => (
+            ResponsibleLayer::CandidateGeneration,
+            BlockerCode::NoApplicableCandidate,
+        ),
+        "no applicable method" => (
+            ResponsibleLayer::MethodSelection,
+            BlockerCode::NoApplicableMethod,
+        ),
+        "empty local plan" => (ResponsibleLayer::LocalPlanning, BlockerCode::EmptyLocalPlan),
+        _ => (
+            ResponsibleLayer::LocalPlanning,
+            BlockerCode::PlannerBudgetExhausted,
+        ),
+    };
     StuckDiagnosticRecord::new(
         StuckDiagnosticId::new(format!(
             "stuck_actor_decision_{}_{}",
@@ -385,6 +402,14 @@ fn stuck_diagnostic(
         "typed_stuck_diagnostic",
         StuckResultingStatus::Failed,
     )
+    .with_typed_diagnostic(TypedDiagnosticFields {
+        responsible_layer,
+        blocker_code,
+        input_source: "actor_known_context".to_string(),
+        actual_source: "actor_decision_transaction".to_string(),
+        hidden_truth_referenced: false,
+        remediation_hint: "inspect candidate, method, and local-plan typed records".to_string(),
+    })
 }
 
 fn stuck_diagnostic_for_plan_failure(
@@ -394,6 +419,7 @@ fn stuck_diagnostic_for_plan_failure(
     routine_step: Option<RoutineStep>,
     failure: LocalPlanFailure,
 ) -> StuckDiagnosticRecord {
+    let blocker_code = failure.blocker.blocker_code();
     StuckDiagnosticRecord::new(
         StuckDiagnosticId::new(format!(
             "stuck_actor_decision_{}_{}",
@@ -418,6 +444,14 @@ fn stuck_diagnostic_for_plan_failure(
         "typed_stuck_diagnostic",
         StuckResultingStatus::Failed,
     )
+    .with_typed_diagnostic(TypedDiagnosticFields {
+        responsible_layer: ResponsibleLayer::LocalPlanning,
+        blocker_code,
+        input_source: "actor_known_context".to_string(),
+        actual_source: "actor_decision_transaction".to_string(),
+        hidden_truth_referenced: false,
+        remediation_hint: "inspect local plan trace for actor-known blocker".to_string(),
+    })
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-003: Typed diagnostic schema (responsible layer / blocker code) + replay rebuild
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/trace.rs` diagnostic structs + new enums, `events/envelope.rs` payload keys, `replay/rebuild.rs` rebuild, diagnostic producers in `agent/transaction.rs`/`agent/decision.rs`)
@@ -83,3 +83,25 @@ In `agent/transaction.rs` and `agent/decision.rs`, set the typed fields at diagn
 1. `cargo test -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test -p tracewake-core --test no_human_capstone`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+- Added typed diagnostic substrate: `ResponsibleLayer`, `BlockerCode`, and `TypedDiagnosticFields`.
+- Extended `DecisionTraceRecord` and `StuckDiagnostic` canonical forms with typed diagnostic fields while preserving legacy shorter-shape replay defaults.
+- Emitted reserved typed payload keys on `DecisionTraceRecorded` and `StuckDiagnosticRecorded`.
+- Validated typed payload keys during agent-event apply when present, while allowing older events without the keys.
+- Populated transaction and scheduler stuck diagnostics with best-effort responsible layer and blocker code values.
+- Added replay-gate assertions for typed payload fields, enum rebuild, old-shape decision trace defaults, stuck diagnostic typed round-trip, and exact responsible-layer vocabulary.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core --test event_schema_replay_gates`
+3. `cargo test -p tracewake-core --lib agent::trace::tests::every_blocker_category_serializes_and_round_trips`
+4. `cargo test -p tracewake-core --test no_human_capstone`
+5. `cargo test -p tracewake-core`
+6. `cargo test --workspace`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`

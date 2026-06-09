@@ -52,9 +52,10 @@ pub use routine::{
     RoutineStepProposal, RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
 };
 pub use trace::{
-    BlockerCategory, DecisionOutcome, DecisionTrace, DecisionTraceRecord,
-    DecisionTraceRecordParseError, HiddenTruthAudit, RejectedDecisionItem, StuckDiagnostic,
-    StuckDiagnosticParseError, StuckDiagnosticRecord, StuckResultingStatus,
+    BlockerCategory, BlockerCode, DecisionOutcome, DecisionTrace, DecisionTraceRecord,
+    DecisionTraceRecordParseError, HiddenTruthAudit, RejectedDecisionItem, ResponsibleLayer,
+    StuckDiagnostic, StuckDiagnosticParseError, StuckDiagnosticRecord, StuckResultingStatus,
+    TypedDiagnosticFields,
 };
 pub use transaction::{
     ActorDecisionProposalOutcome, ActorDecisionTransaction, ActorDecisionTransactionInput,

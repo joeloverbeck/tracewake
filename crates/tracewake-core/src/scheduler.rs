@@ -210,9 +210,10 @@ pub mod no_human {
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
         ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
-        ActorKnownFact, ActorKnownPlanningContext, BlockerCategory, DecisionTraceRecord, Intention,
-        IntentionSource, NeedBand, NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder,
-        RoutineFamily, StuckDiagnostic, StuckResultingStatus,
+        ActorKnownFact, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
+        DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind, NeedState,
+        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, StuckDiagnostic,
+        StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::events::apply::apply_agent_event;
     use crate::events::log::EventLog;
@@ -1015,6 +1016,42 @@ pub mod no_human {
                 decision_trace_record
                     .hidden_truth_audit_result
                     .notes
+                    .clone(),
+            ),
+            PayloadField::new(
+                "responsible_layer",
+                decision_trace_record
+                    .typed_diagnostic
+                    .responsible_layer
+                    .stable_id(),
+            ),
+            PayloadField::new(
+                "blocker_code",
+                decision_trace_record
+                    .typed_diagnostic
+                    .blocker_code
+                    .stable_id(),
+            ),
+            PayloadField::new(
+                "input_source",
+                decision_trace_record.typed_diagnostic.input_source.clone(),
+            ),
+            PayloadField::new(
+                "actual_source",
+                decision_trace_record.typed_diagnostic.actual_source.clone(),
+            ),
+            PayloadField::new(
+                "hidden_truth_referenced",
+                decision_trace_record
+                    .typed_diagnostic
+                    .hidden_truth_referenced
+                    .to_string(),
+            ),
+            PayloadField::new(
+                "remediation_hint",
+                decision_trace_record
+                    .typed_diagnostic
+                    .remediation_hint
                     .clone(),
             ),
         ];
@@ -1902,7 +1939,15 @@ pub mod no_human {
             "no-human day stuck detection",
             "recorded_stuck_diagnostic",
             StuckResultingStatus::Idle,
-        );
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::Scheduler,
+            blocker_code: BlockerCode::SchedulingReservation,
+            input_source: "no_human_window".to_string(),
+            actual_source: "scheduler_no_progress_detection".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint: "inspect no-human ordering and proposal diagnostics".to_string(),
+        });
         let canonical = diagnostic.serialize_canonical();
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(format!(
@@ -1935,6 +1980,33 @@ pub mod no_human {
             PayloadField::new("diagnostic_schema_version", "1"),
             PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
             PayloadField::new("diagnostic_canonical", canonical),
+            PayloadField::new(
+                "responsible_layer",
+                diagnostic.typed_diagnostic.responsible_layer.stable_id(),
+            ),
+            PayloadField::new(
+                "blocker_code",
+                diagnostic.typed_diagnostic.blocker_code.stable_id(),
+            ),
+            PayloadField::new(
+                "input_source",
+                diagnostic.typed_diagnostic.input_source.clone(),
+            ),
+            PayloadField::new(
+                "actual_source",
+                diagnostic.typed_diagnostic.actual_source.clone(),
+            ),
+            PayloadField::new(
+                "hidden_truth_referenced",
+                diagnostic
+                    .typed_diagnostic
+                    .hidden_truth_referenced
+                    .to_string(),
+            ),
+            PayloadField::new(
+                "remediation_hint",
+                diagnostic.typed_diagnostic.remediation_hint.clone(),
+            ),
         ];
         event.effects_summary = "no-human day stuck diagnostic recorded".to_string();
         log.append(event).expect("stuck diagnostic is versioned")

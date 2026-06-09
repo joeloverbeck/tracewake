@@ -644,6 +644,7 @@ mod tests {
                     actor_known_only: true,
                     notes: "fixture".to_string(),
                 },
+                typed_diagnostic: crate::agent::TypedDiagnosticFields::decision_default(false),
             },
         );
         state.stuck_diagnostics.insert(
