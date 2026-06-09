@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope};
-use tracewake_core::agent::RoutineStepProposal;
+use tracewake_core::agent::{RoutineFamily, RoutineStepProposal};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
 use tracewake_core::events::InitialBeliefSourceKind;
@@ -9,7 +9,9 @@ use tracewake_core::ids::{ActionId, FoodSupplyId, PlaceId, WorkplaceId};
 use tracewake_core::location::Location;
 use tracewake_core::state::PhysicalState;
 
-use crate::schema::{content_field_by_canonical_key, ActionAffordanceSchema, FixtureSchema};
+use crate::schema::{
+    content_field_by_canonical_key, ActionAffordanceSchema, FixtureSchema, FixtureScope,
+};
 pub use crate::schema::{content_field_registry, ValidationPhase};
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
 
@@ -132,6 +134,7 @@ fn validate_fixture_errors(
     validate_state(fixture, &mut errors);
     validate_action_registry_parity(fixture, registry, &mut errors);
     validate_routine_rules(fixture, registry, &mut errors);
+    validate_phase3a_sleep_surface_contract(fixture, &mut errors);
     validate_semantic_ids(fixture, &mut errors);
     validate_no_player(fixture, &mut errors);
     validate_no_script(fixture, &mut errors);
@@ -315,6 +318,18 @@ fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError
         reject_reserved_or_display(
             workplace.workplace_id.as_str(),
             format!("workplaces[{index}].workplace_id"),
+            errors,
+        );
+    }
+    for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
+        push_id(
+            &mut seen,
+            sleep_place.sleep_place_id.as_str(),
+            format!("sleep_places[{index}].sleep_place_id"),
+        );
+        reject_reserved_or_display(
+            sleep_place.sleep_place_id.as_str(),
+            format!("sleep_places[{index}].sleep_place_id"),
             errors,
         );
     }
@@ -1019,6 +1034,48 @@ fn validate_routine_rules(
     }
 }
 
+fn validate_phase3a_sleep_surface_contract(
+    fixture: &FixtureSchema,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    if fixture.fixture_scope != FixtureScope::Phase3AHistorical {
+        return;
+    }
+    if !has_sleep_routine_template(fixture) || !fixture.sleep_places.is_empty() {
+        return;
+    }
+    if has_explicit_no_sleep_diagnostic(fixture) {
+        return;
+    }
+    errors.push(ContentValidationError::new(
+        ValidationPhase::State,
+        "sleep_places",
+        "missing_sleep_surface",
+        "Phase 3A sleep-routine fixtures must author a sleep surface or an explicit no-sleep diagnostic",
+    ));
+}
+
+fn has_sleep_routine_template(fixture: &FixtureSchema) -> bool {
+    fixture
+        .routine_templates
+        .iter()
+        .any(|template| template.family == RoutineFamily::SleepNight)
+}
+
+fn has_explicit_no_sleep_diagnostic(fixture: &FixtureSchema) -> bool {
+    fixture.routine_templates.iter().any(|template| {
+        template.steps.iter().any(|step| {
+            matches!(
+                step.proposed(),
+                RoutineStepProposal::Diagnostic(diagnostic)
+                    if diagnostic.contains("no_sleep")
+                        || diagnostic.contains("no_sleep_affordance")
+                        || diagnostic.contains("NoSleepAffordance")
+            )
+        })
+    })
+}
+
 fn known_action_scope(action_id: &ActionId) -> Option<ActionScope> {
     match action_id.as_str() {
         "move" | "open" | "close" | "take" | "place" | "look" | "inspect_place"
@@ -1370,7 +1427,7 @@ fn validate_phase3a_no_shortcuts(
 ) {
     for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
         reject_shortcut_text(
-            &sleep_place.sleep_place_id,
+            sleep_place.sleep_place_id.as_str(),
             format!("sleep_places[{index}].sleep_place_id"),
             errors,
         );
@@ -1779,7 +1836,7 @@ mod tests {
     use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
     use tracewake_core::ids::{
         ActionId, ActorId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
-        RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
+        RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId, WorkplaceId,
     };
     use tracewake_core::time::SimTick;
 
@@ -1875,7 +1932,8 @@ mod tests {
         fixture.sleep_places.push(SleepPlaceSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             place_id: PlaceId::new("shop_front").unwrap(),
-            sleep_place_id: "bed_tomas".to_string(),
+            sleep_place_id: SleepAffordanceId::new("bed_tomas").unwrap(),
+            access_open: true,
         });
         fixture.food_supplies.push(FoodSupplySchema {
             food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
@@ -2034,6 +2092,23 @@ mod tests {
     }
 
     #[test]
+    fn phase3a_sleep_routine_requires_authored_sleep_surface_or_diagnostic() {
+        let mut fixture = phase3a_fixture();
+        fixture.sleep_places.clear();
+        fixture.routine_templates[0].family = RoutineFamily::SleepNight;
+        fixture.routine_templates[0].steps = vec![RoutineStep::StartScheduledSleep {
+            action_id: SemanticActionId::new("sleep").unwrap(),
+        }];
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+        assert!(report
+            .errors
+            .iter()
+            .any(|error| error.code == "missing_sleep_surface"));
+    }
+
+    #[test]
     fn phase3a_routine_structure_failures_are_rejected() {
         let mut fixture = phase3a_fixture();
         fixture.routine_templates[0].failure_modes.clear();
@@ -2098,12 +2173,14 @@ mod tests {
             .debug_labels
             .push("instant_sleep_refill".to_string());
         fixture.workplaces[0].output_tag = "work_always_succeeds".to_string();
+        fixture.sleep_places[0].sleep_place_id = SleepAffordanceId::new("always_succeeds").unwrap();
 
         let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
         for marker in [
             "hunger_refill_without_food",
             "instant_sleep_refill",
             "work_always_succeeds",
+            "always_succeeds",
         ] {
             assert!(
                 report

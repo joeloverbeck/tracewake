@@ -16,7 +16,8 @@ use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
-    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
+    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
+    WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
@@ -79,7 +80,8 @@ fn phase3a_fixture() -> FixtureSchema {
         sleep_places: vec![SleepPlaceSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             place_id: PlaceId::new("home_tomas").unwrap(),
-            sleep_place_id: "bed_tomas".to_string(),
+            sleep_place_id: SleepAffordanceId::new("bed_tomas").unwrap(),
+            access_open: true,
         }],
         food_supplies: vec![FoodSupplySchema {
             food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
@@ -133,7 +135,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 33);
+    assert_eq!(all.len(), 34);
 
     let ids = all
         .iter()
@@ -170,6 +172,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "routine_no_teleport_001".to_string(),
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
+            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
             "view_filtering_001".to_string(),
@@ -288,6 +291,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "routine_no_teleport_001".to_string(),
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
+            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),
         ])
     );

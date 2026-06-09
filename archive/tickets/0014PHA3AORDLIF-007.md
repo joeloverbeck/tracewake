@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-007: Sleep-affordance content schema, fixtures, and content validation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`schema.rs` sleep-surface schema, `validate.rs` content validation, sleep-routine fixtures), 1 adversarial golden fixture
@@ -83,3 +83,28 @@ Update `sleep_eat_work_001.rs` and `ordinary_workday_001.rs` to author a sleep s
 1. `cargo test -p tracewake-content`
 2. `cargo test --workspace`
 3. `cargo test -p tracewake-core --test no_human_capstone` — confirms the corrected sleep path advances and replays.
+
+## Outcome (2026-06-09)
+
+Completed. Sleep surfaces are now authored through typed content as `SleepPlaceSchema`
+entries backed by `SleepAffordanceId` and `access_open`, serialized canonically,
+loaded into the kernel `PhysicalState.sleep_affordances`, and validated as
+fixture state instead of assumed from current place.
+
+Phase 3A sleep-routine fixtures now fail closed unless they provide an authored
+sleep surface or an explicit no-sleep diagnostic. The ordinary workday fixture
+authors `bed_tomas`; the existing sleep/eat/work and no-human fixtures already
+carried authored sleep surfaces compatible with the new schema. Added
+`sleep_rejects_current_place_without_sleep_affordance_001` and a golden pipeline
+test proving a forged/missing sleep affordance rejects with typed
+`NoSleepAffordance` and appends no `SleepStarted` event.
+
+Deviation: the existing `sleep_places` content shape was upgraded into the typed
+sleep-affordance schema rather than adding a parallel top-level list.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-content`
+3. `cargo test -p tracewake-core --test no_human_capstone`
+4. `cargo test --workspace`

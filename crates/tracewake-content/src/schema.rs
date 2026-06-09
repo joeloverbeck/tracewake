@@ -334,7 +334,8 @@ pub struct HomeSchema {
 pub struct SleepPlaceSchema {
     pub actor_id: ActorId,
     pub place_id: PlaceId,
-    pub sleep_place_id: String,
+    pub sleep_place_id: SleepAffordanceId,
+    pub access_open: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -611,12 +612,13 @@ impl FixtureSchema {
         }
 
         for sleep_place in &self.sleep_places {
-            let sleep_affordance_id =
-                SleepAffordanceId::new(sleep_place.sleep_place_id.clone()).unwrap();
-            sleep_affordances.insert(
+            let sleep_affordance_id = sleep_place.sleep_place_id.clone();
+            let mut sleep_affordance = SleepAffordanceState::new(
                 sleep_affordance_id.clone(),
-                SleepAffordanceState::new(sleep_affordance_id, sleep_place.place_id.clone()),
+                sleep_place.place_id.clone(),
             );
+            sleep_affordance.access_open = sleep_place.access_open;
+            sleep_affordances.insert(sleep_affordance_id, sleep_affordance);
         }
 
         PhysicalState::from_seed_parts(

@@ -27,6 +27,7 @@ mod routine_blocked_diagnostic_001;
 mod routine_no_teleport_001;
 mod scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 mod sleep_eat_work_001;
+mod sleep_rejects_current_place_without_sleep_affordance_001;
 mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
@@ -40,7 +41,7 @@ use tracewake_core::epistemics::{
 };
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, FoodSupplyId, ItemId,
-    PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId,
+    PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
@@ -83,6 +84,7 @@ pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
 pub use routine_no_teleport_001::routine_no_teleport_001;
 pub use scheduler_cannot_rewrite_wait_reason_after_transaction_001::scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
+pub use sleep_rejects_current_place_without_sleep_affordance_001::sleep_rejects_current_place_without_sleep_affordance_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
@@ -151,6 +153,7 @@ pub fn all() -> Vec<GoldenFixture> {
         no_hidden_truth_planning_001(),
         no_human_unseen_workplace_assignment_does_not_plan_work_001(),
         no_human_current_place_without_sleep_affordance_does_not_sleep_001(),
+        sleep_rejects_current_place_without_sleep_affordance_001(),
         no_human_known_workplace_requires_provenance_001(),
         scheduler_cannot_rewrite_wait_reason_after_transaction_001(),
         method_fallback_requires_new_trace_or_stuck_001(),
@@ -433,7 +436,8 @@ fn sleep_place_schema(actor_id: &str, place_id: &str, sleep_place_id: &str) -> S
     SleepPlaceSchema {
         actor_id: actor(actor_id),
         place_id: place(place_id),
-        sleep_place_id: sleep_place_id.to_string(),
+        sleep_place_id: SleepAffordanceId::new(sleep_place_id).unwrap(),
+        access_open: true,
     }
 }
 

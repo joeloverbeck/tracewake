@@ -8,7 +8,7 @@ use tracewake_core::actions::defs::sleep::build_sleep_completion_events;
 use tracewake_core::actions::defs::work::build_work_completion_events;
 use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
 use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
-use tracewake_core::actions::ActionRegistry;
+use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
     select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
@@ -366,6 +366,56 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         apply_event(&mut replay_state, event).unwrap();
     }
     assert_eq!(replay_state, state);
+}
+
+#[test]
+fn sleep_without_authored_affordance_rejects_with_typed_reason() {
+    let (mut state, mut agent_state, manifest_id) =
+        load(fixtures::sleep_rejects_current_place_without_sleep_affordance_001());
+    let mut log = EventLog::new();
+    let mut sleep = proposal(
+        "proposal_sleep_no_affordance",
+        "actor_elena",
+        "sleep",
+        &["home_elena"],
+        0,
+    );
+    sleep
+        .parameters
+        .insert("duration_ticks".to_string(), "4".to_string());
+    sleep
+        .parameters
+        .insert("sleep_place_id".to_string(), "home_elena".to_string());
+    sleep
+        .parameters
+        .insert("sleep_affordance_id".to_string(), "bed_missing".to_string());
+    let registry = registry();
+    let mut context = PipelineContext {
+        registry: &registry,
+        state: &mut state,
+        agent_state: &mut agent_state,
+        log: &mut log,
+        controller_bindings: None,
+        epistemic_projection: None,
+        content_manifest_id: manifest_id,
+        ordering_key: ordering_key(&sleep, 0),
+    };
+
+    let result = run_pipeline(&mut context, &sleep);
+
+    assert_eq!(result.report.status, ReportStatus::Rejected);
+    assert_eq!(
+        result.report.reason_codes,
+        vec![ReasonCode::NoSleepAffordance]
+    );
+    assert!(result
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActionRejected));
+    assert!(!log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepStarted));
 }
 
 #[test]
