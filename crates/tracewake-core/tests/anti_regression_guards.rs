@@ -4,6 +4,7 @@ use support::{AgentSeed, PhysicalSeed};
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
+const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
@@ -1292,9 +1293,59 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
     let scheduler = production(SCHEDULER_RS);
     assert_absent(&scheduler, "EpistemicProjection::new");
     assert!(
-        scheduler.contains("build_actor_known_planning_state_with_projection_limitation"),
-        "no-human cognition must use the typed projection-limitation boundary"
+        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_modeled_observations"),
+        "no-human cognition must use the sealed actor-known surface builder"
     );
+}
+
+#[test]
+fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth() {
+    let scheduler = production(SCHEDULER_RS);
+    let builder = production(NO_HUMAN_SURFACE_RS);
+    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+
+    for forbidden in [
+        "visible_local_planning_state",
+        "state.workplaces",
+        "state.food_supplies",
+        "state.places",
+        "BTreeSet::from([current_place_id",
+        "sleep_place_believed_accessible",
+        "actor_at_workplace",
+        "assigned_workplace_known",
+    ] {
+        assert_absent(build_agent_proposal, forbidden);
+    }
+
+    assert!(
+        builder.contains("pub struct SealedActorKnownSurface"),
+        "no-human actor-known surface must be sealed"
+    );
+    assert!(
+        builder.contains("pub struct NoHumanActorKnownSurfaceBuilder"),
+        "no-human actor-known surface must be constructed through a named builder"
+    );
+    assert!(
+        builder.contains("fn observe_visible_food_sources_from_current_place"),
+        "raw food-table visibility must be isolated in a named observation builder"
+    );
+    assert!(
+        builder.contains("fn observe_visible_routes_from_current_place"),
+        "raw adjacency visibility must be isolated in a named observation builder"
+    );
+    assert!(
+        builder.contains("fn observe_workplace_notices_from_active_routines"),
+        "workplace table reads must be isolated behind modeled routine-assignment notice construction"
+    );
+    let workplace_notice_body = body_after_marker(
+        &builder,
+        "fn observe_workplace_notices_from_active_routines",
+    );
+    assert!(
+        workplace_notice_body.contains("has_live_routine_family"),
+        "workplace notices must require a live modeled routine assignment"
+    );
+    assert_absent(&builder, "BTreeSet::from([current_place_id");
 }
 
 #[test]

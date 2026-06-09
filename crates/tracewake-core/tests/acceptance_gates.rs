@@ -703,6 +703,15 @@ fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
             NeedKind::Fatigue,
             NeedState::initial(NeedKind::Fatigue, 820, NeedChangeCause::TickDelta),
         );
+    add_routine_execution(
+        &mut agent_seed,
+        "routine_exec_tomas_sleep",
+        "actor_tomas",
+        "routine_tomas_sleep",
+        RoutineFamily::SleepNight,
+        0,
+        4,
+    );
     let mut agent_state = agent_seed.build();
     let mut registry = registry();
     registry.register_phase3a_sleep();

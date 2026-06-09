@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-001: No-human actor-known surface builder
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (new `agent` submodule for the sealed no-human surface builder; `scheduler.rs` no-human proposal path), `tracewake-content` (3 new adversarial fixtures), new source guard in `anti_regression_guards.rs`
@@ -96,3 +96,38 @@ Add 3 fixtures proving the firewall (see Test Plan), registered in `crates/trace
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-content` (drives the 3 new golden fixtures via the content fixture runner)
 3. `cargo test --workspace` — full-pipeline confirmation that the no-human capstone, replay, and golden scenarios still pass.
+
+## Outcome
+
+Completed: 2026-06-09
+
+Implemented a sealed `NoHumanActorKnownSurfaceBuilder` / `SealedActorKnownSurface` in
+`tracewake-core` and routed the no-human scheduler through it. The scheduler no
+longer builds no-human cognition from raw `state.workplaces`, raw
+`state.food_supplies`, raw `state.places`, or a current-place sleep default.
+Visible food and route data are isolated behind named observation helpers;
+workplace facts require a modeled routine-assignment notice; sleep-place facts
+require a modeled sleep-routine notice.
+
+The no-human routine routing was tightened so expired routines do not keep
+driving later windows, and a work-block routine that is active before the actor
+has reached the workplace routes through actor-known travel instead of falsely
+completing work on a movement event.
+
+Added the three named Phase 3A adversarial fixtures and inventory updates:
+`no_human_unseen_workplace_assignment_does_not_plan_work_001`,
+`no_human_current_place_without_sleep_affordance_does_not_sleep_001`, and
+`no_human_known_workplace_requires_provenance_001`. Added core unit coverage for
+the same builder invariants and `guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth`.
+
+Deviation from original plan: the fixtures are registered content fixtures and
+the executable negative assertions live in focused core builder tests plus the
+source guard/no-human capstone, rather than in a separate fixture runner branch
+per fixture.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo test -p tracewake-core --test no_human_capstone`
+4. `cargo test -p tracewake-content`

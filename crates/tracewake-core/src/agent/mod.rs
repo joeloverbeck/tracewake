@@ -8,6 +8,7 @@ pub mod htn;
 pub mod intention;
 pub mod methods;
 pub mod need;
+pub mod no_human_surface;
 pub mod planner;
 pub mod routine;
 pub mod trace;
@@ -39,6 +40,7 @@ pub use need::{
     NeedBand, NeedChangeCause, NeedKind, NeedParseError, NeedPressure, NeedState,
     NeedThresholdCrossing, ThresholdDirection,
 };
+pub use no_human_surface::{NoHumanActorKnownSurfaceBuilder, SealedActorKnownSurface};
 pub use planner::{
     build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
     derive_hidden_truth_audit, plan_local_actions, ActorKnownPlanningState, LocalPlan,
