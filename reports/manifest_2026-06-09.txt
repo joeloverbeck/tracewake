@@ -37,6 +37,7 @@ archive/specs/0003_PHASE_1A_EXECUTABLE_TUI_COMMAND_LOOP_AND_DOC_ALIGNMENT_SPEC.m
 archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md
 archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md
 archive/specs/0004_PHASE_2A_EPISTEMIC_SUBSTRATE_EXPECTATION_CONTRADICTION_AND_POSSESSION_PARITY_IMPLEMENTATION_SPEC.md
+archive/specs/0005_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md
 archive/specs/0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md
 archive/specs/0006_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_HARDENING_SPEC.md
 archive/specs/0007_PHASE_3A_SECOND_HARDENING_NO_HUMAN_ORDINARY_LIFE_PROOF.md
@@ -124,6 +125,12 @@ archive/tickets/0004PHA2AEPISUB-015.md
 archive/tickets/0004PHA2AEPISUB-016.md
 archive/tickets/0005EMBVIEWFIX-001.md
 archive/tickets/0005EMBVIEWFIX-002.md
+archive/tickets/0005PHA1DOCCOD-001.md
+archive/tickets/0005PHA1DOCCOD-002.md
+archive/tickets/0005PHA1DOCCOD-003.md
+archive/tickets/0005PHA1DOCCOD-004.md
+archive/tickets/0005PHA1DOCCOD-005.md
+archive/tickets/0005PHA1DOCCOD-006.md
 archive/tickets/0005PHA3ANEEROU-001.md
 archive/tickets/0005PHA3ANEEROU-002.md
 archive/tickets/0005PHA3ANEEROU-003.md
@@ -367,7 +374,8 @@ docs/4-specs/README.md
 docs/4-specs/SPEC_LEDGER.md
 docs/README.md
 docs/archival-workflow.md
-reports/manifest_2026-06-08.txt
+reports/manifest_2026-06-09.txt
+reports/phase1-doc-code-alignment-research-brief.md
 reports/phase1-third-hardening-research-brief.md
 rust-toolchain.toml
 tests/negative-fixtures/banned_fs_read_and_file_open/Cargo.lock
