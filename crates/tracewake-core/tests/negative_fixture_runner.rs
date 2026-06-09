@@ -76,6 +76,10 @@ fn fixture_root(fixture: &NegativeFixture) -> PathBuf {
         .join(fixture.name)
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "negative fixture runner must spawn cargo to assert isolated fixture failures"
+)]
 fn assert_negative_fixture_fails(fixture: &NegativeFixture) {
     let root = fixture_root(fixture);
     let output = Command::new("cargo")

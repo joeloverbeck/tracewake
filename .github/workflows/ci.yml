@@ -60,3 +60,30 @@ jobs:
         run: cargo build --workspace --all-targets --locked
       - name: Run tests
         run: cargo test --workspace --locked
+
+  lock-layer-gates:
+    name: lock-layer gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-lock-layer-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-lock-layer-
+      - name: Run strengthened lock-layer gates
+        run: |
+          cargo test --locked -p tracewake-core --test negative_fixture_runner
+          cargo test --locked -p tracewake-core --test doc_invariant_references
+          cargo test --locked -p tracewake-core --test spine_conformance
+          cargo test --locked -p tracewake-core --test anti_regression_guards
+          cargo test --locked -p tracewake-core --test event_schema_replay_gates
+          cargo test --locked -p tracewake-core --test hidden_truth_gates
+          cargo test --locked -p tracewake-core --test acceptance_artifact_wording
+          cargo test --locked -p tracewake-content --test forbidden_content
+          cargo test --locked -p tracewake-tui --test adversarial_gates
+          cargo test --locked -p tracewake-tui --test tui_seam_conformance
