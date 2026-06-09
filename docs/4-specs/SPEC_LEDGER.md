@@ -28,6 +28,10 @@ A spec may operationalize higher-tier doctrine. It may not amend constitutional 
 |---|---|---|---|---|
 | `0001` | `0001_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` | Live first-proof ontology and fixture contract, realigned after the upper-tier overhaul. | `P0-CERT not applicable` | Documentation-only realignment. It preserves the implemented village/fixture contract surface and cross-references gates without defining them. |
 
+## Live review-artifact template
+
+The live tier also carries `0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` (indexed in `README.md`) — a scoped review-artifact template for the archived `archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` remediation. It is a review template, not a spec package, so it is not listed in the Active specs table above; it defines no doctrine and certifies nothing on its own.
+
 ## Removed live companions
 
 The previous live-tier companion-amendment material was removed rather than retained because the completed upper-tier overhaul falsified its main conclusion. The research notes were likewise removed because they were stale provenance for that obsolete conclusion; useful doctrine now lives in the higher tiers and reference layer.
