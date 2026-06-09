@@ -1,12 +1,14 @@
 # 0004 — Phase 1 Third Hardening and Lock-Layer Re-Audit Specification
 
-**Status:** Proposed hardening / anti-contamination spec  
+**Status:** Accepted and archived scoped hardening / anti-contamination remediation
 **Repository analyzed:** `joeloverbeck/tracewake`  
 **Analyzed commit:** `82736f5dc9f71d05b32125c26348e4a659c10a53`  
 **Assumed staging path:** `specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md`  
 **Intended final home on acceptance:** `archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md` (scoped remediation specs are archived as historical evidence, per the `0002_TUI_PROOF` / `0003_PHASE_1_SPINE` precedent; they are not promoted into the live `docs/4-specs/` tier)  
 **Execution admissibility posture:** `P0-CERT scoped remediation`  
-**Verdict:** **Positive — a third hardening spec is warranted.**
+**Verdict:** **Positive — third hardening remediation accepted for this scoped campaign.**
+
+**Implementation closeout:** Ticket series `0004PHA1THIHAR-001` through `0004PHA1THIHAR-012` completed and archived. Final acceptance evidence is recorded in `archive/tickets/0004PHA1THIHAR-012.md`; the §10 CI implementation commit under test was `cbf32c45b82aed83f0b9b21a21ab6e34082bee2a`, and the ticket evidence was archived at `3ac63bdbf90d9557ffc790c231821ac39b49672f`.
 
 I am not verifying that this commit is the current `main`. I am using your supplied commit as the target of record and fetching files only by exact commit URL from `joeloverbeck/tracewake`.
 
@@ -802,4 +804,4 @@ External sources shaped the direction of the hardening requirements only insofar
 - Prior gates re-verified: yes; `TUI-AC` holds for scope, `SPINE-AC` mostly holds with specific partials requiring this spec.
 - Findings and requirements cite invariants: yes.
 - No later-block implementation advanced: yes.
-- Workspace gates stated, not run here: yes.
+- Workspace gates stated and run during implementation closeout: yes.
