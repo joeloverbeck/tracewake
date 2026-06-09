@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-010: Turn conformance capstones into evidence-kind matrices
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` and `tracewake-tui` conformance tests upgraded from named-test indexes to evidence-kind matrices
@@ -75,3 +75,26 @@ For event sourcing, no-direct-dispatch, determinism, debug quarantine, content n
 
 1. `cargo test -p tracewake-core --test spine_conformance && cargo test -p tracewake-tui --test tui_seam_conformance`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Extended `crates/tracewake-core/tests/spine_conformance.rs` from a name-only index into a typed evidence matrix carrying evidence kind, positive/negative class, responsible layer, invariant mappings, and an acceptance condition.
+- Added fail-closed matrix fixtures for missing evidence kind, high-risk `StringPresenceOnly` evidence, and missing negative evidence for no-direct-dispatch / debug quarantine gates.
+- Added compile-time debug quarantine evidence from `debug_report_construction_without_capability_compile_fails` so `CompileTime` is represented by a real negative fixture.
+- Extended `crates/tracewake-tui/tests/tui_seam_conformance.rs` with the same evidence metadata for TUI seam gates.
+
+Deviations from original plan:
+
+- Kept the named-test source lookup as an index integrity check, while making evidence metadata validation the blocking proof-quality gate.
+
+Verification:
+
+- `cargo test -p tracewake-core --test spine_conformance` — passed, 6 tests.
+- `cargo test -p tracewake-tui --test tui_seam_conformance` — passed, 1 test.
+- `cargo fmt --all --check` — passed after rustfmt line wrapping.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
