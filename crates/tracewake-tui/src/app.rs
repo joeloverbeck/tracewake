@@ -3,6 +3,7 @@ use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
 };
+use tracewake_core::agent::current_place_knowledge_context;
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext, PhysicalChecksum,
 };
@@ -14,6 +15,7 @@ use tracewake_core::debug_reports::{
     replay_debug_report,
 };
 use tracewake_core::epistemics::projection::EpistemicProjection;
+use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
@@ -152,11 +154,7 @@ impl TuiApp {
             .bound_actor_id
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
-        let context = tracewake_core::epistemics::KnowledgeContext::embodied_at_frontier(
-            actor_id.clone(),
-            self.scheduler.current_tick,
-            self.log.events().len() as u64,
-        );
+        let context = self.current_view_context(actor_id);
         let source = EmbodiedProjectionSource::from_sealed_context(
             &context,
             &self.state,
@@ -172,6 +170,16 @@ impl TuiApp {
         .map_err(AppError::from)?;
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
         Ok(view)
+    }
+
+    fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
+        current_place_knowledge_context(
+            &self.state,
+            actor_id,
+            self.scheduler.current_tick,
+            &self.content_manifest_id,
+            self.log.events().len() as u64,
+        )
     }
 
     pub fn render_current_view(&self) -> Result<String, AppError> {

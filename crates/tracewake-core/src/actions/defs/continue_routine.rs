@@ -175,8 +175,8 @@ mod tests {
     use crate::actions::proposal::{ProposalOrigin, ProposalSource, ProposalSourceContext};
     use crate::actions::registry::ActionRegistry;
     use crate::actions::report::ReportStatus;
+    use crate::agent::current_place_knowledge_context;
     use crate::controller::ControllerBindings;
-    use crate::epistemics::KnowledgeContext;
     use crate::events::log::EventLog;
     use crate::events::EventKind;
     use crate::ids::{ActorId, ControllerId, PlaceId, ProposalId, SemanticActionId, ViewModelId};
@@ -222,9 +222,15 @@ mod tests {
         proposal
     }
 
-    fn attach_tui_source(proposal: &mut Proposal) {
-        let context =
-            KnowledgeContext::embodied_at_frontier(actor_id(), proposal.requested_tick, 0);
+    fn attach_tui_source(proposal: &mut Proposal, state: &PhysicalState) {
+        let content_manifest_id = ContentManifestId::new("phase3a_manifest").unwrap();
+        let context = current_place_knowledge_context(
+            state,
+            &actor_id(),
+            proposal.requested_tick,
+            &content_manifest_id,
+            0,
+        );
         let source_view_model_id = ViewModelId::new("view.actor_tomas.5").unwrap();
         proposal.source_view_model_id = Some(source_view_model_id.clone());
         proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
@@ -345,7 +351,7 @@ mod tests {
         let mut bindings = None;
         if origin == ProposalOrigin::Human {
             let controller_id = ControllerId::new("controller_human").unwrap();
-            attach_tui_source(&mut proposal);
+            attach_tui_source(&mut proposal, &state);
             proposal
                 .parameters
                 .insert("controller_id".to_string(), controller_id.to_string());

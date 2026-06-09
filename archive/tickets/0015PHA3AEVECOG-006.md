@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-006: Embodied food/sleep/route surfaces become context-backed
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — sealed `KnowledgeContext` extended with food/sleep-affordance/route-exit facts; `projections.rs` embodied helpers render context-backed facts only; guards extended; three adversarial fixtures
@@ -88,3 +88,34 @@ Extend `guard_014_embodied_projection_*` to ban `state.food_supplies`, `state.sl
 
 1. `cargo test -p tracewake-core projections:: && cargo test -p tracewake-content embodied_`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Extended sealed `KnowledgeContext` with actor-known food source, sleep affordance, and route facts, including deterministic sort/dedup and context-hash inputs.
+- Rewired embodied projection food actions, sleep affordance actions, and visible exits to read only sealed context facts instead of raw `state.food_supplies`, `state.sleep_affordances`, or `adjacent_place_ids`.
+- Added `current_place_knowledge_context` to derive sealed context facts from typed current-place perception events and used it for TUI view construction and proposal source-context validation.
+- Added adversarial fixture registrations for omitted unobserved food, unknown sleep affordance, and unknown route exits.
+- Extended regression guards and updated human-source tests to use the perception-backed context boundary.
+
+Deviations from original plan:
+
+- `crates/tracewake-core/src/view_models.rs` did not require direct edits; the existing view model shape already carried the corrected projection output.
+- TUI and source-validation code needed narrow updates so human semantic action tokens use the same evented sealed context as the rendered view.
+
+Verification:
+
+- `cargo test -p tracewake-core projections::` passed.
+- `cargo test -p tracewake-content` passed.
+- `cargo test -p tracewake-core --test anti_regression_guards guard_014_embodied_projection_workplaces_are_context_backed` passed.
+- `cargo test -p tracewake-core --test hidden_truth_gates embodied_affordances_exclude_hidden_food_in_closed_container` passed.
+- `cargo test -p tracewake-tui --lib` passed.
+- `cargo test -p tracewake-core actions::defs::continue_routine::tests::human_and_scheduler_continue_share_pipeline_result` passed.
+- `cargo test -p tracewake-core --test acceptance_gates sleep_proposals_share_pipeline_across_human_and_nonhuman_origins` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

@@ -1,7 +1,13 @@
-use crate::epistemics::{Channel, Confidence};
+use crate::epistemics::{
+    ActorKnownFoodSourceFact, ActorKnownRouteFact, ActorKnownSleepAffordanceFact, Channel,
+    Confidence, KnowledgeContext,
+};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
-use crate::ids::{ActionId, ActorId, ContentManifestId, EventId, PlaceId, ProcessId};
+use crate::ids::{
+    ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, PlaceId, ProcessId,
+    SleepAffordanceId,
+};
 use crate::location::Location;
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::PhysicalState;
@@ -90,12 +96,93 @@ pub fn current_place_perception_events(
         .collect()
 }
 
+pub fn current_place_knowledge_context(
+    state: &PhysicalState,
+    actor_id: &ActorId,
+    decision_tick: SimTick,
+    content_manifest_id: &ContentManifestId,
+    event_frontier: u64,
+) -> KnowledgeContext {
+    let perception_events =
+        current_place_perception_events(state, actor_id, decision_tick, content_manifest_id);
+    let mut food_sources = Vec::new();
+    let mut sleep_affordances = Vec::new();
+    let mut routes = Vec::new();
+
+    for event in &perception_events {
+        let source_key = format!("evented_perception:{}", event.event_id.as_str());
+        match payload_value(event, "perceived_kind") {
+            Some("visible_exit") => {
+                let Some(from_place_id) =
+                    payload_value(event, "subject_id").and_then(|value| PlaceId::new(value).ok())
+                else {
+                    continue;
+                };
+                let Some(to_place_id) =
+                    payload_value(event, "target_id").and_then(|value| PlaceId::new(value).ok())
+                else {
+                    continue;
+                };
+                routes.push(ActorKnownRouteFact::new(
+                    from_place_id,
+                    to_place_id,
+                    source_key,
+                ));
+            }
+            Some("visible_food_supply") => {
+                let Some(food_supply_id) = payload_value(event, "target_id")
+                    .and_then(|value| FoodSupplyId::new(value).ok())
+                else {
+                    continue;
+                };
+                food_sources.push(ActorKnownFoodSourceFact::new(food_supply_id, source_key));
+            }
+            Some("visible_sleep_affordance") => {
+                let Some(place_id) =
+                    payload_value(event, "place_id").and_then(|value| PlaceId::new(value).ok())
+                else {
+                    continue;
+                };
+                let Some(sleep_affordance_id) = payload_value(event, "target_id")
+                    .and_then(|value| SleepAffordanceId::new(value).ok())
+                else {
+                    continue;
+                };
+                sleep_affordances.push(ActorKnownSleepAffordanceFact::new(
+                    sleep_affordance_id,
+                    place_id,
+                    source_key,
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    KnowledgeContext::embodied_at_frontier_with_facts(
+        actor_id.clone(),
+        decision_tick,
+        event_frontier,
+        Vec::new(),
+        food_sources,
+        sleep_affordances,
+        routes,
+    )
+}
+
 fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
     let Some(place) = state.places().get(place_id) else {
         return false;
     };
     !place.place_id.as_str().contains("hidden")
         && !place.display_label.to_lowercase().contains("hidden")
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -8,13 +8,13 @@ use tracewake_core::actions::{
     ProposalOrigin, ProposalSource, ProposalSourceContext, ReasonCode, ReportStatus,
 };
 use tracewake_core::agent::{
-    NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
+    current_place_knowledge_context, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+    RoutineFamily,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
-use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
     EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
@@ -547,8 +547,14 @@ fn run_sleep(
     let mut bindings = None;
     if is_human_origin {
         let controller_id = ControllerId::new("controller_human").unwrap();
-        let source_context =
-            KnowledgeContext::embodied_at_frontier(actor_id(), proposal.requested_tick, 0);
+        let content_manifest_id = ContentManifestId::new("phase3a_manifest").unwrap();
+        let source_context = current_place_knowledge_context(
+            state,
+            &actor_id(),
+            proposal.requested_tick,
+            &content_manifest_id,
+            0,
+        );
         let source_view_model_id = ViewModelId::new("view.actor_tomas.0").unwrap();
         proposal.source_view_model_id = Some(source_view_model_id.clone());
         proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {

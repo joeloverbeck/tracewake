@@ -1391,6 +1391,9 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
 #[test]
 fn guard_014_embodied_projection_workplaces_are_context_backed() {
     let projection = production(PROJECTIONS_RS);
+    let food_helper = body_after_marker(&projection, "fn actor_known_food_sources_for_context");
+    let sleep_helper = body_after_marker(&projection, "fn visible_open_sleep_affordance");
+    let view_builder = body_after_marker(&projection, "pub fn build_embodied_view_model");
 
     assert!(
         projection.contains("fn actor_known_workplaces_for_context(context: &KnowledgeContext)"),
@@ -1405,6 +1408,23 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
         "workplace.assigned_actor_ids.is_empty()\n                || workplace.assigned_actor_ids.contains",
     );
     assert_absent(&projection, "actor_known_workplaces_for_context(state");
+    assert!(
+        projection.contains("fn actor_known_food_sources_for_context(context: &KnowledgeContext)"),
+        "embodied food affordances must be selected from sealed holder-known food facts"
+    );
+    assert!(
+        projection.contains("fn actor_known_sleep_affordances_for_context"),
+        "embodied sleep affordances must be selected from sealed holder-known sleep facts"
+    );
+    assert!(
+        projection.contains("fn actor_known_routes_for_context"),
+        "embodied exits must be selected from sealed holder-known route facts"
+    );
+    assert_absent(food_helper, "state.food_supplies");
+    assert_absent(food_helper, "food_supplies()");
+    assert_absent(sleep_helper, "state.sleep_affordances");
+    assert_absent(sleep_helper, "sleep_affordances()");
+    assert_absent(view_builder, ".adjacent_place_ids");
 }
 
 #[test]

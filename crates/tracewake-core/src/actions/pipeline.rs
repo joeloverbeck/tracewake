@@ -16,6 +16,7 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::{Proposal, ProposalOrigin, ProposalSource};
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
+use crate::agent::current_place_knowledge_context;
 use crate::controller::{ControllerBindings, ControllerError};
 use crate::epistemics::{
     detect_expected_absences, Confidence, EpistemicProjection, KnowledgeContext,
@@ -932,9 +933,11 @@ fn source_context_check(
         ));
     }
 
-    let expected_context = KnowledgeContext::embodied_at_frontier(
-        actor_id.clone(),
+    let expected_context = current_place_knowledge_context(
+        context.state,
+        actor_id,
         source.context_tick,
+        context.content_manifest_id,
         context.current_event_frontier,
     );
     if source.holder_known_context_id != *expected_context.holder_known_context_id()
