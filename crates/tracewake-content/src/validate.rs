@@ -9,7 +9,8 @@ use tracewake_core::ids::{ActionId, FoodSupplyId, PlaceId, WorkplaceId};
 use tracewake_core::location::Location;
 use tracewake_core::state::PhysicalState;
 
-use crate::schema::{ActionAffordanceSchema, FixtureSchema};
+use crate::schema::{content_field_by_canonical_key, ActionAffordanceSchema, FixtureSchema};
+pub use crate::schema::{content_field_registry, ValidationPhase};
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -30,166 +31,12 @@ pub enum ValidationStatus {
     Rejected,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ValidationPhase {
-    ParseSchema = 1,
-    Canonicalization = 2,
-    Id = 3,
-    Referential = 4,
-    Location = 5,
-    PhysicalTopology = 6,
-    State = 7,
-    ActionRegistryParity = 8,
-    SemanticView = 9,
-    NoPlayer = 10,
-    NoScript = 11,
-    EpistemicSeed = 12,
-    DeterminismHazard = 13,
-    FixtureContract = 14,
-    Serialization = 15,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ContentValidationError {
     pub phase: ValidationPhase,
     pub path: String,
     pub code: &'static str,
     pub message: String,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ContentFieldRegistration {
-    pub schema_field: &'static str,
-    pub canonical_tag: &'static str,
-    pub validation_phase: ValidationPhase,
-    pub provenance_decision: &'static str,
-    pub diagnostic_code: &'static str,
-}
-
-pub const CONTENT_FIELD_REGISTRY: &[ContentFieldRegistration] = &[
-    ContentFieldRegistration {
-        schema_field: "fixture_id",
-        canonical_tag: "fixture",
-        validation_phase: ValidationPhase::Id,
-        provenance_decision: "stable_fixture_identity",
-        diagnostic_code: "missing_stable_id",
-    },
-    ContentFieldRegistration {
-        schema_field: "schema_version",
-        canonical_tag: "schema",
-        validation_phase: ValidationPhase::ParseSchema,
-        provenance_decision: "typed_schema_identity",
-        diagnostic_code: "missing_field",
-    },
-    ContentFieldRegistration {
-        schema_field: "actors",
-        canonical_tag: "actor",
-        validation_phase: ValidationPhase::Referential,
-        provenance_decision: "ordinary_actor_state_only",
-        diagnostic_code: "bad_reference",
-    },
-    ContentFieldRegistration {
-        schema_field: "places",
-        canonical_tag: "place",
-        validation_phase: ValidationPhase::PhysicalTopology,
-        provenance_decision: "typed_topology_only",
-        diagnostic_code: "door_adjacency_inconsistency",
-    },
-    ContentFieldRegistration {
-        schema_field: "doors",
-        canonical_tag: "door",
-        validation_phase: ValidationPhase::State,
-        provenance_decision: "typed_physical_state_only",
-        diagnostic_code: "locked_open_state",
-    },
-    ContentFieldRegistration {
-        schema_field: "containers",
-        canonical_tag: "container",
-        validation_phase: ValidationPhase::Location,
-        provenance_decision: "typed_physical_state_only",
-        diagnostic_code: "container_item_mismatch",
-    },
-    ContentFieldRegistration {
-        schema_field: "items",
-        canonical_tag: "item",
-        validation_phase: ValidationPhase::Location,
-        provenance_decision: "typed_physical_state_only",
-        diagnostic_code: "container_item_mismatch",
-    },
-    ContentFieldRegistration {
-        schema_field: "affordances",
-        canonical_tag: "affordance",
-        validation_phase: ValidationPhase::ActionRegistryParity,
-        provenance_decision: "registered_action_parity_only",
-        diagnostic_code: "unknown_action",
-    },
-    ContentFieldRegistration {
-        schema_field: "initial_beliefs",
-        canonical_tag: "initial_belief",
-        validation_phase: ValidationPhase::EpistemicSeed,
-        provenance_decision: "actor_known_source_required",
-        diagnostic_code: "unsupported_source_kind",
-    },
-    ContentFieldRegistration {
-        schema_field: "initial_needs",
-        canonical_tag: "initial_need",
-        validation_phase: ValidationPhase::State,
-        provenance_decision: "typed_need_seed_only",
-        diagnostic_code: "bad_reference",
-    },
-    ContentFieldRegistration {
-        schema_field: "homes",
-        canonical_tag: "home",
-        validation_phase: ValidationPhase::Referential,
-        provenance_decision: "typed_routine_context_only",
-        diagnostic_code: "bad_reference",
-    },
-    ContentFieldRegistration {
-        schema_field: "sleep_places",
-        canonical_tag: "sleep_place",
-        validation_phase: ValidationPhase::Referential,
-        provenance_decision: "typed_routine_context_only",
-        diagnostic_code: "bad_reference",
-    },
-    ContentFieldRegistration {
-        schema_field: "food_supplies",
-        canonical_tag: "food_supply",
-        validation_phase: ValidationPhase::Referential,
-        provenance_decision: "typed_resource_state_only",
-        diagnostic_code: "bad_reference",
-    },
-    ContentFieldRegistration {
-        schema_field: "workplaces",
-        canonical_tag: "workplace",
-        validation_phase: ValidationPhase::Referential,
-        provenance_decision: "typed_work_state_only",
-        diagnostic_code: "bad_reference",
-    },
-    ContentFieldRegistration {
-        schema_field: "routine_templates",
-        canonical_tag: "routine_template",
-        validation_phase: ValidationPhase::NoScript,
-        provenance_decision: "no_authored_outcome_chain",
-        diagnostic_code: "authored_outcome_chain",
-    },
-    ContentFieldRegistration {
-        schema_field: "routine_assignments",
-        canonical_tag: "routine_assignment",
-        validation_phase: ValidationPhase::State,
-        provenance_decision: "typed_schedule_only",
-        diagnostic_code: "bad_tick_order",
-    },
-    ContentFieldRegistration {
-        schema_field: "day_windows",
-        canonical_tag: "day_window",
-        validation_phase: ValidationPhase::State,
-        provenance_decision: "typed_schedule_only",
-        diagnostic_code: "bad_tick_order",
-    },
-];
-
-pub fn content_field_registry() -> &'static [ContentFieldRegistration] {
-    CONTENT_FIELD_REGISTRY
 }
 
 impl ContentValidationError {
@@ -326,7 +173,7 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
                 "forbidden_form",
                 format!("forbidden content form {tag}"),
             ));
-        } else if !is_registered_content_tag(tag) {
+        } else if content_field_by_canonical_key(tag).is_none() {
             errors.push(ContentValidationError::new(
                 ValidationPhase::ParseSchema,
                 format!("line[{line_no}].{tag}"),
@@ -352,22 +199,18 @@ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
         }
 
         let parts = line.split('|').collect::<Vec<_>>();
-        if is_registered_content_tag(tag) && parts.get(1).is_some_and(|value| value.is_empty()) {
-            errors.push(ContentValidationError::new(
-                ValidationPhase::Id,
-                format!("line[{line_no}].{tag}.id"),
-                "missing_stable_id",
-                "stable ID field must not be empty",
-            ));
+        if parts.get(1).is_some_and(|value| value.is_empty()) {
+            if let Some(registration) = content_field_by_canonical_key(tag) {
+                errors.push(ContentValidationError::new(
+                    registration.validation_phase,
+                    format!("line[{line_no}].{tag}.id"),
+                    registration.diagnostic_code,
+                    "stable ID field must not be empty",
+                ));
+            }
         }
     }
     errors
-}
-
-fn is_registered_content_tag(value: &str) -> bool {
-    CONTENT_FIELD_REGISTRY
-        .iter()
-        .any(|registration| registration.canonical_tag == value)
 }
 
 fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {

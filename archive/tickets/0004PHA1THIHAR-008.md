@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-008: Make content field coverage typed, not source-string-only
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`schema.rs` typed field registry; `validate.rs` and `serialization.rs` consume it); `forbidden_content.rs` tests
@@ -77,3 +77,32 @@ Have `validate.rs` and `serialization.rs` consume (or be generated from) the reg
 
 1. `cargo test -p tracewake-content`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Moved the content field registry into `crates/tracewake-content/src/schema.rs` as typed schema metadata with:
+  - `validation_phase`
+  - `canonical_serialization_key`
+  - `forbidden_construct_policy`
+  - `diagnostic_code`
+- Repointed `validate.rs` at the schema-owned registry for canonical content tag lookup and registered empty-key diagnostics.
+- Repointed `serialization.rs` at the schema-owned canonical-key lookup for every top-level fixture section emitted by `serialize_fixture`.
+- Replaced `content_new_field_requires_validator_and_canonical_serialization` with `content_new_field_requires_typed_validation_and_canonical_serialization_metadata`, removing the source-string serialization assertion as the primary proof.
+- Added `content_serialization_is_canonical_independent_of_authoring_order`.
+- Updated content/core conformance evidence and the active spec evidence reference to the new typed-registry test name.
+
+Deviations from original plan:
+
+- Deserialization still matches the existing stable wire tags directly. The primary canonical serialization producer and validation tag gate now consume the schema registry; the test also asserts serialized tags are backed by the registry.
+
+Verification:
+
+- `cargo test -p tracewake-content` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.
+- `cargo test -p tracewake-core --test spine_conformance` — passed after updating the evidence index.

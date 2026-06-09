@@ -348,7 +348,7 @@ This spec cross-references these gates but does not redefine them:
 **Status:** already satisfied on core no-script behavior; needs stronger guard shape for future schema drift  
 **Layer:** tracewake-content/schema + validation + tests  
 **Invariants:** `INV-022`, `INV-060`, `INV-061`, `INV-097`, `INV-102`, `INV-105`  
-**Evidence:** `crates/tracewake-content/src/validate.rs:1` rejects reserved IDs and display-name-as-ID patterns for player/protagonist/quest/objective/reward/culprit/director-shaped constructs. `crates/tracewake-content/tests/forbidden_content.rs:1` includes `content_prose_born_fact_rejected` and `content_new_field_requires_validator_and_canonical_serialization`. `crates/tracewake-content/src/serialization.rs:1` centralizes canonical serialization behavior.
+**Evidence:** `crates/tracewake-content/src/validate.rs:1` rejects reserved IDs and display-name-as-ID patterns for player/protagonist/quest/objective/reward/culprit/director-shaped constructs. `crates/tracewake-content/tests/forbidden_content.rs:1` includes `content_prose_born_fact_rejected` and `content_new_field_requires_typed_validation_and_canonical_serialization_metadata`. `crates/tracewake-content/src/serialization.rs:1` centralizes canonical serialization behavior.
 
 **Assessment:** The semantic policy is correct. The weakest part is the field coverage guard’s use of source-string inspection to prove new schema fields are covered. This should move toward a typed schema-field registry / macro-defined single source of truth, with source scanners retained only as smoke.
 

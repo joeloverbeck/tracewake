@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
 
 use tracewake_content::fixtures::{self, validate_fixture_contract_metadata, FixtureContract};
-use tracewake_content::schema::InitialBeliefSchema;
+use tracewake_content::schema::{content_field_by_schema_field, InitialBeliefSchema};
+use tracewake_content::serialization::serialize_fixture;
 use tracewake_content::validate::{
     content_field_registry, validate_fixture, validate_fixture_bytes, ValidationPhase,
 };
@@ -320,7 +321,7 @@ fn content_prose_born_fact_rejected() {
 }
 
 #[test]
-fn content_new_field_requires_validator_and_canonical_serialization() {
+fn content_new_field_requires_typed_validation_and_canonical_serialization_metadata() {
     let schema_fields = fixture_schema_fields();
     let registrations = content_field_registry();
     let registered_fields = registrations
@@ -332,14 +333,17 @@ fn content_new_field_requires_validator_and_canonical_serialization() {
         "every FixtureSchema field must have a content field registration"
     );
 
-    let serialization_source = include_str!("../src/serialization.rs");
-    let validation_source = include_str!("../src/validate.rs");
     let mut tags = BTreeSet::new();
     let mut diagnostic_codes = BTreeSet::new();
     for registration in registrations {
         assert!(
-            !registration.provenance_decision.is_empty(),
-            "missing provenance/no-script decision for {}",
+            content_field_by_schema_field(registration.schema_field).is_some(),
+            "schema field lookup missing for {}",
+            registration.schema_field
+        );
+        assert!(
+            !registration.canonical_serialization_key.is_empty(),
+            "missing canonical key for {}",
             registration.schema_field
         );
         assert!(
@@ -348,27 +352,62 @@ fn content_new_field_requires_validator_and_canonical_serialization() {
             registration.schema_field
         );
         assert!(
-            tags.insert(registration.canonical_tag),
+            tags.insert(registration.canonical_serialization_key),
             "duplicate canonical tag {}",
-            registration.canonical_tag
+            registration.canonical_serialization_key
         );
         assert!(
             diagnostic_codes.insert((registration.schema_field, registration.diagnostic_code)),
             "duplicate field diagnostic registration for {}",
             registration.schema_field
         );
+    }
+
+    let fixture_id_registration = content_field_by_schema_field("fixture_id").unwrap();
+    let report = validate_fixture_bytes(b"fixture|\nschema|schema_v1", &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report
+            .errors
+            .iter()
+            .any(|error| error.code == fixture_id_registration.diagnostic_code),
+        "registered diagnostic code was not emitted: {report:?}"
+    );
+}
+
+#[test]
+fn content_serialization_is_canonical_independent_of_authoring_order() {
+    let mut canonical = fixtures::no_human_day_001().fixture;
+    let mut shuffled = canonical.clone();
+    canonical.canonicalize();
+    shuffled.actors.reverse();
+    shuffled.places.reverse();
+    shuffled.containers.reverse();
+    shuffled.items.reverse();
+    shuffled.initial_beliefs.reverse();
+    shuffled.initial_needs.reverse();
+    shuffled.homes.reverse();
+    shuffled.sleep_places.reverse();
+    shuffled.food_supplies.reverse();
+    shuffled.workplaces.reverse();
+    shuffled.routine_templates.reverse();
+    shuffled.routine_assignments.reverse();
+    shuffled.day_windows.reverse();
+
+    let canonical_bytes = serialize_fixture(&canonical);
+    let shuffled_bytes = serialize_fixture(&shuffled);
+    assert_eq!(shuffled_bytes, canonical_bytes);
+
+    let registered_tags = content_field_registry()
+        .iter()
+        .map(|registration| registration.canonical_serialization_key)
+        .collect::<BTreeSet<_>>();
+    for line in std::str::from_utf8(&canonical_bytes).unwrap().lines() {
+        let tag = line.split('|').next().unwrap();
         assert!(
-            serialization_source.contains(&format!("\"{}|", registration.canonical_tag))
-                || serialization_source.contains(&format!("[\"{}\"", registration.canonical_tag)),
-            "missing canonical serialization/deserialization rule for {} ({})",
-            registration.schema_field,
-            registration.canonical_tag
-        );
-        assert!(
-            validation_source.contains(&format!("\"{}\"", registration.diagnostic_code)),
-            "diagnostic code {} for {} is not emitted by validate.rs",
-            registration.diagnostic_code,
-            registration.schema_field
+            registered_tags.contains(tag),
+            "serialized tag {tag} is not backed by the typed registry"
         );
     }
 }

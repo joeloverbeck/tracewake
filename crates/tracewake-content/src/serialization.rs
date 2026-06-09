@@ -14,10 +14,10 @@ use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
 
 use crate::schema::{
-    ActionAffordanceSchema, ActorSchema, ContainerSchema, DayWindowSchema, DoorSchema,
-    FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema, InitialNeedSchema,
-    ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema,
-    WorkplaceSchema,
+    canonical_key_for_schema_field, ActionAffordanceSchema, ActorSchema, ContainerSchema,
+    DayWindowSchema, DoorSchema, FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
+    InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
+    SleepPlaceSchema, WorkplaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -54,19 +54,29 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     let mut fixture = fixture.clone();
     fixture.canonicalize();
     let mut lines = vec![
-        format!("fixture|{}", fixture.fixture_id.as_str()),
-        format!("schema|{}", fixture.schema_version.as_str()),
+        format!(
+            "{}|{}",
+            canonical_key_for_schema_field("fixture_id"),
+            fixture.fixture_id.as_str()
+        ),
+        format!(
+            "{}|{}",
+            canonical_key_for_schema_field("schema_version"),
+            fixture.schema_version.as_str()
+        ),
     ];
     for actor in fixture.actors {
         lines.push(format!(
-            "actor|{}|{}",
+            "{}|{}|{}",
+            canonical_key_for_schema_field("actors"),
             actor.actor_id.as_str(),
             actor.current_place_id.as_str()
         ));
     }
     for place in fixture.places {
         lines.push(format!(
-            "place|{}|{}|{}",
+            "{}|{}|{}|{}",
+            canonical_key_for_schema_field("places"),
             place.place_id.as_str(),
             encode(&place.display_label),
             join(place.adjacent_place_ids.iter().map(|id| id.as_str()))
@@ -74,7 +84,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for door in fixture.doors {
         lines.push(format!(
-            "door|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("doors"),
             door.door_id.as_str(),
             door.endpoint_a.as_str(),
             door.endpoint_b.as_str(),
@@ -84,7 +95,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for container in fixture.containers {
         lines.push(format!(
-            "container|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("containers"),
             container.container_id.as_str(),
             container.place_id.as_str(),
             container.is_open,
@@ -95,7 +107,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for item in fixture.items {
         lines.push(format!(
-            "item|{}|{}|{}",
+            "{}|{}|{}|{}",
+            canonical_key_for_schema_field("items"),
             item.item_id.as_str(),
             item.portable,
             serialize_location(&item.location)
@@ -103,14 +116,16 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for affordance in fixture.affordances {
         lines.push(format!(
-            "affordance|{}|{}",
+            "{}|{}|{}",
+            canonical_key_for_schema_field("affordances"),
             affordance.action_id.as_str(),
             affordance.target_id
         ));
     }
     for belief in fixture.initial_beliefs {
         lines.push(format!(
-            "initial_belief|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("initial_beliefs"),
             belief.belief_id.as_str(),
             belief.holder_actor_id.as_str(),
             encode(&belief.proposition.serialize_canonical()),
@@ -130,7 +145,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for need in fixture.initial_needs {
         lines.push(format!(
-            "initial_need|{}|{}|{}",
+            "{}|{}|{}|{}",
+            canonical_key_for_schema_field("initial_needs"),
             need.actor_id.as_str(),
             need.kind.stable_id(),
             need.value
@@ -138,14 +154,16 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for home in fixture.homes {
         lines.push(format!(
-            "home|{}|{}",
+            "{}|{}|{}",
+            canonical_key_for_schema_field("homes"),
             home.actor_id.as_str(),
             home.place_id.as_str()
         ));
     }
     for sleep_place in fixture.sleep_places {
         lines.push(format!(
-            "sleep_place|{}|{}|{}",
+            "{}|{}|{}|{}",
+            canonical_key_for_schema_field("sleep_places"),
             sleep_place.actor_id.as_str(),
             sleep_place.place_id.as_str(),
             encode(&sleep_place.sleep_place_id)
@@ -153,7 +171,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for food in fixture.food_supplies {
         lines.push(format!(
-            "food_supply|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("food_supplies"),
             food.food_supply_id.as_str(),
             serialize_location(&food.location),
             food.servings,
@@ -162,7 +181,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for workplace in fixture.workplaces {
         lines.push(format!(
-            "workplace|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("workplaces"),
             workplace.workplace_id.as_str(),
             workplace.place_id.as_str(),
             join(workplace.assigned_actor_ids.iter().map(|id| id.as_str())),
@@ -177,7 +197,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for template in fixture.routine_templates {
         lines.push(format!(
-            "routine_template|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("routine_templates"),
             template.template_id.as_str(),
             template.family.stable_id(),
             join_encoded(
@@ -216,7 +237,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for assignment in fixture.routine_assignments {
         lines.push(format!(
-            "routine_assignment|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}",
+            canonical_key_for_schema_field("routine_assignments"),
             assignment.actor_id.as_str(),
             assignment.template_id.as_str(),
             assignment.start_tick.value(),
@@ -225,7 +247,8 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for window in fixture.day_windows {
         lines.push(format!(
-            "day_window|{}|{}|{}",
+            "{}|{}|{}|{}",
+            canonical_key_for_schema_field("day_windows"),
             window.actor_id.as_str(),
             window.start_tick.value(),
             window.end_tick.value()
