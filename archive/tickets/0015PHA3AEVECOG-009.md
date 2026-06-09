@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-009: Guard durability — module-tree globs and a census guard
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `anti_regression_guards.rs` targeted guards take module-tree globs; new census guard
@@ -76,3 +76,23 @@ Add a guard asserting the guard file-list equals the actual module tree for the 
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Added sorted guarded-layer source discovery for `src/agent/**`, `src/scheduler*`, and `src/projections*` in `anti_regression_guards.rs`.
+- Added a guarded-layer census test so new files in those layers must be classified in the guard census.
+- Rewired scheduler/projection layer-wide guards to scan discovered guarded sources instead of only hardcoded single-file source strings where the token ban is safe across the layer.
+- Kept symbol-presence checks tied to their owning files through the same census-backed source lookup.
+
+Deviations from original plan:
+- Some raw-state tokens remain file/helper scoped instead of whole-layer scoped because `agent/perception.rs` and non-embodied projection code legitimately read `PhysicalState`; the layer-wide scans were limited to tokens that are unsafe throughout the layer.
+
+Verification:
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

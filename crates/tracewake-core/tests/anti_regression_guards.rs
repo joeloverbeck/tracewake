@@ -263,7 +263,97 @@ fn production_sources_from_roots(
             }
         }
     }
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
     sources
+}
+
+const GUARDED_LAYER_SOURCE_CENSUS: &[&str] = &[
+    "src/agent/actor_known.rs",
+    "src/agent/candidate.rs",
+    "src/agent/decision.rs",
+    "src/agent/generation.rs",
+    "src/agent/htn.rs",
+    "src/agent/intention.rs",
+    "src/agent/methods.rs",
+    "src/agent/mod.rs",
+    "src/agent/need.rs",
+    "src/agent/no_human_surface.rs",
+    "src/agent/perception.rs",
+    "src/agent/planner.rs",
+    "src/agent/routine.rs",
+    "src/agent/trace.rs",
+    "src/agent/transaction.rs",
+    "src/projections.rs",
+    "src/scheduler.rs",
+];
+
+#[derive(Clone, Copy)]
+enum GuardedLayer {
+    Agent,
+    Scheduler,
+    Projections,
+}
+
+fn guarded_layer_sources() -> Vec<(String, String)> {
+    production_sources()
+        .into_iter()
+        .filter(|(path, _)| is_guarded_layer_source(path))
+        .collect()
+}
+
+fn guarded_sources_for(layer: GuardedLayer) -> Vec<(String, String)> {
+    guarded_layer_sources()
+        .into_iter()
+        .filter(|(path, _)| match layer {
+            GuardedLayer::Agent => path.starts_with("src/agent/"),
+            GuardedLayer::Scheduler => path.starts_with("src/scheduler"),
+            GuardedLayer::Projections => path.starts_with("src/projections"),
+        })
+        .collect()
+}
+
+fn guarded_source(path: &str) -> String {
+    guarded_layer_sources()
+        .into_iter()
+        .find_map(|(source_path, source)| (source_path == path).then_some(source))
+        .unwrap_or_else(|| panic!("{path} is part of the guarded layer census"))
+}
+
+fn guarded_layer_source_paths() -> Vec<String> {
+    production_sources()
+        .into_iter()
+        .map(|(path, _)| path)
+        .filter(|path| is_guarded_layer_source(path))
+        .collect()
+}
+
+fn is_guarded_layer_source(path: &str) -> bool {
+    path.starts_with("src/agent/")
+        || path.starts_with("src/scheduler")
+        || path.starts_with("src/projections")
+}
+
+fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
+    for (path, source) in sources {
+        assert!(
+            !source.contains(needle),
+            "{path}: forbidden shortcut reintroduced: {needle}"
+        );
+    }
+}
+
+#[test]
+fn guarded_layer_source_census_matches_module_tree() {
+    let actual = guarded_layer_source_paths();
+    let expected = GUARDED_LAYER_SOURCE_CENSUS
+        .iter()
+        .map(|path| (*path).to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual, expected,
+        "new files under src/agent/**, src/scheduler*, or src/projections* must be classified in the guard census"
+    );
 }
 
 #[allow(
@@ -1298,7 +1388,7 @@ fn event_apply_remains_only_post_seed_mutation_path() {
 
 #[test]
 fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
-    let scheduler = production(SCHEDULER_RS);
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     for forbidden in [
         "build_routine_or_need_proposal",
         "eat_proposal",
@@ -1308,14 +1398,15 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
         "current_hunger",
         "current_fatigue",
     ] {
-        assert_absent(&scheduler, forbidden);
+        assert_absent_from_sources(&scheduler_sources, forbidden);
     }
 }
 
 #[test]
 fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
-    let scheduler = production(SCHEDULER_RS);
-    assert_absent(&scheduler, "EpistemicProjection::new");
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
+    assert_absent_from_sources(&scheduler_sources, "EpistemicProjection::new");
+    let scheduler = guarded_source("src/scheduler.rs");
     assert!(
         scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_event_log"),
         "no-human cognition must use the sealed actor-known surface builder"
@@ -1324,8 +1415,9 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
 
 #[test]
 fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth() {
-    let scheduler = production(SCHEDULER_RS);
-    let builder = production(NO_HUMAN_SURFACE_RS);
+    let scheduler = guarded_source("src/scheduler.rs");
+    let builder = guarded_source("src/agent/no_human_surface.rs");
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
 
     for forbidden in [
@@ -1339,6 +1431,7 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "assigned_workplace_known",
     ] {
         assert_absent(build_agent_proposal, forbidden);
+        assert_absent_from_sources(&scheduler_sources, forbidden);
     }
 
     assert!(
@@ -1370,9 +1463,11 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
 
 #[test]
 fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
-    let scheduler = production(SCHEDULER_RS);
-    let builder = production(NO_HUMAN_SURFACE_RS);
-    let actor_known = production(ACTOR_KNOWN_RS);
+    let scheduler = guarded_source("src/scheduler.rs");
+    let builder = guarded_source("src/agent/no_human_surface.rs");
+    let actor_known = guarded_source("src/agent/actor_known.rs");
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
+    let agent_sources = guarded_sources_for(GuardedLayer::Agent);
     let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
 
     for forbidden in [
@@ -1390,14 +1485,13 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
         assert_absent(&builder, forbidden);
     }
 
-    for forbidden in [
-        "extend_actor_known_facts",
-        "add_actor_known_fact",
-        "food_source_believed_accessible",
-    ] {
+    for forbidden in ["extend_actor_known_facts", "add_actor_known_fact"] {
         assert_absent(build_agent_proposal, forbidden);
-        assert_absent(&scheduler, "extend_actor_known_facts");
+        assert_absent_from_sources(&scheduler_sources, forbidden);
+        assert_absent_from_sources(&agent_sources, forbidden);
     }
+    assert_absent(build_agent_proposal, "food_source_believed_accessible");
+    assert_absent_from_sources(&scheduler_sources, "food_source_believed_accessible");
 
     assert_absent(&actor_known, "pub fn extend_actor_known_facts");
     assert_absent(&actor_known, "pub fn add_actor_known_fact");
@@ -1412,7 +1506,8 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
 
 #[test]
 fn guard_014_embodied_projection_workplaces_are_context_backed() {
-    let projection = production(PROJECTIONS_RS);
+    let projection_sources = guarded_sources_for(GuardedLayer::Projections);
+    let projection = guarded_source("src/projections.rs");
     let food_helper = body_after_marker(&projection, "fn actor_known_food_sources_for_context");
     let sleep_helper = body_after_marker(&projection, "fn visible_open_sleep_affordance");
     let view_builder = body_after_marker(&projection, "pub fn build_embodied_view_model");
@@ -1447,11 +1542,16 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     assert_absent(sleep_helper, "state.sleep_affordances");
     assert_absent(sleep_helper, "sleep_affordances()");
     assert_absent(view_builder, ".adjacent_place_ids");
+    assert_absent_from_sources(
+        &projection_sources,
+        "actor_known_workplaces_for_context(state",
+    );
 }
 
 #[test]
 fn guard_014_no_human_metrics_do_not_scan_display_text() {
-    let projection = production(PROJECTIONS_RS);
+    let projection_sources = guarded_sources_for(GuardedLayer::Projections);
+    let projection = guarded_source("src/projections.rs");
     let metrics_body = body_after_marker(&projection, "pub fn no_human_day_metrics");
 
     for forbidden in [
@@ -1460,6 +1560,7 @@ fn guard_014_no_human_metrics_do_not_scan_display_text() {
         ".contains(\"planner_budget_exhausted\")",
     ] {
         assert_absent(metrics_body, forbidden);
+        assert_absent_from_sources(&projection_sources, forbidden);
     }
     assert!(
         projection.contains("fn is_typed_planner_failure_event"),
