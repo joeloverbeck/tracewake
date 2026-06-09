@@ -50,7 +50,7 @@ If Step 3 concluded all deliverables already landed, Step 7's output is NOT deli
 3. Mark the historical **Purpose / motivating context** as such — a short parenthetical noting the gap it describes was closed by the landed implementation, so a future reader doesn't treat a stale condition as live.
 4. Cross-reference any later phases/specs/skills that extended or absorbed the original scope.
 5. Do NOT apply structural refinements to deliverables that already shipped — the spec is now a historical record; editing deliverable sections to match current code would confuse the causal narrative.
-6. **Ledger update**: update the spec's `docs/4-specs/SPEC_LEDGER.md` entry (Status, deliverables-produced, what-it-settles) only if the spec's own documentation-updates content calls for it; otherwise remind the user in Step 8. Tracewake has no separate archival workflow — completed specs stay in place with a `Done` ledger entry.
+6. **Ledger update**: update the spec's `docs/4-specs/SPEC_LEDGER.md` entry (Status, deliverables-produced, what-it-settles) only if the spec's own documentation-updates content calls for it; otherwise remind the user in Step 8. Tracewake's canonical archival policy is `docs/archival-workflow.md`: a completed spec is marked at top (`**Status**: COMPLETED` or the appropriate final marker), gains an `## Outcome` section, and is moved (`git mv`) to `archive/specs/` — it does not stay in place. Performing the move is outside this skill's deliverable (the updated spec file); remind the user in Step 8 to run the archival workflow once the spec's completion is confirmed.
 
 ## Post-Apply Confirmation
 
