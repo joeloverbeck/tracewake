@@ -53,6 +53,11 @@ pub const PHYSICAL_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
         field_name: "workplaces",
         field_family: "workplace",
     },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "sleep_affordances",
+        field_family: "sleep_affordance",
+    },
 ];
 
 pub const AGENT_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
@@ -230,6 +235,16 @@ pub fn compute_physical_checksum(
             workplace.max_hunger_to_start,
             workplace.access_open,
             workplace.output_tag
+        ));
+    }
+
+    for (sleep_affordance_id, sleep_affordance) in &state.sleep_affordances {
+        lines.push(format!(
+            "sleep_affordance|id={}|place={}|access_open={}|rest_quality={}",
+            sleep_affordance_id.as_str(),
+            sleep_affordance.place_id.as_str(),
+            sleep_affordance.access_open,
+            sleep_affordance.rest_quality
         ));
     }
 

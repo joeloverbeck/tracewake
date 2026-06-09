@@ -14,14 +14,15 @@ use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, DecisionTraceId, FixtureId, FoodSupplyId, PlaceId,
-    ProposalId, RoutineExecutionId, RoutineTemplateId, WorkplaceId,
+    ProposalId, RoutineExecutionId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::state::{
-    ActorBody, AgentState, FoodSupplyState, PhysicalState, PlaceState, WorkplaceState,
+    ActorBody, AgentState, FoodSupplyState, PhysicalState, PlaceState, SleepAffordanceState,
+    WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -519,6 +520,13 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     ] {
         add_actor(&mut world, actor_id, place_id);
     }
+    world.sleep_affordances_mut().insert(
+        SleepAffordanceId::new("bed_elena").unwrap(),
+        SleepAffordanceState::new(
+            SleepAffordanceId::new("bed_elena").unwrap(),
+            PlaceId::new("home_elena").unwrap(),
+        ),
+    );
 
     world.food_supplies_mut().insert(
         FoodSupplyId::new("food_stew_home_bruno").unwrap(),

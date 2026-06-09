@@ -12,12 +12,12 @@ use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, CandidateGoalId, ContainerId, DecisionTraceId, DoorId, FixtureId,
     FoodSupplyId, IntentionId, ItemId, PlaceId, RoutineExecutionId, RoutineTemplateId,
-    SchemaVersion, WorkplaceId,
+    SchemaVersion, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, PhysicalState,
-    PlaceState, WorkplaceState,
+    PlaceState, SleepAffordanceState, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -504,6 +504,7 @@ impl FixtureSchema {
         let mut items = BTreeMap::new();
         let mut food_supplies = BTreeMap::new();
         let mut workplaces = BTreeMap::new();
+        let mut sleep_affordances = BTreeMap::new();
 
         for place in &self.places {
             let mut place_state =
@@ -609,6 +610,15 @@ impl FixtureSchema {
             workplaces.insert(workplace.workplace_id.clone(), workplace_state);
         }
 
+        for sleep_place in &self.sleep_places {
+            let sleep_affordance_id =
+                SleepAffordanceId::new(sleep_place.sleep_place_id.clone()).unwrap();
+            sleep_affordances.insert(
+                sleep_affordance_id.clone(),
+                SleepAffordanceState::new(sleep_affordance_id, sleep_place.place_id.clone()),
+            );
+        }
+
         PhysicalState::from_seed_parts(
             actors,
             places,
@@ -617,6 +627,7 @@ impl FixtureSchema {
             items,
             food_supplies,
             workplaces,
+            sleep_affordances,
         )
     }
 

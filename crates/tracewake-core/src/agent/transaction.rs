@@ -255,6 +255,13 @@ impl ActorDecisionTransaction {
                 proposal
                     .parameters
                     .insert("sleep_place_id".to_string(), sleep_place_id.clone());
+                if let Some(sleep_affordance_id) =
+                    actor_known_sleep_affordance_id(input.actor_known_context)
+                {
+                    proposal
+                        .parameters
+                        .insert("sleep_affordance_id".to_string(), sleep_affordance_id);
+                }
             }
         } else {
             proposal.target_ids = planned.target_ids.clone();
@@ -284,6 +291,14 @@ impl ActorDecisionTransaction {
             local_plan,
         }))
     }
+}
+
+fn actor_known_sleep_affordance_id(context: &ActorKnownPlanningContext) -> Option<String> {
+    context
+        .actor_known_facts()
+        .iter()
+        .find(|fact| fact.stable_id() == "actor_knows_sleep_affordance" && fact.is_actor_known())
+        .map(|fact| fact.value().to_string())
 }
 
 fn active_intention_for_actor(

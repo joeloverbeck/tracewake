@@ -420,11 +420,11 @@ mod tests {
     use crate::actions::report::ReportStatus;
     use crate::agent::{NeedChangeCause, NeedState};
     use crate::events::log::EventLog;
-    use crate::ids::{ActionId, ActorId, PlaceId, ProposalId};
+    use crate::ids::{ActionId, ActorId, PlaceId, ProposalId, SleepAffordanceId};
     use crate::scheduler::{
         duration_completion_ordering_key, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use crate::state::{ActorBody, PlaceState};
+    use crate::state::{ActorBody, PlaceState, SleepAffordanceState};
     use std::collections::BTreeMap;
 
     fn actor_id() -> ActorId {
@@ -450,6 +450,10 @@ mod tests {
         state.workplaces.insert(
             workplace_id(),
             WorkplaceState::new(workplace_id(), place_id(), "service_completed_placeholder"),
+        );
+        state.sleep_affordances.insert(
+            SleepAffordanceId::new("bed_office").unwrap(),
+            SleepAffordanceState::new(SleepAffordanceId::new("bed_office").unwrap(), place_id()),
         );
         state
     }
@@ -755,13 +759,16 @@ mod tests {
         );
         assert_eq!(first.report.status, ReportStatus::Accepted);
 
-        let sleep = Proposal::new(
+        let mut sleep = Proposal::new(
             ProposalId::new("proposal_sleep_overlap").unwrap(),
             ProposalOrigin::Scheduler,
             Some(actor_id()),
             ActionId::new("sleep").unwrap(),
             SimTick::new(21),
         );
+        sleep
+            .parameters
+            .insert("sleep_affordance_id".to_string(), "bed_office".to_string());
         let sleep_key = OrderingKey::new(
             SimTick::new(21),
             SchedulePhase::HumanCommand,

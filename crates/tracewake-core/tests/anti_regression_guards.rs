@@ -1350,6 +1350,36 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
 }
 
 #[test]
+fn guard_014_sleep_validation_requires_modeled_affordance() {
+    let sleep = production(SLEEP_RS);
+    let projection = production(PROJECTIONS_RS);
+    let transaction = production(TRANSACTION_RS);
+    let builder = production(NO_HUMAN_SURFACE_RS);
+
+    assert!(
+        sleep.contains("sleep_affordance_id"),
+        "sleep start validation must require a concrete modeled rest-surface id"
+    );
+    assert!(
+        sleep.contains("ReasonCode::NoSleepAffordance"),
+        "sleep validation must reject absent, forged, closed, or stale rest surfaces with a typed reason"
+    );
+    assert_absent(&sleep, "sleep_place_id != actor.current_place_id.as_str()");
+    assert!(
+        projection.contains("visible_open_sleep_affordance"),
+        "human semantic sleep actions must be backed by an open modeled affordance"
+    );
+    assert!(
+        transaction.contains("actor_known_sleep_affordance_id"),
+        "agent sleep proposals must carry the actor-known affordance id"
+    );
+    assert!(
+        builder.contains("actor_knows_sleep_affordance"),
+        "no-human cognition must derive sleep affordance ids as actor-known facts"
+    );
+}
+
+#[test]
 fn guard_006_scheduler_has_no_routine_family_to_primitive_dispatch() {
     let scheduler = production(SCHEDULER_RS);
     for forbidden in [

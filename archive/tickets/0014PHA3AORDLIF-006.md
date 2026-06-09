@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-006: Modeled sleep/rest affordance — authoritative state + validation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`state.rs` new sleep/rest affordance state, `actions/defs/sleep.rs` validation + typed `NoSleepAffordance`, state checksum/replay parity), new source guard
@@ -81,3 +81,23 @@ Add a guard that fails if sleep-start validation checks only `current_place_id` 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-core actions::defs::sleep`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Added `SleepAffordanceId` and `SleepAffordanceState` to authoritative `PhysicalState`, plus checksum coverage and test-seed plumbing.
+- Replaced current-place-only sleep validation with fail-closed validation of `sleep_affordance_id`; absent, malformed, unknown, closed, or wrong-place affordances reject with typed `NoSleepAffordance`.
+- Threaded modeled rest-surface ids through no-human actor-known facts, agent transaction proposals, human semantic-action projection, and existing fixture/test worlds that legitimately sleep.
+- Added source and checksum guards covering the new invariant.
+
+Deviations:
+- The content schema ticket remains separate, but existing `sleep_places` are bridged into core `SleepAffordanceState` so current Phase 3A fixtures continue to represent real rest surfaces.
+- No-human sleep surface construction was touched narrowly because generated sleep proposals must now carry the actor-known affordance id required by this ticket.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core actions::defs::sleep`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test --workspace`

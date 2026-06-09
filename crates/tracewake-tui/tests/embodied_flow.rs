@@ -65,7 +65,7 @@ fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth(
     assert!(rendered.contains("Intention:"));
     assert!(rendered.contains("Routine:"));
     assert!(rendered.contains("Eat food_stew_home_tomas"));
-    assert!(rendered.contains("Sleep here"));
+    assert!(!rendered.contains("Sleep here"));
     assert!(rendered.contains("Work at workplace_tomas"));
     assert!(rendered.contains("disabled: You are not at that workplace."));
     assert!(!rendered.contains("food_empty_pantry_mara"));

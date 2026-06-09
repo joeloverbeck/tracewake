@@ -258,6 +258,9 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
     sleep
         .parameters
         .insert("sleep_place_id".to_string(), "home_tomas".to_string());
+    sleep
+        .parameters
+        .insert("sleep_affordance_id".to_string(), "bed_tomas".to_string());
     let sleep_events = run(
         &mut state,
         &mut agent_state,
@@ -934,6 +937,9 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     sleep_elena
         .parameters
         .insert("sleep_place_id".to_string(), "home_elena".to_string());
+    sleep_elena
+        .parameters
+        .insert("sleep_affordance_id".to_string(), "bed_elena".to_string());
     let sleep_events = run(
         &mut state,
         &mut agent_state,

@@ -43,6 +43,7 @@ pub enum ReasonCode {
     IntentionTerminal,
     RoutineStepBlocked,
     ReservationConflict,
+    NoSleepAffordance,
 }
 
 impl ReasonCode {
@@ -83,6 +84,7 @@ impl ReasonCode {
             ReasonCode::IntentionTerminal => "intention_terminal",
             ReasonCode::RoutineStepBlocked => "routine_step_blocked",
             ReasonCode::ReservationConflict => "reservation_conflict",
+            ReasonCode::NoSleepAffordance => "no_sleep_affordance",
         }
     }
 }
@@ -101,6 +103,7 @@ pub enum CheckedFactKey {
     PipelineSlot,
     PlaceId,
     Reason,
+    SleepAffordanceId,
     TargetId,
     TickCount,
     ToPlaceId,
@@ -123,6 +126,7 @@ impl CheckedFactKey {
             "pipeline_slots_9_11" => Self::PipelineSlot,
             "place_id" => Self::PlaceId,
             "reason" => Self::Reason,
+            "sleep_affordance_id" => Self::SleepAffordanceId,
             "target_id" => Self::TargetId,
             "ticks" => Self::TickCount,
             "to_place_id" => Self::ToPlaceId,
@@ -144,6 +148,7 @@ impl CheckedFactKey {
             Self::PipelineSlot => "pipeline_slots_9_11",
             Self::PlaceId => "place_id",
             Self::Reason => "reason",
+            Self::SleepAffordanceId => "sleep_affordance_id",
             Self::TargetId => "target_id",
             Self::TickCount => "ticks",
             Self::ToPlaceId => "to_place_id",

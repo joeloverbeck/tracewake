@@ -20,7 +20,7 @@ use tracewake_core::events::{EventKind, EventStream};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
     DecisionTraceId, FixtureId, FoodSupplyId, ItemId, PlaceId, ProposalId, RoutineExecutionId,
-    RoutineTemplateId, SemanticActionId, ViewModelId, WorkplaceId,
+    RoutineTemplateId, SemanticActionId, SleepAffordanceId, ViewModelId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -29,7 +29,7 @@ use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDa
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, ControllerMode, DoorState, FoodSupplyState, ItemState,
-    PhysicalState, PlaceState, WorkplaceState,
+    PhysicalState, PlaceState, SleepAffordanceState, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -58,6 +58,13 @@ fn state(container_open: bool, door_open: bool) -> PhysicalState {
     state
         .actors_mut()
         .insert(actor_id(), ActorBody::new(actor_id(), shop.clone()));
+    state.sleep_affordances_mut().insert(
+        SleepAffordanceId::new("bed_shop_front").unwrap(),
+        SleepAffordanceState::new(
+            SleepAffordanceId::new("bed_shop_front").unwrap(),
+            shop.clone(),
+        ),
+    );
 
     let mut door = DoorState::new("door_shop_back".parse().unwrap(), shop.clone(), back);
     door.is_open = door_open;
@@ -219,6 +226,13 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     ] {
         add_actor(&mut world, actor_id, place_id);
     }
+    world.sleep_affordances_mut().insert(
+        SleepAffordanceId::new("bed_elena").unwrap(),
+        SleepAffordanceState::new(
+            SleepAffordanceId::new("bed_elena").unwrap(),
+            PlaceId::new("home_elena").unwrap(),
+        ),
+    );
 
     world.food_supplies_mut().insert(
         FoodSupplyId::new("food_stew_home_bruno").unwrap(),
@@ -474,6 +488,10 @@ fn run_sleep(
     proposal
         .parameters
         .insert("duration_ticks".to_string(), "3".to_string());
+    proposal.parameters.insert(
+        "sleep_affordance_id".to_string(),
+        "bed_shop_front".to_string(),
+    );
     let mut bindings = None;
     if is_human_origin {
         let controller_id = ControllerId::new("controller_human").unwrap();

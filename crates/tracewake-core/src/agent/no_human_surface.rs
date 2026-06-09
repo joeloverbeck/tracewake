@@ -68,7 +68,7 @@ impl NoHumanActorKnownSurfaceBuilder {
         let mut builder = Self::new(actor_id, current_place_id, decision_tick);
         builder.observe_visible_routes_from_current_place(state);
         builder.observe_visible_food_sources_from_current_place(state);
-        builder.observe_sleep_notice_from_active_routine(agent_state);
+        builder.observe_sleep_notice_from_active_routine(state, agent_state);
         builder.observe_workplace_notices_from_active_routines(state, agent_state);
         builder
     }
@@ -148,7 +148,11 @@ impl NoHumanActorKnownSurfaceBuilder {
             .collect();
     }
 
-    fn observe_sleep_notice_from_active_routine(&mut self, agent_state: &AgentState) {
+    fn observe_sleep_notice_from_active_routine(
+        &mut self,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+    ) {
         if !has_live_routine_family(
             agent_state,
             &self.actor_id,
@@ -157,8 +161,26 @@ impl NoHumanActorKnownSurfaceBuilder {
         ) {
             return;
         }
+        let Some((sleep_affordance_id, _)) =
+            state
+                .sleep_affordances()
+                .iter()
+                .find(|(_, sleep_affordance)| {
+                    sleep_affordance.access_open
+                        && sleep_affordance.place_id == self.current_place_id
+                })
+        else {
+            return;
+        };
         let current_place_id = self.current_place_id.clone();
         self.known_sleep_places.insert(current_place_id.clone());
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "actor_knows_sleep_affordance",
+            sleep_affordance_id.as_str(),
+            "modeled_observation:open_sleep_affordance_at_current_place",
+            self.decision_tick,
+        ));
         self.facts.push(ActorKnownFact::remembered_belief(
             self.actor_id.clone(),
             "actor_knows_sleep_place",

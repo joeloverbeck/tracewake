@@ -9,7 +9,7 @@ use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, HolderKnownContextId, ItemId,
-    PlaceId, ProposalId, SemanticActionId, ViewModelId, WorkplaceId,
+    PlaceId, ProposalId, SemanticActionId, SleepAffordanceId, ViewModelId, WorkplaceId,
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -633,14 +633,16 @@ fn phase3a_semantic_actions(
     viewer_actor_id: &ActorId,
 ) -> Vec<SemanticActionEntry> {
     let mut actions = Vec::new();
-    actions.push(SemanticActionEntry::new(
-        SemanticActionId::new("sleep.here").unwrap(),
-        ActionId::new("sleep").unwrap(),
-        vec![actor.current_place_id.to_string()],
-        "Sleep here",
-        true,
-        None,
-    ));
+    if let Some(sleep_affordance_id) = visible_open_sleep_affordance(state, actor) {
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new("sleep.here").unwrap(),
+            ActionId::new("sleep").unwrap(),
+            vec![sleep_affordance_id.to_string()],
+            "Sleep here",
+            true,
+            None,
+        ));
+    }
 
     for food_supply_id in &source.actor_known_food_sources {
         let Some(food) = state.food_supplies.get(food_supply_id) else {
@@ -1010,6 +1012,14 @@ pub fn proposal_from_semantic_action_entry(
             .parameters
             .insert("ticks".to_string(), "1".to_string());
     }
+    if entry.action_id.as_str() == "sleep" {
+        if let Some(sleep_affordance_id) = entry.target_ids.first() {
+            proposal.parameters.insert(
+                "sleep_affordance_id".to_string(),
+                sleep_affordance_id.clone(),
+            );
+        }
+    }
     if entry.action_id.as_str() == "continue_routine" {
         if let Some(intention_id) = entry.target_ids.first() {
             proposal
@@ -1026,6 +1036,19 @@ pub fn proposal_from_semantic_action_entry(
             .insert("intention_status".to_string(), "active".to_string());
     }
     proposal
+}
+
+fn visible_open_sleep_affordance(
+    state: &PhysicalState,
+    actor: &ActorBody,
+) -> Option<SleepAffordanceId> {
+    state
+        .sleep_affordances()
+        .iter()
+        .find(|(_, sleep_affordance)| {
+            sleep_affordance.access_open && sleep_affordance.place_id == actor.current_place_id
+        })
+        .map(|(sleep_affordance_id, _)| sleep_affordance_id.clone())
 }
 
 pub fn proposal_from_current_view_semantic_action(
