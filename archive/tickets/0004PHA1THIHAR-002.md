@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-002: Negative-fixture runner harness + banned-API clippy fixtures
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — new negative-fixture runner harness (test target) + isolated non-workspace fixture crates; no new dependency
@@ -76,3 +76,22 @@ One fixture per family: `banned_hashmap_direct_path`, `banned_hashmap_import_ali
 
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Added `crates/tracewake-core/tests/negative_fixture_runner.rs`, a subprocess-based runner that invokes the pinned `cargo clippy` on isolated negative fixture crates and asserts each fixture fails with the expected lint category.
+- Added isolated non-workspace fixture crates under `tests/negative-fixtures/` for direct paths, aliases, re-exports, type aliases, macro expansion, thread/process/fs/net calls, and unordered collection types.
+- Verified the macro expansion fixture is caught by the current Clippy policy as `disallowed_methods`; no fallback scanner-only exception was needed.
+
+Deviations from original plan:
+- None. The runner uses `std::process::Command` with an explicit Clippy allow in the test harness and introduces no `trybuild` or `compiletest` dependency.
+
+Verification results:
+- `cargo test -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `if rg -q "trybuild|compiletest" -g Cargo.toml .; then exit 1; else exit 0; fi` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.
