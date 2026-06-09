@@ -97,9 +97,16 @@ Exactly what Session 2 outputs — leave no ambiguity:
 - when the deliverable is a **numbered spec**, derive its number and path from the live
   spec ledger + specs README (e.g. `docs/4-specs/SPEC_LEDGER.md`), not from the archive:
   prefer the next free *live* number (a realigned ledger may restart numbering, so an
-  archived `0002` does not block a live `0002`), and carry any residual placement
-  ambiguity (`specs/` staging vs. final `docs/4-specs/`) as a labeled `assumption:` line
-  rather than asserting it;
+  archived `0002` does not block a live `0002`) — **but first scan `archive/specs/` and
+  `specs/` for the highest existing staging-filename number**: this repo stages specs
+  sequentially across the whole campaign before archiving, so a live-ledger number can
+  collide with an archived staging filename (e.g. a strict "next free live number" of
+  `0002` would clash with an archived `0002_*` staging file). When the live-ledger number
+  and the staging-sequence number diverge, do not assert the live number — continue the
+  visible staging sequence (next number after the highest archived/staged filename) and
+  carry the choice as a labeled `assumption:` line, or surface it as a bounded interview
+  question. Carry any residual placement ambiguity (`specs/` staging vs. final
+  `docs/4-specs/`) as a labeled `assumption:` line rather than asserting it;
 - the **locked / no-questions** instruction, verbatim intent:
 
 > Produce the deliverables directly as downloadable markdown documents. Do not interview,
@@ -112,10 +119,16 @@ needed, and *if so* produce X" (common for hardening / anti-contamination passes
 is contingent on a judgment Session 2 must make first. Do not leave the contingency implicit. The
 brief must (a) instruct Session 2 to produce a clearly labeled, evidence-based **determination /
 verdict** ("is a new spec warranted, and why"), and (b) state — as a settled intention resolved in
-the interview — whether the artifact is produced **unconditionally** (verdict embedded inside it) or
-**only if the verdict is positive**. Prefer "always produce, with the verdict as a section" when the
-artifact's value survives a negative verdict (e.g. it locks already-correct properties); reserve
-"produce only if positive" for when a negative verdict means there is genuinely nothing to author.
+the interview — which of **three** modes governs the artifact: (i) **unconditionally** (one always-produced
+document with the verdict embedded as a section); (ii) **only if the verdict is positive** (nothing authored
+on a negative verdict); or (iii) **always produce, form follows the verdict** — one document is always
+produced, but its *shape* depends on the verdict (e.g. a full spec if warranted, a standalone rationale
+report if clean). Prefer (i) "always produce, with the verdict as a section" when the artifact's value
+survives a negative verdict (e.g. it locks already-correct properties); choose (iii) when a negative verdict
+still warrants a substantial evidence-complete document but in a *different form* than the spec; reserve
+(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. For
+mode (iii), the brief's deliverable spec (§7) must define **both** artifact shapes (a Branch A / Branch B
+specification) so Session 2 commits to one without asking.
 
 ### 8. Self-check
 

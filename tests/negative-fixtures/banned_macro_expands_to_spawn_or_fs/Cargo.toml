@@ -1,0 +1,6 @@
+[package]
+name = "banned_macro_expands_to_spawn_or_fs"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]

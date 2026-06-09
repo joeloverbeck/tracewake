@@ -4,6 +4,23 @@ struct TuiSeamEvidence {
     layer: &'static str,
     test_name: &'static str,
     source: &'static str,
+    evidence_kind: EvidenceKind,
+    evidence_class: EvidenceClass,
+    invariants: &'static [&'static str],
+    acceptance_condition: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EvidenceKind {
+    RuntimeNegative,
+    ReplayDeterminism,
+    StaticSourceGuard,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EvidenceClass {
+    Positive,
+    Negative,
 }
 
 const TUI_SEAM_EVIDENCE: &[TuiSeamEvidence] = &[
@@ -12,30 +29,50 @@ const TUI_SEAM_EVIDENCE: &[TuiSeamEvidence] = &[
         layer: "tui/debug",
         test_name: "debug_panel_does_not_change_embodied_affordances",
         source: include_str!("adversarial_gates.rs"),
+        evidence_kind: EvidenceKind::RuntimeNegative,
+        evidence_class: EvidenceClass::Negative,
+        invariants: &["INV-008", "INV-107"],
+        acceptance_condition: "debug panels do not change embodied affordances",
     },
     TuiSeamEvidence {
         requirement: "SPINE-AC-012",
         layer: "tui/view-model",
         test_name: "tui_current_view_submission_rejects_stale_selection",
         source: include_str!("adversarial_gates.rs"),
+        evidence_kind: EvidenceKind::RuntimeNegative,
+        evidence_class: EvidenceClass::Negative,
+        invariants: &["INV-008", "INV-108"],
+        acceptance_condition: "stale current-view selections are rejected",
     },
     TuiSeamEvidence {
         requirement: "SPINE-AC-012",
         layer: "tui/debug",
         test_name: "debug_command_strings_are_not_embodied_commands",
         source: include_str!("adversarial_gates.rs"),
+        evidence_kind: EvidenceKind::RuntimeNegative,
+        evidence_class: EvidenceClass::Negative,
+        invariants: &["INV-008", "INV-107"],
+        acceptance_condition: "debug command strings are not embodied commands",
     },
     TuiSeamEvidence {
         requirement: "SPINE-AC-012",
         layer: "tui/view-model",
         test_name: "tui_sources_do_not_call_event_application_directly",
         source: include_str!("tui_acceptance.rs"),
+        evidence_kind: EvidenceKind::StaticSourceGuard,
+        evidence_class: EvidenceClass::Negative,
+        invariants: &["INV-009", "INV-104"],
+        acceptance_condition: "TUI sources do not call event application directly",
     },
     TuiSeamEvidence {
         requirement: "SPINE-AC-012",
         layer: "tui/view-model",
         test_name: "tui_transcript_snapshot_remains_byte_stable",
         source: include_str!("transcript_snapshot.rs"),
+        evidence_kind: EvidenceKind::ReplayDeterminism,
+        evidence_class: EvidenceClass::Positive,
+        invariants: &["INV-018", "INV-092"],
+        acceptance_condition: "TUI transcript snapshot remains byte-stable",
     },
 ];
 
@@ -52,6 +89,10 @@ fn tui_seam_conformance_maps_tui_spine_requirements_to_named_tests() {
             "unknown TUI seam conformance layer {}",
             evidence.layer
         );
+        assert!(!evidence.invariants.is_empty());
+        assert!(!evidence.acceptance_condition.is_empty());
+        assert_ne!(format!("{:?}", evidence.evidence_kind), "");
+        assert_ne!(format!("{:?}", evidence.evidence_class), "");
         let needle = format!("fn {}(", evidence.test_name);
         assert!(
             evidence.source.contains(&needle),

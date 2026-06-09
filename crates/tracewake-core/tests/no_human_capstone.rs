@@ -1,5 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+mod support;
+
+use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
@@ -481,7 +484,7 @@ fn capstone_windows() -> Vec<DayWindow> {
 }
 
 fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
-    let mut world = PhysicalState::default();
+    let mut world = PhysicalSeed::default();
     for (place_id, label) in [
         ("commons", "Commons"),
         ("home_elena", "Elena home"),
@@ -491,7 +494,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         ("office_anna", "Anna office"),
         ("workshop_tomas", "Tomas workshop"),
     ] {
-        world.seed_places_mut().insert(
+        world.places_mut().insert(
             PlaceId::new(place_id).unwrap(),
             PlaceState::new(PlaceId::new(place_id).unwrap(), label),
         );
@@ -517,7 +520,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         add_actor(&mut world, actor_id, place_id);
     }
 
-    world.seed_food_supplies_mut().insert(
+    world.food_supplies_mut().insert(
         FoodSupplyId::new("food_stew_home_bruno").unwrap(),
         FoodSupplyState::new(
             FoodSupplyId::new("food_stew_home_bruno").unwrap(),
@@ -536,7 +539,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         .assigned_actor_ids
         .insert(ActorId::new("actor_anna").unwrap());
     closed_workplace.access_open = false;
-    world.seed_workplaces_mut().insert(
+    world.workplaces_mut().insert(
         WorkplaceId::new("workplace_anna_closed").unwrap(),
         closed_workplace,
     );
@@ -552,10 +555,10 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     open_workplace.work_duration_ticks = 4;
     open_workplace.access_open = true;
     world
-        .seed_workplaces_mut()
+        .workplaces_mut()
         .insert(WorkplaceId::new("workplace_tomas").unwrap(), open_workplace);
 
-    let mut agent_state = AgentState::default();
+    let mut agent_state = AgentSeed::default();
     for (actor_id, hunger, fatigue) in [
         ("actor_anna", 320, 260),
         ("actor_bruno", 490, 240),
@@ -564,7 +567,7 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         ("actor_tomas", 520, 260),
     ] {
         let actor_id = ActorId::new(actor_id).unwrap();
-        agent_state.seed_needs_by_actor_mut().insert(
+        agent_state.needs_by_actor_mut().insert(
             actor_id,
             BTreeMap::from([
                 (
@@ -620,35 +623,35 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     );
 
     let expected_roster = world.actors().keys().cloned().collect::<Vec<_>>();
-    (world, agent_state, expected_roster)
+    (world.build(), agent_state.build(), expected_roster)
 }
 
-fn connect_places(world: &mut PhysicalState, left: &str, right: &str) {
+fn connect_places(world: &mut PhysicalSeed, left: &str, right: &str) {
     let left = PlaceId::new(left).unwrap();
     let right = PlaceId::new(right).unwrap();
     world
-        .seed_places_mut()
+        .places_mut()
         .get_mut(&left)
         .unwrap()
         .adjacent_place_ids
         .insert(right.clone());
     world
-        .seed_places_mut()
+        .places_mut()
         .get_mut(&right)
         .unwrap()
         .adjacent_place_ids
         .insert(left);
 }
 
-fn add_actor(world: &mut PhysicalState, actor_id: &str, place_id: &str) {
+fn add_actor(world: &mut PhysicalSeed, actor_id: &str, place_id: &str) {
     let actor_id = ActorId::new(actor_id).unwrap();
     let place_id = PlaceId::new(place_id).unwrap();
-    world.seed_actors_mut().insert(
+    world.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), place_id.clone()),
     );
     world
-        .seed_places_mut()
+        .places_mut()
         .get_mut(&place_id)
         .unwrap()
         .local_actor_ids
@@ -656,7 +659,7 @@ fn add_actor(world: &mut PhysicalState, actor_id: &str, place_id: &str) {
 }
 
 fn add_routine_execution(
-    agent_state: &mut AgentState,
+    agent_state: &mut AgentSeed,
     execution_id: &str,
     actor_id: &str,
     template_id: &str,
@@ -665,7 +668,7 @@ fn add_routine_execution(
     end_tick: u64,
 ) {
     let execution_id = RoutineExecutionId::new(execution_id).unwrap();
-    agent_state.seed_routine_executions_mut().insert(
+    agent_state.routine_executions_mut().insert(
         execution_id.clone(),
         RoutineExecution::new(
             execution_id.clone(),

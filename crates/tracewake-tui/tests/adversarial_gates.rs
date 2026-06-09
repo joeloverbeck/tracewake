@@ -6,7 +6,9 @@ use tracewake_core::view_models::{
 };
 use tracewake_tui::app::{AppError, TuiApp};
 use tracewake_tui::run::run_command_loop;
-use tracewake_tui::transcript::capture_representative_transcript_sections;
+use tracewake_tui::transcript::{
+    capture_representative_transcript, capture_representative_transcript_sections,
+};
 
 #[derive(Debug)]
 struct AdversarialReviewArtifact {
@@ -713,6 +715,24 @@ fn adversarial_gates_rendering_does_not_change_typed_order_or_replay() {
         contamination_failure_mode: "terminal_render_state_not_behavior_authority",
     };
     artifact.assert_complete();
+}
+
+#[test]
+fn tui_transcript_marks_debug_sections_non_diegetic() {
+    let transcript = capture_representative_transcript().unwrap();
+    for heading in [
+        "DEBUG NON-DIEGETIC: Event Log",
+        "DEBUG NON-DIEGETIC: Replay",
+        "DEBUG NON-DIEGETIC: Epistemics",
+        "DEBUG NON-DIEGETIC: Beliefs",
+        "DEBUG NON-DIEGETIC: Observations",
+    ] {
+        assert!(
+            transcript.contains(heading),
+            "transcript missing debug marker {heading}"
+        );
+    }
+    assert!(!transcript.contains("Embodied View\nDEBUG NON-DIEGETIC"));
 }
 
 fn semantic_action_for_action_id(app: &TuiApp, action_id: &str) -> SemanticActionId {

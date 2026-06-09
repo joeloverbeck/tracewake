@@ -1,0 +1,6 @@
+[package]
+name = "banned_tcp_udp_network_calls"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]

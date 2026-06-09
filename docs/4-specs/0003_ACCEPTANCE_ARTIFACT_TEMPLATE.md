@@ -10,10 +10,12 @@ Use this template for implementation review of
 
 ## Gates run
 
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo build --workspace --all-targets --locked`
-- `cargo test --workspace`
+Record the command, result, and concise output summary for each gate:
+
+- `cargo fmt --all --check` — `<result and output summary>`
+- `cargo clippy --workspace --all-targets -- -D warnings` — `<result and output summary>`
+- `cargo build --workspace --all-targets --locked` — `<result and output summary>`
+- `cargo test --workspace` — `<result and output summary>`
 
 ## Changed files
 
@@ -50,12 +52,16 @@ review surface that carries it.
 
 Allowed wording:
 
-- "Phase 1 / Phase 1A spine hardening remediation accepted for this commit."
+- "Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit `<commit>`. This contributes scoped evidence toward `SPINE-CERT`, `EPI-CERT`, and `P0-CERT`; it does not certify latest main, later-phase scope, or the full project."
 
 Forbidden wording:
 
-- "Project is P0 certified"
-- "SPINE-CERT passed"
+- "Tracewake is fully certified."
+- "Latest main was independently verified."
+- "Later Phase 2+ / Phase 3A+ systems are certified by this pass."
+- "Archived specs are live authority."
+- "Project is P0 certified."
+- "SPINE-CERT passed."
 
 Do not use the forbidden wording as a result claim unless a separate upstream
 certification process declares that outcome.

@@ -1,9 +1,14 @@
+mod support;
+
+use support::{AgentSeed, PhysicalSeed};
+
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
 const STATE_RS: &str = include_str!("../src/state.rs");
+const CHECKSUM_RS: &str = include_str!("../src/checksum.rs");
 const EVENTS_MOD_RS: &str = include_str!("../src/events/mod.rs");
 const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
@@ -112,13 +117,52 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
     },
 ];
 
-fn production(source: &str) -> &str {
-    source.split("#[cfg(test)]").next().unwrap_or(source)
+fn production(source: &str) -> String {
+    let mut output = String::new();
+    let lines = source.lines().collect::<Vec<_>>();
+    let mut index = 0;
+
+    while index < lines.len() {
+        if lines[index].trim_start().starts_with("#[cfg(test)]") {
+            index += 1;
+            while index < lines.len() && lines[index].trim().is_empty() {
+                index += 1;
+            }
+            let mut depth = 0_i32;
+            let mut saw_brace = false;
+            while index < lines.len() {
+                let line = lines[index];
+                for byte in line.bytes() {
+                    match byte {
+                        b'{' => {
+                            saw_brace = true;
+                            depth += 1;
+                        }
+                        b'}' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                index += 1;
+                if saw_brace && depth <= 0 {
+                    break;
+                }
+                if !saw_brace && line.trim_end().ends_with(';') {
+                    break;
+                }
+            }
+            continue;
+        }
+        output.push_str(lines[index]);
+        output.push('\n');
+        index += 1;
+    }
+
+    output
 }
 
-fn assert_absent(haystack: &str, needle: &str) {
+fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
     assert!(
-        !haystack.contains(needle),
+        !haystack.as_ref().contains(needle),
         "forbidden shortcut reintroduced: {needle}"
     );
 }
@@ -129,7 +173,21 @@ fn assert_absent(haystack: &str, needle: &str) {
 )]
 fn production_sources() -> Vec<(String, String)> {
     let src_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let mut stack = vec![src_root];
+    production_sources_from_roots(
+        vec![src_root],
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
+    )
+}
+
+#[allow(
+    clippy::disallowed_methods,
+    reason = "anti-regression test scans source files; this helper is not simulation outcome code"
+)]
+fn production_sources_from_roots(
+    roots: Vec<std::path::PathBuf>,
+    strip_prefix: &std::path::Path,
+) -> Vec<(String, String)> {
+    let mut stack = roots;
     let mut sources = Vec::new();
     while let Some(path) = stack.pop() {
         for entry in std::fs::read_dir(path).expect("source directory is readable") {
@@ -139,12 +197,12 @@ fn production_sources() -> Vec<(String, String)> {
                 stack.push(path);
             } else if path.extension().is_some_and(|extension| extension == "rs") {
                 let relative = path
-                    .strip_prefix(env!("CARGO_MANIFEST_DIR"))
-                    .expect("source path is under manifest dir")
+                    .strip_prefix(strip_prefix)
+                    .expect("source path is under requested source root")
                     .display()
                     .to_string();
                 let source = std::fs::read_to_string(&path).expect("source file is readable");
-                sources.push((relative, production(&source).to_string()));
+                sources.push((relative, production(&source)));
             }
         }
     }
@@ -185,9 +243,9 @@ fn test_sources() -> Vec<(String, String)> {
     sources
 }
 
-fn state_struct_fields(struct_name: &str) -> Vec<String> {
+fn state_struct_fields_from_source(source: &str, struct_name: &str) -> Vec<String> {
     let marker = format!("pub struct {struct_name} {{");
-    let body = STATE_RS
+    let body = source
         .split(&marker)
         .nth(1)
         .unwrap_or_else(|| panic!("{struct_name} declaration is present"))
@@ -201,6 +259,59 @@ fn state_struct_fields(struct_name: &str) -> Vec<String> {
             Some(field.split(':').next().unwrap().to_string())
         })
         .collect()
+}
+
+fn checksum_parity_errors(
+    state_source: &str,
+    checksum_source: &str,
+    physical_coverage: &[(&str, &str)],
+    agent_coverage: &[(&str, &str)],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    errors.extend(state_kind_checksum_parity_errors(
+        "PhysicalState",
+        state_source,
+        checksum_source,
+        physical_coverage,
+    ));
+    errors.extend(state_kind_checksum_parity_errors(
+        "AgentState",
+        state_source,
+        checksum_source,
+        agent_coverage,
+    ));
+    errors
+}
+
+fn state_kind_checksum_parity_errors(
+    struct_name: &str,
+    state_source: &str,
+    checksum_source: &str,
+    coverage: &[(&str, &str)],
+) -> Vec<String> {
+    let state_fields = state_struct_fields_from_source(state_source, struct_name);
+    let coverage_fields = coverage
+        .iter()
+        .map(|(field_name, _)| (*field_name).to_string())
+        .collect::<Vec<_>>();
+    let mut errors = Vec::new();
+
+    if coverage_fields != state_fields {
+        errors.push(format!(
+            "{struct_name} checksum coverage fields {coverage_fields:?} do not match authoritative fields {state_fields:?}"
+        ));
+    }
+
+    for (field_name, field_family) in coverage {
+        let canonical_prefix = format!("\"{field_family}|");
+        if !checksum_source.contains(&canonical_prefix) {
+            errors.push(format!(
+                "{struct_name}.{field_name} lacks canonical checksum line prefix {field_family}|"
+            ));
+        }
+    }
+
+    errors
 }
 
 fn nondeterminism_api_is_allowlisted(path: &str, token: &str) -> bool {
@@ -217,7 +328,8 @@ fn scheduler_marker_allowlist_is_documented(snippet: &str) -> bool {
     })
 }
 
-fn source_contains_in_order(source: &str, first: &str, second: &str) -> bool {
+fn source_contains_in_order(source: impl AsRef<str>, first: &str, second: &str) -> bool {
+    let source = source.as_ref();
     let Some(first_index) = source.find(first) else {
         return false;
     };
@@ -232,8 +344,8 @@ fn low_pressure_agent_state(
 ) -> tracewake_core::state::AgentState {
     use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
 
-    let mut state = tracewake_core::state::AgentState::default();
-    state.seed_needs_by_actor_mut().insert(
+    let mut state = AgentSeed::default();
+    state.needs_by_actor_mut().insert(
         actor_id,
         [
             (
@@ -252,7 +364,7 @@ fn low_pressure_agent_state(
         .into_iter()
         .collect(),
     );
-    state
+    state.build()
 }
 
 fn source_bound_human_proposal(
@@ -306,16 +418,17 @@ fn human_source_report(
     use tracewake_core::scheduler::{
         OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use tracewake_core::state::{ActorBody, AgentState, ControllerMode, PhysicalState};
+    use tracewake_core::state::{ActorBody, AgentState, ControllerMode};
     use tracewake_core::time::SimTick;
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let controller_id = ControllerId::new("controller_human").unwrap();
-    let mut state = PhysicalState::default();
-    state.seed_actors_mut().insert(
+    let mut state_seed = PhysicalSeed::default();
+    state_seed.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
     );
+    let state = state_seed.build();
     let mut registry = ActionRegistry::new();
     registry.register(ActionDefinition::query_only(ActionId::new("look").unwrap()));
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
@@ -355,6 +468,9 @@ fn human_source_report(
 
 #[test]
 fn nondeterminism_api_gate() {
+    // Smoke-only substring scan. `clippy.toml` plus the negative fixture runner
+    // are the primary banned-API enforcement layer; this catches obvious drift
+    // and intentionally remains comment/string sensitive.
     assert!(
         NONDETERMINISM_ALLOWLIST.is_empty(),
         "tracewake-core outcome paths must keep the nondeterminism allowlist empty until a narrow, rationale-bearing exception is reviewed"
@@ -396,6 +512,54 @@ fn nondeterminism_api_gate() {
 }
 
 #[test]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "scanner discovery test creates a temporary source tree outside simulation outcome code"
+)]
+fn source_guard_discovers_new_nested_production_file() {
+    let root = std::env::temp_dir().join(format!("tracewake_source_guard_{}", std::process::id()));
+    let nested = root.join("nested/deeper");
+    std::fs::create_dir_all(&nested).expect("temporary nested source directory can be created");
+    std::fs::write(
+        nested.join("prod.rs"),
+        "pub fn nested_production_item() {}\n",
+    )
+    .expect("temporary source file can be written");
+
+    let sources = production_sources_from_roots(vec![root.clone()], &root);
+    std::fs::remove_dir_all(&root).expect("temporary source tree can be removed");
+
+    assert!(
+        sources
+            .iter()
+            .any(|(path, source)| path.ends_with("nested/deeper/prod.rs")
+                && source.contains("nested_production_item")),
+        "source scanner must discover nested production Rust files"
+    );
+}
+
+#[test]
+fn source_guard_does_not_silently_skip_production_after_cfg_test() {
+    let source = r#"
+pub fn before_cfg_test() {}
+
+#[cfg(test)]
+mod tests {
+    fn test_only() {
+        let _comment_sensitive_smoke_token = "HashMap";
+    }
+}
+
+pub fn after_cfg_test() {}
+"#;
+
+    let production = production(source);
+    assert!(production.contains("before_cfg_test"));
+    assert!(production.contains("after_cfg_test"));
+    assert!(!production.contains("test_only"));
+}
+
+#[test]
 fn scheduler_never_direct_dispatches_primitive_action() {
     use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
     use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
@@ -411,7 +575,7 @@ fn scheduler_never_direct_dispatches_primitive_action() {
     use tracewake_core::scheduler::{
         OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use tracewake_core::state::{ActorBody, PhysicalState};
+    use tracewake_core::state::ActorBody;
     use tracewake_core::time::SimTick;
 
     let scheduler = production(SCHEDULER_RS);
@@ -433,7 +597,7 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         "build_wait_events",
         "validate_truthful_accuse_probe",
     ] {
-        assert_absent(scheduler, forbidden);
+        assert_absent(&scheduler, forbidden);
     }
 
     for allowed in [
@@ -463,10 +627,11 @@ fn scheduler_never_direct_dispatches_primitive_action() {
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let place_id = PlaceId::new("shop_front").unwrap();
-    let mut scheduled_state = PhysicalState::default();
-    scheduled_state
-        .seed_actors_mut()
+    let mut scheduled_seed = PhysicalSeed::default();
+    scheduled_seed
+        .actors_mut()
         .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), place_id));
+    let mut scheduled_state = scheduled_seed.build();
     let mut scheduled_agent_state = low_pressure_agent_state(actor_id.clone());
     let mut scheduled_log = EventLog::new();
     let mut registry = ActionRegistry::new();
@@ -516,11 +681,12 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         2
     );
 
-    let mut direct_state = PhysicalState::default();
-    direct_state.seed_actors_mut().insert(
+    let mut direct_seed = PhysicalSeed::default();
+    direct_seed.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
     );
+    let mut direct_state = direct_seed.build();
     let mut direct_agent_state = low_pressure_agent_state(actor_id.clone());
     let mut direct_log = EventLog::new();
     let mut direct_context = PipelineContext {
@@ -887,6 +1053,8 @@ fn privileged_tui_proposal_requires_current_view_source_context() {
 
 #[test]
 fn no_direct_apply_event_outside_event_replay_or_pipeline() {
+    // Smoke-only source scan: compile-fail fixtures and capability privacy are
+    // the primary enforcement layer; this catches obvious new direct calls.
     let allowed_paths = [
         "src/events/apply.rs",
         "src/replay/rebuild.rs",
@@ -927,7 +1095,7 @@ fn accepted_action_appends_before_authoritative_apply() {
     use tracewake_core::scheduler::{
         OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use tracewake_core::state::{ActorBody, AgentState, ContainerState, PhysicalState, PlaceState};
+    use tracewake_core::state::{ActorBody, AgentState, ContainerState, PlaceState};
     use tracewake_core::time::SimTick;
 
     let pipeline = production(include_str!("../src/actions/pipeline.rs"));
@@ -943,19 +1111,20 @@ fn accepted_action_appends_before_authoritative_apply() {
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let place_id = PlaceId::new("shop_front").unwrap();
     let container_id = ContainerId::new("strongbox_tomas").unwrap();
-    let mut state = PhysicalState::default();
-    state.seed_places_mut().insert(
+    let mut seed = PhysicalSeed::default();
+    seed.places_mut().insert(
         place_id.clone(),
         PlaceState::new(place_id.clone(), "Shop front"),
     );
-    state.seed_actors_mut().insert(
+    seed.actors_mut().insert(
         actor_id.clone(),
         ActorBody::new(actor_id.clone(), place_id.clone()),
     );
-    state.seed_containers_mut().insert(
+    seed.containers_mut().insert(
         container_id.clone(),
         ContainerState::fixed_at_place(container_id.clone(), place_id),
     );
+    let mut state = seed.build();
     let mut registry = ActionRegistry::new();
     registry.register_phase1_movement_open_close();
     let mut log = EventLog::new();
@@ -1039,6 +1208,14 @@ fn accepted_action_appends_before_authoritative_apply() {
 }
 
 #[test]
+fn event_apply_remains_only_post_seed_mutation_path() {
+    // Smoke-only source scan paired with the runtime append-before-apply proof
+    // above and the negative fixture capability/seed-mutator checks.
+    no_direct_apply_event_outside_event_replay_or_pipeline();
+    accepted_action_appends_before_authoritative_apply();
+}
+
+#[test]
 fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
     let scheduler = production(SCHEDULER_RS);
     for forbidden in [
@@ -1050,14 +1227,14 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
         "current_hunger",
         "current_fatigue",
     ] {
-        assert_absent(scheduler, forbidden);
+        assert_absent(&scheduler, forbidden);
     }
 }
 
 #[test]
 fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
     let scheduler = production(SCHEDULER_RS);
-    assert_absent(scheduler, "EpistemicProjection::new");
+    assert_absent(&scheduler, "EpistemicProjection::new");
     assert!(
         scheduler.contains("build_actor_known_planning_state_with_projection_limitation"),
         "no-human cognition must use the typed projection-limitation boundary"
@@ -1077,7 +1254,7 @@ fn guard_006_scheduler_has_no_routine_family_to_primitive_dispatch() {
         "ActionId::new(\"sleep\")",
         "ActionId::new(\"work_block\")",
     ] {
-        assert_absent(scheduler, forbidden);
+        assert_absent(&scheduler, forbidden);
     }
 }
 
@@ -1088,10 +1265,10 @@ fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_par
         production(SLEEP_RS),
         production(WORK_RS),
     ] {
-        assert_absent(source, "parameters.get(\"current_hunger\")");
-        assert_absent(source, "parameters.get(\"current_fatigue\")");
-        assert_absent(source, "parameters[\"current_hunger\"]");
-        assert_absent(source, "parameters[\"current_fatigue\"]");
+        assert_absent(&source, "parameters.get(\"current_hunger\")");
+        assert_absent(&source, "parameters.get(\"current_fatigue\")");
+        assert_absent(&source, "parameters[\"current_hunger\"]");
+        assert_absent(&source, "parameters[\"current_fatigue\"]");
     }
     assert!(
         production(WORK_RS).contains("need_value(agent_state"),
@@ -1317,19 +1494,14 @@ fn checksum_coverage_is_total_for_authoritative_state() {
         AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
     };
 
-    let physical_fields = state_struct_fields("PhysicalState");
-    let agent_fields = state_struct_fields("AgentState");
     let physical_coverage = PHYSICAL_STATE_CHECKSUM_COVERAGE
         .iter()
-        .map(|entry| entry.field_name.to_string())
+        .map(|entry| (entry.field_name, entry.field_family))
         .collect::<Vec<_>>();
     let agent_coverage = AGENT_STATE_CHECKSUM_COVERAGE
         .iter()
-        .map(|entry| entry.field_name.to_string())
+        .map(|entry| (entry.field_name, entry.field_family))
         .collect::<Vec<_>>();
-
-    assert_eq!(physical_coverage, physical_fields);
-    assert_eq!(agent_coverage, agent_fields);
 
     for entry in PHYSICAL_STATE_CHECKSUM_COVERAGE
         .iter()
@@ -1342,9 +1514,74 @@ fn checksum_coverage_is_total_for_authoritative_state() {
         );
     }
 
-    let synthetic_omission_pattern =
-        "Adding `pub(crate) new_field:` to PhysicalState or AgentState must fail this test until a matching checksum coverage entry and serializer branch are added.";
-    assert!(synthetic_omission_pattern.contains("must fail this test"));
+    let errors = checksum_parity_errors(STATE_RS, CHECKSUM_RS, &physical_coverage, &agent_coverage);
+    assert!(
+        errors.is_empty(),
+        "checksum field/registry/canonical parity errors:\n{}",
+        errors.join("\n")
+    );
+}
+
+#[test]
+fn new_authoritative_field_without_checksum_registry_fails() {
+    let state_source = r#"
+pub struct PhysicalState {
+    pub(crate) actors: BTreeMap<ActorId, ActorBody>,
+    pub(crate) places: BTreeMap<PlaceId, PlaceState>,
+}
+
+pub struct AgentState {
+    pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+}
+"#;
+    let checksum_source = r#"
+lines.push(format!("actor|id={}", actor_id.as_str()));
+lines.push(format!("need|actor={}", actor_id.as_str()));
+"#;
+
+    let errors = checksum_parity_errors(
+        state_source,
+        checksum_source,
+        &[("actors", "actor")],
+        &[("needs_by_actor", "need")],
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("PhysicalState") && error.contains("places")),
+        "expected missing PhysicalState.places registry coverage, got {errors:?}"
+    );
+}
+
+#[test]
+fn new_authoritative_field_without_canonical_checksum_line_fails() {
+    let state_source = r#"
+pub struct PhysicalState {
+    pub(crate) actors: BTreeMap<ActorId, ActorBody>,
+    pub(crate) places: BTreeMap<PlaceId, PlaceState>,
+}
+
+pub struct AgentState {
+    pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+}
+"#;
+    let checksum_source = r#"
+lines.push(format!("actor|id={}", actor_id.as_str()));
+lines.push(format!("need|actor={}", actor_id.as_str()));
+"#;
+
+    let errors = checksum_parity_errors(
+        state_source,
+        checksum_source,
+        &[("actors", "actor"), ("places", "place")],
+        &[("needs_by_actor", "need")],
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("PhysicalState.places") && error.contains("place|")),
+        "expected missing PhysicalState.places canonical line, got {errors:?}"
+    );
 }
 
 #[test]
@@ -1362,6 +1599,8 @@ fn guard_001_no_production_seed_mutation_outside_state_definition() {
 
 #[test]
 fn guard_001_no_direct_state_collection_insert_outside_event_application() {
+    // Smoke-only source scan: direct mutation is primarily blocked by private
+    // fields, private mutation capabilities, and compile-fail fixtures.
     let forbidden_writes = [
         ".actors.insert",
         ".places.insert",
@@ -1390,7 +1629,7 @@ fn guard_001_no_direct_state_collection_insert_outside_event_application() {
 #[test]
 fn guard_001_actor_known_context_has_no_public_arbitrary_constructor() {
     let actor_known = production(ACTOR_KNOWN_RS);
-    assert_absent(actor_known, "pub fn from_observed_parts");
+    assert_absent(&actor_known, "pub fn from_observed_parts");
     assert!(
         actor_known.contains("pub(crate) fn from_observed_parts"),
         "observed-parts constructor must stay crate-private"

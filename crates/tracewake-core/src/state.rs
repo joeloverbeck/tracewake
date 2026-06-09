@@ -187,34 +187,6 @@ impl PhysicalState {
     pub fn workplaces(&self) -> &BTreeMap<WorkplaceId, WorkplaceState> {
         &self.workplaces
     }
-
-    pub fn seed_actors_mut(&mut self) -> &mut BTreeMap<ActorId, ActorBody> {
-        &mut self.actors
-    }
-
-    pub fn seed_places_mut(&mut self) -> &mut BTreeMap<PlaceId, PlaceState> {
-        &mut self.places
-    }
-
-    pub fn seed_doors_mut(&mut self) -> &mut BTreeMap<DoorId, DoorState> {
-        &mut self.doors
-    }
-
-    pub fn seed_containers_mut(&mut self) -> &mut BTreeMap<ContainerId, ContainerState> {
-        &mut self.containers
-    }
-
-    pub fn seed_items_mut(&mut self) -> &mut BTreeMap<ItemId, ItemState> {
-        &mut self.items
-    }
-
-    pub fn seed_food_supplies_mut(&mut self) -> &mut BTreeMap<FoodSupplyId, FoodSupplyState> {
-        &mut self.food_supplies
-    }
-
-    pub fn seed_workplaces_mut(&mut self) -> &mut BTreeMap<WorkplaceId, WorkplaceState> {
-        &mut self.workplaces
-    }
 }
 
 impl AgentState {
@@ -258,38 +230,6 @@ impl AgentState {
 
     pub fn stuck_diagnostics(&self) -> &BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
         &self.stuck_diagnostics
-    }
-
-    pub fn seed_needs_by_actor_mut(
-        &mut self,
-    ) -> &mut BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
-        &mut self.needs_by_actor
-    }
-
-    pub fn seed_intentions_mut(&mut self) -> &mut BTreeMap<IntentionId, Intention> {
-        &mut self.intentions
-    }
-
-    pub fn seed_active_intention_by_actor_mut(&mut self) -> &mut BTreeMap<ActorId, IntentionId> {
-        &mut self.active_intention_by_actor
-    }
-
-    pub fn seed_routine_executions_mut(
-        &mut self,
-    ) -> &mut BTreeMap<RoutineExecutionId, RoutineExecution> {
-        &mut self.routine_executions
-    }
-
-    pub fn seed_decision_traces_mut(
-        &mut self,
-    ) -> &mut BTreeMap<DecisionTraceId, DecisionTraceRecord> {
-        &mut self.decision_traces
-    }
-
-    pub fn seed_stuck_diagnostics_mut(
-        &mut self,
-    ) -> &mut BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
-        &mut self.stuck_diagnostics
     }
 }
 

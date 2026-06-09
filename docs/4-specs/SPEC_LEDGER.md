@@ -28,6 +28,10 @@ A spec may operationalize higher-tier doctrine. It may not amend constitutional 
 |---|---|---|---|---|
 | `0001` | `0001_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md` | Live first-proof ontology and fixture contract, realigned after the upper-tier overhaul. | `P0-CERT not applicable` | Documentation-only realignment. It preserves the implemented village/fixture contract surface and cross-references gates without defining them. |
 
+## Live review-artifact template
+
+The live tier also carries `0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` (indexed in `README.md`) — a scoped review-artifact template for the archived `archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` remediation. It is a review template, not a spec package, so it is not listed in the Active specs table above; it defines no doctrine and certifies nothing on its own.
+
 ## Removed live companions
 
 The previous live-tier companion-amendment material was removed rather than retained because the completed upper-tier overhaul falsified its main conclusion. The research notes were likewise removed because they were stale provenance for that obsolete conclusion; useful doctrine now lives in the higher tiers and reference layer.
@@ -49,6 +53,7 @@ Archived specs remain history. They may explain why the upper-tier overhaul happ
 | `archive/specs/0008_PHASE_3A_ANTI_CONTAMINATION_HARDENING_SPEC.md` | Exposed anti-contamination problems around actor-known transaction shape, planner inputs, forged/stale proposal parameters, marker actions, friendly tests, and overclaiming docs. | Landed historically; not live doctrine where it conflicts with the realigned spine. |
 | `archive/specs/0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md` | Scoped TUI proof-surface hardening remediation across sealed context, proposal source validation, debug quarantine, typed diagnostics, transcript/replay, positive proof artifacts, and adversarial gates. | Accepted for the audited TUI seam at `a906a70`; not full-project certification. |
 | `archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` | Scoped Phase 1 / Phase 1A spine remediation across state mutation sealing, event/replay/checksum totality, nondeterminism gates, scheduler/action pipeline hardening, content validation, TUI seam re-verification, doc linting, and named conformance indices. | Accepted for the remediation commits ending at `2a37b04`; not full-project certification. |
+| `archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md` | Scoped Phase 1 / Phase 1A third-hardening remediation across negative fixtures, invariant coverage, conformance evidence kinds, checksum/replay/schema/content/debug gates, CI lock-layer coverage, and exact-commit acceptance wording. | Accepted for the remediation commits ending at `3ac63bd`; not full-project certification and not latest-main certification. |
 
 ## Next known execution move
 

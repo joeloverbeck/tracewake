@@ -42,6 +42,12 @@ pub fn apply_event_stream(
     context: &mut EventApplicationContext<'_>,
     event: &EventEnvelope,
 ) -> Result<ApplyOutcome, EventApplicationError> {
+    if event.stream != event.event_type.stream() {
+        return Err(EventApplicationError::World(
+            ApplyError::EventKindStreamMismatch,
+        ));
+    }
+
     match event.stream {
         EventStream::World => {
             apply_event(context.physical_state, event).map_err(EventApplicationError::World)

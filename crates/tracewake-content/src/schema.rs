@@ -21,6 +21,195 @@ use tracewake_core::state::{
 };
 use tracewake_core::time::SimTick;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ValidationPhase {
+    ParseSchema = 1,
+    Canonicalization = 2,
+    Id = 3,
+    Referential = 4,
+    Location = 5,
+    PhysicalTopology = 6,
+    State = 7,
+    ActionRegistryParity = 8,
+    SemanticView = 9,
+    NoPlayer = 10,
+    NoScript = 11,
+    EpistemicSeed = 12,
+    DeterminismHazard = 13,
+    FixtureContract = 14,
+    Serialization = 15,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ForbiddenConstructPolicy {
+    StableIdentity,
+    TypedPhysicalState,
+    TypedAffordance,
+    ActorKnownProvenance,
+    TypedNeedSeed,
+    TypedRoutineContext,
+    TypedResourceState,
+    NoAuthoredOutcomeChain,
+    TypedSchedule,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContentFieldRegistration {
+    pub schema_field: &'static str,
+    pub canonical_serialization_key: &'static str,
+    pub validation_phase: ValidationPhase,
+    pub forbidden_construct_policy: ForbiddenConstructPolicy,
+    pub diagnostic_code: &'static str,
+}
+
+pub const CONTENT_FIELD_REGISTRY: &[ContentFieldRegistration] = &[
+    ContentFieldRegistration {
+        schema_field: "fixture_id",
+        canonical_serialization_key: "fixture",
+        validation_phase: ValidationPhase::Id,
+        forbidden_construct_policy: ForbiddenConstructPolicy::StableIdentity,
+        diagnostic_code: "missing_stable_id",
+    },
+    ContentFieldRegistration {
+        schema_field: "schema_version",
+        canonical_serialization_key: "schema",
+        validation_phase: ValidationPhase::ParseSchema,
+        forbidden_construct_policy: ForbiddenConstructPolicy::StableIdentity,
+        diagnostic_code: "missing_field",
+    },
+    ContentFieldRegistration {
+        schema_field: "actors",
+        canonical_serialization_key: "actor",
+        validation_phase: ValidationPhase::Referential,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedPhysicalState,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "places",
+        canonical_serialization_key: "place",
+        validation_phase: ValidationPhase::PhysicalTopology,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedPhysicalState,
+        diagnostic_code: "door_adjacency_inconsistency",
+    },
+    ContentFieldRegistration {
+        schema_field: "doors",
+        canonical_serialization_key: "door",
+        validation_phase: ValidationPhase::State,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedPhysicalState,
+        diagnostic_code: "locked_open_state",
+    },
+    ContentFieldRegistration {
+        schema_field: "containers",
+        canonical_serialization_key: "container",
+        validation_phase: ValidationPhase::Location,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedPhysicalState,
+        diagnostic_code: "container_item_mismatch",
+    },
+    ContentFieldRegistration {
+        schema_field: "items",
+        canonical_serialization_key: "item",
+        validation_phase: ValidationPhase::Location,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedPhysicalState,
+        diagnostic_code: "container_item_mismatch",
+    },
+    ContentFieldRegistration {
+        schema_field: "affordances",
+        canonical_serialization_key: "affordance",
+        validation_phase: ValidationPhase::ActionRegistryParity,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedAffordance,
+        diagnostic_code: "unknown_action",
+    },
+    ContentFieldRegistration {
+        schema_field: "initial_beliefs",
+        canonical_serialization_key: "initial_belief",
+        validation_phase: ValidationPhase::EpistemicSeed,
+        forbidden_construct_policy: ForbiddenConstructPolicy::ActorKnownProvenance,
+        diagnostic_code: "unsupported_source_kind",
+    },
+    ContentFieldRegistration {
+        schema_field: "initial_needs",
+        canonical_serialization_key: "initial_need",
+        validation_phase: ValidationPhase::State,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedNeedSeed,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "homes",
+        canonical_serialization_key: "home",
+        validation_phase: ValidationPhase::Referential,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedRoutineContext,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "sleep_places",
+        canonical_serialization_key: "sleep_place",
+        validation_phase: ValidationPhase::Referential,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedRoutineContext,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "food_supplies",
+        canonical_serialization_key: "food_supply",
+        validation_phase: ValidationPhase::Referential,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedResourceState,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "workplaces",
+        canonical_serialization_key: "workplace",
+        validation_phase: ValidationPhase::Referential,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedResourceState,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
+        schema_field: "routine_templates",
+        canonical_serialization_key: "routine_template",
+        validation_phase: ValidationPhase::NoScript,
+        forbidden_construct_policy: ForbiddenConstructPolicy::NoAuthoredOutcomeChain,
+        diagnostic_code: "authored_outcome_chain",
+    },
+    ContentFieldRegistration {
+        schema_field: "routine_assignments",
+        canonical_serialization_key: "routine_assignment",
+        validation_phase: ValidationPhase::State,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedSchedule,
+        diagnostic_code: "bad_tick_order",
+    },
+    ContentFieldRegistration {
+        schema_field: "day_windows",
+        canonical_serialization_key: "day_window",
+        validation_phase: ValidationPhase::State,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedSchedule,
+        diagnostic_code: "bad_tick_order",
+    },
+];
+
+pub fn content_field_registry() -> &'static [ContentFieldRegistration] {
+    CONTENT_FIELD_REGISTRY
+}
+
+pub fn content_field_by_schema_field(
+    schema_field: &str,
+) -> Option<&'static ContentFieldRegistration> {
+    CONTENT_FIELD_REGISTRY
+        .iter()
+        .find(|registration| registration.schema_field == schema_field)
+}
+
+pub fn content_field_by_canonical_key(
+    canonical_key: &str,
+) -> Option<&'static ContentFieldRegistration> {
+    CONTENT_FIELD_REGISTRY
+        .iter()
+        .find(|registration| registration.canonical_serialization_key == canonical_key)
+}
+
+pub fn canonical_key_for_schema_field(schema_field: &str) -> &'static str {
+    content_field_by_schema_field(schema_field)
+        .unwrap_or_else(|| panic!("FixtureSchema field {schema_field} must be registered"))
+        .canonical_serialization_key
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FixtureSchema {
     pub fixture_id: FixtureId,
