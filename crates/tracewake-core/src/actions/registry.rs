@@ -80,6 +80,13 @@ impl ActionRegistry {
         }
     }
 
+    pub fn new_with_active_scopes(scopes: impl IntoIterator<Item = ActionScope>) -> Self {
+        Self {
+            definitions: BTreeMap::new(),
+            active_scopes: scopes.into_iter().collect(),
+        }
+    }
+
     pub fn register(&mut self, definition: ActionDefinition) {
         self.definitions
             .insert(definition.action_id.clone(), definition);

@@ -1,6 +1,6 @@
 # 0005PHA1DOCCOD-004: Make the pipeline phase-boundary guard reachable and typed-covered
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` pipeline phase-boundary stage and its conformance/acceptance coverage (and `report.rs` only if a new reason code is needed).
@@ -74,3 +74,26 @@ In `crates/tracewake-core/tests/spine_conformance.rs` or `crates/tracewake-core/
 
 1. `cargo test --locked -p tracewake-core --test spine_conformance`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+Changes:
+
+1. Added `ActionRegistry::new_with_active_scopes(...)` so tests and internal callers can construct a registry whose active phase scopes are narrower than the registered action definitions.
+2. Added `out_of_active_scope_action_rejects_at_phase_boundary` in `crates/tracewake-core/tests/acceptance_gates.rs`, registering `check_container` while activating only `ActionScope::Phase1`.
+3. Asserted the rejection is typed as `PipelineStage::PhaseBoundaryValidation` with `ReasonCode::PhaseUnsupportedAction`, and that the rejected action appends only an `ActionRejected` event.
+
+Deviations:
+
+1. The guard was covered in `acceptance_gates.rs` rather than `spine_conformance.rs` because the former already owns end-to-end pipeline acceptance behavior.
+2. No new reason code was required; the existing `ReasonCode::PhaseUnsupportedAction` matched the contract.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test --locked -p tracewake-core --test acceptance_gates`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`
