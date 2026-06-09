@@ -1,5 +1,7 @@
 mod support;
 
+use std::collections::BTreeSet;
+
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
@@ -238,6 +240,60 @@ fn non_world_event_cannot_change_physical_checksum() {
     assert_eq!(replay.event_count_applied, 0);
     assert_eq!(replay.final_checksum, before);
     assert!(replay.state_diff.is_empty());
+}
+
+#[test]
+fn every_epistemic_event_kind_is_registered_and_replay_routed() {
+    let epistemic_kinds = EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.stream() == EventStream::Epistemic)
+        .collect::<BTreeSet<_>>();
+    let registered_epistemic_kinds = EventKind::registry()
+        .into_iter()
+        .filter(|metadata| metadata.stream == EventStream::Epistemic)
+        .map(|metadata| metadata.kind)
+        .collect::<BTreeSet<_>>();
+
+    assert_eq!(epistemic_kinds, registered_epistemic_kinds);
+    assert!(!epistemic_kinds.is_empty());
+    for kind in epistemic_kinds {
+        let metadata = kind.metadata();
+        assert_eq!(metadata.stream, EventStream::Epistemic);
+        assert_eq!(metadata.kind.stream(), EventStream::Epistemic);
+        assert!(!metadata.physical_mutating);
+        assert!(!kind.stable_id().is_empty());
+    }
+}
+
+#[test]
+fn unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied() {
+    let initial_world = world_state();
+    let initial_agent_state = agent_state();
+    let mut log = EventLog::new();
+    let mut bad_payload = event(
+        "event_bad_epistemic_payload_schema",
+        EventKind::BeliefUpdated,
+        0,
+    );
+    bad_payload.payload = vec![PayloadField::new("schema_version", "event_schema_v999")];
+    append_to_log(&mut log, bad_payload);
+
+    let context = checksum_context("unsupported_epistemic_payload_schema_replay", &log);
+    let replay = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&initial_world),
+    );
+
+    assert!(replay.final_epistemic_projection.is_empty());
+    assert_eq!(replay.event_count_applied, 0);
+    assert!(replay
+        .epistemic_application_errors
+        .iter()
+        .any(|error| error.contains("UnsupportedPayloadSchemaVersion")));
 }
 
 #[test]

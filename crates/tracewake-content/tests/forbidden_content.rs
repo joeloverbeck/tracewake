@@ -100,7 +100,7 @@ fn forbidden_content_quest_reward_player_and_script_constructs_are_blocking_erro
 
 #[test]
 fn forbidden_content_shortcut_truth_fields_are_blocking_errors() {
-    let raw = b"fixture|bad_fixture\nschema|schema_v1\nculprit|actor_mara\ntrue_culprit|actor_mara\nstolen_flag|true\nnpc_knows_truth|actor_elena\nknows_mara_did_it|actor_tomas\nquest_state|solved\nplayer_memory|coin";
+    let raw = b"fixture|bad_fixture\nschema|schema_v1\nculprit|actor_mara\ntrue_culprit|actor_mara\nstolen_flag|true\nnpc_knows_truth|actor_elena\nknows_mara_did_it|actor_tomas\nquest_state|solved\nplayer_memory|coin\ntruth_alias|actor_mara\nnested_culprit_hint|actor_mara\nrenamed_stolen_state|true";
     let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
 
     for forbidden in [
@@ -111,6 +111,9 @@ fn forbidden_content_shortcut_truth_fields_are_blocking_errors() {
         "knows_mara_did_it",
         "quest_state",
         "player_memory",
+        "truth_alias",
+        "nested_culprit_hint",
+        "renamed_stolen_state",
     ] {
         assert!(
             report

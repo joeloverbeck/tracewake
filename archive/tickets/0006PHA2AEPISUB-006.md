@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-006: Extend replay/event-schema/fixture/TUI adversarial epistemic tests
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — extends existing event-schema/replay gates, TUI adversarial gates, content forbidden/provenance tests, and epistemic golden fixtures with adversarial coverage. No production logic.
@@ -85,3 +85,25 @@ Extend `crates/tracewake-content/tests/forbidden_content.rs` and the relevant ep
 1. `cargo test -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test -p tracewake-tui --test adversarial_gates && cargo test -p tracewake-content --test forbidden_content`
 3. `cargo test --workspace` — full-pipeline confirmation.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Extended `event_schema_replay_gates` with dynamic epistemic event-kind registry/stream coverage and unsupported epistemic payload-schema replay rejection.
+- Strengthened TUI adversarial gates so actor-facing view/notebook/why-not surfaces reject debug markers, debug provenance strings, and prior-actor belief identifiers after possession rebinding.
+- Extended content shortcut-truth rejection with nested/renamed/alias keys and added those aliases to the existing forbidden script-key list.
+
+Deviations from original plan:
+- No fixture files needed changes; the existing validation and TUI fixtures carried the new cases.
+- The content alias rejection required a small validation allowlist hardening, not only test assertions.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --test event_schema_replay_gates`
+- `cargo test -p tracewake-tui --test adversarial_gates`
+- `cargo test -p tracewake-content --test forbidden_content`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
