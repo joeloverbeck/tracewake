@@ -50,6 +50,13 @@ reports/<report> — <prior finding-set this target builds on>.
 archive/specs/<spec> — <completed work that established the current state>.
 ```
 
+**Boundary-awareness reads.** When the target mandates reading a whole tier (the user says "read all of
+`docs/0-foundation/*`"), or when a scoped audit must read adjacent docs *only* to know what is **out** of
+scope, mark those entries as *boundary-awareness (read to bound scope, not a conformance target)* — distinct
+from *primary (load-bearing)* entries. This keeps §2 useful at high file counts and stops Session 2 from
+auditing or "correcting" code the scope intentions exclude. Call out the primary entries in each tier
+explicitly; list the rest grouped, with the boundary-awareness purpose stated once per tier.
+
 ### 3. Settled intentions
 
 The decisions the interview resolved — the heart of why Session 2 is *locked*. State each
@@ -103,10 +110,16 @@ Exactly what Session 2 outputs — leave no ambiguity:
   collide with an archived staging filename (e.g. a strict "next free live number" of
   `0002` would clash with an archived `0002_*` staging file). When the live-ledger number
   and the staging-sequence number diverge, do not assert the live number — continue the
-  visible staging sequence (next number after the highest archived/staged filename) and
-  carry the choice as a labeled `assumption:` line, or surface it as a bounded interview
-  question. Carry any residual placement ambiguity (`specs/` staging vs. final
-  `docs/4-specs/`) as a labeled `assumption:` line rather than asserting it;
+  visible staging sequence and carry the choice as a labeled `assumption:` line, or surface
+  it as a bounded interview question. **Identify the *current* staging epoch first:** a repo
+  may have restarted numbering, so `archive/specs/` can hold two overlapping series (e.g. an
+  older `0002…0008` and a newer `0002 → 0004` re-hardening epoch). Continue the **most recent
+  contiguous series** — cross-checked against the recent `SPEC_LEDGER.md` entries — *not* the
+  global-max filename; the next number is the one after the highest filename **in that current
+  epoch** (e.g. `0005` after a `0002 → 0004` epoch, even though an older `0008` exists).
+  Overlapping archived numbers from an earlier epoch are expected and do not block. Carry any
+  residual placement ambiguity (`specs/` staging vs. final `docs/4-specs/`) as a labeled
+  `assumption:` line rather than asserting it;
 - the **locked / no-questions** instruction, verbatim intent:
 
 > Produce the deliverables directly as downloadable markdown documents. Do not interview,
