@@ -1,6 +1,6 @@
 # 0005PHA1DOCCOD-005: Source-level regression guard — Phase 1 loader cannot register later-phase action families
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` anti-regression / negative-fixture guard coverage (defense-in-depth source guard).
@@ -76,3 +76,27 @@ Add a negative fixture / mutation case (in `crates/tracewake-core/tests/negative
 
 1. `cargo test --locked -p tracewake-core --test anti_regression_guards && cargo test --locked -p tracewake-core --test negative_fixture_runner`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+Changes:
+
+1. Added a source-level Phase 1 loader guard in `crates/tracewake-core/tests/anti_regression_guards.rs` that scans the content loader and fails if `load_fixture_package` or the `FixtureScope::Phase1` arm directly calls later-phase registration functions.
+2. Kept the generic-constructor guard explicit by asserting `ActionDefinition` constructors do not hard-code `ActionScope::Phase1`.
+3. Added mutation self-coverage in both `anti_regression_guards.rs` and `negative_fixture_runner.rs`, feeding the scanner a deliberately bad Phase 1 loader snippet and asserting the guard fires.
+
+Deviations:
+
+1. The self-coverage uses an in-memory mutated loader fixture rather than a new standalone Cargo negative fixture, matching the repo's existing source-scan guard style while still proving the guard fails on the targeted mutation.
+2. The guard is explicitly documented in its assertion as secondary to `ActionScope`/`FixtureScope` typing, not as the primary enforcement mechanism.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-core --test anti_regression_guards`
+2. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`

@@ -18,6 +18,7 @@ const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 
 struct BannedApiToken {
@@ -118,6 +119,16 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
     },
 ];
 
+const LATER_PHASE_REGISTRATION_CALLS: &[&str] = &[
+    "register_phase2a_",
+    "register_phase3a_",
+    "register_phase2a_epistemics",
+    "register_phase3a_sleep",
+    "register_phase3a_eat",
+    "register_phase3a_work",
+    "register_phase3a_continue_routine",
+];
+
 fn production(source: &str) -> String {
     let mut output = String::new();
     let lines = source.lines().collect::<Vec<_>>();
@@ -166,6 +177,47 @@ fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
         !haystack.as_ref().contains(needle),
         "forbidden shortcut reintroduced: {needle}"
     );
+}
+
+fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
+    let after_marker = source
+        .split(marker)
+        .nth(1)
+        .unwrap_or_else(|| panic!("{marker} is present"));
+    let start = after_marker
+        .find('{')
+        .unwrap_or_else(|| panic!("{marker} body starts with an opening brace"));
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_marker[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    &after_marker[start..end.unwrap_or_else(|| panic!("{marker} body closes"))]
+}
+
+fn phase1_loader_later_phase_registration_violations(source: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+    let load_body = body_after_marker(source, "pub fn load_fixture_package");
+    let phase1_body = body_after_marker(source, "FixtureScope::Phase1 =>");
+    for token in LATER_PHASE_REGISTRATION_CALLS {
+        if load_body.contains(token) {
+            violations.push(format!("load_fixture_package directly calls {token}"));
+        }
+        if phase1_body.contains(token) {
+            violations.push(format!("FixtureScope::Phase1 arm calls {token}"));
+        }
+    }
+    violations
 }
 
 #[allow(
@@ -1759,4 +1811,36 @@ fn guard_008_action_registry_uses_typed_scopes_not_phase1_boolean() {
         );
     }
     assert_eq!(registry.definitions().count(), expected.len());
+}
+
+#[test]
+fn guard_008_phase1_loader_does_not_register_later_phase_actions() {
+    let load_source = production(CONTENT_LOAD_RS);
+    let violations = phase1_loader_later_phase_registration_violations(&load_source);
+    assert!(
+        violations.is_empty(),
+        "Phase 1 fixture loading must not directly register later-phase actions; this source guard is secondary to ActionScope/FixtureScope typing. Violations: {violations:?}"
+    );
+
+    let registry_source = production(ACTIONS_REGISTRY_RS);
+    assert!(
+        !registry_source.contains("scope: ActionScope::Phase1"),
+        "generic action constructors must not hard-code Phase1 scope for later-phase registrations"
+    );
+}
+
+#[test]
+fn guard_008_phase1_loader_source_guard_has_mutation_self_coverage() {
+    let mut mutated = CONTENT_LOAD_RS.to_string();
+    mutated = mutated.replace(
+        "FixtureScope::Phase1 => {}",
+        "FixtureScope::Phase1 => { registry.register_phase2a_epistemics(); }",
+    );
+    let violations = phase1_loader_later_phase_registration_violations(&mutated);
+    assert!(
+        violations
+            .iter()
+            .any(|violation| violation.contains("FixtureScope::Phase1 arm calls")),
+        "source guard must fail on a deliberate Phase 1 later-phase registration mutation"
+    );
 }
