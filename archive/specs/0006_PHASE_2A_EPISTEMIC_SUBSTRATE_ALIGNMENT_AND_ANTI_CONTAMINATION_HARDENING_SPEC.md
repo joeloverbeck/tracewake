@@ -1,7 +1,8 @@
 # 0006 Phase 2A Epistemic Substrate Alignment and Anti-Contamination Hardening Spec
 
+- **Status:** ✅ COMPLETED
 - **Intended staging path:** `specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
-- **Final home after acceptance:** `docs/4-specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+- **Final home after acceptance:** `archive/specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
 - **Requested repository:** `joeloverbeck/tracewake`
 - **Analyzed commit:** `4c4dfff83aae01006e6a3b653a3248179e0f9b25`
 - **Execution admissibility posture:** `P0-CERT scoped remediation`
@@ -403,3 +404,31 @@ These are not in-scope acceptance requirements for this spec, but they would red
 - Each material finding has code-yields corrective direction and a structural lock.
 - No upstream doc amendment is required.
 - The acceptance wording contributes scoped evidence toward `EPI-CERT`/`P0-CERT` and does not overclaim certification.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Implemented and archived tickets `0006PHA2AEPISUB-001` through `0006PHA2AEPISUB-007`.
+- Sealed `KnowledgeContext` authority fields and capability-gated debug context construction.
+- Sealed `EpistemicProjection` raw storage, moved all-holder debug access behind core debug view builders, and preserved filtered actor-known APIs.
+- Sealed epistemic records and migrated content/event/TUI call sites to provenance-preserving builders and accessors.
+- Added compile-fail negative fixtures, epistemic source guards, raw-float/hash-ordering guards, replay/schema adversarial tests, content forbidden-alias tests, and TUI debug-quarantine adversarial tests.
+- Produced `reports/0006PHA2A_ACCEPTANCE_ARTIFACT.md` with scoped exact-commit wording for `9e0590d056b15d879ac02eb2556c855c080f27e4`.
+- Updated `docs/4-specs/SPEC_LEDGER.md` to record this spec as archived implementation history, not live doctrine.
+
+Deviations from original plan:
+- The final archive destination follows `docs/archival-workflow.md` and the ledger's archived implementation-spec pattern: `archive/specs/`, not the older staging-header path under `docs/4-specs/`.
+- Ticket `0006PHA2AEPISUB-004` added ten compile-fail fixtures, matching the enumerated sealing surfaces even though the ticket prose described the count as nine.
+- Ticket `0006PHA2AEPISUB-007` added a checked-in artifact assertion to `acceptance_artifact_wording` so the acceptance wording remains enforced after archival.
+
+Verification:
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `cargo test -p tracewake-core --test negative_fixture_runner --test hidden_truth_gates --test event_schema_replay_gates` — passed.
+- `cargo test -p tracewake-tui --test adversarial_gates` — passed.
+- `cargo test -p tracewake-content --test forbidden_content` — passed.
+- `cargo test -p tracewake-core --test acceptance_artifact_wording` — passed.

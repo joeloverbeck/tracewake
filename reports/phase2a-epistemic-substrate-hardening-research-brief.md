@@ -357,8 +357,9 @@ These decisions came out of a full repo-grounded interview. Treat them as commit
 9. **`assumption:`** the deliverable, if a spec, is staged as
    `specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md` (number chosen
    to continue the visible `0002 → 0003 → 0004 → 0005` staging epoch — the most recent contiguous series,
-   cross-checked against `SPEC_LEDGER.md`; the staging directory `specs/` is currently empty), with final home
-   `docs/4-specs/`. **Confirm the number and path against the live `SPEC_LEDGER.md` + `4-specs/README.md` at
+   cross-checked against `SPEC_LEDGER.md`; the staging directory `specs/` is currently empty), with accepted
+   implementation-spec home `archive/specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`.
+   **Confirm the number and path against the live `SPEC_LEDGER.md` + `4-specs/README.md` at
    the target commit and state your choice** — note that `archive/specs/` already contains a differently-scoped
    `0006_*` (Phase-3A) from the earlier epoch, so a same-number collision in the archive is expected by the
    staging→archive convention and is **not** a blocker. If the maintainer prefers a different number/name or to
@@ -472,7 +473,7 @@ alignment-correction + anti-contamination hardening spec**:
 
 - **Filename (assumption, confirm against the live ledger per §3.9):**
   `0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
-- **Intended path:** `specs/0006_…md` (staging), final home `docs/4-specs/`.
+- **Intended path:** `specs/0006_…md` (staging), accepted implementation-spec home `archive/specs/0006_…md`.
 - Minimum contents:
   1. **Header & baseline statement** — repository, analyzed commit
      `4c4dfff83aae01006e6a3b653a3248179e0f9b25`, the source-discipline note (manifest = path inventory;
