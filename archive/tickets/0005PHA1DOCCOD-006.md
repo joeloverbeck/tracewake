@@ -1,6 +1,6 @@
 # 0005PHA1DOCCOD-006: CI lock-layer wiring + ALIGN-001 acceptance capstone
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `.github/workflows/ci.yml` lock-layer job; no new production logic (acceptance capstone for the spec's §9 checklist).
@@ -73,3 +73,36 @@ Enumerate the spec §9 acceptance checklist as the ticket's acceptance criteria 
 
 1. `grep -nE "forbidden_content|schema_conformance|spine_conformance|anti_regression_guards|negative_fixture_runner" .github/workflows/ci.yml` — confirm the gate lines (or the documented `--workspace --locked` reliance).
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+Changes:
+
+1. Extended `.github/workflows/ci.yml` lock-layer gates with explicit named runs for:
+   - `cargo test --locked -p tracewake-core --test acceptance_gates`
+   - `cargo test --locked -p tracewake-content --test schema_conformance`
+2. Kept the existing named lock-layer runs for `negative_fixture_runner`, `spine_conformance`, `anti_regression_guards`, and `forbidden_content`, so the new ALIGN-001 gates are auditable independently of the workspace-wide test job.
+3. Recorded this ticket as the ALIGN-001 capstone evidence surface; no production logic changed.
+
+Acceptance evidence:
+
+1. `ALIGN-REQ-001`: PASS — `anti_regression_guards` proves typed `ActionScope` and no retired Phase 1 boolean.
+2. `ALIGN-REQ-002`: PASS — `schema_conformance`, `fixtures_load`, and `golden_fixtures_run` prove fixture scope representation and later-phase historical fixture routing.
+3. `ALIGN-REQ-003`: PASS — `forbidden_content` proves Phase 1 rejection of each later-phase action family and routine-step smuggling with typed diagnostics.
+4. `ALIGN-REQ-004`: PASS — `acceptance_gates` proves the phase-boundary pipeline guard reaches `PipelineStage::PhaseBoundaryValidation` with `ReasonCode::PhaseUnsupportedAction`.
+5. `ALIGN-REQ-005`: PASS — `.github/workflows/ci.yml` names the new/extended lock-layer suites on the pinned toolchain.
+6. `ALIGN-REQ-006`: PASS — `anti_regression_guards` and `negative_fixture_runner` prove the source-level loader-registration guard and mutation self-coverage.
+
+Scoped certification wording:
+
+Phase 1 / Phase 1A doc-code alignment scoped remediation accepted for the remediation commit produced by this ticket series. This contributes scoped evidence toward `P0-CERT`, `SPINE-CERT`, `EPI-CERT`, `FIXTURE`, and `DIAG`; it does not certify latest main, later-phase scope, or the full project.
+
+Verification:
+
+1. `grep -nE "forbidden_content|schema_conformance|spine_conformance|acceptance_gates|anti_regression_guards|negative_fixture_runner" .github/workflows/ci.yml`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`

@@ -80,10 +80,12 @@ jobs:
           cargo test --locked -p tracewake-core --test negative_fixture_runner
           cargo test --locked -p tracewake-core --test doc_invariant_references
           cargo test --locked -p tracewake-core --test spine_conformance
+          cargo test --locked -p tracewake-core --test acceptance_gates
           cargo test --locked -p tracewake-core --test anti_regression_guards
           cargo test --locked -p tracewake-core --test event_schema_replay_gates
           cargo test --locked -p tracewake-core --test hidden_truth_gates
           cargo test --locked -p tracewake-core --test acceptance_artifact_wording
+          cargo test --locked -p tracewake-content --test schema_conformance
           cargo test --locked -p tracewake-content --test forbidden_content
           cargo test --locked -p tracewake-tui --test adversarial_gates
           cargo test --locked -p tracewake-tui --test tui_seam_conformance
