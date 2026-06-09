@@ -5,6 +5,7 @@ pub fn container_item_move_001() -> GoldenFixture {
         fixture_id: fixture_id("container_item_move_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase1,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_mira", "workroom")],
         places: vec![place_schema("workroom", "Workroom", &[])],
         doors: Vec::new(),

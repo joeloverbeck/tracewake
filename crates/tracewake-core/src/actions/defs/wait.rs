@@ -80,7 +80,7 @@ pub fn build_wait_events(
         .get("reason")
         .cloned()
         .unwrap_or_else(|| "unspecified_wait".to_string());
-    let deltas = passive_awake_need_deltas(tick_count);
+    let deltas = passive_awake_need_deltas(state.need_model(), tick_count);
     let threshold_events = build_threshold_events(
         proposal,
         ordering_key,

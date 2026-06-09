@@ -5,6 +5,7 @@ pub fn no_human_observation_facts_cite_log_events_001() -> GoldenFixture {
         fixture_id: fixture_id("no_human_observation_facts_cite_log_events_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_bruno", "home_bruno")],
         places: vec![place_schema("home_bruno", "Bruno home", &[])],
         doors: Vec::new(),

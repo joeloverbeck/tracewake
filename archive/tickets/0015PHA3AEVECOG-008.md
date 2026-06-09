@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-008: Author ordinary-life tuning constants in content
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — content schema gains a need-model config block + SleepAffordance duration/recovery fields; core consumes authored values; kernel tuning constants removed; guard + golden-fixture updates
@@ -91,3 +91,30 @@ Guard banning integer need-delta/duration constants in `time.rs`/`actions/defs/`
 
 1. `cargo test -p tracewake-content schema:: validation:: && cargo test -p tracewake-core time:: actions::defs::sleep`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Added authored `need_model` content with passive awake hunger/fatigue rates and seeded it into `PhysicalState`.
+- Added authored sleep affordance duration/recovery fields to content schema, serialization, validation, fixtures, and `SleepAffordanceState`.
+- Rewired passive wait/no-human need deltas and sleep completion effects to consume seeded state values instead of kernel constants.
+- Removed the hardcoded ordinary-life tuning constants from `time.rs` and `actions/defs/sleep.rs`.
+- Added fail-closed parser tests for missing `need_model` and legacy `sleep_place` tuning fields, plus a core guard banning the removed constant names.
+
+Deviations from original plan:
+- The content schema enforces missing required fields through the canonical byte parser, while in-memory Rust fixtures enforce them through required struct fields.
+- A small scheduler context struct was added to keep the passive-need helper under the existing clippy argument-count lint after it began reading authored state.
+
+Verification:
+- `cargo test -p tracewake-core actions::defs::sleep --lib`
+- `cargo test -p tracewake-core time:: --lib`
+- `cargo test -p tracewake-core guard_015_ordinary_life_tuning_comes_from_authored_state --test anti_regression_guards`
+- `cargo test -p tracewake-content --test fixtures_load`
+- `cargo test -p tracewake-content`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

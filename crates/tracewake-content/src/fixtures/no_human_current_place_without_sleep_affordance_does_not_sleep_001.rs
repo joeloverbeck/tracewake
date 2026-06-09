@@ -7,6 +7,7 @@ pub fn no_human_current_place_without_sleep_affordance_does_not_sleep_001() -> G
         ),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_elena", "home_elena")],
         places: vec![place_schema("home_elena", "Elena home", &[])],
         doors: Vec::new(),

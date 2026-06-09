@@ -1,6 +1,7 @@
 use crate::agent::NeedKind;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, ProcessId};
+use crate::state::NeedModelState;
 use crate::time::{passive_awake_need_deltas, SimTick};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -92,13 +93,14 @@ pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
 }
 
 pub fn build_passive_need_delta_events(
+    need_model: &NeedModelState,
     actor_ids: impl IntoIterator<Item = ActorId>,
     process_id: &ProcessId,
     start_tick: SimTick,
     elapsed_ticks: u64,
     content_manifest_id: &ContentManifestId,
 ) -> Vec<EventEnvelope> {
-    let deltas = passive_awake_need_deltas(elapsed_ticks);
+    let deltas = passive_awake_need_deltas(need_model, elapsed_ticks);
     actor_ids
         .into_iter()
         .flat_map(|actor_id| {
@@ -351,14 +353,18 @@ pub mod no_human {
                     .start_tick
                     .value()
                     .saturating_sub(previous_decision_tick.value());
-                append_passive_need_events_before_decision(
-                    log,
-                    agent_state,
-                    &process_id,
+                let passive_context = PassiveNeedDecisionContext {
+                    process_id: &process_id,
                     actor_id,
                     window,
+                    content_manifest_id: &content_manifest_id,
+                };
+                append_passive_need_events_before_decision(
+                    state,
+                    log,
+                    agent_state,
+                    &passive_context,
                     elapsed_ticks,
-                    &content_manifest_id,
                 );
                 last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
                 append_due_completions(
@@ -1037,26 +1043,31 @@ pub mod no_human {
         event
     }
 
+    struct PassiveNeedDecisionContext<'a> {
+        process_id: &'a ProcessId,
+        actor_id: &'a ActorId,
+        window: &'a DayWindow,
+        content_manifest_id: &'a ContentManifestId,
+    }
+
     fn append_passive_need_events_before_decision(
+        state: &PhysicalState,
         log: &mut EventLog,
         agent_state: &mut AgentState,
-        process_id: &ProcessId,
-        actor_id: &ActorId,
-        window: &DayWindow,
+        context: &PassiveNeedDecisionContext<'_>,
         elapsed_ticks: u64,
-        content_manifest_id: &ContentManifestId,
     ) {
         if elapsed_ticks == 0 {
             return;
         }
-        let deltas = crate::time::passive_awake_need_deltas(elapsed_ticks);
+        let deltas = crate::time::passive_awake_need_deltas(state.need_model(), elapsed_ticks);
         for (need_kind, delta) in [
             (NeedKind::Hunger, deltas.hunger_delta),
             (NeedKind::Fatigue, deltas.fatigue_delta),
         ] {
             let Some(current_value) = agent_state
                 .needs_by_actor
-                .get(actor_id)
+                .get(context.actor_id)
                 .and_then(|needs| needs.get(&need_kind))
                 .map(NeedState::value)
             else {
@@ -1068,26 +1079,27 @@ pub mod no_human {
                 log,
                 agent_state,
                 build_window_passive_need_delta_event(
-                    process_id,
-                    actor_id,
-                    window,
-                    content_manifest_id,
+                    context.process_id,
+                    context.actor_id,
+                    context.window,
+                    context.content_manifest_id,
                     need_kind,
                     delta,
                     elapsed_ticks,
                 ),
             );
             if let Some(crossing) = crossing {
-                let has_active_intention =
-                    agent_state.active_intention_by_actor.contains_key(actor_id);
+                let has_active_intention = agent_state
+                    .active_intention_by_actor
+                    .contains_key(context.actor_id);
                 append_and_apply_agent_event(
                     log,
                     agent_state,
                     build_window_need_threshold_event(
-                        process_id,
-                        actor_id,
-                        window,
-                        content_manifest_id,
+                        context.process_id,
+                        context.actor_id,
+                        context.window,
+                        context.content_manifest_id,
                         &delta_event.event_id,
                         need_kind,
                         current_value,
@@ -3224,8 +3236,10 @@ mod tests {
     fn passive_need_delta_emission_is_deterministic_over_advancement() {
         let process = process_id("ambient_tick");
         let actors = vec![actor_id("actor_mara"), actor_id("actor_tomas")];
+        let need_model = NeedModelState::default();
 
         let first = build_passive_need_delta_events(
+            &need_model,
             actors.clone(),
             &process,
             SimTick::new(4),
@@ -3233,6 +3247,7 @@ mod tests {
             &content_manifest_id(),
         );
         let second = build_passive_need_delta_events(
+            &need_model,
             actors,
             &process,
             SimTick::new(4),

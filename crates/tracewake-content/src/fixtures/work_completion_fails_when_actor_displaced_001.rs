@@ -5,6 +5,7 @@ pub fn work_completion_fails_when_actor_displaced_001() -> GoldenFixture {
         fixture_id: fixture_id("work_completion_fails_when_actor_displaced_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_tomas", "workshop")],
         places: vec![
             place_schema("workshop", "Workshop", &["street"]),

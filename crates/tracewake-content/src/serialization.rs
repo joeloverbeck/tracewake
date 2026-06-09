@@ -16,8 +16,8 @@ use tracewake_core::time::SimTick;
 use crate::schema::{
     canonical_key_for_schema_field, ActionAffordanceSchema, ActorSchema, ContainerSchema,
     DayWindowSchema, DoorSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
-    InitialBeliefSchema, InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema,
-    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
+    InitialBeliefSchema, InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema,
+    RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,6 +68,12 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             "{}|{}",
             canonical_key_for_schema_field("fixture_scope"),
             fixture.fixture_scope.stable_id()
+        ),
+        format!(
+            "{}|{}|{}",
+            canonical_key_for_schema_field("need_model"),
+            fixture.need_model.awake_hunger_delta_per_tick,
+            fixture.need_model.awake_fatigue_delta_per_tick
         ),
     ];
     for actor in fixture.actors {
@@ -167,12 +173,15 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for sleep_place in fixture.sleep_places {
         lines.push(format!(
-            "{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}",
             canonical_key_for_schema_field("sleep_places"),
             sleep_place.actor_id.as_str(),
             sleep_place.place_id.as_str(),
             sleep_place.sleep_place_id.as_str(),
-            sleep_place.access_open
+            sleep_place.access_open,
+            sleep_place.duration_ticks,
+            sleep_place.fatigue_recovery_per_tick,
+            sleep_place.hunger_rise_per_tick
         ));
     }
     for food in fixture.food_supplies {
@@ -269,6 +278,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     let mut fixture_id = None;
     let mut schema_version = None;
     let mut fixture_scope = None;
+    let mut need_model = None;
     let mut actors = Vec::new();
     let mut places = Vec::new();
     let mut doors = Vec::new();
@@ -291,6 +301,12 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
             ["fixture", id] => fixture_id = Some(FixtureId::new(*id)?),
             ["schema", version] => schema_version = Some(SchemaVersion::new(*version)?),
             ["fixture_scope", scope] => fixture_scope = Some(parse_fixture_scope(scope)?),
+            ["need_model", awake_hunger_delta_per_tick, awake_fatigue_delta_per_tick] => {
+                need_model = Some(NeedModelSchema {
+                    awake_hunger_delta_per_tick: parse_i32(awake_hunger_delta_per_tick)?,
+                    awake_fatigue_delta_per_tick: parse_i32(awake_fatigue_delta_per_tick)?,
+                })
+            }
             ["actor", actor_id, place_id] => actors.push(ActorSchema {
                 actor_id: ActorId::new(*actor_id)?,
                 current_place_id: PlaceId::new(*place_id)?,
@@ -353,12 +369,15 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                 actor_id: ActorId::new(*actor_id)?,
                 place_id: PlaceId::new(*place_id)?,
             }),
-            ["sleep_place", actor_id, place_id, sleep_place_id, access_open] => {
+            ["sleep_place", actor_id, place_id, sleep_place_id, access_open, duration_ticks, fatigue_recovery_per_tick, hunger_rise_per_tick] => {
                 sleep_places.push(SleepPlaceSchema {
                     actor_id: ActorId::new(*actor_id)?,
                     place_id: PlaceId::new(*place_id)?,
                     sleep_place_id: SleepAffordanceId::new(*sleep_place_id)?,
                     access_open: parse_bool(access_open)?,
+                    duration_ticks: parse_u64(duration_ticks)?,
+                    fatigue_recovery_per_tick: parse_i32(fatigue_recovery_per_tick)?,
+                    hunger_rise_per_tick: parse_i32(hunger_rise_per_tick)?,
                 })
             }
             ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] => {
@@ -436,6 +455,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         fixture_id: fixture_id.ok_or(SerializationError::MissingField("fixture"))?,
         schema_version: schema_version.ok_or(SerializationError::MissingField("schema"))?,
         fixture_scope: fixture_scope.ok_or(SerializationError::MissingField("fixture_scope"))?,
+        need_model: need_model.ok_or(SerializationError::MissingField("need_model"))?,
         actors,
         places,
         doors,
@@ -766,6 +786,10 @@ mod tests {
             fixture_id: FixtureId::new("strongbox_001").unwrap(),
             schema_version: SchemaVersion::new("schema_v1").unwrap(),
             fixture_scope: FixtureScope::Phase1,
+            need_model: NeedModelSchema {
+                awake_hunger_delta_per_tick: 5,
+                awake_fatigue_delta_per_tick: 3,
+            },
             actors: vec![ActorSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 current_place_id: PlaceId::new("shop_front").unwrap(),

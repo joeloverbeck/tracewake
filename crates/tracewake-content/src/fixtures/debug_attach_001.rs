@@ -5,6 +5,7 @@ pub fn debug_attach_001() -> GoldenFixture {
         fixture_id: fixture_id("debug_attach_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase1,
+        need_model: need_model_schema(),
         actors: vec![
             actor_schema("actor_iris", "north_room"),
             actor_schema("actor_jules", "south_room"),

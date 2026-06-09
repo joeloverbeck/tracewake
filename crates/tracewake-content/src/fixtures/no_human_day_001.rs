@@ -5,6 +5,7 @@ pub fn no_human_day_001() -> GoldenFixture {
         fixture_id: fixture_id("no_human_day_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![
             actor_schema("actor_anna", "office_anna"),
             actor_schema("actor_elena", "home_elena"),

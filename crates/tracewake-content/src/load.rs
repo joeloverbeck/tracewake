@@ -340,7 +340,8 @@ pub fn registry_for_fixture_scope(scope: FixtureScope) -> tracewake_core::action
 mod tests {
     use super::*;
     use crate::schema::{
-        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, ItemSchema, PlaceSchema,
+        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, ItemSchema, NeedModelSchema,
+        PlaceSchema,
     };
     use crate::serialization::serialize_fixture;
     use tracewake_core::ids::{ActorId, ContainerId, FixtureId, ItemId, PlaceId, SchemaVersion};
@@ -351,6 +352,10 @@ mod tests {
             fixture_id: FixtureId::new("strongbox_001").unwrap(),
             schema_version: SchemaVersion::new("schema_v1").unwrap(),
             fixture_scope: FixtureScope::Phase1,
+            need_model: NeedModelSchema {
+                awake_hunger_delta_per_tick: 5,
+                awake_fatigue_delta_per_tick: 3,
+            },
             actors: vec![ActorSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 current_place_id: PlaceId::new("shop_front").unwrap(),

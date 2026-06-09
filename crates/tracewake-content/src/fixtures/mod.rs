@@ -61,8 +61,8 @@ use crate::load::SourceFile;
 use crate::schema::{
     ActionAffordanceSchema, ActorSchema, ContainerSchema, DayWindowSchema, DoorSchema,
     FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
-    InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
-    SleepPlaceSchema, WorkplaceSchema,
+    InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema, RoutineAssignmentSchema,
+    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 use crate::serialization::serialize_fixture;
 
@@ -205,6 +205,7 @@ fn hidden_truth_adversarial_fixture(
         fixture_id: fixture_id(fixture_id_value),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),
@@ -336,6 +337,13 @@ fn fixture_id(value: &str) -> FixtureId {
 
 fn schema_version() -> SchemaVersion {
     SchemaVersion::new("schema_v1").unwrap()
+}
+
+fn need_model_schema() -> NeedModelSchema {
+    NeedModelSchema {
+        awake_hunger_delta_per_tick: 5,
+        awake_fatigue_delta_per_tick: 3,
+    }
 }
 
 fn actor(value: &str) -> ActorId {
@@ -471,6 +479,9 @@ fn sleep_place_schema(actor_id: &str, place_id: &str, sleep_place_id: &str) -> S
         place_id: place(place_id),
         sleep_place_id: SleepAffordanceId::new(sleep_place_id).unwrap(),
         access_open: true,
+        duration_ticks: 4,
+        fatigue_recovery_per_tick: 20,
+        hunger_rise_per_tick: 2,
     }
 }
 

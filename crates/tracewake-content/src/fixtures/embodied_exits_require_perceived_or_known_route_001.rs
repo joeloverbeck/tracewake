@@ -5,6 +5,7 @@ pub fn embodied_exits_require_perceived_or_known_route_001() -> GoldenFixture {
         fixture_id: fixture_id("embodied_exits_require_perceived_or_known_route_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_tomas", "shop_front")],
         places: vec![
             place_schema("shop_front", "Shop front", &["back_room"]),

@@ -133,6 +133,7 @@ pub struct PhysicalState {
     pub(crate) food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
     pub(crate) workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
     pub(crate) sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
+    pub(crate) need_model: NeedModelState,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -169,6 +170,7 @@ impl PhysicalState {
             food_supplies,
             workplaces,
             sleep_affordances,
+            need_model: NeedModelState::default(),
         }
     }
 
@@ -202,6 +204,14 @@ impl PhysicalState {
 
     pub fn sleep_affordances(&self) -> &BTreeMap<SleepAffordanceId, SleepAffordanceState> {
         &self.sleep_affordances
+    }
+
+    pub const fn need_model(&self) -> &NeedModelState {
+        &self.need_model
+    }
+
+    pub fn set_need_model(&mut self, need_model: NeedModelState) {
+        self.need_model = need_model;
     }
 }
 
@@ -360,6 +370,9 @@ pub struct SleepAffordanceState {
     pub place_id: PlaceId,
     pub access_open: bool,
     pub rest_quality: u32,
+    pub duration_ticks: u64,
+    pub fatigue_recovery_per_tick: i32,
+    pub hunger_rise_per_tick: i32,
 }
 
 impl SleepAffordanceState {
@@ -369,6 +382,24 @@ impl SleepAffordanceState {
             place_id,
             access_open: true,
             rest_quality: 1,
+            duration_ticks: 4,
+            fatigue_recovery_per_tick: 20,
+            hunger_rise_per_tick: 2,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NeedModelState {
+    pub awake_hunger_delta_per_tick: i32,
+    pub awake_fatigue_delta_per_tick: i32,
+}
+
+impl Default for NeedModelState {
+    fn default() -> Self {
+        Self {
+            awake_hunger_delta_per_tick: 5,
+            awake_fatigue_delta_per_tick: 3,
         }
     }
 }

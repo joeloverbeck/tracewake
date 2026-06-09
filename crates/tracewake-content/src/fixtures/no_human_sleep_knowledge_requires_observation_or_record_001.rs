@@ -5,6 +5,7 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
         fixture_id: fixture_id("no_human_sleep_knowledge_requires_observation_or_record_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_elena", "home_elena")],
         places: vec![place_schema("home_elena", "Elena home", &[])],
         doors: Vec::new(),

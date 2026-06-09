@@ -9,10 +9,6 @@ use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
-pub const DEFAULT_SLEEP_DURATION_TICKS: u64 = 4;
-pub const FATIGUE_RECOVERY_PER_SLEEP_TICK: i32 = 20;
-pub const HUNGER_RISE_PER_SLEEP_TICK: i32 = 2;
-
 pub fn build_sleep_start_event(
     state: &PhysicalState,
     proposal: &Proposal,
@@ -38,9 +34,9 @@ pub fn build_sleep_start_event(
         )
     })?;
 
-    let sleep_affordance_id = require_sleep_affordance(state, proposal, &actor.current_place_id)?;
+    let sleep_affordance = require_sleep_affordance(state, proposal, &actor.current_place_id)?;
 
-    let duration_ticks = parse_duration_ticks(proposal)?;
+    let duration_ticks = parse_duration_ticks(proposal)?.unwrap_or(sleep_affordance.duration_ticks);
     let expected_completion_tick = proposal.requested_tick.advance_by(duration_ticks);
     let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
@@ -69,7 +65,18 @@ pub fn build_sleep_start_event(
         ),
         PayloadField::new("body_exclusive", "true"),
         PayloadField::new("fatigue_delta_at_start", "0"),
-        PayloadField::new("sleep_affordance_id", sleep_affordance_id.as_str()),
+        PayloadField::new(
+            "sleep_affordance_id",
+            sleep_affordance.sleep_affordance_id.as_str(),
+        ),
+        PayloadField::new(
+            "fatigue_recovery_per_tick",
+            sleep_affordance.fatigue_recovery_per_tick.to_string(),
+        ),
+        PayloadField::new(
+            "hunger_rise_per_tick",
+            sleep_affordance.hunger_rise_per_tick.to_string(),
+        ),
     ];
     if let Some(sleep_place_id) = proposal.parameters.get("sleep_place_id") {
         event
@@ -80,11 +87,11 @@ pub fn build_sleep_start_event(
     Ok(event)
 }
 
-fn require_sleep_affordance(
-    state: &PhysicalState,
+fn require_sleep_affordance<'a>(
+    state: &'a PhysicalState,
     proposal: &Proposal,
     actor_place_id: &PlaceId,
-) -> Result<SleepAffordanceId, ActionRejection> {
+) -> Result<&'a crate::state::SleepAffordanceState, ActionRejection> {
     let Some(raw_sleep_affordance_id) = proposal.parameters.get("sleep_affordance_id") else {
         return Err(no_sleep_affordance_rejection(
             "missing_sleep_affordance_id",
@@ -129,7 +136,7 @@ fn require_sleep_affordance(
             ));
         }
     }
-    Ok(sleep_affordance_id)
+    Ok(sleep_affordance)
 }
 
 fn no_sleep_affordance_rejection(
@@ -229,6 +236,13 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
+fn payload_i32(event: &EventEnvelope, key: &str) -> i32 {
+    payload_value(event, key)
+        .unwrap_or_else(|| panic!("sleep start event carries {key}"))
+        .parse()
+        .unwrap_or_else(|_| panic!("sleep start event {key} is i32"))
+}
+
 pub fn build_sleep_interruption_events(
     sleep_started_event: &EventEnvelope,
     ordering_key: &OrderingKey,
@@ -261,8 +275,12 @@ fn build_sleep_end_events(
     let elapsed_ticks = end_tick
         .value()
         .saturating_sub(sleep_started_event.sim_tick.value());
-    let fatigue_delta = -(elapsed_ticks as i32).saturating_mul(FATIGUE_RECOVERY_PER_SLEEP_TICK);
-    let hunger_delta = (elapsed_ticks as i32).saturating_mul(HUNGER_RISE_PER_SLEEP_TICK);
+    let fatigue_delta = -(elapsed_ticks as i32).saturating_mul(payload_i32(
+        sleep_started_event,
+        "fatigue_recovery_per_tick",
+    ));
+    let hunger_delta = (elapsed_ticks as i32)
+        .saturating_mul(payload_i32(sleep_started_event, "hunger_rise_per_tick"));
     let mut lifecycle = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.{}.{}",
@@ -356,7 +374,7 @@ fn need_delta_event(
     event
 }
 
-fn parse_duration_ticks(proposal: &Proposal) -> Result<u64, ActionRejection> {
+fn parse_duration_ticks(proposal: &Proposal) -> Result<Option<u64>, ActionRejection> {
     let duration_ticks = proposal
         .parameters
         .get("duration_ticks")
@@ -377,9 +395,8 @@ fn parse_duration_ticks(proposal: &Proposal) -> Result<u64, ActionRejection> {
                 "That sleep duration is invalid.",
                 "sleep duration_ticks parameter was not an unsigned integer",
             )
-        })?
-        .unwrap_or(DEFAULT_SLEEP_DURATION_TICKS);
-    if duration_ticks == 0 {
+        })?;
+    if duration_ticks == Some(0) {
         return Err(ActionRejection::new(
             PipelineStage::CostDurationCheck,
             ReasonCode::InvalidParameter,

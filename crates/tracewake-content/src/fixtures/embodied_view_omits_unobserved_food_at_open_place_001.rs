@@ -5,6 +5,7 @@ pub fn embodied_view_omits_unobserved_food_at_open_place_001() -> GoldenFixture 
         fixture_id: fixture_id("embodied_view_omits_unobserved_food_at_open_place_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_tomas", "shop_front")],
         places: vec![place_schema("shop_front", "Shop front", &[])],
         doors: Vec::new(),

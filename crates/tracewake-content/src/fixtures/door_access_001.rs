@@ -5,6 +5,7 @@ pub fn door_access_001() -> GoldenFixture {
         fixture_id: fixture_id("door_access_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase1,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_sena", "front_hall")],
         places: vec![
             place_schema("back_room", "Back room", &["front_hall"]),

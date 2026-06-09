@@ -5,6 +5,7 @@ pub fn sound_uncertainty_001() -> GoldenFixture {
         fixture_id: fixture_id("sound_uncertainty_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase2AHistorical,
+        need_model: need_model_schema(),
         actors: vec![
             actor_schema("actor_elena", "street_lane"),
             actor_schema("actor_mara", "house_tomas"),

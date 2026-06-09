@@ -4,7 +4,7 @@ use tracewake_content::fixtures::{self, validate_fixture_contract_metadata};
 use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope};
 use tracewake_content::schema::{
     ActorSchema, DayWindowSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
-    InitialBeliefSchema, InitialNeedSchema, PlaceSchema, RoutineAssignmentSchema,
+    InitialBeliefSchema, InitialNeedSchema, NeedModelSchema, PlaceSchema, RoutineAssignmentSchema,
     RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
@@ -41,6 +41,10 @@ fn phase3a_fixture() -> FixtureSchema {
         fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
         schema_version: SchemaVersion::new("schema_v1").unwrap(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: NeedModelSchema {
+            awake_hunger_delta_per_tick: 5,
+            awake_fatigue_delta_per_tick: 3,
+        },
         actors: vec![ActorSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             current_place_id: PlaceId::new("home_tomas").unwrap(),
@@ -83,6 +87,9 @@ fn phase3a_fixture() -> FixtureSchema {
             place_id: PlaceId::new("home_tomas").unwrap(),
             sleep_place_id: SleepAffordanceId::new("bed_tomas").unwrap(),
             access_open: true,
+            duration_ticks: 4,
+            fatigue_recovery_per_tick: 20,
+            hunger_rise_per_tick: 2,
         }],
         food_supplies: vec![FoodSupplySchema {
             food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
@@ -448,6 +455,50 @@ fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
         .errors
         .iter()
         .any(|error| error.code == "unknown_field"));
+}
+
+#[test]
+fn fixtures_load_phase3a_missing_need_model_is_rejected() {
+    let bytes = serialize_fixture(&phase3a_fixture());
+    let text = String::from_utf8(bytes).unwrap();
+    let without_need_model = text
+        .lines()
+        .filter(|line| !line.starts_with("need_model|"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let report = validate_fixture_bytes(without_need_model.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "missing_field" && error.path == "fixture.need_model"));
+}
+
+#[test]
+fn fixtures_load_phase3a_missing_sleep_tuning_fields_are_rejected() {
+    let bytes = serialize_fixture(&phase3a_fixture());
+    let text = String::from_utf8(bytes).unwrap();
+    let old_shape = text
+        .lines()
+        .map(|line| {
+            if line.starts_with("sleep_place|") {
+                line.split('|').take(5).collect::<Vec<_>>().join("|")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let report = validate_fixture_bytes(old_shape.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "bad_line" && error.message.contains("sleep_place")));
 }
 
 #[test]

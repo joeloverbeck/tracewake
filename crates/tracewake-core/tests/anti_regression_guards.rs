@@ -17,6 +17,7 @@ const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
+const TIME_RS: &str = include_str!("../src/time.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
@@ -1497,6 +1498,34 @@ fn guard_014_sleep_validation_requires_modeled_affordance() {
     assert!(
         builder.contains("actor_knows_sleep_affordance"),
         "no-human cognition must derive sleep affordance ids as actor-known facts"
+    );
+}
+
+#[test]
+fn guard_015_ordinary_life_tuning_comes_from_authored_state() {
+    let sleep = production(SLEEP_RS);
+    let time = production(TIME_RS);
+
+    for forbidden in [
+        "AWAKE_HUNGER_DELTA_PER_TICK",
+        "AWAKE_FATIGUE_DELTA_PER_TICK",
+        "DEFAULT_SLEEP_DURATION_TICKS",
+        "FATIGUE_RECOVERY_PER_SLEEP_TICK",
+        "HUNGER_RISE_PER_SLEEP_TICK",
+    ] {
+        assert_absent(&time, forbidden);
+        assert_absent(&sleep, forbidden);
+    }
+    assert!(
+        time.contains("need_model.awake_hunger_delta_per_tick")
+            && time.contains("need_model.awake_fatigue_delta_per_tick"),
+        "passive awake need deltas must read the authored need model"
+    );
+    assert!(
+        sleep.contains("sleep_affordance.duration_ticks")
+            && sleep.contains("sleep_affordance.fatigue_recovery_per_tick")
+            && sleep.contains("sleep_affordance.hunger_rise_per_tick"),
+        "sleep duration and recovery must read authored sleep affordance state"
     );
 }
 
