@@ -5,7 +5,7 @@ Date: 2026-06-09
 Target implementation commit under review:
 `4672cf20fa32b6caa5e2acb5c044b167c2208e57`
 
-Scope: `specs/0015_PHASE_3A_EVENTED_COGNITION_CHANNELS_AUDIT_ENFORCEMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+Scope: `archive/specs/0015_PHASE_3A_EVENTED_COGNITION_CHANNELS_AUDIT_ENFORCEMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the Phase 3A
 evented cognition, audit enforcement, and anti-contamination hardening work.

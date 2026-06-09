@@ -1,7 +1,7 @@
 # 0015 Phase 3A Evented Cognition Channels, Audit Enforcement, and Anti-Contamination Hardening Spec
 
-**Status**: PROPOSED
-**Staging path:** `specs/0015_PHASE_3A_EVENTED_COGNITION_CHANNELS_AUDIT_ENFORCEMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+**Status**: COMPLETED
+**Staging path:** `archive/specs/0015_PHASE_3A_EVENTED_COGNITION_CHANNELS_AUDIT_ENFORCEMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `1e3a948` (post-0014 closeout; all `0014PHA3AORDLIF` tickets landed).
@@ -504,3 +504,41 @@ implementation commits:
 - [x] No doctrine amendment; no compatibility shims; crate direction
   preserved.
 - [x] Scope stays within the Phase 3A ordinary-life surface.
+
+## Outcome (2026-06-09)
+
+Completed. The `0015PHA3AEVECOG` ticket family implemented the scoped Phase 3A
+evented cognition, audit enforcement, and anti-contamination hardening package
+across tickets 001-011, archived each ticket, and added the required
+`reports/0015_ord_life_cert_scoped_acceptance.md` acceptance artifact.
+
+What changed:
+
+- Authored starting knowledge is materialized as seed-time knowledge events.
+- Modeled current-place perception emits observation events.
+- The no-human actor-known surface consumes event-backed epistemic inputs and
+  remains sealed through the transaction boundary.
+- Source guards, context-hash rebuild checks, and adversarial fixtures lock the
+  event-backed cognition channel against raw-truth regression.
+- Hidden-truth audit failures fail closed inside the decision transaction.
+- Embodied food, sleep, route, and workplace surfaces are context-backed.
+- Scheduled sleep/work completions revalidate continuity and emit typed
+  interruption/effect events.
+- Ordinary-life tuning moved to authored content with the kernel/content
+  boundary documented.
+- Guard discovery now uses module-tree coverage with a census guard.
+- Conformance docs and the scoped ORD-LIFE-CERT evidence report were updated.
+
+Deviations:
+
+- The capstone did not add a new verification-only test. Existing capstone,
+  replay, anti-regression, hidden-truth, and fixture tests already exercise the
+  required no-human, replay byte-match, source-guard, interruption, and
+  embodied/debug evidence surfaces.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --quiet`
