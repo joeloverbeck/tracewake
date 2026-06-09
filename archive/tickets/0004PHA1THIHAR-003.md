@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-003: Compile-time no-direct-mutation enforcement + seal-bypass fixtures
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — seal-bypass negative fixtures (reuse the ticket-002 runner); `anti_regression_guards.rs` direct-apply guard reclassified to documented smoke
@@ -80,3 +80,27 @@ Annotate `no_direct_apply_event_outside_event_replay_or_pipeline` and `guard_001
 
 1. `cargo test -p tracewake-core`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Extended the negative fixture runner so fixtures can assert either Clippy lint categories or Rust compile-error fragments.
+- Added seal-bypass fixtures proving external crates cannot call removed `PhysicalState` / `AgentState` seed mutators and cannot reach or forge mutation capabilities.
+- Added `event_apply_remains_only_post_seed_mutation_path`, which ties the no-direct-apply source scan to the append-before-apply runtime proof.
+- Marked the direct-apply and direct-state-write source scans as smoke-only, with capability privacy and compile-fail fixtures documented as the primary enforcement layer.
+
+Deviations from original plan:
+- The forged-capability fixture fails because `tracewake_core::events::mutation` itself is private, before reaching private-field construction. This is a stronger live boundary than the ticket's original field-private expectation.
+- A direct external `apply_event` compile-fail fixture was not added because `apply_event` is intentionally public in the current core API and is used by replay/pipeline proof surfaces. The direct-apply boundary remains enforced by the smoke source scan plus append-before-apply runtime proof.
+
+Verification results:
+- `cargo test -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards event_apply_remains_only_post_seed_mutation_path` — passed.
+- `cargo test -p tracewake-core` — passed.
+- `cargo fmt --all --check` — passed.
+- `rg -n "Smoke-only source scan|smoke-only" crates/tracewake-core/tests/anti_regression_guards.rs` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace` — passed.

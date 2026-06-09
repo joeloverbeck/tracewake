@@ -894,6 +894,8 @@ fn privileged_tui_proposal_requires_current_view_source_context() {
 
 #[test]
 fn no_direct_apply_event_outside_event_replay_or_pipeline() {
+    // Smoke-only source scan: compile-fail fixtures and capability privacy are
+    // the primary enforcement layer; this catches obvious new direct calls.
     let allowed_paths = [
         "src/events/apply.rs",
         "src/replay/rebuild.rs",
@@ -1044,6 +1046,14 @@ fn accepted_action_appends_before_authoritative_apply() {
     let synthetic_direct_apply =
         "Adding apply_event(&mut authoritative_state, event) outside actions/pipeline, events, or replay must fail the source scan.";
     assert!(synthetic_direct_apply.contains("must fail"));
+}
+
+#[test]
+fn event_apply_remains_only_post_seed_mutation_path() {
+    // Smoke-only source scan paired with the runtime append-before-apply proof
+    // above and the negative fixture capability/seed-mutator checks.
+    no_direct_apply_event_outside_event_replay_or_pipeline();
+    accepted_action_appends_before_authoritative_apply();
 }
 
 #[test]
@@ -1370,6 +1380,8 @@ fn guard_001_no_production_seed_mutation_outside_state_definition() {
 
 #[test]
 fn guard_001_no_direct_state_collection_insert_outside_event_application() {
+    // Smoke-only source scan: direct mutation is primarily blocked by private
+    // fields, private mutation capabilities, and compile-fail fixtures.
     let forbidden_writes = [
         ".actors.insert",
         ".places.insert",
