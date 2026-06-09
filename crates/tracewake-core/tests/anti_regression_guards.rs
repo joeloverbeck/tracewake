@@ -1399,6 +1399,29 @@ fn guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition() {
 }
 
 #[test]
+fn guard_014_transaction_has_no_silent_method_fallback_scan() {
+    let transaction = production(TRANSACTION_RS);
+    assert_absent(&transaction, "candidate_fallbacks");
+    assert_absent(&transaction, ".find_map(|candidate|");
+    assert!(
+        transaction.contains("pub struct SelectedGoalBundle"),
+        "transaction must bind selected candidate, trace, method, local plan, and proposal ancestry"
+    );
+    assert!(
+        transaction.contains("bundle.decision_trace_id.as_str().to_string()"),
+        "proposal decision_trace_id must come from the selected goal bundle"
+    );
+    assert!(
+        transaction.contains("bundle.candidate_goal_id.as_str().to_string()"),
+        "proposal candidate_goal_id must come from the selected goal bundle"
+    );
+    assert!(
+        transaction.contains("method_selection_rejected"),
+        "method fallback rerun must preserve a typed rejection reason for the failed selected candidate"
+    );
+}
+
+#[test]
 fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters() {
     for source in [
         production(EAT_RS),

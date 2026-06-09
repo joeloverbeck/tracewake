@@ -1,11 +1,11 @@
 use crate::actions::{Proposal, ProposalOrigin};
 use crate::agent::{
     generate_candidate_goals_from_agent_state, plan_local_actions, select_goal_and_trace,
-    select_phase3a_method, ActorKnownPlanningContext, BlockerCategory, BlockerCode, CandidateGoal,
-    DecisionInput, DecisionTrace, DecisionTraceRecord, GoalKind, IntentionLifecycleEffect,
-    LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure, LocalPlanRequest, PlannerGoal,
-    ResponsibleLayer, RoutineFamily, RoutineStep, StuckDiagnosticRecord, StuckResultingStatus,
-    TypedDiagnosticFields,
+    select_phase3a_method, ActorKnownPlanningContext, ApplicabilityResult, BlockerCategory,
+    BlockerCode, CandidateGoal, DecisionInput, DecisionTrace, DecisionTraceRecord, GoalKind,
+    IntentionLifecycleEffect, LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure,
+    LocalPlanRequest, PlannerGoal, ResponsibleLayer, RoutineFamily, RoutineStep,
+    StuckDiagnosticRecord, StuckResultingStatus, TypedDiagnosticFields,
 };
 use crate::ids::{ActorId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
@@ -37,6 +37,16 @@ pub struct ActorDecisionProposalOutcome {
     pub decision_trace_record: DecisionTraceRecord,
     pub lifecycle_effects: Vec<IntentionLifecycleEffect>,
     pub local_plan: LocalPlan,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SelectedGoalBundle {
+    pub candidate_goal_id: crate::ids::CandidateGoalId,
+    pub decision_trace_id: crate::ids::DecisionTraceId,
+    pub intention_transition_id: Option<String>,
+    pub selected_method_id: crate::ids::RoutineTemplateId,
+    pub local_plan_id: String,
+    pub proposal_ancestry: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -86,7 +96,7 @@ impl ActorDecisionTransaction {
                 .routine_window_family
                 .and_then(goal_for_routine_family),
         });
-        let candidates = if input.include_idle_fallback {
+        let mut candidates = if input.include_idle_fallback {
             generated.candidates
         } else {
             generated
@@ -95,66 +105,59 @@ impl ActorDecisionTransaction {
                 .filter(|candidate| candidate.goal_kind != GoalKind::IdleWithReason)
                 .collect()
         };
-        let candidate_fallbacks = candidates.clone();
-        let Some(selection) = select_goal_and_trace(DecisionInput {
-            actor_id: input.actor_id.clone(),
-            decision_tick: input.decision_tick,
-            candidates,
-            active_intention,
-            actor_known_inputs: generated.actor_known_inputs_used,
-        }) else {
-            return ActorDecisionTransactionOutcome::Stuck {
-                diagnostic: Box::new(stuck_diagnostic(
-                    &input.actor_id,
-                    input.decision_tick,
-                    None,
-                    None,
-                    "no applicable candidate",
-                    "candidate generation produced no applicable goal",
-                )),
-            };
-        };
-
-        let selected_goal = selection.selected_goal.clone();
-        let method_goal = match select_phase3a_method(
-            &selected_goal,
-            input.actor_known_context,
-            &actor_known_facts,
-            input.decision_tick,
-        ) {
-            Ok(method) => (selected_goal, method),
-            Err(error) => {
-                let Some((fallback_candidate, method)) = candidate_fallbacks
-                    .iter()
-                    .filter(|candidate| {
-                        candidate.candidate_goal_id != selection.selected_goal.candidate_goal_id
-                    })
-                    .find_map(|candidate| {
-                        select_phase3a_method(
-                            candidate,
-                            input.actor_known_context,
-                            &actor_known_facts,
-                            input.decision_tick,
-                        )
-                        .ok()
-                        .map(|method| (candidate.clone(), method))
-                    })
-                else {
-                    return ActorDecisionTransactionOutcome::Stuck {
-                        diagnostic: Box::new(stuck_diagnostic(
+        let mut last_method_failure: Option<(CandidateGoal, String)> = None;
+        let (selection, method) = loop {
+            let Some(selection) = select_goal_and_trace(DecisionInput {
+                actor_id: input.actor_id.clone(),
+                decision_tick: input.decision_tick,
+                candidates: candidates.clone(),
+                active_intention: active_intention.clone(),
+                actor_known_inputs: generated.actor_known_inputs_used.clone(),
+            }) else {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(match last_method_failure {
+                        Some((goal, error)) => stuck_diagnostic(
                             &input.actor_id,
                             input.decision_tick,
-                            Some(&selection.selected_goal),
+                            Some(&goal),
                             None,
                             "no applicable method",
-                            format!("{error:?}"),
-                        )),
-                    };
+                            error,
+                        ),
+                        None => stuck_diagnostic(
+                            &input.actor_id,
+                            input.decision_tick,
+                            None,
+                            None,
+                            "no applicable candidate",
+                            "candidate generation produced no applicable goal",
+                        ),
+                    }),
                 };
-                (fallback_candidate, method)
+            };
+
+            match select_phase3a_method(
+                &selection.selected_goal,
+                input.actor_known_context,
+                &actor_known_facts,
+                input.decision_tick,
+            ) {
+                Ok(method) => break (selection, method),
+                Err(error) => {
+                    let failed_goal = selection.selected_goal.clone();
+                    let error = format!("{error:?}");
+                    for candidate in candidates.iter_mut().filter(|candidate| {
+                        candidate.candidate_goal_id == failed_goal.candidate_goal_id
+                    }) {
+                        candidate.applicability = ApplicabilityResult::Inapplicable;
+                        candidate.rejection_reason =
+                            Some(format!("method_selection_rejected:{error}"));
+                    }
+                    last_method_failure = Some((failed_goal, error));
+                }
             }
         };
-        let (method_goal, method) = method_goal;
+        let method_goal = selection.selected_goal.clone();
 
         let step =
             method
@@ -197,6 +200,34 @@ impl ActorDecisionTransaction {
                 )),
             };
         };
+        let bundle = SelectedGoalBundle {
+            candidate_goal_id: method_goal.candidate_goal_id.clone(),
+            decision_trace_id: selection.trace.trace_id.clone(),
+            intention_transition_id: selection.lifecycle_effects.first().map(
+                |effect| match effect {
+                    IntentionLifecycleEffect::Continued { intention_id, .. } => {
+                        format!("continued:{}", intention_id.as_str())
+                    }
+                    IntentionLifecycleEffect::Interrupted { intention_id, .. } => {
+                        format!("interrupted:{}", intention_id.as_str())
+                    }
+                    IntentionLifecycleEffect::Adopted { intention, .. } => {
+                        format!("adopted:{}", intention.intention_id.as_str())
+                    }
+                },
+            ),
+            selected_method_id: method.template.template_id.clone(),
+            local_plan_id: format!(
+                "local_plan_{}_{}",
+                selection.trace.trace_id.as_str(),
+                planned.action_id.as_str()
+            ),
+            proposal_ancestry: vec![
+                selection.trace.trace_id.as_str().to_string(),
+                method_goal.candidate_goal_id.as_str().to_string(),
+                method.template.template_id.as_str().to_string(),
+            ],
+        };
 
         let mut proposal = Proposal::new(
             ProposalId::new(format!(
@@ -230,15 +261,15 @@ impl ActorDecisionTransaction {
         }
         proposal.parameters.insert(
             "decision_trace_id".to_string(),
-            selection.trace.trace_id.as_str().to_string(),
+            bundle.decision_trace_id.as_str().to_string(),
         );
         proposal.parameters.insert(
             "candidate_goal_id".to_string(),
-            method_goal.candidate_goal_id.as_str().to_string(),
+            bundle.candidate_goal_id.as_str().to_string(),
         );
         proposal.parameters.insert(
             "routine_template_id".to_string(),
-            method.template.template_id.as_str().to_string(),
+            bundle.selected_method_id.as_str().to_string(),
         );
         proposal.parameters.insert(
             "routine_execution_id".to_string(),
@@ -503,6 +534,36 @@ mod tests {
         state
     }
 
+    fn agent_state_with_severe_safety_and_hunger() -> AgentState {
+        let mut state = AgentState::default();
+        state.needs_by_actor.insert(
+            actor_id(),
+            BTreeMap::from([
+                (
+                    NeedKind::Safety,
+                    NeedState::initial(NeedKind::Safety, 950, NeedChangeCause::TickDelta),
+                ),
+                (
+                    NeedKind::Hunger,
+                    NeedState::initial(NeedKind::Hunger, 900, NeedChangeCause::TickDelta),
+                ),
+            ]),
+        );
+        state
+    }
+
+    fn agent_state_with_fatigue(value: i32) -> AgentState {
+        let mut state = AgentState::default();
+        state.needs_by_actor.insert(
+            actor_id(),
+            BTreeMap::from([(
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, value, NeedChangeCause::TickDelta),
+            )]),
+        );
+        state
+    }
+
     #[test]
     fn transaction_links_candidate_intention_method_plan_and_proposal() {
         let agent_state = agent_state_with_hunger(800);
@@ -573,5 +634,87 @@ mod tests {
         assert_eq!(diagnostic.actor_id, actor_id());
         assert_eq!(diagnostic.concrete_blocker, "no applicable candidate");
         assert_eq!(diagnostic.resulting_status, StuckResultingStatus::Failed);
+    }
+
+    #[test]
+    fn method_fallback_reruns_selection_with_coherent_trace_and_candidate() {
+        let agent_state = agent_state_with_severe_safety_and_hunger();
+        let context = known_context();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(16),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
+            panic!("expected coherent fallback proposal");
+        };
+
+        let selected_goal_id = proposed
+            .decision_trace
+            .selected_goal_id
+            .as_ref()
+            .expect("fallback trace selects a goal")
+            .as_str()
+            .to_string();
+
+        assert!(selected_goal_id.ends_with("_eat"));
+        assert_eq!(
+            proposed.proposal.parameters().get("candidate_goal_id"),
+            Some(&selected_goal_id)
+        );
+        assert_eq!(
+            proposed.proposal.parameters().get("decision_trace_id"),
+            Some(&proposed.decision_trace.trace_id.as_str().to_string())
+        );
+        assert!(
+            proposed
+                .decision_trace
+                .trace_id
+                .as_str()
+                .contains(&selected_goal_id),
+            "rerun trace id must be specific to the selected fallback candidate"
+        );
+        assert!(proposed
+            .decision_trace
+            .rejected_goals
+            .iter()
+            .any(
+                |rejected| rejected.stable_ref.ends_with("_leave_unsafe_place")
+                    && rejected.reason.starts_with("method_selection_rejected:")
+            ));
+    }
+
+    #[test]
+    fn duplicate_failed_candidates_are_retired_together() {
+        let agent_state = agent_state_with_fatigue(900);
+        let context = known_context();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(18),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            routine_window_family: Some(RoutineFamily::SleepNight),
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected fail-closed diagnostic after duplicate method misses");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "no applicable method");
+        assert_eq!(
+            diagnostic.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::MethodSelection
+        );
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::NoApplicableMethod
+        );
     }
 }

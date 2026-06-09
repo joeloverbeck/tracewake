@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-004: Sealed goal bundle — no silent method fallback (coherent re-run)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/transaction.rs` selection/fallback flow + `SelectedGoalBundle`), new source guard, 1 adversarial fixture
@@ -88,3 +88,31 @@ Add the fallback-scan-ban guard and the adversarial fixture.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-content`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Replaced the silent post-trace method fallback scan in `ActorDecisionTransaction::run` with bounded coherent re-selection over the mutable candidate set.
+- Added `SelectedGoalBundle` and made proposal ancestry fields (`decision_trace_id`, `candidate_goal_id`, `routine_template_id`) come from the selected bundle.
+- Made decision trace ids candidate-specific so fallback attempts produce distinct trace ids tied to the selected candidate.
+- Retired all duplicate candidates with the same failed candidate id after a method-selection miss; this fixes the duplicate need-pressure/routine-window case that previously could loop.
+- Added transaction unit coverage for coherent fallback and duplicate failed candidates, plus the source guard banning the old fallback scan.
+- Added and registered `method_fallback_requires_new_trace_or_stuck_001` as the adversarial fixture contract.
+
+Deviations from original plan:
+
+- Added an explicit duplicate-candidate guardrail after verification exposed that routine-window and need-pressure candidates can share the same stable candidate id.
+- The fixture is a registered contract fixture; the concrete behavioral proof is carried by the transaction unit tests, the no-human capstone, and source guard.
+
+Verification results:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core agent::transaction` — passed.
+- `cargo test -p tracewake-core --test no_human_capstone no_human_capstone_proves_typed_ancestry_and_replay` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test -p tracewake-content --test fixtures_load` — passed.
+- `cargo test -p tracewake-content` — passed.
+- `cargo test -p tracewake-core` — passed.

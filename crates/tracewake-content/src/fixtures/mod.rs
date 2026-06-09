@@ -8,6 +8,7 @@ mod hidden_food_closed_container_001;
 mod hidden_food_unknown_route_001;
 mod hidden_route_edge_001;
 mod knowledge_blocker_accuse_001;
+mod method_fallback_requires_new_trace_or_stuck_001;
 mod no_hidden_truth_planning_001;
 mod no_human_advance_001;
 mod no_human_current_place_without_sleep_affordance_does_not_sleep_001;
@@ -62,6 +63,7 @@ pub use hidden_food_closed_container_001::hidden_food_closed_container_001;
 pub use hidden_food_unknown_route_001::hidden_food_unknown_route_001;
 pub use hidden_route_edge_001::hidden_route_edge_001;
 pub use knowledge_blocker_accuse_001::knowledge_blocker_accuse_001;
+pub use method_fallback_requires_new_trace_or_stuck_001::method_fallback_requires_new_trace_or_stuck_001;
 pub use no_hidden_truth_planning_001::no_hidden_truth_planning_001;
 pub use no_human_advance_001::no_human_advance_001;
 pub use no_human_current_place_without_sleep_affordance_does_not_sleep_001::no_human_current_place_without_sleep_affordance_does_not_sleep_001;
@@ -149,6 +151,7 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_current_place_without_sleep_affordance_does_not_sleep_001(),
         no_human_known_workplace_requires_provenance_001(),
         scheduler_cannot_rewrite_wait_reason_after_transaction_001(),
+        method_fallback_requires_new_trace_or_stuck_001(),
         no_human_day_001(),
     ]
 }

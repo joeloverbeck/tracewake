@@ -56,9 +56,10 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
     };
 
     let trace_id = DecisionTraceId::new(format!(
-        "trace_decision_{}_{}",
+        "trace_decision_{}_{}_{}",
         input.actor_id.as_str(),
-        input.decision_tick.value()
+        input.decision_tick.value(),
+        selected.candidate_goal_id.as_str()
     ))
     .unwrap();
     let lifecycle_effects = lifecycle_effects(
