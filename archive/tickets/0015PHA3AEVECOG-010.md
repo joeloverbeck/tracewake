@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-010: Cross-cutting docs — conformance index rows and TFW clarification
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Docs only — `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`, `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
@@ -78,3 +78,24 @@ In `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.
 
 1. `grep -n "source_event_ids" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md && grep -ni "not an information channel\|routine-template" docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Added Phase 3A evented cognition conformance rows for workplace, sleep, food, and route knowledge with event-sourced `source_event_ids` as the required allowed source.
+- Added conformance rows for hidden-truth audit enforcement, completion continuity, and the ordinary-life tuning boundary.
+- Clarified in the execution-tier truth-firewall doc that routine-template presence is not an information channel.
+
+Deviations from original plan:
+- None.
+
+Verification:
+- `grep -n "source_event_ids" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `grep -ni "not an information channel\\|routine-template" docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+- `grep -ni "Completion continuity\\|Hidden-truth audit enforcement\\|Ordinary-life tuning boundary\\|need-band" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

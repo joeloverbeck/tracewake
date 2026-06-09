@@ -71,6 +71,18 @@ Every feature, subsystem, fixture, test, view model, and report must answer thes
 
 A feature that cannot answer these questions is not architecture-conformant.
 
+## Phase 3A evented cognition conformance
+
+| Surface | Required allowed source | Required evidence |
+|---|---|---|
+| Workplace knowledge | Event-sourced notice/observation/record with `source_event_ids`; never a raw workplace table read, routine-template label, or fixture assignment copied into cognition. | Actor-known workplace facts cite live log events; negative fixtures prove raw assignment without notice does not plan work. |
+| Sleep-surface knowledge | Event-sourced notice/observation/record with `source_event_ids`; current-place sleep affordance truth alone is not an information channel. | Actor-known sleep facts cite live log events; sleep proposals carry modeled affordance ids through the shared action pipeline. |
+| Food-source knowledge | Event-sourced notice/observation/record with `source_event_ids`; nearest-food or hidden-container truth cannot select an eat plan. | Actor-known food facts cite live log events; hidden-food fixtures prove inaccessible truth is absent from planning inputs. |
+| Route knowledge | Event-sourced notice/observation/record with `source_event_ids`; unseen adjacency/path truth cannot choose embodied exits or plans. | Actor-known route facts cite live log events; hidden-route fixtures prove unseen edges remain unavailable. |
+| Hidden-truth audit enforcement | Decision traces are not decorative; forbidden source classes fail closed before proposal construction, with typed stuck diagnostics and pipeline defense in depth. | `hidden_truth_input` diagnostics carry responsible layer, blocker code, and replayable ancestry; agent-origin proposals with dirty audits are rejected. |
+| Completion continuity | Scheduled duration completions for sleep/work preserve action ancestry, body exclusivity, interruption checks, and prorated effects instead of becoming scheduler-authored outcomes. | Completion/interruption events are caused by the start event and replay byte-identically. |
+| Ordinary-life tuning boundary | Passive need rates and sleep duration/recovery are content-authored flavor; need-band thresholds remain kernel semantics. | Content schema requires authored `need_model` and sleep tuning fields; guard tests ban the retired kernel tuning constants. |
+
 ## Required architectural spine
 
 For ordinary actors:

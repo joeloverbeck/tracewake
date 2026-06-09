@@ -52,6 +52,8 @@ Every cognition input must say how the holder can know it:
 | Suspect possibility | observed trace, rumor, relationship inference, institutional record | culprit flag or theft script |
 | Institutional fact | record, role appointment, procedure event, testimony | debug table or schema label |
 
+Routine-template presence is not an information channel; it may organize intent and method selection only after the holder-known context already contains an independently sourced observation, notice, record, memory, or explicit unknown.
+
 ## Anti-contamination gate `TFW`
 
 Every future spec and audit must include a `TFW` section with these checks:
