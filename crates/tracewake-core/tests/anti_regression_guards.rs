@@ -683,6 +683,27 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         scheduler.contains("ActorDecisionTransaction::run"),
         "scheduler autonomous proposals must come from the actor decision transaction"
     );
+    assert!(
+        SLEEP_RS.contains("pub fn build_sleep_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
+        "sleep completion builder must require current physical and agent state for continuity checks"
+    );
+    assert!(
+        WORK_RS.contains("pub fn build_work_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
+        "work completion builder must require current physical and agent state for continuity checks"
+    );
+    assert!(
+        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,"),
+        "scheduler must pass current state into sleep completion continuity checks"
+    );
+    assert!(
+        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,"),
+        "scheduler must pass current state into work completion continuity checks"
+    );
+    assert!(
+        scheduler.contains("if appended.event_type == EventKind::SleepCompleted")
+            && scheduler.contains("if appended.event_type == EventKind::WorkBlockCompleted"),
+        "scheduler must only mark duration routine steps completed after actual completion events"
+    );
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let place_id = PlaceId::new("shop_front").unwrap();

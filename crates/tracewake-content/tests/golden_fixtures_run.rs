@@ -267,17 +267,15 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
         .expect("work starts after movement ancestry")
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_work_completion_events(
-            &work_started,
-            &ordering_key(&work, 2),
-            &manifest_id,
-            SimTick::new(12),
-        ),
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work, 2),
+        &manifest_id,
+        SimTick::new(12),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::ActorMoved));
     assert!(has_event(&log, EventKind::WorkBlockStarted));
@@ -318,17 +316,15 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         .find(|event| event.event_type == EventKind::SleepStarted)
         .expect("sleep starts")
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_sleep_completion_events(
-            &sleep_started,
-            &ordering_key(&sleep, 1),
-            &manifest_id,
-            SimTick::new(4),
-        ),
+    let completion_events = build_sleep_completion_events(
+        &state,
+        &agent_state,
+        &sleep_started,
+        &ordering_key(&sleep, 1),
+        &manifest_id,
+        SimTick::new(4),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let eat = proposal(
         "proposal_eat_breakfast",
@@ -380,17 +376,15 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
         .expect("work starts")
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_work_completion_events(
-            &work_started,
-            &ordering_key(&work, 5),
-            &manifest_id,
-            SimTick::new(11),
-        ),
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work, 5),
+        &manifest_id,
+        SimTick::new(11),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::SleepCompleted));
     assert!(has_event(&log, EventKind::FoodConsumed));
@@ -1058,17 +1052,15 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         })
         .unwrap()
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_sleep_completion_events(
-            &sleep_started,
-            &ordering_key(&sleep_elena, 103),
-            &manifest_id,
-            SimTick::new(39),
-        ),
+    let completion_events = build_sleep_completion_events(
+        &state,
+        &agent_state,
+        &sleep_started,
+        &ordering_key(&sleep_elena, 103),
+        &manifest_id,
+        SimTick::new(39),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let move_tomas_commons = proposal(
         "proposal_day_tomas_move_commons",
@@ -1132,17 +1124,15 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         })
         .unwrap()
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_work_completion_events(
-            &work_started,
-            &ordering_key(&work_tomas, 107),
-            &manifest_id,
-            SimTick::new(46),
-        ),
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work_tomas, 107),
+        &manifest_id,
+        SimTick::new(46),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let work_anna = proposal(
         "proposal_day_anna_blocked_work",

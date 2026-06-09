@@ -36,11 +36,13 @@ mod routine_blocked_diagnostic_001;
 mod routine_no_teleport_001;
 mod scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 mod sleep_eat_work_001;
+mod sleep_interrupted_by_severe_need_prorates_recovery_001;
 mod sleep_rejects_current_place_without_sleep_affordance_001;
 mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
+mod work_completion_fails_when_actor_displaced_001;
 mod workplace_assignment_provenance_001;
 
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
@@ -102,11 +104,13 @@ pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
 pub use routine_no_teleport_001::routine_no_teleport_001;
 pub use scheduler_cannot_rewrite_wait_reason_after_transaction_001::scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
+pub use sleep_interrupted_by_severe_need_prorates_recovery_001::sleep_interrupted_by_severe_need_prorates_recovery_001;
 pub use sleep_rejects_current_place_without_sleep_affordance_001::sleep_rejects_current_place_without_sleep_affordance_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
 pub use view_model_local_actions_001::view_model_local_actions_001;
+pub use work_completion_fails_when_actor_displaced_001::work_completion_fails_when_actor_displaced_001;
 pub use workplace_assignment_provenance_001::workplace_assignment_provenance_001;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -181,6 +185,8 @@ pub fn all() -> Vec<GoldenFixture> {
         scheduler_cannot_rewrite_wait_reason_after_transaction_001(),
         method_fallback_requires_new_trace_or_stuck_001(),
         no_human_metrics_require_typed_responsible_layer_001(),
+        sleep_interrupted_by_severe_need_prorates_recovery_001(),
+        work_completion_fails_when_actor_displaced_001(),
         hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001(),
         no_human_workplace_knowledge_requires_notice_event_001(),
         no_human_sleep_knowledge_requires_observation_or_record_001(),

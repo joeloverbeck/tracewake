@@ -2,10 +2,11 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
+use crate::agent::{NeedBand, NeedKind};
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContentManifestId, EventId, PlaceId, SleepAffordanceId};
 use crate::scheduler::OrderingKey;
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
 pub const DEFAULT_SLEEP_DURATION_TICKS: u64 = 4;
@@ -150,11 +151,22 @@ fn no_sleep_affordance_rejection(
 }
 
 pub fn build_sleep_completion_events(
+    state: &PhysicalState,
+    agent_state: &AgentState,
     sleep_started_event: &EventEnvelope,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     completion_tick: SimTick,
 ) -> Vec<EventEnvelope> {
+    if let Some(reason) = sleep_interruption_reason(state, agent_state, sleep_started_event) {
+        return build_sleep_interruption_events(
+            sleep_started_event,
+            ordering_key,
+            content_manifest_id,
+            completion_tick,
+            reason,
+        );
+    }
     build_sleep_end_events(
         sleep_started_event,
         ordering_key,
@@ -163,6 +175,58 @@ pub fn build_sleep_completion_events(
         EventKind::SleepCompleted,
         "sleep completed",
     )
+}
+
+fn sleep_interruption_reason(
+    state: &PhysicalState,
+    agent_state: &AgentState,
+    sleep_started_event: &EventEnvelope,
+) -> Option<&'static str> {
+    let Some(actor_id) = sleep_started_event.actor_id.as_ref() else {
+        return Some("actor_missing");
+    };
+    let Some(actor) = state.actors.get(actor_id) else {
+        return Some("actor_missing");
+    };
+    let Some(sleep_affordance_id) = payload_value(sleep_started_event, "sleep_affordance_id")
+        .and_then(|value| SleepAffordanceId::new(value).ok())
+    else {
+        return Some("sleep_affordance_missing");
+    };
+    let Some(sleep_affordance) = state.sleep_affordances.get(&sleep_affordance_id) else {
+        return Some("sleep_affordance_missing");
+    };
+    if actor.current_place_id != sleep_affordance.place_id {
+        return Some("actor_displaced");
+    }
+    if !sleep_affordance.access_open {
+        return Some("sleep_affordance_closed");
+    }
+    if has_severe_interrupting_need(agent_state, actor_id) {
+        return Some("severe_need_pressure");
+    }
+    None
+}
+
+fn has_severe_interrupting_need(agent_state: &AgentState, actor_id: &crate::ids::ActorId) -> bool {
+    agent_state
+        .needs_by_actor
+        .get(actor_id)
+        .is_some_and(|needs| {
+            [NeedKind::Hunger, NeedKind::Safety].iter().any(|kind| {
+                needs
+                    .get(kind)
+                    .is_some_and(|need| need.band() == NeedBand::Severe)
+            })
+        })
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 pub fn build_sleep_interruption_events(
@@ -329,8 +393,11 @@ fn parse_duration_ticks(proposal: &Proposal) -> Result<u64, ActionRejection> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
     use crate::actions::proposal::ProposalOrigin;
+    use crate::agent::{NeedChangeCause, NeedState};
     use crate::ids::{ActionId, ActorId, PlaceId, ProposalId, SleepAffordanceId};
     use crate::scheduler::{
         duration_completion_ordering_key, ProposalSequence, SchedulePhase, SchedulerSourceId,
@@ -355,6 +422,21 @@ mod tests {
             ),
         );
         state
+    }
+
+    fn agent_state_with_needs(fatigue: i32, hunger: i32) -> AgentState {
+        let mut agent_state = AgentState::default();
+        let mut needs = BTreeMap::new();
+        needs.insert(
+            NeedKind::Fatigue,
+            NeedState::initial(NeedKind::Fatigue, fatigue, NeedChangeCause::FixtureInitial),
+        );
+        needs.insert(
+            NeedKind::Hunger,
+            NeedState::initial(NeedKind::Hunger, hunger, NeedChangeCause::FixtureInitial),
+        );
+        agent_state.needs_by_actor.insert(actor_id(), needs);
+        agent_state
     }
 
     fn proposal(origin: ProposalOrigin) -> Proposal {
@@ -435,6 +517,8 @@ mod tests {
             0,
         );
         let events = build_sleep_completion_events(
+            &state(),
+            &AgentState::default(),
             &start,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -457,6 +541,48 @@ mod tests {
             .iter()
             .any(|field| field.key == "delta" && field.value == "-60"));
         assert!(!fatigue.effects_summary.contains("comfortable"));
+    }
+
+    #[test]
+    fn sleep_completion_interrupts_on_severe_need_with_prorated_recovery() {
+        let start = build_sleep_start_event(
+            &state(),
+            &proposal(ProposalOrigin::Test),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap();
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("sleep").unwrap(),
+            SimTick::new(12),
+            0,
+        );
+        let events = build_sleep_completion_events(
+            &state(),
+            &agent_state_with_needs(100, 900),
+            &start,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(12),
+        );
+
+        assert_eq!(events[0].event_type, EventKind::SleepInterrupted);
+        assert!(events[0]
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "severe_need_pressure"));
+        assert!(events.iter().any(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "need_kind" && field.value == "fatigue")
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "delta" && field.value == "-40")
+        }));
     }
 
     #[test]

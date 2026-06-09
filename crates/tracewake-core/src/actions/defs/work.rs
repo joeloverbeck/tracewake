@@ -2,7 +2,7 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
-use crate::agent::NeedKind;
+use crate::agent::{NeedBand, NeedKind};
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContentManifestId, EventId, WorkplaceId};
 use crate::scheduler::OrderingKey;
@@ -111,6 +111,8 @@ pub fn build_work_start_events(
 }
 
 pub fn build_work_completion_events(
+    state: &PhysicalState,
+    agent_state: &AgentState,
     work_started_event: &EventEnvelope,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -123,6 +125,38 @@ pub fn build_work_completion_events(
         payload_i32(work_started_event, "fatigue_delta_per_tick") * elapsed_ticks as i32;
     let hunger_delta =
         payload_i32(work_started_event, "hunger_delta_per_tick") * elapsed_ticks as i32;
+    if let Some((blocker_kind, reason)) =
+        work_completion_failure(state, agent_state, work_started_event)
+    {
+        let mut events = vec![work_failed_from_start_event(
+            work_started_event,
+            ordering_key,
+            content_manifest_id,
+            completion_tick,
+            elapsed_ticks,
+            fatigue_delta,
+            hunger_delta,
+            blocker_kind,
+            reason,
+        )];
+        events.push(need_delta_event(
+            work_started_event,
+            ordering_key,
+            content_manifest_id,
+            completion_tick,
+            "fatigue",
+            fatigue_delta,
+        ));
+        events.push(need_delta_event(
+            work_started_event,
+            ordering_key,
+            content_manifest_id,
+            completion_tick,
+            "hunger",
+            hunger_delta,
+        ));
+        return events;
+    }
     vec![
         work_completed_event(
             work_started_event,
@@ -150,6 +184,50 @@ pub fn build_work_completion_events(
             hunger_delta,
         ),
     ]
+}
+
+fn work_completion_failure(
+    state: &PhysicalState,
+    agent_state: &AgentState,
+    work_started_event: &EventEnvelope,
+) -> Option<(&'static str, &'static str)> {
+    let Some(actor_id) = work_started_event.actor_id.as_ref() else {
+        return Some(("continuity", "actor_missing"));
+    };
+    let Some(actor) = state.actors.get(actor_id) else {
+        return Some(("continuity", "actor_missing"));
+    };
+    let place_id = payload_value(work_started_event, "place_id");
+    if actor.current_place_id.as_str() != place_id {
+        return Some(("continuity", "actor_displaced"));
+    }
+    let workplace_id = payload_value(work_started_event, "workplace_id");
+    let Some(workplace) = WorkplaceId::new(workplace_id)
+        .ok()
+        .and_then(|id| state.workplaces.get(&id))
+    else {
+        return Some(("continuity", "workplace_missing"));
+    };
+    if workplace.place_id.as_str() != place_id || !workplace.access_open {
+        return Some(("continuity", "workplace_unusable"));
+    }
+    if has_severe_interrupting_need(agent_state, actor_id) {
+        return Some(("need", "severe_need_pressure"));
+    }
+    None
+}
+
+fn has_severe_interrupting_need(agent_state: &AgentState, actor_id: &crate::ids::ActorId) -> bool {
+    agent_state
+        .needs_by_actor
+        .get(actor_id)
+        .is_some_and(|needs| {
+            [NeedKind::Hunger, NeedKind::Safety].iter().any(|kind| {
+                needs
+                    .get(kind)
+                    .is_some_and(|need| need.band() == NeedBand::Severe)
+            })
+        })
 }
 
 fn work_started_event(
@@ -289,6 +367,56 @@ fn work_failed_event(
         PayloadField::new("completion_emitted", "false"),
     ];
     event.effects_summary = format!("work block failed: {reason}");
+    event
+}
+
+#[allow(clippy::too_many_arguments)]
+fn work_failed_from_start_event(
+    work_started_event: &EventEnvelope,
+    ordering_key: &OrderingKey,
+    content_manifest_id: &ContentManifestId,
+    failure_tick: SimTick,
+    elapsed_ticks: u64,
+    fatigue_delta: i32,
+    hunger_delta: i32,
+    blocker_kind: &str,
+    reason: &str,
+) -> EventEnvelope {
+    let actor_id = work_started_event
+        .actor_id
+        .clone()
+        .expect("work start event carries actor");
+    let workplace_id = payload_value(work_started_event, "workplace_id");
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(format!(
+            "event.work_block_failed.{}",
+            work_started_event.event_id.as_str()
+        ))
+        .unwrap(),
+        EventKind::WorkBlockFailed,
+        0,
+        0,
+        failure_tick,
+        ordering_key.clone(),
+        content_manifest_id.clone(),
+        vec![EventCause::Event(work_started_event.event_id.clone())],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id.clone());
+    event.proposal_id = work_started_event.proposal_id.clone();
+    event.participants = vec![actor_id.to_string(), workplace_id.to_string()];
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("actor_id", actor_id.as_str()),
+        PayloadField::new("workplace_id", workplace_id),
+        PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
+        PayloadField::new("fatigue_delta", fatigue_delta.to_string()),
+        PayloadField::new("hunger_delta", hunger_delta.to_string()),
+        PayloadField::new("blocker_kind", blocker_kind),
+        PayloadField::new("reason", reason),
+        PayloadField::new("completion_emitted", "false"),
+    ];
+    event.effects_summary = format!("work block failed during scheduled completion: {reason}");
     event
 }
 
@@ -458,6 +586,16 @@ mod tests {
         state
     }
 
+    fn displaced_state() -> PhysicalState {
+        let mut state = state();
+        let street = PlaceId::new("street").unwrap();
+        state
+            .places
+            .insert(street.clone(), PlaceState::new(street.clone(), "Street"));
+        state.actors.get_mut(&actor_id()).unwrap().current_place_id = street;
+        state
+    }
+
     fn agent_state_with_needs(fatigue: i32, hunger: i32) -> AgentState {
         let mut agent_state = AgentState::default();
         let mut needs = BTreeMap::new();
@@ -537,6 +675,8 @@ mod tests {
             0,
         );
         let events = build_work_completion_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
             &start,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -557,6 +697,53 @@ mod tests {
                     .payload
                     .iter()
                     .any(|field| field.key == "delta" && field.value == "32")
+        }));
+    }
+
+    #[test]
+    fn work_completion_fails_when_actor_displaced_with_prorated_costs() {
+        let start = build_work_start_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap()
+        .remove(0);
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("work_block").unwrap(),
+            SimTick::new(22),
+            0,
+        );
+        let events = build_work_completion_events(
+            &displaced_state(),
+            &agent_state_with_needs(100, 100),
+            &start,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(22),
+        );
+
+        assert_eq!(events[0].event_type, EventKind::WorkBlockFailed);
+        assert!(events[0]
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "actor_displaced"));
+        assert!(!events
+            .iter()
+            .any(|event| event.event_type == EventKind::WorkBlockCompleted));
+        assert!(events.iter().any(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "need_kind" && field.value == "fatigue")
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "delta" && field.value == "16")
         }));
     }
 

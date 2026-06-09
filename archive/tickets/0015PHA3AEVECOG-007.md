@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-007: Scheduled completions revalidate continuity; wire sleep/work interruption
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — completion builders take current state and validate continuity; modeled interruption path wired; typed interruption events with prorated deltas; guard + two fixtures
@@ -95,3 +95,31 @@ Add a guard: completion builders reference current-state continuity checks (posi
 
 1. `cargo test -p tracewake-core scheduler:: actions::defs::sleep actions::defs::work && cargo test -p tracewake-content interrupt`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- `build_sleep_completion_events` and `build_work_completion_events` now take current `PhysicalState` and `AgentState` and branch through continuity checks before producing completion events.
+- Scheduled sleep completion now emits `SleepInterrupted` with prorated need deltas when continuity breaks or severe hunger/safety pressure is present.
+- Scheduled work completion now emits `WorkBlockFailed` with elapsed-tick deltas when the actor is displaced, the workplace is unusable/missing, or severe hunger/safety pressure is present.
+- The no-human scheduler passes current state into completion builders and only records duration routine-step completion ancestry for actual `SleepCompleted` / `WorkBlockCompleted` events.
+- Added structural guard coverage and two adversarial fixture contracts: `sleep_interrupted_by_severe_need_prorates_recovery_001` and `work_completion_fails_when_actor_displaced_001`.
+
+Deviations from original plan:
+
+- `SleepInterrupted` and `WorkBlockFailed` event kinds already existed, so no event schema or apply-arm extension was needed.
+- The new fixtures are contract/validation fixtures; direct unit tests exercise the concrete interruption and displacement branches.
+
+Verification:
+
+- `cargo test -p tracewake-core actions::defs::sleep::tests::sleep_completion_interrupts_on_severe_need_with_prorated_recovery` passed.
+- `cargo test -p tracewake-core actions::defs::work::tests::work_completion_fails_when_actor_displaced_with_prorated_costs` passed.
+- `cargo test -p tracewake-content` passed.
+- `cargo test -p tracewake-core --test anti_regression_guards scheduler_never_direct_dispatches_primitive_action` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

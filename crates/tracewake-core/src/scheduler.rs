@@ -362,6 +362,7 @@ pub mod no_human {
                 );
                 last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
                 append_due_completions(
+                    state,
                     log,
                     agent_state,
                     &process_id,
@@ -478,6 +479,7 @@ pub mod no_human {
         }
 
         append_due_completions(
+            state,
             log,
             agent_state,
             &process_id,
@@ -650,6 +652,7 @@ pub mod no_human {
 
     #[allow(clippy::too_many_arguments)]
     fn append_due_completions(
+        state: &PhysicalState,
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
@@ -687,6 +690,7 @@ pub mod no_human {
         });
         for completion in due_completions {
             append_scheduled_completion(
+                state,
                 log,
                 agent_state,
                 process_id,
@@ -698,6 +702,7 @@ pub mod no_human {
     }
 
     fn append_scheduled_completion(
+        state: &PhysicalState,
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
@@ -725,19 +730,23 @@ pub mod no_human {
                     format!("sleep_completed:{}", sleep_started.event_id.as_str()),
                 );
                 for event in build_sleep_completion_events(
+                    state,
+                    agent_state,
                     &sleep_started,
                     &ordering_key,
                     content_manifest_id,
                     completion_tick,
                 ) {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
-                    append_routine_step_completed_after_duration_completion(
-                        log,
-                        agent_state,
-                        process_id,
-                        content_manifest_id,
-                        &appended,
-                    );
+                    if appended.event_type == EventKind::SleepCompleted {
+                        append_routine_step_completed_after_duration_completion(
+                            log,
+                            agent_state,
+                            process_id,
+                            content_manifest_id,
+                            &appended,
+                        );
+                    }
                 }
             }
             PendingCompletion::Work(work_started) => {
@@ -759,19 +768,23 @@ pub mod no_human {
                     format!("work_completed:{}", work_started.event_id.as_str()),
                 );
                 for event in build_work_completion_events(
+                    state,
+                    agent_state,
                     &work_started,
                     &ordering_key,
                     content_manifest_id,
                     completion_tick,
                 ) {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
-                    append_routine_step_completed_after_duration_completion(
-                        log,
-                        agent_state,
-                        process_id,
-                        content_manifest_id,
-                        &appended,
-                    );
+                    if appended.event_type == EventKind::WorkBlockCompleted {
+                        append_routine_step_completed_after_duration_completion(
+                            log,
+                            agent_state,
+                            process_id,
+                            content_manifest_id,
+                            &appended,
+                        );
+                    }
                 }
             }
         }
