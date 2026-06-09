@@ -1,6 +1,6 @@
 # 0005PHA1DOCCOD-002: Phase-scoped content loading — `FixtureScope` + per-scope registry + migrate the existing fixtures
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-content` schema (`FixtureScope` field), fixture loader, content validators, all in-repo fixtures, and the content test suites.
@@ -105,3 +105,32 @@ In `forbidden_content.rs` (helper `registry()`), `schema_conformance.rs`, `fixtu
 
 1. `grep -rln '"eat"\|"sleep"\|"work_block"\|"continue_routine"\|"check_container"\|"truthful_accuse_probe"' crates/tracewake-content/src/fixtures/` — re-derive the later-phase fixture set before declaring scopes.
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Added structural `FixtureScope::{Phase1, Phase2AHistorical, Phase3AHistorical}` to `FixtureSchema`.
+- Serialized `fixture_scope` as a required canonical fixture header and deserialized it as parsed data before loader registry selection.
+- Replaced the all-phase fixture loader registry with `registry_for_fixture_scope`, where Phase 1 registers only Phase 1 actions, Phase 2A historical opts into Phase 2A actions, and Phase 3A historical opts into both Phase 2A and Phase 3A historical actions.
+- Changed content action/routine validation so known actions outside the selected fixture scope fail with typed `ActionRegistryParity` diagnostics using code `phase_unsupported_action`; genuinely unknown actions still use `unknown_action`.
+- Migrated all in-repo fixtures to declared scopes. The re-derived later-phase set produced 6 Phase 2A historical fixtures, 14 Phase 3A historical fixtures, and 7 Phase 1 fixtures.
+- Added tests proving fixture scope registration/canonicalization, exact fixture scope classification, and Phase 1 registry exclusion of later-phase action IDs.
+
+Deviations from original plan:
+
+- `FixtureScope` landed directly on `FixtureSchema`, not `ContentManifest`, because `load_fixture_package` needs the parsed fixture scope before it can select the validation registry. The manifest fingerprint still includes the scope through canonical fixture bytes.
+- The current fixture inventory is 27 fixtures, not 28 as described in the ticket snapshot. The implementation re-derived the live set from `crates/tracewake-content/src/fixtures/` before assigning scopes.
+
+Verification results:
+
+- Re-derived later-phase fixtures with `rg -l '"(eat|sleep|work_block|continue_routine|check_container|truthful_accuse_probe)"' crates/tracewake-content/src/fixtures`.
+- `cargo test --locked -p tracewake-content --test fixtures_load` passed.
+- `cargo test --locked -p tracewake-content --test schema_conformance` passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed, including `no_human_day_001`.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

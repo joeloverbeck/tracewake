@@ -4,6 +4,7 @@ pub fn replay_item_location_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("replay_item_location_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase1,
         actors: vec![actor_schema("actor_mara", "archive_room")],
         places: vec![place_schema("archive_room", "Archive room", &[])],
         doors: Vec::new(),

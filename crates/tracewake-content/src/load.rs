@@ -1,7 +1,7 @@
 use tracewake_core::ids::{ContentManifestId, ContentVersion};
 
 use crate::manifest::ContentManifest;
-use crate::schema::FixtureSchema;
+use crate::schema::{FixtureSchema, FixtureScope};
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
 use crate::validate::{validate_fixture, ContentValidationFailure};
 
@@ -48,15 +48,7 @@ pub fn load_fixture_package(
         .ok_or(SerializationError::MissingField("source_file"))?;
     let mut fixture = deserialize_fixture(&primary.bytes)?;
     fixture.canonicalize();
-    let mut registry = tracewake_core::actions::ActionRegistry::new();
-    registry.register_phase1_movement_open_close();
-    registry.register_phase1_take_place();
-    registry.register_phase1_inspect_wait();
-    registry.register_phase2a_epistemics();
-    registry.register_phase3a_sleep();
-    registry.register_phase3a_eat();
-    registry.register_phase3a_work();
-    registry.register_phase3a_continue_routine();
+    let registry = registry_for_fixture_scope(fixture.fixture_scope);
     let accepted_world = validate_fixture(&fixture, &registry)?;
     let canonical_bytes = serialize_fixture(&fixture);
     let mut manifest = ContentManifest::new(
@@ -96,10 +88,33 @@ pub fn load_fixture_package(
     })
 }
 
+pub fn registry_for_fixture_scope(scope: FixtureScope) -> tracewake_core::actions::ActionRegistry {
+    let mut registry = tracewake_core::actions::ActionRegistry::new();
+    registry.register_phase1_movement_open_close();
+    registry.register_phase1_take_place();
+    registry.register_phase1_inspect_wait();
+    match scope {
+        FixtureScope::Phase1 => {}
+        FixtureScope::Phase2AHistorical => {
+            registry.register_phase2a_epistemics();
+        }
+        FixtureScope::Phase3AHistorical => {
+            registry.register_phase2a_epistemics();
+            registry.register_phase3a_sleep();
+            registry.register_phase3a_eat();
+            registry.register_phase3a_work();
+            registry.register_phase3a_continue_routine();
+        }
+    }
+    registry
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::{ActorSchema, ContainerSchema, FixtureSchema, ItemSchema, PlaceSchema};
+    use crate::schema::{
+        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, ItemSchema, PlaceSchema,
+    };
     use crate::serialization::serialize_fixture;
     use tracewake_core::ids::{ActorId, ContainerId, FixtureId, ItemId, PlaceId, SchemaVersion};
     use tracewake_core::location::Location;
@@ -108,6 +123,7 @@ mod tests {
         FixtureSchema {
             fixture_id: FixtureId::new("strongbox_001").unwrap(),
             schema_version: SchemaVersion::new("schema_v1").unwrap(),
+            fixture_scope: FixtureScope::Phase1,
             actors: vec![ActorSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 current_place_id: PlaceId::new("shop_front").unwrap(),

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use tracewake_core::actions::{ActionEffect, ActionRegistry};
+use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope};
 use tracewake_core::agent::RoutineStepProposal;
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
@@ -870,11 +870,26 @@ fn validate_action_registry_parity(
 ) {
     for (index, affordance) in fixture.affordances.iter().enumerate() {
         let Some(definition) = registry.get(&affordance.action_id) else {
+            let (code, message) = if let Some(scope) = known_action_scope(&affordance.action_id) {
+                (
+                    "phase_unsupported_action",
+                    format!(
+                        "action {} belongs to {:?} and is outside this fixture scope",
+                        affordance.action_id.as_str(),
+                        scope
+                    ),
+                )
+            } else {
+                (
+                    "unknown_action",
+                    format!("action {} is not registered", affordance.action_id.as_str()),
+                )
+            };
             errors.push(ContentValidationError::new(
                 ValidationPhase::ActionRegistryParity,
                 format!("affordances[{index}].action_id"),
-                "unknown_action",
-                format!("action {} is not registered", affordance.action_id.as_str()),
+                code,
+                message,
             ));
             continue;
         };
@@ -952,15 +967,31 @@ fn validate_routine_rules(
                 continue;
             };
             if registry.get(&action_id).is_none() {
+                let (code, message) = if let Some(scope) = known_action_scope(&action_id) {
+                    (
+                        "phase_unsupported_action",
+                        format!(
+                            "routine step action {} maps to {} in {:?}, outside this fixture scope",
+                            semantic_action_id.as_str(),
+                            action_id.as_str(),
+                            scope
+                        ),
+                    )
+                } else {
+                    (
+                        "unknown_action",
+                        format!(
+                            "routine step action {} maps to unregistered action {}",
+                            semantic_action_id.as_str(),
+                            action_id.as_str()
+                        ),
+                    )
+                };
                 errors.push(ContentValidationError::new(
                     ValidationPhase::ActionRegistryParity,
                     format!("routine_templates[{template_index}].steps[{step_index}]"),
-                    "unknown_action",
-                    format!(
-                        "routine step action {} maps to unregistered action {}",
-                        semantic_action_id.as_str(),
-                        action_id.as_str()
-                    ),
+                    code,
+                    message,
                 ));
             }
         }
@@ -985,6 +1016,16 @@ fn validate_routine_rules(
                 ));
             }
         }
+    }
+}
+
+fn known_action_scope(action_id: &ActionId) -> Option<ActionScope> {
+    match action_id.as_str() {
+        "move" | "open" | "close" | "take" | "place" | "look" | "inspect_place"
+        | "inspect_entity" | "wait" => Some(ActionScope::Phase1),
+        "check_container" | "truthful_accuse_probe" => Some(ActionScope::Phase2AHistorical),
+        "sleep" | "eat" | "work_block" | "continue_routine" => Some(ActionScope::Phase3AHistorical),
+        _ => None,
     }
 }
 
@@ -1728,9 +1769,9 @@ fn is_phase3a_shortcut_marker(value: &str) -> bool {
 mod tests {
     use super::*;
     use crate::schema::{
-        ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FoodSupplySchema,
-        InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
-        SleepPlaceSchema, WorkplaceSchema,
+        ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureScope,
+        FoodSupplySchema, InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema,
+        RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
     };
     use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
     use tracewake_core::ids::{
@@ -1756,6 +1797,7 @@ mod tests {
         FixtureSchema {
             fixture_id: FixtureId::new("strongbox_001").unwrap(),
             schema_version: SchemaVersion::new("schema_v1").unwrap(),
+            fixture_scope: FixtureScope::Phase1,
             actors: vec![ActorSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 current_place_id: PlaceId::new("shop_front").unwrap(),
@@ -1816,6 +1858,7 @@ mod tests {
 
     fn phase3a_fixture() -> FixtureSchema {
         let mut fixture = fixture();
+        fixture.fixture_scope = FixtureScope::Phase3AHistorical;
         fixture.places.push(PlaceSchema {
             place_id: PlaceId::new("workshop").unwrap(),
             display_label: "Workshop".to_string(),

@@ -78,6 +78,13 @@ pub const CONTENT_FIELD_REGISTRY: &[ContentFieldRegistration] = &[
         diagnostic_code: "missing_field",
     },
     ContentFieldRegistration {
+        schema_field: "fixture_scope",
+        canonical_serialization_key: "fixture_scope",
+        validation_phase: ValidationPhase::ParseSchema,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedAffordance,
+        diagnostic_code: "missing_field",
+    },
+    ContentFieldRegistration {
         schema_field: "actors",
         canonical_serialization_key: "actor",
         validation_phase: ValidationPhase::Referential,
@@ -214,6 +221,7 @@ pub fn canonical_key_for_schema_field(schema_field: &str) -> &'static str {
 pub struct FixtureSchema {
     pub fixture_id: FixtureId,
     pub schema_version: SchemaVersion,
+    pub fixture_scope: FixtureScope,
     pub actors: Vec<ActorSchema>,
     pub places: Vec<PlaceSchema>,
     pub doors: Vec<DoorSchema>,
@@ -229,6 +237,23 @@ pub struct FixtureSchema {
     pub routine_templates: Vec<RoutineTemplateSchema>,
     pub routine_assignments: Vec<RoutineAssignmentSchema>,
     pub day_windows: Vec<DayWindowSchema>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FixtureScope {
+    Phase1,
+    Phase2AHistorical,
+    Phase3AHistorical,
+}
+
+impl FixtureScope {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::Phase1 => "phase1",
+            Self::Phase2AHistorical => "phase2a_historical",
+            Self::Phase3AHistorical => "phase3a_historical",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

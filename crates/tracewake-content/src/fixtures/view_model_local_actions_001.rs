@@ -4,6 +4,7 @@ pub fn view_model_local_actions_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("view_model_local_actions_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase1,
         actors: vec![actor_schema("actor_lina", "market_stall")],
         places: vec![
             place_schema("market_stall", "Market stall", &["store_room"]),

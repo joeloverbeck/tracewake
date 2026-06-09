@@ -4,6 +4,7 @@ pub fn container_item_move_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("container_item_move_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase1,
         actors: vec![actor_schema("actor_mira", "workroom")],
         places: vec![place_schema("workroom", "Workroom", &[])],
         doors: Vec::new(),

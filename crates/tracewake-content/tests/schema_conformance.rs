@@ -50,3 +50,41 @@ fn schema_conformance_maps_content_spine_requirements_to_named_tests() {
         .iter()
         .any(|evidence| evidence.layer == "content/validation"));
 }
+
+#[test]
+fn fixture_scope_is_registered_and_canonicalized() {
+    use tracewake_content::fixtures;
+    use tracewake_content::schema::{
+        canonical_key_for_schema_field, content_field_by_schema_field, FixtureScope,
+        ForbiddenConstructPolicy, ValidationPhase,
+    };
+    use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
+
+    let registration = content_field_by_schema_field("fixture_scope")
+        .expect("fixture_scope must be in the content field registry");
+    assert_eq!(registration.canonical_serialization_key, "fixture_scope");
+    assert_eq!(registration.validation_phase, ValidationPhase::ParseSchema);
+    assert_eq!(
+        registration.forbidden_construct_policy,
+        ForbiddenConstructPolicy::TypedAffordance
+    );
+    assert_eq!(
+        canonical_key_for_schema_field("fixture_scope"),
+        "fixture_scope"
+    );
+
+    let golden = fixtures::sleep_eat_work_001();
+    assert_eq!(
+        golden.fixture.fixture_scope,
+        FixtureScope::Phase3AHistorical
+    );
+    let serialized = serialize_fixture(&golden.fixture);
+    let text = String::from_utf8(serialized.clone()).unwrap();
+    assert!(
+        text.lines()
+            .any(|line| line == "fixture_scope|phase3a_historical"),
+        "serialized fixture must carry fixture_scope as canonical data"
+    );
+    let round_tripped = deserialize_fixture(&serialized).unwrap();
+    assert_eq!(round_tripped.fixture_scope, FixtureScope::Phase3AHistorical);
+}

@@ -42,9 +42,9 @@ use tracewake_core::time::SimTick;
 use crate::load::SourceFile;
 use crate::schema::{
     ActionAffordanceSchema, ActorSchema, ContainerSchema, DayWindowSchema, DoorSchema,
-    FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema, InitialNeedSchema,
-    ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema,
-    WorkplaceSchema,
+    FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
+    InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
+    SleepPlaceSchema, WorkplaceSchema,
 };
 use crate::serialization::serialize_fixture;
 
@@ -150,6 +150,7 @@ fn hidden_truth_adversarial_fixture(
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id(fixture_id_value),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase3AHistorical,
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),
