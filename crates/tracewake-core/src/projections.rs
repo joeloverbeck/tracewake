@@ -2,6 +2,7 @@ use crate::actions::{
     validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalSource,
     ProposalSourceContext, ProposalValidationContext, ReasonCode, ReportStatus, ValidationReport,
 };
+use crate::agent::{BlockerCode, ResponsibleLayer};
 use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
 use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
@@ -9,7 +10,7 @@ use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, HolderKnownContextId, ItemId,
-    PlaceId, ProposalId, SemanticActionId, ViewModelId, WorkplaceId,
+    PlaceId, ProposalId, SemanticActionId, SleepAffordanceId, ViewModelId, WorkplaceId,
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -47,7 +48,7 @@ impl<'a> EmbodiedProjectionSource<'a> {
         let viewer_actor_id = context.viewer_actor_id();
         let actor_known_food_sources =
             actor_known_food_sources_for_context(context, state, viewer_actor_id);
-        let actor_known_workplaces = actor_known_workplaces_for_context(state, viewer_actor_id);
+        let actor_known_workplaces = actor_known_workplaces_for_context(context);
         Self {
             state,
             agent_state,
@@ -97,18 +98,11 @@ fn actor_can_see_food_source(
     }
 }
 
-fn actor_known_workplaces_for_context(
-    state: &PhysicalState,
-    viewer_actor_id: &ActorId,
-) -> Vec<WorkplaceId> {
-    let mut workplaces = state
-        .workplaces
-        .values()
-        .filter(|workplace| {
-            workplace.assigned_actor_ids.is_empty()
-                || workplace.assigned_actor_ids.contains(viewer_actor_id)
-        })
-        .map(|workplace| workplace.workplace_id.clone())
+fn actor_known_workplaces_for_context(context: &KnowledgeContext) -> Vec<WorkplaceId> {
+    let mut workplaces = context
+        .actor_known_workplaces()
+        .iter()
+        .map(|fact| fact.workplace_id().clone())
         .collect::<Vec<_>>();
     workplaces.sort();
     workplaces.dedup();
@@ -210,13 +204,7 @@ pub fn no_human_day_metrics(log: &EventLog) -> NoHumanDayMetrics {
             + count_kind(events, EventKind::RoutineStepFailed),
         planner_failures: events
             .iter()
-            .filter(|event| {
-                event.event_type == EventKind::DecisionTraceRecorded
-                    && event.payload.iter().any(|field| {
-                        field.value.contains("planner_budget_exhausted")
-                            || (field.value.contains("planner") && field.value.contains("failed"))
-                    })
-            })
+            .filter(|event| is_typed_planner_failure_event(event))
             .count(),
         stuck_actor_count: stuck_actor_ids.len(),
         run_duration_ticks: end_tick.value().saturating_sub(start_tick.value()),
@@ -241,6 +229,42 @@ fn count_kind(events: &[EventEnvelope], kind: EventKind) -> usize {
         .iter()
         .filter(|event| event.event_type == kind)
         .count()
+}
+
+fn is_typed_planner_failure_event(event: &EventEnvelope) -> bool {
+    if !matches!(
+        event.event_type,
+        EventKind::DecisionTraceRecorded | EventKind::StuckDiagnosticRecorded
+    ) {
+        return false;
+    }
+    let responsible_layer = typed_responsible_layer(event);
+    let blocker_code = typed_blocker_code(event);
+    matches!(responsible_layer, Some(ResponsibleLayer::LocalPlanning))
+        || matches!(
+            blocker_code,
+            Some(
+                BlockerCode::PlannerBudgetExhausted
+                    | BlockerCode::EmptyLocalPlan
+                    | BlockerCode::LocalPlanFailed
+            )
+        )
+}
+
+fn typed_responsible_layer(event: &EventEnvelope) -> Option<ResponsibleLayer> {
+    payload_value(event, "responsible_layer").and_then(|value| ResponsibleLayer::parse(value).ok())
+}
+
+fn typed_blocker_code(event: &EventEnvelope) -> Option<BlockerCode> {
+    payload_value(event, "blocker_code").and_then(|value| BlockerCode::parse(value).ok())
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn is_routine_event(kind: EventKind) -> bool {
@@ -633,14 +657,16 @@ fn phase3a_semantic_actions(
     viewer_actor_id: &ActorId,
 ) -> Vec<SemanticActionEntry> {
     let mut actions = Vec::new();
-    actions.push(SemanticActionEntry::new(
-        SemanticActionId::new("sleep.here").unwrap(),
-        ActionId::new("sleep").unwrap(),
-        vec![actor.current_place_id.to_string()],
-        "Sleep here",
-        true,
-        None,
-    ));
+    if let Some(sleep_affordance_id) = visible_open_sleep_affordance(state, actor) {
+        actions.push(SemanticActionEntry::new(
+            SemanticActionId::new("sleep.here").unwrap(),
+            ActionId::new("sleep").unwrap(),
+            vec![sleep_affordance_id.to_string()],
+            "Sleep here",
+            true,
+            None,
+        ));
+    }
 
     for food_supply_id in &source.actor_known_food_sources {
         let Some(food) = state.food_supplies.get(food_supply_id) else {
@@ -1010,6 +1036,14 @@ pub fn proposal_from_semantic_action_entry(
             .parameters
             .insert("ticks".to_string(), "1".to_string());
     }
+    if entry.action_id.as_str() == "sleep" {
+        if let Some(sleep_affordance_id) = entry.target_ids.first() {
+            proposal.parameters.insert(
+                "sleep_affordance_id".to_string(),
+                sleep_affordance_id.clone(),
+            );
+        }
+    }
     if entry.action_id.as_str() == "continue_routine" {
         if let Some(intention_id) = entry.target_ids.first() {
             proposal
@@ -1026,6 +1060,19 @@ pub fn proposal_from_semantic_action_entry(
             .insert("intention_status".to_string(), "active".to_string());
     }
     proposal
+}
+
+fn visible_open_sleep_affordance(
+    state: &PhysicalState,
+    actor: &ActorBody,
+) -> Option<SleepAffordanceId> {
+    state
+        .sleep_affordances()
+        .iter()
+        .find(|(_, sleep_affordance)| {
+            sleep_affordance.access_open && sleep_affordance.place_id == actor.current_place_id
+        })
+        .map(|(sleep_affordance_id, _)| sleep_affordance_id.clone())
 }
 
 pub fn proposal_from_current_view_semantic_action(
@@ -1642,7 +1689,16 @@ mod tests {
             ),
         );
 
-        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(2));
+        let context = KnowledgeContext::embodied_at_frontier_with_workplaces(
+            actor_id("actor_tomas"),
+            SimTick::new(2),
+            0,
+            vec![crate::epistemics::ActorKnownWorkplaceFact::new(
+                WorkplaceId::new("workplace_tomas").unwrap(),
+                place_id("shop_front"),
+                "routine_assignment_notice",
+            )],
+        );
         let source =
             EmbodiedProjectionSource::from_sealed_context(&context, &state, Some(&agent_state));
         let view =
@@ -1711,25 +1767,31 @@ mod tests {
         append_metric_event(&mut log, EventKind::NeedThresholdCrossed, 9, 9);
         append_metric_event(&mut log, EventKind::IntentionInterrupted, 10, 10);
         append_metric_event(&mut log, EventKind::RoutineStepFailed, 11, 11);
-        let mut planner_failure = metric_event(EventKind::DecisionTraceRecorded, 12, 12);
-        planner_failure.payload = vec![PayloadField::new(
+        let mut text_only_planner_failure = metric_event(EventKind::DecisionTraceRecorded, 12, 12);
+        text_only_planner_failure.payload = vec![PayloadField::new(
             "trace_canonical",
             "decision_trace_v1|planner_budget_exhausted",
         )];
-        log.append(planner_failure).unwrap();
-        let mut stuck_first = metric_event(EventKind::StuckDiagnosticRecorded, 13, 13);
+        log.append(text_only_planner_failure).unwrap();
+        let mut typed_planner_failure = metric_event(EventKind::StuckDiagnosticRecorded, 13, 13);
+        typed_planner_failure.payload = vec![
+            PayloadField::new("responsible_layer", "local_planning"),
+            PayloadField::new("blocker_code", "local_plan_failed"),
+        ];
+        log.append(typed_planner_failure).unwrap();
+        let mut stuck_first = metric_event(EventKind::StuckDiagnosticRecorded, 14, 14);
         stuck_first.actor_id = Some(actor_id("actor_tomas"));
         log.append(stuck_first).unwrap();
-        let mut stuck_duplicate = metric_event(EventKind::StuckDiagnosticRecorded, 14, 14);
+        let mut stuck_duplicate = metric_event(EventKind::StuckDiagnosticRecorded, 15, 15);
         stuck_duplicate.actor_id = Some(actor_id("actor_tomas"));
         log.append(stuck_duplicate).unwrap();
-        let mut replay_failure = metric_event(EventKind::ReplayProjectionRebuilt, 15, 15);
+        let mut replay_failure = metric_event(EventKind::ReplayProjectionRebuilt, 16, 16);
         replay_failure.payload = vec![PayloadField::new("status", "failure")];
         log.append(replay_failure).unwrap();
-        let mut player_conditioned = metric_event(EventKind::ActionStarted, 16, 16);
+        let mut player_conditioned = metric_event(EventKind::ActionStarted, 17, 17);
         player_conditioned.effects_summary = "conditioned on player choice".to_string();
         log.append(player_conditioned).unwrap();
-        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 17, 20);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 18, 20);
 
         let metrics = no_human_day_metrics(&log);
         let events = log.events();

@@ -1,9 +1,80 @@
 use crate::agent::{
-    ApplicabilityResult, CandidateGoal, DecisionOutcome, DecisionTrace, HiddenTruthAudit,
-    Intention, IntentionSource, RejectedDecisionItem,
+    ActorKnownFact, ActorKnownProvenance, ApplicabilityResult, CandidateGoal, DecisionOutcome,
+    DecisionTrace, HiddenTruthAudit, Intention, IntentionSource, RejectedDecisionItem,
 };
+use crate::epistemics::KnowledgeProvenanceKind;
 use crate::ids::{ActorId, CandidateGoalId, DecisionTraceId, IntentionId};
 use crate::time::SimTick;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ActorKnownInputSourceClass {
+    ActorKnown(KnowledgeProvenanceKind),
+    RoutineAssignment,
+    FixturePossibility,
+    PipelineValidationTruth,
+    DebugOmniscience,
+    UnprovenPhysicalTruth,
+}
+
+impl ActorKnownInputSourceClass {
+    pub const fn stable_id(&self) -> &'static str {
+        match self {
+            Self::ActorKnown(kind) => kind.stable_id(),
+            Self::RoutineAssignment => "routine_assignment",
+            Self::FixturePossibility => "fixture_possibility",
+            Self::PipelineValidationTruth => "pipeline_validation_truth",
+            Self::DebugOmniscience => "debug_omniscience",
+            Self::UnprovenPhysicalTruth => "unproven_physical_truth",
+        }
+    }
+
+    pub const fn is_forbidden_for_cognition(&self) -> bool {
+        matches!(
+            self,
+            Self::PipelineValidationTruth | Self::DebugOmniscience | Self::UnprovenPhysicalTruth
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActorKnownInputRef {
+    pub fact_id: String,
+    pub proposition_id: Option<String>,
+    pub provenance_edge_ids: Vec<String>,
+    pub source_event_ids: Vec<String>,
+    pub source_class: ActorKnownInputSourceClass,
+    pub confidence: Option<u16>,
+    pub staleness: Option<String>,
+    pub explicit_unknown: bool,
+    pub display_note: String,
+}
+
+impl ActorKnownInputRef {
+    pub fn from_fact(fact: &ActorKnownFact) -> Self {
+        let source_class = source_class_for_provenance(fact.provenance());
+        let tick = fact.tick().map(|tick| tick.value().to_string());
+        Self {
+            fact_id: fact.stable_id().to_string(),
+            proposition_id: Some(format!("{}:{}", fact.semantic_kind(), fact.value())),
+            provenance_edge_ids: vec![fact.proof_note()],
+            source_event_ids: tick.into_iter().collect(),
+            source_class,
+            confidence: None,
+            staleness: None,
+            explicit_unknown: !fact.is_actor_known(),
+            display_note: fact.proof_note(),
+        }
+    }
+
+    pub fn render_for_trace(&self) -> String {
+        format!(
+            "{}|source_class={}|explicit_unknown={}",
+            self.display_note,
+            self.source_class.stable_id(),
+            self.explicit_unknown
+        )
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DecisionInput {
@@ -11,7 +82,7 @@ pub struct DecisionInput {
     pub decision_tick: SimTick,
     pub candidates: Vec<CandidateGoal>,
     pub active_intention: Option<Intention>,
-    pub actor_known_inputs: Vec<String>,
+    pub actor_known_inputs: Vec<ActorKnownInputRef>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,9 +127,10 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
     };
 
     let trace_id = DecisionTraceId::new(format!(
-        "trace_decision_{}_{}",
+        "trace_decision_{}_{}_{}",
         input.actor_id.as_str(),
-        input.decision_tick.value()
+        input.decision_tick.value(),
+        selected.candidate_goal_id.as_str()
     ))
     .unwrap();
     let lifecycle_effects = lifecycle_effects(
@@ -81,6 +153,11 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
         })
         .collect();
     let hidden_truth_audit = hidden_truth_audit_from_actor_known_inputs(&input.actor_known_inputs);
+    let actor_known_inputs = input
+        .actor_known_inputs
+        .iter()
+        .map(ActorKnownInputRef::render_for_trace)
+        .collect();
     let trace = DecisionTrace::new(
         trace_id,
         input.actor_id,
@@ -95,7 +172,7 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
         rejected_goals,
         Vec::new(),
         Vec::new(),
-        input.actor_known_inputs,
+        actor_known_inputs,
         None,
         Some("selected_by_priority_order".to_string()),
         None,
@@ -110,18 +187,47 @@ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> 
     })
 }
 
-fn hidden_truth_audit_from_actor_known_inputs(actor_known_inputs: &[String]) -> HiddenTruthAudit {
-    let actor_known_only = actor_known_inputs.iter().all(|input| {
-        !input.contains("unproven")
-            && !input.contains("debug_omniscience")
-            && !input.contains("physical_truth")
-    });
+fn hidden_truth_audit_from_actor_known_inputs(
+    actor_known_inputs: &[ActorKnownInputRef],
+) -> HiddenTruthAudit {
+    let actor_known_only = actor_known_inputs
+        .iter()
+        .all(|input| !input.source_class.is_forbidden_for_cognition() && !input.explicit_unknown);
+    let forbidden_count = actor_known_inputs
+        .iter()
+        .filter(|input| input.source_class.is_forbidden_for_cognition() || input.explicit_unknown)
+        .count();
     HiddenTruthAudit {
         actor_known_only,
         notes: format!(
-            "candidate inputs supplied by actor-known generation boundary: count={}",
-            actor_known_inputs.len()
+            "candidate inputs supplied by actor-known generation boundary: count={} forbidden_source_classes={}",
+            actor_known_inputs.len(),
+            forbidden_count
         ),
+    }
+}
+
+fn source_class_for_provenance(provenance: &ActorKnownProvenance) -> ActorKnownInputSourceClass {
+    match provenance {
+        ActorKnownProvenance::ObservedNow { .. } => {
+            ActorKnownInputSourceClass::ActorKnown(KnowledgeProvenanceKind::Observation)
+        }
+        ActorKnownProvenance::RememberedBelief { .. } => {
+            ActorKnownInputSourceClass::ActorKnown(KnowledgeProvenanceKind::Memory)
+        }
+        ActorKnownProvenance::RoutineAssignment { .. } => {
+            ActorKnownInputSourceClass::RoutineAssignment
+        }
+        ActorKnownProvenance::FixturePossibility { .. } => {
+            ActorKnownInputSourceClass::FixturePossibility
+        }
+        ActorKnownProvenance::PipelineValidationTruth(_) => {
+            ActorKnownInputSourceClass::PipelineValidationTruth
+        }
+        ActorKnownProvenance::DebugOmniscience(_) => ActorKnownInputSourceClass::DebugOmniscience,
+        ActorKnownProvenance::UnprovenPhysicalTruth { .. } => {
+            ActorKnownInputSourceClass::UnprovenPhysicalTruth
+        }
     }
 }
 
@@ -317,6 +423,30 @@ mod tests {
             selection.trace.selected_goal_id,
             Some(selection.selected_goal.candidate_goal_id.clone())
         );
+    }
+
+    #[test]
+    fn hidden_truth_audit_rejects_forbidden_provenance_without_banned_words() {
+        let forbidden_input = ActorKnownInputRef {
+            fact_id: "actor_knows_food_source".to_string(),
+            proposition_id: Some("observed_now:food_basket".to_string()),
+            provenance_edge_ids: vec!["edge_fixture_supplied".to_string()],
+            source_event_ids: Vec::new(),
+            source_class: ActorKnownInputSourceClass::DebugOmniscience,
+            confidence: None,
+            staleness: None,
+            explicit_unknown: false,
+            display_note: "actor_knows_food_source=visible basket".to_string(),
+        };
+
+        assert!(!forbidden_input.display_note.contains("unproven"));
+        assert!(!forbidden_input.display_note.contains("debug_omniscience"));
+        assert!(!forbidden_input.display_note.contains("physical_truth"));
+
+        let audit = hidden_truth_audit_from_actor_known_inputs(&[forbidden_input]);
+
+        assert!(!audit.actor_known_only);
+        assert!(audit.notes.contains("forbidden_source_classes=1"));
     }
 
     #[test]

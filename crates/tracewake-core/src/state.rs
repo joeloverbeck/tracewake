@@ -5,7 +5,8 @@ use crate::agent::{
 };
 use crate::ids::{
     ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, FoodSupplyId, IntentionId,
-    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, StuckDiagnosticId, WorkplaceId,
+    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, SleepAffordanceId, StuckDiagnosticId,
+    WorkplaceId,
 };
 use crate::location::Location;
 
@@ -18,6 +19,7 @@ pub enum EntityKind {
     Item,
     FoodSupply,
     Workplace,
+    SleepAffordance,
     InstitutionPlaceholder,
     RecordPlaceholder,
 }
@@ -31,6 +33,7 @@ pub enum EntityId {
     Item(ItemId),
     FoodSupply(FoodSupplyId),
     Workplace(WorkplaceId),
+    SleepAffordance(SleepAffordanceId),
     InstitutionPlaceholder(SchemaVersion),
     RecordPlaceholder(SchemaVersion),
 }
@@ -45,6 +48,7 @@ impl EntityId {
             EntityId::Item(_) => EntityKind::Item,
             EntityId::FoodSupply(_) => EntityKind::FoodSupply,
             EntityId::Workplace(_) => EntityKind::Workplace,
+            EntityId::SleepAffordance(_) => EntityKind::SleepAffordance,
             EntityId::InstitutionPlaceholder(_) => EntityKind::InstitutionPlaceholder,
             EntityId::RecordPlaceholder(_) => EntityKind::RecordPlaceholder,
         }
@@ -59,6 +63,7 @@ impl EntityId {
             EntityId::Item(id) => id.as_str(),
             EntityId::FoodSupply(id) => id.as_str(),
             EntityId::Workplace(id) => id.as_str(),
+            EntityId::SleepAffordance(id) => id.as_str(),
             EntityId::InstitutionPlaceholder(id) => id.as_str(),
             EntityId::RecordPlaceholder(id) => id.as_str(),
         }
@@ -127,6 +132,7 @@ pub struct PhysicalState {
     pub(crate) items: BTreeMap<ItemId, ItemState>,
     pub(crate) food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
     pub(crate) workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+    pub(crate) sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -140,6 +146,10 @@ pub struct AgentState {
 }
 
 impl PhysicalState {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Seed construction mirrors authoritative state collections."
+    )]
     pub fn from_seed_parts(
         actors: BTreeMap<ActorId, ActorBody>,
         places: BTreeMap<PlaceId, PlaceState>,
@@ -148,6 +158,7 @@ impl PhysicalState {
         items: BTreeMap<ItemId, ItemState>,
         food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
         workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+        sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
     ) -> Self {
         Self {
             actors,
@@ -157,6 +168,7 @@ impl PhysicalState {
             items,
             food_supplies,
             workplaces,
+            sleep_affordances,
         }
     }
 
@@ -186,6 +198,10 @@ impl PhysicalState {
 
     pub fn workplaces(&self) -> &BTreeMap<WorkplaceId, WorkplaceState> {
         &self.workplaces
+    }
+
+    pub fn sleep_affordances(&self) -> &BTreeMap<SleepAffordanceId, SleepAffordanceState> {
+        &self.sleep_affordances
     }
 }
 
@@ -336,6 +352,25 @@ pub struct WorkplaceState {
     pub max_hunger_to_start: i32,
     pub access_open: bool,
     pub output_tag: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SleepAffordanceState {
+    pub sleep_affordance_id: SleepAffordanceId,
+    pub place_id: PlaceId,
+    pub access_open: bool,
+    pub rest_quality: u32,
+}
+
+impl SleepAffordanceState {
+    pub fn new(sleep_affordance_id: SleepAffordanceId, place_id: PlaceId) -> Self {
+        Self {
+            sleep_affordance_id,
+            place_id,
+            access_open: true,
+            rest_quality: 1,
+        }
+    }
 }
 
 impl WorkplaceState {

@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+use tracewake_core::agent::{BlockerCode, NeedChangeCause, NeedKind, NeedState, ResponsibleLayer};
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventEnvelope, EventKind, EventStream, PayloadField};
@@ -13,6 +13,7 @@ use tracewake_core::ids::{
     PlaceId, SchemaVersion,
 };
 use tracewake_core::location::Location;
+use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -138,6 +139,14 @@ fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
 
 fn append_to_log(log: &mut EventLog, event: EventEnvelope) -> EventEnvelope {
     log.append(event).unwrap()
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 #[test]
@@ -344,8 +353,177 @@ fn replay_rebuild_checksum_matches_original_after_no_human_day() {
         .events()
         .iter()
         .any(|event| event.event_type == EventKind::NoHumanDayCompleted));
+    let trace_event = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .expect("no-human day records decision trace");
+    assert_eq!(
+        payload_value(trace_event, "responsible_layer"),
+        Some("candidate_generation")
+    );
+    assert_eq!(payload_value(trace_event, "blocker_code"), Some("none"));
+    assert_eq!(
+        payload_value(trace_event, "input_source"),
+        Some("actor_known_context")
+    );
+    assert_eq!(
+        payload_value(trace_event, "actual_source"),
+        Some("actor_decision_transaction")
+    );
+    assert_eq!(
+        payload_value(trace_event, "hidden_truth_referenced"),
+        Some("false")
+    );
+    assert!(payload_value(trace_event, "remediation_hint").is_some());
     assert!(replay.unsupported_versions.is_empty());
     assert!(replay.invariant_violations.is_empty());
     assert!(replay.state_diff.is_empty());
     assert_eq!(replay.final_checksum, live_checksum);
+    let replayed_trace = replay
+        .final_agent_state
+        .decision_traces()
+        .values()
+        .next()
+        .expect("replay rebuilds decision trace record");
+    assert_eq!(
+        replayed_trace.typed_diagnostic.responsible_layer,
+        ResponsibleLayer::CandidateGeneration
+    );
+    assert_eq!(
+        replayed_trace.typed_diagnostic.blocker_code,
+        BlockerCode::None
+    );
+}
+
+#[test]
+fn no_human_metrics_rebuild_from_typed_diagnostic_fields() {
+    let mut log = EventLog::new();
+    append_to_log(
+        &mut log,
+        event("event_metrics_day_started", EventKind::NoHumanDayStarted, 0),
+    );
+    let mut text_only = event(
+        "event_metrics_text_only_trace",
+        EventKind::DecisionTraceRecorded,
+        1,
+    );
+    text_only.payload = vec![PayloadField::new(
+        "trace_canonical",
+        "decision_trace_v1|planner_budget_exhausted",
+    )];
+    append_to_log(&mut log, text_only);
+    let mut typed = event(
+        "event_metrics_typed_planning_stuck",
+        EventKind::StuckDiagnosticRecorded,
+        2,
+    );
+    typed.payload = vec![
+        PayloadField::new(
+            "responsible_layer",
+            ResponsibleLayer::LocalPlanning.stable_id(),
+        ),
+        PayloadField::new("blocker_code", BlockerCode::LocalPlanFailed.stable_id()),
+    ];
+    append_to_log(&mut log, typed);
+    append_to_log(
+        &mut log,
+        event(
+            "event_metrics_day_completed",
+            EventKind::NoHumanDayCompleted,
+            3,
+        ),
+    );
+
+    let live = no_human_day_metrics(&log);
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let replayed = no_human_day_metrics(&replayed_log);
+
+    assert_eq!(live.planner_failures, 1);
+    assert_eq!(live.serialize_canonical(), replayed.serialize_canonical());
+}
+
+#[test]
+fn legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults() {
+    let mut world = world_state();
+    let mut agent_state = agent_state();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut source_log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+
+    run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut source_log,
+        &registry,
+        manifest_id(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "legacy_trace".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+
+    let mut legacy_trace = source_log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .expect("source run records decision trace")
+        .clone();
+    legacy_trace.payload.retain(|field| {
+        !matches!(
+            field.key.as_str(),
+            "responsible_layer"
+                | "blocker_code"
+                | "input_source"
+                | "actual_source"
+                | "hidden_truth_referenced"
+                | "remediation_hint"
+        )
+    });
+    let trace_canonical = legacy_trace
+        .payload
+        .iter_mut()
+        .find(|field| field.key == "trace_canonical")
+        .expect("trace canonical payload exists");
+    trace_canonical.value = trace_canonical
+        .value
+        .split('|')
+        .take(9)
+        .collect::<Vec<_>>()
+        .join("|");
+
+    let mut legacy_log = EventLog::new();
+    append_to_log(&mut legacy_log, legacy_trace);
+    let context = checksum_context(
+        "legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults",
+        &legacy_log,
+    );
+    let replay = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &legacy_log,
+        &context,
+        Some(&initial_world),
+    );
+
+    assert!(replay.agent_application_errors.is_empty());
+    let trace = replay
+        .final_agent_state
+        .decision_traces()
+        .values()
+        .next()
+        .expect("legacy trace rebuilds");
+    assert_eq!(
+        trace.typed_diagnostic.responsible_layer,
+        ResponsibleLayer::CandidateGeneration
+    );
+    assert_eq!(trace.typed_diagnostic.blocker_code, BlockerCode::None);
+    assert_eq!(trace.typed_diagnostic.input_source, "actor_known_context");
 }

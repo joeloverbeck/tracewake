@@ -417,10 +417,10 @@ fn hidden_food_unknown_route_does_not_become_transaction_target() {
     });
     match outcome {
         ActorDecisionTransactionOutcome::Proposed(proposed) => {
-            assert_ne!(proposed.proposal.action_id.as_str(), "eat");
+            assert_ne!(proposed.proposal.action_id().as_str(), "eat");
             assert!(!proposed
                 .proposal
-                .target_ids
+                .target_ids()
                 .iter()
                 .any(|target| target == "food_hidden_pantry"));
             assert!(

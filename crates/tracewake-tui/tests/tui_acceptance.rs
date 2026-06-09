@@ -431,7 +431,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(report.ordinary_pipeline_events > 0);
     assert!(after_run_events > before_events);
     assert!(embodied.contains("Needs:"));
-    assert!(embodied.contains("- hunger: value=421 band=rising cause=tick_delta"));
+    assert!(embodied.contains("- hunger: value=415 band=rising cause=tick_delta"));
     assert!(embodied.contains("Intention:"));
     assert!(embodied.contains("active:routine_tomas_go_work:wait"));
     assert!(!embodied.contains("DEBUG NON-DIEGETIC"));
@@ -441,8 +441,8 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(metrics.contains("DEBUG NON-DIEGETIC: No Human Day"));
     assert!(metrics.contains("no_human_day_metrics_v1"));
     assert!(metrics.contains("routine_events=8"));
-    assert!(metrics.contains("work_failed=2"));
-    assert!(metrics.contains("need_crossings=1"));
+    assert!(metrics.contains("work_failed=1"));
+    assert!(metrics.contains("need_crossings=2"));
     assert!(metrics.contains("routine_interruptions=2"));
     assert!(metrics.contains("replay_failures=0"));
     let events_line = metrics
@@ -475,9 +475,9 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(rendered.contains("DEBUG NON-DIEGETIC: No Human Day"));
     assert!(!rendered.contains("Ran no-human day:"));
     assert!(!rendered.contains("ordinary_events="));
-    assert!(rendered.contains("work_failed=2"));
+    assert!(rendered.contains("work_failed=1"));
     assert!(rendered.contains("routine_interruptions=2"));
-    assert!(rendered.contains("- hunger: value=421 band=rising cause=tick_delta"));
+    assert!(rendered.contains("- hunger: value=415 band=rising cause=tick_delta"));
     assert!(rendered.contains("Actor: actor_tomas"));
     assert!(!rendered.contains("food_hidden_pantry"));
 }

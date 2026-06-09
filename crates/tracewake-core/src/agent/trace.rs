@@ -51,6 +51,169 @@ pub struct HiddenTruthAudit {
     pub notes: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ResponsibleLayer {
+    CandidateGeneration,
+    IntentionLifecycle,
+    MethodSelection,
+    LocalPlanning,
+    ProposalConstruction,
+    Scheduler,
+    ActionValidation,
+    Projection,
+    ViewModel,
+    TestOracle,
+    DebugQuarantine,
+}
+
+impl ResponsibleLayer {
+    pub const ALL: [Self; 11] = [
+        Self::CandidateGeneration,
+        Self::IntentionLifecycle,
+        Self::MethodSelection,
+        Self::LocalPlanning,
+        Self::ProposalConstruction,
+        Self::Scheduler,
+        Self::ActionValidation,
+        Self::Projection,
+        Self::ViewModel,
+        Self::TestOracle,
+        Self::DebugQuarantine,
+    ];
+
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::CandidateGeneration => "candidate_generation",
+            Self::IntentionLifecycle => "intention_lifecycle",
+            Self::MethodSelection => "method_selection",
+            Self::LocalPlanning => "local_planning",
+            Self::ProposalConstruction => "proposal_construction",
+            Self::Scheduler => "scheduler",
+            Self::ActionValidation => "action_validation",
+            Self::Projection => "projection",
+            Self::ViewModel => "view_model",
+            Self::TestOracle => "test_oracle",
+            Self::DebugQuarantine => "debug_quarantine",
+        }
+    }
+
+    pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+        match value {
+            "candidate_generation" => Ok(Self::CandidateGeneration),
+            "intention_lifecycle" => Ok(Self::IntentionLifecycle),
+            "method_selection" => Ok(Self::MethodSelection),
+            "local_planning" => Ok(Self::LocalPlanning),
+            "proposal_construction" => Ok(Self::ProposalConstruction),
+            "scheduler" => Ok(Self::Scheduler),
+            "action_validation" => Ok(Self::ActionValidation),
+            "projection" => Ok(Self::Projection),
+            "view_model" => Ok(Self::ViewModel),
+            "test_oracle" => Ok(Self::TestOracle),
+            "debug_quarantine" => Ok(Self::DebugQuarantine),
+            _ => Err(DiagnosticFieldParseError::InvalidResponsibleLayer),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BlockerCode {
+    None,
+    Physical,
+    Access,
+    Knowledge,
+    Resource,
+    SocialNormPlaceholder,
+    SchedulingReservation,
+    UnsupportedAction,
+    PlannerBudgetExhausted,
+    FixtureAuthoringError,
+    NoApplicableCandidate,
+    NoApplicableMethod,
+    EmptyLocalPlan,
+    LocalPlanFailed,
+}
+
+impl BlockerCode {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Physical => "physical",
+            Self::Access => "access",
+            Self::Knowledge => "knowledge",
+            Self::Resource => "resource",
+            Self::SocialNormPlaceholder => "social_norm_placeholder",
+            Self::SchedulingReservation => "scheduling_reservation",
+            Self::UnsupportedAction => "unsupported_action",
+            Self::PlannerBudgetExhausted => "planner_budget_exhausted",
+            Self::FixtureAuthoringError => "fixture_authoring_error",
+            Self::NoApplicableCandidate => "no_applicable_candidate",
+            Self::NoApplicableMethod => "no_applicable_method",
+            Self::EmptyLocalPlan => "empty_local_plan",
+            Self::LocalPlanFailed => "local_plan_failed",
+        }
+    }
+
+    pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+        match value {
+            "none" => Ok(Self::None),
+            "physical" => Ok(Self::Physical),
+            "access" => Ok(Self::Access),
+            "knowledge" => Ok(Self::Knowledge),
+            "resource" => Ok(Self::Resource),
+            "social_norm_placeholder" => Ok(Self::SocialNormPlaceholder),
+            "scheduling_reservation" => Ok(Self::SchedulingReservation),
+            "unsupported_action" => Ok(Self::UnsupportedAction),
+            "planner_budget_exhausted" => Ok(Self::PlannerBudgetExhausted),
+            "fixture_authoring_error" => Ok(Self::FixtureAuthoringError),
+            "no_applicable_candidate" => Ok(Self::NoApplicableCandidate),
+            "no_applicable_method" => Ok(Self::NoApplicableMethod),
+            "empty_local_plan" => Ok(Self::EmptyLocalPlan),
+            "local_plan_failed" => Ok(Self::LocalPlanFailed),
+            _ => Err(DiagnosticFieldParseError::InvalidBlockerCode),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TypedDiagnosticFields {
+    pub responsible_layer: ResponsibleLayer,
+    pub blocker_code: BlockerCode,
+    pub input_source: String,
+    pub actual_source: String,
+    pub hidden_truth_referenced: bool,
+    pub remediation_hint: String,
+}
+
+impl TypedDiagnosticFields {
+    pub fn decision_default(hidden_truth_referenced: bool) -> Self {
+        Self {
+            responsible_layer: ResponsibleLayer::CandidateGeneration,
+            blocker_code: BlockerCode::None,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced,
+            remediation_hint: "inspect decision trace typed fields".to_string(),
+        }
+    }
+
+    pub fn stuck_default() -> Self {
+        Self {
+            responsible_layer: ResponsibleLayer::Scheduler,
+            blocker_code: BlockerCode::SchedulingReservation,
+            input_source: "legacy_event_payload".to_string(),
+            actual_source: "legacy_event_payload".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint: "legacy diagnostic had no typed fields".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DiagnosticFieldParseError {
+    InvalidResponsibleLayer,
+    InvalidBlockerCode,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DecisionTraceRecord {
     pub trace_id: DecisionTraceId,
@@ -60,6 +223,7 @@ pub struct DecisionTraceRecord {
     pub outcome: DecisionOutcome,
     pub candidate_goal_count: usize,
     pub hidden_truth_audit_result: HiddenTruthAudit,
+    pub typed_diagnostic: TypedDiagnosticFields,
 }
 
 impl DecisionTraceRecord {
@@ -72,12 +236,15 @@ impl DecisionTraceRecord {
             outcome: trace.outcome,
             candidate_goal_count: trace.candidate_goals_considered.len(),
             hidden_truth_audit_result: trace.hidden_truth_audit_result.clone(),
+            typed_diagnostic: TypedDiagnosticFields::decision_default(
+                !trace.hidden_truth_audit_result.actor_known_only,
+            ),
         }
     }
 
     pub fn serialize_canonical(&self) -> String {
         format!(
-            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}",
+            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.trace_id.serialize_canonical(),
             self.actor_id.serialize_canonical(),
             self.window_start_tick.value(),
@@ -85,7 +252,13 @@ impl DecisionTraceRecord {
             self.outcome.stable_id(),
             self.candidate_goal_count,
             encode_bool(self.hidden_truth_audit_result.actor_known_only),
-            encode_text_payload(&self.hidden_truth_audit_result.notes)
+            encode_text_payload(&self.hidden_truth_audit_result.notes),
+            self.typed_diagnostic.responsible_layer.stable_id(),
+            self.typed_diagnostic.blocker_code.stable_id(),
+            encode_text_payload(&self.typed_diagnostic.input_source),
+            encode_text_payload(&self.typed_diagnostic.actual_source),
+            encode_bool(self.typed_diagnostic.hidden_truth_referenced),
+            encode_text_payload(&self.typed_diagnostic.remediation_hint)
         )
     }
 
@@ -93,9 +266,11 @@ impl DecisionTraceRecord {
         let value =
             std::str::from_utf8(value).map_err(|_| DecisionTraceRecordParseError::InvalidUtf8)?;
         let fields: Vec<_> = value.split('|').collect();
-        if fields.len() != 9 || fields[0] != "decision_trace_v1" {
+        if !matches!(fields.len(), 9 | 15) || fields[0] != "decision_trace_v1" {
             return Err(DecisionTraceRecordParseError::InvalidShape);
         }
+        let actor_known_only =
+            decode_bool(fields[7]).ok_or(DecisionTraceRecordParseError::InvalidBool)?;
         Ok(Self {
             trace_id: DecisionTraceId::new(fields[1])
                 .map_err(DecisionTraceRecordParseError::InvalidId)?,
@@ -116,9 +291,21 @@ impl DecisionTraceRecord {
                 .parse()
                 .map_err(|_| DecisionTraceRecordParseError::InvalidCount)?,
             hidden_truth_audit_result: HiddenTruthAudit {
-                actor_known_only: decode_bool(fields[7])
-                    .ok_or(DecisionTraceRecordParseError::InvalidBool)?,
+                actor_known_only,
                 notes: decode_text_payload(fields[8])?,
+            },
+            typed_diagnostic: if fields.len() == 15 {
+                TypedDiagnosticFields {
+                    responsible_layer: ResponsibleLayer::parse(fields[9])?,
+                    blocker_code: BlockerCode::parse(fields[10])?,
+                    input_source: decode_text_payload(fields[11])?,
+                    actual_source: decode_text_payload(fields[12])?,
+                    hidden_truth_referenced: decode_bool(fields[13])
+                        .ok_or(DecisionTraceRecordParseError::InvalidBool)?,
+                    remediation_hint: decode_text_payload(fields[14])?,
+                }
+            } else {
+                TypedDiagnosticFields::decision_default(!actor_known_only)
             },
         })
     }
@@ -134,6 +321,17 @@ pub enum DecisionTraceRecordParseError {
     InvalidBool,
     InvalidTextPayload,
     InvalidId(crate::ids::IdError),
+    InvalidResponsibleLayer,
+    InvalidBlockerCode,
+}
+
+impl From<DiagnosticFieldParseError> for DecisionTraceRecordParseError {
+    fn from(value: DiagnosticFieldParseError) -> Self {
+        match value {
+            DiagnosticFieldParseError::InvalidResponsibleLayer => Self::InvalidResponsibleLayer,
+            DiagnosticFieldParseError::InvalidBlockerCode => Self::InvalidBlockerCode,
+        }
+    }
 }
 
 impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError {
@@ -304,6 +502,20 @@ impl BlockerCategory {
             _ => Err(StuckDiagnosticParseError::InvalidBlockerCategory),
         }
     }
+
+    pub const fn blocker_code(self) -> BlockerCode {
+        match self {
+            Self::Physical => BlockerCode::Physical,
+            Self::Access => BlockerCode::Access,
+            Self::Knowledge => BlockerCode::Knowledge,
+            Self::Resource => BlockerCode::Resource,
+            Self::SocialNormPlaceholder => BlockerCode::SocialNormPlaceholder,
+            Self::SchedulingReservation => BlockerCode::SchedulingReservation,
+            Self::UnsupportedAction => BlockerCode::UnsupportedAction,
+            Self::PlannerBudgetExhausted => BlockerCode::PlannerBudgetExhausted,
+            Self::FixtureAuthoringError => BlockerCode::FixtureAuthoringError,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -360,6 +572,7 @@ pub struct StuckDiagnostic {
     pub debug_only_details: String,
     pub retry_abandon_fallback_outcome: String,
     pub resulting_status: StuckResultingStatus,
+    pub typed_diagnostic: TypedDiagnosticFields,
 }
 
 pub type StuckDiagnosticRecord = StuckDiagnostic;
@@ -403,12 +616,25 @@ impl StuckDiagnostic {
             debug_only_details: debug_only_details.into(),
             retry_abandon_fallback_outcome: retry_abandon_fallback_outcome.into(),
             resulting_status,
+            typed_diagnostic: TypedDiagnosticFields {
+                responsible_layer: ResponsibleLayer::LocalPlanning,
+                blocker_code: blocker_category.blocker_code(),
+                input_source: "actor_known_context".to_string(),
+                actual_source: "actor_decision_transaction".to_string(),
+                hidden_truth_referenced: false,
+                remediation_hint: "inspect stuck diagnostic typed fields".to_string(),
+            },
         }
+    }
+
+    pub fn with_typed_diagnostic(mut self, typed_diagnostic: TypedDiagnosticFields) -> Self {
+        self.typed_diagnostic = typed_diagnostic;
+        self
     }
 
     pub fn serialize_canonical(&self) -> String {
         format!(
-            "stuck_diagnostic_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "stuck_diagnostic_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.diagnostic_id.serialize_canonical(),
             self.actor_id.serialize_canonical(),
             self.window_start_tick.value(),
@@ -439,6 +665,12 @@ impl StuckDiagnostic {
             encode_text_payload(&self.debug_only_details),
             encode_text_payload(&self.retry_abandon_fallback_outcome),
             self.resulting_status.stable_id(),
+            self.typed_diagnostic.responsible_layer.stable_id(),
+            self.typed_diagnostic.blocker_code.stable_id(),
+            encode_text_payload(&self.typed_diagnostic.input_source),
+            encode_text_payload(&self.typed_diagnostic.actual_source),
+            encode_bool(self.typed_diagnostic.hidden_truth_referenced),
+            encode_text_payload(&self.typed_diagnostic.remediation_hint),
         )
     }
 
@@ -450,9 +682,10 @@ impl StuckDiagnostic {
         let value =
             std::str::from_utf8(value).map_err(|_| StuckDiagnosticParseError::InvalidUtf8)?;
         let fields: Vec<_> = value.split('|').collect();
-        if fields.len() != 18 || fields[0] != "stuck_diagnostic_v1" {
+        if !matches!(fields.len(), 18 | 24) || fields[0] != "stuck_diagnostic_v1" {
             return Err(StuckDiagnosticParseError::InvalidShape);
         }
+        let blocker_category = BlockerCategory::parse(fields[12])?;
 
         Ok(Self {
             diagnostic_id: StuckDiagnosticId::new(fields[1])
@@ -478,7 +711,7 @@ impl StuckDiagnostic {
                 .transpose()
                 .map_err(|_| StuckDiagnosticParseError::InvalidRoutineStep)?,
             attempted_action: decode_opt_id(fields[11], |value| SemanticActionId::new(value))?,
-            blocker_category: BlockerCategory::parse(fields[12])?,
+            blocker_category,
             concrete_blocker: decode_text_payload(fields[13])?,
             actor_known_explanation: decode_text_payload(fields[14])?,
             debug_only_details: decode_text_payload(fields[15])?,
@@ -489,6 +722,21 @@ impl StuckDiagnostic {
                     .copied()
                     .ok_or(StuckDiagnosticParseError::InvalidShape)?,
             )?,
+            typed_diagnostic: if fields.len() == 24 {
+                TypedDiagnosticFields {
+                    responsible_layer: ResponsibleLayer::parse(fields[18])?,
+                    blocker_code: BlockerCode::parse(fields[19])?,
+                    input_source: decode_text_payload(fields[20])?,
+                    actual_source: decode_text_payload(fields[21])?,
+                    hidden_truth_referenced: decode_bool(fields[22])
+                        .ok_or(StuckDiagnosticParseError::InvalidBool)?,
+                    remediation_hint: decode_text_payload(fields[23])?,
+                }
+            } else {
+                let mut typed = TypedDiagnosticFields::stuck_default();
+                typed.blocker_code = blocker_category.blocker_code();
+                typed
+            },
         })
     }
 }
@@ -504,6 +752,18 @@ pub enum StuckDiagnosticParseError {
     InvalidResultingStatus,
     InvalidRoutineStep,
     InvalidId(crate::ids::IdError),
+    InvalidBool,
+    InvalidResponsibleLayer,
+    InvalidBlockerCode,
+}
+
+impl From<DiagnosticFieldParseError> for StuckDiagnosticParseError {
+    fn from(value: DiagnosticFieldParseError) -> Self {
+        match value {
+            DiagnosticFieldParseError::InvalidResponsibleLayer => Self::InvalidResponsibleLayer,
+            DiagnosticFieldParseError::InvalidBlockerCode => Self::InvalidBlockerCode,
+        }
+    }
 }
 
 impl fmt::Display for StuckDiagnosticParseError {
@@ -526,6 +786,11 @@ impl fmt::Display for StuckDiagnosticParseError {
             }
             StuckDiagnosticParseError::InvalidRoutineStep => write!(f, "invalid routine step"),
             StuckDiagnosticParseError::InvalidId(err) => write!(f, "invalid diagnostic ID: {err}"),
+            StuckDiagnosticParseError::InvalidBool => write!(f, "invalid diagnostic bool"),
+            StuckDiagnosticParseError::InvalidResponsibleLayer => {
+                write!(f, "invalid responsible layer")
+            }
+            StuckDiagnosticParseError::InvalidBlockerCode => write!(f, "invalid blocker code"),
         }
     }
 }
@@ -744,8 +1009,38 @@ mod tests {
             let round_tripped = StuckDiagnostic::deserialize_canonical(&bytes).unwrap();
 
             assert_eq!(round_tripped, diagnostic);
+            assert_eq!(
+                round_tripped.typed_diagnostic.responsible_layer,
+                ResponsibleLayer::LocalPlanning
+            );
+            assert_eq!(
+                round_tripped.typed_diagnostic.blocker_code,
+                category.blocker_code()
+            );
+            assert!(!round_tripped.typed_diagnostic.hidden_truth_referenced);
             assert_eq!(round_tripped.serialize_canonical_bytes(), bytes);
         }
+    }
+
+    #[test]
+    fn responsible_layer_vocabulary_matches_spec() {
+        let ids = ResponsibleLayer::ALL.map(ResponsibleLayer::stable_id);
+        assert_eq!(
+            ids,
+            [
+                "candidate_generation",
+                "intention_lifecycle",
+                "method_selection",
+                "local_planning",
+                "proposal_construction",
+                "scheduler",
+                "action_validation",
+                "projection",
+                "view_model",
+                "test_oracle",
+                "debug_quarantine",
+            ]
+        );
     }
 
     #[test]

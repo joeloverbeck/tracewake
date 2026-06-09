@@ -201,7 +201,7 @@ impl DeterministicScheduler {
 }
 
 pub mod no_human {
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::collections::BTreeMap;
 
     use crate::actions::defs::sleep::build_sleep_completion_events;
     use crate::actions::defs::work::build_work_completion_events;
@@ -209,10 +209,11 @@ pub mod no_human {
     use crate::actions::proposal::Proposal;
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
-        build_actor_known_planning_state_with_projection_limitation, ActorDecisionTransaction,
-        ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
-        BlockerCategory, DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind,
-        NeedState, RoutineFamily, StuckDiagnostic, StuckResultingStatus, VisibleLocalPlanningState,
+        ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
+        ActorKnownFact, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
+        DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind, NeedState,
+        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, StuckDiagnostic,
+        StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::events::apply::apply_agent_event;
     use crate::events::log::EventLog;
@@ -221,7 +222,6 @@ pub mod no_human {
         ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, ProcessId,
         RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
-    use crate::location::Location;
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
@@ -541,12 +541,15 @@ pub mod no_human {
         _content_manifest_id: &ContentManifestId,
     ) -> Option<BuiltAgentProposal> {
         let actor = state.actors.get(actor_id)?;
-        let visible_local = visible_local_planning_state(state, actor_id, &actor.current_place_id);
-        let mut actor_known_state = build_actor_known_planning_state_with_projection_limitation(
-            actor_id,
+        let mut actor_known_state = NoHumanActorKnownSurfaceBuilder::from_modeled_observations(
+            state,
             agent_state,
-            &visible_local,
-        );
+            actor_id.clone(),
+            actor.current_place_id.clone(),
+            Some(window.start_tick),
+        )
+        .build(agent_state)
+        .into_context();
         let wait_reason_fact = ActorKnownFact::remembered_belief(
             actor_id.clone(),
             "modeled_wait_reason",
@@ -593,59 +596,24 @@ pub mod no_human {
                 Some(window.start_tick),
             ));
         }
-        if actor_known_state
-            .known_sleep_places()
-            .contains(actor_known_state.current_place_id())
-        {
-            transaction_facts.push(ActorKnownFact::observed_now(
-                actor_id.clone(),
-                "sleep_place_believed_accessible",
-                actor_known_state.current_place_id().as_str(),
-                "visible_local:sleep_place_accessible",
-                Some(window.start_tick),
-            ));
-        }
-        if actor_known_state
-            .known_workplaces()
-            .values()
-            .any(|place_id| place_id == actor_known_state.current_place_id())
-        {
-            for stable_id in [
-                "actor_at_workplace",
-                "assigned_workplace_known",
-                "at_workplace",
-            ] {
-                transaction_facts.push(ActorKnownFact::observed_now(
-                    actor_id.clone(),
-                    stable_id,
-                    actor_known_state.current_place_id().as_str(),
-                    format!("visible_local:{stable_id}"),
-                    Some(window.start_tick),
-                ));
-            }
-        }
         actor_known_state.extend_actor_known_facts(transaction_facts);
         match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
             actor_known_context: &actor_known_state,
-            routine_window_family: routine_window_family(agent_state, actor_id, window),
+            routine_window_family: routine_window_family(
+                agent_state,
+                actor_id,
+                window,
+                &actor_known_state,
+            ),
             include_idle_fallback: true,
         }) {
-            ActorDecisionTransactionOutcome::Proposed(proposed) => {
-                let mut proposal = proposed.proposal;
-                if proposal.action_id.as_str() == "wait" {
-                    proposal.parameters.insert(
-                        "reason".to_string(),
-                        format!("no_human_day:{}", window.window_id),
-                    );
-                }
-                Some(BuiltAgentProposal {
-                    proposal,
-                    decision_trace_record: proposed.decision_trace_record,
-                })
-            }
+            ActorDecisionTransactionOutcome::Proposed(proposed) => Some(BuiltAgentProposal {
+                proposal: proposed.proposal.into_proposal(),
+                decision_trace_record: proposed.decision_trace_record,
+            }),
             ActorDecisionTransactionOutcome::Stuck { .. } => None,
         }
     }
@@ -654,12 +622,18 @@ pub mod no_human {
         agent_state: &AgentState,
         actor_id: &ActorId,
         window: &DayWindow,
+        actor_known_state: &ActorKnownPlanningContext,
     ) -> Option<RoutineFamily> {
-        agent_state
+        let family = agent_state
             .routine_executions
             .values()
             .filter(|execution| &execution.actor_id == actor_id)
-            .filter(|execution| execution.start_tick <= window.end_tick)
+            .filter(|execution| {
+                execution.start_tick <= window.end_tick
+                    && execution
+                        .deadline_tick
+                        .is_none_or(|deadline| window.start_tick < deadline)
+            })
             .filter(|execution| {
                 !matches!(
                     execution.step_status,
@@ -670,42 +644,17 @@ pub mod no_human {
                 )
             })
             .min_by(|left, right| left.start_tick.cmp(&right.start_tick))
-            .map(|execution| execution.family)
-    }
-
-    fn visible_local_planning_state(
-        state: &PhysicalState,
-        actor_id: &ActorId,
-        current_place_id: &crate::ids::PlaceId,
-    ) -> VisibleLocalPlanningState {
-        let mut visible_edges = BTreeMap::new();
-        if let Some(current_place) = state.places.get(current_place_id) {
-            visible_edges.insert(
-                current_place_id.clone(),
-                current_place.adjacent_place_ids.clone(),
-            );
+            .map(|execution| execution.family)?;
+        if family == RoutineFamily::WorkBlock
+            && !actor_known_state
+                .known_workplaces()
+                .values()
+                .any(|place_id| place_id == actor_known_state.current_place_id())
+        {
+            Some(RoutineFamily::GoToWork)
+        } else {
+            Some(family)
         }
-        let visible_food_sources = state
-            .food_supplies
-            .values()
-            .filter(|food| matches!(&food.location, Location::AtPlace(place_id) if place_id == current_place_id))
-            .map(|food| food.food_supply_id.as_str().to_string())
-            .collect::<BTreeSet<_>>();
-        let visible_workplaces = state
-            .workplaces
-            .iter()
-            .filter(|(_, workplace)| workplace.assigned_actor_ids.contains(actor_id))
-            .map(|(workplace_id, workplace)| (workplace_id.clone(), workplace.place_id.clone()))
-            .collect::<BTreeMap<_, _>>();
-        VisibleLocalPlanningState::new(
-            current_place_id.clone(),
-            visible_edges,
-            BTreeMap::new(),
-            BTreeMap::new(),
-            visible_food_sources,
-            BTreeSet::from([current_place_id.clone()]),
-            visible_workplaces,
-        )
     }
 
     fn active_intention_for_actor(
@@ -1067,6 +1016,42 @@ pub mod no_human {
                 decision_trace_record
                     .hidden_truth_audit_result
                     .notes
+                    .clone(),
+            ),
+            PayloadField::new(
+                "responsible_layer",
+                decision_trace_record
+                    .typed_diagnostic
+                    .responsible_layer
+                    .stable_id(),
+            ),
+            PayloadField::new(
+                "blocker_code",
+                decision_trace_record
+                    .typed_diagnostic
+                    .blocker_code
+                    .stable_id(),
+            ),
+            PayloadField::new(
+                "input_source",
+                decision_trace_record.typed_diagnostic.input_source.clone(),
+            ),
+            PayloadField::new(
+                "actual_source",
+                decision_trace_record.typed_diagnostic.actual_source.clone(),
+            ),
+            PayloadField::new(
+                "hidden_truth_referenced",
+                decision_trace_record
+                    .typed_diagnostic
+                    .hidden_truth_referenced
+                    .to_string(),
+            ),
+            PayloadField::new(
+                "remediation_hint",
+                decision_trace_record
+                    .typed_diagnostic
+                    .remediation_hint
                     .clone(),
             ),
         ];
@@ -1517,6 +1502,8 @@ pub mod no_human {
         ) {
             return;
         }
+        let execution_family = execution.family;
+        let execution_step_status = execution.step_status;
         if is_routine_failure_event(ordinary_event) {
             append_and_apply_agent_event(
                 log,
@@ -1533,7 +1520,7 @@ pub mod no_human {
             );
             return;
         }
-        if execution.step_status == crate::agent::RoutineStepStatus::NotStarted {
+        if execution_step_status == crate::agent::RoutineStepStatus::NotStarted {
             append_and_apply_agent_event(
                 log,
                 agent_state,
@@ -1548,7 +1535,7 @@ pub mod no_human {
                 ),
             );
         }
-        if is_instant_routine_progress_event(ordinary_event) {
+        if is_instant_routine_progress_event(execution_family, proposal, ordinary_event) {
             append_and_apply_agent_event(
                 log,
                 agent_state,
@@ -1602,7 +1589,14 @@ pub mod no_human {
         )
     }
 
-    fn is_instant_routine_progress_event(event: &EventEnvelope) -> bool {
+    fn is_instant_routine_progress_event(
+        execution_family: RoutineFamily,
+        proposal: &Proposal,
+        event: &EventEnvelope,
+    ) -> bool {
+        if execution_family == RoutineFamily::WorkBlock && proposal.action_id.as_str() == "move" {
+            return false;
+        }
         !matches!(
             event.event_type,
             EventKind::SleepStarted | EventKind::WorkBlockStarted
@@ -1945,7 +1939,15 @@ pub mod no_human {
             "no-human day stuck detection",
             "recorded_stuck_diagnostic",
             StuckResultingStatus::Idle,
-        );
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::Scheduler,
+            blocker_code: BlockerCode::SchedulingReservation,
+            input_source: "no_human_window".to_string(),
+            actual_source: "scheduler_no_progress_detection".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint: "inspect no-human ordering and proposal diagnostics".to_string(),
+        });
         let canonical = diagnostic.serialize_canonical();
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(format!(
@@ -1978,6 +1980,33 @@ pub mod no_human {
             PayloadField::new("diagnostic_schema_version", "1"),
             PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
             PayloadField::new("diagnostic_canonical", canonical),
+            PayloadField::new(
+                "responsible_layer",
+                diagnostic.typed_diagnostic.responsible_layer.stable_id(),
+            ),
+            PayloadField::new(
+                "blocker_code",
+                diagnostic.typed_diagnostic.blocker_code.stable_id(),
+            ),
+            PayloadField::new(
+                "input_source",
+                diagnostic.typed_diagnostic.input_source.clone(),
+            ),
+            PayloadField::new(
+                "actual_source",
+                diagnostic.typed_diagnostic.actual_source.clone(),
+            ),
+            PayloadField::new(
+                "hidden_truth_referenced",
+                diagnostic
+                    .typed_diagnostic
+                    .hidden_truth_referenced
+                    .to_string(),
+            ),
+            PayloadField::new(
+                "remediation_hint",
+                diagnostic.typed_diagnostic.remediation_hint.clone(),
+            ),
         ];
         event.effects_summary = "no-human day stuck diagnostic recorded".to_string();
         log.append(event).expect("stuck diagnostic is versioned")
@@ -1994,6 +2023,7 @@ pub mod no_human {
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
             ProposalId, RoutineExecutionId, RoutineTemplateId, WorkplaceId,
         };
+        use crate::location::Location;
         use crate::state::{ActorBody, AgentState, FoodSupplyState, WorkplaceState};
 
         fn agent_state(actor_id: &ActorId) -> AgentState {
@@ -2252,6 +2282,56 @@ pub mod no_human {
                     .hidden_truth_audit_result
                     .actor_known_only
             );
+        }
+
+        #[test]
+        fn scheduler_cannot_rewrite_wait_reason_after_transaction() {
+            let actor_id = actor_id();
+            let home = PlaceId::new("home_tomas").unwrap();
+            let mut state = PhysicalState::default();
+            state
+                .actors
+                .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), home));
+            let mut agent_state = agent_state(&actor_id);
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "rewrite_window".to_string(),
+                        start_tick: SimTick::ZERO,
+                        end_tick: SimTick::new(4),
+                    }],
+                },
+            );
+
+            let wait_event = log
+                .events()
+                .iter()
+                .find(|event| event.event_type == EventKind::ActorWaited)
+                .expect("no-human idle window should commit a wait event");
+            let reason = wait_event
+                .payload
+                .iter()
+                .find(|field| field.key == "reason")
+                .map(|field| field.value.as_str())
+                .expect("wait event carries actor-visible reason");
+
+            assert_eq!(reason, "actor_decision_reevaluation");
+            assert!(!reason.contains("no_human_day:"));
+            assert!(!wait_event
+                .payload
+                .iter()
+                .any(|field| field.value.contains("rewrite_window")));
+            assert!(!wait_event.effects_summary.contains("rewrite_window"));
         }
 
         #[test]

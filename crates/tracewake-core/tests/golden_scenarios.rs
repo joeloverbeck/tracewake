@@ -5,7 +5,9 @@ use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ReasonCode,
     ReportStatus,
 };
-use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+use tracewake_core::agent::{
+    NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
+};
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
@@ -21,7 +23,8 @@ use tracewake_core::events::EventStream;
 use tracewake_core::events::{EventCause, EventEnvelope, PayloadField};
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
-    EventId, FixtureId, ItemId, PlaceId, ProcessId, ProposalId,
+    DecisionTraceId, EventId, FixtureId, ItemId, PlaceId, ProcessId, ProposalId,
+    RoutineExecutionId, RoutineTemplateId, SleepAffordanceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_notebook_view, no_human_day_metrics};
@@ -32,6 +35,7 @@ use tracewake_core::scheduler::no_human::{
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
+    SleepAffordanceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -141,6 +145,13 @@ fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
     state
         .actors_mut()
         .insert(actor_id(), ActorBody::new(actor_id(), shop.clone()));
+    state.sleep_affordances_mut().insert(
+        SleepAffordanceId::new("bed_shop_front").unwrap(),
+        SleepAffordanceState::new(
+            SleepAffordanceId::new("bed_shop_front").unwrap(),
+            shop.clone(),
+        ),
+    );
 
     let mut door = DoorState::new(
         "door_shop_back".parse().unwrap(),
@@ -199,6 +210,21 @@ fn phase3a_agent_state() -> AgentState {
         ]
         .into_iter()
         .collect(),
+    );
+    let execution_id = RoutineExecutionId::new("routine_exec_tomas_sleep").unwrap();
+    state.routine_executions_mut().insert(
+        execution_id.clone(),
+        RoutineExecution::new(
+            execution_id.clone(),
+            actor_id(),
+            RoutineTemplateId::new("routine_tomas_sleep").unwrap(),
+            RoutineFamily::SleepNight,
+            SimTick::ZERO,
+            Some(SimTick::new(1)),
+            Some(SimTick::new(4)),
+            Some("body".to_string()),
+            DecisionTraceId::new(format!("trace_{execution_id}")).unwrap(),
+        ),
     );
     state.build()
 }

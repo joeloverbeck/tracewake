@@ -7,11 +7,11 @@ use tracewake_core::agent::{
 };
 use tracewake_core::ids::{
     ActorId, ContainerId, DecisionTraceId, DoorId, FoodSupplyId, IntentionId, ItemId, PlaceId,
-    RoutineExecutionId, StuckDiagnosticId, WorkplaceId,
+    RoutineExecutionId, SleepAffordanceId, StuckDiagnosticId, WorkplaceId,
 };
 use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, PhysicalState,
-    PlaceState, WorkplaceState,
+    PlaceState, SleepAffordanceState, WorkplaceState,
 };
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub struct PhysicalSeed {
     items: BTreeMap<ItemId, ItemState>,
     food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
     workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+    sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
 }
 
 impl PhysicalSeed {
@@ -35,6 +36,7 @@ impl PhysicalSeed {
             items: state.items().clone(),
             food_supplies: state.food_supplies().clone(),
             workplaces: state.workplaces().clone(),
+            sleep_affordances: state.sleep_affordances().clone(),
         }
     }
 
@@ -70,6 +72,12 @@ impl PhysicalSeed {
         &mut self.workplaces
     }
 
+    pub fn sleep_affordances_mut(
+        &mut self,
+    ) -> &mut BTreeMap<SleepAffordanceId, SleepAffordanceState> {
+        &mut self.sleep_affordances
+    }
+
     pub fn build(self) -> PhysicalState {
         PhysicalState::from_seed_parts(
             self.actors,
@@ -79,6 +87,7 @@ impl PhysicalSeed {
             self.items,
             self.food_supplies,
             self.workplaces,
+            self.sleep_affordances,
         )
     }
 }

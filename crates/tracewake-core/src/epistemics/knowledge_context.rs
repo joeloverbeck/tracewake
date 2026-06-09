@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash};
 use crate::debug_capability::DebugCapability;
 use crate::epistemics::observation::{PrivacyScope, EPISTEMIC_RECORD_SCHEMA_V1};
-use crate::ids::{ActorId, HolderKnownContextId, SchemaVersion};
+use crate::ids::{ActorId, HolderKnownContextId, PlaceId, SchemaVersion, WorkplaceId};
 use crate::time::SimTick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -151,6 +151,48 @@ impl KnowledgeProvenanceEntry {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownWorkplaceFact {
+    workplace_id: WorkplaceId,
+    place_id: PlaceId,
+    source_key: String,
+}
+
+impl ActorKnownWorkplaceFact {
+    pub fn new(
+        workplace_id: WorkplaceId,
+        place_id: PlaceId,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            workplace_id,
+            place_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn workplace_id(&self) -> &WorkplaceId {
+        &self.workplace_id
+    }
+
+    pub fn place_id(&self) -> &PlaceId {
+        &self.place_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}@{}:{}",
+            self.workplace_id.as_str(),
+            self.place_id.as_str(),
+            self.source_key
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ForbiddenTruthAudit {
     excluded_sources: BTreeSet<ForbiddenKnowledgeSource>,
@@ -208,6 +250,7 @@ pub struct KnowledgeContext {
     holder_known_context_id: HolderKnownContextId,
     holder_known_context_hash: HolderKnownContextHash,
     provenance_entries: Vec<KnowledgeProvenanceEntry>,
+    actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
     forbidden_truth_audit: ForbiddenTruthAudit,
     status: KnowledgeContextStatus,
 }
@@ -221,6 +264,20 @@ impl KnowledgeContext {
         viewer_actor_id: ActorId,
         current_tick: SimTick,
         event_frontier: u64,
+    ) -> Self {
+        Self::embodied_at_frontier_with_workplaces(
+            viewer_actor_id,
+            current_tick,
+            event_frontier,
+            Vec::new(),
+        )
+    }
+
+    pub fn embodied_at_frontier_with_workplaces(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
     ) -> Self {
         let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
         Self::seal(
@@ -236,6 +293,7 @@ impl KnowledgeContext {
             actor_scope,
             false,
             baseline_embodied_provenance(),
+            actor_known_workplaces,
         )
     }
 
@@ -253,9 +311,12 @@ impl KnowledgeContext {
         observation_scope: ScopeFilter,
         debug_non_diegetic: bool,
         mut provenance_entries: Vec<KnowledgeProvenanceEntry>,
+        mut actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
     ) -> Self {
         provenance_entries.sort();
         provenance_entries.dedup();
+        actor_known_workplaces.sort();
+        actor_known_workplaces.dedup();
         let projection_schema_version = SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap();
         let holder_known_context_id = HolderKnownContextId::new(format!(
             "hkc.{}.{}.{}",
@@ -282,6 +343,7 @@ impl KnowledgeContext {
             &projection_schema_version,
             debug_non_diegetic,
             &provenance_entries,
+            &actor_known_workplaces,
             &forbidden_truth_audit,
             status,
         ))
@@ -303,6 +365,7 @@ impl KnowledgeContext {
             holder_known_context_id,
             holder_known_context_hash,
             provenance_entries,
+            actor_known_workplaces,
             forbidden_truth_audit,
             status,
         }
@@ -326,6 +389,7 @@ impl KnowledgeContext {
             ScopeFilter::DebugAll,
             true,
             baseline_embodied_provenance(),
+            Vec::new(),
         )
     }
 
@@ -398,6 +462,10 @@ impl KnowledgeContext {
 
     pub fn provenance_entries(&self) -> &[KnowledgeProvenanceEntry] {
         &self.provenance_entries
+    }
+
+    pub fn actor_known_workplaces(&self) -> &[ActorKnownWorkplaceFact] {
+        &self.actor_known_workplaces
     }
 
     pub fn forbidden_truth_audit(&self) -> &ForbiddenTruthAudit {
@@ -475,6 +543,7 @@ fn canonical_hash_inputs(
     projection_schema_version: &SchemaVersion,
     debug_non_diegetic: bool,
     provenance_entries: &[KnowledgeProvenanceEntry],
+    actor_known_workplaces: &[ActorKnownWorkplaceFact],
     forbidden_truth_audit: &ForbiddenTruthAudit,
     status: KnowledgeContextStatus,
 ) -> Vec<String> {
@@ -514,6 +583,11 @@ fn canonical_hash_inputs(
         provenance_entries
             .iter()
             .map(|entry| format!("provenance={}", entry.canonical_key())),
+    );
+    lines.extend(
+        actor_known_workplaces
+            .iter()
+            .map(|fact| format!("actor_known_workplace={}", fact.canonical_key())),
     );
     lines
 }
@@ -589,6 +663,7 @@ mod tests {
             entry.kind() == &KnowledgeProvenanceKind::Belief
                 && entry.source() == AllowedKnowledgeSource::OwnSourceBackedBelief
         }));
+        assert!(context.actor_known_workplaces().is_empty());
         assert!(context.forbidden_truth_audit().passed());
         for source in context.forbidden_sources().iter() {
             assert!(context
@@ -596,6 +671,30 @@ mod tests {
                 .excluded_sources()
                 .contains(source));
         }
+    }
+
+    #[test]
+    fn embodied_context_can_seal_actor_known_workplace_facts() {
+        let context = KnowledgeContext::embodied_at_frontier_with_workplaces(
+            actor_id("actor_tomas"),
+            SimTick::new(5),
+            11,
+            vec![ActorKnownWorkplaceFact::new(
+                WorkplaceId::new("workplace_tomas").unwrap(),
+                PlaceId::new("workshop_tomas").unwrap(),
+                "routine_assignment_notice",
+            )],
+        );
+
+        assert_eq!(context.actor_known_workplaces().len(), 1);
+        assert_eq!(
+            context.actor_known_workplaces()[0].workplace_id().as_str(),
+            "workplace_tomas"
+        );
+        assert!(context
+            .holder_known_context_hash()
+            .as_str()
+            .starts_with("hkc1-"));
     }
 
     #[test]

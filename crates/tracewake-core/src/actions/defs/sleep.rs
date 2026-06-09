@@ -3,7 +3,7 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
-use crate::ids::{ContentManifestId, EventId};
+use crate::ids::{ContentManifestId, EventId, PlaceId, SleepAffordanceId};
 use crate::scheduler::OrderingKey;
 use crate::state::PhysicalState;
 use crate::time::SimTick;
@@ -37,20 +37,7 @@ pub fn build_sleep_start_event(
         )
     })?;
 
-    if let Some(sleep_place_id) = proposal.parameters.get("sleep_place_id") {
-        if sleep_place_id != actor.current_place_id.as_str() {
-            return Err(ActionRejection::new(
-                PipelineStage::PhysicalPreconditionValidation,
-                ReasonCode::ActorNotAtRequiredPlace,
-                vec![
-                    CheckedFact::new("actor_place_id", actor.current_place_id.as_str()),
-                    CheckedFact::new("sleep_place_id", sleep_place_id),
-                ],
-                "That sleep place is not reachable from here.",
-                "sleep requires the actor to be at the modeled sleep place in this slice",
-            ));
-        }
-    }
+    let sleep_affordance_id = require_sleep_affordance(state, proposal, &actor.current_place_id)?;
 
     let duration_ticks = parse_duration_ticks(proposal)?;
     let expected_completion_tick = proposal.requested_tick.advance_by(duration_ticks);
@@ -81,6 +68,7 @@ pub fn build_sleep_start_event(
         ),
         PayloadField::new("body_exclusive", "true"),
         PayloadField::new("fatigue_delta_at_start", "0"),
+        PayloadField::new("sleep_affordance_id", sleep_affordance_id.as_str()),
     ];
     if let Some(sleep_place_id) = proposal.parameters.get("sleep_place_id") {
         event
@@ -89,6 +77,76 @@ pub fn build_sleep_start_event(
     }
     event.effects_summary = "sleep started; completion is duration scheduled".to_string();
     Ok(event)
+}
+
+fn require_sleep_affordance(
+    state: &PhysicalState,
+    proposal: &Proposal,
+    actor_place_id: &PlaceId,
+) -> Result<SleepAffordanceId, ActionRejection> {
+    let Some(raw_sleep_affordance_id) = proposal.parameters.get("sleep_affordance_id") else {
+        return Err(no_sleep_affordance_rejection(
+            "missing_sleep_affordance_id",
+            actor_place_id,
+            "",
+        ));
+    };
+    let sleep_affordance_id =
+        SleepAffordanceId::new(raw_sleep_affordance_id.clone()).map_err(|_| {
+            no_sleep_affordance_rejection(
+                "invalid_sleep_affordance_id",
+                actor_place_id,
+                raw_sleep_affordance_id,
+            )
+        })?;
+    let Some(sleep_affordance) = state.sleep_affordances.get(&sleep_affordance_id) else {
+        return Err(no_sleep_affordance_rejection(
+            "unknown_sleep_affordance_id",
+            actor_place_id,
+            sleep_affordance_id.as_str(),
+        ));
+    };
+    if sleep_affordance.place_id != *actor_place_id || !sleep_affordance.access_open {
+        return Err(no_sleep_affordance_rejection(
+            "sleep_affordance_not_open_at_actor_place",
+            actor_place_id,
+            sleep_affordance_id.as_str(),
+        ));
+    }
+    if let Some(sleep_place_id) = proposal.parameters.get("sleep_place_id") {
+        if sleep_place_id != sleep_affordance.place_id.as_str() {
+            return Err(ActionRejection::new(
+                PipelineStage::PhysicalPreconditionValidation,
+                ReasonCode::ActorNotAtRequiredPlace,
+                vec![
+                    CheckedFact::new("actor_place_id", actor_place_id.as_str()),
+                    CheckedFact::new("sleep_place_id", sleep_place_id),
+                    CheckedFact::new("sleep_affordance_id", sleep_affordance_id.as_str()),
+                ],
+                "That sleep place is not reachable from here.",
+                "sleep proposal place did not match the modeled sleep affordance",
+            ));
+        }
+    }
+    Ok(sleep_affordance_id)
+}
+
+fn no_sleep_affordance_rejection(
+    reason: &str,
+    actor_place_id: &PlaceId,
+    sleep_affordance_id: &str,
+) -> ActionRejection {
+    ActionRejection::new(
+        PipelineStage::PhysicalPreconditionValidation,
+        ReasonCode::NoSleepAffordance,
+        vec![
+            CheckedFact::new("actor_place_id", actor_place_id.as_str()),
+            CheckedFact::new("sleep_affordance_id", sleep_affordance_id),
+            CheckedFact::new("reason", reason),
+        ],
+        "There is no usable place to sleep here.",
+        format!("sleep requires an open modeled affordance at the actor place: {reason}"),
+    )
 }
 
 pub fn build_sleep_completion_events(
@@ -273,11 +331,11 @@ fn parse_duration_ticks(proposal: &Proposal) -> Result<u64, ActionRejection> {
 mod tests {
     use super::*;
     use crate::actions::proposal::ProposalOrigin;
-    use crate::ids::{ActionId, ActorId, PlaceId, ProposalId};
+    use crate::ids::{ActionId, ActorId, PlaceId, ProposalId, SleepAffordanceId};
     use crate::scheduler::{
         duration_completion_ordering_key, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
-    use crate::state::ActorBody;
+    use crate::state::{ActorBody, SleepAffordanceState};
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
@@ -288,6 +346,13 @@ mod tests {
         state.actors.insert(
             actor_id(),
             ActorBody::new(actor_id(), PlaceId::new("tomas_room").unwrap()),
+        );
+        state.sleep_affordances.insert(
+            SleepAffordanceId::new("bed_tomas").unwrap(),
+            SleepAffordanceState::new(
+                SleepAffordanceId::new("bed_tomas").unwrap(),
+                PlaceId::new("tomas_room").unwrap(),
+            ),
         );
         state
     }
@@ -306,6 +371,9 @@ mod tests {
         proposal
             .parameters
             .insert("sleep_place_id".to_string(), "tomas_room".to_string());
+        proposal
+            .parameters
+            .insert("sleep_affordance_id".to_string(), "bed_tomas".to_string());
         proposal
     }
 
@@ -345,6 +413,10 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "body_exclusive" && field.value == "true"));
+        assert!(event
+            .payload
+            .iter()
+            .any(|field| field.key == "sleep_affordance_id" && field.value == "bed_tomas"));
     }
 
     #[test]
@@ -442,5 +514,56 @@ mod tests {
             &ContentManifestId::new("phase3a_manifest").unwrap(),
         )
         .is_err());
+    }
+
+    #[test]
+    fn sleep_rejects_current_place_without_affordance() {
+        let mut state = state();
+        state.sleep_affordances.clear();
+
+        let rejection = build_sleep_start_event(
+            &state,
+            &proposal(ProposalOrigin::Test),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap_err();
+
+        assert_eq!(rejection.reason_code, ReasonCode::NoSleepAffordance);
+    }
+
+    #[test]
+    fn sleep_rejects_forged_or_stale_affordance() {
+        let mut proposal = proposal(ProposalOrigin::Test);
+        proposal.parameters.insert(
+            "sleep_affordance_id".to_string(),
+            "bed_elsewhere".to_string(),
+        );
+
+        let rejection = build_sleep_start_event(
+            &state(),
+            &proposal,
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap_err();
+        assert_eq!(rejection.reason_code, ReasonCode::NoSleepAffordance);
+
+        let mut stale_state = state();
+        stale_state.sleep_affordances.insert(
+            SleepAffordanceId::new("bed_elsewhere").unwrap(),
+            SleepAffordanceState::new(
+                SleepAffordanceId::new("bed_elsewhere").unwrap(),
+                PlaceId::new("market").unwrap(),
+            ),
+        );
+        let rejection = build_sleep_start_event(
+            &stale_state,
+            &proposal,
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap_err();
+        assert_eq!(rejection.reason_code, ReasonCode::NoSleepAffordance);
     }
 }

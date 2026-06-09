@@ -1,7 +1,7 @@
 use crate::agent::{
-    ActorKnownFact, ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind,
-    GoalPriority, Intention, NeedBand, NeedKind, NeedPressure, NeedState, NeedThresholdCrossing,
-    ThresholdDirection,
+    ActorKnownFact, ActorKnownInputRef, ApplicabilityResult, CandidateGoal, CandidateGoalSource,
+    GoalKind, GoalPriority, Intention, NeedBand, NeedKind, NeedPressure, NeedState,
+    NeedThresholdCrossing, ThresholdDirection,
 };
 use crate::ids::{ActorId, CandidateGoalId, DecisionTraceId};
 use crate::state::AgentState;
@@ -21,7 +21,7 @@ pub struct CandidateGenerationInput {
 pub struct CandidateGenerationOutput {
     pub candidates: Vec<CandidateGoal>,
     pub active_needs: Vec<NeedPressure>,
-    pub actor_known_inputs_used: Vec<String>,
+    pub actor_known_inputs_used: Vec<ActorKnownInputRef>,
 }
 
 pub struct LiveCandidateGenerationInput<'a> {
@@ -165,7 +165,7 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
     CandidateGenerationOutput {
         candidates,
         active_needs,
-        actor_known_inputs_used: actor_known_fact_notes(&input.actor_known_facts),
+        actor_known_inputs_used: actor_known_input_refs(&input.actor_known_facts),
     }
 }
 
@@ -199,6 +199,13 @@ fn actor_known_fact_notes(actor_known_facts: &[ActorKnownFact]) -> Vec<String> {
     actor_known_facts
         .iter()
         .map(ActorKnownFact::proof_note)
+        .collect()
+}
+
+fn actor_known_input_refs(actor_known_facts: &[ActorKnownFact]) -> Vec<ActorKnownInputRef> {
+    actor_known_facts
+        .iter()
+        .map(ActorKnownInputRef::from_fact)
         .collect()
 }
 
@@ -373,7 +380,7 @@ mod tests {
         assert!(!output
             .actor_known_inputs_used
             .iter()
-            .any(|input| input.contains("hidden_food_pantry")));
+            .any(|input| input.render_for_trace().contains("hidden_food_pantry")));
         assert!(output
             .candidates
             .iter()

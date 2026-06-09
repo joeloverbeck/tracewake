@@ -16,7 +16,8 @@ use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
-    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
+    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
+    WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
@@ -79,7 +80,8 @@ fn phase3a_fixture() -> FixtureSchema {
         sleep_places: vec![SleepPlaceSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             place_id: PlaceId::new("home_tomas").unwrap(),
-            sleep_place_id: "bed_tomas".to_string(),
+            sleep_place_id: SleepAffordanceId::new("bed_tomas").unwrap(),
+            access_open: true,
         }],
         food_supplies: vec![FoodSupplySchema {
             food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
@@ -133,7 +135,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 27);
+    assert_eq!(all.len(), 36);
 
     let ids = all
         .iter()
@@ -146,15 +148,22 @@ fn all_fixtures_load_deterministically_and_validate() {
             "debug_attach_001".to_string(),
             "debug_omniscience_excluded_001".to_string(),
             "door_access_001".to_string(),
+            "embodied_view_omits_raw_assignment_without_context_001".to_string(),
             "expectation_contradiction_001".to_string(),
             "food_unavailable_replan_001".to_string(),
             "hidden_food_closed_container_001".to_string(),
             "hidden_food_unknown_route_001".to_string(),
             "hidden_route_edge_001".to_string(),
+            "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001".to_string(),
             "knowledge_blocker_accuse_001".to_string(),
+            "method_fallback_requires_new_trace_or_stuck_001".to_string(),
             "no_human_advance_001".to_string(),
+            "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
             "no_human_day_001".to_string(),
             "no_human_epistemic_check_001".to_string(),
+            "no_human_known_workplace_requires_provenance_001".to_string(),
+            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
+            "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
             "no_hidden_truth_planning_001".to_string(),
             "ordinary_workday_001".to_string(),
             "planner_trace_001".to_string(),
@@ -163,7 +172,9 @@ fn all_fixtures_load_deterministically_and_validate() {
             "replay_item_location_001".to_string(),
             "routine_blocked_diagnostic_001".to_string(),
             "routine_no_teleport_001".to_string(),
+            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
+            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
             "view_filtering_001".to_string(),
@@ -264,18 +275,27 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
         ids_for_scope(FixtureScope::Phase3AHistorical),
         BTreeSet::from([
             "debug_omniscience_excluded_001".to_string(),
+            "embodied_view_omits_raw_assignment_without_context_001".to_string(),
             "food_unavailable_replan_001".to_string(),
             "hidden_food_closed_container_001".to_string(),
             "hidden_food_unknown_route_001".to_string(),
             "hidden_route_edge_001".to_string(),
+            "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001".to_string(),
+            "method_fallback_requires_new_trace_or_stuck_001".to_string(),
             "no_hidden_truth_planning_001".to_string(),
+            "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
             "no_human_day_001".to_string(),
+            "no_human_known_workplace_requires_provenance_001".to_string(),
+            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
+            "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
             "ordinary_workday_001".to_string(),
             "planner_trace_001".to_string(),
             "possession_does_not_reset_intention_001".to_string(),
             "routine_blocked_diagnostic_001".to_string(),
             "routine_no_teleport_001".to_string(),
+            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
+            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),
         ])
     );

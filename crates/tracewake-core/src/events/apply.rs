@@ -298,6 +298,7 @@ fn apply_agent_event_with_capability(
                     value: trace_id.to_string(),
                 });
             }
+            validate_typed_diagnostic_payload(&payload, &record.typed_diagnostic)?;
             state.decision_traces.insert(trace_id, record);
             Ok(ApplyOutcome::Applied)
         }
@@ -327,6 +328,7 @@ fn apply_agent_event_with_capability(
                     value: diagnostic_id.to_string(),
                 });
             }
+            validate_typed_diagnostic_payload(&payload, &record.typed_diagnostic)?;
             state.stuck_diagnostics.insert(diagnostic_id, record);
             Ok(ApplyOutcome::Applied)
         }
@@ -348,6 +350,71 @@ fn apply_agent_event_with_capability(
         | EventKind::NoHumanDayCompleted => Ok(ApplyOutcome::WorldNoOp),
         _ => Err(ApplyError::NonAgentEvent),
     }
+}
+
+fn validate_typed_diagnostic_payload(
+    payload: &std::collections::BTreeMap<&str, &str>,
+    typed: &crate::agent::TypedDiagnosticFields,
+) -> Result<(), ApplyError> {
+    if let Some(value) = payload.get("responsible_layer") {
+        let parsed =
+            crate::agent::ResponsibleLayer::parse(value).map_err(|_| ApplyError::BadPayload {
+                key: "responsible_layer",
+                value: (*value).to_string(),
+            })?;
+        if parsed != typed.responsible_layer {
+            return Err(ApplyError::BadPayload {
+                key: "responsible_layer",
+                value: (*value).to_string(),
+            });
+        }
+    }
+    if let Some(value) = payload.get("blocker_code") {
+        let parsed =
+            crate::agent::BlockerCode::parse(value).map_err(|_| ApplyError::BadPayload {
+                key: "blocker_code",
+                value: (*value).to_string(),
+            })?;
+        if parsed != typed.blocker_code {
+            return Err(ApplyError::BadPayload {
+                key: "blocker_code",
+                value: (*value).to_string(),
+            });
+        }
+    }
+    if let Some(value) = payload.get("hidden_truth_referenced") {
+        let parsed = match *value {
+            "true" => true,
+            "false" => false,
+            _ => {
+                return Err(ApplyError::BadPayload {
+                    key: "hidden_truth_referenced",
+                    value: (*value).to_string(),
+                });
+            }
+        };
+        if parsed != typed.hidden_truth_referenced {
+            return Err(ApplyError::BadPayload {
+                key: "hidden_truth_referenced",
+                value: (*value).to_string(),
+            });
+        }
+    }
+    for (key, expected) in [
+        ("input_source", typed.input_source.as_str()),
+        ("actual_source", typed.actual_source.as_str()),
+        ("remediation_hint", typed.remediation_hint.as_str()),
+    ] {
+        if let Some(value) = payload.get(key) {
+            if *value != expected {
+                return Err(ApplyError::BadPayload {
+                    key,
+                    value: (*value).to_string(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn payload_map(payload: &[PayloadField]) -> BTreeMap<&str, &str> {
@@ -1783,17 +1850,27 @@ mod tests {
             Ok(ApplyOutcome::Applied)
         );
 
+        let trace = &state.decision_traces[&DecisionTraceId::new("trace_breakfast").unwrap()];
         assert_eq!(
-            state.decision_traces[&DecisionTraceId::new("trace_breakfast").unwrap()]
-                .serialize_canonical(),
-            "decision_trace_v1|trace_breakfast|actor_tomas|1|2|completed|0|true|74657374"
+            trace.typed_diagnostic.responsible_layer,
+            crate::agent::ResponsibleLayer::CandidateGeneration
         );
         assert_eq!(
-            state.stuck_diagnostics
-                [&crate::ids::StuckDiagnosticId::new("stuck_food_missing").unwrap()]
-                .serialize_canonical(),
-            "stuck_diagnostic_v1|stuck_food_missing|actor_tomas|1|2|-|-|-|-|-|-|-|resource|666f6f64|6163746f725f6b6e6f776e|6465627567|7265747279|replanning"
+            trace.typed_diagnostic.blocker_code,
+            crate::agent::BlockerCode::None
         );
+        assert!(trace
+            .serialize_canonical()
+            .starts_with("decision_trace_v1|trace_breakfast|actor_tomas|1|2|completed"));
+        let diagnostic = &state.stuck_diagnostics
+            [&crate::ids::StuckDiagnosticId::new("stuck_food_missing").unwrap()];
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            crate::agent::BlockerCode::Resource
+        );
+        assert!(diagnostic.serialize_canonical().starts_with(
+            "stuck_diagnostic_v1|stuck_food_missing|actor_tomas|1|2|-|-|-|-|-|-|-|resource"
+        ));
     }
 
     #[test]

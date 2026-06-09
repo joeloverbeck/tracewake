@@ -4,6 +4,8 @@ use support::{AgentSeed, PhysicalSeed};
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
+const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
+const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
@@ -1292,8 +1294,129 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
     let scheduler = production(SCHEDULER_RS);
     assert_absent(&scheduler, "EpistemicProjection::new");
     assert!(
-        scheduler.contains("build_actor_known_planning_state_with_projection_limitation"),
-        "no-human cognition must use the typed projection-limitation boundary"
+        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_modeled_observations"),
+        "no-human cognition must use the sealed actor-known surface builder"
+    );
+}
+
+#[test]
+fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth() {
+    let scheduler = production(SCHEDULER_RS);
+    let builder = production(NO_HUMAN_SURFACE_RS);
+    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+
+    for forbidden in [
+        "visible_local_planning_state",
+        "state.workplaces",
+        "state.food_supplies",
+        "state.places",
+        "BTreeSet::from([current_place_id",
+        "sleep_place_believed_accessible",
+        "actor_at_workplace",
+        "assigned_workplace_known",
+    ] {
+        assert_absent(build_agent_proposal, forbidden);
+    }
+
+    assert!(
+        builder.contains("pub struct SealedActorKnownSurface"),
+        "no-human actor-known surface must be sealed"
+    );
+    assert!(
+        builder.contains("pub struct NoHumanActorKnownSurfaceBuilder"),
+        "no-human actor-known surface must be constructed through a named builder"
+    );
+    assert!(
+        builder.contains("fn observe_visible_food_sources_from_current_place"),
+        "raw food-table visibility must be isolated in a named observation builder"
+    );
+    assert!(
+        builder.contains("fn observe_visible_routes_from_current_place"),
+        "raw adjacency visibility must be isolated in a named observation builder"
+    );
+    assert!(
+        builder.contains("fn observe_workplace_notices_from_active_routines"),
+        "workplace table reads must be isolated behind modeled routine-assignment notice construction"
+    );
+    let workplace_notice_body = body_after_marker(
+        &builder,
+        "fn observe_workplace_notices_from_active_routines",
+    );
+    assert!(
+        workplace_notice_body.contains("has_live_routine_family"),
+        "workplace notices must require a live modeled routine assignment"
+    );
+    assert_absent(&builder, "BTreeSet::from([current_place_id");
+}
+
+#[test]
+fn guard_014_embodied_projection_workplaces_are_context_backed() {
+    let projection = production(PROJECTIONS_RS);
+
+    assert!(
+        projection.contains("fn actor_known_workplaces_for_context(context: &KnowledgeContext)"),
+        "embodied workplace affordances must be selected from the sealed holder-known context"
+    );
+    assert!(
+        projection.contains(".actor_known_workplaces()"),
+        "embodied projection must read typed context-backed workplace facts"
+    );
+    assert_absent(
+        &projection,
+        "workplace.assigned_actor_ids.is_empty()\n                || workplace.assigned_actor_ids.contains",
+    );
+    assert_absent(&projection, "actor_known_workplaces_for_context(state");
+}
+
+#[test]
+fn guard_014_no_human_metrics_do_not_scan_display_text() {
+    let projection = production(PROJECTIONS_RS);
+    let metrics_body = body_after_marker(&projection, "pub fn no_human_day_metrics");
+
+    for forbidden in [
+        ".contains(\"planner\")",
+        ".contains(\"failed\")",
+        ".contains(\"planner_budget_exhausted\")",
+    ] {
+        assert_absent(metrics_body, forbidden);
+    }
+    assert!(
+        projection.contains("fn is_typed_planner_failure_event"),
+        "no-human metrics must classify planner failures through typed diagnostic fields"
+    );
+    assert!(
+        projection.contains("typed_responsible_layer") && projection.contains("typed_blocker_code"),
+        "no-human metrics must read responsible_layer and blocker_code"
+    );
+}
+
+#[test]
+fn guard_014_sleep_validation_requires_modeled_affordance() {
+    let sleep = production(SLEEP_RS);
+    let projection = production(PROJECTIONS_RS);
+    let transaction = production(TRANSACTION_RS);
+    let builder = production(NO_HUMAN_SURFACE_RS);
+
+    assert!(
+        sleep.contains("sleep_affordance_id"),
+        "sleep start validation must require a concrete modeled rest-surface id"
+    );
+    assert!(
+        sleep.contains("ReasonCode::NoSleepAffordance"),
+        "sleep validation must reject absent, forged, closed, or stale rest surfaces with a typed reason"
+    );
+    assert_absent(&sleep, "sleep_place_id != actor.current_place_id.as_str()");
+    assert!(
+        projection.contains("visible_open_sleep_affordance"),
+        "human semantic sleep actions must be backed by an open modeled affordance"
+    );
+    assert!(
+        transaction.contains("actor_known_sleep_affordance_id"),
+        "agent sleep proposals must carry the actor-known affordance id"
+    );
+    assert!(
+        builder.contains("actor_knows_sleep_affordance"),
+        "no-human cognition must derive sleep affordance ids as actor-known facts"
     );
 }
 
@@ -1312,6 +1435,78 @@ fn guard_006_scheduler_has_no_routine_family_to_primitive_dispatch() {
     ] {
         assert_absent(&scheduler, forbidden);
     }
+}
+
+#[test]
+fn guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition() {
+    let scheduler = production(SCHEDULER_RS);
+    let transaction = production(TRANSACTION_RS);
+    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+    let after_transaction_run =
+        body_after_marker(build_agent_proposal, "ActorDecisionTransaction::run");
+
+    assert!(
+        transaction.contains("pub struct SealedProposal"),
+        "actor decision transaction must expose a sealed proposal handoff type"
+    );
+    assert!(
+        transaction.contains("proposal: Proposal"),
+        "sealed proposal must retain Proposal behind a private field"
+    );
+    assert_absent(&transaction, "pub proposal: Proposal");
+
+    for forbidden in [
+        "proposal.parameters.insert",
+        "proposal.target_ids.push",
+        "proposal.action_id =",
+        "proposal.actor_id =",
+        "let mut proposal = proposed.proposal",
+        "proposed.proposal.parameters",
+        "proposed.proposal.target_ids",
+        "proposed.proposal.action_id",
+    ] {
+        assert_absent(after_transaction_run, forbidden);
+    }
+}
+
+#[test]
+fn guard_014_transaction_has_no_silent_method_fallback_scan() {
+    let transaction = production(TRANSACTION_RS);
+    assert_absent(&transaction, "candidate_fallbacks");
+    assert_absent(&transaction, ".find_map(|candidate|");
+    assert!(
+        transaction.contains("pub struct SelectedGoalBundle"),
+        "transaction must bind selected candidate, trace, method, local plan, and proposal ancestry"
+    );
+    assert!(
+        transaction.contains("bundle.decision_trace_id.as_str().to_string()"),
+        "proposal decision_trace_id must come from the selected goal bundle"
+    );
+    assert!(
+        transaction.contains("bundle.candidate_goal_id.as_str().to_string()"),
+        "proposal candidate_goal_id must come from the selected goal bundle"
+    );
+    assert!(
+        transaction.contains("method_selection_rejected"),
+        "method fallback rerun must preserve a typed rejection reason for the failed selected candidate"
+    );
+}
+
+#[test]
+fn guard_014_decision_hidden_truth_audit_uses_typed_input_refs() {
+    let decision = production(DECISION_RS);
+    assert_absent(&decision, "actor_known_inputs: Vec<String>");
+    assert_absent(&decision, "contains(\"unproven\")");
+    assert_absent(&decision, "contains(\"debug_omniscience\")");
+    assert_absent(&decision, "contains(\"physical_truth\")");
+    assert!(
+        decision.contains("struct ActorKnownInputRef"),
+        "decision input refs must be typed provenance records"
+    );
+    assert!(
+        decision.contains("source_class.is_forbidden_for_cognition()"),
+        "hidden-truth audit must key on typed source class"
+    );
 }
 
 #[test]

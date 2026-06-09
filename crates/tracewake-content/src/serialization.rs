@@ -8,7 +8,7 @@ use tracewake_core::epistemics::{
 use tracewake_core::events::InitialBeliefSourceKind;
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, FoodSupplyId, ItemId,
-    PlaceId, RoutineTemplateId, SchemaVersion, WorkplaceId,
+    PlaceId, RoutineTemplateId, SchemaVersion, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
@@ -167,11 +167,12 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for sleep_place in fixture.sleep_places {
         lines.push(format!(
-            "{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}",
             canonical_key_for_schema_field("sleep_places"),
             sleep_place.actor_id.as_str(),
             sleep_place.place_id.as_str(),
-            encode(&sleep_place.sleep_place_id)
+            sleep_place.sleep_place_id.as_str(),
+            sleep_place.access_open
         ));
     }
     for food in fixture.food_supplies {
@@ -352,11 +353,12 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                 actor_id: ActorId::new(*actor_id)?,
                 place_id: PlaceId::new(*place_id)?,
             }),
-            ["sleep_place", actor_id, place_id, sleep_place_id] => {
+            ["sleep_place", actor_id, place_id, sleep_place_id, access_open] => {
                 sleep_places.push(SleepPlaceSchema {
                     actor_id: ActorId::new(*actor_id)?,
                     place_id: PlaceId::new(*place_id)?,
-                    sleep_place_id: decode(sleep_place_id)?,
+                    sleep_place_id: SleepAffordanceId::new(*sleep_place_id)?,
+                    access_open: parse_bool(access_open)?,
                 })
             }
             ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] => {

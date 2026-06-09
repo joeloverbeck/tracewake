@@ -906,6 +906,7 @@ mod tests {
                     actor_known_only: true,
                     notes: "candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only".to_string(),
                 },
+                typed_diagnostic: crate::agent::TypedDiagnosticFields::decision_default(false),
             },
         );
         agent_state.stuck_diagnostics.insert(

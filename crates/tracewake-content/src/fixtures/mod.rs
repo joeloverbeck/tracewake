@@ -2,16 +2,23 @@ mod container_item_move_001;
 mod debug_attach_001;
 mod debug_omniscience_excluded_001;
 mod door_access_001;
+mod embodied_view_omits_raw_assignment_without_context_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
 mod hidden_food_closed_container_001;
 mod hidden_food_unknown_route_001;
 mod hidden_route_edge_001;
+mod hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001;
 mod knowledge_blocker_accuse_001;
+mod method_fallback_requires_new_trace_or_stuck_001;
 mod no_hidden_truth_planning_001;
 mod no_human_advance_001;
+mod no_human_current_place_without_sleep_affordance_does_not_sleep_001;
 mod no_human_day_001;
 mod no_human_epistemic_check_001;
+mod no_human_known_workplace_requires_provenance_001;
+mod no_human_metrics_require_typed_responsible_layer_001;
+mod no_human_unseen_workplace_assignment_does_not_plan_work_001;
 mod ordinary_workday_001;
 mod planner_trace_001;
 mod possession_does_not_reset_intention_001;
@@ -20,7 +27,9 @@ mod prose_born_fact_rejected_001;
 mod replay_item_location_001;
 mod routine_blocked_diagnostic_001;
 mod routine_no_teleport_001;
+mod scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 mod sleep_eat_work_001;
+mod sleep_rejects_current_place_without_sleep_affordance_001;
 mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
@@ -34,7 +43,7 @@ use tracewake_core::epistemics::{
 };
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, FoodSupplyId, ItemId,
-    PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId,
+    PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::time::SimTick;
@@ -52,16 +61,23 @@ pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
 pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
 pub use door_access_001::door_access_001;
+pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_omits_raw_assignment_without_context_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use hidden_food_closed_container_001::hidden_food_closed_container_001;
 pub use hidden_food_unknown_route_001::hidden_food_unknown_route_001;
 pub use hidden_route_edge_001::hidden_route_edge_001;
+pub use hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001::hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001;
 pub use knowledge_blocker_accuse_001::knowledge_blocker_accuse_001;
+pub use method_fallback_requires_new_trace_or_stuck_001::method_fallback_requires_new_trace_or_stuck_001;
 pub use no_hidden_truth_planning_001::no_hidden_truth_planning_001;
 pub use no_human_advance_001::no_human_advance_001;
+pub use no_human_current_place_without_sleep_affordance_does_not_sleep_001::no_human_current_place_without_sleep_affordance_does_not_sleep_001;
 pub use no_human_day_001::no_human_day_001;
 pub use no_human_epistemic_check_001::no_human_epistemic_check_001;
+pub use no_human_known_workplace_requires_provenance_001::no_human_known_workplace_requires_provenance_001;
+pub use no_human_metrics_require_typed_responsible_layer_001::no_human_metrics_require_typed_responsible_layer_001;
+pub use no_human_unseen_workplace_assignment_does_not_plan_work_001::no_human_unseen_workplace_assignment_does_not_plan_work_001;
 pub use ordinary_workday_001::ordinary_workday_001;
 pub use planner_trace_001::planner_trace_001;
 pub use possession_does_not_reset_intention_001::possession_does_not_reset_intention_001;
@@ -70,7 +86,9 @@ pub use prose_born_fact_rejected_001::prose_born_fact_rejected_001;
 pub use replay_item_location_001::replay_item_location_001;
 pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
 pub use routine_no_teleport_001::routine_no_teleport_001;
+pub use scheduler_cannot_rewrite_wait_reason_after_transaction_001::scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
+pub use sleep_rejects_current_place_without_sleep_affordance_001::sleep_rejects_current_place_without_sleep_affordance_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
@@ -115,6 +133,7 @@ pub fn all() -> Vec<GoldenFixture> {
         expectation_contradiction_001(),
         possession_parity_001(),
         view_filtering_001(),
+        embodied_view_omits_raw_assignment_without_context_001(),
         knowledge_blocker_accuse_001(),
         sound_uncertainty_001(),
         no_human_epistemic_check_001(),
@@ -137,6 +156,14 @@ pub fn all() -> Vec<GoldenFixture> {
         routine_no_teleport_001(),
         possession_does_not_reset_intention_001(),
         no_hidden_truth_planning_001(),
+        no_human_unseen_workplace_assignment_does_not_plan_work_001(),
+        no_human_current_place_without_sleep_affordance_does_not_sleep_001(),
+        sleep_rejects_current_place_without_sleep_affordance_001(),
+        no_human_known_workplace_requires_provenance_001(),
+        scheduler_cannot_rewrite_wait_reason_after_transaction_001(),
+        method_fallback_requires_new_trace_or_stuck_001(),
+        no_human_metrics_require_typed_responsible_layer_001(),
+        hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001(),
         no_human_day_001(),
     ]
 }
@@ -415,7 +442,8 @@ fn sleep_place_schema(actor_id: &str, place_id: &str, sleep_place_id: &str) -> S
     SleepPlaceSchema {
         actor_id: actor(actor_id),
         place_id: place(place_id),
-        sleep_place_id: sleep_place_id.to_string(),
+        sleep_place_id: SleepAffordanceId::new(sleep_place_id).unwrap(),
+        access_open: true,
     }
 }
 
