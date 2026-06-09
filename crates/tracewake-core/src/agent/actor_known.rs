@@ -126,6 +126,22 @@ impl ActorKnownFact {
         &self.stable_id
     }
 
+    pub fn semantic_kind(&self) -> &str {
+        &self.semantic_kind
+    }
+
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+
+    pub fn tick(&self) -> Option<SimTick> {
+        self.tick
+    }
+
+    pub fn actor_id(&self) -> &ActorId {
+        &self.actor_id
+    }
+
     pub fn is_actor_known(&self) -> bool {
         self.provenance.actor_known()
     }

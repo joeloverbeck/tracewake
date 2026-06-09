@@ -1422,6 +1422,23 @@ fn guard_014_transaction_has_no_silent_method_fallback_scan() {
 }
 
 #[test]
+fn guard_014_decision_hidden_truth_audit_uses_typed_input_refs() {
+    let decision = production(DECISION_RS);
+    assert_absent(&decision, "actor_known_inputs: Vec<String>");
+    assert_absent(&decision, "contains(\"unproven\")");
+    assert_absent(&decision, "contains(\"debug_omniscience\")");
+    assert_absent(&decision, "contains(\"physical_truth\")");
+    assert!(
+        decision.contains("struct ActorKnownInputRef"),
+        "decision input refs must be typed provenance records"
+    );
+    assert!(
+        decision.contains("source_class.is_forbidden_for_cognition()"),
+        "hidden-truth audit must key on typed source class"
+    );
+}
+
+#[test]
 fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters() {
     for source in [
         production(EAT_RS),

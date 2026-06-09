@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-005: Typed actor-known input refs + provenance-class hidden-truth audit
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/decision.rs` `ActorKnownInputRef` + audit, `agent/generation.rs` producer, `agent/transaction.rs` consumer), new source guard, 1 adversarial test, `tracewake-content` test update
@@ -89,3 +89,31 @@ Add the substring-audit-ban guard and the adversarial negative test.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-content`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Replaced `DecisionInput.actor_known_inputs: Vec<String>` with typed `Vec<ActorKnownInputRef>`.
+- Added `ActorKnownInputSourceClass` and a provenance-class hidden-truth audit that rejects forbidden source classes and explicit unknowns without scanning display text.
+- Updated candidate generation to emit typed actor-known input refs from `ActorKnownFact` while rendering trace-facing proof notes from typed refs at the `DecisionTrace` boundary.
+- Added read-only `ActorKnownFact` accessors needed to build typed refs without exposing mutation.
+- Added a regression test proving forbidden typed provenance is rejected even when display text omits `unproven`, `debug_omniscience`, and `physical_truth`.
+- Added a source guard banning the old substring audit and `Vec<String>` decision input contract.
+- Added and registered `hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001` as the ticket fixture contract.
+
+Deviations from original plan:
+
+- `DecisionTrace` continues to store rendered proof-note strings for existing canonical trace compatibility; those strings are derived from typed refs and are not used as the hidden-truth audit substrate.
+
+Verification results:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core agent::decision` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test -p tracewake-content --test fixtures_load` — passed.
+- `cargo test -p tracewake-content` — passed.
+- `cargo test -p tracewake-core` — passed.
+- `cargo test --workspace` — passed. Rustc emitted transient warnings about corrupt `tracewake-tui` incremental artifacts being ignored/deleted; all tests passed.

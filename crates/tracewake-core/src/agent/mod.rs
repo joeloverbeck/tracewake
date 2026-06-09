@@ -21,7 +21,8 @@ pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
 };
 pub use decision::{
-    select_goal_and_trace, DecisionInput, DecisionSelection, IntentionLifecycleEffect,
+    select_goal_and_trace, ActorKnownInputRef, ActorKnownInputSourceClass, DecisionInput,
+    DecisionSelection, IntentionLifecycleEffect,
 };
 pub use generation::{
     generate_candidate_goals, generate_candidate_goals_from_agent_state,
