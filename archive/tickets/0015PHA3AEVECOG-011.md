@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-011: Capstone — scoped ORD-LIFE-CERT acceptance artifact
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Verification-only — new `reports/0015_ord_life_cert_scoped_acceptance.md`; exercises the prior tickets end-to-end, no new production logic
@@ -75,3 +75,26 @@ If an end-to-end smoke/replay test is the right home for the byte-match and no-h
 
 1. `cargo test --workspace` (exercises all ordinary-life fixtures and guards)
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-09.
+
+Produced `reports/0015_ord_life_cert_scoped_acceptance.md` as the scoped
+ORD-LIFE-CERT evidence artifact for spec 0015 at target implementation commit
+`4672cf20fa32b6caa5e2acb5c044b167c2208e57`. The report records the ticket
+manifest for 001–010, re-derived fixture count, all seven required evidence
+sections, concrete existing test surfaces, replay/hash evidence, seed-time
+knowledge event evidence, interrupted-sleep evidence, embodied/debug
+raw-vs-context evidence, and the explicit non-certification boundary.
+
+No production logic or new test was added. The existing capstone, replay,
+anti-regression, and fixture tests already exercise the required byte-match and
+no-human evidence surfaces.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace --quiet`
