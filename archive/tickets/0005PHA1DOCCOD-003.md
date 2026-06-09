@@ -1,6 +1,6 @@
 # 0005PHA1DOCCOD-003: Adversarial Phase 1 negative fixtures rejecting each later-phase action family
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` negative/forbidden-content test coverage (and optionally a package-level negative fixture).
@@ -77,3 +77,25 @@ If the repo's `negative_fixture_runner` consumes package-level negative fixtures
 
 1. `cargo test --locked -p tracewake-content --test forbidden_content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Added a Phase 1 scoped content-validation table test covering every later-phase action family: `check_container`, `truthful_accuse_probe`, `sleep`, `eat`, `work_block`, and `continue_routine`.
+- Added a routine-smuggling negative test that forces an ordinary-workday routine fixture through `FixtureScope::Phase1` and asserts the routine step fails at content validation.
+- Both new tests assert typed `ValidationPhase::ActionRegistryParity` plus stable code `phase_unsupported_action`; they do not assert display-text substrings.
+
+Deviations from original plan:
+
+- Kept the adversarial cases inline in `crates/tracewake-content/tests/forbidden_content.rs`; no package-level negative fixture was added because the existing forbidden-content suite is the idiomatic content validation home and exercises the pre-runtime validator directly.
+
+Verification results:
+
+- `cargo test --locked -p tracewake-content --test forbidden_content` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

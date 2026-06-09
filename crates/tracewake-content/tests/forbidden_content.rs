@@ -1,7 +1,10 @@
 use std::collections::BTreeSet;
 
 use tracewake_content::fixtures::{self, validate_fixture_contract_metadata, FixtureContract};
-use tracewake_content::schema::{content_field_by_schema_field, InitialBeliefSchema};
+use tracewake_content::load::registry_for_fixture_scope;
+use tracewake_content::schema::{
+    content_field_by_schema_field, ActionAffordanceSchema, FixtureScope, InitialBeliefSchema,
+};
 use tracewake_content::serialization::serialize_fixture;
 use tracewake_content::validate::{
     content_field_registry, validate_fixture, validate_fixture_bytes, ValidationPhase,
@@ -9,7 +12,7 @@ use tracewake_content::validate::{
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::RoutineStep;
 use tracewake_core::epistemics::{Channel, Confidence, Proposition, SourceRef};
-use tracewake_core::ids::{BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
+use tracewake_core::ids::{ActionId, BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -23,6 +26,61 @@ fn registry() -> ActionRegistry {
     registry.register_phase3a_work();
     registry.register_phase3a_continue_routine();
     registry
+}
+
+fn phase1_registry() -> ActionRegistry {
+    registry_for_fixture_scope(FixtureScope::Phase1)
+}
+
+#[test]
+fn forbidden_content_phase1_rejects_each_later_phase_action_family() {
+    for action_id in [
+        "check_container",
+        "truthful_accuse_probe",
+        "sleep",
+        "eat",
+        "work_block",
+        "continue_routine",
+    ] {
+        let mut fixture = fixtures::strongbox_001().fixture;
+        fixture.affordances.push(ActionAffordanceSchema {
+            action_id: ActionId::new(action_id).unwrap(),
+            target_id: "strongbox_tomas".to_string(),
+        });
+        fixture.canonicalize();
+
+        let report = validate_fixture(&fixture, &phase1_registry())
+            .unwrap_err()
+            .report;
+
+        assert!(
+            report.errors.iter().any(|error| {
+                error.phase == ValidationPhase::ActionRegistryParity
+                    && error.code == "phase_unsupported_action"
+                    && error.path.contains("affordances")
+            }),
+            "missing typed phase-boundary rejection for {action_id}: {report:?}"
+        );
+    }
+}
+
+#[test]
+fn forbidden_content_phase1_rejects_routine_step_smuggling_later_phase_action() {
+    let mut fixture = fixtures::ordinary_workday_001().fixture;
+    fixture.fixture_scope = FixtureScope::Phase1;
+
+    let report = validate_fixture(&fixture, &phase1_registry())
+        .unwrap_err()
+        .report;
+
+    assert!(
+        report.errors.iter().any(|error| {
+            error.phase == ValidationPhase::ActionRegistryParity
+                && error.code == "phase_unsupported_action"
+                && error.path.contains("routine_templates")
+        }),
+        "routine semantic action must fail with typed phase-boundary diagnostic: {report:?}"
+    );
 }
 
 #[test]
