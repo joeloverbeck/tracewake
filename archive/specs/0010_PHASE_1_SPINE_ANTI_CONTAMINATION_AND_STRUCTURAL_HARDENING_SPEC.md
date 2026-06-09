@@ -1,6 +1,6 @@
 # 0003 Phase 1 Spine Anti-Contamination and Structural Hardening Spec
 
-**Intended repository path:** `specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` for staging; final home `docs/4-specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md`. (Number `0003` continues the post-overhaul active spec sequence: `0001` is live, the post-overhaul `0002` TUI-proof spec is now archived. `0002` is deliberately not reused because two archived specs already carry it.)
+**Intended repository path:** `specs/0010_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` for staging; final home `docs/4-specs/0010_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md`. (Number `0003` continues the post-overhaul active spec sequence: `0001` is live, the post-overhaul `0002` TUI-proof spec is now archived. `0002` is deliberately not reused because two archived specs already carry it.)
 
 **Status:** COMPLETED. This spec does not replace, rewrite, or restate as local authority any foundation, architecture, execution, reference, archived-spec, or code file.
 

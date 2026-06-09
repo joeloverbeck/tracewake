@@ -3,8 +3,8 @@
 **Status:** Accepted and archived scoped hardening / anti-contamination remediation
 **Repository analyzed:** `joeloverbeck/tracewake`  
 **Analyzed commit:** `82736f5dc9f71d05b32125c26348e4a659c10a53`  
-**Assumed staging path:** `specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md`  
-**Intended final home on acceptance:** `archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md` (scoped remediation specs are archived as historical evidence, per the `0002_TUI_PROOF` / `0003_PHASE_1_SPINE` precedent; they are not promoted into the live `docs/4-specs/` tier)  
+**Assumed staging path:** `specs/0011_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md`  
+**Intended final home on acceptance:** `archive/specs/0011_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md` (scoped remediation specs are archived as historical evidence, per the `0002_TUI_PROOF` / `0003_PHASE_1_SPINE` precedent; they are not promoted into the live `docs/4-specs/` tier)  
 **Execution admissibility posture:** `P0-CERT scoped remediation`  
 **Verdict:** **Positive — third hardening remediation accepted for this scoped campaign.**
 
@@ -175,13 +175,13 @@ The positive verdict is deliberately scoped. The event log, replay rebuild, chec
 The staged filename is confirmed as:
 
 ```text
-specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md
+specs/0011_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md
 ```
 
 Final home on acceptance should be:
 
 ```text
-archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md
+archive/specs/0011_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md
 ```
 
 Reasoning:

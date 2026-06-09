@@ -2,8 +2,8 @@
 
 **Status:** COMPLETED.
 **Target type:** Hardening / anti-contamination certification remediation.  
-**Intended repository path:** `docs/4-specs/0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`  
-**Deliverable filename:** `0002_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`  
+**Intended repository path:** `docs/4-specs/0009_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`  
+**Deliverable filename:** `0009_TUI_PROOF_SURFACE_HARDENING_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`  
 **Repository analyzed:** `joeloverbeck/tracewake`  
 **Commit analyzed:** `bf0e3a0392bb1217caf034281913487aa1644ad4`  
 **Commit freshness:** User-supplied target commit only; this spec does not independently verify that the commit is current `main`.  
