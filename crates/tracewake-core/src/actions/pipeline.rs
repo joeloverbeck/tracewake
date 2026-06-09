@@ -1140,13 +1140,9 @@ fn build_absence_detection_events(
         .get(&container_id)
         .map(|container| container.contents.clone())
         .unwrap_or_default();
-    let expectation_beliefs = projection
-        .beliefs_by_holder
-        .get(actor_id)
-        .into_iter()
-        .flat_map(|ids| ids.iter())
-        .filter_map(|id| projection.beliefs_by_id.get(id))
-        .collect::<Vec<_>>();
+    let knowledge_context =
+        KnowledgeContext::embodied(actor_id.clone(), observation_event.sim_tick);
+    let expectation_beliefs = projection.beliefs_for_context(&knowledge_context);
     let detections = detect_expected_absences(
         actor_id,
         &container_id,

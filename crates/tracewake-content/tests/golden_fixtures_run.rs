@@ -19,6 +19,7 @@ use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
+use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
 use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
 use tracewake_core::events::log::EventLog;
@@ -1342,21 +1343,22 @@ fn llm_disabled_phase1_still_passes() {
 #[test]
 fn fixture_initial_beliefs_construct_epistemic_projection() {
     let golden = fixtures::strongbox_001();
-    let mut projection =
-        EpistemicProjection::new(ContentManifestId::new("manifest_strongbox_001").unwrap());
+    let projection = EpistemicProjection::from_initial_beliefs(
+        ContentManifestId::new("manifest_strongbox_001").unwrap(),
+        golden
+            .fixture
+            .initial_beliefs
+            .iter()
+            .map(|seed| seed.to_belief()),
+    );
 
-    for seed in &golden.fixture.initial_beliefs {
-        projection.insert_belief(seed.to_belief());
-    }
-
-    assert!(projection.beliefs_by_id.contains_key(
+    assert!(projection.has_belief(
         &"belief_tomas_expects_coin_stack_01_in_strongbox_tomas"
             .parse()
             .unwrap()
     ));
-    assert!(projection
-        .beliefs_by_holder
-        .contains_key(&"actor_tomas".parse().unwrap()));
+    let context = KnowledgeContext::embodied("actor_tomas".parse().unwrap(), SimTick::ZERO);
+    assert_eq!(projection.beliefs_for_context(&context).len(), 1);
 }
 
 #[test]

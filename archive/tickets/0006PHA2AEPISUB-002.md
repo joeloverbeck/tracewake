@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-002: Seal EpistemicProjection storage and route all-holder access through a core debug builder
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` epistemic projection storage sealed (private maps, `pub(crate)` inserts); new core capability-mediated debug-view builder; `tracewake-tui` debug epistemics migrated off raw projection maps.
@@ -94,3 +94,29 @@ Add a core function (on `EpistemicProjection` or in `view_models.rs`) that takes
 1. `cargo test -p tracewake-core --lib epistemics::projection`
 2. `cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test -p tracewake-core --test event_schema_replay_gates` — narrow proof that sealing did not perturb deterministic replay/checksum.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- `EpistemicProjection` raw storage and projection metadata are now private.
+- Projection insert helpers are `pub(crate)`, leaving public construction of seeded epistemic state to `EpistemicProjection::from_initial_beliefs`.
+- Core production code now reads actor-scoped beliefs through `KnowledgeContext`-filtered projection APIs.
+- Core owns debug epistemic, belief, and observation view construction; TUI debug commands call the core builder instead of reading raw maps.
+- Replay event-range accounting moved behind a projection method, preserving checksum/replay behavior without exposing metadata mutation.
+- Tests that previously read raw maps now use filtered context APIs, debug views, or seed constructors.
+- Added TUI seam source guard coverage proving `app.rs` does not name raw projection storage or insert helpers.
+
+Deviations from original plan:
+- The debug builder lives on `EpistemicProjection` and returns capability-marked debug view models; it does not expose a raw debug read handle.
+- Existing TUI acceptance/debug tests already prove rendering behavior, so the added TUI seam test locks the API boundary and raw-access removal.
+
+Verification results:
+- `cargo test -p tracewake-core --lib epistemics::projection` — passed.
+- `cargo test -p tracewake-tui --test tui_seam_conformance` — passed.
+- `cargo test -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.

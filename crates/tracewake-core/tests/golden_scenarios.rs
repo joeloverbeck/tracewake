@@ -246,19 +246,22 @@ fn run_action(
     run_pipeline(&mut pipeline_context, &proposal)
 }
 
-fn seed_tomas_coin_expectation(projection: &mut EpistemicProjection) {
-    projection.insert_belief(Belief::new(
-        BeliefId::new("belief_tomas_expected_coin").unwrap(),
-        HolderKind::Actor(actor_id()),
-        Proposition::ItemLocatedInContainer {
-            item_id: coin_id(),
-            container_id: box_id(),
-        },
-        Stance::ExpectsTrue,
-        Confidence::new(900).unwrap(),
-        SourceRef::Event(EventId::new("event_seed_tomas_expectation").unwrap()),
-        SimTick::ZERO,
-    ));
+fn tomas_coin_expectation_projection() -> EpistemicProjection {
+    EpistemicProjection::from_initial_beliefs(
+        manifest_id(),
+        [Belief::new(
+            BeliefId::new("belief_tomas_expected_coin").unwrap(),
+            HolderKind::Actor(actor_id()),
+            Proposition::ItemLocatedInContainer {
+                item_id: coin_id(),
+                container_id: box_id(),
+            },
+            Stance::ExpectsTrue,
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(EventId::new("event_seed_tomas_expectation").unwrap()),
+            SimTick::ZERO,
+        )],
+    )
 }
 
 fn run_check_with_projection(
@@ -464,17 +467,19 @@ fn sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge()
         .appended_events
         .iter()
         .any(|event| event.event_type == EventKind::BeliefUpdated));
+    let elena_context =
+        KnowledgeContext::embodied(ActorId::new("actor_elena").unwrap(), SimTick::ZERO);
     let observation = projection
-        .observations_by_id
-        .values()
+        .observations_for_context(&elena_context)
+        .into_iter()
         .find(|observation| observation.channel.stable_id() == "simple_sound")
         .expect("simple sound observation recorded");
     assert!(observation.confidence.is_low());
     assert!(observation.alternatives.len() >= 2);
 
     let belief = projection
-        .beliefs_by_id
-        .values()
+        .beliefs_for_context(&elena_context)
+        .into_iter()
         .find(|belief| {
             belief
                 .channel
@@ -491,10 +496,7 @@ fn sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge()
         Proposition::ActorWasNearPlace { .. }
     ));
 
-    let notebook = build_notebook_view(
-        &projection,
-        &KnowledgeContext::embodied(ActorId::new("actor_elena").unwrap(), SimTick::ZERO),
-    );
+    let notebook = build_notebook_view(&projection, &elena_context);
     let rendered = format!("{notebook:?}");
     assert!(!rendered.contains("Mara"));
     assert!(!rendered.contains("actor_mara"));
@@ -563,8 +565,7 @@ fn expected_absence_check_creates_contradiction_and_missing_belief() {
         Location::AtPlace(PlaceId::new("back_room").unwrap());
     let mut state = seed.build();
     let mut log = EventLog::new();
-    let mut projection = EpistemicProjection::new(manifest_id());
-    seed_tomas_coin_expectation(&mut projection);
+    let mut projection = tomas_coin_expectation_projection();
 
     let result = run_check_with_projection(&mut state, &mut log, &mut projection, 7);
 
@@ -582,15 +583,16 @@ fn expected_absence_check_creates_contradiction_and_missing_belief() {
             EventKind::BeliefUpdated
         ]
     );
-    assert_eq!(projection.contradictions_by_id.len(), 1);
-    assert!(projection.beliefs_by_id.values().any(|belief| {
-        belief.holder == HolderKind::Actor(actor_id())
-            && matches!(
-                belief.proposition,
-                Proposition::ItemMissingFromExpectedLocation { .. }
-            )
+    assert_eq!(projection.debug_epistemics_view().contradictions.len(), 1);
+    let context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let beliefs = projection.beliefs_for_context(&context);
+    assert!(beliefs.iter().any(|belief| {
+        matches!(
+            belief.proposition,
+            Proposition::ItemMissingFromExpectedLocation { .. }
+        )
     }));
-    assert!(!projection.beliefs_by_id.values().any(|belief| {
+    assert!(!beliefs.iter().any(|belief| {
         belief.proposition.render().contains("stole")
             || belief.proposition.render().contains("culprit")
     }));
@@ -609,8 +611,7 @@ fn no_human_epistemic_check_records_evidence_without_controller() {
     let mut state = seed.build();
     let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
     let mut log = EventLog::new();
-    let mut projection = EpistemicProjection::new(manifest_id());
-    seed_tomas_coin_expectation(&mut projection);
+    let mut projection = tomas_coin_expectation_projection();
 
     let result = run_scheduler_check_with_projection(&mut state, &mut log, &mut projection, 11);
     let after = compute_physical_checksum(&state, &context(&log)).checksum;
@@ -629,7 +630,7 @@ fn no_human_epistemic_check_records_evidence_without_controller() {
         .appended_events
         .iter()
         .any(|event| event.event_type == EventKind::ObservationRecorded));
-    assert!(projection.contradictions_by_id.len() == 1);
+    assert_eq!(projection.debug_epistemics_view().contradictions.len(), 1);
 
     let notebook = build_notebook_view(
         &projection,
@@ -658,8 +659,7 @@ fn missing_property_belief_does_not_support_truthful_accusation() {
     let mut state = seed.build();
     let before = compute_physical_checksum(&state, &context(&EventLog::new())).checksum;
     let mut log = EventLog::new();
-    let mut projection = EpistemicProjection::new(manifest_id());
-    seed_tomas_coin_expectation(&mut projection);
+    let mut projection = tomas_coin_expectation_projection();
     let check = run_check_with_projection(&mut state, &mut log, &mut projection, 8);
     assert_eq!(check.report.status, ReportStatus::Accepted);
 

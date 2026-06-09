@@ -522,9 +522,7 @@ fn typed_notebook_lead(
     else {
         return None;
     };
-    let observation = projection
-        .observations_by_id
-        .get(&contradiction.contradicting_observation_id)?;
+    let observation = projection.observation(&contradiction.contradicting_observation_id)?;
     let possible_next_actions = match expected_location {
         Location::InContainer(container_id) => {
             vec![format!("check.container.{}", container_id.as_str())]
@@ -1382,6 +1380,22 @@ mod tests {
     }
 
     fn projection_with_missing_coin_belief() -> EpistemicProjection {
+        projection_with_missing_coin_variants(
+            Proposition::ItemMissingFromExpectedLocation {
+                item_id: item_id("coin_stack_01"),
+                expected_location: Location::InContainer(container_id("strongbox_tomas")),
+            },
+            Proposition::ItemMissingFromExpectedLocation {
+                item_id: item_id("coin_stack_01"),
+                expected_location: Location::InContainer(container_id("strongbox_tomas")),
+            },
+        )
+    }
+
+    fn projection_with_missing_coin_variants(
+        missing_belief_proposition: Proposition,
+        contradiction_observed_proposition: Proposition,
+    ) -> EpistemicProjection {
         let mut projection = EpistemicProjection::new(
             crate::ids::ContentManifestId::new("phase2a_manifest").unwrap(),
         );
@@ -1409,20 +1423,14 @@ mod tests {
                 item_id: item_id("coin_stack_01"),
                 container_id: container_id("strongbox_tomas"),
             },
-            Proposition::ItemMissingFromExpectedLocation {
-                item_id: item_id("coin_stack_01"),
-                expected_location: Location::InContainer(container_id("strongbox_tomas")),
-            },
+            contradiction_observed_proposition,
             SimTick::new(3),
         ));
         projection.insert_belief(
             Belief::new(
                 crate::ids::BeliefId::new("belief_tomas_missing_coin").unwrap(),
                 HolderKind::Actor(actor_id("actor_tomas")),
-                Proposition::ItemMissingFromExpectedLocation {
-                    item_id: item_id("coin_stack_01"),
-                    expected_location: Location::InContainer(container_id("strongbox_tomas")),
-                },
+                missing_belief_proposition,
                 Stance::BelievesTrue,
                 Confidence::new(1000).unwrap(),
                 SourceRef::Event(event_id("event_observation")),
@@ -1482,29 +1490,33 @@ mod tests {
 
     #[test]
     fn notebook_leads_come_from_typed_contradictions_not_belief_wording() {
-        let mut projection = projection_with_missing_coin_belief();
+        let projection = projection_with_missing_coin_belief();
         let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(4));
         let baseline = build_notebook_view(&projection, &context);
         assert_eq!(baseline.typed_leads.len(), 1);
 
-        projection
-            .beliefs_by_id
-            .get_mut(&crate::ids::BeliefId::new("belief_tomas_missing_coin").unwrap())
-            .unwrap()
-            .proposition = Proposition::SoundHeardNearPlace {
-            place_id: place_id("shop_front"),
-        };
-        let reworded = build_notebook_view(&projection, &context);
+        let reworded_projection = projection_with_missing_coin_variants(
+            Proposition::SoundHeardNearPlace {
+                place_id: place_id("shop_front"),
+            },
+            Proposition::ItemMissingFromExpectedLocation {
+                item_id: item_id("coin_stack_01"),
+                expected_location: Location::InContainer(container_id("strongbox_tomas")),
+            },
+        );
+        let reworded = build_notebook_view(&reworded_projection, &context);
         assert_eq!(reworded.typed_leads.len(), 1);
 
-        projection
-            .contradictions_by_id
-            .get_mut(&crate::ids::ContradictionId::new("contradiction_tomas_missing_coin").unwrap())
-            .unwrap()
-            .observed_proposition = Proposition::SoundHeardNearPlace {
-            place_id: place_id("shop_front"),
-        };
-        let typed_kind_changed = build_notebook_view(&projection, &context);
+        let changed_contradiction_projection = projection_with_missing_coin_variants(
+            Proposition::ItemMissingFromExpectedLocation {
+                item_id: item_id("coin_stack_01"),
+                expected_location: Location::InContainer(container_id("strongbox_tomas")),
+            },
+            Proposition::SoundHeardNearPlace {
+                place_id: place_id("shop_front"),
+            },
+        );
+        let typed_kind_changed = build_notebook_view(&changed_contradiction_projection, &context);
         assert!(typed_kind_changed.typed_leads.is_empty());
     }
 

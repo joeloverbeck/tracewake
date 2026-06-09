@@ -3,10 +3,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::epistemics::belief::{Belief, HolderKind};
 use crate::epistemics::contradiction::Contradiction;
 use crate::epistemics::knowledge_context::{KnowledgeContext, ViewMode};
-use crate::epistemics::observation::{Observation, EPISTEMIC_RECORD_SCHEMA_V1};
+use crate::epistemics::observation::{Observation, SourceRef, EPISTEMIC_RECORD_SCHEMA_V1};
 use crate::ids::{
     ActorId, BeliefId, ContentManifestId, ContradictionId, EpistemicProjectionVersion, EventId,
     ObservationId, SchemaVersion,
+};
+use crate::view_models::{
+    DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
+    DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView,
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -26,17 +30,17 @@ pub struct NotebookEntry {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EpistemicProjection {
-    pub observations_by_id: BTreeMap<ObservationId, Observation>,
-    pub observations_by_actor: BTreeMap<ActorId, BTreeSet<ObservationId>>,
-    pub beliefs_by_id: BTreeMap<BeliefId, Belief>,
-    pub beliefs_by_holder: BTreeMap<ActorId, BTreeSet<BeliefId>>,
-    pub contradictions_by_id: BTreeMap<ContradictionId, Contradiction>,
-    pub contradictions_by_holder: BTreeMap<ActorId, BTreeSet<ContradictionId>>,
-    pub notebook_entries_by_actor: BTreeMap<ActorId, BTreeSet<NotebookEntry>>,
-    pub projection_version: EpistemicProjectionVersion,
-    pub projection_schema_version: SchemaVersion,
-    pub event_range: ProjectionEventRange,
-    pub content_manifest_id: ContentManifestId,
+    observations_by_id: BTreeMap<ObservationId, Observation>,
+    observations_by_actor: BTreeMap<ActorId, BTreeSet<ObservationId>>,
+    beliefs_by_id: BTreeMap<BeliefId, Belief>,
+    beliefs_by_holder: BTreeMap<ActorId, BTreeSet<BeliefId>>,
+    contradictions_by_id: BTreeMap<ContradictionId, Contradiction>,
+    contradictions_by_holder: BTreeMap<ActorId, BTreeSet<ContradictionId>>,
+    notebook_entries_by_actor: BTreeMap<ActorId, BTreeSet<NotebookEntry>>,
+    projection_version: EpistemicProjectionVersion,
+    projection_schema_version: SchemaVersion,
+    event_range: ProjectionEventRange,
+    content_manifest_id: ContentManifestId,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -82,7 +86,26 @@ impl EpistemicProjection {
         }
     }
 
-    pub fn insert_observation(&mut self, observation: Observation) {
+    pub fn from_initial_beliefs(
+        content_manifest_id: ContentManifestId,
+        beliefs: impl IntoIterator<Item = Belief>,
+    ) -> Self {
+        let mut projection = Self::new(content_manifest_id);
+        for belief in beliefs {
+            projection.insert_belief(belief);
+        }
+        projection
+    }
+
+    pub(crate) fn record_applied_event(&mut self, event_id: EventId) {
+        self.event_range.event_count += 1;
+        if self.event_range.first_event_id.is_none() {
+            self.event_range.first_event_id = Some(event_id.clone());
+        }
+        self.event_range.last_event_id = Some(event_id);
+    }
+
+    pub(crate) fn insert_observation(&mut self, observation: Observation) {
         let observation_id = observation.observation_id.clone();
         let actor_id = observation.observer_actor_id.clone();
         self.observations_by_actor
@@ -92,7 +115,7 @@ impl EpistemicProjection {
         self.observations_by_id.insert(observation_id, observation);
     }
 
-    pub fn insert_belief(&mut self, belief: Belief) {
+    pub(crate) fn insert_belief(&mut self, belief: Belief) {
         let belief_id = belief.belief_id.clone();
         if let HolderKind::Actor(actor_id) = &belief.holder {
             self.beliefs_by_holder
@@ -103,7 +126,7 @@ impl EpistemicProjection {
         self.beliefs_by_id.insert(belief_id, belief);
     }
 
-    pub fn insert_contradiction(&mut self, contradiction: Contradiction) {
+    pub(crate) fn insert_contradiction(&mut self, contradiction: Contradiction) {
         let contradiction_id = contradiction.contradiction_id.clone();
         let holder_actor_id = contradiction.holder_actor_id.clone();
         self.contradictions_by_holder
@@ -114,11 +137,29 @@ impl EpistemicProjection {
             .insert(contradiction_id, contradiction);
     }
 
-    pub fn insert_notebook_entry(&mut self, entry: NotebookEntry) {
-        self.notebook_entries_by_actor
-            .entry(entry.actor_id.clone())
-            .or_default()
-            .insert(entry);
+    pub(crate) fn observation(&self, observation_id: &ObservationId) -> Option<&Observation> {
+        self.observations_by_id.get(observation_id)
+    }
+
+    pub(crate) fn belief_count_for_actor(&self, actor_id: &ActorId) -> usize {
+        self.beliefs_by_holder
+            .get(actor_id)
+            .map_or(0, BTreeSet::len)
+    }
+
+    pub fn has_belief(&self, belief_id: &BeliefId) -> bool {
+        self.beliefs_by_id.contains_key(belief_id)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.observations_by_id.is_empty()
+            && self.beliefs_by_id.is_empty()
+            && self.contradictions_by_id.is_empty()
+            && self.notebook_entries_by_actor.is_empty()
+    }
+
+    pub fn projection_version(&self) -> &EpistemicProjectionVersion {
+        &self.projection_version
     }
 
     pub fn observations_for_context(&self, context: &KnowledgeContext) -> Vec<&Observation> {
@@ -176,6 +217,69 @@ impl EpistemicProjection {
                 .flat_map(|entries| entries.iter())
                 .collect(),
         }
+    }
+
+    pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
+        let observations = self
+            .observations_by_id
+            .values()
+            .map(debug_observation_entry)
+            .collect();
+        let contradictions = self
+            .contradictions_by_id
+            .values()
+            .map(debug_contradiction_entry)
+            .collect();
+        let beliefs_by_holder = self
+            .beliefs_by_holder
+            .iter()
+            .map(|(holder_actor_id, belief_ids)| DebugHolderBeliefs {
+                holder_actor_id: holder_actor_id.clone(),
+                beliefs: belief_ids
+                    .iter()
+                    .filter_map(|belief_id| self.beliefs_by_id.get(belief_id))
+                    .map(debug_belief_entry)
+                    .collect(),
+            })
+            .collect();
+        let checksum = self.compute_checksum().checksum;
+
+        DebugEpistemicsView::new(
+            "debug",
+            observations,
+            beliefs_by_holder,
+            contradictions,
+            Vec::new(),
+            format!(
+                "{} checksum={}",
+                self.projection_version.as_str(),
+                checksum.as_str()
+            ),
+        )
+    }
+
+    pub fn debug_beliefs_view(&self, actor_id: ActorId) -> DebugBeliefsView {
+        let beliefs = self
+            .beliefs_by_holder
+            .get(&actor_id)
+            .into_iter()
+            .flat_map(|ids| ids.iter())
+            .filter_map(|belief_id| self.beliefs_by_id.get(belief_id))
+            .map(debug_belief_entry)
+            .collect();
+        DebugBeliefsView::new(actor_id, beliefs)
+    }
+
+    pub fn debug_observations_view(&self, actor_id: ActorId) -> DebugObservationsView {
+        let observations = self
+            .observations_by_actor
+            .get(&actor_id)
+            .into_iter()
+            .flat_map(|ids| ids.iter())
+            .filter_map(|observation_id| self.observations_by_id.get(observation_id))
+            .map(debug_observation_entry)
+            .collect();
+        DebugObservationsView::new(actor_id, observations)
     }
 
     pub fn compute_checksum(&self) -> EpistemicProjectionChecksumReport {
@@ -273,6 +377,54 @@ fn holder_key(holder: &HolderKind) -> String {
     match holder {
         HolderKind::Actor(actor_id) => format!("actor:{}", actor_id.as_str()),
         HolderKind::InstitutionPlaceholder(id) => format!("institution_placeholder:{id}"),
+    }
+}
+
+fn debug_belief_entry(belief: &Belief) -> DebugBeliefEntry {
+    DebugBeliefEntry {
+        belief_id: belief.belief_id.as_str().to_string(),
+        proposition: belief.proposition.render(),
+        stance: belief.stance.stable_id().to_string(),
+        confidence: belief.confidence.serialize_canonical(),
+        source: source_summary(&belief.source),
+    }
+}
+
+fn debug_observation_entry(observation: &Observation) -> DebugObservationEntry {
+    DebugObservationEntry {
+        observation_id: observation.observation_id.as_str().to_string(),
+        observer_actor_id: observation.observer_actor_id.clone(),
+        channel: observation.channel.stable_id().to_string(),
+        confidence: observation.confidence.serialize_canonical(),
+        source: source_summary(&observation.source),
+    }
+}
+
+fn debug_contradiction_entry(contradiction: &Contradiction) -> DebugContradictionEntry {
+    DebugContradictionEntry {
+        contradiction_id: contradiction.contradiction_id.as_str().to_string(),
+        holder_actor_id: contradiction.holder_actor_id.clone(),
+        expectation_belief_id: contradiction
+            .prior_expectation_belief_id
+            .as_str()
+            .to_string(),
+        observation_id: contradiction
+            .contradicting_observation_id
+            .as_str()
+            .to_string(),
+        summary: format!(
+            "{} -> {}",
+            contradiction.expected_proposition.render(),
+            contradiction.observed_proposition.render()
+        ),
+    }
+}
+
+fn source_summary(source: &SourceRef) -> String {
+    match source {
+        SourceRef::Event(event_id) => format!("event:{}", event_id.as_str()),
+        SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
+        SourceRef::Cause(cause) => format!("cause:{cause:?}"),
     }
 }
 
@@ -382,6 +534,18 @@ mod tests {
             ordered_ids,
             ["belief_mara_hidden_coin", "belief_tomas_missing_coin"]
         );
+
+        let debug_view = projection.debug_epistemics_view();
+        assert!(debug_view.debug_only());
+        assert_eq!(debug_view.beliefs_by_holder.len(), 2);
+        assert!(debug_view
+            .beliefs_by_holder
+            .iter()
+            .any(|holder| holder.holder_actor_id == actor_id("actor_mara")));
+        assert!(debug_view
+            .beliefs_by_holder
+            .iter()
+            .any(|holder| holder.holder_actor_id == actor_id("actor_tomas")));
     }
 
     #[test]
