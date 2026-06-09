@@ -38,20 +38,20 @@ impl Stance {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Belief {
-    pub belief_id: BeliefId,
-    pub holder: HolderKind,
-    pub proposition: Proposition,
-    pub stance: Stance,
-    pub confidence: Confidence,
-    pub source: SourceRef,
-    pub channel: Option<Channel>,
-    pub acquired_tick: SimTick,
-    pub last_verified_tick: Option<SimTick>,
-    pub stale_after_tick: Option<SimTick>,
-    pub observation_ids: BTreeSet<ObservationId>,
-    pub contradiction_ids: BTreeSet<ContradictionId>,
-    pub schema_version: SchemaVersion,
-    pub privacy_scope: PrivacyScope,
+    belief_id: BeliefId,
+    holder: HolderKind,
+    proposition: Proposition,
+    stance: Stance,
+    confidence: Confidence,
+    source: SourceRef,
+    channel: Option<Channel>,
+    acquired_tick: SimTick,
+    last_verified_tick: Option<SimTick>,
+    stale_after_tick: Option<SimTick>,
+    observation_ids: BTreeSet<ObservationId>,
+    contradiction_ids: BTreeSet<ContradictionId>,
+    schema_version: SchemaVersion,
+    privacy_scope: PrivacyScope,
 }
 
 impl Belief {
@@ -95,6 +95,11 @@ impl Belief {
         self
     }
 
+    pub fn with_last_verified_tick(mut self, last_verified_tick: Option<SimTick>) -> Self {
+        self.last_verified_tick = last_verified_tick;
+        self
+    }
+
     pub fn with_observation(mut self, observation_id: ObservationId) -> Self {
         self.observation_ids.insert(observation_id);
         self
@@ -104,20 +109,115 @@ impl Belief {
         self.contradiction_ids.insert(contradiction_id);
         self
     }
+
+    pub fn belief_id(&self) -> &BeliefId {
+        &self.belief_id
+    }
+
+    pub fn holder(&self) -> &HolderKind {
+        &self.holder
+    }
+
+    pub fn proposition(&self) -> &Proposition {
+        &self.proposition
+    }
+
+    pub fn stance(&self) -> Stance {
+        self.stance
+    }
+
+    pub fn confidence(&self) -> Confidence {
+        self.confidence
+    }
+
+    pub fn source(&self) -> &SourceRef {
+        &self.source
+    }
+
+    pub fn channel(&self) -> Option<Channel> {
+        self.channel
+    }
+
+    pub fn acquired_tick(&self) -> SimTick {
+        self.acquired_tick
+    }
+
+    pub fn last_verified_tick(&self) -> Option<SimTick> {
+        self.last_verified_tick
+    }
+
+    pub fn stale_after_tick(&self) -> Option<SimTick> {
+        self.stale_after_tick
+    }
+
+    pub fn observation_ids(&self) -> &BTreeSet<ObservationId> {
+        &self.observation_ids
+    }
+
+    pub fn contradiction_ids(&self) -> &BTreeSet<ContradictionId> {
+        &self.contradiction_ids
+    }
+
+    pub fn schema_version(&self) -> &SchemaVersion {
+        &self.schema_version
+    }
+
+    pub fn privacy_scope(&self) -> &PrivacyScope {
+        &self.privacy_scope
+    }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct BeliefDraft {
-    pub belief_id: Option<BeliefId>,
-    pub holder: Option<HolderKind>,
-    pub proposition: Option<Proposition>,
-    pub stance: Option<Stance>,
-    pub confidence: Option<Confidence>,
-    pub source: Option<SourceRef>,
-    pub acquired_tick: Option<SimTick>,
+    belief_id: Option<BeliefId>,
+    holder: Option<HolderKind>,
+    proposition: Option<Proposition>,
+    stance: Option<Stance>,
+    confidence: Option<Confidence>,
+    source: Option<SourceRef>,
+    acquired_tick: Option<SimTick>,
 }
 
 impl BeliefDraft {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_belief_id(mut self, belief_id: BeliefId) -> Self {
+        self.belief_id = Some(belief_id);
+        self
+    }
+
+    pub fn with_holder(mut self, holder: HolderKind) -> Self {
+        self.holder = Some(holder);
+        self
+    }
+
+    pub fn with_proposition(mut self, proposition: Proposition) -> Self {
+        self.proposition = Some(proposition);
+        self
+    }
+
+    pub fn with_stance(mut self, stance: Stance) -> Self {
+        self.stance = Some(stance);
+        self
+    }
+
+    pub fn with_confidence(mut self, confidence: Confidence) -> Self {
+        self.confidence = Some(confidence);
+        self
+    }
+
+    pub fn with_source(mut self, source: SourceRef) -> Self {
+        self.source = Some(source);
+        self
+    }
+
+    pub fn with_acquired_tick(mut self, acquired_tick: SimTick) -> Self {
+        self.acquired_tick = Some(acquired_tick);
+        self
+    }
+
     pub fn build(self) -> Result<Belief, BeliefBuildError> {
         Ok(Belief::new(
             self.belief_id.ok_or(BeliefBuildError::MissingBeliefId)?,
@@ -179,27 +279,22 @@ mod tests {
 
     #[test]
     fn holder_and_source_are_required_by_checked_constructor() {
-        let draft = BeliefDraft {
-            belief_id: Some(belief_id("belief_tomas_missing_coin")),
-            holder: None,
-            proposition: Some(expectation()),
-            stance: Some(Stance::BelievesTrue),
-            confidence: Some(Confidence::new(900).unwrap()),
-            source: None,
-            acquired_tick: Some(SimTick::new(3)),
-        };
+        let draft = BeliefDraft::new()
+            .with_belief_id(belief_id("belief_tomas_missing_coin"))
+            .with_proposition(expectation())
+            .with_stance(Stance::BelievesTrue)
+            .with_confidence(Confidence::new(900).unwrap())
+            .with_acquired_tick(SimTick::new(3));
 
         assert_eq!(draft.build(), Err(BeliefBuildError::MissingHolder));
 
-        let draft = BeliefDraft {
-            belief_id: Some(belief_id("belief_tomas_missing_coin")),
-            holder: Some(HolderKind::Actor(actor_id("actor_tomas"))),
-            proposition: Some(expectation()),
-            stance: Some(Stance::BelievesTrue),
-            confidence: Some(Confidence::new(900).unwrap()),
-            source: None,
-            acquired_tick: Some(SimTick::new(3)),
-        };
+        let draft = BeliefDraft::new()
+            .with_belief_id(belief_id("belief_tomas_missing_coin"))
+            .with_holder(HolderKind::Actor(actor_id("actor_tomas")))
+            .with_proposition(expectation())
+            .with_stance(Stance::BelievesTrue)
+            .with_confidence(Confidence::new(900).unwrap())
+            .with_acquired_tick(SimTick::new(3));
 
         assert_eq!(draft.build(), Err(BeliefBuildError::MissingSource));
     }
@@ -217,11 +312,41 @@ mod tests {
         )
         .with_channel(Channel::AbsenceMarker);
 
-        assert_eq!(belief.holder, HolderKind::Actor(actor_id("actor_tomas")));
-        assert_eq!(belief.channel, Some(Channel::AbsenceMarker));
+        assert_eq!(belief.holder(), &HolderKind::Actor(actor_id("actor_tomas")));
+        assert_eq!(belief.channel(), Some(Channel::AbsenceMarker));
         assert_eq!(
-            belief.privacy_scope,
-            PrivacyScope::ActorPrivate(actor_id("actor_tomas"))
+            belief.privacy_scope(),
+            &PrivacyScope::ActorPrivate(actor_id("actor_tomas"))
+        );
+        assert_eq!(
+            belief.source(),
+            &SourceRef::Event(event_id("event_obs_absence"))
+        );
+        assert_eq!(belief.schema_version().as_str(), EPISTEMIC_RECORD_SCHEMA_V1);
+        assert_eq!(belief.last_verified_tick(), None);
+    }
+
+    #[test]
+    fn belief_draft_builder_preserves_required_provenance() {
+        let belief = BeliefDraft::new()
+            .with_belief_id(belief_id("belief_tomas_missing_coin"))
+            .with_holder(HolderKind::Actor(actor_id("actor_tomas")))
+            .with_proposition(expectation())
+            .with_stance(Stance::BelievesTrue)
+            .with_confidence(Confidence::new(900).unwrap())
+            .with_source(SourceRef::Event(event_id("event_obs_absence")))
+            .with_acquired_tick(SimTick::new(3))
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            belief.source(),
+            &SourceRef::Event(event_id("event_obs_absence"))
+        );
+        assert_eq!(belief.schema_version().as_str(), EPISTEMIC_RECORD_SCHEMA_V1);
+        assert_eq!(
+            belief.privacy_scope(),
+            &PrivacyScope::ActorPrivate(actor_id("actor_tomas"))
         );
     }
 

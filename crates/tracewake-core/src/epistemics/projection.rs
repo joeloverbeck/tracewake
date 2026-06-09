@@ -106,8 +106,8 @@ impl EpistemicProjection {
     }
 
     pub(crate) fn insert_observation(&mut self, observation: Observation) {
-        let observation_id = observation.observation_id.clone();
-        let actor_id = observation.observer_actor_id.clone();
+        let observation_id = observation.observation_id().clone();
+        let actor_id = observation.observer_actor_id().clone();
         self.observations_by_actor
             .entry(actor_id)
             .or_default()
@@ -116,8 +116,8 @@ impl EpistemicProjection {
     }
 
     pub(crate) fn insert_belief(&mut self, belief: Belief) {
-        let belief_id = belief.belief_id.clone();
-        if let HolderKind::Actor(actor_id) = &belief.holder {
+        let belief_id = belief.belief_id().clone();
+        if let HolderKind::Actor(actor_id) = &belief.holder() {
             self.beliefs_by_holder
                 .entry(actor_id.clone())
                 .or_default()
@@ -127,8 +127,8 @@ impl EpistemicProjection {
     }
 
     pub(crate) fn insert_contradiction(&mut self, contradiction: Contradiction) {
-        let contradiction_id = contradiction.contradiction_id.clone();
-        let holder_actor_id = contradiction.holder_actor_id.clone();
+        let contradiction_id = contradiction.contradiction_id().clone();
+        let holder_actor_id = contradiction.holder_actor_id().clone();
         self.contradictions_by_holder
             .entry(holder_actor_id)
             .or_default()
@@ -168,7 +168,7 @@ impl EpistemicProjection {
             .into_iter()
             .flat_map(|ids| ids.iter())
             .filter_map(|id| self.observations_by_id.get(id))
-            .filter(|observation| context.permits_scope(&observation.privacy_scope))
+            .filter(|observation| context.permits_scope(observation.privacy_scope()))
             .collect()
     }
 
@@ -177,7 +177,7 @@ impl EpistemicProjection {
             ViewMode::Debug => self
                 .beliefs_by_id
                 .values()
-                .filter(|belief| context.permits_scope(&belief.privacy_scope))
+                .filter(|belief| context.permits_scope(belief.privacy_scope()))
                 .collect(),
             ViewMode::Embodied => self
                 .beliefs_by_holder
@@ -185,7 +185,7 @@ impl EpistemicProjection {
                 .into_iter()
                 .flat_map(|ids| ids.iter())
                 .filter_map(|id| self.beliefs_by_id.get(id))
-                .filter(|belief| context.permits_scope(&belief.privacy_scope))
+                .filter(|belief| context.permits_scope(belief.privacy_scope()))
                 .collect(),
         }
     }
@@ -310,12 +310,12 @@ impl EpistemicProjection {
             lines.push(format!(
                 "observation|id={}|actor={}|channel={}|tick={}|place={}|confidence={}|source={:?}",
                 id.as_str(),
-                observation.observer_actor_id.as_str(),
-                observation.channel.stable_id(),
-                observation.observed_tick.value(),
-                observation.observer_place_id.as_str(),
-                observation.confidence.serialize_canonical(),
-                observation.source,
+                observation.observer_actor_id().as_str(),
+                observation.channel().stable_id(),
+                observation.observed_tick().value(),
+                observation.observer_place_id().as_str(),
+                observation.confidence().serialize_canonical(),
+                observation.source(),
             ));
         }
 
@@ -323,11 +323,11 @@ impl EpistemicProjection {
             lines.push(format!(
                 "belief|id={}|holder={}|stance={}|confidence={}|proposition={}|source={:?}",
                 id.as_str(),
-                holder_key(&belief.holder),
-                belief.stance.stable_id(),
-                belief.confidence.serialize_canonical(),
-                belief.proposition.serialize_canonical(),
-                belief.source,
+                holder_key(belief.holder()),
+                belief.stance().stable_id(),
+                belief.confidence().serialize_canonical(),
+                belief.proposition().serialize_canonical(),
+                belief.source(),
             ));
         }
 
@@ -335,13 +335,13 @@ impl EpistemicProjection {
             lines.push(format!(
                 "contradiction|id={}|holder={}|kind={}|belief={}|observation={}|expected={}|observed={}|tick={}",
                 id.as_str(),
-                contradiction.holder_actor_id.as_str(),
-                contradiction.kind.stable_id(),
-                contradiction.prior_expectation_belief_id.as_str(),
-                contradiction.contradicting_observation_id.as_str(),
-                contradiction.expected_proposition.serialize_canonical(),
-                contradiction.observed_proposition.serialize_canonical(),
-                contradiction.detected_tick.value(),
+                contradiction.holder_actor_id().as_str(),
+                contradiction.kind().stable_id(),
+                contradiction.prior_expectation_belief_id().as_str(),
+                contradiction.contradicting_observation_id().as_str(),
+                contradiction.expected_proposition().serialize_canonical(),
+                contradiction.observed_proposition().serialize_canonical(),
+                contradiction.detected_tick().value(),
             ));
         }
 
@@ -382,40 +382,40 @@ fn holder_key(holder: &HolderKind) -> String {
 
 fn debug_belief_entry(belief: &Belief) -> DebugBeliefEntry {
     DebugBeliefEntry {
-        belief_id: belief.belief_id.as_str().to_string(),
-        proposition: belief.proposition.render(),
-        stance: belief.stance.stable_id().to_string(),
-        confidence: belief.confidence.serialize_canonical(),
-        source: source_summary(&belief.source),
+        belief_id: belief.belief_id().as_str().to_string(),
+        proposition: belief.proposition().render(),
+        stance: belief.stance().stable_id().to_string(),
+        confidence: belief.confidence().serialize_canonical(),
+        source: source_summary(belief.source()),
     }
 }
 
 fn debug_observation_entry(observation: &Observation) -> DebugObservationEntry {
     DebugObservationEntry {
-        observation_id: observation.observation_id.as_str().to_string(),
-        observer_actor_id: observation.observer_actor_id.clone(),
-        channel: observation.channel.stable_id().to_string(),
-        confidence: observation.confidence.serialize_canonical(),
-        source: source_summary(&observation.source),
+        observation_id: observation.observation_id().as_str().to_string(),
+        observer_actor_id: observation.observer_actor_id().clone(),
+        channel: observation.channel().stable_id().to_string(),
+        confidence: observation.confidence().serialize_canonical(),
+        source: source_summary(observation.source()),
     }
 }
 
 fn debug_contradiction_entry(contradiction: &Contradiction) -> DebugContradictionEntry {
     DebugContradictionEntry {
-        contradiction_id: contradiction.contradiction_id.as_str().to_string(),
-        holder_actor_id: contradiction.holder_actor_id.clone(),
+        contradiction_id: contradiction.contradiction_id().as_str().to_string(),
+        holder_actor_id: contradiction.holder_actor_id().clone(),
         expectation_belief_id: contradiction
-            .prior_expectation_belief_id
+            .prior_expectation_belief_id()
             .as_str()
             .to_string(),
         observation_id: contradiction
-            .contradicting_observation_id
+            .contradicting_observation_id()
             .as_str()
             .to_string(),
         summary: format!(
             "{} -> {}",
-            contradiction.expected_proposition.render(),
-            contradiction.observed_proposition.render()
+            contradiction.expected_proposition().render(),
+            contradiction.observed_proposition().render()
         ),
     }
 }
@@ -501,8 +501,8 @@ mod tests {
 
         assert_eq!(visible_beliefs.len(), 1);
         assert_eq!(
-            visible_beliefs[0].belief_id,
-            belief_id("belief_tomas_missing_coin")
+            visible_beliefs[0].belief_id(),
+            &belief_id("belief_tomas_missing_coin")
         );
     }
 
@@ -526,7 +526,7 @@ mod tests {
         let visible_beliefs = projection.beliefs_for_context(&context);
         let ordered_ids: Vec<_> = visible_beliefs
             .iter()
-            .map(|belief| belief.belief_id.as_str())
+            .map(|belief| belief.belief_id().as_str())
             .collect();
 
         assert!(context.debug_non_diegetic());
@@ -564,12 +564,12 @@ mod tests {
         let first_ids: Vec<_> = first
             .beliefs_for_context(&context)
             .iter()
-            .map(|belief| belief.belief_id.as_str())
+            .map(|belief| belief.belief_id().as_str())
             .collect();
         let second_ids: Vec<_> = second
             .beliefs_for_context(&context)
             .iter()
-            .map(|belief| belief.belief_id.as_str())
+            .map(|belief| belief.belief_id().as_str())
             .collect();
 
         assert_eq!(first_ids, ["belief_01", "belief_02", "belief_10"]);

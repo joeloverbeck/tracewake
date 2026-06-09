@@ -449,13 +449,13 @@ pub fn build_notebook_view(
         .beliefs_for_context(context)
         .into_iter()
         .map(|belief| NotebookBeliefEntry {
-            belief_id: belief.belief_id.as_str().to_string(),
-            summary: belief.proposition.render(),
-            source_summary: source_summary(&belief.source),
-            confidence_label: belief.confidence.serialize_canonical(),
-            acquired_tick: belief.acquired_tick.value(),
+            belief_id: belief.belief_id().as_str().to_string(),
+            summary: belief.proposition().render(),
+            source_summary: source_summary(belief.source()),
+            confidence_label: belief.confidence().serialize_canonical(),
+            acquired_tick: belief.acquired_tick().value(),
             contradiction_ids: belief
-                .contradiction_ids
+                .contradiction_ids()
                 .iter()
                 .map(|id| id.as_str().to_string())
                 .collect(),
@@ -467,11 +467,11 @@ pub fn build_notebook_view(
         .observations_for_context(context)
         .into_iter()
         .map(|observation| NotebookObservationEntry {
-            observation_id: observation.observation_id.as_str().to_string(),
-            channel: observation.channel.stable_id().to_string(),
-            summary: format!("{} observation", observation.channel.stable_id()),
-            confidence_label: observation.confidence.serialize_canonical(),
-            observed_tick: observation.observed_tick.value(),
+            observation_id: observation.observation_id().as_str().to_string(),
+            channel: observation.channel().stable_id().to_string(),
+            summary: format!("{} observation", observation.channel().stable_id()),
+            confidence_label: observation.confidence().serialize_canonical(),
+            observed_tick: observation.observed_tick().value(),
         })
         .collect::<Vec<_>>();
     observations.sort();
@@ -480,7 +480,7 @@ pub fn build_notebook_view(
         .contradictions_for_context(context)
         .into_iter()
         .map(|contradiction| NotebookContradictionEntry {
-            contradiction_id: contradiction.contradiction_id.as_str().to_string(),
+            contradiction_id: contradiction.contradiction_id().as_str().to_string(),
             summary: "Contradicts your earlier expectation.".to_string(),
         })
         .collect::<Vec<_>>();
@@ -512,17 +512,17 @@ fn typed_notebook_lead(
     context: &KnowledgeContext,
     contradiction: &Contradiction,
 ) -> Option<NotebookLeadEntry> {
-    if contradiction.kind != ContradictionKind::ExpectedItemAbsentFromContainer {
+    if contradiction.kind() != ContradictionKind::ExpectedItemAbsentFromContainer {
         return None;
     }
     let Proposition::ItemMissingFromExpectedLocation {
         item_id,
         expected_location,
-    } = &contradiction.observed_proposition
+    } = &contradiction.observed_proposition()
     else {
         return None;
     };
-    let observation = projection.observation(&contradiction.contradicting_observation_id)?;
+    let observation = projection.observation(contradiction.contradicting_observation_id())?;
     let possible_next_actions = match expected_location {
         Location::InContainer(container_id) => {
             vec![format!("check.container.{}", container_id.as_str())]
@@ -532,24 +532,24 @@ fn typed_notebook_lead(
     };
 
     Some(NotebookLeadEntry {
-        lead_id: format!("lead.{}", contradiction.contradiction_id.as_str()),
-        contradiction_id: contradiction.contradiction_id.as_str().to_string(),
+        lead_id: format!("lead.{}", contradiction.contradiction_id().as_str()),
+        contradiction_id: contradiction.contradiction_id().as_str().to_string(),
         belief_id: contradiction
-            .prior_expectation_belief_id
+            .prior_expectation_belief_id()
             .as_str()
             .to_string(),
-        observation_id: observation.observation_id.as_str().to_string(),
-        source_kind: source_kind(&observation.source).to_string(),
-        source_summary: source_summary(&observation.source),
-        confidence_label: observation.confidence.serialize_canonical(),
-        detected_tick: contradiction.detected_tick.value(),
-        staleness_label: staleness_label(context, contradiction.detected_tick),
+        observation_id: observation.observation_id().as_str().to_string(),
+        source_kind: source_kind(observation.source()).to_string(),
+        source_summary: source_summary(observation.source()),
+        confidence_label: observation.confidence().serialize_canonical(),
+        detected_tick: contradiction.detected_tick().value(),
+        staleness_label: staleness_label(context, contradiction.detected_tick()),
         how_this_may_be_wrong: "The item may have moved through an unobserved ordinary event."
             .to_string(),
         possible_next_actions,
         summary: format!(
             "Source-bound lead from {}: {} missing from expected location",
-            contradiction.contradiction_id.as_str(),
+            contradiction.contradiction_id().as_str(),
             item_id.as_str()
         ),
     })
@@ -1053,7 +1053,7 @@ mod tests {
     use crate::agent::{Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState};
     use crate::epistemics::{
         Belief, Channel, Confidence, Contradiction, ContradictionKind, HolderKind, Observation,
-        ObservationSubject, ObservationTarget, PrivacyScope, Proposition, SourceRef, Stance,
+        ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
     };
     use crate::events::PayloadField;
     use crate::ids::{
@@ -1440,7 +1440,7 @@ mod tests {
             .with_contradiction(contradiction_id),
         );
 
-        let mut elena_belief = Belief::new(
+        let elena_belief = Belief::new(
             crate::ids::BeliefId::new("belief_elena_private_sound").unwrap(),
             HolderKind::Actor(actor_id("actor_elena")),
             Proposition::SoundHeardNearPlace {
@@ -1451,7 +1451,6 @@ mod tests {
             SourceRef::Event(event_id("event_elena_sound")),
             SimTick::new(2),
         );
-        elena_belief.privacy_scope = PrivacyScope::ActorPrivate(actor_id("actor_elena"));
         projection.insert_belief(elena_belief);
         projection
     }

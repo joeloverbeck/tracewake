@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-003: Seal epistemic records into provenance-preserving abstract data types
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` epistemic records (`Belief`/`Observation`/`Contradiction`/`BeliefDraft`) sealed to private fields + accessors/builders; `tracewake-content` belief conversion routed through a builder instead of post-construction field mutation; workspace read sites migrated to accessors.
@@ -99,3 +99,29 @@ Update every read site enumerated in Assumption Reassessment item 3 to call acce
 1. `cargo test -p tracewake-core --lib epistemics`
 2. `cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test -p tracewake-content --test forbidden_content --test golden_fixtures_run` — proves content conversion + provenance gates stay green after the retype.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Sealed `Belief`, `Observation`, `Contradiction`, and `BeliefDraft` fields behind accessors and invariant-preserving constructors/builders.
+- Added `BeliefDraft` builder methods and `Belief::with_last_verified_tick` so content conversion can preserve optional metadata without public field mutation.
+- Migrated workspace consumers from direct record field reads to accessor calls.
+- Replaced `InitialBeliefSchema::to_belief` post-construction record mutation with builder-style construction.
+- Added provenance/schema/scope unit coverage for belief, observation, contradiction, and content conversion.
+
+Deviations from original plan:
+- No arbitrary `privacy_scope` or `schema_version` mutators were added for `Belief`; the content path now relies on validated schema input matching constructor-derived actor-private scope and canonical schema version.
+- Compile-fail negative fixtures and source guards remain deferred to 0006PHA2AEPISUB-004 and 0006PHA2AEPISUB-005 as planned.
+
+Verification:
+- `cargo check --workspace --all-targets`
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --lib epistemics`
+- `cargo test -p tracewake-content --test forbidden_content --test golden_fixtures_run`
+- `cargo test -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --workspace`
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- Structural sweeps found no remaining public epistemic record fields and no content-side direct `belief.* =` mutation.

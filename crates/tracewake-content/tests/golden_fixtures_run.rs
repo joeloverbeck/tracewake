@@ -1425,13 +1425,13 @@ fn phase2a_initial_beliefs_are_holder_and_source_backed() {
     {
         for seed in &golden.fixture.initial_beliefs {
             let belief = seed.to_belief();
-            assert!(matches!(belief.holder, HolderKind::Actor(_)));
+            assert!(matches!(belief.holder(), HolderKind::Actor(_)));
             assert!(matches!(
-                belief.source,
+                belief.source(),
                 SourceRef::Event(_) | SourceRef::Action(_) | SourceRef::Cause(_)
             ));
-            assert!(!belief.belief_id.as_str().is_empty());
-            assert!(!belief.proposition.render().is_empty());
+            assert!(!belief.belief_id().as_str().is_empty());
+            assert!(!belief.proposition().render().is_empty());
         }
     }
 }

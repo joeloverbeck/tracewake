@@ -31,15 +31,15 @@ impl ContradictionKind {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Contradiction {
-    pub contradiction_id: ContradictionId,
-    pub holder_actor_id: ActorId,
-    pub kind: ContradictionKind,
-    pub prior_expectation_belief_id: BeliefId,
-    pub contradicting_observation_id: ObservationId,
-    pub expected_proposition: Proposition,
-    pub observed_proposition: Proposition,
-    pub detected_tick: SimTick,
-    pub schema_version: SchemaVersion,
+    contradiction_id: ContradictionId,
+    holder_actor_id: ActorId,
+    kind: ContradictionKind,
+    prior_expectation_belief_id: BeliefId,
+    contradicting_observation_id: ObservationId,
+    expected_proposition: Proposition,
+    observed_proposition: Proposition,
+    detected_tick: SimTick,
+    schema_version: SchemaVersion,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,6 +72,42 @@ impl Contradiction {
             schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
         }
     }
+
+    pub fn contradiction_id(&self) -> &ContradictionId {
+        &self.contradiction_id
+    }
+
+    pub fn holder_actor_id(&self) -> &ActorId {
+        &self.holder_actor_id
+    }
+
+    pub fn kind(&self) -> ContradictionKind {
+        self.kind
+    }
+
+    pub fn prior_expectation_belief_id(&self) -> &BeliefId {
+        &self.prior_expectation_belief_id
+    }
+
+    pub fn contradicting_observation_id(&self) -> &ObservationId {
+        &self.contradicting_observation_id
+    }
+
+    pub fn expected_proposition(&self) -> &Proposition {
+        &self.expected_proposition
+    }
+
+    pub fn observed_proposition(&self) -> &Proposition {
+        &self.observed_proposition
+    }
+
+    pub fn detected_tick(&self) -> SimTick {
+        self.detected_tick
+    }
+
+    pub fn schema_version(&self) -> &SchemaVersion {
+        &self.schema_version
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -87,15 +123,15 @@ pub fn detect_expected_absences(
 ) -> Vec<ExpectedAbsenceDetection> {
     let mut detections = Vec::new();
     for belief in expectation_beliefs {
-        if belief.holder != HolderKind::Actor(holder_actor_id.clone())
-            || belief.stance != Stance::ExpectsTrue
+        if belief.holder() != &HolderKind::Actor(holder_actor_id.clone())
+            || belief.stance() != Stance::ExpectsTrue
         {
             continue;
         }
         let Proposition::ItemLocatedInContainer {
             item_id,
             container_id,
-        } = &belief.proposition
+        } = belief.proposition()
         else {
             continue;
         };
@@ -123,9 +159,9 @@ pub fn detect_expected_absences(
             contradiction_id.clone(),
             holder_actor_id.clone(),
             ContradictionKind::ExpectedItemAbsentFromContainer,
-            belief.belief_id.clone(),
+            belief.belief_id().clone(),
             observation_id.clone(),
-            belief.proposition.clone(),
+            belief.proposition().clone(),
             observed_proposition.clone(),
             detected_tick,
         );
@@ -205,16 +241,20 @@ mod tests {
         );
 
         assert_eq!(
-            contradiction.kind,
+            contradiction.kind(),
             ContradictionKind::ExpectedItemAbsentFromContainer
         );
         assert_eq!(
-            contradiction.prior_expectation_belief_id,
-            belief_id("belief_tomas_expected_coin")
+            contradiction.prior_expectation_belief_id(),
+            &belief_id("belief_tomas_expected_coin")
         );
         assert_eq!(
-            contradiction.contradicting_observation_id,
-            observation_id("obs_tomas_checked_strongbox")
+            contradiction.contradicting_observation_id(),
+            &observation_id("obs_tomas_checked_strongbox")
+        );
+        assert_eq!(
+            contradiction.schema_version().as_str(),
+            EPISTEMIC_RECORD_SCHEMA_V1
         );
     }
 
@@ -268,16 +308,16 @@ mod tests {
 
         assert_eq!(detections.len(), 1);
         assert_eq!(
-            detections[0].contradiction.prior_expectation_belief_id,
-            belief_id("belief_tomas_expected_coin")
+            detections[0].contradiction.prior_expectation_belief_id(),
+            &belief_id("belief_tomas_expected_coin")
         );
         assert_eq!(
-            detections[0].missing_belief.holder,
-            HolderKind::Actor(actor_id("actor_tomas"))
+            detections[0].missing_belief.holder(),
+            &HolderKind::Actor(actor_id("actor_tomas"))
         );
-        assert_eq!(detections[0].missing_belief.stance, Stance::BelievesTrue);
+        assert_eq!(detections[0].missing_belief.stance(), Stance::BelievesTrue);
         assert!(matches!(
-            detections[0].missing_belief.proposition,
+            detections[0].missing_belief.proposition(),
             Proposition::ItemMissingFromExpectedLocation { .. }
         ));
     }

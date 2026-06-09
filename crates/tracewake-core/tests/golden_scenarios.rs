@@ -472,27 +472,27 @@ fn sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge()
     let observation = projection
         .observations_for_context(&elena_context)
         .into_iter()
-        .find(|observation| observation.channel.stable_id() == "simple_sound")
+        .find(|observation| observation.channel().stable_id() == "simple_sound")
         .expect("simple sound observation recorded");
-    assert!(observation.confidence.is_low());
-    assert!(observation.alternatives.len() >= 2);
+    assert!(observation.confidence().is_low());
+    assert!(observation.alternatives().len() >= 2);
 
     let belief = projection
         .beliefs_for_context(&elena_context)
         .into_iter()
         .find(|belief| {
             belief
-                .channel
+                .channel()
                 .is_some_and(|channel| channel.stable_id() == "simple_sound")
         })
         .expect("sound belief recorded");
-    assert!(belief.confidence.is_low());
+    assert!(belief.confidence().is_low());
     assert!(matches!(
-        belief.proposition,
+        belief.proposition(),
         Proposition::SoundHeardNearPlace { .. } | Proposition::PossibleMovementNearPlace { .. }
     ));
     assert!(!matches!(
-        belief.proposition,
+        belief.proposition(),
         Proposition::ActorWasNearPlace { .. }
     ));
 
@@ -588,13 +588,13 @@ fn expected_absence_check_creates_contradiction_and_missing_belief() {
     let beliefs = projection.beliefs_for_context(&context);
     assert!(beliefs.iter().any(|belief| {
         matches!(
-            belief.proposition,
+            belief.proposition(),
             Proposition::ItemMissingFromExpectedLocation { .. }
         )
     }));
     assert!(!beliefs.iter().any(|belief| {
-        belief.proposition.render().contains("stole")
-            || belief.proposition.render().contains("culprit")
+        belief.proposition().render().contains("stole")
+            || belief.proposition().render().contains("culprit")
     }));
 }
 

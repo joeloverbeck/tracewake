@@ -11,9 +11,9 @@ pub fn actor_has_source_backed_support(
         .beliefs_for_context(context)
         .into_iter()
         .any(|belief| {
-            belief.proposition == *proposition
+            belief.proposition() == proposition
                 && matches!(
-                    belief.stance,
+                    belief.stance(),
                     crate::epistemics::Stance::BelievesTrue
                         | crate::epistemics::Stance::ExpectsTrue
                         | crate::epistemics::Stance::Plausible

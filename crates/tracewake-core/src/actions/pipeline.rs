@@ -1158,7 +1158,7 @@ fn build_absence_detection_events(
         let mut contradiction_event = EventEnvelope::new_v1(
             EventId::new(format!(
                 "event.expectation_contradicted.{}",
-                detection.contradiction.contradiction_id.as_str()
+                detection.contradiction.contradiction_id().as_str()
             ))
             .unwrap(),
             EventKind::ExpectationContradicted,
@@ -1177,32 +1177,35 @@ fn build_absence_detection_events(
             PayloadField::new("schema_version", EVENT_SCHEMA_V1),
             PayloadField::new(
                 "contradiction_id",
-                detection.contradiction.contradiction_id.as_str(),
+                detection.contradiction.contradiction_id().as_str(),
             ),
             PayloadField::new("holder_actor_id", actor_id.as_str()),
             PayloadField::new(
                 "prior_expectation_belief_id",
-                detection.contradiction.prior_expectation_belief_id.as_str(),
+                detection
+                    .contradiction
+                    .prior_expectation_belief_id()
+                    .as_str(),
             ),
             PayloadField::new(
                 "contradicting_observation_id",
                 detection
                     .contradiction
-                    .contradicting_observation_id
+                    .contradicting_observation_id()
                     .as_str(),
             ),
             PayloadField::new(
                 "expected_proposition",
                 detection
                     .contradiction
-                    .expected_proposition
+                    .expected_proposition()
                     .serialize_canonical(),
             ),
             PayloadField::new(
                 "observed_proposition",
                 detection
                     .contradiction
-                    .observed_proposition
+                    .observed_proposition()
                     .serialize_canonical(),
             ),
             PayloadField::new(
@@ -1215,7 +1218,7 @@ fn build_absence_detection_events(
         let mut belief_event = EventEnvelope::new_v1(
             EventId::new(format!(
                 "event.belief_updated.{}",
-                detection.missing_belief.belief_id.as_str()
+                detection.missing_belief.belief_id().as_str()
             ))
             .unwrap(),
             EventKind::BeliefUpdated,
@@ -1233,18 +1236,18 @@ fn build_absence_detection_events(
         ];
         belief_event.payload = vec![
             PayloadField::new("schema_version", EVENT_SCHEMA_V1),
-            PayloadField::new("belief_id", detection.missing_belief.belief_id.as_str()),
+            PayloadField::new("belief_id", detection.missing_belief.belief_id().as_str()),
             PayloadField::new("holder_actor_id", actor_id.as_str()),
             PayloadField::new(
                 "proposition",
-                detection.missing_belief.proposition.serialize_canonical(),
+                detection.missing_belief.proposition().serialize_canonical(),
             ),
-            PayloadField::new("stance", detection.missing_belief.stance.stable_id()),
+            PayloadField::new("stance", detection.missing_belief.stance().stable_id()),
             PayloadField::new(
                 "confidence",
                 detection
                     .missing_belief
-                    .confidence
+                    .confidence()
                     .parts_per_thousand()
                     .to_string(),
             ),
