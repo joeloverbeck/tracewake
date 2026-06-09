@@ -44,7 +44,7 @@ impl<'a> EmbodiedProjectionSource<'a> {
         state: &'a PhysicalState,
         agent_state: Option<&'a AgentState>,
     ) -> Self {
-        let viewer_actor_id = &context.viewer_actor_id;
+        let viewer_actor_id = context.viewer_actor_id();
         let actor_known_food_sources =
             actor_known_food_sources_for_context(context, state, viewer_actor_id);
         let actor_known_workplaces = actor_known_workplaces_for_context(state, viewer_actor_id);
@@ -72,7 +72,7 @@ fn actor_known_food_sources_for_context(
         .filter(|food| actor_can_see_food_source(state, actor, viewer_actor_id, food))
         .map(|food| food.food_supply_id.clone())
         .collect::<Vec<_>>();
-    if context.mode == crate::epistemics::ViewMode::Embodied {
+    if context.mode() == crate::epistemics::ViewMode::Embodied {
         food_sources.sort();
         food_sources.dedup();
     }
@@ -285,8 +285,8 @@ pub fn build_embodied_view_model(
     content_manifest_id: &ContentManifestId,
     last_rejection: Option<&ValidationReport>,
 ) -> Result<EmbodiedViewModel, ProjectionError> {
-    let viewer_actor_id = &context.viewer_actor_id;
-    let sim_tick = context.current_tick;
+    let viewer_actor_id = context.viewer_actor_id();
+    let sim_tick = context.current_tick();
     let state = source.state;
     let agent_state = source.agent_state;
     let actor = state
@@ -387,7 +387,7 @@ pub fn build_embodied_view_model(
         viewer_actor_id,
         sim_tick,
         knowledge_context_id: context.holder_known_context_id().clone(),
-        knowledge_context_frontier: context.event_frontier,
+        knowledge_context_frontier: context.event_frontier(),
     };
     let mut semantic_actions = semantic_actions(
         &preflight_context,
@@ -430,10 +430,10 @@ pub fn build_embodied_view_model(
         last_rejection_why_not: last_rejection.map(WhyNotView::from),
         holder_known_context_id: context.holder_known_context_id().clone(),
         holder_known_context_hash: context.holder_known_context_hash().clone(),
-        holder_known_context_frontier: context.event_frontier,
+        holder_known_context_frontier: context.event_frontier(),
         holder_known_context_source_summary: format!(
             "allowed={} provenance={}",
-            context.allowed_sources.len(),
+            context.allowed_sources().len(),
             context.provenance_entries().len()
         ),
         notebook: None,
@@ -498,7 +498,7 @@ pub fn build_notebook_view(
         .collect();
 
     NotebookView {
-        viewer_actor_id: context.viewer_actor_id.clone(),
+        viewer_actor_id: context.viewer_actor_id().clone(),
         source_bound_beliefs: beliefs,
         recent_observations: observations,
         known_contradictions: contradictions,
@@ -575,7 +575,7 @@ fn source_summary(source: &SourceRef) -> String {
 
 fn staleness_label(context: &KnowledgeContext, detected_tick: SimTick) -> String {
     let elapsed = context
-        .current_tick
+        .current_tick()
         .value()
         .saturating_sub(detected_tick.value());
     if elapsed == 0 {

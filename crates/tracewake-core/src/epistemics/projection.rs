@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::epistemics::belief::{Belief, HolderKind};
 use crate::epistemics::contradiction::Contradiction;
-use crate::epistemics::knowledge_context::KnowledgeContext;
+use crate::epistemics::knowledge_context::{KnowledgeContext, ViewMode};
 use crate::epistemics::observation::{Observation, EPISTEMIC_RECORD_SCHEMA_V1};
 use crate::ids::{
     ActorId, BeliefId, ContentManifestId, ContradictionId, EpistemicProjectionVersion, EventId,
@@ -123,7 +123,7 @@ impl EpistemicProjection {
 
     pub fn observations_for_context(&self, context: &KnowledgeContext) -> Vec<&Observation> {
         self.observations_by_actor
-            .get(&context.viewer_actor_id)
+            .get(context.viewer_actor_id())
             .into_iter()
             .flat_map(|ids| ids.iter())
             .filter_map(|id| self.observations_by_id.get(id))
@@ -132,15 +132,15 @@ impl EpistemicProjection {
     }
 
     pub fn beliefs_for_context(&self, context: &KnowledgeContext) -> Vec<&Belief> {
-        match context.mode {
-            crate::epistemics::knowledge_context::ViewMode::Debug => self
+        match context.mode() {
+            ViewMode::Debug => self
                 .beliefs_by_id
                 .values()
                 .filter(|belief| context.permits_scope(&belief.privacy_scope))
                 .collect(),
-            crate::epistemics::knowledge_context::ViewMode::Embodied => self
+            ViewMode::Embodied => self
                 .beliefs_by_holder
-                .get(&context.viewer_actor_id)
+                .get(context.viewer_actor_id())
                 .into_iter()
                 .flat_map(|ids| ids.iter())
                 .filter_map(|id| self.beliefs_by_id.get(id))
@@ -150,13 +150,11 @@ impl EpistemicProjection {
     }
 
     pub fn contradictions_for_context(&self, context: &KnowledgeContext) -> Vec<&Contradiction> {
-        match context.mode {
-            crate::epistemics::knowledge_context::ViewMode::Debug => {
-                self.contradictions_by_id.values().collect()
-            }
-            crate::epistemics::knowledge_context::ViewMode::Embodied => self
+        match context.mode() {
+            ViewMode::Debug => self.contradictions_by_id.values().collect(),
+            ViewMode::Embodied => self
                 .contradictions_by_holder
-                .get(&context.viewer_actor_id)
+                .get(context.viewer_actor_id())
                 .into_iter()
                 .flat_map(|ids| ids.iter())
                 .filter_map(|id| self.contradictions_by_id.get(id))
@@ -165,15 +163,15 @@ impl EpistemicProjection {
     }
 
     pub fn notebook_entries_for_context(&self, context: &KnowledgeContext) -> Vec<&NotebookEntry> {
-        match context.mode {
-            crate::epistemics::knowledge_context::ViewMode::Debug => self
+        match context.mode() {
+            ViewMode::Debug => self
                 .notebook_entries_by_actor
                 .values()
                 .flat_map(|entries| entries.iter())
                 .collect(),
-            crate::epistemics::knowledge_context::ViewMode::Embodied => self
+            ViewMode::Embodied => self
                 .notebook_entries_by_actor
-                .get(&context.viewer_actor_id)
+                .get(context.viewer_actor_id())
                 .into_iter()
                 .flat_map(|entries| entries.iter())
                 .collect(),
@@ -370,14 +368,16 @@ mod tests {
             "coin_stack_02",
         ));
 
-        let context = KnowledgeContext::debug(actor_id("actor_tomas"), SimTick::new(4));
+        let capability = crate::debug_capability::DebugCapability::mint();
+        let context =
+            KnowledgeContext::debug(actor_id("actor_tomas"), SimTick::new(4), &capability);
         let visible_beliefs = projection.beliefs_for_context(&context);
         let ordered_ids: Vec<_> = visible_beliefs
             .iter()
             .map(|belief| belief.belief_id.as_str())
             .collect();
 
-        assert!(context.debug_non_diegetic);
+        assert!(context.debug_non_diegetic());
         assert_eq!(
             ordered_ids,
             ["belief_mara_hidden_coin", "belief_tomas_missing_coin"]

@@ -449,7 +449,7 @@ fn source_bound_human_proposal(
         source_view_model_id,
         holder_known_context_id: context.holder_known_context_id().clone(),
         holder_known_context_hash: context.holder_known_context_hash().clone(),
-        holder_known_context_frontier: context.event_frontier,
+        holder_known_context_frontier: context.event_frontier(),
         context_tick: tick,
         actor_id: actor_id.clone(),
         semantic_action_id: SemanticActionId::new(semantic_action_id).unwrap(),

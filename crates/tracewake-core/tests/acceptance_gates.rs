@@ -485,7 +485,7 @@ fn run_sleep(
             source_view_model_id,
             holder_known_context_id: source_context.holder_known_context_id().clone(),
             holder_known_context_hash: source_context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: source_context.event_frontier,
+            holder_known_context_frontier: source_context.event_frontier(),
             context_tick: proposal.requested_tick,
             actor_id: actor_id(),
             semantic_action_id: SemanticActionId::new("sleep.here").unwrap(),

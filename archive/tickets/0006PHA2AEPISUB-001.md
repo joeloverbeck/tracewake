@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-001: Seal holder-known KnowledgeContext and capability-gate debug context
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` epistemics: `KnowledgeContext` field visibility sealed, debug-context construction gated behind `DebugCapability`; same-crate consumers migrated to accessors.
@@ -86,3 +86,26 @@ Update `epistemics/projection.rs` (`_for_context` filters), `projections.rs` (em
 1. `cargo test -p tracewake-core --lib epistemics::knowledge_context`
 2. `cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test -p tracewake-core --test event_schema_replay_gates` — narrow proof that sealing did not perturb deterministic replay/hash inputs.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- `KnowledgeContext` authority-bearing fields are now private and exposed only through read-only accessors.
+- `KnowledgeContext::debug` now requires a `DebugCapability`, so ordinary public API callers cannot mint debug contexts without the core capability token.
+- Core and TUI consumers were migrated from direct field reads to accessors.
+- Added a runtime seal regression proving an embodied context remains embodied and cannot permit another actor's private scope after construction.
+
+Deviations from original plan:
+- The TUI fixture builders also needed accessor migration because they construct proposal/view-model test data from a sealed `KnowledgeContext`; this stayed within the ticket's API-sealing scope.
+- Compile-fail fixtures and source-guard expansion remain deferred to tickets `0006PHA2AEPISUB-004` and `0006PHA2AEPISUB-005` as planned.
+
+Verification results:
+- `cargo test -p tracewake-core --lib epistemics::knowledge_context` — passed.
+- `cargo test -p tracewake-core` — passed.
+- `cargo test -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace` — passed.
