@@ -102,7 +102,7 @@ pub fn run_replay(
         && rebuild.agent_application_errors.is_empty();
     let epistemic_projection_version = rebuild
         .final_epistemic_projection
-        .projection_version
+        .projection_version()
         .as_str()
         .to_string();
 

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash};
+use crate::debug_capability::DebugCapability;
 use crate::epistemics::observation::{PrivacyScope, EPISTEMIC_RECORD_SCHEMA_V1};
 use crate::ids::{ActorId, HolderKnownContextId, SchemaVersion};
 use crate::time::SimTick;
@@ -192,18 +193,18 @@ impl KnowledgeContextStatus {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KnowledgeContext {
-    pub viewer_actor_id: ActorId,
-    pub bound_actor_id: ActorId,
-    pub mode: ViewMode,
-    pub current_tick: SimTick,
-    pub event_frontier: u64,
-    pub allowed_sources: BTreeSet<AllowedKnowledgeSource>,
-    pub forbidden_sources: BTreeSet<ForbiddenKnowledgeSource>,
-    pub perception_scope: ScopeFilter,
-    pub belief_scope: ScopeFilter,
-    pub observation_scope: ScopeFilter,
-    pub projection_schema_version: SchemaVersion,
-    pub debug_non_diegetic: bool,
+    viewer_actor_id: ActorId,
+    bound_actor_id: ActorId,
+    mode: ViewMode,
+    current_tick: SimTick,
+    event_frontier: u64,
+    allowed_sources: BTreeSet<AllowedKnowledgeSource>,
+    forbidden_sources: BTreeSet<ForbiddenKnowledgeSource>,
+    perception_scope: ScopeFilter,
+    belief_scope: ScopeFilter,
+    observation_scope: ScopeFilter,
+    projection_schema_version: SchemaVersion,
+    debug_non_diegetic: bool,
     holder_known_context_id: HolderKnownContextId,
     holder_known_context_hash: HolderKnownContextHash,
     provenance_entries: Vec<KnowledgeProvenanceEntry>,
@@ -307,7 +308,11 @@ impl KnowledgeContext {
         }
     }
 
-    pub fn debug(viewer_actor_id: ActorId, current_tick: SimTick) -> Self {
+    pub fn debug(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        _capability: &DebugCapability,
+    ) -> Self {
         Self::seal(
             viewer_actor_id.clone(),
             viewer_actor_id,
@@ -333,6 +338,54 @@ impl KnowledgeContext {
             (ViewMode::Embodied, PrivacyScope::PublicPlaceholder) => true,
             (ViewMode::Embodied, PrivacyScope::InstitutionPlaceholder(_)) => false,
         }
+    }
+
+    pub fn viewer_actor_id(&self) -> &ActorId {
+        &self.viewer_actor_id
+    }
+
+    pub fn bound_actor_id(&self) -> &ActorId {
+        &self.bound_actor_id
+    }
+
+    pub fn mode(&self) -> ViewMode {
+        self.mode
+    }
+
+    pub fn current_tick(&self) -> SimTick {
+        self.current_tick
+    }
+
+    pub fn event_frontier(&self) -> u64 {
+        self.event_frontier
+    }
+
+    pub fn allowed_sources(&self) -> &BTreeSet<AllowedKnowledgeSource> {
+        &self.allowed_sources
+    }
+
+    pub fn forbidden_sources(&self) -> &BTreeSet<ForbiddenKnowledgeSource> {
+        &self.forbidden_sources
+    }
+
+    pub fn perception_scope(&self) -> &ScopeFilter {
+        &self.perception_scope
+    }
+
+    pub fn belief_scope(&self) -> &ScopeFilter {
+        &self.belief_scope
+    }
+
+    pub fn observation_scope(&self) -> &ScopeFilter {
+        &self.observation_scope
+    }
+
+    pub fn projection_schema_version(&self) -> &SchemaVersion {
+        &self.projection_schema_version
+    }
+
+    pub fn debug_non_diegetic(&self) -> bool {
+        self.debug_non_diegetic
     }
 
     pub fn holder_known_context_id(&self) -> &HolderKnownContextId {
@@ -477,40 +530,40 @@ mod tests {
     fn embodied_context_has_expected_allowed_and_forbidden_sources() {
         let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(5));
 
-        assert_eq!(context.mode, ViewMode::Embodied);
-        assert_eq!(context.viewer_actor_id, actor_id("actor_tomas"));
-        assert_eq!(context.bound_actor_id, actor_id("actor_tomas"));
-        assert_eq!(context.event_frontier, 0);
+        assert_eq!(context.mode(), ViewMode::Embodied);
+        assert_eq!(context.viewer_actor_id(), &actor_id("actor_tomas"));
+        assert_eq!(context.bound_actor_id(), &actor_id("actor_tomas"));
+        assert_eq!(context.event_frontier(), 0);
         assert!(context
-            .allowed_sources
+            .allowed_sources()
             .contains(&AllowedKnowledgeSource::OwnDirectObservation));
         assert!(context
-            .allowed_sources
+            .allowed_sources()
             .contains(&AllowedKnowledgeSource::OwnSearchOrTouchObservation));
         assert!(context
-            .allowed_sources
+            .allowed_sources()
             .contains(&AllowedKnowledgeSource::OwnSoundObservation));
         assert!(context
-            .allowed_sources
+            .allowed_sources()
             .contains(&AllowedKnowledgeSource::OwnAbsenceMarker));
         assert!(context
-            .allowed_sources
+            .allowed_sources()
             .contains(&AllowedKnowledgeSource::OwnSourceBackedBelief));
 
         assert!(context
-            .forbidden_sources
+            .forbidden_sources()
             .contains(&ForbiddenKnowledgeSource::UnobservedEventLogTruth));
         assert!(context
-            .forbidden_sources
+            .forbidden_sources()
             .contains(&ForbiddenKnowledgeSource::HiddenItemLocation));
         assert!(context
-            .forbidden_sources
+            .forbidden_sources()
             .contains(&ForbiddenKnowledgeSource::OtherActorsPrivateBeliefs));
         assert!(context
-            .forbidden_sources
+            .forbidden_sources()
             .contains(&ForbiddenKnowledgeSource::HumanDebugNotes));
         assert!(context
-            .forbidden_sources
+            .forbidden_sources()
             .contains(&ForbiddenKnowledgeSource::PreviousPossessedActorKnowledge));
     }
 
@@ -527,9 +580,9 @@ mod tests {
             .holder_known_context_hash()
             .as_str()
             .starts_with("hkc1-"));
-        assert_eq!(context.bound_actor_id, actor_id("actor_tomas"));
-        assert_eq!(context.current_tick, SimTick::new(5));
-        assert_eq!(context.event_frontier, 11);
+        assert_eq!(context.bound_actor_id(), &actor_id("actor_tomas"));
+        assert_eq!(context.current_tick(), SimTick::new(5));
+        assert_eq!(context.event_frontier(), 11);
         assert_eq!(context.status(), KnowledgeContextStatus::Current);
         assert!(!context.provenance_entries().is_empty());
         assert!(context.provenance_entries().iter().any(|entry| {
@@ -537,7 +590,7 @@ mod tests {
                 && entry.source() == AllowedKnowledgeSource::OwnSourceBackedBelief
         }));
         assert!(context.forbidden_truth_audit().passed());
-        for source in context.forbidden_sources.iter() {
+        for source in context.forbidden_sources().iter() {
             assert!(context
                 .forbidden_truth_audit()
                 .excluded_sources()
@@ -585,11 +638,21 @@ mod tests {
     }
 
     #[test]
-    fn debug_context_is_non_diegetic_and_can_inspect_all_scopes() {
-        let context = KnowledgeContext::debug(actor_id("actor_tomas"), SimTick::ZERO);
+    fn embodied_context_cannot_be_mutated_into_debug_scope_after_seal() {
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::ZERO);
 
-        assert_eq!(context.mode, ViewMode::Debug);
-        assert!(context.debug_non_diegetic);
+        assert_eq!(context.mode(), ViewMode::Embodied);
+        assert!(!context.permits_scope(&PrivacyScope::ActorPrivate(actor_id("actor_mara"))));
+        assert!(!context.debug_non_diegetic());
+    }
+
+    #[test]
+    fn debug_context_is_non_diegetic_and_can_inspect_all_scopes() {
+        let capability = DebugCapability::mint();
+        let context = KnowledgeContext::debug(actor_id("actor_tomas"), SimTick::ZERO, &capability);
+
+        assert_eq!(context.mode(), ViewMode::Debug);
+        assert!(context.debug_non_diegetic());
         assert!(context.permits_scope(&PrivacyScope::ActorPrivate(actor_id("actor_mara"))));
         assert!(context.permits_scope(&PrivacyScope::InstitutionPlaceholder(
             "ledger_placeholder".to_string()

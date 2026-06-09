@@ -1649,11 +1649,9 @@ mod tests {
         );
 
         assert!(projection
-            .observations_by_id
-            .contains_key(&ObservationId::new("obs_tomas_checked_strongbox").unwrap()));
-        assert!(projection
-            .beliefs_by_id
-            .contains_key(&BeliefId::new("belief_tomas_missing_coin").unwrap()));
+            .observation(&ObservationId::new("obs_tomas_checked_strongbox").unwrap())
+            .is_some());
+        assert!(projection.has_belief(&BeliefId::new("belief_tomas_missing_coin").unwrap()));
     }
 
     #[test]
@@ -1670,7 +1668,7 @@ mod tests {
                 "event_schema_v999".to_string()
             ))
         );
-        assert!(projection.beliefs_by_id.is_empty());
+        assert!(projection.is_empty());
     }
 
     #[test]

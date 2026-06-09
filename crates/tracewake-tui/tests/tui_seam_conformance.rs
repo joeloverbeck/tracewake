@@ -67,6 +67,17 @@ const TUI_SEAM_EVIDENCE: &[TuiSeamEvidence] = &[
     TuiSeamEvidence {
         requirement: "SPINE-AC-012",
         layer: "tui/view-model",
+        test_name: "tui_epistemic_debug_uses_core_builder_not_raw_projection_storage",
+        source: include_str!("tui_seam_conformance.rs"),
+        evidence_kind: EvidenceKind::StaticSourceGuard,
+        evidence_class: EvidenceClass::Negative,
+        invariants: &["INV-024", "INV-067", "INV-107"],
+        acceptance_condition:
+            "TUI asks core for debug epistemics and does not read raw projection storage",
+    },
+    TuiSeamEvidence {
+        requirement: "SPINE-AC-012",
+        layer: "tui/view-model",
         test_name: "tui_transcript_snapshot_remains_byte_stable",
         source: include_str!("transcript_snapshot.rs"),
         evidence_kind: EvidenceKind::ReplayDeterminism,
@@ -109,4 +120,31 @@ fn tui_seam_conformance_maps_tui_spine_requirements_to_named_tests() {
     assert!(TUI_SEAM_EVIDENCE
         .iter()
         .any(|evidence| evidence.layer == "tui/debug"));
+}
+
+#[test]
+fn tui_epistemic_debug_uses_core_builder_not_raw_projection_storage() {
+    let app_source = include_str!("../src/app.rs");
+
+    assert!(
+        app_source.contains("self.epistemic_projection.debug_epistemics_view()"),
+        "TUI debug epistemics must be built by core, not from raw projection storage"
+    );
+    for forbidden in [
+        ".observations_by_id",
+        ".observations_by_actor",
+        ".beliefs_by_id",
+        ".beliefs_by_holder",
+        ".contradictions_by_id",
+        ".contradictions_by_holder",
+        ".notebook_entries_by_actor",
+        ".insert_belief(",
+        ".insert_observation(",
+        ".insert_contradiction(",
+    ] {
+        assert!(
+            !app_source.contains(forbidden),
+            "TUI app must not access raw projection API: {forbidden}"
+        );
+    }
 }

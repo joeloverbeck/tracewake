@@ -392,7 +392,7 @@ pub struct DayWindowSchema {
 
 impl InitialBeliefSchema {
     pub fn to_belief(&self) -> Belief {
-        let mut belief = Belief::new(
+        let belief = Belief::new(
             self.belief_id.clone(),
             HolderKind::Actor(self.holder_actor_id.clone()),
             self.proposition.clone(),
@@ -400,12 +400,12 @@ impl InitialBeliefSchema {
             self.confidence,
             self.source.clone(),
             self.acquired_tick,
-        );
-        belief.channel = self.channel;
-        belief.last_verified_tick = self.last_verified_tick;
-        belief.privacy_scope = self.privacy_scope.clone();
-        belief.schema_version = self.schema_version.clone();
-        belief
+        )
+        .with_last_verified_tick(self.last_verified_tick);
+        match self.channel {
+            Some(channel) => belief.with_channel(channel),
+            None => belief,
+        }
     }
 
     pub fn new_expectation(
@@ -749,5 +749,59 @@ impl RoutineTemplateSchema {
             self.debug_labels.clone(),
             self.reservable_resource.clone(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tracewake_core::epistemics::proposition::Proposition;
+
+    fn actor_id(value: &str) -> ActorId {
+        ActorId::new(value).unwrap()
+    }
+
+    fn belief_id(value: &str) -> BeliefId {
+        BeliefId::new(value).unwrap()
+    }
+
+    fn container_id(value: &str) -> ContainerId {
+        ContainerId::new(value).unwrap()
+    }
+
+    fn event_id(value: &str) -> tracewake_core::ids::EventId {
+        tracewake_core::ids::EventId::new(value).unwrap()
+    }
+
+    fn item_id(value: &str) -> ItemId {
+        ItemId::new(value).unwrap()
+    }
+
+    #[test]
+    fn to_belief_uses_builder_preserving_provenance() {
+        let holder = actor_id("actor_tomas");
+        let source = SourceRef::Event(event_id("event_seed"));
+        let mut schema = InitialBeliefSchema::new_expectation(
+            belief_id("belief_tomas_expected_coin"),
+            holder.clone(),
+            Proposition::ItemLocatedInContainer {
+                item_id: item_id("coin_stack_01"),
+                container_id: container_id("strongbox_tomas"),
+            },
+            Confidence::new(900).unwrap(),
+            source.clone(),
+            SimTick::new(2),
+        );
+        schema.channel = Some(Channel::DirectSight);
+        schema.last_verified_tick = Some(SimTick::new(3));
+
+        let belief = schema.to_belief();
+
+        assert_eq!(belief.holder(), &HolderKind::Actor(holder.clone()));
+        assert_eq!(belief.source(), &source);
+        assert_eq!(belief.channel(), Some(Channel::DirectSight));
+        assert_eq!(belief.last_verified_tick(), Some(SimTick::new(3)));
+        assert_eq!(belief.privacy_scope(), &PrivacyScope::ActorPrivate(holder));
+        assert_eq!(belief.schema_version().as_str(), EPISTEMIC_RECORD_SCHEMA_V1);
     }
 }

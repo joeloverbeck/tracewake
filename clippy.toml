@@ -3,6 +3,8 @@ disallowed-types = [
   { path = "std::collections::HashSet", reason = "Tracewake outcome paths must use deterministic, key-ordered collections such as BTreeSet." },
   { path = "std::time::SystemTime", reason = "Tracewake outcome paths must use SimTick and event/replay material, never wall-clock time." },
   { path = "std::time::Instant", reason = "Tracewake outcome paths must use SimTick and event/replay material, never wall-clock time." },
+  { path = "f32", reason = "Epistemic confidence must stay deterministic and integer/canonical, never raw float." },
+  { path = "f64", reason = "Epistemic confidence must stay deterministic and integer/canonical, never raw float." },
 ]
 
 disallowed-methods = [

@@ -5,6 +5,7 @@ use tracewake_core::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
 };
 use tracewake_tui::app::{AppError, TuiApp};
+use tracewake_tui::render::render_notebook;
 use tracewake_tui::run::run_command_loop;
 use tracewake_tui::transcript::{
     capture_representative_transcript, capture_representative_transcript_sections,
@@ -73,6 +74,8 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
     let replay = app.render_debug_replay_panel();
     let view = app.current_view().unwrap();
     let notebook = app.notebook_view().unwrap();
+    let rendered_view = app.render_current_view().unwrap();
+    let rendered_notebook = render_notebook(&notebook);
 
     assert!(epistemics.debug_only());
     assert!(item.contains("DEBUG NON-DIEGETIC"));
@@ -85,11 +88,13 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
         .iter()
         .any(|target| target == "food_hidden_pantry")));
     assert!(notebook.typed_leads.is_empty());
+    assert!(notebook.source_bound_beliefs.is_empty());
     assert!(!view.holder_known_context_source_summary.contains("debug"));
-    assert!(!app
-        .render_current_view()
-        .unwrap()
-        .contains("food_hidden_pantry"));
+    for actor_surface in [rendered_view.as_str(), rendered_notebook.as_str()] {
+        assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
+        assert!(!actor_surface.contains("food_hidden_pantry"));
+        assert!(!actor_surface.contains("debug_omniscience"));
+    }
 
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "debug_quarantine",
@@ -410,11 +415,17 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
     app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
     let mara_view = app.current_view().unwrap();
     let mara_notebook = app.notebook_view().unwrap();
+    let mara_rendered_view = app.render_current_view().unwrap();
+    let mara_rendered_notebook = render_notebook(&mara_notebook);
 
     assert_eq!(app.physical_checksum(), checksum_before_rebind);
     assert_eq!(mara_view.viewer_actor_id.as_str(), "actor_mara");
     assert!(mara_notebook.typed_leads.is_empty());
     assert!(mara_notebook.source_bound_beliefs.is_empty());
+    for actor_surface in [mara_rendered_view.as_str(), mara_rendered_notebook.as_str()] {
+        assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
+        assert!(!actor_surface.contains("belief_tomas"));
+    }
     assert!(mara_view
         .phase3a_status
         .as_ref()
@@ -542,6 +553,16 @@ fn adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts() {
         .actor_visible_facts
         .iter()
         .all(|fact| !fact.contains("holder_known_context")));
+    assert!(why_not
+        .actor_visible_facts
+        .iter()
+        .chain(std::iter::once(&why_not.actor_known_summary))
+        .all(|text| {
+            !text.contains("DEBUG NON-DIEGETIC")
+                && !text.contains("debug")
+                && !text.contains("culprit")
+                && !text.contains("actor_mara")
+        }));
     assert!(app.render_debug_action_rejection_panel().is_some());
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "action_validation",

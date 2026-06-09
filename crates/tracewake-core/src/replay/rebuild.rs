@@ -96,12 +96,7 @@ pub fn rebuild_projection(
                     last_stream_position = Some(event.stream_position);
                 }
                 EventStream::Epistemic => {
-                    epistemic_projection.event_range.event_count += 1;
-                    if epistemic_projection.event_range.first_event_id.is_none() {
-                        epistemic_projection.event_range.first_event_id =
-                            Some(event.event_id.clone());
-                    }
-                    epistemic_projection.event_range.last_event_id = Some(event.event_id.clone());
+                    epistemic_projection.record_applied_event(event.event_id.clone());
                 }
                 EventStream::Agent => {
                     last_event_id = Some(event.event_id.clone());
@@ -454,10 +449,6 @@ mod tests {
             first.final_epistemic_checksum,
             second.final_epistemic_checksum
         );
-        assert_eq!(
-            first.final_epistemic_projection.beliefs_by_id,
-            second.final_epistemic_projection.beliefs_by_id
-        );
         assert!(first.epistemic_application_errors.is_empty());
     }
 
@@ -480,7 +471,7 @@ mod tests {
             None,
         );
 
-        assert!(report.final_epistemic_projection.beliefs_by_id.is_empty());
+        assert!(report.final_epistemic_projection.is_empty());
         assert_eq!(
             report.unsupported_epistemic_versions,
             ["event_position=99 event_id=event_bad_epistemic_version version=event_schema_v999"]

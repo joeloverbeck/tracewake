@@ -205,7 +205,7 @@ mod tests {
             last_rejection_why_not: None,
             holder_known_context_id: context.holder_known_context_id().clone(),
             holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier,
+            holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
             notebook: None,
             debug_available: true,

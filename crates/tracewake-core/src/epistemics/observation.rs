@@ -106,20 +106,20 @@ pub enum PrivacyScope {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Observation {
-    pub observation_id: crate::ids::ObservationId,
-    pub observer_actor_id: ActorId,
-    pub channel: Channel,
-    pub observed_tick: SimTick,
-    pub tick_window: TickWindow,
-    pub observer_place_id: PlaceId,
-    pub subject: ObservationSubject,
-    pub target: ObservationTarget,
-    pub raw_payload: Vec<PayloadField>,
-    pub confidence: Confidence,
-    pub source: SourceRef,
-    pub alternatives: BTreeSet<String>,
-    pub schema_version: SchemaVersion,
-    pub privacy_scope: PrivacyScope,
+    observation_id: crate::ids::ObservationId,
+    observer_actor_id: ActorId,
+    channel: Channel,
+    observed_tick: SimTick,
+    tick_window: TickWindow,
+    observer_place_id: PlaceId,
+    subject: ObservationSubject,
+    target: ObservationTarget,
+    raw_payload: Vec<PayloadField>,
+    confidence: Confidence,
+    source: SourceRef,
+    alternatives: BTreeSet<String>,
+    schema_version: SchemaVersion,
+    privacy_scope: PrivacyScope,
 }
 
 impl Observation {
@@ -161,6 +161,62 @@ impl Observation {
     pub fn with_alternatives(mut self, alternatives: BTreeSet<String>) -> Self {
         self.alternatives = alternatives;
         self
+    }
+
+    pub fn observation_id(&self) -> &crate::ids::ObservationId {
+        &self.observation_id
+    }
+
+    pub fn observer_actor_id(&self) -> &ActorId {
+        &self.observer_actor_id
+    }
+
+    pub fn channel(&self) -> Channel {
+        self.channel
+    }
+
+    pub fn observed_tick(&self) -> SimTick {
+        self.observed_tick
+    }
+
+    pub fn tick_window(&self) -> TickWindow {
+        self.tick_window
+    }
+
+    pub fn observer_place_id(&self) -> &PlaceId {
+        &self.observer_place_id
+    }
+
+    pub fn subject(&self) -> &ObservationSubject {
+        &self.subject
+    }
+
+    pub fn target(&self) -> &ObservationTarget {
+        &self.target
+    }
+
+    pub fn raw_payload(&self) -> &[PayloadField] {
+        &self.raw_payload
+    }
+
+    pub fn confidence(&self) -> Confidence {
+        self.confidence
+    }
+
+    pub fn source(&self) -> &SourceRef {
+        &self.source
+    }
+
+    pub fn alternatives(&self) -> &BTreeSet<String> {
+        &self.alternatives
+    }
+
+    pub fn schema_version(&self) -> &SchemaVersion {
+        &self.schema_version
+    }
+
+    pub fn privacy_scope(&self) -> &PrivacyScope {
+        &self.privacy_scope
     }
 }
 
@@ -215,13 +271,50 @@ mod tests {
             "footstep".to_string(),
         ]));
 
-        assert_eq!(observation.channel, Channel::SimpleSound);
-        assert!(observation.confidence.is_low());
-        assert_eq!(observation.confidence.serialize_canonical(), "0250");
-        assert_eq!(observation.alternatives.len(), 2);
+        assert_eq!(observation.channel(), Channel::SimpleSound);
+        assert!(observation.confidence().is_low());
+        assert_eq!(observation.confidence().serialize_canonical(), "0250");
+        assert_eq!(observation.alternatives().len(), 2);
         assert_eq!(
-            observation.privacy_scope,
-            PrivacyScope::ActorPrivate(actor_id("actor_elena"))
+            observation.privacy_scope(),
+            &PrivacyScope::ActorPrivate(actor_id("actor_elena"))
+        );
+        assert_eq!(
+            observation.source(),
+            &SourceRef::Event(event_id("event_sound_001"))
+        );
+        assert_eq!(
+            observation.schema_version().as_str(),
+            EPISTEMIC_RECORD_SCHEMA_V1
+        );
+    }
+
+    #[test]
+    fn observation_constructor_seals_provenance_and_scope() {
+        let observation = Observation::new(
+            observation_id("obs_002"),
+            actor_id("actor_elena"),
+            Channel::DirectSight,
+            SimTick::new(8),
+            place_id("hallway"),
+            ObservationSubject::Place(place_id("hallway")),
+            ObservationTarget::Place(place_id("hallway")),
+            Confidence::new(875).unwrap(),
+            SourceRef::Event(event_id("event_002")),
+        );
+
+        assert_eq!(observation.observer_actor_id(), &actor_id("actor_elena"));
+        assert_eq!(
+            observation.privacy_scope(),
+            &PrivacyScope::ActorPrivate(actor_id("actor_elena"))
+        );
+        assert_eq!(
+            observation.source(),
+            &SourceRef::Event(event_id("event_002"))
+        );
+        assert_eq!(
+            observation.schema_version().as_str(),
+            EPISTEMIC_RECORD_SCHEMA_V1
         );
     }
 
@@ -239,7 +332,7 @@ mod tests {
             SourceRef::Event(event_id("event_001")),
         );
 
-        assert_eq!(observation.channel, Channel::DirectSight);
-        assert!(observation.alternatives.is_empty());
+        assert_eq!(observation.channel(), Channel::DirectSight);
+        assert!(observation.alternatives().is_empty());
     }
 }

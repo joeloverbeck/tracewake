@@ -408,10 +408,7 @@ pub fn observe_visible_local(
         ));
     }
     if let Some(epistemic_projection) = epistemic_projection {
-        let actor_belief_count = epistemic_projection
-            .beliefs_by_holder
-            .get(actor_id)
-            .map_or(0, BTreeSet::len);
+        let actor_belief_count = epistemic_projection.belief_count_for_actor(actor_id);
         facts.push(ActorKnownFact::remembered_belief(
             actor_id.clone(),
             "actor_belief_projection",

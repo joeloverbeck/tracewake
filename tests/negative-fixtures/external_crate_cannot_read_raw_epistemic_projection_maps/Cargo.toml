@@ -1,0 +1,9 @@
+[package]
+name = "external_crate_cannot_read_raw_epistemic_projection_maps"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-core = { path = "../../../crates/tracewake-core" }
+
+[workspace]

@@ -13,8 +13,6 @@ use tracewake_core::debug_reports::{
     phase3a_routines_report, phase3a_stuck_report, projection_rebuild_debug_report,
     replay_debug_report,
 };
-use tracewake_core::epistemics::belief::HolderKind;
-use tracewake_core::epistemics::observation::SourceRef;
 use tracewake_core::epistemics::projection::EpistemicProjection;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{
@@ -35,9 +33,8 @@ use tracewake_core::scheduler::{
 use tracewake_core::state::{AgentState, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
-    DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
-    DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView, EmbodiedViewModel,
-    NotebookView, SemanticActionEntry,
+    DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel, NotebookView,
+    SemanticActionEntry,
 };
 
 use crate::debug_panels::{
@@ -107,11 +104,14 @@ impl TuiApp {
         registry.register_phase3a_eat();
         registry.register_phase3a_work();
         registry.register_phase3a_continue_routine();
-        let mut epistemic_projection =
-            EpistemicProjection::new(loaded.manifest.manifest_id.clone());
-        for seed in &loaded.fixture.initial_beliefs {
-            epistemic_projection.insert_belief(seed.to_belief());
-        }
+        let epistemic_projection = EpistemicProjection::from_initial_beliefs(
+            loaded.manifest.manifest_id.clone(),
+            loaded
+                .fixture
+                .initial_beliefs
+                .iter()
+                .map(|seed| seed.to_belief()),
+        );
         Ok(Self {
             registry,
             initial_state: loaded.canonical_world.clone(),
@@ -369,59 +369,16 @@ impl TuiApp {
     }
 
     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
-        let observations = self
-            .epistemic_projection
-            .observations_by_id
-            .values()
-            .map(debug_observation_entry)
-            .collect();
-        let contradictions = self
-            .epistemic_projection
-            .contradictions_by_id
-            .values()
-            .map(debug_contradiction_entry)
-            .collect();
-        let beliefs_by_holder = self
-            .epistemic_projection
-            .beliefs_by_holder
-            .iter()
-            .map(|(holder_actor_id, belief_ids)| DebugHolderBeliefs {
-                holder_actor_id: holder_actor_id.clone(),
-                beliefs: belief_ids
-                    .iter()
-                    .filter_map(|belief_id| self.epistemic_projection.beliefs_by_id.get(belief_id))
-                    .map(debug_belief_entry)
-                    .collect(),
-            })
-            .collect();
-        let checksum = self.epistemic_projection.compute_checksum().checksum;
-
-        DebugEpistemicsView::new(
-            "debug",
-            observations,
-            beliefs_by_holder,
-            contradictions,
-            Vec::new(),
-            format!(
-                "{} checksum={}",
-                self.epistemic_projection.projection_version.as_str(),
-                checksum.as_str()
-            ),
-        )
+        self.epistemic_projection.debug_epistemics_view()
     }
 
     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
         if !self.state.actors().contains_key(actor_id) {
             return Err(AppError::ActorNotFound(actor_id.clone()));
         }
-        let beliefs = self
+        Ok(self
             .epistemic_projection
-            .beliefs_by_id
-            .values()
-            .filter(|belief| belief.holder == HolderKind::Actor(actor_id.clone()))
-            .map(debug_belief_entry)
-            .collect();
-        Ok(DebugBeliefsView::new(actor_id.clone(), beliefs))
+            .debug_beliefs_view(actor_id.clone()))
     }
 
     pub fn debug_observations_view(
@@ -431,62 +388,9 @@ impl TuiApp {
         if !self.state.actors().contains_key(actor_id) {
             return Err(AppError::ActorNotFound(actor_id.clone()));
         }
-        let observations = self
+        Ok(self
             .epistemic_projection
-            .observations_by_id
-            .values()
-            .filter(|observation| observation.observer_actor_id == *actor_id)
-            .map(debug_observation_entry)
-            .collect();
-        Ok(DebugObservationsView::new(actor_id.clone(), observations))
-    }
-}
-
-fn debug_belief_entry(belief: &tracewake_core::epistemics::belief::Belief) -> DebugBeliefEntry {
-    DebugBeliefEntry {
-        belief_id: belief.belief_id.as_str().to_string(),
-        proposition: belief.proposition.render(),
-        stance: belief.stance.stable_id().to_string(),
-        confidence: belief.confidence.serialize_canonical(),
-        source: source_summary(&belief.source),
-    }
-}
-
-fn debug_observation_entry(
-    observation: &tracewake_core::epistemics::observation::Observation,
-) -> DebugObservationEntry {
-    DebugObservationEntry {
-        observation_id: observation.observation_id.as_str().to_string(),
-        observer_actor_id: observation.observer_actor_id.clone(),
-        channel: observation.channel.stable_id().to_string(),
-        confidence: observation.confidence.serialize_canonical(),
-        source: source_summary(&observation.source),
-    }
-}
-
-fn debug_contradiction_entry(
-    contradiction: &tracewake_core::epistemics::contradiction::Contradiction,
-) -> DebugContradictionEntry {
-    DebugContradictionEntry {
-        contradiction_id: contradiction.contradiction_id.as_str().to_string(),
-        holder_actor_id: contradiction.holder_actor_id.clone(),
-        expectation_belief_id: contradiction
-            .prior_expectation_belief_id
-            .as_str()
-            .to_string(),
-        observation_id: contradiction
-            .contradicting_observation_id
-            .as_str()
-            .to_string(),
-        summary: contradiction.kind.stable_id().to_string(),
-    }
-}
-
-fn source_summary(source: &SourceRef) -> String {
-    match source {
-        SourceRef::Event(event_id) => format!("event:{}", event_id.as_str()),
-        SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
-        SourceRef::Cause(cause) => format!("cause:{cause:?}"),
+            .debug_observations_view(actor_id.clone()))
     }
 }
 
