@@ -852,7 +852,7 @@ fn integrated_no_human_day_capstone_emerges_from_one_autonomous_run() {
             && event
                 .payload
                 .iter()
-                .any(|field| field.key == "reason" && field.value.starts_with("no_human_day:"))
+                .any(|field| field.key == "reason" && !field.value.starts_with("no_human_day:"))
     }));
     assert!(log.events().iter().any(|event| {
         event.event_type == EventKind::WorkBlockFailed

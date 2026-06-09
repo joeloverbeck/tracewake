@@ -58,5 +58,5 @@ pub use trace::{
 };
 pub use transaction::{
     ActorDecisionProposalOutcome, ActorDecisionTransaction, ActorDecisionTransactionInput,
-    ActorDecisionTransactionOutcome,
+    ActorDecisionTransactionOutcome, SealedProposal,
 };

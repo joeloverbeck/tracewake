@@ -609,19 +609,10 @@ pub mod no_human {
             ),
             include_idle_fallback: true,
         }) {
-            ActorDecisionTransactionOutcome::Proposed(proposed) => {
-                let mut proposal = proposed.proposal;
-                if proposal.action_id.as_str() == "wait" {
-                    proposal.parameters.insert(
-                        "reason".to_string(),
-                        format!("no_human_day:{}", window.window_id),
-                    );
-                }
-                Some(BuiltAgentProposal {
-                    proposal,
-                    decision_trace_record: proposed.decision_trace_record,
-                })
-            }
+            ActorDecisionTransactionOutcome::Proposed(proposed) => Some(BuiltAgentProposal {
+                proposal: proposed.proposal.into_proposal(),
+                decision_trace_record: proposed.decision_trace_record,
+            }),
             ActorDecisionTransactionOutcome::Stuck { .. } => None,
         }
     }
@@ -2219,6 +2210,56 @@ pub mod no_human {
                     .hidden_truth_audit_result
                     .actor_known_only
             );
+        }
+
+        #[test]
+        fn scheduler_cannot_rewrite_wait_reason_after_transaction() {
+            let actor_id = actor_id();
+            let home = PlaceId::new("home_tomas").unwrap();
+            let mut state = PhysicalState::default();
+            state
+                .actors
+                .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), home));
+            let mut agent_state = agent_state(&actor_id);
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "rewrite_window".to_string(),
+                        start_tick: SimTick::ZERO,
+                        end_tick: SimTick::new(4),
+                    }],
+                },
+            );
+
+            let wait_event = log
+                .events()
+                .iter()
+                .find(|event| event.event_type == EventKind::ActorWaited)
+                .expect("no-human idle window should commit a wait event");
+            let reason = wait_event
+                .payload
+                .iter()
+                .find(|field| field.key == "reason")
+                .map(|field| field.value.as_str())
+                .expect("wait event carries actor-visible reason");
+
+            assert_eq!(reason, "actor_decision_reevaluation");
+            assert!(!reason.contains("no_human_day:"));
+            assert!(!wait_event
+                .payload
+                .iter()
+                .any(|field| field.value.contains("rewrite_window")));
+            assert!(!wait_event.effects_summary.contains("rewrite_window"));
         }
 
         #[test]

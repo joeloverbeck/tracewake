@@ -5,6 +5,7 @@ use support::{AgentSeed, PhysicalSeed};
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
+const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
@@ -1362,6 +1363,38 @@ fn guard_006_scheduler_has_no_routine_family_to_primitive_dispatch() {
         "ActionId::new(\"work_block\")",
     ] {
         assert_absent(&scheduler, forbidden);
+    }
+}
+
+#[test]
+fn guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition() {
+    let scheduler = production(SCHEDULER_RS);
+    let transaction = production(TRANSACTION_RS);
+    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+    let after_transaction_run =
+        body_after_marker(build_agent_proposal, "ActorDecisionTransaction::run");
+
+    assert!(
+        transaction.contains("pub struct SealedProposal"),
+        "actor decision transaction must expose a sealed proposal handoff type"
+    );
+    assert!(
+        transaction.contains("proposal: Proposal"),
+        "sealed proposal must retain Proposal behind a private field"
+    );
+    assert_absent(&transaction, "pub proposal: Proposal");
+
+    for forbidden in [
+        "proposal.parameters.insert",
+        "proposal.target_ids.push",
+        "proposal.action_id =",
+        "proposal.actor_id =",
+        "let mut proposal = proposed.proposal",
+        "proposed.proposal.parameters",
+        "proposed.proposal.target_ids",
+        "proposed.proposal.action_id",
+    ] {
+        assert_absent(after_transaction_run, forbidden);
     }
 }
 

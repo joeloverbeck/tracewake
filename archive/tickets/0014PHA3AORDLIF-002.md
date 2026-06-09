@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-002: Sealed transaction proposal — scheduler cannot mutate after cognition
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/transaction.rs` output type reseal, `scheduler.rs` no-human path), new source guard, 1 adversarial fixture
@@ -84,3 +84,27 @@ Add the mutation-ban guard (Verification Layer 1) and the adversarial fixture (T
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-content`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+- Added `SealedProposal` as the actor decision transaction handoff type, with private proposal storage and read-only accessors.
+- Removed the no-human scheduler rewrite of actor-visible wait reasons after transaction return.
+- Added a scheduler regression that commits a wait event and proves the reason remains transaction-authored (`actor_decision_reevaluation`) with no `no_human_day:<window>` actor-visible payload.
+- Added a source guard banning post-transaction scheduler mutation of proposal parameters, targets, action id, or actor id.
+- Added and registered `scheduler_cannot_rewrite_wait_reason_after_transaction_001`.
+- Updated stale acceptance expectations that previously required the forbidden scheduler-authored wait reason.
+
+Verification run:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core scheduler_cannot_rewrite_wait_reason_after_transaction`
+3. `cargo test -p tracewake-core --test anti_regression_guards`
+4. `cargo test -p tracewake-content`
+5. `cargo test -p tracewake-core --test no_human_capstone`
+6. `cargo test -p tracewake-core --lib transaction_links_candidate_intention_method_plan_and_proposal`
+7. `cargo test -p tracewake-core --test acceptance_gates integrated_no_human_day_capstone_emerges_from_one_autonomous_run`
+8. `cargo test --workspace`
+9. `cargo clippy --workspace --all-targets -- -D warnings`
+10. `cargo build --workspace --all-targets --locked`

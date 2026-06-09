@@ -23,6 +23,7 @@ mod prose_born_fact_rejected_001;
 mod replay_item_location_001;
 mod routine_blocked_diagnostic_001;
 mod routine_no_teleport_001;
+mod scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 mod sleep_eat_work_001;
 mod sound_uncertainty_001;
 mod strongbox_001;
@@ -76,6 +77,7 @@ pub use prose_born_fact_rejected_001::prose_born_fact_rejected_001;
 pub use replay_item_location_001::replay_item_location_001;
 pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
 pub use routine_no_teleport_001::routine_no_teleport_001;
+pub use scheduler_cannot_rewrite_wait_reason_after_transaction_001::scheduler_cannot_rewrite_wait_reason_after_transaction_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
@@ -146,6 +148,7 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_unseen_workplace_assignment_does_not_plan_work_001(),
         no_human_current_place_without_sleep_affordance_does_not_sleep_001(),
         no_human_known_workplace_requires_provenance_001(),
+        scheduler_cannot_rewrite_wait_reason_after_transaction_001(),
         no_human_day_001(),
     ]
 }

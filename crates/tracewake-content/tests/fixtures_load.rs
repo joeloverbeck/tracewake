@@ -133,7 +133,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 30);
+    assert_eq!(all.len(), 31);
 
     let ids = all
         .iter()
@@ -166,6 +166,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "replay_item_location_001".to_string(),
             "routine_blocked_diagnostic_001".to_string(),
             "routine_no_teleport_001".to_string(),
+            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
@@ -281,6 +282,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "possession_does_not_reset_intention_001".to_string(),
             "routine_blocked_diagnostic_001".to_string(),
             "routine_no_teleport_001".to_string(),
+            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),
         ])

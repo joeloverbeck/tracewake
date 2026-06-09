@@ -9,6 +9,7 @@ use crate::agent::{
 use crate::ids::{ActorId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
 use crate::time::SimTick;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
 pub struct ActorDecisionTransactionInput<'a> {
@@ -30,11 +31,42 @@ pub enum ActorDecisionTransactionOutcome {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ActorDecisionProposalOutcome {
-    pub proposal: Proposal,
+    pub proposal: SealedProposal,
     pub decision_trace: DecisionTrace,
     pub decision_trace_record: DecisionTraceRecord,
     pub lifecycle_effects: Vec<IntentionLifecycleEffect>,
     pub local_plan: LocalPlan,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SealedProposal {
+    proposal: Proposal,
+}
+
+impl SealedProposal {
+    pub fn seal(proposal: Proposal) -> Self {
+        Self { proposal }
+    }
+
+    pub fn proposal_id(&self) -> &ProposalId {
+        &self.proposal.proposal_id
+    }
+
+    pub fn action_id(&self) -> &crate::ids::ActionId {
+        &self.proposal.action_id
+    }
+
+    pub fn target_ids(&self) -> &[String] {
+        &self.proposal.target_ids
+    }
+
+    pub fn parameters(&self) -> &BTreeMap<String, String> {
+        &self.proposal.parameters
+    }
+
+    pub fn into_proposal(self) -> Proposal {
+        self.proposal
+    }
 }
 
 pub struct ActorDecisionTransaction;
@@ -213,7 +245,7 @@ impl ActorDecisionTransaction {
         );
 
         ActorDecisionTransactionOutcome::Proposed(Box::new(ActorDecisionProposalOutcome {
-            proposal,
+            proposal: SealedProposal::seal(proposal),
             decision_trace_record: DecisionTraceRecord::from_trace(&selection.trace),
             decision_trace: selection.trace,
             lifecycle_effects: selection.lifecycle_effects,
@@ -466,17 +498,17 @@ mod tests {
         assert_eq!(local_plan.trace.selected_plan[0].action_id.as_str(), "eat");
         let selected_goal_id = decision_trace.selected_goal_id.clone().unwrap();
         assert_eq!(
-            proposal.parameters.get("candidate_goal_id"),
+            proposal.parameters().get("candidate_goal_id"),
             Some(&selected_goal_id.as_str().to_string())
         );
         assert_eq!(
-            proposal.parameters.get("decision_trace_id"),
+            proposal.parameters().get("decision_trace_id"),
             Some(&decision_trace.trace_id.as_str().to_string())
         );
-        assert!(proposal.parameters.contains_key("routine_template_id"));
-        assert!(proposal.parameters.contains_key("routine_execution_id"));
-        assert_eq!(proposal.action_id.as_str(), "eat");
-        assert_eq!(proposal.target_ids, vec!["food_stew".to_string()]);
+        assert!(proposal.parameters().contains_key("routine_template_id"));
+        assert!(proposal.parameters().contains_key("routine_execution_id"));
+        assert_eq!(proposal.action_id().as_str(), "eat");
+        assert_eq!(proposal.target_ids(), ["food_stew".to_string()]);
         assert!(matches!(
             &lifecycle_effects[..],
             [IntentionLifecycleEffect::Adopted { intention, .. }]
