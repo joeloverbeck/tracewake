@@ -13,6 +13,7 @@ use tracewake_core::ids::{
     PlaceId, SchemaVersion,
 };
 use tracewake_core::location::Location;
+use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -393,6 +394,53 @@ fn replay_rebuild_checksum_matches_original_after_no_human_day() {
         replayed_trace.typed_diagnostic.blocker_code,
         BlockerCode::None
     );
+}
+
+#[test]
+fn no_human_metrics_rebuild_from_typed_diagnostic_fields() {
+    let mut log = EventLog::new();
+    append_to_log(
+        &mut log,
+        event("event_metrics_day_started", EventKind::NoHumanDayStarted, 0),
+    );
+    let mut text_only = event(
+        "event_metrics_text_only_trace",
+        EventKind::DecisionTraceRecorded,
+        1,
+    );
+    text_only.payload = vec![PayloadField::new(
+        "trace_canonical",
+        "decision_trace_v1|planner_budget_exhausted",
+    )];
+    append_to_log(&mut log, text_only);
+    let mut typed = event(
+        "event_metrics_typed_planning_stuck",
+        EventKind::StuckDiagnosticRecorded,
+        2,
+    );
+    typed.payload = vec![
+        PayloadField::new(
+            "responsible_layer",
+            ResponsibleLayer::LocalPlanning.stable_id(),
+        ),
+        PayloadField::new("blocker_code", BlockerCode::LocalPlanFailed.stable_id()),
+    ];
+    append_to_log(&mut log, typed);
+    append_to_log(
+        &mut log,
+        event(
+            "event_metrics_day_completed",
+            EventKind::NoHumanDayCompleted,
+            3,
+        ),
+    );
+
+    let live = no_human_day_metrics(&log);
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let replayed = no_human_day_metrics(&replayed_log);
+
+    assert_eq!(live.planner_failures, 1);
+    assert_eq!(live.serialize_canonical(), replayed.serialize_canonical());
 }
 
 #[test]

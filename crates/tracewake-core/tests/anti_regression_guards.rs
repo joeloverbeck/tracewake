@@ -1369,6 +1369,28 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
 }
 
 #[test]
+fn guard_014_no_human_metrics_do_not_scan_display_text() {
+    let projection = production(PROJECTIONS_RS);
+    let metrics_body = body_after_marker(&projection, "pub fn no_human_day_metrics");
+
+    for forbidden in [
+        ".contains(\"planner\")",
+        ".contains(\"failed\")",
+        ".contains(\"planner_budget_exhausted\")",
+    ] {
+        assert_absent(metrics_body, forbidden);
+    }
+    assert!(
+        projection.contains("fn is_typed_planner_failure_event"),
+        "no-human metrics must classify planner failures through typed diagnostic fields"
+    );
+    assert!(
+        projection.contains("typed_responsible_layer") && projection.contains("typed_blocker_code"),
+        "no-human metrics must read responsible_layer and blocker_code"
+    );
+}
+
+#[test]
 fn guard_014_sleep_validation_requires_modeled_affordance() {
     let sleep = production(SLEEP_RS);
     let projection = production(PROJECTIONS_RS);

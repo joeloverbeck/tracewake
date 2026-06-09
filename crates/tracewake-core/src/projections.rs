@@ -2,6 +2,7 @@ use crate::actions::{
     validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalSource,
     ProposalSourceContext, ProposalValidationContext, ReasonCode, ReportStatus, ValidationReport,
 };
+use crate::agent::{BlockerCode, ResponsibleLayer};
 use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
 use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
@@ -203,13 +204,7 @@ pub fn no_human_day_metrics(log: &EventLog) -> NoHumanDayMetrics {
             + count_kind(events, EventKind::RoutineStepFailed),
         planner_failures: events
             .iter()
-            .filter(|event| {
-                event.event_type == EventKind::DecisionTraceRecorded
-                    && event.payload.iter().any(|field| {
-                        field.value.contains("planner_budget_exhausted")
-                            || (field.value.contains("planner") && field.value.contains("failed"))
-                    })
-            })
+            .filter(|event| is_typed_planner_failure_event(event))
             .count(),
         stuck_actor_count: stuck_actor_ids.len(),
         run_duration_ticks: end_tick.value().saturating_sub(start_tick.value()),
@@ -234,6 +229,42 @@ fn count_kind(events: &[EventEnvelope], kind: EventKind) -> usize {
         .iter()
         .filter(|event| event.event_type == kind)
         .count()
+}
+
+fn is_typed_planner_failure_event(event: &EventEnvelope) -> bool {
+    if !matches!(
+        event.event_type,
+        EventKind::DecisionTraceRecorded | EventKind::StuckDiagnosticRecorded
+    ) {
+        return false;
+    }
+    let responsible_layer = typed_responsible_layer(event);
+    let blocker_code = typed_blocker_code(event);
+    matches!(responsible_layer, Some(ResponsibleLayer::LocalPlanning))
+        || matches!(
+            blocker_code,
+            Some(
+                BlockerCode::PlannerBudgetExhausted
+                    | BlockerCode::EmptyLocalPlan
+                    | BlockerCode::LocalPlanFailed
+            )
+        )
+}
+
+fn typed_responsible_layer(event: &EventEnvelope) -> Option<ResponsibleLayer> {
+    payload_value(event, "responsible_layer").and_then(|value| ResponsibleLayer::parse(value).ok())
+}
+
+fn typed_blocker_code(event: &EventEnvelope) -> Option<BlockerCode> {
+    payload_value(event, "blocker_code").and_then(|value| BlockerCode::parse(value).ok())
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn is_routine_event(kind: EventKind) -> bool {
@@ -1736,25 +1767,31 @@ mod tests {
         append_metric_event(&mut log, EventKind::NeedThresholdCrossed, 9, 9);
         append_metric_event(&mut log, EventKind::IntentionInterrupted, 10, 10);
         append_metric_event(&mut log, EventKind::RoutineStepFailed, 11, 11);
-        let mut planner_failure = metric_event(EventKind::DecisionTraceRecorded, 12, 12);
-        planner_failure.payload = vec![PayloadField::new(
+        let mut text_only_planner_failure = metric_event(EventKind::DecisionTraceRecorded, 12, 12);
+        text_only_planner_failure.payload = vec![PayloadField::new(
             "trace_canonical",
             "decision_trace_v1|planner_budget_exhausted",
         )];
-        log.append(planner_failure).unwrap();
-        let mut stuck_first = metric_event(EventKind::StuckDiagnosticRecorded, 13, 13);
+        log.append(text_only_planner_failure).unwrap();
+        let mut typed_planner_failure = metric_event(EventKind::StuckDiagnosticRecorded, 13, 13);
+        typed_planner_failure.payload = vec![
+            PayloadField::new("responsible_layer", "local_planning"),
+            PayloadField::new("blocker_code", "local_plan_failed"),
+        ];
+        log.append(typed_planner_failure).unwrap();
+        let mut stuck_first = metric_event(EventKind::StuckDiagnosticRecorded, 14, 14);
         stuck_first.actor_id = Some(actor_id("actor_tomas"));
         log.append(stuck_first).unwrap();
-        let mut stuck_duplicate = metric_event(EventKind::StuckDiagnosticRecorded, 14, 14);
+        let mut stuck_duplicate = metric_event(EventKind::StuckDiagnosticRecorded, 15, 15);
         stuck_duplicate.actor_id = Some(actor_id("actor_tomas"));
         log.append(stuck_duplicate).unwrap();
-        let mut replay_failure = metric_event(EventKind::ReplayProjectionRebuilt, 15, 15);
+        let mut replay_failure = metric_event(EventKind::ReplayProjectionRebuilt, 16, 16);
         replay_failure.payload = vec![PayloadField::new("status", "failure")];
         log.append(replay_failure).unwrap();
-        let mut player_conditioned = metric_event(EventKind::ActionStarted, 16, 16);
+        let mut player_conditioned = metric_event(EventKind::ActionStarted, 17, 17);
         player_conditioned.effects_summary = "conditioned on player choice".to_string();
         log.append(player_conditioned).unwrap();
-        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 17, 20);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 18, 20);
 
         let metrics = no_human_day_metrics(&log);
         let events = log.events();

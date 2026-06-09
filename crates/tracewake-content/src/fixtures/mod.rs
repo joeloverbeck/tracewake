@@ -17,6 +17,7 @@ mod no_human_current_place_without_sleep_affordance_does_not_sleep_001;
 mod no_human_day_001;
 mod no_human_epistemic_check_001;
 mod no_human_known_workplace_requires_provenance_001;
+mod no_human_metrics_require_typed_responsible_layer_001;
 mod no_human_unseen_workplace_assignment_does_not_plan_work_001;
 mod ordinary_workday_001;
 mod planner_trace_001;
@@ -75,6 +76,7 @@ pub use no_human_current_place_without_sleep_affordance_does_not_sleep_001::no_h
 pub use no_human_day_001::no_human_day_001;
 pub use no_human_epistemic_check_001::no_human_epistemic_check_001;
 pub use no_human_known_workplace_requires_provenance_001::no_human_known_workplace_requires_provenance_001;
+pub use no_human_metrics_require_typed_responsible_layer_001::no_human_metrics_require_typed_responsible_layer_001;
 pub use no_human_unseen_workplace_assignment_does_not_plan_work_001::no_human_unseen_workplace_assignment_does_not_plan_work_001;
 pub use ordinary_workday_001::ordinary_workday_001;
 pub use planner_trace_001::planner_trace_001;
@@ -160,6 +162,7 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_known_workplace_requires_provenance_001(),
         scheduler_cannot_rewrite_wait_reason_after_transaction_001(),
         method_fallback_requires_new_trace_or_stuck_001(),
+        no_human_metrics_require_typed_responsible_layer_001(),
         hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001(),
         no_human_day_001(),
     ]

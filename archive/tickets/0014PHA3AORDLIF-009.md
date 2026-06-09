@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-009: Typed no-human metrics — drop planner-failure string scans
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs` `no_human_day_metrics`), new source guard, schema/replay gate, 1 adversarial fixture
@@ -83,3 +83,26 @@ Add the metrics-string-scan ban guard and the adversarial fixture.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-core --test no_human_capstone`
 3. `cargo test --workspace`
+
+## Outcome (2026-06-09)
+
+Completed. `no_human_day_metrics` now classifies planner failures from typed
+diagnostic payload fields (`responsible_layer` / `blocker_code`) instead of
+scanning payload English. Untyped planner-looking trace text is ignored; typed
+local-planning or planner-specific blocker codes are counted.
+
+Added `no_human_metrics_require_typed_responsible_layer_001` as the content
+fixture anchor for this proof surface, extended the core metrics unit test with
+typed-vs-text diagnostic events, added a replay gate proving canonical log
+replay rebuilds byte-identical metrics from typed fields, and added an
+anti-regression guard banning metrics `.contains("planner")` / `.contains("failed")`
+classification.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo test -p tracewake-core --test event_schema_replay_gates`
+4. `cargo test -p tracewake-core --test no_human_capstone`
+5. `cargo test -p tracewake-content`
+6. `cargo test --workspace`

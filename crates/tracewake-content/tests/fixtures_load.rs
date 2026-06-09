@@ -135,7 +135,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 35);
+    assert_eq!(all.len(), 36);
 
     let ids = all
         .iter()
@@ -162,6 +162,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "no_human_day_001".to_string(),
             "no_human_epistemic_check_001".to_string(),
             "no_human_known_workplace_requires_provenance_001".to_string(),
+            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
             "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
             "no_hidden_truth_planning_001".to_string(),
             "ordinary_workday_001".to_string(),
@@ -285,6 +286,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
             "no_human_day_001".to_string(),
             "no_human_known_workplace_requires_provenance_001".to_string(),
+            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
             "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
             "ordinary_workday_001".to_string(),
             "planner_trace_001".to_string(),
