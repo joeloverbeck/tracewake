@@ -209,11 +209,11 @@ pub mod no_human {
     use crate::actions::proposal::Proposal;
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
-        ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
-        ActorKnownFact, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
-        DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind, NeedState,
-        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, StuckDiagnostic,
-        StuckResultingStatus, TypedDiagnosticFields,
+        record_current_place_perception, ActorDecisionTransaction, ActorDecisionTransactionInput,
+        ActorDecisionTransactionOutcome, ActorKnownFact, ActorKnownPlanningContext,
+        BlockerCategory, BlockerCode, DecisionTraceRecord, Intention, IntentionSource, NeedBand,
+        NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily,
+        StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::events::apply::apply_agent_event;
     use crate::events::log::EventLog;
@@ -370,6 +370,13 @@ pub mod no_human {
                     &mut pending_sleep_starts,
                     &mut pending_work_starts,
                     window.start_tick,
+                );
+                record_current_place_perception(
+                    log,
+                    state,
+                    actor_id,
+                    window.start_tick,
+                    &content_manifest_id,
                 );
                 let Some(agent_proposal) = build_agent_proposal(
                     state,
@@ -2021,10 +2028,13 @@ pub mod no_human {
         use crate::events::{EventCause, EventStream};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
-            ProposalId, RoutineExecutionId, RoutineTemplateId, WorkplaceId,
+            ProposalId, RoutineExecutionId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
         };
         use crate::location::Location;
-        use crate::state::{ActorBody, AgentState, FoodSupplyState, WorkplaceState};
+        use crate::state::{
+            ActorBody, AgentState, FoodSupplyState, PlaceState, SleepAffordanceState,
+            WorkplaceState,
+        };
 
         fn agent_state(actor_id: &ActorId) -> AgentState {
             let mut state = AgentState::default();
@@ -2282,6 +2292,108 @@ pub mod no_human {
                     .hidden_truth_audit_result
                     .actor_known_only
             );
+        }
+
+        #[test]
+        fn no_human_day_records_current_place_perception_before_decision() {
+            let actor_id = actor_id();
+            let home = PlaceId::new("home_tomas").unwrap();
+            let workshop = PlaceId::new("workshop_tomas").unwrap();
+            let mut state = PhysicalState::default();
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), home.clone()),
+            );
+            let mut home_state = PlaceState::new(home.clone(), "Tomas home");
+            home_state.adjacent_place_ids.insert(workshop.clone());
+            state.places.insert(home.clone(), home_state);
+            state
+                .places
+                .insert(workshop.clone(), PlaceState::new(workshop, "Workshop"));
+            state.food_supplies.insert(
+                FoodSupplyId::new("food_breakfast_tomas").unwrap(),
+                FoodSupplyState::new(
+                    FoodSupplyId::new("food_breakfast_tomas").unwrap(),
+                    Location::AtPlace(home.clone()),
+                    2,
+                    120,
+                ),
+            );
+            state.sleep_affordances.insert(
+                SleepAffordanceId::new("bed_tomas").unwrap(),
+                SleepAffordanceState::new(SleepAffordanceId::new("bed_tomas").unwrap(), home),
+            );
+            let mut first_agent_state = agent_state(&actor_id);
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+            let mut log = EventLog::new();
+            let config = NoHumanDayConfig {
+                actor_ids: vec![actor_id.clone()],
+                windows: vec![DayWindow {
+                    window_id: "morning".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(4),
+                }],
+            };
+            let initial_state = state.clone();
+
+            run_no_human_day(
+                &mut state,
+                &mut first_agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                config.clone(),
+            );
+            let mut replay_state = initial_state;
+            let mut replay_agent_state = agent_state(&actor_id);
+            let mut replay_log = EventLog::new();
+            run_no_human_day(
+                &mut replay_state,
+                &mut replay_agent_state,
+                &mut replay_log,
+                &registry,
+                content_manifest_id(),
+                config,
+            );
+
+            assert_eq!(log.serialize_canonical(), replay_log.serialize_canonical());
+            let observations = log
+                .events()
+                .iter()
+                .filter(|event| event.event_type == EventKind::ObservationRecorded)
+                .collect::<Vec<_>>();
+            assert_eq!(observations.len(), 3);
+            let perceived_kinds = observations
+                .iter()
+                .filter_map(|event| {
+                    event
+                        .payload
+                        .iter()
+                        .find(|field| field.key == "perceived_kind")
+                        .map(|field| field.value.as_str())
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+            assert_eq!(
+                perceived_kinds,
+                std::collections::BTreeSet::from([
+                    "visible_exit",
+                    "visible_food_supply",
+                    "visible_sleep_affordance"
+                ])
+            );
+            let first_decision_index = log
+                .events()
+                .iter()
+                .position(|event| event.event_type == EventKind::DecisionTraceRecorded)
+                .expect("no-human run records a decision trace");
+            assert!(log.events()[..first_decision_index]
+                .iter()
+                .any(|event| event.event_type == EventKind::ObservationRecorded));
+            assert!(observations.iter().all(|event| {
+                event.ordering_key.sim_tick == SimTick::ZERO
+                    && matches!(event.ordering_key.source_id, SchedulerSourceId::Actor(_))
+            }));
         }
 
         #[test]

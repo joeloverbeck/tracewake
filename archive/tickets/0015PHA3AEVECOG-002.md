@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-002: Modeled current-place perception pass emitting observation events
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — a deterministic perception pass in `tracewake-core` appending observation events (reusing the Phase 2A `ObservationRecorded` machinery) keyed to the decision-window ordering key
@@ -82,3 +82,30 @@ Invoke the perception pass from the no-human window in `scheduler.rs` at a deter
 
 1. `cargo test -p tracewake-core scheduler:: && cargo test -p tracewake-core agent::`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Added `agent::perception`, a deterministic current-place perception pass that appends `ObservationRecorded` events for same-place visible food supplies, open same-place sleep affordances, and visible exits.
+- Invoked the perception pass from the no-human day scheduler before the actor decision transaction. The pass appends event-log observations only; it does not return cognition facts to the scheduler.
+- Added unit coverage for event presence, absence-as-no-event, and byte-identical repeated appends.
+- Added scheduler-level coverage proving no-human day logs perception observations before the decision trace and replay/rerun output is byte-identical.
+- Preserved the existing hidden-truth guard by filtering hidden route targets out of visible-exit perception until a later route-knowledge channel can distinguish visible exits from authored hidden topology.
+
+Deviations from original plan:
+
+- No event schema extension was needed; the pass reuses `ObservationRecorded` with additive payload fields (`perceived_kind`, `subject_id`, `target_id`).
+- No golden checksum files changed; existing fixture runs remain deterministic under the new observation events.
+
+Verification:
+
+- `cargo test -p tracewake-core agent::`
+- `cargo test -p tracewake-core scheduler::`
+- `cargo test -p tracewake-content --test golden_fixtures_run no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`
+- `cargo test --workspace`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
