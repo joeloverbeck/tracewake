@@ -9,8 +9,8 @@ pub use envelope::{
     EventEnvelopeParseError, EventKind, EventKindMetadata, EventReplayHandling,
     EventSchemaMigration, EventSchemaRegistryEntry, EventSchemaVersion, EventStream,
     ExpectationContradictedPayload, InitialBeliefSeededPayload, InitialBeliefSourceKind,
-    ObservationRecordedPayload, PayloadField, RandomDrawRef, EVENT_SCHEMA_REGISTRY,
-    EVENT_SCHEMA_V1,
+    ObservationRecordedPayload, PayloadField, RandomDrawRef, RoleAssignmentNoticeRecordedPayload,
+    StartingBeliefRecordedPayload, EVENT_SCHEMA_REGISTRY, EVENT_SCHEMA_V1,
 };
 
 #[cfg(test)]
@@ -55,6 +55,12 @@ mod tests {
         assert!(registry
             .iter()
             .any(|entry| entry.kind == EventKind::ActorMoved));
+        assert!(registry
+            .iter()
+            .any(|entry| entry.kind == EventKind::RoleAssignmentNoticeRecorded));
+        assert!(registry
+            .iter()
+            .any(|entry| entry.kind == EventKind::StartingBeliefRecorded));
         assert!(registry
             .iter()
             .any(|entry| entry.kind == EventKind::ReplayProjectionRebuilt));

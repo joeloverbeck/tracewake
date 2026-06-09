@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-001: Seed-time knowledge events for authored starting knowledge
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — new `tracewake-core` `EventKind` variants (`RoleAssignmentNoticeRecorded`, `StartingBeliefRecorded`) with payloads + schema-registry metadata; `tracewake-content` load-path emission; golden-fixture checksum updates
@@ -89,3 +89,28 @@ In `crates/tracewake-content/src/load.rs`, emit the new knowledge events for eac
 
 1. `cargo test -p tracewake-core events:: && cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Added additive core seed-channel event kinds `RoleAssignmentNoticeRecorded` and `StartingBeliefRecorded`, with versioned authored-prehistory payload structs, stable event metadata, registry coverage, and replay application routing.
+- Extended `load_fixture_package` to return a deterministic `seed_event_log` alongside the canonical world and agent state.
+- Emitted deterministic authored-prehistory seed events for existing initial beliefs, actor homes, actor sleep places, authored household food knowledge, and workplace assignment notices.
+- Added loader coverage proving `sleep_eat_work_001` emits the role-assignment notice plus home/sleep/food starting-belief events with `source_kind = authored_prehistory`, and that repeated loads produce byte-identical seed logs.
+
+Deviations from original plan:
+
+- Reused the existing `InitialBeliefSeeded` event kind for already-authored `initial_beliefs` rather than introducing a duplicate belief-proposition seed path. `StartingBeliefRecorded` covers the broader Phase 3A starting knowledge facts that are not yet representable as current `Proposition` variants.
+- The actor-known surface builder remains unwired by design; `0015PHA3AEVECOG-003` owns the cutover.
+
+Verification:
+
+- `cargo test -p tracewake-core events`
+- `cargo test -p tracewake-content`
+- `cargo fmt --all --check`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`

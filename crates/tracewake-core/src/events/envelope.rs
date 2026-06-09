@@ -95,6 +95,8 @@ pub enum EventKind {
     NoHumanAdvanceStarted,
     NoHumanAdvanceCompleted,
     InitialBeliefSeeded,
+    RoleAssignmentNoticeRecorded,
+    StartingBeliefRecorded,
     ObservationRecorded,
     BeliefUpdated,
     ExpectationContradicted,
@@ -154,6 +156,8 @@ impl EventKind {
             EventKind::NoHumanAdvanceStarted,
             EventKind::NoHumanAdvanceCompleted,
             EventKind::InitialBeliefSeeded,
+            EventKind::RoleAssignmentNoticeRecorded,
+            EventKind::StartingBeliefRecorded,
             EventKind::ObservationRecorded,
             EventKind::BeliefUpdated,
             EventKind::ExpectationContradicted,
@@ -217,6 +221,8 @@ impl EventKind {
             | EventKind::NoHumanAdvanceStarted
             | EventKind::NoHumanAdvanceCompleted => EventStream::Diagnostic,
             EventKind::InitialBeliefSeeded
+            | EventKind::RoleAssignmentNoticeRecorded
+            | EventKind::StartingBeliefRecorded
             | EventKind::ObservationRecorded
             | EventKind::BeliefUpdated
             | EventKind::ExpectationContradicted
@@ -305,6 +311,8 @@ impl EventKind {
             EventKind::NoHumanAdvanceStarted => "no_human_advance_started",
             EventKind::NoHumanAdvanceCompleted => "no_human_advance_completed",
             EventKind::InitialBeliefSeeded => "initial_belief_seeded",
+            EventKind::RoleAssignmentNoticeRecorded => "role_assignment_notice_recorded",
+            EventKind::StartingBeliefRecorded => "starting_belief_recorded",
             EventKind::ObservationRecorded => "observation_recorded",
             EventKind::BeliefUpdated => "belief_updated",
             EventKind::ExpectationContradicted => "expectation_contradicted",
@@ -445,6 +453,55 @@ impl InitialBeliefSeededPayload {
             schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
             source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
             belief,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RoleAssignmentNoticeRecordedPayload {
+    pub schema_version: SchemaVersion,
+    pub source_kind: InitialBeliefSourceKind,
+    pub actor_id: ActorId,
+    pub workplace_id: String,
+    pub place_id: PlaceId,
+}
+
+impl RoleAssignmentNoticeRecordedPayload {
+    pub fn new_v1(actor_id: ActorId, workplace_id: impl Into<String>, place_id: PlaceId) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
+            actor_id,
+            workplace_id: workplace_id.into(),
+            place_id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StartingBeliefRecordedPayload {
+    pub schema_version: SchemaVersion,
+    pub source_kind: InitialBeliefSourceKind,
+    pub actor_id: ActorId,
+    pub belief_kind: String,
+    pub subject_id: String,
+    pub value: String,
+}
+
+impl StartingBeliefRecordedPayload {
+    pub fn new_v1(
+        actor_id: ActorId,
+        belief_kind: impl Into<String>,
+        subject_id: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+            source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
+            actor_id,
+            belief_kind: belief_kind.into(),
+            subject_id: subject_id.into(),
+            value: value.into(),
         }
     }
 }
@@ -1200,6 +1257,8 @@ mod tests {
     fn epistemic_event_kinds_classify_to_epistemic_stream() {
         let kinds = [
             EventKind::InitialBeliefSeeded,
+            EventKind::RoleAssignmentNoticeRecorded,
+            EventKind::StartingBeliefRecorded,
             EventKind::ObservationRecorded,
             EventKind::BeliefUpdated,
             EventKind::ExpectationContradicted,
@@ -1293,6 +1352,17 @@ mod tests {
         let mut observation_payload = ObservationRecordedPayload::new_v1(observation());
         let belief_payload = BeliefUpdatedPayload::new_v1(belief());
         let initial_payload = InitialBeliefSeededPayload::new_v1(belief());
+        let role_assignment_payload = RoleAssignmentNoticeRecordedPayload::new_v1(
+            actor_id("actor_tomas"),
+            "workplace_tomas",
+            place_id("workshop_tomas"),
+        );
+        let starting_belief_payload = StartingBeliefRecordedPayload::new_v1(
+            actor_id("actor_tomas"),
+            "sleep_place",
+            "bed_tomas",
+            "home_tomas",
+        );
         let contradiction_payload = ExpectationContradictedPayload::new_v1(contradiction());
         let container_checked_payload = ContainerCheckedPayload::new_v1(
             actor_id("actor_tomas"),
@@ -1310,6 +1380,30 @@ mod tests {
         );
         assert_eq!(
             initial_payload.source_kind.stable_id(),
+            "authored_prehistory"
+        );
+        assert_eq!(
+            role_assignment_payload.schema_version.as_str(),
+            EVENT_SCHEMA_V1
+        );
+        assert_eq!(
+            role_assignment_payload.source_kind,
+            InitialBeliefSourceKind::AuthoredPrehistory
+        );
+        assert_eq!(
+            role_assignment_payload.source_kind.stable_id(),
+            "authored_prehistory"
+        );
+        assert_eq!(
+            starting_belief_payload.schema_version.as_str(),
+            EVENT_SCHEMA_V1
+        );
+        assert_eq!(
+            starting_belief_payload.source_kind,
+            InitialBeliefSourceKind::AuthoredPrehistory
+        );
+        assert_eq!(
+            starting_belief_payload.source_kind.stable_id(),
             "authored_prehistory"
         );
         assert_eq!(

@@ -13,6 +13,7 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
@@ -205,6 +206,59 @@ fn all_fixtures_load_deterministically_and_validate() {
             second.manifest.content_fingerprint
         );
     }
+}
+
+#[test]
+fn phase3a_load_emits_authored_prehistory_seed_events() {
+    let golden = fixtures::sleep_eat_work_001();
+    let first = load_fixture_package(
+        ContentManifestId::new("manifest_sleep_eat_work_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let second = load_fixture_package(
+        ContentManifestId::new("manifest_sleep_eat_work_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+
+    assert_eq!(first.seed_event_log, second.seed_event_log);
+
+    let events = first.seed_event_log.events();
+    let role_notice = events
+        .iter()
+        .find(|event| event.event_type == EventKind::RoleAssignmentNoticeRecorded)
+        .expect("workplace assignment notice is seeded");
+    assert!(role_notice
+        .payload
+        .iter()
+        .any(|field| { field.key == "source_kind" && field.value == "authored_prehistory" }));
+    assert!(role_notice
+        .payload
+        .iter()
+        .any(|field| field.key == "workplace_id" && field.value == "workplace_tomas"));
+
+    let starting_belief_kinds = events
+        .iter()
+        .filter(|event| event.event_type == EventKind::StartingBeliefRecorded)
+        .filter_map(|event| {
+            event
+                .payload
+                .iter()
+                .find(|field| field.key == "belief_kind")
+                .map(|field| field.value.as_str())
+        })
+        .collect::<BTreeSet<_>>();
+    assert!(starting_belief_kinds.contains("home_place"));
+    assert!(starting_belief_kinds.contains("sleep_place"));
+    assert!(starting_belief_kinds.contains("household_food_source"));
+    assert!(events.iter().all(|event| event
+        .payload
+        .iter()
+        .any(|field| field.key == "schema_version"
+            && field.value == tracewake_core::events::EVENT_SCHEMA_V1)));
 }
 
 #[test]
