@@ -7,6 +7,7 @@ const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
+const PIPELINE_RS: &str = include_str!("../src/actions/pipeline.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
 const STATE_RS: &str = include_str!("../src/state.rs");
@@ -1527,6 +1528,33 @@ fn guard_014_transaction_has_no_silent_method_fallback_scan() {
     assert!(
         transaction.contains("method_selection_rejected"),
         "method fallback rerun must preserve a typed rejection reason for the failed selected candidate"
+    );
+}
+
+#[test]
+fn guard_015_hidden_truth_audit_fails_closed_in_transaction() {
+    let transaction = production(TRANSACTION_RS);
+    let pipeline = production(PIPELINE_RS);
+
+    assert!(
+        transaction.contains("stuck_diagnostic_for_hidden_truth_audit"),
+        "transaction must turn failed hidden-truth audit into a typed stuck diagnostic"
+    );
+    assert!(
+        transaction.contains("!selection.trace.hidden_truth_audit_result.actor_known_only"),
+        "transaction must gate on the selected trace hidden-truth audit before proposal construction"
+    );
+    assert!(
+        transaction.contains("BlockerCode::HiddenTruthInput"),
+        "transaction stuck diagnostic must use hidden_truth_input blocker code"
+    );
+    assert!(
+        transaction.contains("hidden_truth_referenced: true"),
+        "transaction stuck diagnostic must preserve hidden-truth typed signal"
+    );
+    assert!(
+        pipeline.contains("ReasonCode::HiddenTruthInput"),
+        "pipeline must reject agent-origin proposals carrying a failed hidden-truth audit"
     );
 }
 

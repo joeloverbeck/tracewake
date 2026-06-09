@@ -5,6 +5,7 @@ mod door_access_001;
 mod embodied_view_omits_raw_assignment_without_context_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
+mod forbidden_provenance_input_fails_closed_001;
 mod hidden_food_closed_container_001;
 mod hidden_food_unknown_route_001;
 mod hidden_route_edge_001;
@@ -67,6 +68,7 @@ pub use door_access_001::door_access_001;
 pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_omits_raw_assignment_without_context_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
+pub use forbidden_provenance_input_fails_closed_001::forbidden_provenance_input_fails_closed_001;
 pub use hidden_food_closed_container_001::hidden_food_closed_container_001;
 pub use hidden_food_unknown_route_001::hidden_food_unknown_route_001;
 pub use hidden_route_edge_001::hidden_route_edge_001;
@@ -152,6 +154,7 @@ pub fn all() -> Vec<GoldenFixture> {
         ordinary_workday_001(),
         sleep_eat_work_001(),
         food_unavailable_replan_001(),
+        forbidden_provenance_input_fails_closed_001(),
         hidden_food_closed_container_001(),
         hidden_food_unknown_route_001(),
         workplace_assignment_provenance_001(),

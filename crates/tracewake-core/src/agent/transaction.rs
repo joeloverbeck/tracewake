@@ -157,6 +157,16 @@ impl ActorDecisionTransaction {
                 }
             }
         };
+        if !selection.trace.hidden_truth_audit_result.actor_known_only {
+            return ActorDecisionTransactionOutcome::Stuck {
+                diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
+                    &input.actor_id,
+                    input.decision_tick,
+                    &selection.selected_goal,
+                    &selection.trace,
+                )),
+            };
+        }
         let method_goal = selection.selected_goal.clone();
 
         let step =
@@ -269,6 +279,14 @@ impl ActorDecisionTransaction {
         proposal.parameters.insert(
             "decision_trace_id".to_string(),
             bundle.decision_trace_id.as_str().to_string(),
+        );
+        proposal.parameters.insert(
+            "hidden_truth_audit_actor_known_only".to_string(),
+            selection
+                .trace
+                .hidden_truth_audit_result
+                .actor_known_only
+                .to_string(),
         );
         proposal.parameters.insert(
             "candidate_goal_id".to_string(),
@@ -398,6 +416,47 @@ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
         RoutineFamily::ContinueCurrentIntention => Some(GoalKind::ContinueCurrentIntention),
         RoutineFamily::MorningWake | RoutineFamily::Wait | RoutineFamily::IdleWithReason => None,
     }
+}
+
+fn stuck_diagnostic_for_hidden_truth_audit(
+    actor_id: &ActorId,
+    tick: SimTick,
+    active_goal: &CandidateGoal,
+    trace: &DecisionTrace,
+) -> StuckDiagnosticRecord {
+    StuckDiagnosticRecord::new(
+        StuckDiagnosticId::new(format!(
+            "stuck_actor_decision_{}_{}",
+            actor_id.as_str(),
+            tick.value()
+        ))
+        .unwrap(),
+        actor_id.clone(),
+        tick,
+        tick.advance_by(1),
+        None,
+        Some(active_goal.candidate_goal_id.clone()),
+        None,
+        active_goal.selected_routine_method.clone(),
+        None,
+        None,
+        None,
+        BlockerCategory::Knowledge,
+        "hidden truth input",
+        "actor decision transaction rejected forbidden actor-known input provenance",
+        trace.hidden_truth_audit_result.notes.clone(),
+        "typed_stuck_diagnostic",
+        StuckResultingStatus::Failed,
+    )
+    .with_typed_diagnostic(TypedDiagnosticFields {
+        responsible_layer: ResponsibleLayer::CandidateGeneration,
+        blocker_code: BlockerCode::HiddenTruthInput,
+        input_source: "actor_known_context".to_string(),
+        actual_source: "actor_decision_transaction".to_string(),
+        hidden_truth_referenced: true,
+        remediation_hint: "remove forbidden source classes from action-relevant actor-known inputs"
+            .to_string(),
+    })
 }
 
 fn stuck_diagnostic(
@@ -537,6 +596,31 @@ mod tests {
         )
     }
 
+    fn context_with_forbidden_input() -> ActorKnownPlanningContext {
+        let home = place("home_tomas");
+        let workshop = place("workshop_tomas");
+        ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::from([(home.clone(), BTreeSet::from([workshop]))]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_stew".to_string()]),
+            BTreeSet::from([home]),
+            BTreeMap::new(),
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "test:visible_food",
+                    None,
+                ),
+                ActorKnownFact::unproven("audit_probe", "typed_source_class_only"),
+            ],
+        )
+    }
+
     fn agent_state_with_hunger(value: i32) -> AgentState {
         let mut state = AgentState::default();
         state.needs_by_actor.insert(
@@ -649,6 +733,41 @@ mod tests {
         assert_eq!(diagnostic.actor_id, actor_id());
         assert_eq!(diagnostic.concrete_blocker, "no applicable candidate");
         assert_eq!(diagnostic.resulting_status, StuckResultingStatus::Failed);
+    }
+
+    #[test]
+    fn forbidden_actor_known_input_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let context = context_with_forbidden_input();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(15),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected hidden-truth audit stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "hidden truth input");
+        assert_eq!(
+            diagnostic.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::CandidateGeneration
+        );
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::HiddenTruthInput
+        );
+        assert_eq!(
+            diagnostic.typed_diagnostic.input_source,
+            "actor_known_context"
+        );
+        assert!(diagnostic.typed_diagnostic.hidden_truth_referenced);
+        assert!(!diagnostic.debug_only_details.contains("food_stew"));
     }
 
     #[test]

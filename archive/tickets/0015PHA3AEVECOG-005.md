@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-005: Fail-closed hidden-truth audit gate inside the decision transaction
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `ActorDecisionTransaction::run` returns a typed `Stuck` on forbidden-source inputs; pipeline source-context validation asserts a clean audit; new guard + negative fixture
@@ -88,3 +88,24 @@ Add a guard asserting the audit gate exists in `transaction.rs` (positive-presen
 
 1. `cargo test -p tracewake-core agent::transaction && cargo test -p tracewake-content forbidden_provenance`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome (2026-06-09)
+
+Implemented the ORD-HARD-009 fail-closed audit gate:
+
+- Added `BlockerCode::HiddenTruthInput` and `ReasonCode::HiddenTruthInput`.
+- `ActorDecisionTransaction::run` now converts a failed selected-trace hidden-truth audit into a typed `StuckDiagnosticRecord` before proposal construction.
+- Agent-origin proposals carry `hidden_truth_audit_actor_known_only`; `run_pipeline` rejects an explicit dirty audit flag at `SourceContextValidation` as defense in depth.
+- Added `forbidden_provenance_input_fails_closed_001` to the fixture catalog as the negative acceptance artifact.
+- Added unit coverage for typed forbidden provenance with clean display text, pipeline dirty-audit rejection, and a positive-presence anti-regression guard.
+
+Verification run:
+
+1. `cargo test -p tracewake-core agent::transaction`
+2. `cargo test -p tracewake-core actions::pipeline`
+3. `cargo test -p tracewake-core --test anti_regression_guards`
+4. `cargo test -p tracewake-content`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`
