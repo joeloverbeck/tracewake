@@ -541,4 +541,4 @@ Verification:
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo build --workspace --all-targets --locked`
-- `cargo test --workspace --quiet`
+- `cargo test --workspace`

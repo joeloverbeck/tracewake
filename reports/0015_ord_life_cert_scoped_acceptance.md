@@ -43,7 +43,7 @@ Observed results in this capstone run:
 | `cargo fmt --all --check` | Passed |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Passed |
 | `cargo build --workspace --all-targets --locked` | Passed |
-| `cargo test --workspace --quiet` | Passed |
+| `cargo test --workspace` | Passed |
 | `cargo test -p tracewake-core --test anti_regression_guards` | Passed with 44 tests |
 
 ## 1. Source-Guard Inventory
