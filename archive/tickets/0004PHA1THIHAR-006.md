@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-006: Add checksum field-to-registry parity guard
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`checksum.rs` single-source registry or parity check; `state.rs` field enumeration if a macro/derive is introduced)
@@ -75,3 +75,29 @@ Replace the string assertion in `checksum_coverage_is_total_for_authoritative_st
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-09.
+
+Upgraded `checksum_coverage_is_total_for_authoritative_state` from a field-list assertion into a structural parity guard. The guard now:
+
+- parses authoritative `PhysicalState` and `AgentState` fields from `state.rs`;
+- compares those fields to `PHYSICAL_STATE_CHECKSUM_COVERAGE` and `AGENT_STATE_CHECKSUM_COVERAGE`;
+- verifies every coverage `field_family` has a canonical checksum line prefix in `checksum.rs`;
+- keeps checksum field-family metadata non-empty.
+
+Added synthetic regression fixtures:
+
+- `new_authoritative_field_without_checksum_registry_fails`;
+- `new_authoritative_field_without_canonical_checksum_line_fails`.
+
+Implementation note: no state macro or registry rewrite was needed; the parity test keeps the existing checksum registry shape and makes drift a hard test failure.
+
+Verified with:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo test --workspace`

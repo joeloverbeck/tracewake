@@ -8,6 +8,7 @@ const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
 const STATE_RS: &str = include_str!("../src/state.rs");
+const CHECKSUM_RS: &str = include_str!("../src/checksum.rs");
 const EVENTS_MOD_RS: &str = include_str!("../src/events/mod.rs");
 const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
@@ -242,9 +243,9 @@ fn test_sources() -> Vec<(String, String)> {
     sources
 }
 
-fn state_struct_fields(struct_name: &str) -> Vec<String> {
+fn state_struct_fields_from_source(source: &str, struct_name: &str) -> Vec<String> {
     let marker = format!("pub struct {struct_name} {{");
-    let body = STATE_RS
+    let body = source
         .split(&marker)
         .nth(1)
         .unwrap_or_else(|| panic!("{struct_name} declaration is present"))
@@ -258,6 +259,59 @@ fn state_struct_fields(struct_name: &str) -> Vec<String> {
             Some(field.split(':').next().unwrap().to_string())
         })
         .collect()
+}
+
+fn checksum_parity_errors(
+    state_source: &str,
+    checksum_source: &str,
+    physical_coverage: &[(&str, &str)],
+    agent_coverage: &[(&str, &str)],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    errors.extend(state_kind_checksum_parity_errors(
+        "PhysicalState",
+        state_source,
+        checksum_source,
+        physical_coverage,
+    ));
+    errors.extend(state_kind_checksum_parity_errors(
+        "AgentState",
+        state_source,
+        checksum_source,
+        agent_coverage,
+    ));
+    errors
+}
+
+fn state_kind_checksum_parity_errors(
+    struct_name: &str,
+    state_source: &str,
+    checksum_source: &str,
+    coverage: &[(&str, &str)],
+) -> Vec<String> {
+    let state_fields = state_struct_fields_from_source(state_source, struct_name);
+    let coverage_fields = coverage
+        .iter()
+        .map(|(field_name, _)| (*field_name).to_string())
+        .collect::<Vec<_>>();
+    let mut errors = Vec::new();
+
+    if coverage_fields != state_fields {
+        errors.push(format!(
+            "{struct_name} checksum coverage fields {coverage_fields:?} do not match authoritative fields {state_fields:?}"
+        ));
+    }
+
+    for (field_name, field_family) in coverage {
+        let canonical_prefix = format!("\"{field_family}|");
+        if !checksum_source.contains(&canonical_prefix) {
+            errors.push(format!(
+                "{struct_name}.{field_name} lacks canonical checksum line prefix {field_family}|"
+            ));
+        }
+    }
+
+    errors
 }
 
 fn nondeterminism_api_is_allowlisted(path: &str, token: &str) -> bool {
@@ -1440,19 +1494,14 @@ fn checksum_coverage_is_total_for_authoritative_state() {
         AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
     };
 
-    let physical_fields = state_struct_fields("PhysicalState");
-    let agent_fields = state_struct_fields("AgentState");
     let physical_coverage = PHYSICAL_STATE_CHECKSUM_COVERAGE
         .iter()
-        .map(|entry| entry.field_name.to_string())
+        .map(|entry| (entry.field_name, entry.field_family))
         .collect::<Vec<_>>();
     let agent_coverage = AGENT_STATE_CHECKSUM_COVERAGE
         .iter()
-        .map(|entry| entry.field_name.to_string())
+        .map(|entry| (entry.field_name, entry.field_family))
         .collect::<Vec<_>>();
-
-    assert_eq!(physical_coverage, physical_fields);
-    assert_eq!(agent_coverage, agent_fields);
 
     for entry in PHYSICAL_STATE_CHECKSUM_COVERAGE
         .iter()
@@ -1465,9 +1514,74 @@ fn checksum_coverage_is_total_for_authoritative_state() {
         );
     }
 
-    let synthetic_omission_pattern =
-        "Adding `pub(crate) new_field:` to PhysicalState or AgentState must fail this test until a matching checksum coverage entry and serializer branch are added.";
-    assert!(synthetic_omission_pattern.contains("must fail this test"));
+    let errors = checksum_parity_errors(STATE_RS, CHECKSUM_RS, &physical_coverage, &agent_coverage);
+    assert!(
+        errors.is_empty(),
+        "checksum field/registry/canonical parity errors:\n{}",
+        errors.join("\n")
+    );
+}
+
+#[test]
+fn new_authoritative_field_without_checksum_registry_fails() {
+    let state_source = r#"
+pub struct PhysicalState {
+    pub(crate) actors: BTreeMap<ActorId, ActorBody>,
+    pub(crate) places: BTreeMap<PlaceId, PlaceState>,
+}
+
+pub struct AgentState {
+    pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+}
+"#;
+    let checksum_source = r#"
+lines.push(format!("actor|id={}", actor_id.as_str()));
+lines.push(format!("need|actor={}", actor_id.as_str()));
+"#;
+
+    let errors = checksum_parity_errors(
+        state_source,
+        checksum_source,
+        &[("actors", "actor")],
+        &[("needs_by_actor", "need")],
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("PhysicalState") && error.contains("places")),
+        "expected missing PhysicalState.places registry coverage, got {errors:?}"
+    );
+}
+
+#[test]
+fn new_authoritative_field_without_canonical_checksum_line_fails() {
+    let state_source = r#"
+pub struct PhysicalState {
+    pub(crate) actors: BTreeMap<ActorId, ActorBody>,
+    pub(crate) places: BTreeMap<PlaceId, PlaceState>,
+}
+
+pub struct AgentState {
+    pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+}
+"#;
+    let checksum_source = r#"
+lines.push(format!("actor|id={}", actor_id.as_str()));
+lines.push(format!("need|actor={}", actor_id.as_str()));
+"#;
+
+    let errors = checksum_parity_errors(
+        state_source,
+        checksum_source,
+        &[("actors", "actor"), ("places", "place")],
+        &[("needs_by_actor", "need")],
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("PhysicalState.places") && error.contains("place|")),
+        "expected missing PhysicalState.places canonical line, got {errors:?}"
+    );
 }
 
 #[test]
