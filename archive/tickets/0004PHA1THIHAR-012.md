@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-012: Lock CI to the strengthened gates + strengthened-gate acceptance capstone
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `.github/workflows/ci.yml` (run the strengthened gates on the pinned toolchain); §10 acceptance-evidence run (manual runbook)
@@ -73,3 +73,52 @@ Author the acceptance-evidence runbook: run §10.1 (the four workspace commands)
 
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+Exact commit under test:
+
+- `cbf32c45b82aed83f0b9b21a21ab6e34082bee2a`
+
+What changed:
+
+- Added a dedicated `.github/workflows/ci.yml` `lock-layer-gates` job that runs the strengthened gates explicitly on the pinned Rust toolchain.
+- Locked CI coverage for the negative fixture runner, invariant linter, conformance evidence matrix, checksum/source guards, schema/replay gates, hidden-truth/debug quarantine gates, acceptance wording guard, content typed coverage, and TUI seam/adversarial gates.
+- Added a narrow `clippy::disallowed_methods` allow to `assert_negative_fixture_fails` because that test helper must spawn `cargo` to prove isolated negative fixture failures under the same clippy policy.
+
+Acceptance artifact:
+
+- `cargo fmt --all --check` — passed with no formatting diff.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed after the negative-fixture runner helper was given a narrow test-harness allow.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed, including no-human and deterministic replay acceptance gates.
+- Explicit lock-layer sequence with `--locked` — passed:
+  - `tracewake-core::negative_fixture_runner`
+  - `tracewake-core::doc_invariant_references`
+  - `tracewake-core::spine_conformance`
+  - `tracewake-core::anti_regression_guards`
+  - `tracewake-core::event_schema_replay_gates`
+  - `tracewake-core::hidden_truth_gates`
+  - `tracewake-core::acceptance_artifact_wording`
+  - `tracewake-content::forbidden_content`
+  - `tracewake-tui::adversarial_gates`
+  - `tracewake-tui::tui_seam_conformance`
+
+Per-requirement acceptance:
+
+- `THIRD-AC-011`: CI now runs the strengthened lock-layer gates explicitly on the pinned toolchain.
+- `THIRD-AC-012`: The acceptance wording guard passed, and this outcome uses scoped, exact-commit wording without latest-main, full-project, later-phase, or archived-authority overclaims.
+
+Residual convention-only items:
+
+- Semantic correctness of the selected invariant mappings remains review-owned; the linter enforces presence and live references, not reviewer judgment about the best invariant choice.
+
+Scoped certification wording:
+
+- Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit `cbf32c45b82aed83f0b9b21a21ab6e34082bee2a`. This contributes scoped evidence toward `SPINE-CERT`, `EPI-CERT`, and `P0-CERT`; it does not certify latest main, later-phase scope, or the full project.
+
+Deviations from original plan:
+
+- Added a dedicated CI job even though `cargo test --workspace` already reaches these gates, because explicit named targets make drift visible and satisfy the capstone's "no strengthened gate exists only locally" requirement.
