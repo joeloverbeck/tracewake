@@ -1,8 +1,8 @@
 # 0005 Phase 1 Doc-Code Alignment Conformance and Anti-Drift Spec
 
 **Status**: COMPLETED
-**Intended staging path:** `specs/0005_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md`  
-**Final home after acceptance:** `archive/specs/0005_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md` (archived on acceptance alongside the prior Phase 1 remediation specs `0003`/`0004`; not promoted to the live `docs/4-specs/` tier)  
+**Intended staging path:** `specs/0012_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md`  
+**Final home after acceptance:** `archive/specs/0012_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md` (archived on acceptance alongside the prior Phase 1 remediation specs `0003`/`0004`; not promoted to the live `docs/4-specs/` tier)  
 **Repository:** `joeloverbeck/tracewake`  
 **Analyzed commit:** `b210e4069c1ec997ed839dca34840ac72058b477`  
 **Spec posture:** `P0-CERT scoped remediation`
@@ -204,7 +204,7 @@ This does **not** mean the later-phase code is audited or certified here. It mea
 
 The live spec tier is intentionally compact: `docs/4-specs/README.md:9-18` lists `README.md`, `SPEC_LEDGER.md`, live `0001`, and the `0003` acceptance template. `docs/4-specs/SPEC_LEDGER.md:25-33` lists only `0001` as an active spec and treats `0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` as a template, not a spec package. The same ledger states that archived implementation specs remain history and do not certify the implementation under current doctrine (`docs/4-specs/SPEC_LEDGER.md:41-60`).
 
-This is a Phase 1 remediation spec in the same lineage as the archived Phase 1 hardening specs `archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` and `archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md`. Per the established convention, on acceptance it archives to `archive/specs/`; it is not promoted to the live `docs/4-specs/` tier (which carries only `0001` and the `0003` acceptance template). `0005_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md` is therefore an acceptable staging number: it does not collide with a live spec. `archive/specs/` already holds a `0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md` from the parallel Phase 3A lineage, but per-lineage duplicate numbering is already the norm there (two each of `0002`/`0003`/`0004`), so `0005` continues the Phase 1 lineage cleanly. This spec declares the one allowed posture required by `docs/4-specs/README.md:31-39`: `P0-CERT scoped remediation`, because it changes code/tests/CI to repair a certification failure. It is not `P0-CERT not applicable`, because it affects simulation-adjacent validation, fixtures, and gates.
+This is a Phase 1 remediation spec in the same lineage as the archived Phase 1 hardening specs `archive/specs/0003_PHASE_1_SPINE_ANTI_CONTAMINATION_AND_STRUCTURAL_HARDENING_SPEC.md` and `archive/specs/0004_PHASE_1_THIRD_HARDENING_AND_LOCK_LAYER_RE_AUDIT_SPEC.md`. Per the established convention, on acceptance it archives to `archive/specs/`; it is not promoted to the live `docs/4-specs/` tier (which carries only `0001` and the `0003` acceptance template). `0012_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md` is therefore an acceptable staging number: it does not collide with a live spec. `archive/specs/` already holds a `0005_PHASE_3A_NEEDS_ROUTINES_AND_NO_HUMAN_DAY_IMPLEMENTATION_SPEC.md` from the parallel Phase 3A lineage, but per-lineage duplicate numbering is already the norm there (two each of `0002`/`0003`/`0004`), so `0005` continues the Phase 1 lineage cleanly. This spec declares the one allowed posture required by `docs/4-specs/README.md:31-39`: `P0-CERT scoped remediation`, because it changes code/tests/CI to repair a certification failure. It is not `P0-CERT not applicable`, because it affects simulation-adjacent validation, fixtures, and gates.
 
 ---
 

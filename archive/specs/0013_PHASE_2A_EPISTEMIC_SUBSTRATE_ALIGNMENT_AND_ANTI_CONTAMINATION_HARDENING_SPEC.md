@@ -1,8 +1,8 @@
 # 0006 Phase 2A Epistemic Substrate Alignment and Anti-Contamination Hardening Spec
 
 - **Status:** ✅ COMPLETED
-- **Intended staging path:** `specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
-- **Final home after acceptance:** `archive/specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+- **Intended staging path:** `specs/0013_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+- **Final home after acceptance:** `archive/specs/0013_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
 - **Requested repository:** `joeloverbeck/tracewake`
 - **Analyzed commit:** `4c4dfff83aae01006e6a3b653a3248179e0f9b25`
 - **Execution admissibility posture:** `P0-CERT scoped remediation`
@@ -35,7 +35,7 @@ No clone, default-branch lookup, branch-name fetch, repository metadata, connect
 
 The live source-discipline rule supports this method: the spec ledger says a manifest is path inventory only, branch/default/code-search evidence is not proof, and exact-commit audits must fetch by exact file URL or supplied export (`docs/4-specs/SPEC_LEDGER.md:17-23`). The docs map establishes that archived specs and tickets are evidence, not live authority (`docs/README.md:3-14`, `:43-52`). The ledger lists the Phase-2A archived spec as “landed historically; not a current gate definition” (`docs/4-specs/SPEC_LEDGER.md:45-49`).
 
-The selected staging filename is `specs/0006_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`. This continues the visible `0002` → `0003` → `0004` → `0005` hardening epoch while respecting the live spec tier: the active specs table contains only `0001` as an active package, plus `0003` as a template, not an active spec package (`docs/4-specs/SPEC_LEDGER.md:25-33`). A same-number historical archive collision with an older Phase-3A `0006` is not a blocker because archived specs are historical, not live doctrine (`docs/4-specs/SPEC_LEDGER.md:45-57`). Future specs must declare exactly one admissibility posture and keep gate codes as cross-references only (`docs/4-specs/README.md:29-39`).
+The selected staging filename is `specs/0013_PHASE_2A_EPISTEMIC_SUBSTRATE_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`. This continues the visible `0002` → `0003` → `0004` → `0005` hardening epoch while respecting the live spec tier: the active specs table contains only `0001` as an active package, plus `0003` as a template, not an active spec package (`docs/4-specs/SPEC_LEDGER.md:25-33`). A same-number historical archive collision with an older Phase-3A `0006` is not a blocker because archived specs are historical, not live doctrine (`docs/4-specs/SPEC_LEDGER.md:45-57`). Future specs must declare exactly one admissibility posture and keep gate codes as cross-references only (`docs/4-specs/README.md:29-39`).
 
 ## 2. Authority chain and gate mapping
 
