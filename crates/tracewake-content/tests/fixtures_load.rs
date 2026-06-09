@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
 
 use tracewake_content::fixtures::{self, validate_fixture_contract_metadata};
-use tracewake_content::load::load_fixture_package;
+use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope};
 use tracewake_content::schema::{
-    ActorSchema, DayWindowSchema, FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
-    InitialNeedSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
-    SleepPlaceSchema, WorkplaceSchema,
+    ActorSchema, DayWindowSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
+    InitialBeliefSchema, InitialNeedSchema, PlaceSchema, RoutineAssignmentSchema,
+    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
@@ -13,6 +13,7 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
+use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
     FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, WorkplaceId,
@@ -37,6 +38,7 @@ fn phase3a_fixture() -> FixtureSchema {
     FixtureSchema {
         fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
         schema_version: SchemaVersion::new("schema_v1").unwrap(),
+        fixture_scope: FixtureScope::Phase3AHistorical,
         actors: vec![ActorSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             current_place_id: PlaceId::new("home_tomas").unwrap(),
@@ -192,6 +194,91 @@ fn all_fixtures_load_deterministically_and_validate() {
             second.manifest.content_fingerprint
         );
     }
+}
+
+#[test]
+fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
+    let phase1 = registry_for_fixture_scope(FixtureScope::Phase1);
+    for action_id in [
+        "move",
+        "open",
+        "close",
+        "take",
+        "place",
+        "look",
+        "inspect_place",
+        "inspect_entity",
+        "wait",
+    ] {
+        assert!(
+            phase1.get(&ActionId::new(action_id).unwrap()).is_some(),
+            "Phase 1 registry must expose {action_id}"
+        );
+    }
+    for action_id in [
+        "check_container",
+        "truthful_accuse_probe",
+        "sleep",
+        "eat",
+        "work_block",
+        "continue_routine",
+    ] {
+        assert!(
+            phase1.get(&ActionId::new(action_id).unwrap()).is_none(),
+            "Phase 1 registry must not expose later-phase action {action_id}"
+        );
+    }
+
+    let ids_for_scope = |scope| {
+        fixtures::all()
+            .into_iter()
+            .filter(|golden| golden.fixture.fixture_scope == scope)
+            .map(|golden| golden.fixture.fixture_id.as_str().to_string())
+            .collect::<BTreeSet<_>>()
+    };
+
+    assert_eq!(
+        ids_for_scope(FixtureScope::Phase1),
+        BTreeSet::from([
+            "container_item_move_001".to_string(),
+            "debug_attach_001".to_string(),
+            "door_access_001".to_string(),
+            "no_human_advance_001".to_string(),
+            "replay_item_location_001".to_string(),
+            "strongbox_001".to_string(),
+            "view_model_local_actions_001".to_string(),
+        ])
+    );
+    assert_eq!(
+        ids_for_scope(FixtureScope::Phase2AHistorical),
+        BTreeSet::from([
+            "expectation_contradiction_001".to_string(),
+            "knowledge_blocker_accuse_001".to_string(),
+            "no_human_epistemic_check_001".to_string(),
+            "possession_parity_001".to_string(),
+            "sound_uncertainty_001".to_string(),
+            "view_filtering_001".to_string(),
+        ])
+    );
+    assert_eq!(
+        ids_for_scope(FixtureScope::Phase3AHistorical),
+        BTreeSet::from([
+            "debug_omniscience_excluded_001".to_string(),
+            "food_unavailable_replan_001".to_string(),
+            "hidden_food_closed_container_001".to_string(),
+            "hidden_food_unknown_route_001".to_string(),
+            "hidden_route_edge_001".to_string(),
+            "no_hidden_truth_planning_001".to_string(),
+            "no_human_day_001".to_string(),
+            "ordinary_workday_001".to_string(),
+            "planner_trace_001".to_string(),
+            "possession_does_not_reset_intention_001".to_string(),
+            "routine_blocked_diagnostic_001".to_string(),
+            "routine_no_teleport_001".to_string(),
+            "sleep_eat_work_001".to_string(),
+            "workplace_assignment_provenance_001".to_string(),
+        ])
+    );
 }
 
 #[test]

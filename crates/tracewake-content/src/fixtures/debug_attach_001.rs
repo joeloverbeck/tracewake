@@ -4,6 +4,7 @@ pub fn debug_attach_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("debug_attach_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase1,
         actors: vec![
             actor_schema("actor_iris", "north_room"),
             actor_schema("actor_jules", "south_room"),

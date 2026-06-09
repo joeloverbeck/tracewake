@@ -4,6 +4,7 @@ pub fn possession_does_not_reset_intention_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("possession_does_not_reset_intention_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase3AHistorical,
         actors: vec![actor_schema("actor_mara", "workshop_mara")],
         places: vec![place_schema("workshop_mara", "Mara workshop", &[])],
         doors: Vec::new(),

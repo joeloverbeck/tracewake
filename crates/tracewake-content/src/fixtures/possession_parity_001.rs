@@ -4,6 +4,7 @@ pub fn possession_parity_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("possession_parity_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase2AHistorical,
         actors: vec![
             actor_schema("actor_mara", "house_tomas"),
             actor_schema("actor_tomas", "house_tomas"),

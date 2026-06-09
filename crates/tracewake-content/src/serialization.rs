@@ -15,9 +15,9 @@ use tracewake_core::time::SimTick;
 
 use crate::schema::{
     canonical_key_for_schema_field, ActionAffordanceSchema, ActorSchema, ContainerSchema,
-    DayWindowSchema, DoorSchema, FixtureSchema, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
-    InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema,
-    SleepPlaceSchema, WorkplaceSchema,
+    DayWindowSchema, DoorSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
+    InitialBeliefSchema, InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema,
+    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,6 +63,11 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             "{}|{}",
             canonical_key_for_schema_field("schema_version"),
             fixture.schema_version.as_str()
+        ),
+        format!(
+            "{}|{}",
+            canonical_key_for_schema_field("fixture_scope"),
+            fixture.fixture_scope.stable_id()
         ),
     ];
     for actor in fixture.actors {
@@ -262,6 +267,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         .map_err(|_| SerializationError::BadLine("non-utf8 fixture".to_string()))?;
     let mut fixture_id = None;
     let mut schema_version = None;
+    let mut fixture_scope = None;
     let mut actors = Vec::new();
     let mut places = Vec::new();
     let mut doors = Vec::new();
@@ -283,6 +289,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         match parts.as_slice() {
             ["fixture", id] => fixture_id = Some(FixtureId::new(*id)?),
             ["schema", version] => schema_version = Some(SchemaVersion::new(*version)?),
+            ["fixture_scope", scope] => fixture_scope = Some(parse_fixture_scope(scope)?),
             ["actor", actor_id, place_id] => actors.push(ActorSchema {
                 actor_id: ActorId::new(*actor_id)?,
                 current_place_id: PlaceId::new(*place_id)?,
@@ -426,6 +433,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id.ok_or(SerializationError::MissingField("fixture"))?,
         schema_version: schema_version.ok_or(SerializationError::MissingField("schema"))?,
+        fixture_scope: fixture_scope.ok_or(SerializationError::MissingField("fixture_scope"))?,
         actors,
         places,
         doors,
@@ -444,6 +452,17 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     };
     fixture.canonicalize();
     Ok(fixture)
+}
+
+fn parse_fixture_scope(value: &str) -> Result<FixtureScope, SerializationError> {
+    match value {
+        "phase1" => Ok(FixtureScope::Phase1),
+        "phase2a_historical" => Ok(FixtureScope::Phase2AHistorical),
+        "phase3a_historical" => Ok(FixtureScope::Phase3AHistorical),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad fixture scope {value}"
+        ))),
+    }
 }
 
 pub fn serialize_event_log(log: &EventLog) -> Vec<u8> {
@@ -744,6 +763,7 @@ mod tests {
         FixtureSchema {
             fixture_id: FixtureId::new("strongbox_001").unwrap(),
             schema_version: SchemaVersion::new("schema_v1").unwrap(),
+            fixture_scope: FixtureScope::Phase1,
             actors: vec![ActorSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 current_place_id: PlaceId::new("shop_front").unwrap(),

@@ -493,7 +493,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
         }
     }
 
-    if !definition.phase1_implemented {
+    if !context.registry.scope_is_active(definition.scope) {
         return reject(
             context,
             proposal,
@@ -501,7 +501,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
             vec![ReasonCode::PhaseUnsupportedAction],
             checked_facts,
             "That action is not part of this phase.",
-            "registry action exists but is not implemented for Phase 1",
+            "registry action exists but is outside the active action scope set",
         );
     }
 
@@ -1278,7 +1278,7 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::actions::{ActionDefinition, ProposalOrigin, ProposalSourceContext};
+    use crate::actions::{ActionDefinition, ActionScope, ProposalOrigin, ProposalSourceContext};
     use crate::controller::ControllerBindings;
     use crate::epistemics::KnowledgeContext;
     use crate::events::apply::apply_event;
@@ -1533,7 +1533,10 @@ mod tests {
     #[test]
     fn human_source_context_fresh_view_passes_source_validation() {
         let mut registry = ActionRegistry::new();
-        registry.register(ActionDefinition::query_only(action_id("look")));
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
         let state = state();
         let bindings = human_bindings();
         let mut proposal = proposal(ProposalOrigin::Human);
@@ -1550,7 +1553,10 @@ mod tests {
     #[test]
     fn human_source_context_stale_frontier_rejects_before_action_validation() {
         let mut registry = ActionRegistry::new();
-        registry.register(ActionDefinition::query_only(action_id("look")));
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
         let state = state();
         let bindings = human_bindings();
         let mut proposal = proposal(ProposalOrigin::Human);
@@ -1596,7 +1602,10 @@ mod tests {
     #[test]
     fn human_source_context_cross_actor_rejects() {
         let mut registry = ActionRegistry::new();
-        registry.register(ActionDefinition::query_only(action_id("look")));
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
         let state = state();
         let bindings = human_bindings();
         let mut proposal = proposal(ProposalOrigin::Human);
@@ -1625,7 +1634,10 @@ mod tests {
     #[test]
     fn human_source_context_forged_action_token_rejects() {
         let mut registry = ActionRegistry::new();
-        registry.register(ActionDefinition::query_only(action_id("look")));
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
         let state = state();
         let bindings = human_bindings();
         let mut proposal = proposal(ProposalOrigin::Human);
@@ -1652,7 +1664,10 @@ mod tests {
     #[test]
     fn same_proposal_validates_same_for_human_and_scheduler_origin() {
         let mut registry = ActionRegistry::new();
-        registry.register(ActionDefinition::query_only(action_id("look")));
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
 
         let mut human_state = state();
         let mut human_log = EventLog::new();

@@ -4,6 +4,7 @@ pub fn no_human_advance_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("no_human_advance_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase1,
         actors: vec![actor_schema("actor_ren", "quiet_room")],
         places: vec![place_schema("quiet_room", "Quiet room", &[])],
         doors: Vec::new(),

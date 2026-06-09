@@ -281,6 +281,17 @@ const SPINE_EVIDENCE: &[SpineEvidence] = &[
         acceptance_condition: "validation reports keep typed provenance and actor/debug split",
     },
     SpineEvidence {
+        requirement: "SPINE-AC-011",
+        layer: "core/actions",
+        test_name: "guard_008_action_registry_uses_typed_scopes_not_phase1_boolean",
+        source_path: "crates/tracewake-core/tests/anti_regression_guards.rs",
+        evidence_kind: Some(EvidenceKind::StaticSourceGuard),
+        evidence_class: EvidenceClass::Negative,
+        invariants: &["INV-098", "INV-105"],
+        acceptance_condition:
+            "action registry uses typed scopes instead of convenience phase flags",
+    },
+    SpineEvidence {
         requirement: "SPINE-AC-012",
         layer: "tui/view-model",
         test_name: "tui_current_view_submission_rejects_stale_selection",

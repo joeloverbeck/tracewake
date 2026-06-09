@@ -4,6 +4,7 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("no_hidden_truth_planning_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase3AHistorical,
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),

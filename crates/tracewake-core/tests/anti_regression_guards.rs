@@ -15,8 +15,10 @@ const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
+const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 
 struct BannedApiToken {
@@ -117,6 +119,16 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
     },
 ];
 
+const LATER_PHASE_REGISTRATION_CALLS: &[&str] = &[
+    "register_phase2a_",
+    "register_phase3a_",
+    "register_phase2a_epistemics",
+    "register_phase3a_sleep",
+    "register_phase3a_eat",
+    "register_phase3a_work",
+    "register_phase3a_continue_routine",
+];
+
 fn production(source: &str) -> String {
     let mut output = String::new();
     let lines = source.lines().collect::<Vec<_>>();
@@ -165,6 +177,47 @@ fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
         !haystack.as_ref().contains(needle),
         "forbidden shortcut reintroduced: {needle}"
     );
+}
+
+fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
+    let after_marker = source
+        .split(marker)
+        .nth(1)
+        .unwrap_or_else(|| panic!("{marker} is present"));
+    let start = after_marker
+        .find('{')
+        .unwrap_or_else(|| panic!("{marker} body starts with an opening brace"));
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_marker[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    &after_marker[start..end.unwrap_or_else(|| panic!("{marker} body closes"))]
+}
+
+fn phase1_loader_later_phase_registration_violations(source: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+    let load_body = body_after_marker(source, "pub fn load_fixture_package");
+    let phase1_body = body_after_marker(source, "FixtureScope::Phase1 =>");
+    for token in LATER_PHASE_REGISTRATION_CALLS {
+        if load_body.contains(token) {
+            violations.push(format!("load_fixture_package directly calls {token}"));
+        }
+        if phase1_body.contains(token) {
+            violations.push(format!("FixtureScope::Phase1 arm calls {token}"));
+        }
+    }
+    violations
 }
 
 #[allow(
@@ -410,7 +463,7 @@ fn human_source_report(
     current_event_frontier: u64,
 ) -> tracewake_core::actions::ValidationReport {
     use tracewake_core::actions::{
-        validate_proposal, ActionDefinition, ActionRegistry, ProposalValidationContext,
+        validate_proposal, ActionDefinition, ActionRegistry, ActionScope, ProposalValidationContext,
     };
     use tracewake_core::controller::ControllerBindings;
     use tracewake_core::events::log::EventLog;
@@ -430,7 +483,10 @@ fn human_source_report(
     );
     let state = state_seed.build();
     let mut registry = ActionRegistry::new();
-    registry.register(ActionDefinition::query_only(ActionId::new("look").unwrap()));
+    registry.register(ActionDefinition::query_only(
+        ActionId::new("look").unwrap(),
+        ActionScope::Phase1,
+    ));
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
     let mut bindings = ControllerBindings::new();
     let mut binding_log = EventLog::new();
@@ -1694,4 +1750,97 @@ fn guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts() {
             "{target} mutation lacks a failure expectation"
         );
     }
+}
+
+#[test]
+fn guard_008_action_registry_uses_typed_scopes_not_phase1_boolean() {
+    use tracewake_core::actions::{ActionRegistry, ActionScope};
+    use tracewake_core::ids::ActionId;
+
+    let registry_source = production(ACTIONS_REGISTRY_RS);
+    let retired_flag = ["phase1", "_implemented"].concat();
+    assert_absent(&registry_source, &retired_flag);
+    assert!(
+        registry_source.contains("pub enum ActionScope"),
+        "action registry must expose a typed action scope"
+    );
+    assert!(
+        registry_source.contains("pub scope: ActionScope"),
+        "action definitions must carry typed scope data"
+    );
+    assert!(
+        !registry_source.contains("scope: ActionScope::Phase1"),
+        "generic action constructors must not hard-code Phase1 scope"
+    );
+
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_movement_open_close();
+    registry.register_phase1_take_place();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase2a_epistemics();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
+
+    let expected = [
+        ("move", ActionScope::Phase1),
+        ("open", ActionScope::Phase1),
+        ("close", ActionScope::Phase1),
+        ("take", ActionScope::Phase1),
+        ("place", ActionScope::Phase1),
+        ("look", ActionScope::Phase1),
+        ("inspect_place", ActionScope::Phase1),
+        ("inspect_entity", ActionScope::Phase1),
+        ("wait", ActionScope::Phase1),
+        ("check_container", ActionScope::Phase2AHistorical),
+        ("truthful_accuse_probe", ActionScope::Phase2AHistorical),
+        ("sleep", ActionScope::Phase3AHistorical),
+        ("eat", ActionScope::Phase3AHistorical),
+        ("work_block", ActionScope::Phase3AHistorical),
+        ("continue_routine", ActionScope::Phase3AHistorical),
+    ];
+
+    for (action_id, scope) in expected {
+        assert_eq!(
+            registry
+                .get(&ActionId::new(action_id).unwrap())
+                .map(|definition| definition.scope),
+            Some(scope),
+            "{action_id} must carry its explicit action scope"
+        );
+    }
+    assert_eq!(registry.definitions().count(), expected.len());
+}
+
+#[test]
+fn guard_008_phase1_loader_does_not_register_later_phase_actions() {
+    let load_source = production(CONTENT_LOAD_RS);
+    let violations = phase1_loader_later_phase_registration_violations(&load_source);
+    assert!(
+        violations.is_empty(),
+        "Phase 1 fixture loading must not directly register later-phase actions; this source guard is secondary to ActionScope/FixtureScope typing. Violations: {violations:?}"
+    );
+
+    let registry_source = production(ACTIONS_REGISTRY_RS);
+    assert!(
+        !registry_source.contains("scope: ActionScope::Phase1"),
+        "generic action constructors must not hard-code Phase1 scope for later-phase registrations"
+    );
+}
+
+#[test]
+fn guard_008_phase1_loader_source_guard_has_mutation_self_coverage() {
+    let mut mutated = CONTENT_LOAD_RS.to_string();
+    mutated = mutated.replace(
+        "FixtureScope::Phase1 => {}",
+        "FixtureScope::Phase1 => { registry.register_phase2a_epistemics(); }",
+    );
+    let violations = phase1_loader_later_phase_registration_violations(&mutated);
+    assert!(
+        violations
+            .iter()
+            .any(|violation| violation.contains("FixtureScope::Phase1 arm calls")),
+        "source guard must fail on a deliberate Phase 1 later-phase registration mutation"
+    );
 }

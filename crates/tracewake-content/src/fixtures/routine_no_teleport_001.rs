@@ -4,6 +4,7 @@ pub fn routine_no_teleport_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("routine_no_teleport_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase3AHistorical,
         actors: vec![actor_schema("actor_tomas", "home_tomas")],
         places: vec![
             place_schema("home_tomas", "Tomas home", &[]),

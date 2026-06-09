@@ -4,8 +4,8 @@ mod support;
 
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, Proposal, ProposalOrigin, ProposalSource,
-    ProposalSourceContext, ReportStatus,
+    run_pipeline, ActionRegistry, ActionScope, PipelineContext, PipelineStage, Proposal,
+    ProposalOrigin, ProposalSource, ProposalSourceContext, ReasonCode, ReportStatus,
 };
 use tracewake_core::agent::{
     NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
@@ -110,6 +110,64 @@ fn phase3a_registry() -> ActionRegistry {
     let mut registry = registry();
     registry.register_phase3a_eat();
     registry
+}
+
+#[test]
+fn out_of_active_scope_action_rejects_at_phase_boundary() {
+    let mut registry = ActionRegistry::new_with_active_scopes([ActionScope::Phase1]);
+    registry.register_phase1_movement_open_close();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase2a_epistemics();
+
+    let mut state = state(true, true);
+    let mut agent_state = agent_state();
+    let mut log = EventLog::new();
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_check_scope_rejected").unwrap(),
+        ProposalOrigin::Test,
+        Some(actor_id()),
+        ActionId::new("check_container").unwrap(),
+        SimTick::ZERO,
+    );
+    proposal.target_ids.push("strongbox_tomas".to_string());
+    let ordering_key = OrderingKey::new(
+        SimTick::ZERO,
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(0),
+        proposal.action_id.clone(),
+        proposal.target_ids.clone(),
+        "phase-boundary-rejection",
+    );
+
+    let result = run_pipeline(
+        &mut PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: ContentManifestId::new("phase1_manifest").unwrap(),
+            ordering_key,
+        },
+        &proposal,
+    );
+
+    assert_eq!(result.report.status, ReportStatus::Rejected);
+    assert_eq!(
+        result.report.failed_stage,
+        Some(PipelineStage::PhaseBoundaryValidation)
+    );
+    assert_eq!(
+        result.report.reason_codes,
+        vec![ReasonCode::PhaseUnsupportedAction]
+    );
+    assert_eq!(result.appended_events.len(), 1);
+    assert_eq!(
+        result.appended_events[0].event_type,
+        EventKind::ActionRejected
+    );
 }
 
 fn capstone_registry() -> ActionRegistry {

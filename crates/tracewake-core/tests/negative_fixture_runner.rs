@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+
 struct NegativeFixture {
     name: &'static str,
     expected_stderr: &'static str,
@@ -74,6 +76,72 @@ fn fixture_root(fixture: &NegativeFixture) -> PathBuf {
         .join("../..")
         .join("tests/negative-fixtures")
         .join(fixture.name)
+}
+
+fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
+    let after_marker = source
+        .split(marker)
+        .nth(1)
+        .unwrap_or_else(|| panic!("{marker} is present"));
+    let start = after_marker
+        .find('{')
+        .unwrap_or_else(|| panic!("{marker} body starts with an opening brace"));
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_marker[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    &after_marker[start..end.unwrap_or_else(|| panic!("{marker} body closes"))]
+}
+
+fn phase1_loader_later_phase_registration_violations(source: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+    let load_body = body_after_marker(source, "pub fn load_fixture_package");
+    let phase1_body = body_after_marker(source, "FixtureScope::Phase1 =>");
+    for token in [
+        "register_phase2a_",
+        "register_phase3a_",
+        "register_phase2a_epistemics",
+        "register_phase3a_sleep",
+        "register_phase3a_eat",
+        "register_phase3a_work",
+        "register_phase3a_continue_routine",
+    ] {
+        if load_body.contains(token) {
+            violations.push(format!("load_fixture_package directly calls {token}"));
+        }
+        if phase1_body.contains(token) {
+            violations.push(format!("FixtureScope::Phase1 arm calls {token}"));
+        }
+    }
+    violations
+}
+
+#[test]
+fn phase1_loader_registration_guard_negative_fixture_fires_on_mutation() {
+    let mut mutated = CONTENT_LOAD_RS.to_string();
+    mutated = mutated.replace(
+        "FixtureScope::Phase1 => {}",
+        "FixtureScope::Phase1 => { registry.register_phase3a_sleep(); }",
+    );
+
+    let violations = phase1_loader_later_phase_registration_violations(&mutated);
+    assert!(
+        violations
+            .iter()
+            .any(|violation| violation.contains("FixtureScope::Phase1 arm calls")),
+        "source guard must catch a deliberate Phase 1 loader later-phase registration mutation"
+    );
 }
 
 #[allow(

@@ -4,6 +4,7 @@ pub fn strongbox_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
         fixture_id: fixture_id("strongbox_001"),
         schema_version: schema_version(),
+        fixture_scope: FixtureScope::Phase1,
         actors: vec![
             actor_schema("actor_elena", "house_tomas"),
             actor_schema("actor_tomas", "house_tomas"),
