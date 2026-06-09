@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-007: Capstone — scoped acceptance artifact and workspace gates for Phase-2A epistemic hardening
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: None — verification-only capstone; produces a scoped acceptance-artifact document and runs the workspace + lock-layer gates end-to-end.
@@ -81,3 +81,26 @@ Author the artifact using `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` wo
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 2. `cargo test -p tracewake-core --test negative_fixture_runner --test hidden_truth_gates --test event_schema_replay_gates && cargo test -p tracewake-tui --test adversarial_gates && cargo test -p tracewake-content --test forbidden_content`
 3. `cargo test -p tracewake-core --test acceptance_artifact_wording` — confirms the wording contract the produced artifact must satisfy.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Produced `reports/0006PHA2A_ACCEPTANCE_ARTIFACT.md` for exact commit `9e0590d056b15d879ac02eb2556c855c080f27e4`.
+- Extended `crates/tracewake-core/tests/acceptance_artifact_wording.rs` so the checked-in Phase-2A artifact is validated by the scoped exact-commit wording gate.
+- Recorded per-requirement evidence for `EPI-HARD-001` through `EPI-HARD-004`, event/replay parity, content provenance parity, TUI/debug proof, and consumer-seam firewall.
+
+Deviations from original plan:
+- The capstone adds one focused validator assertion for the checked-in artifact so future edits cannot silently weaken the scoped wording.
+- The ticket remains verification-only for production behavior; no simulation logic changed.
+
+Verification:
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `cargo test -p tracewake-core --test negative_fixture_runner --test hidden_truth_gates --test event_schema_replay_gates` — passed.
+- `cargo test -p tracewake-tui --test adversarial_gates` — passed.
+- `cargo test -p tracewake-content --test forbidden_content` — passed.
+- `cargo test -p tracewake-core --test acceptance_artifact_wording` — passed.
