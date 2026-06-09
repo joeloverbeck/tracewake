@@ -70,11 +70,17 @@ impl ActorKnownInputRef {
     }
 
     pub fn render_for_trace(&self) -> String {
+        let source_events = if self.source_event_ids.is_empty() {
+            "-".to_string()
+        } else {
+            self.source_event_ids.join(",")
+        };
         format!(
-            "{}|source_class={}|explicit_unknown={}",
+            "{}|source_class={}|explicit_unknown={}|source_events={}",
             self.display_note,
             self.source_class.stable_id(),
-            self.explicit_unknown
+            self.explicit_unknown,
+            source_events
         )
     }
 }

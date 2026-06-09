@@ -18,7 +18,10 @@ mod no_human_day_001;
 mod no_human_epistemic_check_001;
 mod no_human_known_workplace_requires_provenance_001;
 mod no_human_metrics_require_typed_responsible_layer_001;
+mod no_human_observation_facts_cite_log_events_001;
+mod no_human_sleep_knowledge_requires_observation_or_record_001;
 mod no_human_unseen_workplace_assignment_does_not_plan_work_001;
+mod no_human_workplace_knowledge_requires_notice_event_001;
 mod ordinary_workday_001;
 mod planner_trace_001;
 mod possession_does_not_reset_intention_001;
@@ -77,7 +80,10 @@ pub use no_human_day_001::no_human_day_001;
 pub use no_human_epistemic_check_001::no_human_epistemic_check_001;
 pub use no_human_known_workplace_requires_provenance_001::no_human_known_workplace_requires_provenance_001;
 pub use no_human_metrics_require_typed_responsible_layer_001::no_human_metrics_require_typed_responsible_layer_001;
+pub use no_human_observation_facts_cite_log_events_001::no_human_observation_facts_cite_log_events_001;
+pub use no_human_sleep_knowledge_requires_observation_or_record_001::no_human_sleep_knowledge_requires_observation_or_record_001;
 pub use no_human_unseen_workplace_assignment_does_not_plan_work_001::no_human_unseen_workplace_assignment_does_not_plan_work_001;
+pub use no_human_workplace_knowledge_requires_notice_event_001::no_human_workplace_knowledge_requires_notice_event_001;
 pub use ordinary_workday_001::ordinary_workday_001;
 pub use planner_trace_001::planner_trace_001;
 pub use possession_does_not_reset_intention_001::possession_does_not_reset_intention_001;
@@ -164,6 +170,9 @@ pub fn all() -> Vec<GoldenFixture> {
         method_fallback_requires_new_trace_or_stuck_001(),
         no_human_metrics_require_typed_responsible_layer_001(),
         hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001(),
+        no_human_workplace_knowledge_requires_notice_event_001(),
+        no_human_sleep_knowledge_requires_observation_or_record_001(),
+        no_human_observation_facts_cite_log_events_001(),
         no_human_day_001(),
     ]
 }

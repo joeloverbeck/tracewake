@@ -1907,7 +1907,7 @@ pub mod no_human {
         .with_typed_diagnostic(TypedDiagnosticFields {
             responsible_layer: ResponsibleLayer::Scheduler,
             blocker_code: BlockerCode::SchedulingReservation,
-            input_source: "no_human_window".to_string(),
+            input_source: "holder_known_context".to_string(),
             actual_source: "scheduler_no_progress_detection".to_string(),
             hidden_truth_referenced: false,
             remediation_hint: "inspect no-human ordering and proposal diagnostics".to_string(),

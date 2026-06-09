@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-004: ORD-HARD-008 regression lock — source guards, context-hash rebuild gate, negative fixtures
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new guards in `anti_regression_guards.rs`; a context-hash rebuild-from-log replay test; three negative fixtures in `tracewake-content`
@@ -86,3 +86,23 @@ Add a test that, for a canonical no-human fixture, recomputes every decision's a
 
 1. `cargo test -p tracewake-core --test anti_regression_guards && cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome (2026-06-09)
+
+Implemented the ORD-HARD-008 structural lock:
+
+- Added `guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed` to fail if the no-human cognition path reintroduces raw `PhysicalState` table reads, scheduler-side actor-known extension, or the removed public extension APIs.
+- Extended decision trace canonical records with an actor-known context hash and the canonical actor-known inputs used to compute it; deserialization keeps legacy 9/15-field records and supports the new 11/17-field shapes.
+- Added fixture-backed checks for log-present `source_event_ids`, context-hash recomputation, disabled workplace notice channels, and disabled sleep observation/record channels.
+- Added the three negative fixtures and registered them in the fixture catalog.
+- Updated positive no-human fixture assertions to match the now-evented full-registry run, where ordinary actions complete instead of requiring stuck diagnostics.
+
+Verification run:
+
+1. `cargo test -p tracewake-core --test anti_regression_guards`
+2. `cargo test -p tracewake-content`
+3. `cargo test -p tracewake-core --test event_schema_replay_gates legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

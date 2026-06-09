@@ -12,11 +12,13 @@ use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
     select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
-    DecisionInput, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
-    RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate, VisibleLocalPlanningState,
+    DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
+    NeedState, PlannerGoal, RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate,
+    VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
@@ -168,6 +170,29 @@ fn append_and_apply(
 
 fn has_event(log: &EventLog, kind: EventKind) -> bool {
     log.events().iter().any(|event| event.event_type == kind)
+}
+
+fn payload<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
+fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
+    log.events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .map(|event| {
+            DecisionTraceRecord::deserialize_canonical(
+                payload(event, "trace_canonical")
+                    .expect("decision trace event carries trace_canonical")
+                    .as_bytes(),
+            )
+            .expect("decision trace canonical parses")
+        })
+        .collect()
 }
 
 #[test]
@@ -1323,6 +1348,125 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     );
     assert!(!corrupted.matches_expected);
     assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());
+}
+
+#[test]
+fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
+    let golden = fixtures::no_human_observation_facts_cite_log_events_001();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let actor_id = ActorId::new("actor_bruno").unwrap();
+
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "observation_source_ids".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    let event_ids = log
+        .events()
+        .iter()
+        .map(|event| event.event_id.as_str().to_string())
+        .collect::<BTreeSet<_>>();
+    let records = decision_trace_records(&log);
+    assert!(!records.is_empty());
+    for record in records {
+        let recomputed = compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash;
+        assert_eq!(record.actor_known_context_hash, recomputed);
+        assert!(!record.actor_known_inputs.is_empty());
+        for input in &record.actor_known_inputs {
+            let source_events = input
+                .split('|')
+                .find_map(|part| part.strip_prefix("source_events="))
+                .expect("actor-known input records source_events");
+            assert_ne!(source_events, "-");
+            for event_id in source_events.split(',') {
+                assert!(
+                    event_ids.contains(event_id),
+                    "actor-known input {input} cites missing event {event_id}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn no_human_workplace_knowledge_requires_notice_channel() {
+    let golden = fixtures::no_human_workplace_knowledge_requires_notice_event_001();
+    let (mut state, mut agent_state, manifest_id, _) = load_with_log(golden);
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let mut log = EventLog::new();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &{
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_work();
+            registry
+        },
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "disabled_role_notice".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    assert_eq!(report.ordinary_pipeline_events, 0);
+    assert!(!report.stuck_diagnostic_event_ids.is_empty());
+    assert!(!has_event(&log, EventKind::WorkBlockStarted));
+    assert!(log.events().iter().any(|event| event.event_type
+        == EventKind::StuckDiagnosticRecorded
+        && payload(event, "input_source") == Some("holder_known_context")));
+}
+
+#[test]
+fn no_human_sleep_knowledge_requires_observation_or_record_channel() {
+    let golden = fixtures::no_human_sleep_knowledge_requires_observation_or_record_001();
+    let (mut state, mut agent_state, manifest_id, _) = load_with_log(golden);
+    let actor_id = ActorId::new("actor_elena").unwrap();
+    let mut log = EventLog::new();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &{
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_sleep();
+            registry
+        },
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "disabled_sleep_observation".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    assert_eq!(report.ordinary_pipeline_events, 0);
+    assert!(!report.stuck_diagnostic_event_ids.is_empty());
+    assert!(!has_event(&log, EventKind::SleepStarted));
+    assert!(log.events().iter().any(|event| event.event_type
+        == EventKind::StuckDiagnosticRecorded
+        && payload(event, "input_source") == Some("holder_known_context")));
 }
 
 #[test]

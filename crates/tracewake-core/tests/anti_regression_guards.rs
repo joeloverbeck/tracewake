@@ -1346,6 +1346,48 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
 }
 
 #[test]
+fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
+    let scheduler = production(SCHEDULER_RS);
+    let builder = production(NO_HUMAN_SURFACE_RS);
+    let actor_known = production(ACTOR_KNOWN_RS);
+    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+
+    for forbidden in [
+        "PhysicalState",
+        "state.workplaces",
+        "state.workplaces()",
+        "state.food_supplies",
+        "state.food_supplies()",
+        "state.sleep_affordances",
+        "state.sleep_affordances()",
+        "workplaces()",
+        "food_supplies()",
+        "sleep_affordances()",
+    ] {
+        assert_absent(&builder, forbidden);
+    }
+
+    for forbidden in [
+        "extend_actor_known_facts",
+        "add_actor_known_fact",
+        "food_source_believed_accessible",
+    ] {
+        assert_absent(build_agent_proposal, forbidden);
+        assert_absent(&scheduler, "extend_actor_known_facts");
+    }
+
+    assert_absent(&actor_known, "pub fn extend_actor_known_facts");
+    assert_absent(&actor_known, "pub fn add_actor_known_fact");
+    assert!(
+        builder.contains("pub fn from_event_log(")
+            && builder.contains("fn consume_role_assignment_notice")
+            && builder.contains("fn consume_starting_belief")
+            && builder.contains("fn consume_observation"),
+        "no-human cognition must remain event-log backed"
+    );
+}
+
+#[test]
 fn guard_014_embodied_projection_workplaces_are_context_backed() {
     let projection = production(PROJECTIONS_RS);
 

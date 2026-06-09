@@ -495,7 +495,7 @@ fn legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults() 
     trace_canonical.value = trace_canonical
         .value
         .split('|')
-        .take(9)
+        .take(11)
         .collect::<Vec<_>>()
         .join("|");
 
