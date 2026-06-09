@@ -5,7 +5,7 @@ Date: 2026-06-09
 Target implementation commit under review:
 `25e7b93e53256ec1f39c0964d945ffbe2e58ee9a`
 
-Scope: `specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+Scope: `archive/specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the Phase 3A
 ordinary-life hardening work. It is not latest-main verification, not

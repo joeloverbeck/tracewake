@@ -1,6 +1,7 @@
 # 0014 Phase 3A Ordinary-Life Needs / Routines Alignment and Anti-Contamination Hardening Spec
 
-**Staging path:** `specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
+**Status**: COMPLETED
+**Staging path:** `archive/specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`
 
 **Target repository:** `joeloverbeck/tracewake`  
 **Target commit:** `01e860b3f26fb087d0fa7437146dd9901e1a4019`  
@@ -394,3 +395,39 @@ External work informed lock-mechanism choices, but never overrides Tracewake doc
 - [x] Filename and staging path match the required `0014` spec.
 - [x] External sources are cited and subordinated to Tracewake doctrine.
 - [x] The fetch baseline contains every repository file relied on.
+
+## Outcome (2026-06-09)
+
+Completed. The `0014PHA3AORDLIF` ticket family implemented the scoped Phase 3A
+ordinary-life hardening package across tickets 001-010, archived each ticket,
+and added the required `reports/0014_ord_life_cert_scoped_acceptance.md`
+acceptance artifact and conformance index.
+
+What changed:
+
+- No-human cognition now uses a provenance-bearing actor-known surface instead
+  of raw workplace/sleep truth.
+- Scheduler transaction proposals are sealed against post-cognition mutation.
+- Decision and stuck diagnostics carry typed responsible-layer and blocker-code
+  fields and replay rebuilds them.
+- Selected goals/methods carry typed actor-known input references.
+- Sleep requires modeled sleep/rest affordance state and typed content.
+- Embodied workplace projection uses sealed context-backed workplace facts.
+- No-human metrics classify planner failures from typed fields rather than
+  display text.
+- The capstone report records scoped evidence toward `ORD-LIFE-CERT` without
+  claiming full gate certification.
+
+Deviations:
+
+- The capstone added a narrow lint-only `clippy::too_many_arguments` allowance
+  to `PhysicalState::from_seed_parts` so the final clippy gate passes after the
+  sleep-affordance state collection extended the seed constructor. This does not
+  change runtime behavior.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test -p tracewake-core --test no_human_capstone --test anti_regression_guards --test event_schema_replay_gates`
+- `cargo test --workspace`
