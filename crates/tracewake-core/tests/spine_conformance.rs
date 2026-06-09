@@ -422,7 +422,7 @@ fn scoped_acceptance_artifact_present() {
         "Changed files",
         "Per-requirement acceptance evidence",
         "Residual convention-only items",
-        "Phase 1 / Phase 1A spine hardening remediation accepted for this commit.",
+        "Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit",
         "Forbidden wording",
     ] {
         assert!(

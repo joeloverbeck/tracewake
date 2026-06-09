@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-011: Acceptance-artifact no-overclaim guard
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` scoped-wording requirement + a forbidden-wording check
@@ -74,3 +74,28 @@ Add a check that scans an acceptance artifact (and the template) and fails on an
 
 1. `cargo test -p tracewake-core --test acceptance_artifact_wording`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Updated `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` to require the Phase 1 / Phase 1A third-hardening exact-commit certification wording.
+- Required command result and output summaries for each mandatory gate in the template.
+- Expanded the forbidden-wording list to cover full-project, latest-main, later-phase, archived-authority, and older certification overclaims.
+- Added `crates/tracewake-core/tests/acceptance_artifact_wording.rs`, which validates the template and proves missing scoped wording / forbidden result claims fail.
+- Updated the existing `spine_conformance` acceptance-template check to require the new exact-commit wording.
+
+Deviations from original plan:
+
+- The validator permits forbidden phrases only inside the template's `Forbidden wording:` section, so the template can document the banned phrases without using them as result claims.
+
+Verification:
+
+- `cargo test -p tracewake-core --test acceptance_artifact_wording` — passed, 3 tests.
+- `grep -qF 'accepted for exact commit' docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` — passed.
+- `cargo test -p tracewake-core --test spine_conformance` — passed, 6 tests.
+- `cargo fmt --all --check` — passed after rustfmt line wrapping.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
