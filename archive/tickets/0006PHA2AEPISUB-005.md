@@ -1,6 +1,6 @@
 # 0006PHA2AEPISUB-005: Extend source guards and clippy float/hash ban to epistemic paths
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `hidden_truth_gates` source guard extended to epistemic modules; `clippy.toml` extended to ban raw float confidence in epistemic paths.
@@ -80,3 +80,23 @@ In `clippy.toml`, add `f32`/`f64` (and float parse/format) to the disallowed sur
 1. `cargo test -p tracewake-core --test hidden_truth_gates`
 2. `cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test --workspace` — full-pipeline confirmation the extended guards do not false-positive on existing code.
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Extended `hidden_truth_gates` to include the sealed epistemic context, projection, record modules, core debug/view-model files, content loading/validation/serialization files, and TUI epistemic command/render seams.
+- Added source assertions for public authority-bearing context fields, raw projection storage/public insert regressions, public epistemic record fields, raw confidence floats, and hash-ordered collection tokens.
+- Added synthetic self-coverage checks proving the source guard patterns include public context-field leaks and raw float confidence leaks.
+- Added `f32` and `f64` to `clippy.toml` disallowed types to keep confidence deterministic and integer/canonical.
+
+Deviations from original plan:
+- No CI yaml changes were needed; the existing hidden truth and clippy gates already run the modified tests/config.
+- Float parse/format and `HashMap`/`HashSet` are enforced by the source guard over epistemic-relevant paths; `f32`/`f64` are also enforced by clippy.
+
+Verification:
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --test hidden_truth_gates`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`

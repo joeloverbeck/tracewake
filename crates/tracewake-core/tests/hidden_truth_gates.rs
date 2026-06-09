@@ -25,6 +25,55 @@ use tracewake_core::time::SimTick;
 
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const DEBUG_CAPABILITY_RS: &str = include_str!("../src/debug_capability.rs");
+const KNOWLEDGE_CONTEXT_RS: &str = include_str!("../src/epistemics/knowledge_context.rs");
+const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
+const EPISTEMIC_BELIEF_RS: &str = include_str!("../src/epistemics/belief.rs");
+const EPISTEMIC_OBSERVATION_RS: &str = include_str!("../src/epistemics/observation.rs");
+const EPISTEMIC_CONTRADICTION_RS: &str = include_str!("../src/epistemics/contradiction.rs");
+const VIEW_MODELS_RS: &str = include_str!("../src/view_models.rs");
+const DEBUG_REPORTS_RS: &str = include_str!("../src/debug_reports.rs");
+const CONTENT_SCHEMA_RS: &str = include_str!("../../tracewake-content/src/schema.rs");
+const CONTENT_VALIDATE_RS: &str = include_str!("../../tracewake-content/src/validate.rs");
+const CONTENT_SERIALIZATION_RS: &str = include_str!("../../tracewake-content/src/serialization.rs");
+const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const TUI_INPUT_RS: &str = include_str!("../../tracewake-tui/src/input.rs");
+const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
+const TUI_DEBUG_PANELS_RS: &str = include_str!("../../tracewake-tui/src/debug_panels.rs");
+const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
+const TUI_TRANSCRIPT_RS: &str = include_str!("../../tracewake-tui/src/transcript.rs");
+
+fn assert_source_lacks_any(source_name: &str, source: &str, banned: &[&str]) {
+    let violations: Vec<_> = banned
+        .iter()
+        .copied()
+        .filter(|token| source.contains(token))
+        .collect();
+    assert!(
+        violations.is_empty(),
+        "{} contains banned source token(s): {}",
+        source_name,
+        violations.join(", ")
+    );
+}
+
+fn epistemic_guard_sources() -> [(&'static str, &'static str); 14] {
+    [
+        ("epistemics/knowledge_context.rs", KNOWLEDGE_CONTEXT_RS),
+        ("epistemics/projection.rs", EPISTEMIC_PROJECTION_RS),
+        ("epistemics/belief.rs", EPISTEMIC_BELIEF_RS),
+        ("epistemics/observation.rs", EPISTEMIC_OBSERVATION_RS),
+        ("epistemics/contradiction.rs", EPISTEMIC_CONTRADICTION_RS),
+        ("view_models.rs", VIEW_MODELS_RS),
+        ("debug_reports.rs", DEBUG_REPORTS_RS),
+        ("content/schema.rs", CONTENT_SCHEMA_RS),
+        ("content/validate.rs", CONTENT_VALIDATE_RS),
+        ("content/serialization.rs", CONTENT_SERIALIZATION_RS),
+        ("content/load.rs", CONTENT_LOAD_RS),
+        ("tui/input.rs", TUI_INPUT_RS),
+        ("tui/render.rs", TUI_RENDER_RS),
+        ("tui/debug_panels.rs", TUI_DEBUG_PANELS_RS),
+    ]
+}
 
 fn actor_id() -> ActorId {
     ActorId::new("actor_mara").unwrap()
@@ -149,6 +198,116 @@ fn actor_known_context_unforgeable_from_truth() {
         DEBUG_CAPABILITY_RS.contains("DebugCapability::mint()")
             && DEBUG_CAPABILITY_RS.contains("```compile_fail"),
         "debug capability minting must be covered by compile-fail documentation"
+    );
+}
+
+#[test]
+fn epistemic_context_projection_and_records_remain_sealed() {
+    assert_source_lacks_any(
+        "epistemics/knowledge_context.rs",
+        KNOWLEDGE_CONTEXT_RS,
+        &[
+            "pub viewer_actor_id",
+            "pub mode",
+            "pub perception_scope",
+            "pub belief_scope",
+            "pub observation_scope",
+            "pub debug_non_diegetic",
+            "pub holder_known_context_hash",
+            "pub forbidden_truth_audit",
+        ],
+    );
+    assert!(
+        KNOWLEDGE_CONTEXT_RS.contains("pub fn debug(")
+            && KNOWLEDGE_CONTEXT_RS.contains("_capability: &DebugCapability"),
+        "KnowledgeContext::debug must stay capability-gated if it remains public"
+    );
+
+    assert_source_lacks_any(
+        "epistemics/projection.rs",
+        EPISTEMIC_PROJECTION_RS,
+        &[
+            "pub observations_by_id",
+            "pub beliefs_by_id",
+            "pub beliefs_by_holder",
+            "pub contradictions_by_id",
+            "pub notebook_entries_by_actor",
+            "pub fn insert_observation",
+            "pub fn insert_belief",
+            "pub fn insert_contradiction",
+            "pub fn insert_notebook_entry",
+        ],
+    );
+
+    assert_source_lacks_any(
+        "epistemics/belief.rs",
+        EPISTEMIC_BELIEF_RS,
+        &[
+            "pub belief_id:",
+            "pub holder:",
+            "pub proposition:",
+            "pub stance:",
+            "pub confidence:",
+            "pub source:",
+            "pub privacy_scope:",
+            "pub schema_version:",
+        ],
+    );
+    assert_source_lacks_any(
+        "epistemics/observation.rs",
+        EPISTEMIC_OBSERVATION_RS,
+        &[
+            "pub observation_id:",
+            "pub observer_actor_id:",
+            "pub channel:",
+            "pub confidence:",
+            "pub source:",
+            "pub privacy_scope:",
+            "pub schema_version:",
+        ],
+    );
+    assert_source_lacks_any(
+        "epistemics/contradiction.rs",
+        EPISTEMIC_CONTRADICTION_RS,
+        &[
+            "pub contradiction_id:",
+            "pub holder_actor_id:",
+            "pub prior_expectation_belief_id:",
+            "pub contradicting_observation_id:",
+            "pub expected_proposition:",
+            "pub observed_proposition:",
+            "pub schema_version:",
+        ],
+    );
+
+    let synthetic_context_leak = "pub viewer_actor_id: ActorId";
+    assert!(
+        synthetic_context_leak.contains("pub viewer_actor_id"),
+        "source guard self-coverage must include context public-field leaks"
+    );
+}
+
+#[test]
+fn epistemic_confidence_paths_do_not_use_raw_floats_or_hash_ordering() {
+    let banned_tokens = [
+        "f32",
+        "f64",
+        "parse::<f32>",
+        "parse::<f64>",
+        "HashMap",
+        "HashSet",
+    ];
+    for (source_name, source) in epistemic_guard_sources().into_iter().chain([
+        ("tui/app.rs", TUI_APP_RS),
+        ("tui/transcript.rs", TUI_TRANSCRIPT_RS),
+    ]) {
+        assert_source_lacks_any(source_name, source, &banned_tokens);
+    }
+
+    let synthetic_float_leak = "let confidence: f32 = 0.5;";
+    assert!(
+        synthetic_float_leak.contains("f32"),
+        "source guard self-coverage must include raw float confidence leaks"
     );
 }
 
