@@ -27,7 +27,7 @@ Steps 1–7 are the audit. Step 8 (follow-up implementation) fires only if the u
 1. **Read the target skill.** Read its `SKILL.md` and parse name, description, and content. If it ships a `references/` or `templates/` directory, list that directory first so per-finding suggestions can cite exact file paths. (A Read is satisfied by in-context content from earlier this session; re-read only after compaction, or if the skill was modified this session.)
 
 2. **Read alignment documents.**
-   - Read `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` — skip only if it's already in this session's context, and when skipping, name the load mechanism explicitly (e.g., "already in context via direct Read at message N"). It is the constitution: the hard rules `INV-001` … `INV-098`.
+   - Read `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` — skip only if it's already in this session's context, and when skipping, name the load mechanism explicitly (e.g., "already in context via direct Read at message N"). It is the constitution: the hard rules `INV-001` … `INV-110`.
    - If a root `CLAUDE.md` exists, read it too; if absent, treat that as normal and skip the CLAUDE.md alignment check. (In-context content from an earlier Read this session — including a session-start system reminder — satisfies this, per Step 1's allowance; re-read only after compaction or if it changed.)
    - **Meta-tooling carve-out**: when the target is itself a process/tooling skill (e.g., `brainstorm`, `skill-audit`), invariants alignment is N/A — these skills don't touch product behavior. The read may be skipped for such targets.
 

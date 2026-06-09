@@ -12,11 +12,13 @@ use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
     build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
     select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
-    DecisionInput, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal,
-    RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate, VisibleLocalPlanningState,
+    DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
+    NeedState, PlannerGoal, RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate,
+    VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
@@ -63,6 +65,25 @@ fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId)
         loaded.canonical_world,
         loaded.canonical_agent_state,
         manifest_id,
+    )
+}
+
+fn load_with_log(
+    golden: GoldenFixture,
+) -> (PhysicalState, AgentState, ContentManifestId, EventLog) {
+    let manifest_id =
+        ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
+    let loaded = load_fixture_package(
+        manifest_id.clone(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    (
+        loaded.canonical_world,
+        loaded.canonical_agent_state,
+        manifest_id,
+        loaded.seed_event_log,
     )
 }
 
@@ -151,6 +172,29 @@ fn has_event(log: &EventLog, kind: EventKind) -> bool {
     log.events().iter().any(|event| event.event_type == kind)
 }
 
+fn payload<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
+fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
+    log.events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .map(|event| {
+            DecisionTraceRecord::deserialize_canonical(
+                payload(event, "trace_canonical")
+                    .expect("decision trace event carries trace_canonical")
+                    .as_bytes(),
+            )
+            .expect("decision trace canonical parses")
+        })
+        .collect()
+}
+
 #[test]
 fn loads_fixtures_deterministically() {
     for golden in fixtures::all() {
@@ -223,17 +267,15 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
         .expect("work starts after movement ancestry")
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_work_completion_events(
-            &work_started,
-            &ordering_key(&work, 2),
-            &manifest_id,
-            SimTick::new(12),
-        ),
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work, 2),
+        &manifest_id,
+        SimTick::new(12),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::ActorMoved));
     assert!(has_event(&log, EventKind::WorkBlockStarted));
@@ -274,17 +316,15 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         .find(|event| event.event_type == EventKind::SleepStarted)
         .expect("sleep starts")
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_sleep_completion_events(
-            &sleep_started,
-            &ordering_key(&sleep, 1),
-            &manifest_id,
-            SimTick::new(4),
-        ),
+    let completion_events = build_sleep_completion_events(
+        &state,
+        &agent_state,
+        &sleep_started,
+        &ordering_key(&sleep, 1),
+        &manifest_id,
+        SimTick::new(4),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let eat = proposal(
         "proposal_eat_breakfast",
@@ -336,17 +376,15 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         .find(|event| event.event_type == EventKind::WorkBlockStarted)
         .expect("work starts")
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_work_completion_events(
-            &work_started,
-            &ordering_key(&work, 5),
-            &manifest_id,
-            SimTick::new(11),
-        ),
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work, 5),
+        &manifest_id,
+        SimTick::new(11),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::SleepCompleted));
     assert!(has_event(&log, EventKind::FoodConsumed));
@@ -905,8 +943,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .iter()
         .any(|entry| entry.contains("log_derived_metric=no_human_day_metrics_v1")));
 
-    let (mut state, mut agent_state, manifest_id) = load(golden);
-    let mut log = EventLog::new();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
     let report = run_no_human_day(
         &mut state,
         &mut agent_state,
@@ -1015,17 +1052,15 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         })
         .unwrap()
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_sleep_completion_events(
-            &sleep_started,
-            &ordering_key(&sleep_elena, 103),
-            &manifest_id,
-            SimTick::new(39),
-        ),
+    let completion_events = build_sleep_completion_events(
+        &state,
+        &agent_state,
+        &sleep_started,
+        &ordering_key(&sleep_elena, 103),
+        &manifest_id,
+        SimTick::new(39),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let move_tomas_commons = proposal(
         "proposal_day_tomas_move_commons",
@@ -1089,17 +1124,15 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         })
         .unwrap()
         .clone();
-    append_and_apply(
-        &mut state,
-        &mut agent_state,
-        &mut log,
-        build_work_completion_events(
-            &work_started,
-            &ordering_key(&work_tomas, 107),
-            &manifest_id,
-            SimTick::new(46),
-        ),
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work_tomas, 107),
+        &manifest_id,
+        SimTick::new(46),
     );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let work_anna = proposal(
         "proposal_day_anna_blocked_work",
@@ -1223,10 +1256,9 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
 #[test]
 fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     let golden = fixtures::no_human_day_001();
-    let (mut state, mut agent_state, manifest_id) = load(golden);
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
     let initial_state = state.clone();
     let initial_agent_state = agent_state.clone();
-    let mut log = EventLog::new();
     let expected_roster = state.actors().keys().cloned().collect::<Vec<_>>();
 
     let report = run_no_human_day(
@@ -1306,6 +1338,125 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     );
     assert!(!corrupted.matches_expected);
     assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());
+}
+
+#[test]
+fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
+    let golden = fixtures::no_human_observation_facts_cite_log_events_001();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let actor_id = ActorId::new("actor_bruno").unwrap();
+
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "observation_source_ids".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    let event_ids = log
+        .events()
+        .iter()
+        .map(|event| event.event_id.as_str().to_string())
+        .collect::<BTreeSet<_>>();
+    let records = decision_trace_records(&log);
+    assert!(!records.is_empty());
+    for record in records {
+        let recomputed = compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash;
+        assert_eq!(record.actor_known_context_hash, recomputed);
+        assert!(!record.actor_known_inputs.is_empty());
+        for input in &record.actor_known_inputs {
+            let source_events = input
+                .split('|')
+                .find_map(|part| part.strip_prefix("source_events="))
+                .expect("actor-known input records source_events");
+            assert_ne!(source_events, "-");
+            for event_id in source_events.split(',') {
+                assert!(
+                    event_ids.contains(event_id),
+                    "actor-known input {input} cites missing event {event_id}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn no_human_workplace_knowledge_requires_notice_channel() {
+    let golden = fixtures::no_human_workplace_knowledge_requires_notice_event_001();
+    let (mut state, mut agent_state, manifest_id, _) = load_with_log(golden);
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let mut log = EventLog::new();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &{
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_work();
+            registry
+        },
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "disabled_role_notice".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    assert_eq!(report.ordinary_pipeline_events, 0);
+    assert!(!report.stuck_diagnostic_event_ids.is_empty());
+    assert!(!has_event(&log, EventKind::WorkBlockStarted));
+    assert!(log.events().iter().any(|event| event.event_type
+        == EventKind::StuckDiagnosticRecorded
+        && payload(event, "input_source") == Some("holder_known_context")));
+}
+
+#[test]
+fn no_human_sleep_knowledge_requires_observation_or_record_channel() {
+    let golden = fixtures::no_human_sleep_knowledge_requires_observation_or_record_001();
+    let (mut state, mut agent_state, manifest_id, _) = load_with_log(golden);
+    let actor_id = ActorId::new("actor_elena").unwrap();
+    let mut log = EventLog::new();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &{
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_sleep();
+            registry
+        },
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![tracewake_core::scheduler::no_human::DayWindow {
+                window_id: "disabled_sleep_observation".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    assert_eq!(report.ordinary_pipeline_events, 0);
+    assert!(!report.stuck_diagnostic_event_ids.is_empty());
+    assert!(!has_event(&log, EventKind::SleepStarted));
+    assert!(log.events().iter().any(|event| event.event_type
+        == EventKind::StuckDiagnosticRecorded
+        && payload(event, "input_source") == Some("holder_known_context")));
 }
 
 #[test]

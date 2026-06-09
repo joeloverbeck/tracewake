@@ -5,6 +5,7 @@ pub fn method_fallback_requires_new_trace_or_stuck_001() -> GoldenFixture {
         fixture_id: fixture_id("method_fallback_requires_new_trace_or_stuck_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![place_schema("home_mara", "Mara home", &[])],
         doors: Vec::new(),

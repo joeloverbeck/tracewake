@@ -3,7 +3,10 @@ use std::collections::BTreeSet;
 use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash};
 use crate::debug_capability::DebugCapability;
 use crate::epistemics::observation::{PrivacyScope, EPISTEMIC_RECORD_SCHEMA_V1};
-use crate::ids::{ActorId, HolderKnownContextId, PlaceId, SchemaVersion, WorkplaceId};
+use crate::ids::{
+    ActorId, FoodSupplyId, HolderKnownContextId, PlaceId, SchemaVersion, SleepAffordanceId,
+    WorkplaceId,
+};
 use crate::time::SimTick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -193,6 +196,117 @@ impl ActorKnownWorkplaceFact {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownFoodSourceFact {
+    food_supply_id: FoodSupplyId,
+    source_key: String,
+}
+
+impl ActorKnownFoodSourceFact {
+    pub fn new(food_supply_id: FoodSupplyId, source_key: impl Into<String>) -> Self {
+        Self {
+            food_supply_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn food_supply_id(&self) -> &FoodSupplyId {
+        &self.food_supply_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!("{}:{}", self.food_supply_id.as_str(), self.source_key)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownSleepAffordanceFact {
+    sleep_affordance_id: SleepAffordanceId,
+    place_id: PlaceId,
+    source_key: String,
+}
+
+impl ActorKnownSleepAffordanceFact {
+    pub fn new(
+        sleep_affordance_id: SleepAffordanceId,
+        place_id: PlaceId,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            sleep_affordance_id,
+            place_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn sleep_affordance_id(&self) -> &SleepAffordanceId {
+        &self.sleep_affordance_id
+    }
+
+    pub fn place_id(&self) -> &PlaceId {
+        &self.place_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}@{}:{}",
+            self.sleep_affordance_id.as_str(),
+            self.place_id.as_str(),
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownRouteFact {
+    from_place_id: PlaceId,
+    to_place_id: PlaceId,
+    source_key: String,
+}
+
+impl ActorKnownRouteFact {
+    pub fn new(
+        from_place_id: PlaceId,
+        to_place_id: PlaceId,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            from_place_id,
+            to_place_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn from_place_id(&self) -> &PlaceId {
+        &self.from_place_id
+    }
+
+    pub fn to_place_id(&self) -> &PlaceId {
+        &self.to_place_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}->{}:{}",
+            self.from_place_id.as_str(),
+            self.to_place_id.as_str(),
+            self.source_key
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ForbiddenTruthAudit {
     excluded_sources: BTreeSet<ForbiddenKnowledgeSource>,
@@ -251,6 +365,9 @@ pub struct KnowledgeContext {
     holder_known_context_hash: HolderKnownContextHash,
     provenance_entries: Vec<KnowledgeProvenanceEntry>,
     actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+    actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+    actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+    actor_known_routes: Vec<ActorKnownRouteFact>,
     forbidden_truth_audit: ForbiddenTruthAudit,
     status: KnowledgeContextStatus,
 }
@@ -265,10 +382,13 @@ impl KnowledgeContext {
         current_tick: SimTick,
         event_frontier: u64,
     ) -> Self {
-        Self::embodied_at_frontier_with_workplaces(
+        Self::embodied_at_frontier_with_facts(
             viewer_actor_id,
             current_tick,
             event_frontier,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
             Vec::new(),
         )
     }
@@ -278,6 +398,26 @@ impl KnowledgeContext {
         current_tick: SimTick,
         event_frontier: u64,
         actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+    ) -> Self {
+        Self::embodied_at_frontier_with_facts(
+            viewer_actor_id,
+            current_tick,
+            event_frontier,
+            actor_known_workplaces,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
+    pub fn embodied_at_frontier_with_facts(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        actor_known_routes: Vec<ActorKnownRouteFact>,
     ) -> Self {
         let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
         Self::seal(
@@ -294,6 +434,9 @@ impl KnowledgeContext {
             false,
             baseline_embodied_provenance(),
             actor_known_workplaces,
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
         )
     }
 
@@ -312,11 +455,20 @@ impl KnowledgeContext {
         debug_non_diegetic: bool,
         mut provenance_entries: Vec<KnowledgeProvenanceEntry>,
         mut actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        mut actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        mut actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        mut actor_known_routes: Vec<ActorKnownRouteFact>,
     ) -> Self {
         provenance_entries.sort();
         provenance_entries.dedup();
         actor_known_workplaces.sort();
         actor_known_workplaces.dedup();
+        actor_known_food_sources.sort();
+        actor_known_food_sources.dedup();
+        actor_known_sleep_affordances.sort();
+        actor_known_sleep_affordances.dedup();
+        actor_known_routes.sort();
+        actor_known_routes.dedup();
         let projection_schema_version = SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap();
         let holder_known_context_id = HolderKnownContextId::new(format!(
             "hkc.{}.{}.{}",
@@ -344,6 +496,9 @@ impl KnowledgeContext {
             debug_non_diegetic,
             &provenance_entries,
             &actor_known_workplaces,
+            &actor_known_food_sources,
+            &actor_known_sleep_affordances,
+            &actor_known_routes,
             &forbidden_truth_audit,
             status,
         ))
@@ -366,6 +521,9 @@ impl KnowledgeContext {
             holder_known_context_hash,
             provenance_entries,
             actor_known_workplaces,
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
             forbidden_truth_audit,
             status,
         }
@@ -389,6 +547,9 @@ impl KnowledgeContext {
             ScopeFilter::DebugAll,
             true,
             baseline_embodied_provenance(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
             Vec::new(),
         )
     }
@@ -468,6 +629,18 @@ impl KnowledgeContext {
         &self.actor_known_workplaces
     }
 
+    pub fn actor_known_food_sources(&self) -> &[ActorKnownFoodSourceFact] {
+        &self.actor_known_food_sources
+    }
+
+    pub fn actor_known_sleep_affordances(&self) -> &[ActorKnownSleepAffordanceFact] {
+        &self.actor_known_sleep_affordances
+    }
+
+    pub fn actor_known_routes(&self) -> &[ActorKnownRouteFact] {
+        &self.actor_known_routes
+    }
+
     pub fn forbidden_truth_audit(&self) -> &ForbiddenTruthAudit {
         &self.forbidden_truth_audit
     }
@@ -544,6 +717,9 @@ fn canonical_hash_inputs(
     debug_non_diegetic: bool,
     provenance_entries: &[KnowledgeProvenanceEntry],
     actor_known_workplaces: &[ActorKnownWorkplaceFact],
+    actor_known_food_sources: &[ActorKnownFoodSourceFact],
+    actor_known_sleep_affordances: &[ActorKnownSleepAffordanceFact],
+    actor_known_routes: &[ActorKnownRouteFact],
     forbidden_truth_audit: &ForbiddenTruthAudit,
     status: KnowledgeContextStatus,
 ) -> Vec<String> {
@@ -588,6 +764,21 @@ fn canonical_hash_inputs(
         actor_known_workplaces
             .iter()
             .map(|fact| format!("actor_known_workplace={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_food_sources
+            .iter()
+            .map(|fact| format!("actor_known_food_source={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_sleep_affordances
+            .iter()
+            .map(|fact| format!("actor_known_sleep_affordance={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_routes
+            .iter()
+            .map(|fact| format!("actor_known_route={}", fact.canonical_key())),
     );
     lines
 }

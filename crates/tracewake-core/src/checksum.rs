@@ -58,6 +58,11 @@ pub const PHYSICAL_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
         field_name: "sleep_affordances",
         field_family: "sleep_affordance",
     },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Physical,
+        field_name: "need_model",
+        field_family: "need_model",
+    },
 ];
 
 pub const AGENT_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
@@ -240,13 +245,21 @@ pub fn compute_physical_checksum(
 
     for (sleep_affordance_id, sleep_affordance) in &state.sleep_affordances {
         lines.push(format!(
-            "sleep_affordance|id={}|place={}|access_open={}|rest_quality={}",
+            "sleep_affordance|id={}|place={}|access_open={}|rest_quality={}|duration_ticks={}|fatigue_recovery_per_tick={}|hunger_rise_per_tick={}",
             sleep_affordance_id.as_str(),
             sleep_affordance.place_id.as_str(),
             sleep_affordance.access_open,
-            sleep_affordance.rest_quality
+            sleep_affordance.rest_quality,
+            sleep_affordance.duration_ticks,
+            sleep_affordance.fatigue_recovery_per_tick,
+            sleep_affordance.hunger_rise_per_tick
         ));
     }
+
+    lines.push(format!(
+        "need_model|awake_hunger_delta_per_tick={}|awake_fatigue_delta_per_tick={}",
+        state.need_model.awake_hunger_delta_per_tick, state.need_model.awake_fatigue_delta_per_tick
+    ));
 
     let checksum = PhysicalChecksum::from_canonical_lines(&lines);
     PhysicalChecksumReport {
@@ -655,6 +668,8 @@ mod tests {
                 window_end_tick: SimTick::new(2),
                 outcome: DecisionOutcome::Continued,
                 candidate_goal_count: 1,
+                actor_known_context_hash: HolderKnownContextHash::from_canonical_lines(&[]),
+                actor_known_inputs: Vec::new(),
                 hidden_truth_audit_result: HiddenTruthAudit {
                     actor_known_only: true,
                     notes: "fixture".to_string(),

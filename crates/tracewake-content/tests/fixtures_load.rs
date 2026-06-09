@@ -4,7 +4,7 @@ use tracewake_content::fixtures::{self, validate_fixture_contract_metadata};
 use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope};
 use tracewake_content::schema::{
     ActorSchema, DayWindowSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
-    InitialBeliefSchema, InitialNeedSchema, PlaceSchema, RoutineAssignmentSchema,
+    InitialBeliefSchema, InitialNeedSchema, NeedModelSchema, PlaceSchema, RoutineAssignmentSchema,
     RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
@@ -13,6 +13,7 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
@@ -40,6 +41,10 @@ fn phase3a_fixture() -> FixtureSchema {
         fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
         schema_version: SchemaVersion::new("schema_v1").unwrap(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: NeedModelSchema {
+            awake_hunger_delta_per_tick: 5,
+            awake_fatigue_delta_per_tick: 3,
+        },
         actors: vec![ActorSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             current_place_id: PlaceId::new("home_tomas").unwrap(),
@@ -82,6 +87,9 @@ fn phase3a_fixture() -> FixtureSchema {
             place_id: PlaceId::new("home_tomas").unwrap(),
             sleep_place_id: SleepAffordanceId::new("bed_tomas").unwrap(),
             access_open: true,
+            duration_ticks: 4,
+            fatigue_recovery_per_tick: 20,
+            hunger_rise_per_tick: 2,
         }],
         food_supplies: vec![FoodSupplySchema {
             food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),
@@ -135,7 +143,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 36);
+    assert_eq!(all.len(), 45);
 
     let ids = all
         .iter()
@@ -148,9 +156,13 @@ fn all_fixtures_load_deterministically_and_validate() {
             "debug_attach_001".to_string(),
             "debug_omniscience_excluded_001".to_string(),
             "door_access_001".to_string(),
+            "embodied_exits_require_perceived_or_known_route_001".to_string(),
             "embodied_view_omits_raw_assignment_without_context_001".to_string(),
+            "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
+            "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
             "expectation_contradiction_001".to_string(),
             "food_unavailable_replan_001".to_string(),
+            "forbidden_provenance_input_fails_closed_001".to_string(),
             "hidden_food_closed_container_001".to_string(),
             "hidden_food_unknown_route_001".to_string(),
             "hidden_route_edge_001".to_string(),
@@ -163,7 +175,10 @@ fn all_fixtures_load_deterministically_and_validate() {
             "no_human_epistemic_check_001".to_string(),
             "no_human_known_workplace_requires_provenance_001".to_string(),
             "no_human_metrics_require_typed_responsible_layer_001".to_string(),
+            "no_human_observation_facts_cite_log_events_001".to_string(),
+            "no_human_sleep_knowledge_requires_observation_or_record_001".to_string(),
             "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
+            "no_human_workplace_knowledge_requires_notice_event_001".to_string(),
             "no_hidden_truth_planning_001".to_string(),
             "ordinary_workday_001".to_string(),
             "planner_trace_001".to_string(),
@@ -174,11 +189,13 @@ fn all_fixtures_load_deterministically_and_validate() {
             "routine_no_teleport_001".to_string(),
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
+            "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
             "view_filtering_001".to_string(),
             "view_model_local_actions_001".to_string(),
+            "work_completion_fails_when_actor_displaced_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),
         ])
     );
@@ -205,6 +222,59 @@ fn all_fixtures_load_deterministically_and_validate() {
             second.manifest.content_fingerprint
         );
     }
+}
+
+#[test]
+fn phase3a_load_emits_authored_prehistory_seed_events() {
+    let golden = fixtures::sleep_eat_work_001();
+    let first = load_fixture_package(
+        ContentManifestId::new("manifest_sleep_eat_work_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let second = load_fixture_package(
+        ContentManifestId::new("manifest_sleep_eat_work_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+
+    assert_eq!(first.seed_event_log, second.seed_event_log);
+
+    let events = first.seed_event_log.events();
+    let role_notice = events
+        .iter()
+        .find(|event| event.event_type == EventKind::RoleAssignmentNoticeRecorded)
+        .expect("workplace assignment notice is seeded");
+    assert!(role_notice
+        .payload
+        .iter()
+        .any(|field| { field.key == "source_kind" && field.value == "authored_prehistory" }));
+    assert!(role_notice
+        .payload
+        .iter()
+        .any(|field| field.key == "workplace_id" && field.value == "workplace_tomas"));
+
+    let starting_belief_kinds = events
+        .iter()
+        .filter(|event| event.event_type == EventKind::StartingBeliefRecorded)
+        .filter_map(|event| {
+            event
+                .payload
+                .iter()
+                .find(|field| field.key == "belief_kind")
+                .map(|field| field.value.as_str())
+        })
+        .collect::<BTreeSet<_>>();
+    assert!(starting_belief_kinds.contains("home_place"));
+    assert!(starting_belief_kinds.contains("sleep_place"));
+    assert!(starting_belief_kinds.contains("household_food_source"));
+    assert!(events.iter().all(|event| event
+        .payload
+        .iter()
+        .any(|field| field.key == "schema_version"
+            && field.value == tracewake_core::events::EVENT_SCHEMA_V1)));
 }
 
 #[test]
@@ -275,8 +345,12 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
         ids_for_scope(FixtureScope::Phase3AHistorical),
         BTreeSet::from([
             "debug_omniscience_excluded_001".to_string(),
+            "embodied_exits_require_perceived_or_known_route_001".to_string(),
             "embodied_view_omits_raw_assignment_without_context_001".to_string(),
+            "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
+            "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
             "food_unavailable_replan_001".to_string(),
+            "forbidden_provenance_input_fails_closed_001".to_string(),
             "hidden_food_closed_container_001".to_string(),
             "hidden_food_unknown_route_001".to_string(),
             "hidden_route_edge_001".to_string(),
@@ -287,7 +361,10 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "no_human_day_001".to_string(),
             "no_human_known_workplace_requires_provenance_001".to_string(),
             "no_human_metrics_require_typed_responsible_layer_001".to_string(),
+            "no_human_observation_facts_cite_log_events_001".to_string(),
+            "no_human_sleep_knowledge_requires_observation_or_record_001".to_string(),
             "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
+            "no_human_workplace_knowledge_requires_notice_event_001".to_string(),
             "ordinary_workday_001".to_string(),
             "planner_trace_001".to_string(),
             "possession_does_not_reset_intention_001".to_string(),
@@ -295,7 +372,9 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "routine_no_teleport_001".to_string(),
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "sleep_eat_work_001".to_string(),
+            "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
+            "work_completion_fails_when_actor_displaced_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),
         ])
     );
@@ -376,6 +455,50 @@ fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
         .errors
         .iter()
         .any(|error| error.code == "unknown_field"));
+}
+
+#[test]
+fn fixtures_load_phase3a_missing_need_model_is_rejected() {
+    let bytes = serialize_fixture(&phase3a_fixture());
+    let text = String::from_utf8(bytes).unwrap();
+    let without_need_model = text
+        .lines()
+        .filter(|line| !line.starts_with("need_model|"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let report = validate_fixture_bytes(without_need_model.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "missing_field" && error.path == "fixture.need_model"));
+}
+
+#[test]
+fn fixtures_load_phase3a_missing_sleep_tuning_fields_are_rejected() {
+    let bytes = serialize_fixture(&phase3a_fixture());
+    let text = String::from_utf8(bytes).unwrap();
+    let old_shape = text
+        .lines()
+        .map(|line| {
+            if line.starts_with("sleep_place|") {
+                line.split('|').take(5).collect::<Vec<_>>().join("|")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let report = validate_fixture_bytes(old_shape.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "bad_line" && error.message.contains("sleep_place")));
 }
 
 #[test]

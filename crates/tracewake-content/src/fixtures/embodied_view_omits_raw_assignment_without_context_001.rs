@@ -5,6 +5,7 @@ pub fn embodied_view_omits_raw_assignment_without_context_001() -> GoldenFixture
         fixture_id: fixture_id("embodied_view_omits_raw_assignment_without_context_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_tomas", "home_tomas")],
         places: vec![
             place_schema("home_tomas", "Tomas home", &["workshop_tomas"]),

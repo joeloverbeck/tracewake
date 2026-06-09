@@ -12,8 +12,7 @@ use tracewake_core::agent::{
 };
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::debug_reports::item_location_report;
-use tracewake_core::epistemics::EpistemicProjection;
-use tracewake_core::epistemics::KnowledgeContext;
+use tracewake_core::epistemics::{ActorKnownFoodSourceFact, EpistemicProjection, KnowledgeContext};
 use tracewake_core::ids::{
     ActorId, ContainerId, ContentManifestId, ContentVersion, FixtureId, FoodSupplyId, ItemId,
     PlaceId, WorkplaceId,
@@ -370,7 +369,18 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
     );
     let world = world.build();
 
-    let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let knowledge_context = KnowledgeContext::embodied_at_frontier_with_facts(
+        actor_id(),
+        SimTick::ZERO,
+        0,
+        Vec::new(),
+        vec![ActorKnownFoodSourceFact::new(
+            food_supply_id("food_empty_pantry_mara"),
+            "visible_food_supply",
+        )],
+        Vec::new(),
+        Vec::new(),
+    );
     let projection_source =
         EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
     let view = build_embodied_view_model(
@@ -499,18 +509,18 @@ fn hidden_route_edge_absent_from_actor_known_edges_blocks_route_plan() {
 
 #[test]
 fn debug_omniscience_facts_are_excluded_from_planner_context() {
-    let mut context = context(BTreeMap::new(), BTreeSet::new(), BTreeMap::new());
+    let context = context(BTreeMap::new(), BTreeSet::new(), BTreeMap::new());
     proof_sources_are_actor_known(&context);
     assert!(!context
         .proof_sources()
         .iter()
         .any(|source| source.contains("debug_omniscience")));
 
-    context.add_actor_known_fact(ActorKnownFact::unproven(
+    let unproven = ActorKnownFact::unproven(
         "debug_hidden_food",
         "debug-only omniscience must not be accepted as actor-known",
-    ));
-    assert!(!context.audit_with(&[]).actor_known_only);
+    );
+    assert!(!context.audit_with(&[unproven]).actor_known_only);
 }
 
 #[test]

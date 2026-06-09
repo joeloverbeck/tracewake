@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::agent::HiddenTruthAudit;
 use crate::epistemics::EpistemicProjection;
-use crate::ids::{ActorId, ContainerId, PlaceId, WorkplaceId};
+use crate::ids::{ActorId, ContainerId, EventId, PlaceId, WorkplaceId};
 use crate::state::AgentState;
 use crate::time::SimTick;
 
@@ -14,6 +14,7 @@ pub struct ActorKnownFact {
     tick: Option<SimTick>,
     actor_id: ActorId,
     provenance: ActorKnownProvenance,
+    source_event_ids: Vec<EventId>,
 }
 
 impl ActorKnownFact {
@@ -119,7 +120,15 @@ impl ActorKnownFact {
             tick,
             actor_id,
             provenance,
+            source_event_ids: Vec::new(),
         }
+    }
+
+    pub fn with_source_event_ids(mut self, mut source_event_ids: Vec<EventId>) -> Self {
+        source_event_ids.sort();
+        source_event_ids.dedup();
+        self.source_event_ids = source_event_ids;
+        self
     }
 
     pub fn stable_id(&self) -> &str {
@@ -152,6 +161,10 @@ impl ActorKnownFact {
 
     pub fn provenance(&self) -> &ActorKnownProvenance {
         &self.provenance
+    }
+
+    pub fn source_event_ids(&self) -> &[EventId] {
+        &self.source_event_ids
     }
 }
 
@@ -305,16 +318,6 @@ impl ActorKnownPlanningContext {
 
     pub fn proof_sources(&self) -> Vec<String> {
         self.facts.iter().map(ActorKnownFact::proof_note).collect()
-    }
-
-    pub fn add_actor_known_fact(&mut self, fact: ActorKnownFact) {
-        self.facts.push(fact);
-        self.sort_facts();
-    }
-
-    pub fn extend_actor_known_facts(&mut self, facts: impl IntoIterator<Item = ActorKnownFact>) {
-        self.facts.extend(facts);
-        self.sort_facts();
     }
 
     fn sort_facts(&mut self) {
@@ -567,7 +570,7 @@ mod tests {
     fn hidden_truth_audit_reads_provenance_graph_not_stored_boolean() {
         let epistemic_projection =
             EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap());
-        let mut context = observe_visible_local(
+        let context = observe_visible_local(
             &actor_id(),
             Some(&epistemic_projection),
             &AgentState::default(),
@@ -584,8 +587,19 @@ mod tests {
                 .audit_with(std::slice::from_ref(&unproven))
                 .actor_known_only
         );
-        context.add_actor_known_fact(unproven);
-        let audit = context.audit_with(&[]);
+        let visible_local = visible_local();
+        let context_with_unproven = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            visible_local.current_place_id,
+            visible_local.visible_edges,
+            visible_local.visible_closed_doors,
+            visible_local.visible_containers_by_place,
+            visible_local.visible_food_sources,
+            visible_local.visible_sleep_places,
+            visible_local.visible_workplaces,
+            vec![unproven],
+        );
+        let audit = context_with_unproven.audit_with(&[]);
         assert!(!audit.actor_known_only);
         assert!(audit
             .notes

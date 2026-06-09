@@ -8,19 +8,22 @@ use tracewake_core::actions::{
     ProposalOrigin, ProposalSource, ProposalSourceContext, ReasonCode, ReportStatus,
 };
 use tracewake_core::agent::{
-    NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,
+    current_place_knowledge_context, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+    RoutineFamily,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
-use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventKind, EventStream};
+use tracewake_core::events::{
+    EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
+};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
-    DecisionTraceId, FixtureId, FoodSupplyId, ItemId, PlaceId, ProposalId, RoutineExecutionId,
-    RoutineTemplateId, SemanticActionId, SleepAffordanceId, ViewModelId, WorkplaceId,
+    DecisionTraceId, EventId, FixtureId, FoodSupplyId, ItemId, PlaceId, ProposalId,
+    RoutineExecutionId, RoutineTemplateId, SemanticActionId, SleepAffordanceId, ViewModelId,
+    WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -340,6 +343,55 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     (world.build(), agent_state.build(), expected_roster)
 }
 
+fn capstone_seed_log(content_manifest_id: &ContentManifestId) -> EventLog {
+    let mut log = EventLog::new();
+    for (sequence, actor_id, workplace_id, place_id) in [
+        (0, "actor_anna", "workplace_anna_closed", "office_anna"),
+        (1, "actor_tomas", "workplace_tomas", "workshop_tomas"),
+    ] {
+        let actor_id = ActorId::new(actor_id).unwrap();
+        let workplace_id = WorkplaceId::new(workplace_id).unwrap();
+        let mut event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.capstone.role_notice.{}",
+                workplace_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::RoleAssignmentNoticeRecorded,
+            0,
+            sequence,
+            SimTick::ZERO,
+            OrderingKey::new(
+                SimTick::ZERO,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor_id.clone()),
+                ProposalSequence::new(sequence),
+                ActionId::new("role_assignment_notice").unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    workplace_id.as_str().to_string(),
+                ],
+                format!("capstone_role_notice_{sequence:04}"),
+            ),
+            content_manifest_id.clone(),
+        );
+        event.actor_id = Some(actor_id.clone());
+        event.participants = vec![
+            actor_id.as_str().to_string(),
+            workplace_id.as_str().to_string(),
+        ];
+        event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("source_kind", "authored_prehistory"),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("workplace_id", workplace_id.as_str()),
+            PayloadField::new("place_id", place_id),
+        ];
+        log.append(event).unwrap();
+    }
+    log
+}
+
 fn connect_places(world: &mut PhysicalSeed, left: &str, right: &str) {
     let left = PlaceId::new(left).unwrap();
     let right = PlaceId::new(right).unwrap();
@@ -495,8 +547,14 @@ fn run_sleep(
     let mut bindings = None;
     if is_human_origin {
         let controller_id = ControllerId::new("controller_human").unwrap();
-        let source_context =
-            KnowledgeContext::embodied_at_frontier(actor_id(), proposal.requested_tick, 0);
+        let content_manifest_id = ContentManifestId::new("phase3a_manifest").unwrap();
+        let source_context = current_place_knowledge_context(
+            state,
+            &actor_id(),
+            proposal.requested_tick,
+            &content_manifest_id,
+            0,
+        );
         let source_view_model_id = ViewModelId::new("view.actor_tomas.0").unwrap();
         proposal.source_view_model_id = Some(source_view_model_id.clone());
         proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
@@ -778,9 +836,9 @@ fn integrated_no_human_day_capstone_emerges_from_one_autonomous_run() {
     let (mut world, mut agent_state, expected_roster) = capstone_world_and_agents();
     let initial_world = world.clone();
     let initial_agent_state = agent_state.clone();
-    let mut log = EventLog::new();
     let registry = capstone_registry();
     let content_manifest_id = ContentManifestId::new("phase3a_capstone_manifest").unwrap();
+    let mut log = capstone_seed_log(&content_manifest_id);
     let windows = vec![
         DayWindow {
             window_id: "pre_dawn".to_string(),

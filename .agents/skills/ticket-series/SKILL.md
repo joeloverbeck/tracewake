@@ -73,7 +73,11 @@ After all tickets in the series are complete:
 
 1. Re-read the reference spec and verify every acceptance item is either done,
    explicitly rejected, deferred, or not implemented.
-2. Run the relevant final gates. For full completion, prefer:
+   - If the final ticket says spec archival is out of scope, deferred, or left
+     for later, treat that as ticket-local scope only. This final closeout still
+     controls unless the user explicitly says not to archive the reference spec.
+2. Run the relevant final gates. For full completion, use the exact commands
+   named by repository guidance such as `AGENTS.md`. In this repo, those are:
 
 ```sh
 cargo fmt --all --check
@@ -82,15 +86,40 @@ cargo build --workspace --all-targets --locked
 cargo test --workspace
 ```
 
+   If any required final gate is not run, or is run with different flags, record
+   which gate was skipped or changed and why in both the spec `Outcome` and the
+   final response.
 3. Update the spec with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
 4. Archive the spec to `archive/specs/`, using `git mv` when tracked.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
-6. Run a final status/diff check and commit the spec archive/truthing work.
-7. If a `/goal` is active, mark it complete only after implementation,
-   verification, ticket archives, spec archive, reference repair, and required
-   commits are done.
+   Use concrete sweeps for the exact spec filename, ticket prefix, and live
+   paths, for example:
+
+```sh
+rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket prefix>" docs reports specs tickets
+```
+
+   Update active references that should point to `archive/specs/` or
+   `archive/tickets/`. Leave intentionally historical archive references alone
+   unless they describe current location or current status.
+6. Re-read updated ticket/spec outcomes and reports after the final verification
+   run. Confirm the recorded commands, paths, statuses, and skipped/deviated
+   checks match what actually happened.
+7. Run a final status/diff check and commit the spec archive/truthing work.
+8. Before sending the final response or marking a `/goal` complete, confirm:
+   - no matching active ticket paths remain under `tickets/`;
+   - the reference spec no longer exists under `specs/` or `docs/4-specs/`;
+   - the archived spec exists under `archive/specs/`;
+   - active ledgers, reports, specs, docs, and ticket references no longer point
+     at stale live paths;
+   - the final status/diff check shows only intended changes, or the worktree is
+     clean after the final commit;
+   - the spec archive/truthing commit exists.
+9. If a `/goal` is active, mark it complete only after implementation,
+   verification, ticket archives, spec archive, reference repair, required final
+   checks, and required commits are done.
 
 ## Reporting
 
@@ -101,3 +130,9 @@ Final responses must include:
 - Verification commands actually run.
 - Any checks not run and why.
 - Any unrelated pre-existing changes left untouched.
+
+## Maintenance
+
+Launcher metadata for this skill lives in
+`.agents/skills/ticket-series/agents/openai.yaml`. Keep its default prompt
+aligned with this skill's trigger wording and closeout expectations.

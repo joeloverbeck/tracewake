@@ -5,6 +5,7 @@ pub fn no_human_unseen_workplace_assignment_does_not_plan_work_001() -> GoldenFi
         fixture_id: fixture_id("no_human_unseen_workplace_assignment_does_not_plan_work_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_tomas", "home_tomas")],
         places: vec![
             place_schema("home_tomas", "Tomas home", &["workshop_tomas"]),

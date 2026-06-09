@@ -113,13 +113,13 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     assert!(!output.contains("Ran no-human day:"));
     assert!(!output.contains("ordinary_events="));
     assert!(output.contains("routine_events=8"));
-    assert!(output.contains("work_failed=1"));
+    assert!(output.contains("work_failed=2"));
     assert!(output.contains("routine_interruptions=2"));
     assert!(output.contains("routine_exec_mara_eat"));
     assert!(output.contains("status=Failed"));
     assert!(output.contains("routine_exec_tomas_work"));
     assert!(output.contains("status=Completed"));
-    assert!(output.contains("- hunger: value=415 band=rising cause=tick_delta"));
+    assert!(output.contains("- hunger: value=410 band=rising cause=tick_delta"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(output.contains("fixture=no_human_day_001"));
     assert!(!output.contains("food_hidden_pantry"));

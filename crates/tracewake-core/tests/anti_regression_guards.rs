@@ -7,6 +7,7 @@ const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
+const PIPELINE_RS: &str = include_str!("../src/actions/pipeline.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
 const PLANNER_RS: &str = include_str!("../src/agent/planner.rs");
 const STATE_RS: &str = include_str!("../src/state.rs");
@@ -16,6 +17,7 @@ const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
+const TIME_RS: &str = include_str!("../src/time.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
@@ -261,7 +263,97 @@ fn production_sources_from_roots(
             }
         }
     }
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
     sources
+}
+
+const GUARDED_LAYER_SOURCE_CENSUS: &[&str] = &[
+    "src/agent/actor_known.rs",
+    "src/agent/candidate.rs",
+    "src/agent/decision.rs",
+    "src/agent/generation.rs",
+    "src/agent/htn.rs",
+    "src/agent/intention.rs",
+    "src/agent/methods.rs",
+    "src/agent/mod.rs",
+    "src/agent/need.rs",
+    "src/agent/no_human_surface.rs",
+    "src/agent/perception.rs",
+    "src/agent/planner.rs",
+    "src/agent/routine.rs",
+    "src/agent/trace.rs",
+    "src/agent/transaction.rs",
+    "src/projections.rs",
+    "src/scheduler.rs",
+];
+
+#[derive(Clone, Copy)]
+enum GuardedLayer {
+    Agent,
+    Scheduler,
+    Projections,
+}
+
+fn guarded_layer_sources() -> Vec<(String, String)> {
+    production_sources()
+        .into_iter()
+        .filter(|(path, _)| is_guarded_layer_source(path))
+        .collect()
+}
+
+fn guarded_sources_for(layer: GuardedLayer) -> Vec<(String, String)> {
+    guarded_layer_sources()
+        .into_iter()
+        .filter(|(path, _)| match layer {
+            GuardedLayer::Agent => path.starts_with("src/agent/"),
+            GuardedLayer::Scheduler => path.starts_with("src/scheduler"),
+            GuardedLayer::Projections => path.starts_with("src/projections"),
+        })
+        .collect()
+}
+
+fn guarded_source(path: &str) -> String {
+    guarded_layer_sources()
+        .into_iter()
+        .find_map(|(source_path, source)| (source_path == path).then_some(source))
+        .unwrap_or_else(|| panic!("{path} is part of the guarded layer census"))
+}
+
+fn guarded_layer_source_paths() -> Vec<String> {
+    production_sources()
+        .into_iter()
+        .map(|(path, _)| path)
+        .filter(|path| is_guarded_layer_source(path))
+        .collect()
+}
+
+fn is_guarded_layer_source(path: &str) -> bool {
+    path.starts_with("src/agent/")
+        || path.starts_with("src/scheduler")
+        || path.starts_with("src/projections")
+}
+
+fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
+    for (path, source) in sources {
+        assert!(
+            !source.contains(needle),
+            "{path}: forbidden shortcut reintroduced: {needle}"
+        );
+    }
+}
+
+#[test]
+fn guarded_layer_source_census_matches_module_tree() {
+    let actual = guarded_layer_source_paths();
+    let expected = GUARDED_LAYER_SOURCE_CENSUS
+        .iter()
+        .map(|path| (*path).to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual, expected,
+        "new files under src/agent/**, src/scheduler*, or src/projections* must be classified in the guard census"
+    );
 }
 
 #[allow(
@@ -681,6 +773,27 @@ fn scheduler_never_direct_dispatches_primitive_action() {
     assert!(
         scheduler.contains("ActorDecisionTransaction::run"),
         "scheduler autonomous proposals must come from the actor decision transaction"
+    );
+    assert!(
+        SLEEP_RS.contains("pub fn build_sleep_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
+        "sleep completion builder must require current physical and agent state for continuity checks"
+    );
+    assert!(
+        WORK_RS.contains("pub fn build_work_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
+        "work completion builder must require current physical and agent state for continuity checks"
+    );
+    assert!(
+        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,"),
+        "scheduler must pass current state into sleep completion continuity checks"
+    );
+    assert!(
+        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,"),
+        "scheduler must pass current state into work completion continuity checks"
+    );
+    assert!(
+        scheduler.contains("if appended.event_type == EventKind::SleepCompleted")
+            && scheduler.contains("if appended.event_type == EventKind::WorkBlockCompleted"),
+        "scheduler must only mark duration routine steps completed after actual completion events"
     );
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
@@ -1275,7 +1388,7 @@ fn event_apply_remains_only_post_seed_mutation_path() {
 
 #[test]
 fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
-    let scheduler = production(SCHEDULER_RS);
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     for forbidden in [
         "build_routine_or_need_proposal",
         "eat_proposal",
@@ -1285,24 +1398,26 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
         "current_hunger",
         "current_fatigue",
     ] {
-        assert_absent(&scheduler, forbidden);
+        assert_absent_from_sources(&scheduler_sources, forbidden);
     }
 }
 
 #[test]
 fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
-    let scheduler = production(SCHEDULER_RS);
-    assert_absent(&scheduler, "EpistemicProjection::new");
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
+    assert_absent_from_sources(&scheduler_sources, "EpistemicProjection::new");
+    let scheduler = guarded_source("src/scheduler.rs");
     assert!(
-        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_modeled_observations"),
+        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_event_log"),
         "no-human cognition must use the sealed actor-known surface builder"
     );
 }
 
 #[test]
 fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth() {
-    let scheduler = production(SCHEDULER_RS);
-    let builder = production(NO_HUMAN_SURFACE_RS);
+    let scheduler = guarded_source("src/scheduler.rs");
+    let builder = guarded_source("src/agent/no_human_surface.rs");
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
 
     for forbidden in [
@@ -1316,6 +1431,7 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "assigned_workplace_known",
     ] {
         assert_absent(build_agent_proposal, forbidden);
+        assert_absent_from_sources(&scheduler_sources, forbidden);
     }
 
     assert!(
@@ -1327,31 +1443,74 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "no-human actor-known surface must be constructed through a named builder"
     );
     assert!(
-        builder.contains("fn observe_visible_food_sources_from_current_place"),
-        "raw food-table visibility must be isolated in a named observation builder"
+        builder.contains("fn consume_observation"),
+        "no-human actor-known surface must consume recorded observations"
     );
     assert!(
-        builder.contains("fn observe_visible_routes_from_current_place"),
-        "raw adjacency visibility must be isolated in a named observation builder"
+        builder.contains("fn consume_role_assignment_notice"),
+        "no-human actor-known surface must consume recorded role notices"
     );
     assert!(
-        builder.contains("fn observe_workplace_notices_from_active_routines"),
-        "workplace table reads must be isolated behind modeled routine-assignment notice construction"
+        builder.contains("fn consume_starting_belief"),
+        "no-human actor-known surface must consume recorded starting beliefs"
     );
-    let workplace_notice_body = body_after_marker(
-        &builder,
-        "fn observe_workplace_notices_from_active_routines",
-    );
-    assert!(
-        workplace_notice_body.contains("has_live_routine_family"),
-        "workplace notices must require a live modeled routine assignment"
-    );
+    assert_absent(&builder, "PhysicalState");
+    assert_absent(&builder, "state.workplaces");
+    assert_absent(&builder, "state.food_supplies");
+    assert_absent(&builder, "state.sleep_affordances");
     assert_absent(&builder, "BTreeSet::from([current_place_id");
 }
 
 #[test]
+fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
+    let scheduler = guarded_source("src/scheduler.rs");
+    let builder = guarded_source("src/agent/no_human_surface.rs");
+    let actor_known = guarded_source("src/agent/actor_known.rs");
+    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
+    let agent_sources = guarded_sources_for(GuardedLayer::Agent);
+    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+
+    for forbidden in [
+        "PhysicalState",
+        "state.workplaces",
+        "state.workplaces()",
+        "state.food_supplies",
+        "state.food_supplies()",
+        "state.sleep_affordances",
+        "state.sleep_affordances()",
+        "workplaces()",
+        "food_supplies()",
+        "sleep_affordances()",
+    ] {
+        assert_absent(&builder, forbidden);
+    }
+
+    for forbidden in ["extend_actor_known_facts", "add_actor_known_fact"] {
+        assert_absent(build_agent_proposal, forbidden);
+        assert_absent_from_sources(&scheduler_sources, forbidden);
+        assert_absent_from_sources(&agent_sources, forbidden);
+    }
+    assert_absent(build_agent_proposal, "food_source_believed_accessible");
+    assert_absent_from_sources(&scheduler_sources, "food_source_believed_accessible");
+
+    assert_absent(&actor_known, "pub fn extend_actor_known_facts");
+    assert_absent(&actor_known, "pub fn add_actor_known_fact");
+    assert!(
+        builder.contains("pub fn from_event_log(")
+            && builder.contains("fn consume_role_assignment_notice")
+            && builder.contains("fn consume_starting_belief")
+            && builder.contains("fn consume_observation"),
+        "no-human cognition must remain event-log backed"
+    );
+}
+
+#[test]
 fn guard_014_embodied_projection_workplaces_are_context_backed() {
-    let projection = production(PROJECTIONS_RS);
+    let projection_sources = guarded_sources_for(GuardedLayer::Projections);
+    let projection = guarded_source("src/projections.rs");
+    let food_helper = body_after_marker(&projection, "fn actor_known_food_sources_for_context");
+    let sleep_helper = body_after_marker(&projection, "fn visible_open_sleep_affordance");
+    let view_builder = body_after_marker(&projection, "pub fn build_embodied_view_model");
 
     assert!(
         projection.contains("fn actor_known_workplaces_for_context(context: &KnowledgeContext)"),
@@ -1366,11 +1525,33 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
         "workplace.assigned_actor_ids.is_empty()\n                || workplace.assigned_actor_ids.contains",
     );
     assert_absent(&projection, "actor_known_workplaces_for_context(state");
+    assert!(
+        projection.contains("fn actor_known_food_sources_for_context(context: &KnowledgeContext)"),
+        "embodied food affordances must be selected from sealed holder-known food facts"
+    );
+    assert!(
+        projection.contains("fn actor_known_sleep_affordances_for_context"),
+        "embodied sleep affordances must be selected from sealed holder-known sleep facts"
+    );
+    assert!(
+        projection.contains("fn actor_known_routes_for_context"),
+        "embodied exits must be selected from sealed holder-known route facts"
+    );
+    assert_absent(food_helper, "state.food_supplies");
+    assert_absent(food_helper, "food_supplies()");
+    assert_absent(sleep_helper, "state.sleep_affordances");
+    assert_absent(sleep_helper, "sleep_affordances()");
+    assert_absent(view_builder, ".adjacent_place_ids");
+    assert_absent_from_sources(
+        &projection_sources,
+        "actor_known_workplaces_for_context(state",
+    );
 }
 
 #[test]
 fn guard_014_no_human_metrics_do_not_scan_display_text() {
-    let projection = production(PROJECTIONS_RS);
+    let projection_sources = guarded_sources_for(GuardedLayer::Projections);
+    let projection = guarded_source("src/projections.rs");
     let metrics_body = body_after_marker(&projection, "pub fn no_human_day_metrics");
 
     for forbidden in [
@@ -1379,6 +1560,7 @@ fn guard_014_no_human_metrics_do_not_scan_display_text() {
         ".contains(\"planner_budget_exhausted\")",
     ] {
         assert_absent(metrics_body, forbidden);
+        assert_absent_from_sources(&projection_sources, forbidden);
     }
     assert!(
         projection.contains("fn is_typed_planner_failure_event"),
@@ -1417,6 +1599,34 @@ fn guard_014_sleep_validation_requires_modeled_affordance() {
     assert!(
         builder.contains("actor_knows_sleep_affordance"),
         "no-human cognition must derive sleep affordance ids as actor-known facts"
+    );
+}
+
+#[test]
+fn guard_015_ordinary_life_tuning_comes_from_authored_state() {
+    let sleep = production(SLEEP_RS);
+    let time = production(TIME_RS);
+
+    for forbidden in [
+        "AWAKE_HUNGER_DELTA_PER_TICK",
+        "AWAKE_FATIGUE_DELTA_PER_TICK",
+        "DEFAULT_SLEEP_DURATION_TICKS",
+        "FATIGUE_RECOVERY_PER_SLEEP_TICK",
+        "HUNGER_RISE_PER_SLEEP_TICK",
+    ] {
+        assert_absent(&time, forbidden);
+        assert_absent(&sleep, forbidden);
+    }
+    assert!(
+        time.contains("need_model.awake_hunger_delta_per_tick")
+            && time.contains("need_model.awake_fatigue_delta_per_tick"),
+        "passive awake need deltas must read the authored need model"
+    );
+    assert!(
+        sleep.contains("sleep_affordance.duration_ticks")
+            && sleep.contains("sleep_affordance.fatigue_recovery_per_tick")
+            && sleep.contains("sleep_affordance.hunger_rise_per_tick"),
+        "sleep duration and recovery must read authored sleep affordance state"
     );
 }
 
@@ -1489,6 +1699,33 @@ fn guard_014_transaction_has_no_silent_method_fallback_scan() {
     assert!(
         transaction.contains("method_selection_rejected"),
         "method fallback rerun must preserve a typed rejection reason for the failed selected candidate"
+    );
+}
+
+#[test]
+fn guard_015_hidden_truth_audit_fails_closed_in_transaction() {
+    let transaction = production(TRANSACTION_RS);
+    let pipeline = production(PIPELINE_RS);
+
+    assert!(
+        transaction.contains("stuck_diagnostic_for_hidden_truth_audit"),
+        "transaction must turn failed hidden-truth audit into a typed stuck diagnostic"
+    );
+    assert!(
+        transaction.contains("!selection.trace.hidden_truth_audit_result.actor_known_only"),
+        "transaction must gate on the selected trace hidden-truth audit before proposal construction"
+    );
+    assert!(
+        transaction.contains("BlockerCode::HiddenTruthInput"),
+        "transaction stuck diagnostic must use hidden_truth_input blocker code"
+    );
+    assert!(
+        transaction.contains("hidden_truth_referenced: true"),
+        "transaction stuck diagnostic must preserve hidden-truth typed signal"
+    );
+    assert!(
+        pipeline.contains("ReasonCode::HiddenTruthInput"),
+        "pipeline must reject agent-origin proposals carrying a failed hidden-truth audit"
     );
 }
 

@@ -5,6 +5,7 @@ pub fn strongbox_001() -> GoldenFixture {
         fixture_id: fixture_id("strongbox_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase1,
+        need_model: need_model_schema(),
         actors: vec![
             actor_schema("actor_elena", "house_tomas"),
             actor_schema("actor_tomas", "house_tomas"),

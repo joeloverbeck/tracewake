@@ -16,6 +16,7 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::proposal::{Proposal, ProposalOrigin, ProposalSource};
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
+use crate::agent::current_place_knowledge_context;
 use crate::controller::{ControllerBindings, ControllerError};
 use crate::epistemics::{
     detect_expected_absences, Confidence, EpistemicProjection, KnowledgeContext,
@@ -812,6 +813,25 @@ fn source_context_check(
     proposal: &Proposal,
     mut checked_facts: Vec<CheckedFact>,
 ) -> Option<PipelineDecision> {
+    if proposal.origin == ProposalOrigin::Agent {
+        if proposal
+            .parameters
+            .get("hidden_truth_audit_actor_known_only")
+            .is_some_and(|value| value == "false")
+        {
+            return Some(reject(
+                context,
+                proposal,
+                PipelineStage::SourceContextValidation,
+                vec![ReasonCode::HiddenTruthInput],
+                checked_facts,
+                "That action was blocked by the actor-known audit.",
+                "agent-origin proposal carried a failed hidden-truth audit",
+            ));
+        }
+        return None;
+    }
+
     if proposal.origin != ProposalOrigin::Human {
         return None;
     }
@@ -913,9 +933,11 @@ fn source_context_check(
         ));
     }
 
-    let expected_context = KnowledgeContext::embodied_at_frontier(
-        actor_id.clone(),
+    let expected_context = current_place_knowledge_context(
+        context.state,
+        actor_id,
         source.context_tick,
+        context.content_manifest_id,
         context.current_event_frontier,
     );
     if source.holder_known_context_id != *expected_context.holder_known_context_id()
@@ -1658,6 +1680,46 @@ mod tests {
         assert!(has_fact(&report.debug_only_facts, "semantic_action_id"));
         assert!(!has_fact(&report.actor_visible_facts, "source_kind"));
         assert!(!has_fact(&report.actor_visible_facts, "semantic_action_id"));
+    }
+
+    #[test]
+    fn agent_source_context_rejects_failed_hidden_truth_audit() {
+        let registry = phase2a_registry();
+        let mut state = state();
+        let mut agent_state = AgentState::default();
+        let mut log = EventLog::new();
+        let mut proposal = proposal(ProposalOrigin::Agent);
+        proposal.source = Some(ProposalSource::Agent);
+        proposal.parameters.insert(
+            "hidden_truth_audit_actor_known_only".to_string(),
+            "false".to_string(),
+        );
+        let mut context = PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: content_manifest_id(),
+            ordering_key: ordering_key(),
+        };
+
+        let result = run_pipeline(&mut context, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            result.report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert!(result
+            .report
+            .reason_codes
+            .contains(&ReasonCode::HiddenTruthInput));
+        assert!(result.appended_events.iter().any(|event| {
+            event.event_type == EventKind::ActionRejected
+                && payload_value(event, "reason_code") == Some("hidden_truth_input")
+        }));
     }
 
     #[test]

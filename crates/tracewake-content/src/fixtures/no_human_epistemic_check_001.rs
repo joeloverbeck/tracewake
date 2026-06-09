@@ -5,6 +5,7 @@ pub fn no_human_epistemic_check_001() -> GoldenFixture {
         fixture_id: fixture_id("no_human_epistemic_check_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase2AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_tomas", "house_tomas")],
         places: vec![place_schema("house_tomas", "Tomas house", &[])],
         doors: Vec::new(),

@@ -209,6 +209,9 @@ pub fn apply_epistemic_event(
             projection.insert_observation(observation);
             Ok(ApplyOutcome::Applied)
         }
+        EventKind::RoleAssignmentNoticeRecorded | EventKind::StartingBeliefRecorded => {
+            Ok(ApplyOutcome::Applied)
+        }
         EventKind::ExpectationContradicted => {
             let contradiction = parse_contradiction_payload(&payload)?;
             projection.insert_contradiction(contradiction);

@@ -52,12 +52,15 @@ pub struct ActorKnownInputRef {
 impl ActorKnownInputRef {
     pub fn from_fact(fact: &ActorKnownFact) -> Self {
         let source_class = source_class_for_provenance(fact.provenance());
-        let tick = fact.tick().map(|tick| tick.value().to_string());
         Self {
             fact_id: fact.stable_id().to_string(),
             proposition_id: Some(format!("{}:{}", fact.semantic_kind(), fact.value())),
             provenance_edge_ids: vec![fact.proof_note()],
-            source_event_ids: tick.into_iter().collect(),
+            source_event_ids: fact
+                .source_event_ids()
+                .iter()
+                .map(|event_id| event_id.as_str().to_string())
+                .collect(),
             source_class,
             confidence: None,
             staleness: None,
@@ -67,11 +70,17 @@ impl ActorKnownInputRef {
     }
 
     pub fn render_for_trace(&self) -> String {
+        let source_events = if self.source_event_ids.is_empty() {
+            "-".to_string()
+        } else {
+            self.source_event_ids.join(",")
+        };
         format!(
-            "{}|source_class={}|explicit_unknown={}",
+            "{}|source_class={}|explicit_unknown={}|source_events={}",
             self.display_note,
             self.source_class.stable_id(),
-            self.explicit_unknown
+            self.explicit_unknown,
+            source_events
         )
     }
 }

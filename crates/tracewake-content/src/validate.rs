@@ -876,6 +876,16 @@ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationErr
             ));
         }
     }
+    for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
+        if sleep_place.duration_ticks == 0 {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("sleep_places[{index}].duration_ticks"),
+                "invalid_duration",
+                "sleep duration must be greater than zero",
+            ));
+        }
+    }
 }
 
 fn validate_action_registry_parity(
@@ -1830,8 +1840,8 @@ mod tests {
     use super::*;
     use crate::schema::{
         ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureScope,
-        FoodSupplySchema, InitialNeedSchema, ItemSchema, PlaceSchema, RoutineAssignmentSchema,
-        RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
+        FoodSupplySchema, InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema,
+        RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
     };
     use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
     use tracewake_core::ids::{
@@ -1858,6 +1868,10 @@ mod tests {
             fixture_id: FixtureId::new("strongbox_001").unwrap(),
             schema_version: SchemaVersion::new("schema_v1").unwrap(),
             fixture_scope: FixtureScope::Phase1,
+            need_model: NeedModelSchema {
+                awake_hunger_delta_per_tick: 5,
+                awake_fatigue_delta_per_tick: 3,
+            },
             actors: vec![ActorSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 current_place_id: PlaceId::new("shop_front").unwrap(),
@@ -1934,6 +1948,9 @@ mod tests {
             place_id: PlaceId::new("shop_front").unwrap(),
             sleep_place_id: SleepAffordanceId::new("bed_tomas").unwrap(),
             access_open: true,
+            duration_ticks: 4,
+            fatigue_recovery_per_tick: 20,
+            hunger_rise_per_tick: 2,
         });
         fixture.food_supplies.push(FoodSupplySchema {
             food_supply_id: FoodSupplyId::new("food_soup_pot").unwrap(),

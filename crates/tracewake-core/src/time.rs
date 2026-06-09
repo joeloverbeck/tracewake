@@ -1,3 +1,5 @@
+use crate::state::NeedModelState;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SimTick(u64);
 
@@ -27,14 +29,14 @@ pub struct PassiveNeedDeltas {
     pub fatigue_delta: i32,
 }
 
-pub const AWAKE_HUNGER_DELTA_PER_TICK: i32 = 5;
-pub const AWAKE_FATIGUE_DELTA_PER_TICK: i32 = 3;
-
-pub fn passive_awake_need_deltas(elapsed_ticks: u64) -> PassiveNeedDeltas {
+pub fn passive_awake_need_deltas(
+    need_model: &NeedModelState,
+    elapsed_ticks: u64,
+) -> PassiveNeedDeltas {
     let elapsed = i32::try_from(elapsed_ticks).unwrap_or(i32::MAX);
     PassiveNeedDeltas {
-        hunger_delta: elapsed.saturating_mul(AWAKE_HUNGER_DELTA_PER_TICK),
-        fatigue_delta: elapsed.saturating_mul(AWAKE_FATIGUE_DELTA_PER_TICK),
+        hunger_delta: elapsed.saturating_mul(need_model.awake_hunger_delta_per_tick),
+        fatigue_delta: elapsed.saturating_mul(need_model.awake_fatigue_delta_per_tick),
     }
 }
 
@@ -55,13 +57,13 @@ mod tests {
     #[test]
     fn passive_awake_need_deltas_are_deterministic_and_non_reducing() {
         assert_eq!(
-            passive_awake_need_deltas(3),
+            passive_awake_need_deltas(&NeedModelState::default(), 3),
             PassiveNeedDeltas {
                 hunger_delta: 15,
                 fatigue_delta: 9,
             }
         );
-        assert!(passive_awake_need_deltas(10).hunger_delta >= 0);
-        assert!(passive_awake_need_deltas(10).fatigue_delta >= 0);
+        assert!(passive_awake_need_deltas(&NeedModelState::default(), 10).hunger_delta >= 0);
+        assert!(passive_awake_need_deltas(&NeedModelState::default(), 10).fatigue_delta >= 0);
     }
 }

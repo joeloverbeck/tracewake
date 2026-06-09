@@ -4,6 +4,7 @@ use crate::agent::candidate::CandidateGoal;
 use crate::agent::intention::Intention;
 use crate::agent::need::{NeedKind, NeedPressure};
 use crate::agent::routine::RoutineStep;
+use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash};
 use crate::ids::{
     ActorId, CandidateGoalId, DecisionTraceId, IntentionId, RoutineExecutionId, RoutineTemplateId,
     SemanticActionId, StuckDiagnosticId,
@@ -131,6 +132,7 @@ pub enum BlockerCode {
     NoApplicableMethod,
     EmptyLocalPlan,
     LocalPlanFailed,
+    HiddenTruthInput,
 }
 
 impl BlockerCode {
@@ -150,6 +152,7 @@ impl BlockerCode {
             Self::NoApplicableMethod => "no_applicable_method",
             Self::EmptyLocalPlan => "empty_local_plan",
             Self::LocalPlanFailed => "local_plan_failed",
+            Self::HiddenTruthInput => "hidden_truth_input",
         }
     }
 
@@ -169,6 +172,7 @@ impl BlockerCode {
             "no_applicable_method" => Ok(Self::NoApplicableMethod),
             "empty_local_plan" => Ok(Self::EmptyLocalPlan),
             "local_plan_failed" => Ok(Self::LocalPlanFailed),
+            "hidden_truth_input" => Ok(Self::HiddenTruthInput),
             _ => Err(DiagnosticFieldParseError::InvalidBlockerCode),
         }
     }
@@ -222,12 +226,17 @@ pub struct DecisionTraceRecord {
     pub window_end_tick: SimTick,
     pub outcome: DecisionOutcome,
     pub candidate_goal_count: usize,
+    pub actor_known_context_hash: HolderKnownContextHash,
+    pub actor_known_inputs: Vec<String>,
     pub hidden_truth_audit_result: HiddenTruthAudit,
     pub typed_diagnostic: TypedDiagnosticFields,
 }
 
 impl DecisionTraceRecord {
     pub fn from_trace(trace: &DecisionTrace) -> Self {
+        let actor_known_inputs = trace.beliefs_perceptions_known_places_used.clone();
+        let actor_known_context_hash =
+            compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
         Self {
             trace_id: trace.trace_id.clone(),
             actor_id: trace.actor_id.clone(),
@@ -235,6 +244,8 @@ impl DecisionTraceRecord {
             window_end_tick: trace.window_end_tick,
             outcome: trace.outcome,
             candidate_goal_count: trace.candidate_goals_considered.len(),
+            actor_known_context_hash,
+            actor_known_inputs,
             hidden_truth_audit_result: trace.hidden_truth_audit_result.clone(),
             typed_diagnostic: TypedDiagnosticFields::decision_default(
                 !trace.hidden_truth_audit_result.actor_known_only,
@@ -244,13 +255,15 @@ impl DecisionTraceRecord {
 
     pub fn serialize_canonical(&self) -> String {
         format!(
-            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.trace_id.serialize_canonical(),
             self.actor_id.serialize_canonical(),
             self.window_start_tick.value(),
             self.window_end_tick.value(),
             self.outcome.stable_id(),
             self.candidate_goal_count,
+            self.actor_known_context_hash.as_str(),
+            encode_text_payload(&self.actor_known_inputs.join("\n")),
             encode_bool(self.hidden_truth_audit_result.actor_known_only),
             encode_text_payload(&self.hidden_truth_audit_result.notes),
             self.typed_diagnostic.responsible_layer.stable_id(),
@@ -266,11 +279,37 @@ impl DecisionTraceRecord {
         let value =
             std::str::from_utf8(value).map_err(|_| DecisionTraceRecordParseError::InvalidUtf8)?;
         let fields: Vec<_> = value.split('|').collect();
-        if !matches!(fields.len(), 9 | 15) || fields[0] != "decision_trace_v1" {
+        if !matches!(fields.len(), 9 | 11 | 15 | 17) || fields[0] != "decision_trace_v1" {
             return Err(DecisionTraceRecordParseError::InvalidShape);
         }
+        let (actor_known_context_hash, actor_known_inputs, audit_index, typed_index) =
+            if matches!(fields.len(), 11 | 17) {
+                let actor_known_inputs = decode_text_payload(fields[8])?
+                    .lines()
+                    .filter(|line| !line.is_empty())
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>();
+                let actor_known_context_hash =
+                    compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
+                if fields[7] != actor_known_context_hash.as_str() {
+                    return Err(DecisionTraceRecordParseError::InvalidContextHash);
+                }
+                (
+                    actor_known_context_hash,
+                    actor_known_inputs,
+                    9,
+                    (fields.len() == 17).then_some(11),
+                )
+            } else {
+                (
+                    HolderKnownContextHash::from_canonical_lines(&[]),
+                    Vec::new(),
+                    7,
+                    (fields.len() == 15).then_some(9),
+                )
+            };
         let actor_known_only =
-            decode_bool(fields[7]).ok_or(DecisionTraceRecordParseError::InvalidBool)?;
+            decode_bool(fields[audit_index]).ok_or(DecisionTraceRecordParseError::InvalidBool)?;
         Ok(Self {
             trace_id: DecisionTraceId::new(fields[1])
                 .map_err(DecisionTraceRecordParseError::InvalidId)?,
@@ -290,19 +329,21 @@ impl DecisionTraceRecord {
             candidate_goal_count: fields[6]
                 .parse()
                 .map_err(|_| DecisionTraceRecordParseError::InvalidCount)?,
+            actor_known_context_hash,
+            actor_known_inputs,
             hidden_truth_audit_result: HiddenTruthAudit {
                 actor_known_only,
-                notes: decode_text_payload(fields[8])?,
+                notes: decode_text_payload(fields[audit_index + 1])?,
             },
-            typed_diagnostic: if fields.len() == 15 {
+            typed_diagnostic: if let Some(typed_index) = typed_index {
                 TypedDiagnosticFields {
-                    responsible_layer: ResponsibleLayer::parse(fields[9])?,
-                    blocker_code: BlockerCode::parse(fields[10])?,
-                    input_source: decode_text_payload(fields[11])?,
-                    actual_source: decode_text_payload(fields[12])?,
-                    hidden_truth_referenced: decode_bool(fields[13])
+                    responsible_layer: ResponsibleLayer::parse(fields[typed_index])?,
+                    blocker_code: BlockerCode::parse(fields[typed_index + 1])?,
+                    input_source: decode_text_payload(fields[typed_index + 2])?,
+                    actual_source: decode_text_payload(fields[typed_index + 3])?,
+                    hidden_truth_referenced: decode_bool(fields[typed_index + 4])
                         .ok_or(DecisionTraceRecordParseError::InvalidBool)?,
-                    remediation_hint: decode_text_payload(fields[14])?,
+                    remediation_hint: decode_text_payload(fields[typed_index + 5])?,
                 }
             } else {
                 TypedDiagnosticFields::decision_default(!actor_known_only)
@@ -320,6 +361,7 @@ pub enum DecisionTraceRecordParseError {
     InvalidCount,
     InvalidBool,
     InvalidTextPayload,
+    InvalidContextHash,
     InvalidId(crate::ids::IdError),
     InvalidResponsibleLayer,
     InvalidBlockerCode,

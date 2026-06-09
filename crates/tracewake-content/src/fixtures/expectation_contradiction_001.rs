@@ -5,6 +5,7 @@ pub fn expectation_contradiction_001() -> GoldenFixture {
         fixture_id: fixture_id("expectation_contradiction_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase2AHistorical,
+        need_model: need_model_schema(),
         actors: vec![
             actor_schema("actor_mara", "street_lane"),
             actor_schema("actor_tomas", "house_tomas"),

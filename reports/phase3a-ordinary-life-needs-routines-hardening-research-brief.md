@@ -290,6 +290,8 @@ These decisions are **final** — they are why you are locked. Do not re-open th
 
 6. **Number & placement (settled).** The deliverable stages as
    **`specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`**.
+   Accepted closeout archived it at
+   **`archive/specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`**.
    The staging series is a single contiguous sequence whose current highest filename is `0013`
    (`archive/specs/`), so the next staging number is `0014`. Per this repo's convention, hardening specs
    are staged under `specs/` and archived to `archive/specs/` on acceptance — they are **never** promoted
@@ -369,6 +371,8 @@ Produce, as **downloadable markdown**:
 
 2. **The hardening spec — authored iff the verdict is positive** (per §3.3):
    **`0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`**
+   (accepted archive path:
+   **`archive/specs/0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`**)
    — a **new** file (it replaces nothing). Follow the `archive/specs/0013_…` anatomy and rigor:
 
    - **Header & evidence ledger** — target commit `461308af95940d59c2d56d32ffead35631c9db72`, scope
@@ -429,6 +433,6 @@ Before returning, verify against your own output:
 - [ ] The spec is framed as scoped evidence toward `ORD-LIFE-CERT` with explicit non-certification
       disclaimers; it nowhere claims the gate is passed.
 - [ ] Filename = `0014_PHASE_3A_ORDINARY_LIFE_NEEDS_ROUTINES_ALIGNMENT_AND_ANTI_CONTAMINATION_HARDENING_SPEC.md`,
-      staged for `specs/`, replacing nothing.
+      staged for `specs/`, replacing nothing; accepted closeout archived it under `archive/specs/`.
 - [ ] Every external claim that shaped a decision is cited.
 - [ ] The `461308af95940d59c2d56d32ffead35631c9db72` fetch baseline contains every file you relied on.

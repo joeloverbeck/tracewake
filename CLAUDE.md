@@ -10,7 +10,7 @@ Docs are layered authority — earlier tiers govern later ones. Index: `docs/REA
 with architecture or foundation, execution is wrong; if implementation is more convenient
 than the accepted gates, implementation is wrong.
 
-- `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` — `INV-001`…`INV-098`, the
+- `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` — `INV-001`…`INV-110`, the
   non-negotiable contract. Every product-behavior change must satisfy it. A change that
   genuinely needs to diverge requires amending an invariant first — never design against
   it silently.

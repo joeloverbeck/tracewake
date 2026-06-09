@@ -44,6 +44,7 @@ pub enum ReasonCode {
     RoutineStepBlocked,
     ReservationConflict,
     NoSleepAffordance,
+    HiddenTruthInput,
 }
 
 impl ReasonCode {
@@ -85,6 +86,7 @@ impl ReasonCode {
             ReasonCode::RoutineStepBlocked => "routine_step_blocked",
             ReasonCode::ReservationConflict => "reservation_conflict",
             ReasonCode::NoSleepAffordance => "no_sleep_affordance",
+            ReasonCode::HiddenTruthInput => "hidden_truth_input",
         }
     }
 }

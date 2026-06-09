@@ -36,6 +36,8 @@ pub struct EmbodiedProjectionSource<'a> {
     agent_state: Option<&'a AgentState>,
     knowledge_context_id: HolderKnownContextId,
     actor_known_food_sources: Vec<FoodSupplyId>,
+    actor_known_sleep_affordances: Vec<SleepAffordanceId>,
+    actor_known_routes: Vec<PlaceId>,
     actor_known_workplaces: Vec<WorkplaceId>,
 }
 
@@ -45,57 +47,61 @@ impl<'a> EmbodiedProjectionSource<'a> {
         state: &'a PhysicalState,
         agent_state: Option<&'a AgentState>,
     ) -> Self {
-        let viewer_actor_id = context.viewer_actor_id();
-        let actor_known_food_sources =
-            actor_known_food_sources_for_context(context, state, viewer_actor_id);
+        let current_place_id = state
+            .actors
+            .get(context.viewer_actor_id())
+            .map(|actor| actor.current_place_id.clone());
+        let actor_known_food_sources = actor_known_food_sources_for_context(context);
+        let actor_known_sleep_affordances = actor_known_sleep_affordances_for_context(context);
+        let actor_known_routes = actor_known_routes_for_context(context, current_place_id.as_ref());
         let actor_known_workplaces = actor_known_workplaces_for_context(context);
         Self {
             state,
             agent_state,
             knowledge_context_id: context.holder_known_context_id().clone(),
             actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
             actor_known_workplaces,
         }
     }
 }
 
-fn actor_known_food_sources_for_context(
-    context: &KnowledgeContext,
-    state: &PhysicalState,
-    viewer_actor_id: &ActorId,
-) -> Vec<FoodSupplyId> {
-    let Some(actor) = state.actors.get(viewer_actor_id) else {
-        return Vec::new();
-    };
-    let mut food_sources = state
-        .food_supplies
-        .values()
-        .filter(|food| actor_can_see_food_source(state, actor, viewer_actor_id, food))
-        .map(|food| food.food_supply_id.clone())
+fn actor_known_food_sources_for_context(context: &KnowledgeContext) -> Vec<FoodSupplyId> {
+    let mut food_sources = context
+        .actor_known_food_sources()
+        .iter()
+        .map(|fact| fact.food_supply_id().clone())
         .collect::<Vec<_>>();
-    if context.mode() == crate::epistemics::ViewMode::Embodied {
-        food_sources.sort();
-        food_sources.dedup();
-    }
+    food_sources.sort();
+    food_sources.dedup();
     food_sources
 }
 
-fn actor_can_see_food_source(
-    state: &PhysicalState,
-    actor: &ActorBody,
-    viewer_actor_id: &ActorId,
-    food: &crate::state::FoodSupplyState,
-) -> bool {
-    match &food.location {
-        Location::AtPlace(place_id) => place_id == &actor.current_place_id,
-        Location::CarriedBy(actor_id) => actor_id == viewer_actor_id,
-        Location::InContainer(container_id) => {
-            state.containers.get(container_id).is_some_and(|container| {
-                container.location == Location::AtPlace(actor.current_place_id.clone())
-                    && container.is_open
-            })
-        }
-    }
+fn actor_known_sleep_affordances_for_context(context: &KnowledgeContext) -> Vec<SleepAffordanceId> {
+    let mut sleep_affordances = context
+        .actor_known_sleep_affordances()
+        .iter()
+        .map(|fact| fact.sleep_affordance_id().clone())
+        .collect::<Vec<_>>();
+    sleep_affordances.sort();
+    sleep_affordances.dedup();
+    sleep_affordances
+}
+
+fn actor_known_routes_for_context(
+    context: &KnowledgeContext,
+    current_place_id: Option<&PlaceId>,
+) -> Vec<PlaceId> {
+    let mut routes = context
+        .actor_known_routes()
+        .iter()
+        .filter(|fact| current_place_id.is_some_and(|place_id| fact.from_place_id() == place_id))
+        .map(|fact| fact.to_place_id().clone())
+        .collect::<Vec<_>>();
+    routes.sort();
+    routes.dedup();
+    routes
 }
 
 fn actor_known_workplaces_for_context(context: &KnowledgeContext) -> Vec<WorkplaceId> {
@@ -329,8 +335,8 @@ pub fn build_embodied_view_model(
         &state.items,
     );
 
-    let mut visible_exits = place
-        .adjacent_place_ids
+    let mut visible_exits = source
+        .actor_known_routes
         .iter()
         .cloned()
         .map(|destination_place_id| VisibleExit {
@@ -657,7 +663,7 @@ fn phase3a_semantic_actions(
     viewer_actor_id: &ActorId,
 ) -> Vec<SemanticActionEntry> {
     let mut actions = Vec::new();
-    if let Some(sleep_affordance_id) = visible_open_sleep_affordance(state, actor) {
+    if let Some(sleep_affordance_id) = visible_open_sleep_affordance(source) {
         actions.push(SemanticActionEntry::new(
             SemanticActionId::new("sleep.here").unwrap(),
             ActionId::new("sleep").unwrap(),
@@ -669,17 +675,13 @@ fn phase3a_semantic_actions(
     }
 
     for food_supply_id in &source.actor_known_food_sources {
-        let Some(food) = state.food_supplies.get(food_supply_id) else {
-            continue;
-        };
         actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("eat.food.{}", food.food_supply_id.as_str())).unwrap(),
+            SemanticActionId::new(format!("eat.food.{}", food_supply_id.as_str())).unwrap(),
             ActionId::new("eat").unwrap(),
-            vec![food.food_supply_id.to_string()],
-            format!("Eat {}", food.food_supply_id.as_str()),
-            !food.is_empty(),
-            food.is_empty()
-                .then_some("No servings are available here.".to_string()),
+            vec![food_supply_id.to_string()],
+            format!("Eat {}", food_supply_id.as_str()),
+            true,
+            None,
         ));
     }
 
@@ -1063,16 +1065,9 @@ pub fn proposal_from_semantic_action_entry(
 }
 
 fn visible_open_sleep_affordance(
-    state: &PhysicalState,
-    actor: &ActorBody,
+    source: &EmbodiedProjectionSource<'_>,
 ) -> Option<SleepAffordanceId> {
-    state
-        .sleep_affordances()
-        .iter()
-        .find(|(_, sleep_affordance)| {
-            sleep_affordance.access_open && sleep_affordance.place_id == actor.current_place_id
-        })
-        .map(|(sleep_affordance_id, _)| sleep_affordance_id.clone())
+    source.actor_known_sleep_affordances.first().cloned()
 }
 
 pub fn proposal_from_current_view_semantic_action(
@@ -1105,12 +1100,12 @@ mod tests {
     use crate::events::PayloadField;
     use crate::ids::{
         CandidateGoalId, ContainerId, DecisionTraceId, DoorId, FoodSupplyId, IntentionId,
-        ProcessId, RoutineTemplateId, WorkplaceId,
+        ProcessId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
     };
     use crate::state::{
         ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
     };
-    use crate::state::{AgentState, FoodSupplyState, WorkplaceState};
+    use crate::state::{AgentState, FoodSupplyState, SleepAffordanceState, WorkplaceState};
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
@@ -1170,7 +1165,19 @@ mod tests {
     }
 
     fn view_for(state: &PhysicalState) -> EmbodiedViewModel {
-        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
+        let context = KnowledgeContext::embodied_at_frontier_with_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![crate::epistemics::ActorKnownRouteFact::new(
+                place_id("shop_front"),
+                place_id("back_room"),
+                "visible_exit",
+            )],
+        );
         let source = EmbodiedProjectionSource::from_sealed_context(&context, state, None);
         build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
             .unwrap()
@@ -1270,6 +1277,79 @@ mod tests {
             .semantic_actions
             .iter()
             .all(|entry| entry.semantic_action_id.as_str() != "0"));
+    }
+
+    #[test]
+    fn embodied_view_omits_unobserved_food_at_open_place() {
+        let mut state = state();
+        state.food_supplies.insert(
+            FoodSupplyId::new("food_visible_truth").unwrap(),
+            FoodSupplyState::new(
+                FoodSupplyId::new("food_visible_truth").unwrap(),
+                Location::AtPlace(place_id("shop_front")),
+                1,
+                200,
+            ),
+        );
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+
+        assert!(!view.semantic_actions.iter().any(|entry| {
+            entry.semantic_action_id.as_str() == "eat.food.food_visible_truth"
+                || entry.target_ids.iter().any(|id| id == "food_visible_truth")
+        }));
+    }
+
+    #[test]
+    fn embodied_view_omits_unknown_sleep_affordance() {
+        let base = state();
+        let mut sleep_affordances = base.sleep_affordances().clone();
+        sleep_affordances.insert(
+            SleepAffordanceId::new("bed_tomas").unwrap(),
+            SleepAffordanceState::new(
+                SleepAffordanceId::new("bed_tomas").unwrap(),
+                place_id("shop_front"),
+            ),
+        );
+        let state = PhysicalState::from_seed_parts(
+            base.actors().clone(),
+            base.places().clone(),
+            base.doors().clone(),
+            base.containers().clone(),
+            base.items().clone(),
+            base.food_supplies().clone(),
+            base.workplaces().clone(),
+            sleep_affordances,
+        );
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+
+        assert!(!view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "sleep.here"));
+    }
+
+    #[test]
+    fn embodied_exits_require_perceived_or_known_route() {
+        let state = state();
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+
+        assert!(view.visible_exits.is_empty());
+        assert!(!view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "move.to.back_room"));
     }
 
     #[test]
@@ -1689,7 +1769,7 @@ mod tests {
             ),
         );
 
-        let context = KnowledgeContext::embodied_at_frontier_with_workplaces(
+        let context = KnowledgeContext::embodied_at_frontier_with_facts(
             actor_id("actor_tomas"),
             SimTick::new(2),
             0,
@@ -1698,6 +1778,12 @@ mod tests {
                 place_id("shop_front"),
                 "routine_assignment_notice",
             )],
+            vec![crate::epistemics::ActorKnownFoodSourceFact::new(
+                FoodSupplyId::new("food_soup_pot").unwrap(),
+                "visible_food_supply",
+            )],
+            Vec::new(),
+            Vec::new(),
         );
         let source =
             EmbodiedProjectionSource::from_sealed_context(&context, &state, Some(&agent_state));

@@ -16,8 +16,8 @@ use tracewake_core::ids::{
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::{
-    ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, PhysicalState,
-    PlaceState, SleepAffordanceState, WorkplaceState,
+    ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, NeedModelState,
+    PhysicalState, PlaceState, SleepAffordanceState, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -82,6 +82,13 @@ pub const CONTENT_FIELD_REGISTRY: &[ContentFieldRegistration] = &[
         canonical_serialization_key: "fixture_scope",
         validation_phase: ValidationPhase::ParseSchema,
         forbidden_construct_policy: ForbiddenConstructPolicy::TypedAffordance,
+        diagnostic_code: "missing_field",
+    },
+    ContentFieldRegistration {
+        schema_field: "need_model",
+        canonical_serialization_key: "need_model",
+        validation_phase: ValidationPhase::State,
+        forbidden_construct_policy: ForbiddenConstructPolicy::TypedNeedSeed,
         diagnostic_code: "missing_field",
     },
     ContentFieldRegistration {
@@ -222,6 +229,7 @@ pub struct FixtureSchema {
     pub fixture_id: FixtureId,
     pub schema_version: SchemaVersion,
     pub fixture_scope: FixtureScope,
+    pub need_model: NeedModelSchema,
     pub actors: Vec<ActorSchema>,
     pub places: Vec<PlaceSchema>,
     pub doors: Vec<DoorSchema>,
@@ -237,6 +245,12 @@ pub struct FixtureSchema {
     pub routine_templates: Vec<RoutineTemplateSchema>,
     pub routine_assignments: Vec<RoutineAssignmentSchema>,
     pub day_windows: Vec<DayWindowSchema>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NeedModelSchema {
+    pub awake_hunger_delta_per_tick: i32,
+    pub awake_fatigue_delta_per_tick: i32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -336,6 +350,9 @@ pub struct SleepPlaceSchema {
     pub place_id: PlaceId,
     pub sleep_place_id: SleepAffordanceId,
     pub access_open: bool,
+    pub duration_ticks: u64,
+    pub fatigue_recovery_per_tick: i32,
+    pub hunger_rise_per_tick: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -618,10 +635,13 @@ impl FixtureSchema {
                 sleep_place.place_id.clone(),
             );
             sleep_affordance.access_open = sleep_place.access_open;
+            sleep_affordance.duration_ticks = sleep_place.duration_ticks;
+            sleep_affordance.fatigue_recovery_per_tick = sleep_place.fatigue_recovery_per_tick;
+            sleep_affordance.hunger_rise_per_tick = sleep_place.hunger_rise_per_tick;
             sleep_affordances.insert(sleep_affordance_id, sleep_affordance);
         }
 
-        PhysicalState::from_seed_parts(
+        let mut physical_state = PhysicalState::from_seed_parts(
             actors,
             places,
             doors,
@@ -630,7 +650,12 @@ impl FixtureSchema {
             food_supplies,
             workplaces,
             sleep_affordances,
-        )
+        );
+        physical_state.set_need_model(NeedModelState {
+            awake_hunger_delta_per_tick: self.need_model.awake_hunger_delta_per_tick,
+            awake_fatigue_delta_per_tick: self.need_model.awake_fatigue_delta_per_tick,
+        });
+        physical_state
     }
 
     pub fn to_agent_state(&self) -> AgentState {

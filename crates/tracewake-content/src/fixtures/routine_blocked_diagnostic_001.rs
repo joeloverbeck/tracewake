@@ -5,6 +5,7 @@ pub fn routine_blocked_diagnostic_001() -> GoldenFixture {
         fixture_id: fixture_id("routine_blocked_diagnostic_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
+        need_model: need_model_schema(),
         actors: vec![actor_schema("actor_elena", "workshop_elena")],
         places: vec![place_schema("workshop_elena", "Elena workshop", &[])],
         doors: Vec::new(),
