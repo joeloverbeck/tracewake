@@ -1,6 +1,6 @@
 # 0005PHA1DOCCOD-001: Replace `phase1_implemented: bool` with a typed `ActionScope` in the core action registry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` action registry (`ActionDefinition`, `ActionRegistry`), pipeline phase-boundary guard, and the core conformance/anti-regression suites.
@@ -88,3 +88,29 @@ In `crates/tracewake-core/tests/spine_conformance.rs` and `crates/tracewake-core
 
 1. `grep -rn "phase1_implemented" crates/` — must return zero matches.
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Replaced `ActionDefinition.phase1_implemented: bool` with typed `ActionScope` values in `tracewake-core`.
+- Made action constructors require an explicit `ActionScope`, with each phase registration assigning `Phase1`, `Phase2AHistorical`, or `Phase3AHistorical` directly.
+- Updated the pipeline phase-boundary guard to check `definition.scope` against the registry active-scope set. The default active-scope set admits all current scopes, preserving the accepted-action set for this ticket.
+- Re-exported `ActionScope` and added lock-layer coverage asserting the old boolean is absent, generic constructors do not hard-code Phase 1, and registered action IDs carry the expected typed scope.
+- Indexed the new registry scope guard in `spine_conformance`.
+
+Deviations from original plan:
+
+- `ActionRegistry` now carries an active-scope set defaulting to all current scopes, and `Default` delegates to `new()` so future default construction remains behavior-preserving. Tightening that active set is left to `0005PHA1DOCCOD-004`.
+
+Verification results:
+
+- `rg -n "phase1_implemented" crates` returned zero matches.
+- `cargo test --locked -p tracewake-core --test spine_conformance` passed.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

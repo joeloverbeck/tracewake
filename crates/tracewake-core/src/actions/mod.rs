@@ -9,5 +9,5 @@ pub use pipeline::{
     ProposalValidationContext,
 };
 pub use proposal::{Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext};
-pub use registry::{ActionDefinition, ActionEffect, ActionRegistry};
+pub use registry::{ActionDefinition, ActionEffect, ActionRegistry, ActionScope};
 pub use report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
