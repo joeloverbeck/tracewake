@@ -65,7 +65,7 @@ Only to **sharpen scope and interview questions** — surface the named techniqu
 
 ## Step 4: Interview to 95% confidence
 
-Reach **95% confidence about what the user actually wants** — not what they think they should want — before drafting. Display this block after each answer (or, when a batch is sent, once before the batch and once after it):
+Reach **95% confidence about what the user actually wants** — not what they think they should want — before drafting. Display this block after each answer. **When sending a batched `AskUserQuestion`, emit the block immediately before the batch and again after the answers** (the after-block is subsumed only when the answers reach threshold, in which case the "95% — drafting the brief" announcement replaces it):
 
 ```
 Confidence: X%

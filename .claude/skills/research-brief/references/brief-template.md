@@ -117,7 +117,15 @@ Exactly what Session 2 outputs — leave no ambiguity:
   contiguous series** — cross-checked against the recent `SPEC_LEDGER.md` entries — *not* the
   global-max filename; the next number is the one after the highest filename **in that current
   epoch** (e.g. `0005` after a `0002 → 0004` epoch, even though an older `0008` exists).
-  Overlapping archived numbers from an earlier epoch are expected and do not block. Carry any
+  Overlapping archived numbers from an earlier epoch are expected and do not block. **Before
+  trusting either the global-max or a per-epoch number, check recent git history**
+  (`git log --name-status --find-renames -n 20`, or inspect the latest commits) for a **rename or
+  renumbering that unified or restarted the staging series**: a recent *unification* collapses the
+  overlapping epochs into one contiguous series and makes the **global-max filename authoritative**
+  (the opposite of the per-epoch rule just above — e.g. a "Renamed specs" commit that renumbers a
+  `0002 → 0006` re-hardening epoch onto the tail of an existing `0002…0008` series, yielding a single
+  `0002…0013` whose next number is `0014`); a recent *restart* does not. The git evidence governs over
+  the filename pattern alone. Carry any
   residual placement ambiguity (`specs/` staging vs. final `docs/4-specs/`) as a labeled
   `assumption:` line rather than asserting it;
 - the **locked / no-questions** instruction, verbatim intent:
@@ -139,7 +147,11 @@ produced, but its *shape* depends on the verdict (e.g. a full spec if warranted,
 report if clean). Prefer (i) "always produce, with the verdict as a section" when the artifact's value
 survives a negative verdict (e.g. it locks already-correct properties); choose (iii) when a negative verdict
 still warrants a substantial evidence-complete document but in a *different form* than the spec; reserve
-(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. For
+(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. The
+§(a) determination/verdict is returned **regardless of mode** — under (ii), "nothing authored on a negative
+verdict" refers to the spec/artifact *file* only; the reasoned verdict is still surfaced as Session 2's
+response on a clean outcome (so the brief should instruct: produce the spec iff positive, otherwise return
+the evidence-complete determination and author no file). For
 mode (iii), the brief's deliverable spec (§7) must define **both** artifact shapes (a Branch A / Branch B
 specification) so Session 2 commits to one without asking.
 
