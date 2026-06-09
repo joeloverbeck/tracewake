@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-007: Add unsupported-schema and non-world-leakage replay negative fixtures
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` events/replay negative fixtures (new test file)
@@ -74,3 +74,28 @@ Add a stream-mismatch replay rejection fixture, a fixture proving a non-world st
 
 1. `cargo test -p tracewake-core --test event_schema_replay_gates`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+
+- Added `crates/tracewake-core/tests/event_schema_replay_gates.rs` with the five required schema/replay fixtures:
+  - `unsupported_event_schema_append_rejected`
+  - `unsupported_event_schema_replay_rejected`
+  - `stream_mismatch_replay_rejected`
+  - `non_world_event_cannot_change_physical_checksum`
+  - `replay_rebuild_checksum_matches_original_after_no_human_day`
+- Hardened `apply_event_stream` so replay/application rejects an envelope whose declared stream does not match its event kind before dispatching by stream. This closes the forged non-world-stream bypass exposed while implementing `stream_mismatch_replay_rejected`.
+
+Deviations from original plan:
+
+- The replay unsupported-schema fixture proves fail-closed replay ingestion through canonical event-log deserialization, because `EventLog` intentionally rejects unsupported schema versions before constructing a replay log.
+
+Verification:
+
+- `cargo test -p tracewake-core --test event_schema_replay_gates` — passed, 5 tests.
+- `cargo fmt --all --check` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
