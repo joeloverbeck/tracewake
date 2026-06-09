@@ -1,5 +1,6 @@
 # 0005 Phase 1 Doc-Code Alignment Conformance and Anti-Drift Spec
 
+**Status**: COMPLETED
 **Intended staging path:** `specs/0005_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md`  
 **Final home after acceptance:** `archive/specs/0005_PHASE_1_DOC_CODE_ALIGNMENT_CONFORMANCE_AND_ANTI_DRIFT_SPEC.md` (archived on acceptance alongside the prior Phase 1 remediation specs `0003`/`0004`; not promoted to the live `docs/4-specs/` tier)  
 **Repository:** `joeloverbeck/tracewake`  
@@ -474,6 +475,49 @@ The only later-phase references that drive a requirement are the places where th
 ## 11. Additional suggestions appendix — not in-scope requirements
 
 These suggestions are intentionally not requirements for this scoped remediation. They are useful next steps for a future maintainer once `ALIGN-001` is fixed.
+
+## Outcome
+
+Completed on 2026-06-09.
+
+Changes:
+
+1. Replaced the core action-registry Phase 1 boolean with typed `ActionScope` metadata, explicit registration scopes, and an active-scope pipeline guard.
+2. Added structural `FixtureScope` content declarations, canonical serialization support, phase-keyed fixture registry construction, and typed content validation diagnostics for out-of-scope actions.
+3. Migrated all existing fixtures to explicit Phase 1, Phase 2A historical, or Phase 3A historical scope.
+4. Added adversarial Phase 1 negative content coverage for each later-phase action family and routine-step smuggling.
+5. Added runtime phase-boundary coverage asserting `PipelineStage::PhaseBoundaryValidation` and `ReasonCode::PhaseUnsupportedAction`.
+6. Added a source-level loader-registration guard with mutation self-coverage, explicitly secondary to `ActionScope`/`FixtureScope` typing.
+7. Extended the CI lock-layer job with named `acceptance_gates` and `schema_conformance` runs.
+8. Archived completed tickets `0005PHA1DOCCOD-001` through `0005PHA1DOCCOD-006`.
+
+Deviations:
+
+1. Pipeline guard reachability was covered in `acceptance_gates.rs` rather than `spine_conformance.rs`, because the former owns end-to-end pipeline acceptance behavior.
+2. The source guard self-coverage uses an in-memory mutated loader snippet rather than a standalone Cargo negative fixture, matching the repository's source-scan guard style while still proving the guard fails on the targeted mutation.
+3. No new `ReasonCode` was needed; the existing `PhaseUnsupportedAction` reason code matched the scoped remediation contract.
+
+Acceptance evidence:
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| `ALIGN-REQ-001` | PASS | `crates/tracewake-core/src/actions/registry.rs`; `cargo test --locked -p tracewake-core --test anti_regression_guards` |
+| `ALIGN-REQ-002` | PASS | `crates/tracewake-content/src/schema.rs`; `crates/tracewake-content/src/load.rs`; `cargo test --locked -p tracewake-content --test fixtures_load`; `cargo test --locked -p tracewake-content --test schema_conformance`; `cargo test --locked -p tracewake-content --test golden_fixtures_run` |
+| `ALIGN-REQ-003` | PASS | `cargo test --locked -p tracewake-content --test forbidden_content` |
+| `ALIGN-REQ-004` | PASS | `cargo test --locked -p tracewake-core --test acceptance_gates` |
+| `ALIGN-REQ-005` | PASS | `.github/workflows/ci.yml`; `grep -nE "forbidden_content|schema_conformance|spine_conformance|acceptance_gates|anti_regression_guards|negative_fixture_runner" .github/workflows/ci.yml` |
+| `ALIGN-REQ-006` | PASS | `cargo test --locked -p tracewake-core --test anti_regression_guards`; `cargo test --locked -p tracewake-core --test negative_fixture_runner` |
+
+Scoped certification:
+
+Phase 1 / Phase 1A doc-code alignment scoped remediation accepted for exact commit `115fc07`. This contributes scoped evidence toward `P0-CERT`, `SPINE-CERT`, `EPI-CERT`, `FIXTURE`, and `DIAG`; it does not certify latest main, later-phase scope, or the full project.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace`
 
 1. **Doctrine-to-code conformance harness.** Build a living traceability matrix mapping each load-bearing invariant (`INV-###`) and gate code to executable tests, compile-fail fixtures, CI jobs, or explicitly review-only artifacts. Treat it as an architecture fitness function: a continuously run check that preserves architectural characteristics over time. Prior art: ThoughtWorks describes architectural fitness functions as objective integrity assessments run continually; ArchUnit shows how architectural rules can be encoded and checked in test suites. [EXT-1], [EXT-2]
 2. **Executable spec registry.** Maintain a machine-readable list of doctrine mandates with owner doc, line range, invariant IDs, responsible crate/module, and named test. This should extend, not replace, `doc_invariant_references`.
