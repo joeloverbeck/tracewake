@@ -47,7 +47,7 @@ impl<'a> EmbodiedProjectionSource<'a> {
         let viewer_actor_id = context.viewer_actor_id();
         let actor_known_food_sources =
             actor_known_food_sources_for_context(context, state, viewer_actor_id);
-        let actor_known_workplaces = actor_known_workplaces_for_context(state, viewer_actor_id);
+        let actor_known_workplaces = actor_known_workplaces_for_context(context);
         Self {
             state,
             agent_state,
@@ -97,18 +97,11 @@ fn actor_can_see_food_source(
     }
 }
 
-fn actor_known_workplaces_for_context(
-    state: &PhysicalState,
-    viewer_actor_id: &ActorId,
-) -> Vec<WorkplaceId> {
-    let mut workplaces = state
-        .workplaces
-        .values()
-        .filter(|workplace| {
-            workplace.assigned_actor_ids.is_empty()
-                || workplace.assigned_actor_ids.contains(viewer_actor_id)
-        })
-        .map(|workplace| workplace.workplace_id.clone())
+fn actor_known_workplaces_for_context(context: &KnowledgeContext) -> Vec<WorkplaceId> {
+    let mut workplaces = context
+        .actor_known_workplaces()
+        .iter()
+        .map(|fact| fact.workplace_id().clone())
         .collect::<Vec<_>>();
     workplaces.sort();
     workplaces.dedup();
@@ -1665,7 +1658,16 @@ mod tests {
             ),
         );
 
-        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(2));
+        let context = KnowledgeContext::embodied_at_frontier_with_workplaces(
+            actor_id("actor_tomas"),
+            SimTick::new(2),
+            0,
+            vec![crate::epistemics::ActorKnownWorkplaceFact::new(
+                WorkplaceId::new("workplace_tomas").unwrap(),
+                place_id("shop_front"),
+                "routine_assignment_notice",
+            )],
+        );
         let source =
             EmbodiedProjectionSource::from_sealed_context(&context, &state, Some(&agent_state));
         let view =

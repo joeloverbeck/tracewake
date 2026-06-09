@@ -2,6 +2,7 @@ mod container_item_move_001;
 mod debug_attach_001;
 mod debug_omniscience_excluded_001;
 mod door_access_001;
+mod embodied_view_omits_raw_assignment_without_context_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
 mod hidden_food_closed_container_001;
@@ -59,6 +60,7 @@ pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
 pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
 pub use door_access_001::door_access_001;
+pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_omits_raw_assignment_without_context_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use hidden_food_closed_container_001::hidden_food_closed_container_001;
@@ -129,6 +131,7 @@ pub fn all() -> Vec<GoldenFixture> {
         expectation_contradiction_001(),
         possession_parity_001(),
         view_filtering_001(),
+        embodied_view_omits_raw_assignment_without_context_001(),
         knowledge_blocker_accuse_001(),
         sound_uncertainty_001(),
         no_human_epistemic_check_001(),

@@ -66,10 +66,31 @@ fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth(
     assert!(rendered.contains("Routine:"));
     assert!(rendered.contains("Eat food_stew_home_tomas"));
     assert!(!rendered.contains("Sleep here"));
-    assert!(rendered.contains("Work at workplace_tomas"));
-    assert!(rendered.contains("disabled: You are not at that workplace."));
+    assert!(!rendered.contains("Work at workplace_tomas"));
     assert!(!rendered.contains("food_empty_pantry_mara"));
     assert!(!rendered.contains("actor_mara"));
+}
+
+#[test]
+fn embodied_view_omits_raw_workplace_assignment_without_context() {
+    let mut app =
+        TuiApp::from_golden(fixtures::embodied_view_omits_raw_assignment_without_context_001())
+            .unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let rendered = app.render_current_view().unwrap();
+
+    assert!(rendered.contains("move.to.workshop_tomas"));
+    assert!(!rendered.contains("Work at workplace_tomas"));
+    assert!(!view.semantic_actions.iter().any(|entry| {
+        entry.action_id.as_str() == "work_block"
+            || entry
+                .target_ids
+                .iter()
+                .any(|target| target == "workplace_tomas")
+    }));
 }
 
 #[test]

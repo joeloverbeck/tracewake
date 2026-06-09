@@ -1,6 +1,6 @@
 # 0014PHA3AORDLIF-008: Embodied projection — context-backed workplace facts (no raw table)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs` embodied workplace path, sealed-context packet), new source guard, 1 adversarial view-model fixture
@@ -83,3 +83,32 @@ Add the `state.workplaces`-in-embodied ban guard and the adversarial view-model 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-content`
 3. `cargo test --workspace`
+
+## Outcome (2026-06-09)
+
+Completed. `KnowledgeContext` now carries typed sealed
+`ActorKnownWorkplaceFact` entries, includes them in the holder-known context
+hash, and exposes a constructor for contexts that intentionally include
+workplace facts. `EmbodiedProjectionSource::from_sealed_context` now derives its
+workplace affordance ids from those sealed context facts instead of scanning raw
+`PhysicalState.workplaces` assignment truth.
+
+Added `embodied_view_omits_raw_assignment_without_context_001`, registered it in
+content fixtures, and added a TUI adversarial test proving a raw assigned
+workplace does not appear as an embodied `work_block` semantic action when no
+context-backed workplace fact is sealed. Updated the existing positive
+projection test to pass a context-backed workplace fact explicitly, and added an
+anti-regression guard for the context-backed projection helper.
+
+Deviation: the ticket referenced a possible debug context-vs-truth comparison,
+but no new debug comparison surface was needed for acceptance; the embodied
+path is structurally separated by removing the raw selection helper.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo test -p tracewake-content`
+4. `cargo test -p tracewake-tui --test embodied_flow`
+5. `cargo test -p tracewake-core --lib projections::tests::view_models_embodied_phase3a_status_is_viewer_scoped_and_actor_known`
+6. `cargo test --workspace`

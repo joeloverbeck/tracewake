@@ -1350,6 +1350,25 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
 }
 
 #[test]
+fn guard_014_embodied_projection_workplaces_are_context_backed() {
+    let projection = production(PROJECTIONS_RS);
+
+    assert!(
+        projection.contains("fn actor_known_workplaces_for_context(context: &KnowledgeContext)"),
+        "embodied workplace affordances must be selected from the sealed holder-known context"
+    );
+    assert!(
+        projection.contains(".actor_known_workplaces()"),
+        "embodied projection must read typed context-backed workplace facts"
+    );
+    assert_absent(
+        &projection,
+        "workplace.assigned_actor_ids.is_empty()\n                || workplace.assigned_actor_ids.contains",
+    );
+    assert_absent(&projection, "actor_known_workplaces_for_context(state");
+}
+
+#[test]
 fn guard_014_sleep_validation_requires_modeled_affordance() {
     let sleep = production(SLEEP_RS);
     let projection = production(PROJECTIONS_RS);
