@@ -1,6 +1,6 @@
 # 0004PHA1THIHAR-004: Harden token-scanner walk/match and document it smoke-only
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` tests (`anti_regression_guards.rs` source walk, match behavior, smoke-only documentation, discovery fixtures)
@@ -77,3 +77,25 @@ Annotate the scanner as smoke-only (pointing to clippy + ticket-002 runner as pr
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-09
+
+What changed:
+- Replaced the scanner's first-`#[cfg(test)]` truncation with a production source view that skips only `#[cfg(test)]` items/blocks and resumes scanning afterward.
+- Factored source walking so tests can exercise nested source discovery directly.
+- Added `source_guard_discovers_new_nested_production_file` and `source_guard_does_not_silently_skip_production_after_cfg_test`.
+- Documented the nondeterminism token scanner as a smoke-only substring scan, with `clippy.toml` and the negative fixture runner as the primary banned-API enforcement layer.
+
+Deviations from original plan:
+- Comment/string token sensitivity remains intentionally smoke-only rather than implementing a Rust parser. The stronger enforcement remains Clippy plus negative fixtures.
+
+Verification results:
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test -p tracewake-core` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace` — passed.
+- `rg -qi "smoke" crates/tracewake-core/tests/anti_regression_guards.rs` — passed.
