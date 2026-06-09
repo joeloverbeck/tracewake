@@ -1294,7 +1294,7 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
     let scheduler = production(SCHEDULER_RS);
     assert_absent(&scheduler, "EpistemicProjection::new");
     assert!(
-        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_modeled_observations"),
+        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_event_log"),
         "no-human cognition must use the sealed actor-known surface builder"
     );
 }
@@ -1327,25 +1327,21 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "no-human actor-known surface must be constructed through a named builder"
     );
     assert!(
-        builder.contains("fn observe_visible_food_sources_from_current_place"),
-        "raw food-table visibility must be isolated in a named observation builder"
+        builder.contains("fn consume_observation"),
+        "no-human actor-known surface must consume recorded observations"
     );
     assert!(
-        builder.contains("fn observe_visible_routes_from_current_place"),
-        "raw adjacency visibility must be isolated in a named observation builder"
+        builder.contains("fn consume_role_assignment_notice"),
+        "no-human actor-known surface must consume recorded role notices"
     );
     assert!(
-        builder.contains("fn observe_workplace_notices_from_active_routines"),
-        "workplace table reads must be isolated behind modeled routine-assignment notice construction"
+        builder.contains("fn consume_starting_belief"),
+        "no-human actor-known surface must consume recorded starting beliefs"
     );
-    let workplace_notice_body = body_after_marker(
-        &builder,
-        "fn observe_workplace_notices_from_active_routines",
-    );
-    assert!(
-        workplace_notice_body.contains("has_live_routine_family"),
-        "workplace notices must require a live modeled routine assignment"
-    );
+    assert_absent(&builder, "PhysicalState");
+    assert_absent(&builder, "state.workplaces");
+    assert_absent(&builder, "state.food_supplies");
+    assert_absent(&builder, "state.sleep_affordances");
     assert_absent(&builder, "BTreeSet::from([current_place_id");
 }
 

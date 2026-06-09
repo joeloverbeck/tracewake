@@ -1,6 +1,6 @@
 # 0015PHA3AEVECOG-003: Atomic cutover — actor-known surface consumes the epistemic substrate; seal closed
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` actor-known surface builder rebuilt to consume the epistemic projection + event log; `extend_actor_known_facts` removed from the scheduler path and the post-seal extension API closed
@@ -88,3 +88,31 @@ Delete the `extend_actor_known_facts(transaction_facts)` call and the `food_sour
 
 1. `cargo build -p tracewake-core --locked && cargo test -p tracewake-core agent:: scheduler::`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome (2026-06-09)
+
+Implemented the atomic cutover. `NoHumanActorKnownSurfaceBuilder` now builds the no-human cognition surface from the event log plus agent state, consuming role-assignment notices, starting beliefs, and current-place observation events instead of `PhysicalState` table reads. `ActorKnownFact` now carries `source_event_ids`, decision trace input refs serialize those event ids, and `ActorKnownPlanningContext` no longer exposes the public post-seal `add_actor_known_fact` / `extend_actor_known_facts` mutation API.
+
+The scheduler now passes the live event log into the sealed surface builder and no longer appends transaction facts after `into_context`. The scheduler path no longer mints `food_source_believed_accessible`; food accessibility facts now come from event-derived actor-known observations inside the surface. Loader-backed no-human fixture runs and the TUI now start from `loaded.seed_event_log`, so authored prehistory seed events participate in no-human cognition. Hand-built capstone tests seed equivalent role-notice events explicitly.
+
+Acceptance greps:
+
+- `rg -n "extend_actor_known_facts|add_actor_known_fact|from_modeled_observations" crates` returned no matches.
+- `rg -n "food_source_believed_accessible|extend_actor_known_facts" crates/tracewake-core/src/scheduler.rs` returned no matches.
+- `rg -n "PhysicalState|state\\.workplaces|state\\.food_supplies|state\\.sleep_affordances|food_supplies\\(\\)|workplaces\\(\\)|sleep_affordances\\(\\)" crates/tracewake-core/src/agent/no_human_surface.rs` returned only test assertions against `known_workplaces`, not raw `PhysicalState` inputs or raw table reads.
+
+Verification:
+
+- `cargo test -p tracewake-core agent::`
+- `cargo test -p tracewake-core scheduler::`
+- `cargo test -p tracewake-core --test acceptance_gates integrated_no_human_day_capstone_emerges_from_one_autonomous_run`
+- `cargo test -p tracewake-core --test no_human_capstone`
+- `cargo test -p tracewake-tui --test command_loop_session`
+- `cargo test -p tracewake-tui --test embodied_flow`
+- `cargo test -p tracewake-tui --test tui_acceptance tui_runs_no_human_day_and_inspects_real_post_run_panels`
+- `cargo test --workspace`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+
+Deviations / follow-up: this uses the spec's recorded minimum cut: evented seed knowledge plus evented perception plus a builder that consumes only those events. Deeper Phase 2A belief-structure unification remains deferred to the follow-up tickets called out by the spec.

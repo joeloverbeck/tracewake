@@ -118,7 +118,7 @@ impl TuiApp {
             initial_agent_state: loaded.canonical_agent_state.clone(),
             state: loaded.canonical_world,
             agent_state: loaded.canonical_agent_state,
-            log: EventLog::new(),
+            log: loaded.seed_event_log,
             controller_bindings: ControllerBindings::new(),
             controller_id: ControllerId::new("controller_human").unwrap(),
             bound_actor_id: None,

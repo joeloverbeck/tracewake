@@ -11,15 +11,19 @@ use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
+use tracewake_core::events::{
+    EventCause, EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
+};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, DecisionTraceId, FixtureId, FoodSupplyId, PlaceId,
-    ProposalId, RoutineExecutionId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
+    ActionId, ActorId, ContentManifestId, ContentVersion, DecisionTraceId, EventId, FixtureId,
+    FoodSupplyId, PlaceId, ProposalId, RoutineExecutionId, RoutineTemplateId, SleepAffordanceId,
+    WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
     ActorBody, AgentState, FoodSupplyState, PhysicalState, PlaceState, SleepAffordanceState,
     WorkplaceState,
@@ -33,9 +37,9 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
     let initial_agent_state = agent_state.clone();
     let initial_actor_count = world.actors().len();
     let initial_routine_count = agent_state.routine_executions().len();
-    let mut log = EventLog::new();
     let registry = capstone_registry();
     let content_manifest_id = ContentManifestId::new("phase3a_capstone_manifest").unwrap();
+    let mut log = capstone_seed_log(&content_manifest_id);
     let windows = capstone_windows();
     let expected_window_ids = windows
         .iter()
@@ -482,6 +486,55 @@ fn capstone_windows() -> Vec<DayWindow> {
             end_tick: SimTick::new(32),
         },
     ]
+}
+
+fn capstone_seed_log(content_manifest_id: &ContentManifestId) -> EventLog {
+    let mut log = EventLog::new();
+    for (sequence, actor_id, workplace_id, place_id) in [
+        (0, "actor_anna", "workplace_anna_closed", "office_anna"),
+        (1, "actor_tomas", "workplace_tomas", "workshop_tomas"),
+    ] {
+        let actor_id = ActorId::new(actor_id).unwrap();
+        let workplace_id = WorkplaceId::new(workplace_id).unwrap();
+        let mut event = EventEnvelope::new_v1(
+            EventId::new(format!(
+                "event.capstone.role_notice.{}",
+                workplace_id.as_str()
+            ))
+            .unwrap(),
+            EventKind::RoleAssignmentNoticeRecorded,
+            0,
+            sequence,
+            SimTick::ZERO,
+            OrderingKey::new(
+                SimTick::ZERO,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor_id.clone()),
+                ProposalSequence::new(sequence),
+                ActionId::new("role_assignment_notice").unwrap(),
+                vec![
+                    actor_id.as_str().to_string(),
+                    workplace_id.as_str().to_string(),
+                ],
+                format!("capstone_role_notice_{sequence:04}"),
+            ),
+            content_manifest_id.clone(),
+        );
+        event.actor_id = Some(actor_id.clone());
+        event.participants = vec![
+            actor_id.as_str().to_string(),
+            workplace_id.as_str().to_string(),
+        ];
+        event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("source_kind", "authored_prehistory"),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("workplace_id", workplace_id.as_str()),
+            PayloadField::new("place_id", place_id),
+        ];
+        log.append(event).unwrap();
+    }
+    log
 }
 
 fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {

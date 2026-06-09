@@ -66,6 +66,25 @@ fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId)
     )
 }
 
+fn load_with_log(
+    golden: GoldenFixture,
+) -> (PhysicalState, AgentState, ContentManifestId, EventLog) {
+    let manifest_id =
+        ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
+    let loaded = load_fixture_package(
+        manifest_id.clone(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    (
+        loaded.canonical_world,
+        loaded.canonical_agent_state,
+        manifest_id,
+        loaded.seed_event_log,
+    )
+}
+
 fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
     ChecksumContext {
         fixture_id: FixtureId::new(fixture_id).unwrap(),
@@ -905,8 +924,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         .iter()
         .any(|entry| entry.contains("log_derived_metric=no_human_day_metrics_v1")));
 
-    let (mut state, mut agent_state, manifest_id) = load(golden);
-    let mut log = EventLog::new();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
     let report = run_no_human_day(
         &mut state,
         &mut agent_state,
@@ -1223,10 +1241,9 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
 #[test]
 fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     let golden = fixtures::no_human_day_001();
-    let (mut state, mut agent_state, manifest_id) = load(golden);
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
     let initial_state = state.clone();
     let initial_agent_state = agent_state.clone();
-    let mut log = EventLog::new();
     let expected_roster = state.actors().keys().cloned().collect::<Vec<_>>();
 
     let report = run_no_human_day(

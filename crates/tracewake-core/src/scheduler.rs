@@ -210,10 +210,10 @@ pub mod no_human {
     use crate::actions::registry::ActionRegistry;
     use crate::agent::{
         record_current_place_perception, ActorDecisionTransaction, ActorDecisionTransactionInput,
-        ActorDecisionTransactionOutcome, ActorKnownFact, ActorKnownPlanningContext,
-        BlockerCategory, BlockerCode, DecisionTraceRecord, Intention, IntentionSource, NeedBand,
-        NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily,
-        StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
+        ActorDecisionTransactionOutcome, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
+        DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind, NeedState,
+        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, StuckDiagnostic,
+        StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::events::apply::apply_agent_event;
     use crate::events::log::EventLog;
@@ -381,6 +381,7 @@ pub mod no_human {
                 let Some(agent_proposal) = build_agent_proposal(
                     state,
                     agent_state,
+                    log,
                     actor_id,
                     window,
                     &content_manifest_id,
@@ -543,67 +544,23 @@ pub mod no_human {
     fn build_agent_proposal(
         state: &PhysicalState,
         agent_state: &AgentState,
+        log: &EventLog,
         actor_id: &ActorId,
         window: &DayWindow,
         _content_manifest_id: &ContentManifestId,
     ) -> Option<BuiltAgentProposal> {
         let actor = state.actors.get(actor_id)?;
-        let mut actor_known_state = NoHumanActorKnownSurfaceBuilder::from_modeled_observations(
-            state,
+        let actor_known_state = NoHumanActorKnownSurfaceBuilder::from_event_log(
+            log,
             agent_state,
             actor_id.clone(),
             actor.current_place_id.clone(),
-            Some(window.start_tick),
+            window.start_tick,
+            &window.window_id,
+            window.end_tick,
         )
         .build(agent_state)
         .into_context();
-        let wait_reason_fact = ActorKnownFact::remembered_belief(
-            actor_id.clone(),
-            "modeled_wait_reason",
-            "bounded_idle",
-            format!("window_id={}:bounded_idle", window.window_id),
-            Some(window.start_tick),
-        );
-        let reevaluation_fact = ActorKnownFact::remembered_belief(
-            actor_id.clone(),
-            "reevaluation_window_known",
-            window.window_id.as_str(),
-            format!(
-                "window_id={}:{}..{}",
-                window.window_id,
-                window.start_tick.value(),
-                window.end_tick.value()
-            ),
-            Some(window.start_tick),
-        );
-        let active_intention = active_intention_for_actor(agent_state, actor_id);
-        let mut transaction_facts = vec![wait_reason_fact, reevaluation_fact];
-        if active_intention.is_some() {
-            transaction_facts.push(ActorKnownFact::remembered_belief(
-                actor_id.clone(),
-                "active_intention_present",
-                "active",
-                "agent_state:active_intention",
-                Some(window.start_tick),
-            ));
-            transaction_facts.push(ActorKnownFact::remembered_belief(
-                actor_id.clone(),
-                "next_step_available",
-                "modeled_next_step",
-                "agent_state:active_intention_next_step",
-                Some(window.start_tick),
-            ));
-        }
-        if !actor_known_state.known_food_sources().is_empty() {
-            transaction_facts.push(ActorKnownFact::observed_now(
-                actor_id.clone(),
-                "food_source_believed_accessible",
-                "visible_food_source",
-                "visible_local:food_accessible",
-                Some(window.start_tick),
-            ));
-        }
-        actor_known_state.extend_actor_known_facts(transaction_facts);
         match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
@@ -2263,9 +2220,18 @@ pub mod no_human {
                     DecisionTraceId::new("trace_midday").unwrap(),
                 ),
             );
+            let mut log = EventLog::new();
+            record_current_place_perception(
+                &mut log,
+                &state,
+                &actor_id,
+                SimTick::ZERO,
+                &content_manifest_id(),
+            );
             let proposal = build_agent_proposal(
                 &state,
                 &agent_state,
+                &log,
                 &actor_id,
                 &DayWindow {
                     window_id: "midday".to_string(),
@@ -2656,7 +2622,7 @@ pub mod no_human {
                 WorkplaceState::new(workplace_id.clone(), workshop, "blocked_output");
             workplace.assigned_actor_ids.insert(actor_id.clone());
             workplace.access_open = false;
-            state.workplaces.insert(workplace_id, workplace);
+            state.workplaces.insert(workplace_id.clone(), workplace);
             let mut agent_state = agent_state(&actor_id);
             let execution_id = RoutineExecutionId::new("routine_exec_blocked_work").unwrap();
             agent_state.routine_executions.insert(
@@ -2674,6 +2640,34 @@ pub mod no_human {
                 ),
             );
             let mut log = EventLog::new();
+            let mut role_notice = EventEnvelope::new_v1(
+                EventId::new("event.role_notice.blocked_work").unwrap(),
+                EventKind::RoleAssignmentNoticeRecorded,
+                0,
+                0,
+                SimTick::ZERO,
+                OrderingKey::new(
+                    SimTick::ZERO,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id.clone()),
+                    ProposalSequence::new(0),
+                    ActionId::new("role_assignment_notice").unwrap(),
+                    vec![
+                        actor_id.as_str().to_string(),
+                        workplace_id.as_str().to_string(),
+                    ],
+                    "blocked_work_role_notice",
+                ),
+                content_manifest_id(),
+            );
+            role_notice.actor_id = Some(actor_id.clone());
+            role_notice.participants = vec![actor_id.as_str().to_string()];
+            role_notice.payload = vec![
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("workplace_id", workplace_id.as_str()),
+                PayloadField::new("place_id", "workshop"),
+            ];
+            log.append(role_notice).unwrap();
             let mut registry = ActionRegistry::new();
             registry.register_phase3a_work();
 
