@@ -466,6 +466,7 @@ fn apply_agent_event_with_capability(
                         })
                         .collect(),
                     sim_tick: event.sim_tick,
+                    payload_fields: payload_fields(event),
                     summary: event.effects_summary.clone(),
                 },
             );
@@ -2198,6 +2199,7 @@ mod tests {
         sleep.actor_id = Some(actor_id("actor_tomas"));
         sleep.proposal_id = Some(crate::ids::ProposalId::new("proposal_sleep").unwrap());
         sleep.sim_tick = SimTick::new(8);
+        sleep.payload = vec![PayloadField::new("sleep_place_id", "home_tomas")];
         sleep.effects_summary = "sleep episode started".to_string();
 
         assert_eq!(
@@ -2218,6 +2220,10 @@ mod tests {
         assert_eq!(
             state.ordinary_life_episodes[&sleep.event_id].event_kind,
             "sleep_started"
+        );
+        assert_eq!(
+            state.ordinary_life_episodes[&sleep.event_id].payload_fields,
+            vec![("sleep_place_id".to_string(), "home_tomas".to_string())]
         );
     }
 

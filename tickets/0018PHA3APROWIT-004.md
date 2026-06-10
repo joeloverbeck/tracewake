@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, event producers for the materialized agent kinds); new replay gate; apply-arm census; golden checksum updates
-**Deps**: `tickets/0018PHA3APROWIT-003.md` (versions stamp the payloads 002/003 finalized; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-039)
+**Deps**: `archive/tickets/0018PHA3APROWIT-003.md` (versions stamp the payloads 002/003 finalized; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-039)
 
 ## Problem
 

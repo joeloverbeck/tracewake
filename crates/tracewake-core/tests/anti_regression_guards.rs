@@ -2258,31 +2258,41 @@ fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_par
 
 #[test]
 fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state() {
+    use tracewake_core::checksum::{ChecksumStateKind, PHYSICAL_STATE_CHECKSUM_COVERAGE};
     use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
     use tracewake_core::events::EventKind;
 
+    const PAYLOAD_FREE_AGENT_MARKERS: &[EventKind] =
+        &[EventKind::NoHumanDayStarted, EventKind::NoHumanDayCompleted];
+
     let allowlist = AGENT_WORLD_NOOP_ALLOWLIST
         .iter()
-        .map(|kind| {
-            let citation = match kind {
-                EventKind::FoodConsumed => "dual_stream_physical_food_supply_checksum",
-                EventKind::NoHumanDayStarted | EventKind::NoHumanDayCompleted => {
-                    "payload_free_no_human_marker"
-                }
-                _ => "",
-            };
-            (kind.stable_id(), citation)
-        })
+        .map(|kind| kind.stable_id())
         .collect::<Vec<_>>();
 
     assert_eq!(
         allowlist,
         vec![
-            ("food_consumed", "dual_stream_physical_food_supply_checksum"),
-            ("no_human_day_started", "payload_free_no_human_marker"),
-            ("no_human_day_completed", "payload_free_no_human_marker"),
+            "food_consumed",
+            "no_human_day_started",
+            "no_human_day_completed"
         ]
     );
+    assert!(
+        PHYSICAL_STATE_CHECKSUM_COVERAGE.iter().any(|entry| {
+            entry.state_kind == ChecksumStateKind::Physical
+                && entry.field_name == "food_supplies"
+                && entry.field_family == "food_supply"
+        }) && CHECKSUM_RS.contains("\"food_supply|"),
+        "FoodConsumed allowlist entry must be covered by the physical food_supply checksum family"
+    );
+    for marker in PAYLOAD_FREE_AGENT_MARKERS {
+        assert!(
+            AGENT_WORLD_NOOP_ALLOWLIST.contains(marker),
+            "payload-free marker {} must be explicitly registered",
+            marker.stable_id()
+        );
+    }
     for materialized in [
         EventKind::NeedThresholdCrossed,
         EventKind::CandidateGoalsEvaluated,
@@ -2300,6 +2310,33 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
     ] {
         assert!(!AGENT_WORLD_NOOP_ALLOWLIST.contains(&materialized));
     }
+}
+
+#[test]
+fn materialized_agent_payload_records_keep_payload_fields() {
+    for struct_name in [
+        "OrdinaryLifeEpisodeRecord",
+        "CandidateGoalEvaluationRecord",
+        "ContinueRoutineArbitrationRecord",
+    ] {
+        let marker = format!("pub struct {struct_name} {{");
+        let body = STATE_RS
+            .split(&marker)
+            .nth(1)
+            .unwrap_or_else(|| panic!("{struct_name} declaration is present"))
+            .split("}\n")
+            .next()
+            .unwrap_or_else(|| panic!("{struct_name} body is present"));
+        assert!(
+            body.contains("pub payload_fields: Vec<(String, String)>"),
+            "{struct_name} must retain source event payload fields for replay/checksum evidence"
+        );
+    }
+    assert!(
+        CHECKSUM_RS.contains("ordinary_life_episode|")
+            && CHECKSUM_RS.contains("join_pairs(&episode.payload_fields)"),
+        "ordinary-life episode payload fields must enter the canonical agent checksum"
+    );
 }
 
 #[test]

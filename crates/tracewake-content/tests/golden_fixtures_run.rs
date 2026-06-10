@@ -356,6 +356,35 @@ fn tamper_first_continue_routine_reason(log: &EventLog, replacement_reason: &str
     tampered
 }
 
+fn tamper_first_payload_field(
+    log: &EventLog,
+    event_kind: EventKind,
+    key: &str,
+    replacement_value: &str,
+) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced && event.event_type == event_kind {
+            let field = event
+                .payload
+                .iter_mut()
+                .find(|field| field.key == key)
+                .unwrap_or_else(|| panic!("{} carries {key}", event_kind.stable_id()));
+            field.value = replacement_value.to_string();
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(
+        replaced,
+        "fixture contains {} payload field {key}",
+        event_kind.stable_id()
+    );
+    tampered
+}
+
 fn possession_continue_routine_replay_fixture() -> (
     PhysicalState,
     AgentState,
@@ -408,6 +437,118 @@ fn possession_continue_routine_replay_fixture() -> (
     );
 
     assert!(has_event(&log, EventKind::ContinueRoutineProposed));
+    (initial_state, initial_agent_state, state, agent_state, log)
+}
+
+fn sleep_eat_work_replay_fixture() -> (
+    PhysicalState,
+    AgentState,
+    PhysicalState,
+    AgentState,
+    EventLog,
+) {
+    let (mut state, mut agent_state, manifest_id) = load(fixtures::sleep_eat_work_001());
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+
+    let mut sleep = proposal("proposal_sleep", "actor_tomas", "sleep", &["home_tomas"], 0);
+    sleep
+        .parameters
+        .insert("duration_ticks".to_string(), "4".to_string());
+    sleep
+        .parameters
+        .insert("sleep_place_id".to_string(), "home_tomas".to_string());
+    sleep
+        .parameters
+        .insert("sleep_affordance_id".to_string(), "bed_tomas".to_string());
+    let sleep_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &sleep,
+        0,
+    );
+    let sleep_started = sleep_events
+        .iter()
+        .find(|event| event.event_type == EventKind::SleepStarted)
+        .expect("sleep starts")
+        .clone();
+    let completion_events = build_sleep_completion_events(
+        &state,
+        &agent_state,
+        &log,
+        &sleep_started,
+        &ordering_key(&sleep, 1),
+        &manifest_id,
+        SimTick::new(4),
+    )
+    .unwrap();
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
+
+    let eat = proposal(
+        "proposal_eat_breakfast",
+        "actor_tomas",
+        "eat",
+        &["food_breakfast_tomas"],
+        5,
+    );
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &eat,
+        2,
+    );
+    let move_to_work = proposal(
+        "proposal_sleep_eat_work_move",
+        "actor_tomas",
+        "move",
+        &["workshop_tomas"],
+        6,
+    );
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &move_to_work,
+        3,
+    );
+    let work = proposal(
+        "proposal_sleep_eat_work_work",
+        "actor_tomas",
+        "work_block",
+        &["workplace_tomas"],
+        8,
+    );
+    let work_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        4,
+    );
+    let work_started = work_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .expect("work starts")
+        .clone();
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &log,
+        &work_started,
+        &ordering_key(&work, 5),
+        &manifest_id,
+        SimTick::new(11),
+    )
+    .unwrap();
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
+
     (initial_state, initial_agent_state, state, agent_state, log)
 }
 
@@ -1975,6 +2116,74 @@ fn continue_routine_tamper_reason_rewrite_poisons_replay() {
     let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
     let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
     let tampered = tamper_first_continue_routine_reason(&log, "tampered_continue_routine_reason");
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.agent_checksum_matches);
+}
+
+#[test]
+fn episode_tamper_output_tag_poisons_replay() {
+    let (initial_state, initial_agent_state, state, agent_state, log) =
+        sleep_eat_work_replay_fixture();
+    let context = checksum_context("sleep_eat_work_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_first_payload_field(
+        &log,
+        EventKind::WorkBlockStarted,
+        "output_tag",
+        "tampered_output_tag",
+    );
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.agent_checksum_matches);
+}
+
+#[test]
+fn episode_tamper_proration_poisons_replay() {
+    let golden = fixtures::sleep_interrupted_by_severe_need_prorates_recovery_001();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+    assert!(has_event(&log, EventKind::SleepInterrupted));
+    let context = checksum_context(
+        "sleep_interrupted_by_severe_need_prorates_recovery_001",
+        &log,
+    );
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered =
+        tamper_first_payload_field(&log, EventKind::SleepInterrupted, "fatigue_delta", "999");
     let replay = run_replay(
         &initial_state,
         &initial_agent_state,

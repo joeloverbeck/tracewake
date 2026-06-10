@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-003: Episode payload materialization, tamper gates, and derived allowlist census
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`state`, `events/apply`, `checksum`); tamper tests and golden checksum updates in `tracewake-content`; lock-layer census rewrite
@@ -88,3 +88,38 @@
 
 1. `cargo test -p tracewake-content episode_tamper`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- `OrdinaryLifeEpisodeRecord` now stores source event `payload_fields`, matching the
+  candidate-goal and continue-routine materialized record pattern.
+- Ordinary-life episode canonical checksum lines now include caused event ids and
+  length-prefixed payload fields.
+- Episode apply arms populate payload fields from the committed event payload.
+- Added replay tamper gates proving `WorkBlockStarted.output_tag` and
+  `SleepInterrupted.fatigue_delta` rewrites poison replay and agent checksums.
+- Reworked the noop allowlist guard so `FoodConsumed` resolves through the physical
+  `food_supply` checksum family and no-human markers are explicitly registered as
+  payload-free.
+- Added a materialized-record census requiring payload-bearing agent records to retain
+  `payload_fields`.
+
+Deviations:
+
+- No golden checksum or context-hash expectation file needed updating; the full golden
+  fixture suite stayed green with the stronger checksum materialization.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-content episode_tamper` — passed.
+- `cargo test -p tracewake-core agent_world_noop_allowlist` — passed.
+- `cargo test -p tracewake-core materialized_agent_payload_records_keep_payload_fields` —
+  passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
