@@ -562,6 +562,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
             ActionEffect::Wait => {
                 let events = match build_wait_events(
                     context.state,
+                    context.agent_state,
                     proposal,
                     context.ordering_key,
                     context.content_manifest_id,
@@ -1888,13 +1889,16 @@ mod tests {
         let before_projection = projection.clone();
 
         let accepted_check = check_container_proposal("proposal_accept_check");
-        let accepted_wait = Proposal::new(
+        let mut accepted_wait = Proposal::new(
             ProposalId::new("proposal_accept_wait").unwrap(),
             ProposalOrigin::Test,
             Some(actor_id("actor_tomas")),
             action_id("wait"),
             SimTick::ZERO,
         );
+        accepted_wait
+            .parameters
+            .insert("reason".to_string(), "validation wait".to_string());
         let mut rejected_state = state.clone();
         rejected_state
             .containers

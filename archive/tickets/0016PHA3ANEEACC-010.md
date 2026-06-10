@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-010: Cross-tick stuck detection and wait discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` cross-window stuck detectors, wait-reason rejection, authoritative threshold recomputation, open-duration decision skip, typed payload errors; two new fixtures; capstone extension; golden repricing
@@ -111,3 +111,21 @@ The two fixtures; the reasonless-wait rejection test; the forged-param test; the
 
 1. `cargo test -p tracewake-core wait && cargo test -p tracewake-core --test no_human_capstone`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented the wait and stuck-diagnostic discipline for ORD-HARD-023:
+
+- Scheduler-origin waits without an actor-supplied reason now reject with typed `missing_wait_reason`; TUI/view wait proposals supply an explicit reason, and the capstone asserts no `unspecified_wait` payload survives.
+- Wait threshold crossings now derive hunger/fatigue from authoritative `AgentState`; forged proposal need parameters are ignored.
+- No-human day processing now skips decision generation while a body-exclusive duration is still open and emits typed cross-window stuck diagnostics for persisted routine executions past their expected progress tick or repeating idle/wait after fallback attempts.
+- Sleep/work completion payload parsing now returns typed `ApplyError` failures for missing/malformed numeric fields instead of panicking.
+- Locks landed as focused core scheduler/action tests plus capstone/TUI/content-call-site updates. The named stuck scenarios are covered by synthetic scheduler fixtures in `scheduler.rs`; no separate content fixture files were added because the required state is persisted `RoutineExecution` progress, not content schema authoring.
+
+Verification passed:
+
+1. `cargo test -p tracewake-core wait && cargo test -p tracewake-core --test no_human_capstone`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`

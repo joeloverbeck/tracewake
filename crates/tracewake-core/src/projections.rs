@@ -1034,6 +1034,9 @@ pub fn proposal_from_semantic_action_entry(
         proposal
             .parameters
             .insert("ticks".to_string(), "1".to_string());
+        proposal
+            .parameters
+            .insert("reason".to_string(), "actor selected wait".to_string());
     }
     if entry.action_id.as_str() == "sleep" {
         if let Some(sleep_affordance_id) = entry.target_ids.first() {

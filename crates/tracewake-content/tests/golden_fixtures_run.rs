@@ -403,7 +403,8 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
         &ordering_key(&work, 2),
         &manifest_id,
         SimTick::new(12),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::ActorMoved));
@@ -453,7 +454,8 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         &ordering_key(&sleep, 1),
         &manifest_id,
         SimTick::new(4),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let eat = proposal(
@@ -514,7 +516,8 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         &ordering_key(&work, 5),
         &manifest_id,
         SimTick::new(11),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::SleepCompleted));
@@ -588,7 +591,8 @@ fn work_block_failed_then_sleep_succeeds_fixture_closes_reservation() {
         &ordering_key(&work, 2),
         &manifest_id,
         SimTick::new(4),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
     assert!(has_event(&log, EventKind::WorkBlockFailed));
 
@@ -1397,7 +1401,8 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &ordering_key(&sleep_elena, 103),
         &manifest_id,
         SimTick::new(39),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let move_tomas_commons = proposal(
@@ -1470,7 +1475,8 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &ordering_key(&work_tomas, 107),
         &manifest_id,
         SimTick::new(46),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let work_anna = proposal(

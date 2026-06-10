@@ -454,7 +454,9 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(planner.contains("DEBUG NON-DIEGETIC: Planner"));
     assert!(planner.contains("candidate_goals"));
     assert!(stuck.contains("DEBUG NON-DIEGETIC: Stuck"));
-    assert!(stuck.contains("stuck_diagnostic_count=0"));
+    assert!(stuck.contains("stuck_diagnostic_count="));
+    assert!(stuck.contains("stuck="));
+    assert!(stuck.contains("debug_detail=no-human day stuck detection"));
     let routines = app.render_debug_routines_panel();
     assert!(routines.contains("routine_exec_mara_eat"));
     assert!(routines.contains("status=Failed"));

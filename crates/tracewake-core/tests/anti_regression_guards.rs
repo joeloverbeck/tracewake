@@ -811,13 +811,16 @@ fn scheduler_never_direct_dispatches_primitive_action() {
     let mut registry = ActionRegistry::new();
     registry.register_phase1_inspect_wait();
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
-    let proposal = Proposal::new(
+    let mut proposal = Proposal::new(
         ProposalId::new("proposal_wait").unwrap(),
         ProposalOrigin::Scheduler,
         Some(actor_id.clone()),
         ActionId::new("wait").unwrap(),
         SimTick::ZERO,
     );
+    proposal
+        .parameters
+        .insert("reason".to_string(), "scheduled wait".to_string());
     let context = ChecksumContext {
         fixture_id: FixtureId::new("scheduler_no_direct_dispatch").unwrap(),
         content_version: ContentVersion::new("content_v1").unwrap(),

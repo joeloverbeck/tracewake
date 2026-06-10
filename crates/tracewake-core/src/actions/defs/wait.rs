@@ -1,25 +1,34 @@
 use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
-use crate::actions::proposal::Proposal;
+use crate::actions::proposal::{Proposal, ProposalOrigin};
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::agent::{NeedBand, NeedKind, NeedState};
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContentManifestId, EventId};
 use crate::scheduler::OrderingKey;
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 use crate::time::passive_awake_need_deltas;
 
 pub fn build_wait_event(
     state: &PhysicalState,
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
 ) -> Result<EventEnvelope, ActionRejection> {
-    Ok(build_wait_events(state, proposal, ordering_key, content_manifest_id)?.remove(0))
+    Ok(build_wait_events(
+        state,
+        agent_state,
+        proposal,
+        ordering_key,
+        content_manifest_id,
+    )?
+    .remove(0))
 }
 
 pub fn build_wait_events(
     state: &PhysicalState,
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -78,10 +87,24 @@ pub fn build_wait_events(
     let reason = proposal
         .parameters
         .get("reason")
+        .filter(|value| !value.trim().is_empty())
         .cloned()
-        .unwrap_or_else(|| "unspecified_wait".to_string());
+        .ok_or_else(|| {
+            ActionRejection::new(
+                PipelineStage::PhysicalPreconditionValidation,
+                if is_autonomous_wait(proposal) {
+                    ReasonCode::MissingWaitReason
+                } else {
+                    ReasonCode::InvalidParameter
+                },
+                vec![CheckedFact::new("reason", "missing")],
+                "That wait needs a reason.",
+                "wait proposal did not include an actor-supplied reason",
+            )
+        })?;
     let deltas = passive_awake_need_deltas(state.need_model(), tick_count);
     let threshold_events = build_threshold_events(
+        agent_state,
         proposal,
         ordering_key,
         content_manifest_id,
@@ -140,6 +163,13 @@ pub fn build_wait_events(
     Ok(events)
 }
 
+fn is_autonomous_wait(proposal: &Proposal) -> bool {
+    matches!(
+        proposal.origin,
+        ProposalOrigin::Scheduler | ProposalOrigin::Agent
+    )
+}
+
 fn build_need_delta_event(
     proposal: &Proposal,
     ordering_key: &OrderingKey,
@@ -186,6 +216,7 @@ fn build_need_delta_event(
 }
 
 fn build_threshold_events(
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -194,12 +225,12 @@ fn build_threshold_events(
     deltas: crate::time::PassiveNeedDeltas,
 ) -> Vec<EventEnvelope> {
     [
-        (NeedKind::Hunger, deltas.hunger_delta, "current_hunger"),
-        (NeedKind::Fatigue, deltas.fatigue_delta, "current_fatigue"),
+        (NeedKind::Hunger, deltas.hunger_delta),
+        (NeedKind::Fatigue, deltas.fatigue_delta),
     ]
     .into_iter()
-    .filter_map(|(need_kind, delta, parameter)| {
-        let current = proposal.parameters.get(parameter)?.parse::<u16>().ok()?;
+    .filter_map(|(need_kind, delta)| {
+        let current = need_value(agent_state, actor_id, need_kind)?;
         let next = current.saturating_add(delta.max(0) as u16).min(1000);
         let crossing = NeedState::threshold_crossing(current, next)?;
         Some(build_threshold_event(
@@ -216,6 +247,18 @@ fn build_threshold_events(
         ))
     })
     .collect()
+}
+
+fn need_value(
+    agent_state: &AgentState,
+    actor_id: &crate::ids::ActorId,
+    need_kind: NeedKind,
+) -> Option<u16> {
+    agent_state
+        .needs_by_actor
+        .get(actor_id)
+        .and_then(|needs| needs.get(&need_kind))
+        .map(NeedState::value)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -276,8 +319,10 @@ mod tests {
     use crate::events::apply::apply_event;
     use crate::ids::{ActionId, ActorId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, PhysicalState};
+    use crate::state::{ActorBody, AgentState, PhysicalState};
     use crate::time::SimTick;
+    use crate::{agent::NeedChangeCause, agent::NeedState};
+    use std::collections::BTreeMap;
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
@@ -292,14 +337,36 @@ mod tests {
         state
     }
 
+    fn agent_state() -> AgentState {
+        let mut state = AgentState::default();
+        state.needs_by_actor.insert(
+            actor_id(),
+            BTreeMap::from([
+                (
+                    NeedKind::Hunger,
+                    NeedState::initial(NeedKind::Hunger, 249, NeedChangeCause::TickDelta),
+                ),
+                (
+                    NeedKind::Fatigue,
+                    NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::TickDelta),
+                ),
+            ]),
+        );
+        state
+    }
+
     fn proposal() -> Proposal {
-        Proposal::new(
+        let mut proposal = Proposal::new(
             ProposalId::new("proposal_wait").unwrap(),
             ProposalOrigin::Test,
             Some(actor_id()),
             ActionId::new("wait").unwrap(),
             SimTick::new(4),
-        )
+        );
+        proposal
+            .parameters
+            .insert("reason".to_string(), "waiting for morning".to_string());
+        proposal
     }
 
     fn reasoned_threshold_proposal() -> Proposal {
@@ -309,10 +376,7 @@ mod tests {
             .insert("ticks".to_string(), "1".to_string());
         proposal
             .parameters
-            .insert("reason".to_string(), "waiting for morning".to_string());
-        proposal
-            .parameters
-            .insert("current_hunger".to_string(), "249".to_string());
+            .insert("current_hunger".to_string(), "0".to_string());
         proposal
     }
 
@@ -332,6 +396,7 @@ mod tests {
     fn wait_advances_tick_and_emits_event() {
         let event = build_wait_event(
             &state(),
+            &agent_state(),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase1_manifest").unwrap(),
@@ -347,6 +412,7 @@ mod tests {
         let mut replay_state = state();
         let event = build_wait_event(
             &replay_state,
+            &agent_state(),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase1_manifest").unwrap(),
@@ -364,6 +430,7 @@ mod tests {
     fn wait_carries_reason_and_passive_need_delta_events() {
         let events = build_wait_events(
             &state(),
+            &agent_state(),
             &reasoned_threshold_proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase1_manifest").unwrap(),
@@ -403,6 +470,7 @@ mod tests {
     fn wait_threshold_crossing_sets_reevaluation_flag() {
         let events = build_wait_events(
             &state(),
+            &agent_state(),
             &reasoned_threshold_proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase1_manifest").unwrap(),
@@ -420,6 +488,10 @@ mod tests {
         assert!(threshold
             .payload
             .iter()
+            .any(|field| field.key == "from_value" && field.value == "249"));
+        assert!(threshold
+            .payload
+            .iter()
             .any(|field| field.key == "from_band" && field.value == "comfortable"));
         assert!(threshold
             .payload
@@ -431,6 +503,7 @@ mod tests {
     fn wait_need_effects_do_not_reduce_needs_or_claim_body_exclusivity() {
         let events = build_wait_events(
             &state(),
+            &agent_state(),
             &reasoned_threshold_proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase1_manifest").unwrap(),
@@ -459,5 +532,23 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "interruptible" && field.value == "true"));
+    }
+
+    #[test]
+    fn scheduler_wait_without_actor_supplied_reason_is_rejected() {
+        let mut proposal = proposal();
+        proposal.origin = ProposalOrigin::Scheduler;
+        proposal.parameters.remove("reason");
+
+        let rejection = build_wait_events(
+            &state(),
+            &agent_state(),
+            &proposal,
+            &ordering_key(),
+            &ContentManifestId::new("phase1_manifest").unwrap(),
+        )
+        .unwrap_err();
+
+        assert_eq!(rejection.reason_code, ReasonCode::MissingWaitReason);
     }
 }

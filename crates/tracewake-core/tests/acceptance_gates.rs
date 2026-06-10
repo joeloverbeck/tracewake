@@ -688,6 +688,8 @@ fn phase3a_agent_events_apply_live_and_replay_to_same_agent_checksum() {
         SimTick::new(1),
     );
     wait.parameters.insert("ticks".to_string(), "3".to_string());
+    wait.parameters
+        .insert("reason".to_string(), "acceptance wait".to_string());
     wait.parameters.insert(
         "current_hunger".to_string(),
         agent_need(&live_agent_state, NeedKind::Hunger).to_string(),

@@ -3,6 +3,7 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::agent::{NeedBand, NeedKind};
+use crate::events::apply::ApplyError;
 use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContentManifestId, EventId, WorkplaceId};
@@ -120,7 +121,7 @@ pub fn build_work_completion_events(
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     completion_tick: SimTick,
-) -> Vec<EventEnvelope> {
+) -> Result<Vec<EventEnvelope>, ApplyError> {
     let actor_id = work_started_event
         .actor_id
         .clone()
@@ -134,9 +135,9 @@ pub fn build_work_completion_events(
     )
     .working_ticks;
     let fatigue_delta =
-        payload_i32(work_started_event, "fatigue_delta_per_tick") * working_ticks as i32;
+        payload_i32(work_started_event, "fatigue_delta_per_tick")? * working_ticks as i32;
     let hunger_delta =
-        payload_i32(work_started_event, "hunger_delta_per_tick") * working_ticks as i32;
+        payload_i32(work_started_event, "hunger_delta_per_tick")? * working_ticks as i32;
     if let Some((blocker_kind, reason)) =
         work_completion_failure(state, agent_state, work_started_event)
     {
@@ -167,9 +168,9 @@ pub fn build_work_completion_events(
             "hunger",
             hunger_delta,
         ));
-        return events;
+        return Ok(events);
     }
-    vec![
+    Ok(vec![
         work_completed_event(
             work_started_event,
             ordering_key,
@@ -195,7 +196,7 @@ pub fn build_work_completion_events(
             "hunger",
             hunger_delta,
         ),
-    ]
+    ])
 }
 
 fn work_completion_failure(
@@ -518,10 +519,17 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> &'a str {
         .expect("work start event carries required payload")
 }
 
-fn payload_i32(event: &EventEnvelope, key: &str) -> i32 {
-    payload_value(event, key)
-        .parse()
-        .expect("work start numeric payload is valid")
+fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyError> {
+    let value = event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+        .ok_or(ApplyError::MissingPayload(key))?;
+    value.parse().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
 }
 
 fn actor_missing() -> ActionRejection {
@@ -709,7 +717,8 @@ mod tests {
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(24),
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::WorkBlockCompleted);
         assert!(events[0].payload.iter().any(
@@ -726,6 +735,49 @@ mod tests {
                     .iter()
                     .any(|field| field.key == "delta" && field.value == "32")
         }));
+    }
+
+    #[test]
+    fn malformed_work_start_payload_returns_typed_error() {
+        let mut start = build_work_start_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap()
+        .remove(0);
+        for field in &mut start.payload {
+            if field.key == "fatigue_delta_per_tick" {
+                field.value = "not_i32".to_string();
+            }
+        }
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("work_block").unwrap(),
+            SimTick::new(24),
+            0,
+        );
+
+        let error = build_work_completion_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
+            &EventLog::new(),
+            &start,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(24),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            ApplyError::BadPayload {
+                key: "fatigue_delta_per_tick",
+                value: "not_i32".to_string()
+            }
+        );
     }
 
     #[test]
@@ -753,7 +805,8 @@ mod tests {
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(22),
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::WorkBlockFailed);
         assert!(events[0]
@@ -1063,6 +1116,7 @@ mod tests {
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(22),
         )
+        .unwrap()
         .into_iter()
         .find(|event| event.event_type == EventKind::WorkBlockFailed)
         .expect("displacement fails the work block");

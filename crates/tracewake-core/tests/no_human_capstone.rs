@@ -80,6 +80,12 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
     assert!(metrics.work_blocks_completed > 0);
     assert!(metrics.work_blocks_failed > 0);
     assert_eq!(metrics.player_conditioned_event_count, 0);
+    assert!(!log.events().iter().any(|event| {
+        event
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "unspecified_wait")
+    }));
 
     let context = ChecksumContext {
         fixture_id: FixtureId::new("phase3a_capstone").unwrap(),

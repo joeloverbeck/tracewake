@@ -203,7 +203,7 @@ impl DeterministicScheduler {
 }
 
 pub mod no_human {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use crate::actions::defs::sleep::build_sleep_completion_events;
     use crate::actions::defs::work::build_work_completion_events;
@@ -214,8 +214,8 @@ pub mod no_human {
         record_current_place_perception, ActorDecisionTransaction, ActorDecisionTransactionInput,
         ActorDecisionTransactionOutcome, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
         DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind, NeedState,
-        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, StuckDiagnostic,
-        StuckResultingStatus, TypedDiagnosticFields,
+        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, RoutineStepStatus,
+        StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::events::apply::apply_agent_event;
     use crate::events::is_duration_terminal;
@@ -334,6 +334,8 @@ pub mod no_human {
 
         let mut ordinary_pipeline_events = 0;
         let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
+        let mut duration_skip_by_window_actor: BTreeSet<(String, ActorId)> = BTreeSet::new();
+        let mut stuck_diagnostic_event_ids = Vec::new();
         let mut pending_sleep_starts = Vec::new();
         let mut pending_work_starts = Vec::new();
         let mut last_decision_tick_by_actor = config
@@ -386,6 +388,29 @@ pub mod no_human {
                     actor_id,
                     window.start_tick,
                     &content_manifest_id,
+                );
+                if actor_has_open_body_exclusive_duration(log, actor_id, window.start_tick) {
+                    duration_skip_by_window_actor
+                        .insert((window.window_id.clone(), actor_id.clone()));
+                    append_routine_stuck_diagnostics(
+                        log,
+                        agent_state,
+                        &process_id,
+                        actor_id,
+                        window,
+                        &content_manifest_id,
+                        &mut stuck_diagnostic_event_ids,
+                    );
+                    continue;
+                }
+                append_routine_stuck_diagnostics(
+                    log,
+                    agent_state,
+                    &process_id,
+                    actor_id,
+                    window,
+                    &content_manifest_id,
+                    &mut stuck_diagnostic_event_ids,
                 );
                 let Some(agent_proposal) = build_agent_proposal(
                     state,
@@ -483,6 +508,15 @@ pub mod no_human {
                     &content_manifest_id,
                     result.appended_events.first(),
                 );
+                append_routine_stuck_diagnostics(
+                    log,
+                    agent_state,
+                    &process_id,
+                    actor_id,
+                    window,
+                    &content_manifest_id,
+                    &mut stuck_diagnostic_event_ids,
+                );
             }
         }
 
@@ -498,10 +532,14 @@ pub mod no_human {
             final_tick,
         );
 
-        let mut stuck_diagnostic_event_ids = Vec::new();
         for window in &config.windows {
             for actor_id in &config.actor_ids {
                 if !state.actors.contains_key(actor_id) {
+                    continue;
+                }
+                if duration_skip_by_window_actor
+                    .contains(&(window.window_id.clone(), actor_id.clone()))
+                {
                     continue;
                 }
                 if !progress_by_window_actor
@@ -513,6 +551,8 @@ pub mod no_human {
                         actor_id,
                         window,
                         &content_manifest_id,
+                        StuckDiagnosticKind::WindowNoProgress,
+                        None,
                     );
                     apply_agent_event(agent_state, &event)
                         .expect("stuck diagnostic event applies to live agent state");
@@ -743,7 +783,7 @@ pub mod no_human {
                     vec![actor_id],
                     format!("sleep_completed:{}", sleep_started.event_id.as_str()),
                 );
-                for event in build_sleep_completion_events(
+                let events = build_sleep_completion_events(
                     state,
                     agent_state,
                     log,
@@ -751,7 +791,9 @@ pub mod no_human {
                     &ordering_key,
                     content_manifest_id,
                     completion_tick,
-                ) {
+                )
+                .expect("scheduled sleep completion payloads are typed and valid");
+                for event in events {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
                     if is_duration_terminal(appended.event_type) {
                         append_routine_step_completed_after_duration_completion(
@@ -782,7 +824,7 @@ pub mod no_human {
                     vec![actor_id],
                     format!("work_completed:{}", work_started.event_id.as_str()),
                 );
-                for event in build_work_completion_events(
+                let events = build_work_completion_events(
                     state,
                     agent_state,
                     log,
@@ -790,7 +832,9 @@ pub mod no_human {
                     &ordering_key,
                     content_manifest_id,
                     completion_tick,
-                ) {
+                )
+                .expect("scheduled work completion payloads are typed and valid");
+                for event in events {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
                     if is_duration_terminal(appended.event_type) {
                         append_routine_step_completed_after_duration_completion(
@@ -918,6 +962,107 @@ pub mod no_human {
             .find(|field| field.key == "expected_completion_tick")
             .and_then(|field| field.value.parse::<u64>().ok())
             .map(SimTick::new)
+    }
+
+    fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+        event
+            .payload
+            .iter()
+            .find(|field| field.key == key)
+            .map(|field| field.value.as_str())
+    }
+
+    fn actor_has_open_body_exclusive_duration(
+        log: &EventLog,
+        actor_id: &ActorId,
+        tick: SimTick,
+    ) -> bool {
+        log.events()
+            .iter()
+            .filter(|event| {
+                event.actor_id.as_ref() == Some(actor_id)
+                    && payload_value(event, "body_exclusive") == Some("true")
+                    && scheduled_completion_tick(event).is_some_and(|completion| completion > tick)
+            })
+            .any(|start| {
+                let proposal_id = start.proposal_id.as_ref();
+                !log.events().iter().any(|event| {
+                    event.sim_tick <= tick
+                        && is_duration_terminal(event.event_type)
+                        && event.proposal_id.as_ref() == proposal_id
+                })
+            })
+    }
+
+    fn append_routine_stuck_diagnostics(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        process_id: &ProcessId,
+        actor_id: &ActorId,
+        window: &DayWindow,
+        content_manifest_id: &ContentManifestId,
+        stuck_diagnostic_event_ids: &mut Vec<EventId>,
+    ) {
+        let diagnostics = routine_stuck_diagnostic_kinds(agent_state, actor_id, window);
+        for (kind, execution_id) in diagnostics {
+            let event = append_stuck_diagnostic(
+                log,
+                process_id,
+                actor_id,
+                window,
+                content_manifest_id,
+                kind,
+                Some(execution_id),
+            );
+            apply_agent_event(agent_state, &event)
+                .expect("routine stuck diagnostic event applies to live agent state");
+            stuck_diagnostic_event_ids.push(event.event_id);
+        }
+    }
+
+    fn routine_stuck_diagnostic_kinds(
+        agent_state: &AgentState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+    ) -> Vec<(StuckDiagnosticKind, RoutineExecutionId)> {
+        agent_state
+            .routine_executions()
+            .iter()
+            .filter(|(_, execution)| &execution.actor_id == actor_id)
+            .flat_map(|(execution_id, execution)| {
+                let mut diagnostics = Vec::new();
+                if execution
+                    .expected_next_progress_tick
+                    .is_some_and(|expected| {
+                        expected < window.start_tick && execution.last_progress_tick < expected
+                    })
+                {
+                    diagnostics.push((
+                        StuckDiagnosticKind::PastExpectedProgressWindow,
+                        execution_id.clone(),
+                    ));
+                }
+                if execution.step_status == RoutineStepStatus::Waiting
+                    && execution.fallback_attempts > 0
+                    && execution.last_progress_tick < window.start_tick
+                {
+                    diagnostics.push((StuckDiagnosticKind::RepeatedIdleWait, execution_id.clone()));
+                }
+                diagnostics
+            })
+            .filter(|(kind, execution_id)| {
+                !agent_state.stuck_diagnostics().contains_key(
+                    &StuckDiagnosticId::new(format!(
+                        "diagnostic_{}_{}_{}_{}",
+                        kind.stable_id(),
+                        actor_id.as_str(),
+                        window.window_id,
+                        execution_id.as_str()
+                    ))
+                    .unwrap(),
+                )
+            })
+            .collect()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1923,20 +2068,79 @@ pub mod no_human {
         log.append(event).expect("no-human marker is versioned")
     }
 
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum StuckDiagnosticKind {
+        WindowNoProgress,
+        PastExpectedProgressWindow,
+        RepeatedIdleWait,
+    }
+
+    impl StuckDiagnosticKind {
+        const fn stable_id(self) -> &'static str {
+            match self {
+                Self::WindowNoProgress => "window_no_progress",
+                Self::PastExpectedProgressWindow => "past_expected_progress_window",
+                Self::RepeatedIdleWait => "repeated_idle_wait",
+            }
+        }
+
+        const fn concrete_blocker(self) -> &'static str {
+            match self {
+                Self::WindowNoProgress => "no progress recorded in no-human day window",
+                Self::PastExpectedProgressWindow => "no progress past expected progress window",
+                Self::RepeatedIdleWait => "repeated idle/wait without typed progress reason",
+            }
+        }
+
+        const fn actual_source(self) -> &'static str {
+            match self {
+                Self::WindowNoProgress => "scheduler_no_progress_detection",
+                Self::PastExpectedProgressWindow => {
+                    "routine_expected_next_progress_stuck_detection"
+                }
+                Self::RepeatedIdleWait => "routine_repeated_idle_wait_stuck_detection",
+            }
+        }
+
+        const fn resulting_status(self) -> StuckResultingStatus {
+            match self {
+                Self::WindowNoProgress => StuckResultingStatus::Idle,
+                Self::PastExpectedProgressWindow | Self::RepeatedIdleWait => {
+                    StuckResultingStatus::Waiting
+                }
+            }
+        }
+    }
+
     fn append_stuck_diagnostic(
         log: &mut EventLog,
         process_id: &ProcessId,
         actor_id: &ActorId,
         window: &DayWindow,
         content_manifest_id: &ContentManifestId,
+        kind: StuckDiagnosticKind,
+        routine_execution_id: Option<RoutineExecutionId>,
     ) -> EventEnvelope {
-        let diagnostic = StuckDiagnostic::new(
+        let diagnostic_id = if let Some(execution_id) = routine_execution_id.as_ref() {
             StuckDiagnosticId::new(format!(
-                "diagnostic_no_human_day_{}_{}",
+                "diagnostic_{}_{}_{}_{}",
+                kind.stable_id(),
+                actor_id.as_str(),
+                window.window_id,
+                execution_id.as_str()
+            ))
+            .unwrap()
+        } else {
+            StuckDiagnosticId::new(format!(
+                "diagnostic_{}_{}_{}",
+                kind.stable_id(),
                 actor_id.as_str(),
                 window.window_id
             ))
-            .unwrap(),
+            .unwrap()
+        };
+        let diagnostic = StuckDiagnostic::new(
+            diagnostic_id,
             actor_id.clone(),
             window.start_tick,
             window.end_tick,
@@ -1944,32 +2148,34 @@ pub mod no_human {
             None,
             None,
             None,
-            None,
+            routine_execution_id,
             None,
             None,
             BlockerCategory::SchedulingReservation,
-            "no progress recorded in no-human day window",
+            kind.concrete_blocker(),
             format!(
-                "actor {} had no accepted or rejected ordinary proposal in {}",
+                "actor {} triggered {} in {}",
                 actor_id.as_str(),
-                window.window_id
+                kind.stable_id(),
+                window.window_id,
             ),
             "no-human day stuck detection",
             "recorded_stuck_diagnostic",
-            StuckResultingStatus::Idle,
+            kind.resulting_status(),
         )
         .with_typed_diagnostic(TypedDiagnosticFields {
             responsible_layer: ResponsibleLayer::Scheduler,
             blocker_code: BlockerCode::SchedulingReservation,
             input_source: "holder_known_context".to_string(),
-            actual_source: "scheduler_no_progress_detection".to_string(),
+            actual_source: kind.actual_source().to_string(),
             hidden_truth_referenced: false,
             remediation_hint: "inspect no-human ordering and proposal diagnostics".to_string(),
         });
         let canonical = diagnostic.serialize_canonical();
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(format!(
-                "event.stuck_diagnostic_recorded.{}.{}",
+                "event.stuck_diagnostic_recorded.{}.{}.{}",
+                kind.stable_id(),
                 actor_id.as_str(),
                 window.window_id
             ))
@@ -2163,6 +2369,10 @@ pub mod no_human {
                 ActionId::new("wait").unwrap(),
                 SimTick::ZERO,
             );
+            let mut proposal = proposal;
+            proposal
+                .parameters
+                .insert("reason".to_string(), "scheduled wait".to_string());
 
             let report = advance_no_human(
                 NoHumanStateMut {
@@ -2189,6 +2399,189 @@ pub mod no_human {
                     .count(),
                 2
             );
+        }
+
+        #[test]
+        fn no_human_day_skips_decision_for_open_body_exclusive_duration() {
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state.actors.insert(
+                actor_id(),
+                ActorBody::new(actor_id(), crate::ids::PlaceId::new("bedroom").unwrap()),
+            );
+            let mut agent_state = agent_state(&actor_id());
+            let mut log = EventLog::new();
+            let mut sleep_started = EventEnvelope::new_caused_v1(
+                EventId::new("event.sleep_started.proposal_sleep_open").unwrap(),
+                EventKind::SleepStarted,
+                0,
+                0,
+                SimTick::ZERO,
+                OrderingKey::new(
+                    SimTick::ZERO,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id()),
+                    ProposalSequence::new(0),
+                    ActionId::new("sleep").unwrap(),
+                    vec!["actor_tomas".to_string()],
+                    "sleep_open",
+                ),
+                content_manifest_id(),
+                vec![EventCause::Proposal(
+                    ProposalId::new("proposal_sleep_open").unwrap(),
+                )],
+            )
+            .unwrap();
+            sleep_started.actor_id = Some(actor_id());
+            sleep_started.proposal_id = Some(ProposalId::new("proposal_sleep_open").unwrap());
+            sleep_started.payload = vec![
+                PayloadField::new("actor_id", actor_id().as_str()),
+                PayloadField::new("expected_completion_tick", "12"),
+                PayloadField::new("body_exclusive", "true"),
+            ];
+            log.append(sleep_started).unwrap();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id()],
+                    windows: vec![DayWindow {
+                        window_id: "sleeping".to_string(),
+                        start_tick: SimTick::new(4),
+                        end_tick: SimTick::new(8),
+                    }],
+                },
+            );
+
+            assert_eq!(report.ordinary_pipeline_events, 0);
+            assert!(report.stuck_diagnostic_event_ids.is_empty());
+            assert!(!log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ActorWaited));
+        }
+
+        #[test]
+        fn no_human_day_detects_routine_past_expected_progress_window() {
+            let actor_id = actor_id();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(
+                    actor_id.clone(),
+                    crate::ids::PlaceId::new("shop_front").unwrap(),
+                ),
+            );
+            let mut agent_state = agent_state(&actor_id);
+            let execution_id = RoutineExecutionId::new("routine_exec_stalled").unwrap();
+            agent_state.routine_executions.insert(
+                execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    execution_id,
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_stalled").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::ZERO,
+                    Some(SimTick::new(2)),
+                    None,
+                    None,
+                    DecisionTraceId::new("trace_stalled").unwrap(),
+                ),
+            );
+            let mut log = EventLog::new();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &ActionRegistry::new(),
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "stalled".to_string(),
+                        start_tick: SimTick::new(3),
+                        end_tick: SimTick::new(4),
+                    }],
+                },
+            );
+
+            assert!(report.stuck_diagnostic_event_ids.iter().any(|event_id| {
+                log.events()
+                    .iter()
+                    .find(|event| &event.event_id == event_id)
+                    .is_some_and(|event| {
+                        event.payload.iter().any(|field| {
+                            field.key == "actual_source"
+                                && field.value == "routine_expected_next_progress_stuck_detection"
+                        })
+                    })
+            }));
+        }
+
+        #[test]
+        fn no_human_day_detects_repeated_idle_wait() {
+            let actor_id = actor_id();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(
+                    actor_id.clone(),
+                    crate::ids::PlaceId::new("shop_front").unwrap(),
+                ),
+            );
+            let mut agent_state = agent_state(&actor_id);
+            let execution_id = RoutineExecutionId::new("routine_exec_waiting").unwrap();
+            let mut execution = crate::agent::RoutineExecution::new(
+                execution_id.clone(),
+                actor_id.clone(),
+                RoutineTemplateId::new("routine_waiting").unwrap(),
+                RoutineFamily::Wait,
+                SimTick::ZERO,
+                Some(SimTick::new(20)),
+                None,
+                None,
+                DecisionTraceId::new("trace_waiting").unwrap(),
+            );
+            execution.wait(SimTick::new(1));
+            execution.record_fallback_attempt();
+            agent_state
+                .routine_executions
+                .insert(execution_id, execution);
+            let mut log = EventLog::new();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &ActionRegistry::new(),
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![DayWindow {
+                        window_id: "waiting".to_string(),
+                        start_tick: SimTick::new(4),
+                        end_tick: SimTick::new(5),
+                    }],
+                },
+            );
+
+            assert!(report.stuck_diagnostic_event_ids.iter().any(|event_id| {
+                log.events()
+                    .iter()
+                    .find(|event| &event.event_id == event_id)
+                    .is_some_and(|event| {
+                        event.payload.iter().any(|field| {
+                            field.key == "actual_source"
+                                && field.value == "routine_repeated_idle_wait_stuck_detection"
+                        })
+                    })
+            }));
         }
 
         #[test]
@@ -3437,13 +3830,16 @@ mod tests {
         let mut registry = ActionRegistry::new();
         registry.register_phase1_inspect_wait();
         let mut agent_state = seeded_agent_state(actor_id("actor_tomas"));
-        let proposal = Proposal::new(
+        let mut proposal = Proposal::new(
             ProposalId::new("proposal_wait").unwrap(),
             ProposalOrigin::Scheduler,
             Some(actor_id("actor_tomas")),
             action_id("wait"),
             SimTick::ZERO,
         );
+        proposal
+            .parameters
+            .insert("reason".to_string(), "scheduled wait".to_string());
 
         let report = no_human::advance_no_human(
             no_human::NoHumanStateMut {

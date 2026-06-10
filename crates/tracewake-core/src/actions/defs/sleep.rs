@@ -3,6 +3,7 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::agent::{NeedBand, NeedKind};
+use crate::events::apply::ApplyError;
 use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContentManifestId, EventId, PlaceId, SleepAffordanceId};
@@ -167,7 +168,7 @@ pub fn build_sleep_completion_events(
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     completion_tick: SimTick,
-) -> Vec<EventEnvelope> {
+) -> Result<Vec<EventEnvelope>, ApplyError> {
     if let Some(reason) = sleep_interruption_reason(state, agent_state, sleep_started_event) {
         return build_sleep_interruption_events(
             sleep_started_event,
@@ -241,11 +242,12 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
-fn payload_i32(event: &EventEnvelope, key: &str) -> i32 {
-    payload_value(event, key)
-        .unwrap_or_else(|| panic!("sleep start event carries {key}"))
-        .parse()
-        .unwrap_or_else(|_| panic!("sleep start event {key} is i32"))
+fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyError> {
+    let value = payload_value(event, key).ok_or(ApplyError::MissingPayload(key))?;
+    value.parse().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
 }
 
 pub fn build_sleep_interruption_events(
@@ -255,7 +257,7 @@ pub fn build_sleep_interruption_events(
     content_manifest_id: &ContentManifestId,
     interruption_tick: SimTick,
     reason: &str,
-) -> Vec<EventEnvelope> {
+) -> Result<Vec<EventEnvelope>, ApplyError> {
     build_sleep_end_events(
         sleep_started_event,
         log,
@@ -275,7 +277,7 @@ fn build_sleep_end_events(
     end_tick: SimTick,
     kind: EventKind,
     reason: &str,
-) -> Vec<EventEnvelope> {
+) -> Result<Vec<EventEnvelope>, ApplyError> {
     let actor_id = sleep_started_event
         .actor_id
         .clone()
@@ -291,9 +293,9 @@ fn build_sleep_end_events(
     let fatigue_delta = -(sleep_ticks as i32).saturating_mul(payload_i32(
         sleep_started_event,
         "fatigue_recovery_per_tick",
-    ));
+    )?);
     let hunger_delta = (sleep_ticks as i32)
-        .saturating_mul(payload_i32(sleep_started_event, "hunger_rise_per_tick"));
+        .saturating_mul(payload_i32(sleep_started_event, "hunger_rise_per_tick")?);
     let mut lifecycle = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.{}.{}",
@@ -343,7 +345,7 @@ fn build_sleep_end_events(
         "hunger",
         hunger_delta,
     );
-    vec![lifecycle, fatigue, hunger]
+    Ok(vec![lifecycle, fatigue, hunger])
 }
 
 fn need_delta_event(
@@ -557,7 +559,8 @@ mod tests {
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(13),
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::SleepCompleted);
         let fatigue = events
@@ -575,6 +578,42 @@ mod tests {
             .iter()
             .any(|field| field.key == "delta" && field.value == "-60"));
         assert!(!fatigue.effects_summary.contains("comfortable"));
+    }
+
+    #[test]
+    fn malformed_sleep_start_payload_returns_typed_error() {
+        let mut start = build_sleep_start_event(
+            &state(),
+            &proposal(ProposalOrigin::Test),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap();
+        start
+            .payload
+            .retain(|field| field.key != "fatigue_recovery_per_tick");
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("sleep").unwrap(),
+            SimTick::new(13),
+            0,
+        );
+
+        let error = build_sleep_completion_events(
+            &state(),
+            &AgentState::default(),
+            &EventLog::new(),
+            &start,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(13),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            ApplyError::MissingPayload("fatigue_recovery_per_tick")
+        );
     }
 
     #[test]
@@ -600,7 +639,8 @@ mod tests {
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(12),
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::SleepInterrupted);
         assert!(events[0]
@@ -642,7 +682,8 @@ mod tests {
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(11),
             "interrupted by salient event",
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::SleepInterrupted);
         assert!(events[0]
