@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-010: Documentation corrections — conformance rows and exec-06 single-charge clause
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — documentation only (`docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`, `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`)
@@ -73,3 +73,22 @@ Extend the clause to record that the runtime single-charge assert covers duratio
 
 1. `grep -n "zero-dependency\|witness" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-11:
+
+1. Added the five 0018 conformance rows for the witness-compatibility census, episode payload checksum coverage, seed-knowledge grammar, zero-dependency census, and extended generative reachability contract.
+2. Replaced the stale 0017 generative row that said duration-terminal reachability remained targeted-fixture-only with the 0018 reachability-contract row and an inline supersession note.
+3. Extended execution doc 06's single-charge clause so duration `action_effect` charges with `elapsed_ticks` payloads are explicitly covered by the runtime single-charge assertion.
+
+Verification:
+
+1. `rg -n "witness-compatibility census|episode payload checksum coverage|generative reachability contract|seed-knowledge grammar|zero-dependency census" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+2. `rg -n "action_effect|elapsed_ticks|single-charge" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+3. `rg -n "duration terminal reachability remains covered by targeted fixtures" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` (no matches)
+4. `cargo test -p tracewake-core --test doc_invariant_references`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`

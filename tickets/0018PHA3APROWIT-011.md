@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence artifact (`reports/0018_ord_life_cert_scoped_acceptance.md`); no production code changes
-**Deps**: `archive/tickets/0018PHA3APROWIT-008.md`, `archive/tickets/0018PHA3APROWIT-009.md`, `tickets/0018PHA3APROWIT-010.md` (leaf set — their transitive Deps cover tickets 001–007); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (§7)
+**Deps**: `archive/tickets/0018PHA3APROWIT-008.md`, `archive/tickets/0018PHA3APROWIT-009.md`, `archive/tickets/0018PHA3APROWIT-010.md` (leaf set — their transitive Deps cover tickets 001–007); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (§7)
 
 ## Problem
 

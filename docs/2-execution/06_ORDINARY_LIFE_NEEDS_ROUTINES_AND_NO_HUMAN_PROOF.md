@@ -31,7 +31,10 @@ A need may produce candidate families such as eat known food, search known surfa
 Need accounting is single-charge-per-actor/per-need/per-tick across both passive
 window deltas and action-emitted awake deltas. A modeled wait or other ordinary
 action that advances a tick must leave ledger coverage that prevents the later
-passive window from charging the same actor/need/tick again.
+passive window from charging the same actor/need/tick again. Duration
+`action_effect` charges are part of the same runtime assertion: their
+`elapsed_ticks` payloads expand to per-tick ledger coverage before the
+single-charge check runs.
 
 ## Intentions
 
