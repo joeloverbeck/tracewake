@@ -482,6 +482,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/routine_blocked_diagnostic_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/routine_no_teleport_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/scheduler_cannot_rewrite_wait_reason_after_transaction_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/seeded_food_source_unknown_to_all_actors_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/severe_safety_with_known_exit_produces_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/severe_safety_without_known_exit_waits_with_knowledge_blocker_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_eat_work_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },

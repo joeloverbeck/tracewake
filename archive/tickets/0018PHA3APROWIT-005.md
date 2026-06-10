@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-005: Authored food-knowledge edges in the seed grammar
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (schema field, load path, validation policy, fixture edits); one new adversarial fixture
@@ -90,3 +90,31 @@ New `seeded_food_source_unknown_to_all_actors_001` fixture (registered in `fixtu
 
 1. `cargo test -p tracewake-content seeded_food_source_unknown`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Added `KnownFoodSourceSchema` and the canonical `known_food_source|actor_id|food_supply_id` fixture section.
+- Changed `load.rs::seed_event_log` so `household_food_source` starting beliefs are minted only from authored `known_food_sources` edges, not from the physical actor x food-supply cross product.
+- Added reference and duplicate-edge validation for `known_food_sources`.
+- Updated existing Rust golden fixture builders to populate their previous actor x food edge set explicitly before canonical serialization, preserving current fixture behavior and golden checks.
+- Added `seeded_food_source_unknown_to_all_actors_001`, proving a physical food supply with no authored edge mints no household-food belief, exposes no actor-known food source, and is not targeted by the no-human path.
+- Updated fixture registry/census and source-classification census for the new fixture.
+
+Deviations from original plan:
+
+- Existing fixtures preserve behavior by calling `populate_known_food_sources_for_all_actors()` in the Rust fixture builders, which serializes explicit canonical `known_food_source` edges. The loader itself has no absent-field fallback.
+- No string or numeric scan-policy entry was needed for `KnownFoodSourceSchema` because both fields are typed stable IDs; the content field registry owns the schema-level metadata.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-content seeded_food_source_unknown`
+- `cargo test -p tracewake-content --test schema_conformance`
+- `cargo test -p tracewake-content --test golden_fixtures_run`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

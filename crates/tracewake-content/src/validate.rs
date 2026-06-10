@@ -363,6 +363,22 @@ fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError
         }
     }
 
+    let mut known_food_source_keys = BTreeSet::new();
+    for (index, edge) in fixture.known_food_sources.iter().enumerate() {
+        if !known_food_source_keys.insert((edge.actor_id.clone(), edge.food_supply_id.clone())) {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::Id,
+                format!("known_food_sources[{index}]"),
+                "duplicate_id",
+                format!(
+                    "duplicate known food source edge {} -> {}",
+                    edge.actor_id.as_str(),
+                    edge.food_supply_id.as_str()
+                ),
+            ));
+        }
+    }
+
     for (id, paths) in seen {
         if paths.len() > 1 {
             errors.push(ContentValidationError::new(
@@ -593,6 +609,26 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
             errors,
             format!("food_supplies[{index}].location"),
         );
+    }
+    for (index, edge) in fixture.known_food_sources.iter().enumerate() {
+        if !actors.contains(&edge.actor_id) {
+            missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("known_food_sources[{index}].actor_id"),
+                edge.actor_id.as_str(),
+                "actor",
+            );
+        }
+        if !food_supplies.contains(&edge.food_supply_id) {
+            missing(
+                errors,
+                ValidationPhase::Referential,
+                format!("known_food_sources[{index}].food_supply_id"),
+                edge.food_supply_id.as_str(),
+                "food_supply",
+            );
+        }
     }
     for (index, workplace) in fixture.workplaces.iter().enumerate() {
         if !places.contains(&workplace.place_id) {
@@ -2262,6 +2298,7 @@ mod tests {
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),
+            known_food_sources: Vec::new(),
             workplaces: Vec::new(),
             routine_templates: Vec::new(),
             routine_assignments: Vec::new(),

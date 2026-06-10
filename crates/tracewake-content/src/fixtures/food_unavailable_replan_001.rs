@@ -22,6 +22,7 @@ pub fn food_unavailable_replan_001() -> GoldenFixture {
             0,
             180,
         )],
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: vec![routine_template_schema(
             "routine_mara_eat_meal",
@@ -41,6 +42,7 @@ pub fn food_unavailable_replan_001() -> GoldenFixture {
         )],
         day_windows: vec![day_window_schema("actor_mara", 0, 12)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

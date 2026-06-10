@@ -10,6 +10,7 @@ use tracewake_content::schema::{
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
+use tracewake_core::agent::current_place_knowledge_context;
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
@@ -21,6 +22,7 @@ use tracewake_core::ids::{
     WorkplaceId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -97,6 +99,7 @@ fn phase3a_fixture() -> FixtureSchema {
             servings: 3,
             hunger_reduction_per_serving: 180,
         }],
+        known_food_sources: Vec::new(),
         workplaces: vec![WorkplaceSchema {
             workplace_id: WorkplaceId::new("workplace_shop").unwrap(),
             place_id: PlaceId::new("workshop").unwrap(),
@@ -144,7 +147,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 54);
+    assert_eq!(all.len(), 55);
 
     let ids = all
         .iter()
@@ -195,6 +198,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "severe_safety_with_known_exit_produces_move_001".to_string(),
             "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
+            "seeded_food_source_unknown_to_all_actors_001".to_string(),
             "sleep_eat_work_001".to_string(),
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
@@ -387,6 +391,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
             "severe_safety_with_known_exit_produces_move_001".to_string(),
             "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
+            "seeded_food_source_unknown_to_all_actors_001".to_string(),
             "sleep_eat_work_001".to_string(),
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
@@ -397,6 +402,68 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "workplace_assignment_provenance_001".to_string(),
         ])
     );
+}
+
+#[test]
+fn seeded_food_source_unknown_to_all_actors_omits_seed_belief_and_actor_known_food() {
+    let golden = fixtures::seeded_food_source_unknown_to_all_actors_001();
+    let loaded = load_fixture_package(
+        ContentManifestId::new("manifest_seeded_food_source_unknown").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+
+    assert!(loaded.fixture.known_food_sources.is_empty());
+    assert!(!loaded.seed_event_log.events().iter().any(|event| {
+        event.event_type == EventKind::StartingBeliefRecorded
+            && event
+                .payload
+                .iter()
+                .any(|field| field.key == "belief_kind" && field.value == "household_food_source")
+    }));
+
+    let context = current_place_knowledge_context(
+        &loaded.canonical_world,
+        Some(&loaded.epistemic_projection),
+        &ActorId::new("actor_mara").unwrap(),
+        SimTick::ZERO,
+        &loaded.manifest.manifest_id,
+        loaded.seed_event_log.events().len() as u64,
+    );
+
+    assert!(
+        context.actor_known_food_sources().is_empty(),
+        "{:?}",
+        context.actor_known_food_sources()
+    );
+
+    let mut world = loaded.canonical_world.clone();
+    let mut agent_state = loaded.canonical_agent_state.clone();
+    let mut log = loaded.seed_event_log.clone();
+    let report = run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry_for_fixture_scope(loaded.fixture.fixture_scope),
+        loaded.manifest.manifest_id.clone(),
+        NoHumanDayConfig {
+            actor_ids: vec![ActorId::new("actor_mara").unwrap()],
+            windows: vec![DayWindow {
+                window_id: "unknown_food_window".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(!log.events().iter().any(|event| {
+        matches!(
+            event.event_type,
+            EventKind::FoodConsumed | EventKind::EatFailed
+        )
+    }));
 }
 
 #[test]

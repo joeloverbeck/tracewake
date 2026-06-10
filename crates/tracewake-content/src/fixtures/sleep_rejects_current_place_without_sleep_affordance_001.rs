@@ -17,11 +17,13 @@ pub fn sleep_rejects_current_place_without_sleep_affordance_001() -> GoldenFixtu
         homes: vec![home_schema("actor_elena", "home_elena")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: Vec::new(),
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_elena", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

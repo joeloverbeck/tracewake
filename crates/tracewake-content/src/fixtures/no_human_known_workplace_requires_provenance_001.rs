@@ -23,6 +23,7 @@ pub fn no_human_known_workplace_requires_provenance_001() -> GoldenFixture {
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_tomas",
             "workshop_tomas",
@@ -50,6 +51,7 @@ pub fn no_human_known_workplace_requires_provenance_001() -> GoldenFixture {
         ],
         day_windows: vec![day_window_schema("actor_tomas", 0, 12)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

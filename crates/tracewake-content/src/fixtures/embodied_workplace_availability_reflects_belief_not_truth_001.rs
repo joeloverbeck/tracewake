@@ -20,6 +20,7 @@ pub fn embodied_workplace_availability_reflects_belief_not_truth_001() -> Golden
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_tomas",
             "workshop_tomas",
@@ -32,6 +33,7 @@ pub fn embodied_workplace_availability_reflects_belief_not_truth_001() -> Golden
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
     fixture.workplaces[0].role_notice_access_open = false;
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

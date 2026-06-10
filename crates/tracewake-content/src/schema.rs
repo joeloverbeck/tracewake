@@ -169,6 +169,13 @@ pub const CONTENT_FIELD_REGISTRY: &[ContentFieldRegistration] = &[
         diagnostic_code: "bad_reference",
     },
     ContentFieldRegistration {
+        schema_field: "known_food_sources",
+        canonical_serialization_key: "known_food_source",
+        validation_phase: ValidationPhase::EpistemicSeed,
+        forbidden_construct_policy: ForbiddenConstructPolicy::ActorKnownProvenance,
+        diagnostic_code: "bad_reference",
+    },
+    ContentFieldRegistration {
         schema_field: "workplaces",
         canonical_serialization_key: "workplace",
         validation_phase: ValidationPhase::Referential,
@@ -241,6 +248,7 @@ pub struct FixtureSchema {
     pub homes: Vec<HomeSchema>,
     pub sleep_places: Vec<SleepPlaceSchema>,
     pub food_supplies: Vec<FoodSupplySchema>,
+    pub known_food_sources: Vec<KnownFoodSourceSchema>,
     pub workplaces: Vec<WorkplaceSchema>,
     pub routine_templates: Vec<RoutineTemplateSchema>,
     pub routine_assignments: Vec<RoutineAssignmentSchema>,
@@ -364,6 +372,12 @@ pub struct FoodSupplySchema {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnownFoodSourceSchema {
+    pub actor_id: ActorId,
+    pub food_supply_id: FoodSupplyId,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkplaceSchema {
     pub workplace_id: WorkplaceId,
     pub place_id: PlaceId,
@@ -478,6 +492,9 @@ impl FixtureSchema {
         });
         self.food_supplies
             .sort_by(|left, right| left.food_supply_id.cmp(&right.food_supply_id));
+        self.known_food_sources.sort_by(|left, right| {
+            (&left.actor_id, &left.food_supply_id).cmp(&(&right.actor_id, &right.food_supply_id))
+        });
         self.workplaces
             .sort_by(|left, right| left.workplace_id.cmp(&right.workplace_id));
         self.routine_templates
@@ -513,6 +530,24 @@ impl FixtureSchema {
             template.debug_labels.sort();
             template.interruption_points.sort();
         }
+    }
+
+    pub fn populate_known_food_sources_for_all_actors(&mut self) {
+        self.known_food_sources = self
+            .actors
+            .iter()
+            .flat_map(|actor| {
+                self.food_supplies
+                    .iter()
+                    .map(move |food| KnownFoodSourceSchema {
+                        actor_id: actor.actor_id.clone(),
+                        food_supply_id: food.food_supply_id.clone(),
+                    })
+            })
+            .collect();
+        self.known_food_sources.sort_by(|left, right| {
+            (&left.actor_id, &left.food_supply_id).cmp(&(&right.actor_id, &right.food_supply_id))
+        });
     }
 
     pub fn to_physical_state(&self) -> PhysicalState {

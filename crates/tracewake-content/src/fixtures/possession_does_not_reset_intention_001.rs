@@ -20,6 +20,7 @@ pub fn possession_does_not_reset_intention_001() -> GoldenFixture {
         homes: vec![home_schema("actor_mara", "workshop_mara")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_mara",
             "workshop_mara",
@@ -41,6 +42,7 @@ pub fn possession_does_not_reset_intention_001() -> GoldenFixture {
         )],
         day_windows: vec![day_window_schema("actor_mara", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

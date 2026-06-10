@@ -17,6 +17,7 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
         homes: vec![home_schema("actor_elena", "home_elena")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: vec![routine_template_schema(
             "routine_elena_sleep",
@@ -34,6 +35,7 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
         )],
         day_windows: vec![day_window_schema("actor_elena", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

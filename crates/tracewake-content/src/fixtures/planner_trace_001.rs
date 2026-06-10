@@ -28,6 +28,7 @@ pub fn planner_trace_001() -> GoldenFixture {
             1,
             240,
         )],
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: vec![routine_template_schema(
             "routine_tomas_find_food_trace",
@@ -46,6 +47,7 @@ pub fn planner_trace_001() -> GoldenFixture {
         )],
         day_windows: vec![day_window_schema("actor_tomas", 0, 12)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

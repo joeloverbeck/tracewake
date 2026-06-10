@@ -23,6 +23,7 @@ pub fn work_completion_fails_when_actor_displaced_001() -> GoldenFixture {
         homes: vec![home_schema("actor_tomas", "street")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_shop",
             "workshop",
@@ -34,6 +35,7 @@ pub fn work_completion_fails_when_actor_displaced_001() -> GoldenFixture {
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 4)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,
