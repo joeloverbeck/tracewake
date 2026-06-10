@@ -1,7 +1,7 @@
 # 0018 Phase 3A Provenance Witness, Episode Replay Evidence, Generative Reachability, and Seed Epistemics Hardening Spec
 
-**Status**: PROPOSED
-**Staging path:** `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md`
+**Status**: COMPLETED
+**Archived path:** `archive/specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md`
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `a9c62e0` (post-0017 closeout; all `0017PHA3ATICLED` tickets landed, merge PR #25).
@@ -657,3 +657,53 @@ recording, for the implementation commits:
 - [x] No doctrine amendment; no compatibility shims; no new dependencies; crate direction
   preserved.
 - [x] Scope stays within the Phase 3A ordinary-life surface.
+
+## Outcome
+
+Completed 2026-06-11.
+
+The 0018 ticket series landed as scoped Phase 3A ordinary-life hardening across:
+
+- provenance witness fail-closed behavior and witness-table census;
+- duration `action_effect` need-charge coverage;
+- ordinary-life episode payload materialization, checksum coverage, and payload schema gates;
+- authored food-source seed knowledge and fixture validation token gating;
+- workplace witness freshness;
+- extended generative reachability across wait/eat/sleep/work/duration/interruption regimes;
+- content-negative, fixture-registration, and dependency-posture censuses plus scheduled mutation ratchet;
+- conformance documentation and the scoped acceptance artifact
+  `reports/0018_ord_life_cert_scoped_acceptance.md`.
+
+Implementation commits:
+
+| Ticket | Commit |
+|---|---|
+| `0018PHA3APROWIT-001` | `644d645` |
+| `0018PHA3APROWIT-002` | `4070964` |
+| `0018PHA3APROWIT-003` | `157de50` |
+| `0018PHA3APROWIT-004` | `b232a4c` |
+| `0018PHA3APROWIT-005` | `37adbc2` |
+| `0018PHA3APROWIT-006` | `603da88` |
+| `0018PHA3APROWIT-007` | `bfab87b` |
+| `0018PHA3APROWIT-008` | `403c412` |
+| `0018PHA3APROWIT-009` | `4ccb5d5` |
+| `0018PHA3APROWIT-010` | `9e6904f` |
+| `0018PHA3APROWIT-011` | `6163310` |
+
+Deviations from plan:
+
+- No new `clippy.toml` entries were required beyond the existing stable-path bans; ticket 009 recorded that no additional stable-path ban candidates surfaced.
+- The scheduled mutation ratchet configuration was recorded in CI and the acceptance artifact; a new full `cargo mutants` baseline run was not part of this scoped ticket series.
+- The acceptance artifact records current-tree need-ledger and checksum evidence rather than inventing stale pre/post checksum diffs.
+
+Verification recorded during the series and final closeout:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- targeted evidence commands listed in `reports/0018_ord_life_cert_scoped_acceptance.md`.
+
+Scope statement: this contributes scoped evidence toward `ORD-LIFE-CERT`; it is not
+full-project certification, not Phase 4 entry, not `FIRST-PROOF-CERT`, and not
+latest-main certification beyond the target implementation commits named above.

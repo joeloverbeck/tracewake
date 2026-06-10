@@ -4,7 +4,7 @@
 **Priority**: LOW
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/knowledge_context`, `agent/perception`, `projections`); one new content fixture; TUI test extension
-**Deps**: `archive/tickets/0018PHA3APROWIT-001.md` (witness conventions established there; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-042)
+**Deps**: `archive/tickets/0018PHA3APROWIT-001.md` (witness conventions established there; spec §8 ordering); `archive/specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-042)
 
 ## Problem
 

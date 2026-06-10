@@ -6,7 +6,7 @@ Target implementation commit under review:
 `9e6904f1f0a3e075758e8c1177c7f2d1d597194b`
 
 Scope:
-`specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md`
+`archive/specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the Phase 3A
 provenance witness, episode replay evidence, generative reachability, seed

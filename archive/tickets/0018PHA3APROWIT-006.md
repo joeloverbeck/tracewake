@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-content` (`schema`, `validate`, `load`); one typed-error/compile-fail test
-**Deps**: `archive/tickets/0018PHA3APROWIT-005.md` (shares `schema.rs`/`load.rs`; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-041)
+**Deps**: `archive/tickets/0018PHA3APROWIT-005.md` (shares `schema.rs`/`load.rs`; spec §8 ordering); `archive/specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-041)
 
 ## Problem
 

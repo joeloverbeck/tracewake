@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`actions/defs/sleep`, `actions/defs/work`, `events/apply`); reconciliation-gate rewrite in `tracewake-content` tests; golden checksum updates
-**Deps**: `archive/tickets/0018PHA3APROWIT-001.md` (rides the same golden re-baseline window; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-038)
+**Deps**: `archive/tickets/0018PHA3APROWIT-001.md` (rides the same golden re-baseline window; spec §8 ordering); `archive/specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-038)
 
 ## Problem
 
