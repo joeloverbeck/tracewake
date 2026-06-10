@@ -1,6 +1,6 @@
 # 0016 Phase 3A Need Accounting, Replay Evidence, Audit Coverage, and Lock Durability Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 **Staging path:** `specs/0016_PHASE_3A_NEED_ACCOUNTING_REPLAY_EVIDENCE_AUDIT_COVERAGE_AND_LOCK_DURABILITY_HARDENING_SPEC.md`
 
 **Target repository:** `joeloverbeck/tracewake`
@@ -787,3 +787,28 @@ recording, for the implementation commits:
   overturned 0015 claims are explicitly recorded as overturned.
 - [x] No doctrine amendment; no compatibility shims; crate direction preserved.
 - [x] Scope stays within the Phase 3A ordinary-life surface.
+
+## Outcome
+
+Completed: 2026-06-10.
+
+Tickets `0016PHA3ANEEACC-001` through `0016PHA3ANEEACC-015` were implemented
+and archived. The remediation landed the duration terminal-set and reservation
+closure, single-regime need accounting, decision context-hash re-derivation,
+source-event witnesses, fail-closed audit coverage, severe-safety flight,
+embodied projection-backed affordances, content validation, stuck-diagnostic
+discipline, replay robustness, lock-layer census and mutation baseline, the
+scoped acceptance artifact, conformance documentation, and the final no-human
+actor-known unification onto `EpistemicProjection`.
+
+Deviation from the original plan: the recorded ORD-HARD-021 deferral was closed
+inside this spec family as ticket `0016PHA3ANEEACC-015`, instead of being left
+for a later spec.
+
+Verification results included the ticket-local targeted checks and the final
+gates:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
