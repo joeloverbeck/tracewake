@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`agent/actor_known`, `agent/transaction`, anti-regression guard suite); CI workflow; mutants baseline data file
-**Deps**: `archive/tickets/0017PHA3ATICLED-005.md`, `archive/tickets/0017PHA3ATICLED-006.md`, `0017PHA3ATICLED-007` (locks the finished behavioral surface; transitive over `-001`…`-004`); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-032)
+**Deps**: `archive/tickets/0017PHA3ATICLED-005.md`, `archive/tickets/0017PHA3ATICLED-006.md`, `archive/tickets/0017PHA3ATICLED-007.md` (locks the finished behavioral surface; transitive over `-001`…`-004`); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-032)
 
 ## Problem
 

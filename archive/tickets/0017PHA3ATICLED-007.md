@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-007: Content numeric field-policy registry and union marker scan
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`validate`); no core code changes (reads `NEED_MAX` only)
@@ -80,3 +80,27 @@ Numeric-registry census (enumerated against `FixtureSchema`); the named inline r
 
 1. `cargo test -p tracewake-content validate`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Replaced the old nonnegative `10_000` tuning check with typed numeric policies for pressure deltas, relief deltas, durations, need-band gates, and explicitly-classified nonnegative counts.
+- Validated authored initial need values against `NEED_MAX`, plus workplace duration and start-gate bounds, so content seed values are rejected instead of silently clamped or made vacuous.
+- Routed free-text validation through a union scanner for authored-outcome and Phase-3A shortcut markers, including `WorkplaceSchema.output_tag`.
+- Added inline census tests for numeric field policy classification and string scan policy classification, with focused rejection tests for out-of-band needs, zero workplace duration, relief-zero fields, need gate bounds, and output-tag script markers.
+
+Deviations from original plan:
+
+- The schema census stayed in `validate.rs`, where the existing string-field census already lived, instead of moving the new checks into `tests/schema_conformance.rs`.
+- `FoodSupplySchema.servings` remains a legal zero count but is explicitly classified as a nonnegative count policy in the registry.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-content validate` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
