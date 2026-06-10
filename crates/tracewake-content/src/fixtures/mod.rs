@@ -42,6 +42,7 @@ mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
+mod work_block_failed_then_sleep_succeeds_001;
 mod work_completion_fails_when_actor_displaced_001;
 mod workplace_assignment_provenance_001;
 
@@ -110,6 +111,7 @@ pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
 pub use view_model_local_actions_001::view_model_local_actions_001;
+pub use work_block_failed_then_sleep_succeeds_001::work_block_failed_then_sleep_succeeds_001;
 pub use work_completion_fails_when_actor_displaced_001::work_completion_fails_when_actor_displaced_001;
 pub use workplace_assignment_provenance_001::workplace_assignment_provenance_001;
 
@@ -187,6 +189,7 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_metrics_require_typed_responsible_layer_001(),
         sleep_interrupted_by_severe_need_prorates_recovery_001(),
         work_completion_fails_when_actor_displaced_001(),
+        work_block_failed_then_sleep_succeeds_001(),
         hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001(),
         no_human_workplace_knowledge_requires_notice_event_001(),
         no_human_sleep_knowledge_requires_observation_or_record_001(),

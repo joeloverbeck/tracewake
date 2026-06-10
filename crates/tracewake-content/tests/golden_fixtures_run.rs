@@ -407,6 +407,101 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
 }
 
 #[test]
+fn work_block_failed_then_sleep_succeeds_fixture_closes_reservation() {
+    let (mut state, mut agent_state, manifest_id) =
+        load(fixtures::work_block_failed_then_sleep_succeeds_001());
+    let mut log = EventLog::new();
+
+    let work = proposal(
+        "proposal_failed_then_sleep_work",
+        "actor_tomas",
+        "work_block",
+        &["workplace_shop"],
+        0,
+    );
+    let work_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        0,
+    );
+    let work_started = work_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .expect("work starts")
+        .clone();
+
+    let move_to_street = proposal(
+        "proposal_failed_then_sleep_move",
+        "actor_tomas",
+        "move",
+        &["street"],
+        1,
+    );
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &move_to_street,
+        1,
+    );
+
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &work_started,
+        &ordering_key(&work, 2),
+        &manifest_id,
+        SimTick::new(4),
+    );
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
+    assert!(has_event(&log, EventKind::WorkBlockFailed));
+
+    let mut sleep = proposal(
+        "proposal_failed_then_sleep_sleep",
+        "actor_tomas",
+        "sleep",
+        &["sleep_place_street"],
+        5,
+    );
+    sleep
+        .parameters
+        .insert("duration_ticks".to_string(), "2".to_string());
+    sleep
+        .parameters
+        .insert("sleep_place_id".to_string(), "street".to_string());
+    sleep.parameters.insert(
+        "sleep_affordance_id".to_string(),
+        "sleep_place_street".to_string(),
+    );
+    let sleep_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &sleep,
+        3,
+    );
+
+    assert!(sleep_events
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepStarted));
+    assert!(!sleep_events.iter().any(|event| {
+        event.event_type == EventKind::ActionRejected
+            && payload(event, "reason_codes").is_some_and(|value| {
+                value
+                    .split(',')
+                    .any(|reason| reason == ReasonCode::ReservationConflict.stable_id())
+            })
+    }));
+    let replayed = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    assert_eq!(replayed, log);
+}
+
+#[test]
 fn sleep_without_authored_affordance_rejects_with_typed_reason() {
     let (mut state, mut agent_state, manifest_id) =
         load(fixtures::sleep_rejects_current_place_without_sleep_affordance_001());

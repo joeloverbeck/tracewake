@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — new `tracewake-core` need-accounting tick classifier; passive/completion delta rewiring; golden checksum repricing; new adversarial fixture; need-ledger invariant test
-**Deps**: 0016PHA3ANEEACC-001
+**Deps**: `archive/tickets/0016PHA3ANEEACC-001.md`
 
 ## Problem
 
@@ -16,7 +16,7 @@ The fix: one per-actor elapsed-tick accounting authority — every charge interv
 
 1. Current code verified at baseline `ba84e75`: `append_passive_need_events_before_decision` (`crates/tracewake-core/src/scheduler.rs` ~:1053–1114) applies authored awake rates unconditionally; elapsed-tick computation at ~:352–355; `append_due_completions` runs immediately after (~:370–380); `build_sleep_completion_events` (`actions/defs/sleep.rs`) and `build_work_completion_events` (`actions/defs/work.rs`) independently apply per-tick recovery/cost for the same span; `clamp_need_value` (`agent/need.rs`) clamps to (0, 1000). `passive_awake_need_deltas_are_deterministic_and_non_reducing` (`time.rs`) asserts sign only. The golden no-human run *does* drive `append_due_completions` through window boundaries spanned by open durations (`no_human_day_001` holds a sleep spanning ticks 24–32 and a work block spanning 10–18) but asserts only byte-stability — the double-charge is already encoded in today's golden checksums.
 2. Spec/docs: spec 0016 §ORD-HARD-014 (evidence, required correction, structural lock), §7 item 1 (per-actor need ledgers explain every golden diff), §9 ("ORD-HARD-014 reprices the whole day"); `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` INV-009, INV-039, INV-043/044/045.
-3. Shared boundary under audit: the tick-regime classification consumed by four delta paths — passive awake, sleep recovery/hunger-rise, work cost, and completion/interruption proration (`sleep_interruption_reason` / `work_completion_failure` prorated paths from ORD-HARD-011). The classifier derives regimes from open-duration events using `is_duration_terminal` from 0016PHA3ANEEACC-001 (spec §5 item 1: the predicate is the single open/closed authority) — no second classification scheme.
+3. Shared boundary under audit: the tick-regime classification consumed by four delta paths — passive awake, sleep recovery/hunger-rise, work cost, and completion/interruption proration (`sleep_interruption_reason` / `work_completion_failure` prorated paths from ORD-HARD-011). The classifier derives regimes from open-duration events using `is_duration_terminal` from `archive/tickets/0016PHA3ANEEACC-001.md` (spec §5 item 1: the predicate is the single open/closed authority) — no second classification scheme.
 4. INV-039 — needs are pressures, not puppet strings: the arithmetic feeding pressure must be causally honest. INV-043/044/045 — need changes must reflect real regimes, no fake accounting. INV-009 — event ancestry must not assert "awake time" for ticks the actor verifiably spent asleep. Restated before trusting the ticket narrative.
 5. Deterministic-replay surface: every golden no-human checksum changes. Determinism is preserved — the classifier reads only ordered log events and authored rates (no wall-clock, no map-iteration order); replay stays byte-identical against the new goldens. Each fixture checksum diff must be explained with a per-actor need ledger, recorded for the acceptance artifact (ticket 0016PHA3ANEEACC-014). The need-ledger invariant test is the runtime enforcement surface: no tick charged by two regimes.
 6. Adjacent contradictions: 0015's overturned "do not double-count" verified-holding claim must be recorded in the conformance index — that recording is ticket 0016PHA3ANEEACC-013's surface (spec §6), a required consequence routed to its own ticket, not silent history rewriting.
@@ -73,7 +73,7 @@ Extend `anti_regression_guards.rs` (guard_016 family) with the positive-presence
 
 ## Out of Scope
 
-- The duration-terminal predicate itself (0016PHA3ANEEACC-001 — consumed here).
+- The duration-terminal predicate itself (`archive/tickets/0016PHA3ANEEACC-001.md` — consumed here).
 - Skipping decision generation during open durations (0016PHA3ANEEACC-010 — changes goldens again, sequenced after this ticket).
 - The context-hash replay gate (0016PHA3ANEEACC-003).
 - The acceptance-artifact report assembly (0016PHA3ANEEACC-014 — this ticket produces the ledger data).

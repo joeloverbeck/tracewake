@@ -218,6 +218,7 @@ pub mod no_human {
         StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::events::apply::apply_agent_event;
+    use crate::events::is_duration_terminal;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
@@ -744,7 +745,7 @@ pub mod no_human {
                     completion_tick,
                 ) {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
-                    if appended.event_type == EventKind::SleepCompleted {
+                    if is_duration_terminal(appended.event_type) {
                         append_routine_step_completed_after_duration_completion(
                             log,
                             agent_state,
@@ -782,7 +783,7 @@ pub mod no_human {
                     completion_tick,
                 ) {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
-                    if appended.event_type == EventKind::WorkBlockCompleted {
+                    if is_duration_terminal(appended.event_type) {
                         append_routine_step_completed_after_duration_completion(
                             log,
                             agent_state,

@@ -25,7 +25,9 @@ use crate::events::apply::{
     apply_epistemic_event, apply_event, apply_event_stream, EventApplicationContext,
 };
 use crate::events::log::EventLog;
-use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{
+    is_duration_terminal, EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1,
+};
 use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState};
@@ -412,14 +414,7 @@ fn body_exclusive_reservation_conflict(
         .log
         .events()
         .iter()
-        .filter(|event| {
-            matches!(
-                event.event_type,
-                EventKind::SleepCompleted
-                    | EventKind::SleepInterrupted
-                    | EventKind::WorkBlockCompleted
-            )
-        })
+        .filter(|event| is_duration_terminal(event.event_type))
         .flat_map(|event| event.causes.iter())
         .filter_map(|cause| match cause {
             EventCause::Event(event_id) => Some(event_id.clone()),

@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-001: Duration-terminal predicate and reservation lifecycle closure
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` duration-terminal `EventKind` predicate; reservation-check + completion-appender rewiring; new golden fixture
@@ -90,3 +90,33 @@ Authored content fixture: a work block fails mid-duration (actor displaced), the
 
 1. `cargo test -p tracewake-core pipeline && cargo test -p tracewake-content golden`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added `is_duration_terminal(EventKind)` in `tracewake-core` as the single duration-terminal classification authority, with an exhaustive match and no wildcard arm.
+- Rewired the body-exclusive reservation check to close starts from every duration-terminal event, including `WorkBlockFailed`.
+- Rewired scheduled completion handling to classify appended duration terminal events through the shared predicate before attempting routine-step completion.
+- Added `work_block_failed_then_sleep_succeeds_001`, registered it in the content fixture roster, and updated fixture census tests.
+- Added regression coverage proving `WorkBlockFailed` closes a prior work reservation and the later sleep proposal commits without `ReservationConflict`.
+
+Deviations from original plan:
+
+- The core unit regression landed in `crates/tracewake-core/src/actions/defs/work.rs`, where the existing work/reservation tests and helpers live, rather than directly in `actions/pipeline.rs`.
+- The scheduler still keeps separate pending sleep/work queues; this ticket removed the independent terminal-event classification where the scheduler consumes appended duration terminal events. The broader open-duration classifier/window-skip work remains scoped to tickets 002 and 010.
+
+Verification results:
+
+- `cargo test -p tracewake-core work_block_failed_closes_body_exclusive_reservation` — passed.
+- `cargo test -p tracewake-core overlapping_body_exclusive_action_is_reservation_conflict` — passed.
+- `cargo test -p tracewake-content work_block_failed_then_sleep_succeeds_fixture_closes_reservation` — passed.
+- `cargo test -p tracewake-core pipeline` — passed.
+- `cargo test -p tracewake-content golden` — passed.
+- `cargo test -p tracewake-content --test fixtures_load` — passed after updating the fixture census for the new registered fixture.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

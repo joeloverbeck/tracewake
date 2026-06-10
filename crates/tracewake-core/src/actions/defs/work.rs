@@ -989,4 +989,95 @@ mod tests {
             Some(PipelineStage::ReservationConflictCheck)
         );
     }
+
+    #[test]
+    fn work_block_failed_closes_body_exclusive_reservation() {
+        let mut state = state();
+        let mut agent_state = agent_state_with_needs(100, 100);
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_work();
+        registry.register_phase3a_sleep();
+
+        let first = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal(),
+        );
+        assert_eq!(first.report.status, ReportStatus::Accepted);
+        let work_started = first
+            .appended_events
+            .iter()
+            .find(|event| event.event_type == EventKind::WorkBlockStarted)
+            .expect("work starts")
+            .clone();
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("work_block").unwrap(),
+            SimTick::new(22),
+            0,
+        );
+        let failure = build_work_completion_events(
+            &displaced_state(),
+            &agent_state,
+            &work_started,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(22),
+        )
+        .into_iter()
+        .find(|event| event.event_type == EventKind::WorkBlockFailed)
+        .expect("displacement fails the work block");
+        log.append(failure).unwrap();
+
+        let mut sleep = Proposal::new(
+            ProposalId::new("proposal_sleep_after_failed_work").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id()),
+            ActionId::new("sleep").unwrap(),
+            SimTick::new(23),
+        );
+        sleep
+            .parameters
+            .insert("sleep_place_id".to_string(), "office".to_string());
+        sleep
+            .parameters
+            .insert("sleep_affordance_id".to_string(), "bed_office".to_string());
+        let sleep_key = OrderingKey::new(
+            SimTick::new(23),
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id()),
+            ProposalSequence::new(1),
+            ActionId::new("sleep").unwrap(),
+            Vec::new(),
+            "sleep_after_failed_work",
+        );
+        let second = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: sleep_key,
+            },
+            &sleep,
+        );
+
+        assert_eq!(second.report.status, ReportStatus::Accepted);
+        assert!(second
+            .appended_events
+            .iter()
+            .any(|event| event.event_type == EventKind::SleepStarted));
+    }
 }

@@ -791,9 +791,8 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         "scheduler must pass current state into work completion continuity checks"
     );
     assert!(
-        scheduler.contains("if appended.event_type == EventKind::SleepCompleted")
-            && scheduler.contains("if appended.event_type == EventKind::WorkBlockCompleted"),
-        "scheduler must only mark duration routine steps completed after actual completion events"
+        scheduler.contains("if is_duration_terminal(appended.event_type)"),
+        "scheduler must classify scheduled duration completions through the shared terminal predicate"
     );
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
