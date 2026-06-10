@@ -1,6 +1,10 @@
+use tracewake_core::epistemics::projection::EpistemicProjection;
 use tracewake_core::epistemics::SourceRef;
+use tracewake_core::events::apply::apply_epistemic_event;
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::events::{
+    EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
+};
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, EventId, PlaceId, ProcessId,
 };
@@ -16,6 +20,7 @@ use crate::validate::{validate_fixture, ContentValidationFailure};
 pub enum LoadError {
     Serialization(SerializationError),
     Validation(ContentValidationFailure),
+    EpistemicSeedEvent(String),
 }
 
 impl From<SerializationError> for LoadError {
@@ -42,6 +47,7 @@ pub struct LoadedFixture {
     pub manifest: ContentManifest,
     pub canonical_world: tracewake_core::state::PhysicalState,
     pub canonical_agent_state: tracewake_core::state::AgentState,
+    pub epistemic_projection: EpistemicProjection,
     pub seed_event_log: EventLog,
 }
 
@@ -89,13 +95,35 @@ pub fn load_fixture_package(
     let canonical_world = accepted_world.physical_state;
     let canonical_agent_state = fixture.to_agent_state();
     let seed_event_log = seed_event_log(&fixture, manifest.manifest_id.clone());
+    let epistemic_projection =
+        seed_epistemic_projection(manifest.manifest_id.clone(), &seed_event_log)?;
     Ok(LoadedFixture {
         fixture,
         manifest,
         canonical_world,
         canonical_agent_state,
+        epistemic_projection,
         seed_event_log,
     })
+}
+
+fn seed_epistemic_projection(
+    manifest_id: ContentManifestId,
+    seed_event_log: &EventLog,
+) -> Result<EpistemicProjection, LoadError> {
+    let mut projection = EpistemicProjection::new(manifest_id);
+    for event in seed_event_log.events() {
+        if event.stream == EventStream::Epistemic {
+            apply_epistemic_event(&mut projection, event).map_err(|error| {
+                LoadError::EpistemicSeedEvent(format!(
+                    "fixture seed epistemic event {} failed: {error:?}",
+                    event.event_id.as_str()
+                ))
+            })?;
+            projection.record_applied_event(event.event_id.clone());
+        }
+    }
+    Ok(projection)
 }
 
 fn seed_event_log(fixture: &FixtureSchema, manifest_id: ContentManifestId) -> EventLog {
@@ -272,6 +300,7 @@ fn append_role_assignment_notices(
             PayloadField::new("actor_id", actor_id.as_str()),
             PayloadField::new("workplace_id", workplace.workplace_id.as_str()),
             PayloadField::new("place_id", workplace.place_id.as_str()),
+            PayloadField::new("access_open", workplace.role_notice_access_open.to_string()),
         ];
         event.effects_summary = format!(
             "authored prehistory recorded workplace assignment {} for {}",

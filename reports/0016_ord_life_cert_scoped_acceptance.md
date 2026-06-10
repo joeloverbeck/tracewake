@@ -172,6 +172,33 @@ baseline, not as evidence that the lock layer is complete. The per-miss list
 and timeout are recorded in `reports/0016_ord_hard_025_mutants_baseline.md` for
 follow-up prioritization.
 
+## 2026 correction (spec 0017)
+
+Spec 0017 `ORD-HARD-034` overturns three evidence claims in this 0016 report.
+The correction is additive audit history; the original target-commit claims
+above are not silently rewritten.
+
+- Event-schema migration evidence is loud-rejection-only. The current
+  `EVENT_SCHEMA_REGISTRY` contains the V1/current path, and
+  `unsupported_event_schema_version_replay_fails_loudly` proves unsupported
+  versions fail loudly. No synthetic prior-version V0-to-V1 upcast fixture was
+  delivered by 0016.
+- The 0016 claim that
+  `embodied_workplace_availability_reflects_belief_not_truth_001` proved
+  workplace belief-over-truth divergence was overstated. Spec 0017
+  `ORD-HARD-029` delivered the real divergence pair:
+  `embodied_workplace_availability_reflects_belief_not_truth_001` now covers
+  believed-closed/truth-open embodied availability, and
+  `embodied_workplace_believed_open_truth_closed_commit_fails_001` covers
+  believed-open/truth-closed commit rejection.
+- The content negative-fixture evidence for workplace duration, initial needs,
+  relief direction, and text scanning is implemented as inline
+  `crates/tracewake-content/src/validate.rs` unit tests and registry census
+  tests, not as separately named files under `tests/negative-fixtures/`.
+
+These corrections are recorded in the architecture conformance index as 0017
+overturn rows.
+
 ## 8. Explicit Non-Certification Boundary
 
 This artifact is scoped evidence toward `ORD-LIFE-CERT` for spec `0016`. It is

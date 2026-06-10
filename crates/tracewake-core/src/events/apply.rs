@@ -8,7 +8,10 @@ use crate::epistemics::{
     Observation, ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
 };
 use crate::events::mutation::{AgentMutationCapability, WorldMutationCapability};
-use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{
+    is_duration_terminal, EventCause, EventEnvelope, EventKind, EventStream, PayloadField,
+    EVENT_SCHEMA_V1,
+};
 use crate::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, FoodSupplyId,
     IntentionId, ItemId, ObservationId, PlaceId, RoutineExecutionId,
@@ -96,14 +99,13 @@ pub enum ApplyError {
     MissingIntention(IntentionId),
     MissingRoutineExecution(RoutineExecutionId),
     MissingCause,
+    DuplicateDurationTerminal {
+        start_event_id: EventId,
+    },
 }
 
 pub const AGENT_WORLD_NOOP_ALLOWLIST: &[EventKind] = &[
-    EventKind::CandidateGoalsEvaluated,
     EventKind::FoodConsumed,
-    EventKind::ContinueRoutineProposed,
-    EventKind::ContinueRoutineAccepted,
-    EventKind::ContinueRoutineRejected,
     EventKind::NoHumanDayStarted,
     EventKind::NoHumanDayCompleted,
 ];
@@ -229,11 +231,25 @@ pub fn apply_epistemic_event(
                 })
             })?;
             let place_id = parse_place_id_epistemic(&payload, "place_id")?;
+            let access_open = payload
+                .get("access_open")
+                .map(|value| match *value {
+                    "true" => Ok(true),
+                    "false" => Ok(false),
+                    _ => Err(EpistemicApplyError::BadPayload {
+                        key: "access_open",
+                        value: (*value).to_string(),
+                    }),
+                })
+                .transpose()?
+                .unwrap_or(true);
             projection.insert_role_assignment_notice(
                 actor_id,
                 workplace_id,
                 place_id,
+                access_open,
                 event.event_id.clone(),
+                event.sim_tick,
             );
             Ok(ApplyOutcome::Applied)
         }
@@ -248,6 +264,7 @@ pub fn apply_epistemic_event(
                 subject_id,
                 value,
                 event.event_id.clone(),
+                event.sim_tick,
             );
             Ok(ApplyOutcome::Applied)
         }
@@ -295,7 +312,7 @@ fn apply_agent_event_with_capability(
     let payload = payload_map(&event.payload);
     match event.event_type {
         EventKind::NeedDeltaApplied => {
-            apply_need_delta(state, &payload).map(|_| ApplyOutcome::Applied)
+            apply_need_delta(state, event, &payload).map(|_| ApplyOutcome::Applied)
         }
         EventKind::IntentionStarted => {
             apply_intention_started(state, &payload).map(|_| ApplyOutcome::Applied)
@@ -432,6 +449,7 @@ fn apply_agent_event_with_capability(
         | EventKind::WorkBlockStarted
         | EventKind::WorkBlockCompleted
         | EventKind::WorkBlockFailed => {
+            reject_duplicate_duration_terminal(state, event)?;
             state.ordinary_life_episodes.insert(
                 event.event_id.clone(),
                 crate::state::OrdinaryLifeEpisodeRecord {
@@ -439,7 +457,49 @@ fn apply_agent_event_with_capability(
                     event_kind: event.event_type.stable_id().to_string(),
                     actor_id: event.actor_id.clone(),
                     proposal_id: event.proposal_id.clone(),
+                    caused_event_ids: event
+                        .causes
+                        .iter()
+                        .filter_map(|cause| match cause {
+                            EventCause::Event(event_id) => Some(event_id.clone()),
+                            _ => None,
+                        })
+                        .collect(),
                     sim_tick: event.sim_tick,
+                    summary: event.effects_summary.clone(),
+                },
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::CandidateGoalsEvaluated => {
+            state.candidate_goal_evaluations.insert(
+                event.event_id.clone(),
+                crate::state::CandidateGoalEvaluationRecord {
+                    event_id: event.event_id.clone(),
+                    event_kind: event.event_type.stable_id().to_string(),
+                    actor_id: event.actor_id.clone(),
+                    proposal_id: event.proposal_id.clone(),
+                    caused_event_ids: caused_event_ids(event),
+                    sim_tick: event.sim_tick,
+                    payload_fields: payload_fields(event),
+                    summary: event.effects_summary.clone(),
+                },
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::ContinueRoutineProposed
+        | EventKind::ContinueRoutineAccepted
+        | EventKind::ContinueRoutineRejected => {
+            state.continue_routine_arbitrations.insert(
+                event.event_id.clone(),
+                crate::state::ContinueRoutineArbitrationRecord {
+                    event_id: event.event_id.clone(),
+                    event_kind: event.event_type.stable_id().to_string(),
+                    actor_id: event.actor_id.clone(),
+                    proposal_id: event.proposal_id.clone(),
+                    caused_event_ids: caused_event_ids(event),
+                    sim_tick: event.sim_tick,
+                    payload_fields: payload_fields(event),
                     summary: event.effects_summary.clone(),
                 },
             );
@@ -448,6 +508,59 @@ fn apply_agent_event_with_capability(
         kind if AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) => Ok(ApplyOutcome::WorldNoOp),
         _ => Err(ApplyError::NonAgentEvent),
     }
+}
+
+fn caused_event_ids(event: &EventEnvelope) -> Vec<EventId> {
+    event
+        .causes
+        .iter()
+        .filter_map(|cause| match cause {
+            EventCause::Event(event_id) => Some(event_id.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn payload_fields(event: &EventEnvelope) -> Vec<(String, String)> {
+    let mut fields = event
+        .payload
+        .iter()
+        .map(|field| (field.key.clone(), field.value.clone()))
+        .collect::<Vec<_>>();
+    fields.sort();
+    fields
+}
+
+fn reject_duplicate_duration_terminal(
+    state: &AgentState,
+    event: &EventEnvelope,
+) -> Result<(), ApplyError> {
+    if !is_duration_terminal(event.event_type) {
+        return Ok(());
+    }
+    for start_event_id in event.causes.iter().filter_map(|cause| match cause {
+        EventCause::Event(event_id) => Some(event_id),
+        _ => None,
+    }) {
+        let already_terminated = state.ordinary_life_episodes.values().any(|episode| {
+            matches!(
+                episode.event_kind.as_str(),
+                "sleep_completed"
+                    | "sleep_interrupted"
+                    | "work_block_completed"
+                    | "work_block_failed"
+            ) && episode
+                .caused_event_ids
+                .iter()
+                .any(|id| id == start_event_id)
+        });
+        if already_terminated {
+            return Err(ApplyError::DuplicateDurationTerminal {
+                start_event_id: start_event_id.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn validate_typed_diagnostic_payload(
@@ -997,12 +1110,14 @@ fn parse_u64_agent(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<
 
 fn apply_need_delta(
     state: &mut AgentState,
+    event: &EventEnvelope,
     payload: &BTreeMap<&str, &str>,
 ) -> Result<(), ApplyError> {
     let actor_id = parse_actor_id(payload)?;
     let need_kind = parse_need_kind(payload)?;
     let delta = parse_i32(payload, "delta")?;
     let cause = parse_need_change_cause(payload)?;
+    assert_single_tick_delta_charge(state, event, payload, &actor_id, need_kind);
     if matches!(cause, NeedChangeCause::FixtureInitial) {
         let needs = state.needs_by_actor.entry(actor_id.clone()).or_default();
         needs
@@ -1021,6 +1136,47 @@ fn apply_need_delta(
 
     need_state.apply_delta(delta, cause);
     Ok(())
+}
+
+fn assert_single_tick_delta_charge(
+    state: &mut AgentState,
+    event: &EventEnvelope,
+    payload: &BTreeMap<&str, &str>,
+    actor_id: &ActorId,
+    need_kind: NeedKind,
+) {
+    let Some(elapsed_ticks) = payload
+        .get("elapsed_ticks")
+        .and_then(|value| value.parse::<u64>().ok())
+    else {
+        return;
+    };
+    if elapsed_ticks == 0 {
+        return;
+    }
+    let Some(cause_kind) = payload.get("cause_kind") else {
+        return;
+    };
+    if !matches!(*cause_kind, "tick_delta" | "action_effect") {
+        return;
+    }
+    let first_tick = event
+        .sim_tick
+        .value()
+        .saturating_sub(elapsed_ticks)
+        .saturating_add(1);
+    for tick in first_tick..=event.sim_tick.value() {
+        let inserted = state
+            .need_tick_charges
+            .insert((actor_id.clone(), need_kind, tick));
+        assert!(
+            inserted,
+            "duplicate need tick charge actor={} need={} tick={}",
+            actor_id.as_str(),
+            need_kind.stable_id(),
+            tick
+        );
+    }
 }
 
 fn apply_intention_started(
@@ -2038,6 +2194,39 @@ mod tests {
         assert_eq!(
             state.ordinary_life_episodes[&sleep.event_id].event_kind,
             "sleep_started"
+        );
+    }
+
+    #[test]
+    fn duplicate_duration_terminal_rejected_live() {
+        let mut state = AgentState::default();
+        let mut start = caused_agent_event(EventKind::WorkBlockStarted, Vec::new());
+        start.event_id = EventId::new("event.work.started.actor_tomas").unwrap();
+        start.actor_id = Some(actor_id("actor_tomas"));
+
+        let mut completed = caused_agent_event(EventKind::WorkBlockCompleted, Vec::new());
+        completed.event_id = EventId::new("event.work.completed.actor_tomas").unwrap();
+        completed.actor_id = Some(actor_id("actor_tomas"));
+        completed.causes = vec![EventCause::Event(start.event_id.clone())];
+
+        let mut failed = caused_agent_event(EventKind::WorkBlockFailed, Vec::new());
+        failed.event_id = EventId::new("event.work.failed.actor_tomas").unwrap();
+        failed.actor_id = Some(actor_id("actor_tomas"));
+        failed.causes = vec![EventCause::Event(start.event_id.clone())];
+
+        assert_eq!(
+            apply_agent_event(&mut state, &start),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &completed),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &failed),
+            Err(ApplyError::DuplicateDurationTerminal {
+                start_event_id: start.event_id
+            })
         );
     }
 }

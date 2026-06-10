@@ -11,12 +11,13 @@ use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
     build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
-    generate_candidate_goals, plan_local_actions, select_goal_and_trace,
-    select_method_from_templates, ActorDecisionTransaction, ActorDecisionTransactionInput,
-    ActorDecisionTransactionOutcome, ActorKnownFact, BlockerCategory, CandidateGenerationInput,
-    DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
-    NeedState, PlannerGoal, ResponsibleLayer, RoutineCondition, RoutineFamily, RoutineStep,
-    RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
+    generate_candidate_goals, plan_local_actions, record_current_place_perception_and_project,
+    select_goal_and_trace, select_method_from_templates, ActorDecisionTransaction,
+    ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
+    BlockerCategory, CandidateGenerationInput, DecisionInput, DecisionTraceRecord, GoalKind,
+    LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder,
+    NoHumanActorKnownSurfaceRequest, PlannerGoal, ResponsibleLayer, RoutineCondition,
+    RoutineFamily, RoutineStep, RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
@@ -26,7 +27,7 @@ use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
 use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
+use tracewake_core::events::{EventEnvelope, EventKind, EventStream, PayloadField};
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId, FoodSupplyId,
     IntentionId, PlaceId, RoutineExecutionId, RoutineTemplateId,
@@ -191,7 +192,7 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
             start_kind_by_event.insert(event.event_id.clone(), event.event_type);
         }
     }
-    let mut charged = BTreeMap::<(String, String, u64), BTreeSet<&'static str>>::new();
+    let mut charged = BTreeMap::<(String, String, u64), u64>::new();
     for event in log
         .events()
         .iter()
@@ -219,8 +220,8 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                 {
                     charged
                         .entry((actor_id.to_string(), need_kind.to_string(), tick))
-                        .or_default()
-                        .insert("awake");
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
                 }
             }
             "action_effect" => {
@@ -234,7 +235,7 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                     }
                     _ => None,
                 });
-                let Some(regime) = regime else {
+                let Some(_regime) = regime else {
                     continue;
                 };
                 let elapsed_ticks = log
@@ -263,8 +264,8 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                 {
                     charged
                         .entry((actor_id.to_string(), need_kind.to_string(), tick))
-                        .or_default()
-                        .insert(regime);
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
                 }
             }
             _ => {}
@@ -272,7 +273,7 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
     }
     let duplicates = charged
         .iter()
-        .filter(|(_, regimes)| regimes.len() > 1)
+        .filter(|(_, count)| **count > 1)
         .collect::<Vec<_>>();
     assert!(
         duplicates.is_empty(),
@@ -321,6 +322,103 @@ fn tamper_sleep_place_starting_belief(
     }
     assert!(replaced, "fixture contains sleep_place starting belief");
     tampered
+}
+
+fn tamper_first_continue_routine_kind(log: &EventLog, replacement_kind: EventKind) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced && event.event_type == EventKind::ContinueRoutineProposed {
+            event.event_type = replacement_kind;
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(
+        replaced,
+        "fixture contains continue-routine arbitration event"
+    );
+    tampered
+}
+
+fn tamper_first_continue_routine_reason(log: &EventLog, replacement_reason: &str) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced && event.event_type == EventKind::ContinueRoutineProposed {
+            if let Some(reason) = event.payload.iter_mut().find(|field| field.key == "reason") {
+                reason.value = replacement_reason.to_string();
+            } else {
+                event
+                    .payload
+                    .push(PayloadField::new("reason", replacement_reason));
+            }
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(
+        replaced,
+        "fixture contains continue-routine arbitration event"
+    );
+    tampered
+}
+
+fn possession_continue_routine_replay_fixture() -> (
+    PhysicalState,
+    AgentState,
+    PhysicalState,
+    AgentState,
+    EventLog,
+) {
+    let golden = fixtures::possession_does_not_reset_intention_001();
+    let manifest_id =
+        ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
+    let loaded = load_fixture_package(
+        manifest_id.clone(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let mut state = loaded.canonical_world;
+    let mut agent_state = loaded.canonical_agent_state;
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let mut continue_proposal = proposal(
+        "proposal_mara_continue_after_possession",
+        "actor_mara",
+        "continue_routine",
+        &[],
+        4,
+    );
+    continue_proposal.parameters.insert(
+        "active_intention_id".to_string(),
+        "intention_mara_work".to_string(),
+    );
+    continue_proposal
+        .parameters
+        .insert("intention_status".to_string(), "active".to_string());
+    continue_proposal.parameters.insert(
+        "routine_execution_id".to_string(),
+        "routine_exec_mara_work".to_string(),
+    );
+    continue_proposal
+        .parameters
+        .insert("next_action_id".to_string(), "work_block".to_string());
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &continue_proposal,
+        1,
+    );
+
+    assert!(has_event(&log, EventKind::ContinueRoutineProposed));
+    (initial_state, initial_agent_state, state, agent_state, log)
 }
 
 #[test]
@@ -1028,6 +1126,7 @@ fn severe_safety_without_known_exit_is_local_knowledge_blocker() {
         agent_state: &agent_state,
         actor_known_context: &actor_known_context,
         source_event_ids: None,
+        source_event_kinds: None,
         routine_window_family: None,
         include_idle_fallback: true,
     });
@@ -1125,7 +1224,16 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
     );
 
     assert!(has_event(&log, EventKind::ContinueRoutineProposed));
-    assert_eq!(agent_state, before_agent_state);
+    assert_eq!(agent_state.intentions(), before_agent_state.intentions());
+    assert_eq!(
+        agent_state.routine_executions(),
+        before_agent_state.routine_executions()
+    );
+    assert_eq!(
+        agent_state.needs_by_actor(),
+        before_agent_state.needs_by_actor()
+    );
+    assert_eq!(agent_state.continue_routine_arbitrations().len(), 1);
 }
 
 #[test]
@@ -1376,20 +1484,17 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &sleep_elena,
         102,
     );
-    let sleep_started = log
-        .events()
+    let sleep_started = sleep_events
         .iter()
-        .find(|event| {
-            event.event_type == EventKind::SleepStarted
-                && event
-                    .actor_id
-                    .as_ref()
-                    .is_some_and(|actor| actor.as_str() == "actor_elena")
-        })
+        .find(|event| event.event_type == EventKind::SleepStarted)
         .or_else(|| {
-            sleep_events
-                .iter()
-                .find(|event| event.event_type == EventKind::SleepStarted)
+            log.events().iter().find(|event| {
+                event.event_type == EventKind::SleepStarted
+                    && event
+                        .actor_id
+                        .as_ref()
+                        .is_some_and(|actor| actor.as_str() == "actor_elena")
+            })
         })
         .unwrap()
         .clone();
@@ -1653,6 +1758,107 @@ fn no_human_need_ledger_has_no_duplicate_regime_charges() {
 }
 
 #[test]
+fn wait_then_window_passive_charges_each_tick_once() {
+    let golden = fixtures::wait_then_window_passive_charges_each_tick_once_001();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![
+                DayWindow {
+                    window_id: "first_idle".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(1),
+                },
+                DayWindow {
+                    window_id: "second_idle".to_string(),
+                    start_tick: SimTick::new(4),
+                    end_tick: SimTick::new(5),
+                },
+            ],
+        },
+    );
+
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::ActorWaited && event.sim_tick == SimTick::new(1)
+    }));
+    let second_window_passive = log
+        .events()
+        .iter()
+        .find(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && payload(event, "window_id") == Some("second_idle")
+                && payload(event, "need_kind") == Some("hunger")
+        })
+        .expect("second window passive hunger delta exists");
+    assert_eq!(payload(second_window_passive, "elapsed_ticks"), Some("3"));
+    assert_no_duplicate_need_regime_charges(&log);
+}
+
+#[test]
+fn aged_food_record_surfaces_as_remembered_belief() {
+    let golden = fixtures::aged_food_record_surfaces_as_remembered_belief_not_observation_001();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let current_place_id = PlaceId::new("home_tomas").unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let mut epistemic_projection = EpistemicProjection::new(manifest_id.clone());
+
+    let perception_events = record_current_place_perception_and_project(
+        &mut log,
+        &mut state,
+        &mut agent_state,
+        &mut epistemic_projection,
+        &actor_id,
+        SimTick::new(4),
+        &manifest_id,
+    );
+    assert!(perception_events.iter().any(|event| {
+        event.event_type == EventKind::ObservationRecorded
+            && payload(event, "target_id") == Some("food_stew_home_tomas")
+    }));
+
+    let surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &epistemic_projection,
+            agent_state: &agent_state,
+            actor_id,
+            current_place_id,
+            decision_tick: SimTick::new(9),
+            window_id: "later_window",
+            window_end_tick: SimTick::new(12),
+            current_place_witness_event_id: perception_events
+                .first()
+                .map(|event| event.event_id.clone()),
+            needs_witness_event_id: None,
+            frame_event_id: None,
+        })
+        .build(&agent_state);
+
+    assert!(surface
+        .context()
+        .known_food_sources()
+        .contains("food_stew_home_tomas"));
+    let food_fact = surface
+        .context()
+        .actor_known_facts()
+        .iter()
+        .find(|fact| fact.stable_id() == "actor_knows_food_source")
+        .expect("food source fact remains available as memory");
+    assert_eq!(food_fact.semantic_kind(), "remembered_belief");
+    assert_eq!(food_fact.tick(), Some(SimTick::new(4)));
+    assert!(food_fact
+        .proof_note()
+        .contains("remembered_belief:evented_perception:visible_food_supply"));
+}
+
+#[test]
 fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     let golden = fixtures::no_human_day_001();
     let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
@@ -1747,6 +1953,50 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     );
     assert!(!corrupted.matches_expected);
     assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());
+}
+
+#[test]
+fn continue_routine_tamper_kind_flip_poisons_replay() {
+    let (initial_state, initial_agent_state, state, agent_state, log) =
+        possession_continue_routine_replay_fixture();
+    let context = checksum_context("possession_does_not_reset_intention_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_first_continue_routine_kind(&log, EventKind::ContinueRoutineRejected);
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.agent_checksum_matches);
+}
+
+#[test]
+fn continue_routine_tamper_reason_rewrite_poisons_replay() {
+    let (initial_state, initial_agent_state, state, agent_state, log) =
+        possession_continue_routine_replay_fixture();
+    let context = checksum_context("possession_does_not_reset_intention_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_first_continue_routine_reason(&log, "tampered_continue_routine_reason");
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.agent_checksum_matches);
 }
 
 #[test]

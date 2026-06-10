@@ -139,6 +139,7 @@ pub struct PhysicalState {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AgentState {
     pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+    pub(crate) need_tick_charges: BTreeSet<(ActorId, NeedKind, u64)>,
     pub(crate) intentions: BTreeMap<IntentionId, Intention>,
     pub(crate) active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
     pub(crate) routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
@@ -146,6 +147,10 @@ pub struct AgentState {
     pub(crate) stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
     pub(crate) need_threshold_crossings: BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord>,
     pub(crate) ordinary_life_episodes: BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord>,
+    pub(crate) candidate_goal_evaluations:
+        BTreeMap<crate::ids::EventId, CandidateGoalEvaluationRecord>,
+    pub(crate) continue_routine_arbitrations:
+        BTreeMap<crate::ids::EventId, ContinueRoutineArbitrationRecord>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -165,7 +170,32 @@ pub struct OrdinaryLifeEpisodeRecord {
     pub event_kind: String,
     pub actor_id: Option<ActorId>,
     pub proposal_id: Option<ProposalId>,
+    pub caused_event_ids: Vec<crate::ids::EventId>,
     pub sim_tick: crate::time::SimTick,
+    pub summary: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CandidateGoalEvaluationRecord {
+    pub event_id: crate::ids::EventId,
+    pub event_kind: String,
+    pub actor_id: Option<ActorId>,
+    pub proposal_id: Option<ProposalId>,
+    pub caused_event_ids: Vec<crate::ids::EventId>,
+    pub sim_tick: crate::time::SimTick,
+    pub payload_fields: Vec<(String, String)>,
+    pub summary: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ContinueRoutineArbitrationRecord {
+    pub event_id: crate::ids::EventId,
+    pub event_kind: String,
+    pub actor_id: Option<ActorId>,
+    pub proposal_id: Option<ProposalId>,
+    pub caused_event_ids: Vec<crate::ids::EventId>,
+    pub sim_tick: crate::time::SimTick,
+    pub payload_fields: Vec<(String, String)>,
     pub summary: String,
 }
 
@@ -264,6 +294,7 @@ impl AgentState {
     ) -> Self {
         Self {
             needs_by_actor,
+            need_tick_charges: BTreeSet::new(),
             intentions,
             active_intention_by_actor,
             routine_executions,
@@ -271,6 +302,8 @@ impl AgentState {
             stuck_diagnostics,
             need_threshold_crossings: BTreeMap::new(),
             ordinary_life_episodes: BTreeMap::new(),
+            candidate_goal_evaluations: BTreeMap::new(),
+            continue_routine_arbitrations: BTreeMap::new(),
         }
     }
 
@@ -308,6 +341,18 @@ impl AgentState {
         &self,
     ) -> &BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord> {
         &self.ordinary_life_episodes
+    }
+
+    pub fn candidate_goal_evaluations(
+        &self,
+    ) -> &BTreeMap<crate::ids::EventId, CandidateGoalEvaluationRecord> {
+        &self.candidate_goal_evaluations
+    }
+
+    pub fn continue_routine_arbitrations(
+        &self,
+    ) -> &BTreeMap<crate::ids::EventId, ContinueRoutineArbitrationRecord> {
+        &self.continue_routine_arbitrations
     }
 }
 

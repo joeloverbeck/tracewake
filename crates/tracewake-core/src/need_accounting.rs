@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::events::log::EventLog;
 use crate::events::{is_duration_terminal, EventCause, EventEnvelope, EventKind};
@@ -17,6 +17,13 @@ pub struct TickRegimeCounts {
     pub awake_ticks: u64,
     pub asleep_ticks: u64,
     pub working_ticks: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DuplicateDurationTerminal {
+    pub start_event_id: EventId,
+    pub first_terminal_event_id: EventId,
+    pub duplicate_terminal_event_id: EventId,
 }
 
 pub fn classify_actor_tick_regimes(
@@ -87,7 +94,7 @@ fn duration_intervals(
     actor_id: &ActorId,
     current_start: Option<&EventEnvelope>,
 ) -> Vec<DurationInterval> {
-    let terminals = terminal_ticks_by_start(log);
+    let terminals = terminal_ticks_by_start(log).expect("duration terminals must be unique");
     let mut starts = log
         .events()
         .iter()
@@ -114,8 +121,45 @@ fn duration_intervals(
     starts
 }
 
-fn terminal_ticks_by_start(log: &EventLog) -> BTreeMap<EventId, u64> {
+pub(crate) fn open_body_exclusive_starts(
+    log: &EventLog,
+    actor_id: &ActorId,
+    as_of_tick: SimTick,
+) -> Result<BTreeSet<EventId>, DuplicateDurationTerminal> {
+    let terminals = terminal_ticks_by_start(log)?;
+    Ok(log
+        .events()
+        .iter()
+        .filter(|event| event.actor_id.as_ref() == Some(actor_id))
+        .filter(|event| event.sim_tick <= as_of_tick)
+        .filter(|event| {
+            matches!(
+                event.event_type,
+                EventKind::SleepStarted | EventKind::WorkBlockStarted
+            )
+        })
+        .filter(|event| !terminals.contains_key(&event.event_id))
+        .map(|event| event.event_id.clone())
+        .collect())
+}
+
+pub(crate) fn duplicate_duration_terminal_violations(log: &EventLog) -> Vec<String> {
+    match terminal_ticks_by_start(log) {
+        Ok(_) => Vec::new(),
+        Err(error) => vec![format!(
+            "duplicate_duration_terminal:start_event_id={} first_terminal_event_id={} duplicate_terminal_event_id={}",
+            error.start_event_id.as_str(),
+            error.first_terminal_event_id.as_str(),
+            error.duplicate_terminal_event_id.as_str()
+        )],
+    }
+}
+
+fn terminal_ticks_by_start(
+    log: &EventLog,
+) -> Result<BTreeMap<EventId, u64>, DuplicateDurationTerminal> {
     let mut terminals = BTreeMap::new();
+    let mut terminal_event_by_start = BTreeMap::<EventId, EventId>::new();
     for event in log
         .events()
         .iter()
@@ -123,14 +167,19 @@ fn terminal_ticks_by_start(log: &EventLog) -> BTreeMap<EventId, u64> {
     {
         for cause in &event.causes {
             if let EventCause::Event(start_id) = cause {
-                terminals
-                    .entry(start_id.clone())
-                    .and_modify(|tick: &mut u64| *tick = (*tick).min(event.sim_tick.value()))
-                    .or_insert(event.sim_tick.value());
+                if let Some(first_terminal_event_id) = terminal_event_by_start.get(start_id) {
+                    return Err(DuplicateDurationTerminal {
+                        start_event_id: start_id.clone(),
+                        first_terminal_event_id: first_terminal_event_id.clone(),
+                        duplicate_terminal_event_id: event.event_id.clone(),
+                    });
+                }
+                terminal_event_by_start.insert(start_id.clone(), event.event_id.clone());
+                terminals.insert(start_id.clone(), event.sim_tick.value());
             }
         }
     }
-    terminals
+    Ok(terminals)
 }
 
 fn duration_start_interval(
@@ -280,6 +329,70 @@ mod tests {
                 asleep_ticks: 0,
                 working_ticks: 2,
             }
+        );
+    }
+
+    #[test]
+    fn event_cause_terminal_closes_start_with_divergent_proposal_id() {
+        let mut log = EventLog::new();
+        let mut work_start = start(EventKind::WorkBlockStarted, "event_work_started", 10);
+        work_start.proposal_id = Some(ProposalId::new("proposal_original").unwrap());
+        log.append(work_start).unwrap();
+        let mut work_failed = terminal(
+            EventKind::WorkBlockFailed,
+            "event_work_failed",
+            "event_work_started",
+            12,
+        );
+        work_failed.proposal_id = Some(ProposalId::new("proposal_forged").unwrap());
+        log.append(work_failed).unwrap();
+
+        let open = open_body_exclusive_starts(&log, &actor_id(), SimTick::new(13)).unwrap();
+        let counts =
+            classify_actor_tick_regimes(&log, &actor_id(), SimTick::new(10), SimTick::new(14));
+
+        assert!(open.is_empty());
+        assert_eq!(
+            counts,
+            TickRegimeCounts {
+                awake_ticks: 2,
+                asleep_ticks: 0,
+                working_ticks: 2,
+            }
+        );
+    }
+
+    #[test]
+    fn duplicate_duration_terminal_is_typed_error() {
+        let mut log = EventLog::new();
+        log.append(start(EventKind::WorkBlockStarted, "event_work_started", 10))
+            .unwrap();
+        log.append(terminal(
+            EventKind::WorkBlockCompleted,
+            "event_work_completed",
+            "event_work_started",
+            12,
+        ))
+        .unwrap();
+        log.append(terminal(
+            EventKind::WorkBlockFailed,
+            "event_work_failed",
+            "event_work_started",
+            13,
+        ))
+        .unwrap();
+
+        let error = open_body_exclusive_starts(&log, &actor_id(), SimTick::new(14))
+            .expect_err("duplicate terminals are rejected");
+
+        assert_eq!(error.start_event_id.as_str(), "event_work_started");
+        assert_eq!(
+            error.first_terminal_event_id.as_str(),
+            "event_work_completed"
+        );
+        assert_eq!(
+            error.duplicate_terminal_event_id.as_str(),
+            "event_work_failed"
         );
     }
 }

@@ -1,12 +1,13 @@
 use crate::actions::{Proposal, ProposalOrigin};
 use crate::agent::{
     generate_candidate_goals_from_agent_state, plan_local_actions, select_goal_and_trace,
-    select_phase3a_method, ActorKnownPlanningContext, ApplicabilityResult, BlockerCategory,
-    BlockerCode, CandidateGoal, DecisionInput, DecisionTrace, DecisionTraceRecord, GoalKind,
-    IntentionLifecycleEffect, LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure,
+    select_phase3a_method, ActorKnownPlanningContext, ActorKnownProvenance, ApplicabilityResult,
+    BlockerCategory, BlockerCode, CandidateGoal, DecisionInput, DecisionTrace, DecisionTraceRecord,
+    GoalKind, IntentionLifecycleEffect, LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure,
     LocalPlanRequest, PlannerGoal, ResponsibleLayer, RoutineFamily, RoutineStep,
     StuckDiagnosticRecord, StuckResultingStatus, TypedDiagnosticFields,
 };
+use crate::events::EventKind;
 use crate::ids::{ActorId, EventId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
 use crate::time::SimTick;
@@ -19,6 +20,7 @@ pub struct ActorDecisionTransactionInput<'a> {
     pub agent_state: &'a AgentState,
     pub actor_known_context: &'a ActorKnownPlanningContext,
     pub source_event_ids: Option<&'a BTreeSet<EventId>>,
+    pub source_event_kinds: Option<&'a BTreeMap<EventId, EventKind>>,
     pub routine_window_family: Option<RoutineFamily>,
     pub include_idle_fallback: bool,
 }
@@ -98,6 +100,27 @@ impl ActorDecisionTransaction {
                     diagnostic: Box::new(diagnostic),
                 };
             }
+        }
+        if let Some(source_event_kinds) = input.source_event_kinds {
+            if let Some(diagnostic) = provenance_witness_mismatch_diagnostic(
+                &input.actor_id,
+                input.decision_tick,
+                &actor_known_facts,
+                source_event_kinds,
+            ) {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(diagnostic),
+                };
+            }
+        }
+        if let Some(diagnostic) = provenance_class_mismatch_diagnostic(
+            &input.actor_id,
+            input.decision_tick,
+            &actor_known_facts,
+        ) {
+            return ActorDecisionTransactionOutcome::Stuck {
+                diagnostic: Box::new(diagnostic),
+            };
         }
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: input.actor_id.clone(),
@@ -437,10 +460,19 @@ fn dangling_provenance_diagnostic(
     actor_known_facts: &[crate::agent::ActorKnownFact],
     available_source_event_ids: &BTreeSet<EventId>,
 ) -> Option<StuckDiagnosticRecord> {
+    let empty_witness_fact = actor_known_facts
+        .iter()
+        .find(|fact| fact.source_event_ids().is_empty());
     let dangling = actor_known_facts
         .iter()
         .flat_map(|fact| fact.source_event_ids())
-        .find(|event_id| !available_source_event_ids.contains(*event_id))?;
+        .find(|event_id| !available_source_event_ids.contains(*event_id));
+    let debug_only_details = if let Some(fact) = empty_witness_fact {
+        format!("empty_source_event_ids_fact={}", fact.stable_id())
+    } else {
+        let dangling = dangling?;
+        format!("dangling_source_event_id={}", dangling.as_str())
+    };
     Some(
         StuckDiagnosticRecord::new(
             StuckDiagnosticId::new(format!(
@@ -462,7 +494,7 @@ fn dangling_provenance_diagnostic(
             BlockerCategory::Knowledge,
             "provenance dangling",
             "actor decision transaction rejected unresolved actor-known source event",
-            format!("dangling_source_event_id={}", dangling.as_str()),
+            debug_only_details,
             "typed_stuck_diagnostic",
             StuckResultingStatus::Failed,
         )
@@ -474,6 +506,140 @@ fn dangling_provenance_diagnostic(
             hidden_truth_referenced: false,
             remediation_hint:
                 "rebuild actor-known facts only from events present in the decision log frontier"
+                    .to_string(),
+        }),
+    )
+}
+
+fn provenance_witness_mismatch_diagnostic(
+    actor_id: &ActorId,
+    tick: SimTick,
+    actor_known_facts: &[crate::agent::ActorKnownFact],
+    source_event_kinds: &BTreeMap<EventId, EventKind>,
+) -> Option<StuckDiagnosticRecord> {
+    let mismatch = actor_known_facts.iter().find_map(|fact| {
+        fact.source_event_ids().iter().find_map(|event_id| {
+            let event_kind = source_event_kinds.get(event_id)?;
+            if witness_kind_allowed(fact.stable_id(), event_kind) {
+                None
+            } else {
+                Some((fact, event_id, event_kind))
+            }
+        })
+    })?;
+    let (fact, event_id, event_kind) = mismatch;
+    Some(
+        StuckDiagnosticRecord::new(
+            StuckDiagnosticId::new(format!(
+                "stuck_actor_decision_{}_{}",
+                actor_id.as_str(),
+                tick.value()
+            ))
+            .unwrap(),
+            actor_id.clone(),
+            tick,
+            tick.advance_by(1),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::Knowledge,
+            "provenance witness mismatch",
+            "actor decision transaction rejected non-witnessing actor-known source event",
+            format!(
+                "fact={} source_event_id={} event_kind={}",
+                fact.stable_id(),
+                event_id.as_str(),
+                event_kind.stable_id()
+            ),
+            "typed_stuck_diagnostic",
+            StuckResultingStatus::Failed,
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::Projection,
+            blocker_code: BlockerCode::ProvenanceWitnessMismatch,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint:
+                "cite source events whose event kind can witness the actor-known fact".to_string(),
+        }),
+    )
+}
+
+fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
+    match stable_id {
+        "actor_current_place_visible" => *event_kind == EventKind::ObservationRecorded,
+        "agent_needs_present" => *event_kind == EventKind::NeedDeltaApplied,
+        "actor_belief_projection_limitation"
+        | "modeled_wait_reason"
+        | "reevaluation_window_known" => matches!(
+            event_kind,
+            EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+        ),
+        "active_intention_present" | "next_step_available" => matches!(
+            event_kind,
+            EventKind::IntentionStarted
+                | EventKind::IntentionContinued
+                | EventKind::IntentionResumed
+                | EventKind::NoHumanDayStarted
+                | EventKind::NoHumanAdvanceStarted
+        ),
+        _ => true,
+    }
+}
+
+fn provenance_class_mismatch_diagnostic(
+    actor_id: &ActorId,
+    tick: SimTick,
+    actor_known_facts: &[crate::agent::ActorKnownFact],
+) -> Option<StuckDiagnosticRecord> {
+    let stale_observation = actor_known_facts.iter().find(|fact| {
+        matches!(fact.provenance(), ActorKnownProvenance::ObservedNow { .. })
+            && fact.tick().is_some_and(|fact_tick| fact_tick < tick)
+    })?;
+    Some(
+        StuckDiagnosticRecord::new(
+            StuckDiagnosticId::new(format!(
+                "stuck_actor_decision_{}_{}",
+                actor_id.as_str(),
+                tick.value()
+            ))
+            .unwrap(),
+            actor_id.clone(),
+            tick,
+            tick.advance_by(1),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::Knowledge,
+            "provenance class mismatch",
+            "actor decision transaction rejected stale fact stamped observed_now",
+            format!(
+                "stale_observed_now_fact={} tick={}",
+                stale_observation.stable_id(),
+                stale_observation
+                    .tick()
+                    .map_or_else(|| "none".to_string(), |tick| tick.value().to_string())
+            ),
+            "typed_stuck_diagnostic",
+            StuckResultingStatus::Failed,
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::Projection,
+            blocker_code: BlockerCode::ProvenanceClassMismatch,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint:
+                "mint stale projection records as remembered_belief with their source tick"
                     .to_string(),
         }),
     )
@@ -623,7 +789,9 @@ fn stuck_diagnostic_for_plan_failure(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::{ActorKnownFact, IntentionSource, NeedChangeCause, NeedKind, NeedState};
+    use crate::agent::{
+        ActorKnownFact, IntentionSource, NeedChangeCause, NeedKind, NeedState, SourceEventIds,
+    };
     use crate::ids::PlaceId;
     use std::collections::{BTreeMap, BTreeSet};
 
@@ -795,6 +963,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: None,
+            source_event_kinds: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -845,6 +1014,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: None,
+            source_event_kinds: None,
             routine_window_family: None,
             include_idle_fallback: false,
         });
@@ -869,6 +1039,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: None,
+            source_event_kinds: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -907,6 +1078,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: Some(&source_event_ids),
+            source_event_kinds: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -926,6 +1098,105 @@ mod tests {
     }
 
     #[test]
+    fn provenance_class_mismatch_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let home = place("home_tomas");
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_stew".to_string()]),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "actor_knows_food_source",
+                "food_stew",
+                "evented_perception:visible_food_supply",
+                Some(SimTick::new(4)),
+                test_source(),
+            )],
+        );
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(9),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: None,
+            source_event_kinds: None,
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected provenance class mismatch stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance class mismatch");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceClassMismatch
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("actor_knows_food_source"));
+    }
+
+    #[test]
+    fn provenance_witness_mismatch_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let home = place("home_tomas");
+        let frame_event_id = EventId::new("event.no_human_day.started").unwrap();
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "actor_current_place_visible",
+                home.as_str(),
+                "evented_frame:current_place",
+                Some(SimTick::new(4)),
+                SourceEventIds::checked(vec![frame_event_id.clone()]).unwrap(),
+            )],
+        );
+        let source_event_ids = BTreeSet::from([frame_event_id.clone()]);
+        let source_event_kinds = BTreeMap::from([(frame_event_id, EventKind::NoHumanDayStarted)]);
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(4),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: Some(&source_event_ids),
+            source_event_kinds: Some(&source_event_kinds),
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected provenance witness mismatch stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance witness mismatch");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceWitnessMismatch
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("actor_current_place_visible"));
+    }
+
+    #[test]
     fn severe_safety_with_known_exit_proposes_move_before_hunger() {
         let agent_state = agent_state_with_severe_safety_and_hunger();
         let context = known_context();
@@ -936,6 +1207,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: None,
+            source_event_kinds: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -991,6 +1263,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: None,
+            source_event_kinds: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -1024,6 +1297,7 @@ mod tests {
             agent_state: &agent_state,
             actor_known_context: &context,
             source_event_ids: None,
+            source_event_kinds: None,
             routine_window_family: Some(RoutineFamily::SleepNight),
             include_idle_fallback: true,
         });

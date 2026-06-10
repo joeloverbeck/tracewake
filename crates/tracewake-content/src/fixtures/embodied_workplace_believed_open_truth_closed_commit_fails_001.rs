@@ -1,8 +1,8 @@
 use crate::fixtures::*;
 
-pub fn embodied_workplace_availability_reflects_belief_not_truth_001() -> GoldenFixture {
+pub fn embodied_workplace_believed_open_truth_closed_commit_fails_001() -> GoldenFixture {
     let mut fixture = FixtureSchema {
-        fixture_id: fixture_id("embodied_workplace_availability_reflects_belief_not_truth_001"),
+        fixture_id: fixture_id("embodied_workplace_believed_open_truth_closed_commit_fails_001"),
         schema_version: schema_version(),
         fixture_scope: FixtureScope::Phase3AHistorical,
         need_model: need_model_schema(),
@@ -25,30 +25,28 @@ pub fn embodied_workplace_availability_reflects_belief_not_truth_001() -> Golden
             "workshop_tomas",
             &["actor_tomas"],
             4,
-            true,
+            false,
         )],
         routine_templates: Vec::new(),
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
-    fixture.workplaces[0].role_notice_access_open = false;
+    fixture.workplaces[0].role_notice_access_open = true;
     fixture.canonicalize();
     GoldenFixture {
         fixture,
         contract: FixtureContract {
-            fixture_id: "embodied_workplace_availability_reflects_belief_not_truth_001",
-            purpose: "Prove embodied workplace availability follows holder-known workplace belief rather than open workplace truth.",
+            fixture_id: "embodied_workplace_believed_open_truth_closed_commit_fails_001",
+            purpose: "Prove embodied workplace availability follows actor-known open access while commit still fails against closed physical truth.",
             setup: vec![
-                "truth contains an open assigned workplace for actor_tomas",
-                "role-assignment notice says workplace_tomas access is closed",
+                "truth contains a closed assigned workplace for actor_tomas",
+                "role-assignment notice says workplace_tomas access is open",
             ],
-            allowed_actions: vec!["embodied view shows work_block disabled from holder-known closed-access belief"],
-            expected_events_or_reports: vec![
-                "truth_open_workplace_disabled_by_believed_closed_access",
-            ],
+            allowed_actions: vec!["embodied view shows work_block enabled from holder-known open-access belief"],
+            expected_events_or_reports: vec!["work command records WorkBlockFailed with workplace access closed"],
             acceptance_assertions: vec![
-                "truth-open workplace state is insufficient to enable embodied availability",
-                "workplace_tomas appears disabled from the actor-known closed-access fact",
+                "truth-closed workplace state is insufficient to disable embodied availability",
+                "workplace_tomas command is offered from actor-known access and fails against physical validation",
             ],
         },
     }

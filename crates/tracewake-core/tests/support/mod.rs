@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod generative;
+
 use std::collections::BTreeMap;
 
 use tracewake_core::agent::{

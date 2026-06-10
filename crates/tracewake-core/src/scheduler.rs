@@ -224,8 +224,8 @@ pub mod no_human {
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
-        ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, ProcessId,
-        RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
+        ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, PlaceId,
+        ProcessId, RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
     use crate::need_accounting::classify_actor_tick_regimes;
     use crate::scheduler::{
@@ -447,6 +447,11 @@ pub mod no_human {
                     ordering_key,
                 };
                 let result = run_pipeline(&mut context, &proposal);
+                if let Some(latest_charged_tick) =
+                    latest_action_tick_delta_tick(&result.appended_events, actor_id)
+                {
+                    last_decision_tick_by_actor.insert(actor_id.clone(), latest_charged_tick);
+                }
                 pending_sleep_starts.extend(
                     result
                         .appended_events
@@ -612,6 +617,13 @@ pub mod no_human {
                 decision_tick: window.start_tick,
                 window_id: &window.window_id,
                 window_end_tick: window.end_tick,
+                current_place_witness_event_id: latest_current_place_perception_event_id(
+                    log,
+                    actor_id,
+                    window.start_tick,
+                    &actor.current_place_id,
+                ),
+                needs_witness_event_id: latest_need_event_id(log, actor_id),
                 frame_event_id: latest_frame_event_id(log),
             })
             .build(agent_state)
@@ -621,12 +633,18 @@ pub mod no_human {
             .iter()
             .map(|event| event.event_id.clone())
             .collect::<std::collections::BTreeSet<_>>();
+        let source_event_kinds = log
+            .events()
+            .iter()
+            .map(|event| (event.event_id.clone(), event.event_type))
+            .collect::<std::collections::BTreeMap<_, _>>();
         match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
             actor_known_context: &actor_known_state,
             source_event_ids: Some(&source_event_ids),
+            source_event_kinds: Some(&source_event_kinds),
             routine_window_family: routine_window_family(
                 agent_state,
                 actor_id,
@@ -667,7 +685,36 @@ pub mod no_human {
                 )
             })
             .map(|event| event.event_id.clone())
-            .or_else(|| log.events().first().map(|event| event.event_id.clone()))
+    }
+
+    fn latest_current_place_perception_event_id(
+        log: &EventLog,
+        actor_id: &ActorId,
+        tick: SimTick,
+        place_id: &PlaceId,
+    ) -> Option<EventId> {
+        log.events()
+            .iter()
+            .rev()
+            .find(|event| {
+                event.event_type == EventKind::ObservationRecorded
+                    && event.actor_id.as_ref() == Some(actor_id)
+                    && event.sim_tick == tick
+                    && event.place_id.as_ref() == Some(place_id)
+            })
+            .map(|event| event.event_id.clone())
+    }
+
+    fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+        log.events()
+            .iter()
+            .rev()
+            .find(|event| {
+                event.event_type == EventKind::NeedDeltaApplied
+                    && (event.actor_id.as_ref() == Some(actor_id)
+                        || payload_value(event, "actor_id") == Some(actor_id.as_str()))
+            })
+            .map(|event| event.event_id.clone())
     }
 
     fn routine_window_family(
@@ -1009,19 +1056,15 @@ pub mod no_human {
         actor_id: &ActorId,
         tick: SimTick,
     ) -> bool {
-        log.events()
+        crate::need_accounting::open_body_exclusive_starts(log, actor_id, tick)
+            .expect("duplicate duration terminals are rejected before no-human scheduling")
             .iter()
-            .filter(|event| {
-                event.actor_id.as_ref() == Some(actor_id)
-                    && payload_value(event, "body_exclusive") == Some("true")
-                    && scheduled_completion_tick(event).is_some_and(|completion| completion > tick)
-            })
-            .any(|start| {
-                let proposal_id = start.proposal_id.as_ref();
-                !log.events().iter().any(|event| {
-                    event.sim_tick <= tick
-                        && is_duration_terminal(event.event_type)
-                        && event.proposal_id.as_ref() == proposal_id
+            .any(|event_id| {
+                log.events().iter().any(|event| {
+                    &event.event_id == event_id
+                        && payload_value(event, "body_exclusive") == Some("true")
+                        && scheduled_completion_tick(event)
+                            .is_some_and(|completion| completion > tick)
                 })
             })
     }
@@ -1327,6 +1370,24 @@ pub mod no_human {
         let appended = log.append(event).expect("agent event is appendable");
         apply_agent_event(agent_state, &appended).expect("agent event applies to live state");
         appended
+    }
+
+    fn latest_action_tick_delta_tick(
+        events: &[EventEnvelope],
+        actor_id: &ActorId,
+    ) -> Option<SimTick> {
+        events
+            .iter()
+            .filter(|event| {
+                event.event_type == EventKind::NeedDeltaApplied
+                    && event.actor_id.as_ref() == Some(actor_id)
+                    && payload_value(event, "cause_kind") == Some("tick_delta")
+                    && event.causes.iter().any(|cause| {
+                        matches!(cause, EventCause::Proposal(_) | EventCause::Event(_))
+                    })
+            })
+            .map(|event| event.sim_tick)
+            .max()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2700,6 +2761,20 @@ pub mod no_human {
                 ),
             );
             let mut log = EventLog::new();
+            log.append(build_window_passive_need_delta_event(
+                &ProcessId::new("test_need_witness").unwrap(),
+                &actor_id,
+                &DayWindow {
+                    window_id: "midday".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(4),
+                },
+                &content_manifest_id(),
+                NeedKind::Hunger,
+                0,
+                0,
+            ))
+            .unwrap();
             record_current_place_perception(
                 &mut log,
                 &state,
@@ -2814,7 +2889,7 @@ pub mod no_human {
                 .iter()
                 .filter(|event| event.event_type == EventKind::ObservationRecorded)
                 .collect::<Vec<_>>();
-            assert_eq!(observations.len(), 3);
+            assert_eq!(observations.len(), 4);
             let perceived_kinds = observations
                 .iter()
                 .filter_map(|event| {
@@ -2828,6 +2903,7 @@ pub mod no_human {
             assert_eq!(
                 perceived_kinds,
                 std::collections::BTreeSet::from([
+                    "current_place",
                     "visible_exit",
                     "visible_food_supply",
                     "visible_sleep_affordance"
@@ -2895,6 +2971,67 @@ pub mod no_human {
                 .iter()
                 .any(|field| field.value.contains("rewrite_window")));
             assert!(!wait_event.effects_summary.contains("rewrite_window"));
+        }
+
+        #[test]
+        fn action_wait_delta_advances_next_passive_charge_frontier() {
+            let actor_id = actor_id();
+            let home = PlaceId::new("home_tomas").unwrap();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state
+                .actors
+                .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), home));
+            let mut agent_state = agent_state(&actor_id);
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![
+                        DayWindow {
+                            window_id: "first_idle".to_string(),
+                            start_tick: SimTick::ZERO,
+                            end_tick: SimTick::new(1),
+                        },
+                        DayWindow {
+                            window_id: "second_idle".to_string(),
+                            start_tick: SimTick::new(4),
+                            end_tick: SimTick::new(5),
+                        },
+                    ],
+                },
+            );
+
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ActorWaited
+                    && event.sim_tick == SimTick::new(1)));
+            let second_window_passive =
+                log.events()
+                    .iter()
+                    .find(|event| {
+                        event.event_type == EventKind::NeedDeltaApplied
+                            && event.payload.iter().any(|field| {
+                                field.key == "window_id" && field.value == "second_idle"
+                            })
+                            && event
+                                .payload
+                                .iter()
+                                .any(|field| field.key == "need_kind" && field.value == "hunger")
+                    })
+                    .expect("second window emits passive hunger delta");
+            assert!(second_window_passive
+                .payload
+                .iter()
+                .any(|field| { field.key == "elapsed_ticks" && field.value == "3" }));
         }
 
         #[test]

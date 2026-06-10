@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope};
+use tracewake_core::agent::need::NEED_MAX;
 use tracewake_core::agent::{RoutineFamily, RoutineStepProposal};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
@@ -856,16 +857,21 @@ fn validate_topology(fixture: &FixtureSchema, errors: &mut Vec<ContentValidation
 }
 
 fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
-    validate_nonnegative_tuning(
+    validate_numeric_i32(
         fixture.need_model.awake_hunger_delta_per_tick,
         "need_model.awake_hunger_delta_per_tick",
+        NumericFieldPolicy::PressureNonnegative,
         errors,
     );
-    validate_nonnegative_tuning(
+    validate_numeric_i32(
         fixture.need_model.awake_fatigue_delta_per_tick,
         "need_model.awake_fatigue_delta_per_tick",
+        NumericFieldPolicy::PressureNonnegative,
         errors,
     );
+    for (index, need) in fixture.initial_needs.iter().enumerate() {
+        validate_need_band_u16(need.value, format!("initial_needs[{index}].value"), errors);
+    }
     for (index, door) in fixture.doors.iter().enumerate() {
         if door.is_locked && door.is_open {
             errors.push(ContentValidationError::new(
@@ -887,65 +893,241 @@ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationErr
         }
     }
     for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
-        if sleep_place.duration_ticks == 0 {
-            errors.push(ContentValidationError::new(
-                ValidationPhase::State,
-                format!("sleep_places[{index}].duration_ticks"),
-                "invalid_duration",
-                "sleep duration must be greater than zero",
-            ));
-        }
-        validate_nonnegative_tuning(
-            sleep_place.fatigue_recovery_per_tick,
-            format!("sleep_places[{index}].fatigue_recovery_per_tick"),
+        validate_duration_u64(
+            sleep_place.duration_ticks,
+            format!("sleep_places[{index}].duration_ticks"),
             errors,
         );
-        validate_nonnegative_tuning(
+        validate_numeric_i32(
+            sleep_place.fatigue_recovery_per_tick,
+            format!("sleep_places[{index}].fatigue_recovery_per_tick"),
+            NumericFieldPolicy::ReliefPositive,
+            errors,
+        );
+        validate_numeric_i32(
             sleep_place.hunger_rise_per_tick,
             format!("sleep_places[{index}].hunger_rise_per_tick"),
+            NumericFieldPolicy::PressureNonnegative,
             errors,
         );
     }
     for (index, food) in fixture.food_supplies.iter().enumerate() {
-        validate_nonnegative_tuning(
+        validate_numeric_i32(
             food.hunger_reduction_per_serving,
             format!("food_supplies[{index}].hunger_reduction_per_serving"),
+            NumericFieldPolicy::ReliefPositive,
             errors,
         );
     }
     for (index, workplace) in fixture.workplaces.iter().enumerate() {
-        validate_nonnegative_tuning(
-            workplace.fatigue_delta_per_tick,
-            format!("workplaces[{index}].fatigue_delta_per_tick"),
+        validate_duration_u64(
+            workplace.work_duration_ticks,
+            format!("workplaces[{index}].work_duration_ticks"),
             errors,
         );
-        validate_nonnegative_tuning(
+        validate_numeric_i32(
+            workplace.fatigue_delta_per_tick,
+            format!("workplaces[{index}].fatigue_delta_per_tick"),
+            NumericFieldPolicy::PressureNonnegative,
+            errors,
+        );
+        validate_numeric_i32(
             workplace.hunger_delta_per_tick,
             format!("workplaces[{index}].hunger_delta_per_tick"),
+            NumericFieldPolicy::PressureNonnegative,
+            errors,
+        );
+        validate_numeric_i32(
+            workplace.max_fatigue_to_start,
+            format!("workplaces[{index}].max_fatigue_to_start"),
+            NumericFieldPolicy::NeedBandI32,
+            errors,
+        );
+        validate_numeric_i32(
+            workplace.max_hunger_to_start,
+            format!("workplaces[{index}].max_hunger_to_start"),
+            NumericFieldPolicy::NeedBandI32,
             errors,
         );
     }
 }
 
-fn validate_nonnegative_tuning(
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NumericFieldPolicy {
+    PressureNonnegative,
+    ReliefPositive,
+    DurationAtLeastOne,
+    NeedBandI32,
+    NeedBandU16,
+    CountNonnegative,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct NumericFieldRegistration {
+    field: &'static str,
+    policy: NumericFieldPolicy,
+}
+
+#[cfg(test)]
+const NUMERIC_FIELD_REGISTRY: &[NumericFieldRegistration] = &[
+    NumericFieldRegistration {
+        field: "NeedModelSchema.awake_hunger_delta_per_tick",
+        policy: NumericFieldPolicy::PressureNonnegative,
+    },
+    NumericFieldRegistration {
+        field: "NeedModelSchema.awake_fatigue_delta_per_tick",
+        policy: NumericFieldPolicy::PressureNonnegative,
+    },
+    NumericFieldRegistration {
+        field: "InitialNeedSchema.value",
+        policy: NumericFieldPolicy::NeedBandU16,
+    },
+    NumericFieldRegistration {
+        field: "SleepPlaceSchema.duration_ticks",
+        policy: NumericFieldPolicy::DurationAtLeastOne,
+    },
+    NumericFieldRegistration {
+        field: "SleepPlaceSchema.fatigue_recovery_per_tick",
+        policy: NumericFieldPolicy::ReliefPositive,
+    },
+    NumericFieldRegistration {
+        field: "SleepPlaceSchema.hunger_rise_per_tick",
+        policy: NumericFieldPolicy::PressureNonnegative,
+    },
+    NumericFieldRegistration {
+        field: "FoodSupplySchema.servings",
+        policy: NumericFieldPolicy::CountNonnegative,
+    },
+    NumericFieldRegistration {
+        field: "FoodSupplySchema.hunger_reduction_per_serving",
+        policy: NumericFieldPolicy::ReliefPositive,
+    },
+    NumericFieldRegistration {
+        field: "WorkplaceSchema.work_duration_ticks",
+        policy: NumericFieldPolicy::DurationAtLeastOne,
+    },
+    NumericFieldRegistration {
+        field: "WorkplaceSchema.fatigue_delta_per_tick",
+        policy: NumericFieldPolicy::PressureNonnegative,
+    },
+    NumericFieldRegistration {
+        field: "WorkplaceSchema.hunger_delta_per_tick",
+        policy: NumericFieldPolicy::PressureNonnegative,
+    },
+    NumericFieldRegistration {
+        field: "WorkplaceSchema.max_fatigue_to_start",
+        policy: NumericFieldPolicy::NeedBandI32,
+    },
+    NumericFieldRegistration {
+        field: "WorkplaceSchema.max_hunger_to_start",
+        policy: NumericFieldPolicy::NeedBandI32,
+    },
+    NumericFieldRegistration {
+        field: "RoutineTemplateSchema.min_duration_ticks",
+        policy: NumericFieldPolicy::DurationAtLeastOne,
+    },
+    NumericFieldRegistration {
+        field: "RoutineTemplateSchema.max_duration_ticks",
+        policy: NumericFieldPolicy::DurationAtLeastOne,
+    },
+    NumericFieldRegistration {
+        field: "RoutineTemplateSchema.interruption_points",
+        policy: NumericFieldPolicy::CountNonnegative,
+    },
+];
+
+fn validate_numeric_i32(
     value: i32,
     path: impl Into<String>,
+    policy: NumericFieldPolicy,
     errors: &mut Vec<ContentValidationError>,
 ) {
     let path = path.into();
-    if value < 0 {
+    match policy {
+        NumericFieldPolicy::PressureNonnegative => {
+            if value < 0 {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    path,
+                    "invalid_tuning_direction",
+                    "need and routine tuning values must be nonnegative in their modeled direction",
+                ));
+            } else if value > i32::from(NEED_MAX) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    path,
+                    "invalid_tuning_magnitude",
+                    format!(
+                        "need and routine tuning values must not exceed {NEED_MAX} per tick or serving"
+                    ),
+                ));
+            }
+        }
+        NumericFieldPolicy::ReliefPositive => {
+            if value <= 0 {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    path,
+                    "invalid_relief_magnitude",
+                    "relief-direction tuning values must be greater than zero",
+                ));
+            } else if value > i32::from(NEED_MAX) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    path,
+                    "invalid_tuning_magnitude",
+                    format!(
+                        "need and routine tuning values must not exceed {NEED_MAX} per tick or serving"
+                    ),
+                ));
+            }
+        }
+        NumericFieldPolicy::NeedBandI32 => {
+            if !(0..=i32::from(NEED_MAX)).contains(&value) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    path,
+                    "invalid_need_band",
+                    format!("need-band values must be between 0 and {NEED_MAX}"),
+                ));
+            }
+        }
+        NumericFieldPolicy::DurationAtLeastOne
+        | NumericFieldPolicy::NeedBandU16
+        | NumericFieldPolicy::CountNonnegative => {
+            unreachable!("non-i32 numeric policy used for i32 field")
+        }
+    }
+}
+
+fn validate_duration_u64(
+    value: u64,
+    path: impl Into<String>,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    if value == 0 {
         errors.push(ContentValidationError::new(
             ValidationPhase::State,
             path,
-            "invalid_tuning_direction",
-            "need and routine tuning values must be nonnegative in their modeled direction",
+            "invalid_duration",
+            "duration values must be greater than zero",
         ));
-    } else if value > 10_000 {
+    }
+}
+
+fn validate_need_band_u16(
+    value: u16,
+    path: impl Into<String>,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    if value > NEED_MAX {
         errors.push(ContentValidationError::new(
             ValidationPhase::State,
             path,
-            "invalid_tuning_magnitude",
-            "need and routine tuning values must not exceed 10000 per tick or serving",
+            "invalid_need_band",
+            format!("need-band values must be between 0 and {NEED_MAX}"),
         ));
     }
 }
@@ -1365,9 +1547,10 @@ fn validate_no_player(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
 
 fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
     for (index, place) in fixture.places.iter().enumerate() {
-        reject_script_marker_text(
+        reject_text_by_policy(
             &place.display_label,
             format!("places[{index}].display_label"),
+            StringScanPolicy::Union,
             errors,
         );
     }
@@ -1383,9 +1566,10 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
                 ),
             ));
         }
-        reject_script_marker_text(
+        reject_text_by_policy(
             &affordance.target_id,
             format!("affordances[{index}].target_id"),
+            StringScanPolicy::Union,
             errors,
         );
     }
@@ -1402,49 +1586,56 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
     }
     for (template_index, template) in fixture.routine_templates.iter().enumerate() {
         for (index, value) in template.failure_modes.iter().enumerate() {
-            reject_script_marker_text(
+            reject_text_by_policy(
                 value,
                 format!("routine_templates[{template_index}].failure_modes[{index}]"),
+                StringScanPolicy::Union,
                 errors,
             );
         }
         for (index, value) in template.debug_labels.iter().enumerate() {
-            reject_script_marker_text(
+            reject_text_by_policy(
                 value,
                 format!("routine_templates[{template_index}].debug_labels[{index}]"),
+                StringScanPolicy::Union,
                 errors,
             );
         }
         if let Some(value) = &template.reservable_resource {
-            reject_script_marker_text(
+            reject_text_by_policy(
                 value,
                 format!("routine_templates[{template_index}].reservable_resource"),
+                StringScanPolicy::Union,
                 errors,
             );
         }
         for (index, step) in template.steps.iter().enumerate() {
             match step.proposed() {
-                RoutineStepProposal::Action(action_id) => reject_script_marker_text(
+                RoutineStepProposal::Action(action_id) => reject_text_by_policy(
                     action_id.as_str(),
                     format!("routine_templates[{template_index}].steps[{index}]"),
+                    StringScanPolicy::Union,
                     errors,
                 ),
-                RoutineStepProposal::Diagnostic(diagnostic) => reject_script_marker_text(
+                RoutineStepProposal::Diagnostic(diagnostic) => reject_text_by_policy(
                     diagnostic,
                     format!("routine_templates[{template_index}].steps[{index}]"),
+                    StringScanPolicy::Union,
                     errors,
                 ),
-                RoutineStepProposal::Wait(reason) => reject_script_marker_text(
+                RoutineStepProposal::Wait(reason) => reject_text_by_policy(
                     reason,
                     format!("routine_templates[{template_index}].steps[{index}]"),
+                    StringScanPolicy::Union,
                     errors,
                 ),
             }
         }
         for (index, fallback) in template.fallback_rules.iter().enumerate() {
-            reject_script_marker_text(
+            reject_text_by_policy(
                 fallback,
                 format!("routine_templates[{template_index}].fallback_rules[{index}]"),
+                StringScanPolicy::Union,
                 errors,
             );
         }
@@ -1452,14 +1643,55 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
 }
 
 #[cfg(test)]
-const SCANNED_STRING_FIELDS: &[&str] = &[
-    "PlaceSchema.display_label",
-    "ActionAffordanceSchema.target_id",
-    "WorkplaceSchema.output_tag",
-    "RoutineTemplateSchema.failure_modes",
-    "RoutineTemplateSchema.fallback_rules",
-    "RoutineTemplateSchema.debug_labels",
-    "RoutineTemplateSchema.reservable_resource",
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct StringFieldScanRegistration {
+    field: &'static str,
+    policy: StringScanPolicy,
+    rationale: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StringScanPolicy {
+    Union,
+}
+
+#[cfg(test)]
+const SCANNED_STRING_FIELDS: &[StringFieldScanRegistration] = &[
+    StringFieldScanRegistration {
+        field: "PlaceSchema.display_label",
+        policy: StringScanPolicy::Union,
+        rationale: "display text can carry authored-outcome or shortcut markers",
+    },
+    StringFieldScanRegistration {
+        field: "ActionAffordanceSchema.target_id",
+        policy: StringScanPolicy::Union,
+        rationale: "free-form target text can smuggle script or shortcut markers",
+    },
+    StringFieldScanRegistration {
+        field: "WorkplaceSchema.output_tag",
+        policy: StringScanPolicy::Union,
+        rationale: "output tags are free-form fixture text and must not encode outcomes",
+    },
+    StringFieldScanRegistration {
+        field: "RoutineTemplateSchema.failure_modes",
+        policy: StringScanPolicy::Union,
+        rationale: "routine labels can otherwise become authored outcomes",
+    },
+    StringFieldScanRegistration {
+        field: "RoutineTemplateSchema.fallback_rules",
+        policy: StringScanPolicy::Union,
+        rationale: "fallback labels can otherwise become direct behavior scripts",
+    },
+    StringFieldScanRegistration {
+        field: "RoutineTemplateSchema.debug_labels",
+        policy: StringScanPolicy::Union,
+        rationale: "debug labels must not smuggle acceptance or shortcut markers",
+    },
+    StringFieldScanRegistration {
+        field: "RoutineTemplateSchema.reservable_resource",
+        policy: StringScanPolicy::Union,
+        rationale: "reservable-resource text participates in routine policy",
+    },
 ];
 
 fn planner_intended_seed_text(
@@ -1489,6 +1721,20 @@ fn contains_planner_seed_marker(value: String) -> bool {
         "workplace_access",
     ];
     markers.iter().any(|marker| value.contains(marker))
+}
+
+fn reject_text_by_policy(
+    value: &str,
+    path: String,
+    policy: StringScanPolicy,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    match policy {
+        StringScanPolicy::Union => {
+            reject_script_marker_text(value, path.clone(), errors);
+            reject_shortcut_text(value, path, errors);
+        }
+    }
 }
 
 fn reject_script_marker_text(value: &str, path: String, errors: &mut Vec<ContentValidationError>) {
@@ -1535,9 +1781,10 @@ fn validate_phase3a_no_shortcuts(
         );
     }
     for (index, workplace) in fixture.workplaces.iter().enumerate() {
-        reject_shortcut_text(
+        reject_text_by_policy(
             &workplace.output_tag,
             format!("workplaces[{index}].output_tag"),
+            StringScanPolicy::Union,
             errors,
         );
     }
@@ -2060,6 +2307,7 @@ mod tests {
             max_fatigue_to_start: 800,
             max_hunger_to_start: 850,
             access_open: true,
+            role_notice_access_open: true,
             output_tag: "service_completed_placeholder".to_string(),
         });
         fixture.routine_templates.push(valid_routine_template());
@@ -2115,6 +2363,75 @@ mod tests {
     }
 
     #[test]
+    fn excessive_need_tuning_magnitude_is_rejected_against_need_max() {
+        let mut fixture = phase3a_fixture();
+        fixture.need_model.awake_hunger_delta_per_tick = i32::from(NEED_MAX) + 1;
+
+        let errors = validate_fixture(&fixture, &registry()).unwrap_err();
+
+        assert!(errors.report.errors.iter().any(|error| {
+            error.code == "invalid_tuning_magnitude"
+                && error.path == "need_model.awake_hunger_delta_per_tick"
+        }));
+    }
+
+    #[test]
+    fn fixture_workplace_zero_duration_rejected_001() {
+        let mut fixture = phase3a_fixture();
+        fixture.workplaces[0].work_duration_ticks = 0;
+
+        let errors = validate_fixture(&fixture, &registry()).unwrap_err();
+
+        assert!(errors.report.errors.iter().any(|error| {
+            error.code == "invalid_duration" && error.path == "workplaces[0].work_duration_ticks"
+        }));
+    }
+
+    #[test]
+    fn fixture_initial_need_out_of_band_rejected_001() {
+        let mut fixture = phase3a_fixture();
+        fixture.initial_needs[0].value = NEED_MAX + 1;
+
+        let errors = validate_fixture(&fixture, &registry()).unwrap_err();
+
+        assert!(errors.report.errors.iter().any(|error| {
+            error.code == "invalid_need_band" && error.path == "initial_needs[0].value"
+        }));
+    }
+
+    #[test]
+    fn fixture_relief_zero_and_need_gate_out_of_band_are_rejected_001() {
+        let mut fixture = phase3a_fixture();
+        fixture.food_supplies[0].hunger_reduction_per_serving = 0;
+        fixture.sleep_places[0].fatigue_recovery_per_tick = 0;
+        fixture.workplaces[0].max_fatigue_to_start = -1;
+        fixture.workplaces[0].max_hunger_to_start = i32::from(NEED_MAX) + 1;
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+        for (code, path) in [
+            (
+                "invalid_relief_magnitude",
+                "food_supplies[0].hunger_reduction_per_serving",
+            ),
+            (
+                "invalid_relief_magnitude",
+                "sleep_places[0].fatigue_recovery_per_tick",
+            ),
+            ("invalid_need_band", "workplaces[0].max_fatigue_to_start"),
+            ("invalid_need_band", "workplaces[0].max_hunger_to_start"),
+        ] {
+            assert!(
+                report
+                    .errors
+                    .iter()
+                    .any(|error| error.code == code && error.path == path),
+                "missing {code} at {path}: {report:?}"
+            );
+        }
+    }
+
+    #[test]
     fn display_label_script_marker_is_rejected() {
         let mut fixture = fixture();
         fixture.places[0].display_label = "expected_final_event hidden truth".to_string();
@@ -2127,10 +2444,67 @@ mod tests {
     }
 
     #[test]
+    fn fixture_output_tag_script_marker_rejected_001() {
+        let mut fixture = phase3a_fixture();
+        fixture.workplaces[0].output_tag = "expected_final_event".to_string();
+
+        let errors = validate_fixture(&fixture, &registry()).unwrap_err();
+
+        assert!(errors.report.errors.iter().any(|error| {
+            error.code == "authored_outcome_chain" && error.path == "workplaces[0].output_tag"
+        }));
+    }
+
+    #[test]
+    fn schema_numeric_fields_are_classified_for_validation_policy() {
+        let schema = include_str!("schema.rs");
+        let discovered = discover_schema_fields(schema, |field_type| {
+            matches!(field_type, "i32" | "u16" | "u32" | "u64" | "Vec<usize>")
+        });
+
+        let registered = NUMERIC_FIELD_REGISTRY
+            .iter()
+            .map(|registration| registration.field.to_string())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(discovered, registered);
+        assert!(NUMERIC_FIELD_REGISTRY.iter().any(|registration| {
+            registration.field == "InitialNeedSchema.value"
+                && registration.policy == NumericFieldPolicy::NeedBandU16
+        }));
+        assert!(NUMERIC_FIELD_REGISTRY.iter().any(|registration| {
+            registration.field == "FoodSupplySchema.hunger_reduction_per_serving"
+                && registration.policy == NumericFieldPolicy::ReliefPositive
+        }));
+    }
+
+    #[test]
     fn schema_string_fields_are_classified_for_script_scanning() {
         let schema = include_str!("schema.rs");
+        let discovered = discover_schema_fields(schema, |field_type| {
+            matches!(field_type, "String" | "Option<String>" | "Vec<String>")
+        });
+
+        let registered = SCANNED_STRING_FIELDS
+            .iter()
+            .map(|registration| registration.field.to_string())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(discovered, registered);
+        for registration in SCANNED_STRING_FIELDS {
+            assert_eq!(registration.policy, StringScanPolicy::Union);
+            assert!(
+                !registration.rationale.is_empty(),
+                "{} needs a narrower-policy rationale or union policy rationale",
+                registration.field
+            );
+        }
+    }
+
+    fn discover_schema_fields(
+        schema: &str,
+        include_type: impl Fn(&str) -> bool,
+    ) -> BTreeSet<String> {
         let mut current_struct = None;
-        let mut discovered = std::collections::BTreeSet::new();
+        let mut discovered = BTreeSet::new();
         for line in schema.lines() {
             let trimmed = line.trim();
             if let Some(rest) = trimmed.strip_prefix("pub struct ") {
@@ -2147,22 +2521,17 @@ mod tests {
                 current_struct = None;
                 continue;
             }
-            if trimmed.starts_with("pub ") && trimmed.contains("String") {
-                let field = trimmed
-                    .trim_start_matches("pub ")
-                    .split(':')
-                    .next()
-                    .unwrap();
-                discovered.insert(format!("{struct_name}.{field}"));
+            if let Some(rest) = trimmed.strip_prefix("pub ") {
+                let Some((field, field_type)) = rest.split_once(':') else {
+                    continue;
+                };
+                let normalized_type = field_type.trim().trim_end_matches(',');
+                if include_type(normalized_type) {
+                    discovered.insert(format!("{struct_name}.{field}"));
+                }
             }
         }
-
-        let registered = SCANNED_STRING_FIELDS
-            .iter()
-            .copied()
-            .map(str::to_string)
-            .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(discovered, registered);
+        discovered
     }
 
     #[test]

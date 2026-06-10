@@ -29,6 +29,13 @@ use crate::view_models::{
 struct ActorKnownWorkplaceSurface {
     workplace_id: WorkplaceId,
     place_id: PlaceId,
+    believed_access_open: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ActorKnownFoodSourceSurface {
+    food_supply_id: FoodSupplyId,
+    believed_servings: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -41,7 +48,7 @@ pub struct EmbodiedProjectionSource<'a> {
     state: &'a PhysicalState,
     agent_state: Option<&'a AgentState>,
     knowledge_context_id: HolderKnownContextId,
-    actor_known_food_sources: Vec<FoodSupplyId>,
+    actor_known_food_sources: Vec<ActorKnownFoodSourceSurface>,
     actor_known_sleep_affordances: Vec<SleepAffordanceId>,
     actor_known_routes: Vec<PlaceId>,
     actor_known_workplaces: Vec<ActorKnownWorkplaceSurface>,
@@ -73,11 +80,16 @@ impl<'a> EmbodiedProjectionSource<'a> {
     }
 }
 
-fn actor_known_food_sources_for_context(context: &KnowledgeContext) -> Vec<FoodSupplyId> {
+fn actor_known_food_sources_for_context(
+    context: &KnowledgeContext,
+) -> Vec<ActorKnownFoodSourceSurface> {
     let mut food_sources = context
         .actor_known_food_sources()
         .iter()
-        .map(|fact| fact.food_supply_id().clone())
+        .map(|fact| ActorKnownFoodSourceSurface {
+            food_supply_id: fact.food_supply_id().clone(),
+            believed_servings: fact.believed_servings(),
+        })
         .collect::<Vec<_>>();
     food_sources.sort();
     food_sources.dedup();
@@ -119,6 +131,7 @@ fn actor_known_workplaces_for_context(
         .map(|fact| ActorKnownWorkplaceSurface {
             workplace_id: fact.workplace_id().clone(),
             place_id: fact.place_id().clone(),
+            believed_access_open: fact.believed_access_open(),
         })
         .collect::<Vec<_>>();
     workplaces.sort();
@@ -674,33 +687,41 @@ fn phase3a_semantic_actions(
 ) -> Vec<SemanticActionEntry> {
     let mut actions = Vec::new();
     if let Some(sleep_affordance_id) = visible_open_sleep_affordance(source) {
-        actions.push(SemanticActionEntry::new(
+        actions.push(SemanticActionEntry::with_availability(
             SemanticActionId::new("sleep.here").unwrap(),
             ActionId::new("sleep").unwrap(),
             vec![sleep_affordance_id.to_string()],
             "Sleep here",
-            true,
-            None,
+            ActionAvailability::available(),
         ));
     }
 
-    for food_supply_id in &source.actor_known_food_sources {
-        actions.push(SemanticActionEntry::new(
-            SemanticActionId::new(format!("eat.food.{}", food_supply_id.as_str())).unwrap(),
+    for food_source in &source.actor_known_food_sources {
+        let availability = match food_source.believed_servings {
+            Some(0) => ActionAvailability::disabled(
+                vec![ReasonCode::KnowledgePreconditionNotMet],
+                "You know that food source is empty.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    source.knowledge_context_id.as_str(),
+                )],
+                Vec::new(),
+            ),
+            _ => ActionAvailability::available(),
+        };
+        actions.push(SemanticActionEntry::with_availability(
+            SemanticActionId::new(format!("eat.food.{}", food_source.food_supply_id.as_str()))
+                .unwrap(),
             ActionId::new("eat").unwrap(),
-            vec![food_supply_id.to_string()],
-            format!("Eat {}", food_supply_id.as_str()),
-            true,
-            None,
+            vec![food_source.food_supply_id.to_string()],
+            format!("Eat {}", food_source.food_supply_id.as_str()),
+            availability,
         ));
     }
 
     for workplace in &source.actor_known_workplaces {
         let at_workplace = workplace.place_id == actor.current_place_id;
-        let enabled = at_workplace;
-        let availability = if enabled {
-            ActionAvailability::available()
-        } else {
+        let availability = if !at_workplace {
             ActionAvailability::disabled(
                 vec![ReasonCode::ActorNotAtRequiredPlace],
                 "You are not at that workplace.",
@@ -710,6 +731,18 @@ fn phase3a_semantic_actions(
                 )],
                 Vec::new(),
             )
+        } else if !workplace.believed_access_open {
+            ActionAvailability::disabled(
+                vec![ReasonCode::KnowledgePreconditionNotMet],
+                "You know that workplace access is closed.",
+                vec![ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    source.knowledge_context_id.as_str(),
+                )],
+                Vec::new(),
+            )
+        } else {
+            ActionAvailability::available()
         };
         actions.push(SemanticActionEntry::with_availability(
             SemanticActionId::new(format!("work.block.{}", workplace.workplace_id.as_str()))
@@ -732,7 +765,7 @@ fn phase3a_semantic_actions(
                     .map(|intention| (intention_id, intention))
             })
     }) {
-        actions.push(SemanticActionEntry::new(
+        actions.push(SemanticActionEntry::with_availability(
             SemanticActionId::new(format!("continue.routine.{}", intention_id.as_str())).unwrap(),
             ActionId::new("continue_routine").unwrap(),
             vec![
@@ -743,8 +776,7 @@ fn phase3a_semantic_actions(
                     .unwrap_or_else(|| "wait".to_string()),
             ],
             "Continue routine",
-            true,
-            None,
+            ActionAvailability::available(),
         ));
     }
 
@@ -1785,6 +1817,7 @@ mod tests {
             vec![crate::epistemics::ActorKnownWorkplaceFact::new(
                 WorkplaceId::new("workplace_tomas").unwrap(),
                 place_id("shop_front"),
+                true,
                 "routine_assignment_notice",
             )],
             vec![crate::epistemics::ActorKnownFoodSourceFact::new(

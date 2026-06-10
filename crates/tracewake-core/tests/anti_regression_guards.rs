@@ -43,6 +43,13 @@ struct SchedulerMarkerAllowlistEntry {
     responsible_layer: &'static str,
 }
 
+struct TruthAccessorAllowlistEntry {
+    path: &'static str,
+    token: &'static str,
+    rationale: &'static str,
+    responsible_layer: &'static str,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum WorkspaceSourceClass {
     GuardedLayer,
@@ -147,6 +154,96 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
     },
 ];
 
+const COGNITION_TRUTH_ACCESSOR_TOKENS: &[&str] = &[
+    "state.workplaces",
+    "state.food_supplies",
+    "state.sleep_affordances",
+    ".workplaces()",
+    ".food_supplies()",
+    ".sleep_affordances()",
+];
+
+const TRUTH_ACCESSOR_ALLOWLIST: &[TruthAccessorAllowlistEntry] = &[
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/eat.rs",
+        token: "state.food_supplies",
+        rationale: "eat validator reads authoritative food supply truth at commit time",
+        responsible_layer: "action_validation",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/sleep.rs",
+        token: "state.sleep_affordances",
+        rationale: "sleep validator reads authoritative sleep affordance truth at commit time",
+        responsible_layer: "action_validation",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/work.rs",
+        token: "state.workplaces",
+        rationale: "work validator reads authoritative workplace truth at commit time",
+        responsible_layer: "action_validation",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/agent/perception.rs",
+        token: "state.food_supplies",
+        rationale: "perception derives evented observations from visible current-place truth",
+        responsible_layer: "projection",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/agent/perception.rs",
+        token: ".food_supplies()",
+        rationale: "perception derives evented observations from visible current-place truth",
+        responsible_layer: "projection",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/agent/perception.rs",
+        token: ".sleep_affordances()",
+        rationale: "perception derives evented observations from visible current-place truth",
+        responsible_layer: "projection",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/projections.rs",
+        token: ".food_supplies()",
+        rationale: "view projections render current physical truth, not actor cognition inputs",
+        responsible_layer: "view_model",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/projections.rs",
+        token: ".sleep_affordances()",
+        rationale: "view projections render current physical truth, not actor cognition inputs",
+        responsible_layer: "view_model",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/projections.rs",
+        token: ".workplaces()",
+        rationale: "view projections render current physical truth, not actor cognition inputs",
+        responsible_layer: "view_model",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/checksum.rs",
+        token: "state.food_supplies",
+        rationale: "checksum code serializes authoritative state for replay verification",
+        responsible_layer: "replay_checksum",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/checksum.rs",
+        token: "state.workplaces",
+        rationale: "checksum code serializes authoritative state for replay verification",
+        responsible_layer: "replay_checksum",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/checksum.rs",
+        token: "state.sleep_affordances",
+        rationale: "checksum code serializes authoritative state for replay verification",
+        responsible_layer: "replay_checksum",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-content/src/fixtures/no_human_unseen_workplace_assignment_does_not_plan_work_001.rs",
+        token: "state.workplaces",
+        rationale: "fixture contract text names the forbidden raw assignment surface being tested",
+        responsible_layer: "content_fixture_contract",
+    },
+];
+
 const LATER_PHASE_REGISTRATION_CALLS: &[&str] = &[
     "register_phase2a_",
     "register_phase3a_",
@@ -205,6 +302,10 @@ fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
         !haystack.as_ref().contains(needle),
         "forbidden shortcut reintroduced: {needle}"
     );
+}
+
+fn normalized_source(source: &str) -> String {
+    source.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
@@ -317,6 +418,7 @@ const TUI_RATIONALE: &str =
     "tui crate is a boundary/presentation layer, not authoritative simulation outcome logic";
 
 const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/container_item_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_attach_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_omniscience_excluded_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -327,6 +429,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_unknown_sleep_affordance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_unobserved_food_at_open_place_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_workplace_availability_reflects_belief_not_truth_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_workplace_believed_open_truth_closed_commit_fails_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/expectation_contradiction_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/food_unavailable_replan_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/forbidden_provenance_input_fails_closed_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -367,6 +470,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/strongbox_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/view_filtering_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/view_model_local_actions_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/wait_then_window_passive_charges_each_tick_once_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/work_block_failed_then_sleep_succeeds_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/work_completion_fails_when_actor_displaced_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/workplace_assignment_provenance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -504,6 +608,50 @@ fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
             "{path}: forbidden shortcut reintroduced: {needle}"
         );
     }
+}
+
+fn truth_accessor_is_allowlisted(path: &str, token: &str) -> bool {
+    TRUTH_ACCESSOR_ALLOWLIST.iter().any(|entry| {
+        entry.path == path
+            && entry.token == token
+            && !entry.rationale.is_empty()
+            && !entry.responsible_layer.is_empty()
+    })
+}
+
+fn cognition_input_truth_accessor_violations_from_sources(
+    sources: &[(String, String)],
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (path, source) in sources {
+        for token in COGNITION_TRUTH_ACCESSOR_TOKENS {
+            if source.contains(token) && !truth_accessor_is_allowlisted(path, token) {
+                violations.push(format!("{path}: unallowlisted truth accessor {token}"));
+            }
+        }
+    }
+    violations
+}
+
+#[test]
+fn cognition_inputs_are_context_backed() {
+    let violations = cognition_input_truth_accessor_violations_from_sources(&production_sources());
+    assert!(
+        violations.is_empty(),
+        "truth accessors must be workspace-wide allowlisted outside actor-known context derivation: {violations:#?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/view_models.rs".to_string(),
+        "fn leak(state: &PhysicalState) { let _ = state.workplaces.get(&id); }".to_string(),
+    )];
+    let synthetic = cognition_input_truth_accessor_violations_from_sources(&synthetic_sources);
+    assert!(
+        synthetic
+            .iter()
+            .any(|violation| violation.contains("state.workplaces")),
+        "synthetic exempt-file truth accessor must fail the workspace-wide guard"
+    );
 }
 
 #[test]
@@ -1645,6 +1793,7 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
 
 #[test]
 fn guard_018_actor_known_facts_require_source_event_witness() {
+    let actor_known_normalized = normalized_source(ACTOR_KNOWN_RS);
     assert!(
         ACTOR_KNOWN_RS.contains("pub struct SourceEventIds"),
         "actor-known facts must expose a typed source-event witness"
@@ -1661,20 +1810,21 @@ fn guard_018_actor_known_facts_require_source_event_witness() {
         !NO_HUMAN_SURFACE_RS.contains("pub fn with_sleep_place_knowledge"),
         "raw sleep-place convenience construction must stay deleted"
     );
-    assert_eq!(
-        ACTOR_KNOWN_RS
-            .matches("source_event_ids: Vec::new()")
-            .count(),
-        1,
-        "the only empty-source actor-known fact path must be the rejected unproven path"
+    assert!(
+        actor_known_normalized.contains("source_event_ids: SourceEventIds"),
+        "ActorKnownFact must store the typed source-event witness, not a raw Vec"
     );
     assert!(
-        ACTOR_KNOWN_RS.contains("fn unbacked_for_rejected_test_only"),
-        "the remaining empty-source path must be explicitly named as rejected/test-only"
+        !actor_known_normalized.contains("source_event_ids: Vec < EventId >")
+            && !actor_known_normalized.contains("source_event_ids: Vec<EventId>")
+            && !actor_known_normalized.contains("source_event_ids: Vec::new")
+            && !actor_known_normalized.contains("source_event_ids: vec!"),
+        "ActorKnownFact must not store or construct raw/empty source-event id vectors"
     );
     assert!(
-        TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
-        "transaction boundary must fail closed on dangling actor-known provenance"
+        TRANSACTION_RS.contains("fact.source_event_ids().is_empty()")
+            && TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
+        "transaction boundary must fail closed on empty or dangling actor-known provenance"
     );
 }
 
@@ -1739,6 +1889,8 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
     let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     let agent_sources = guarded_sources_for(GuardedLayer::Agent);
     let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+    let consume_projection_record = body_after_marker(&builder, "fn consume_projection_record");
+    let push_projection_fact = body_after_marker(&builder, "fn push_projection_fact");
 
     for forbidden in [
         "PhysicalState",
@@ -1767,7 +1919,11 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
     assert_absent(&actor_known, "pub fn add_actor_known_fact");
     assert!(builder.contains("pub fn from_projection("));
     assert!(builder.contains("fn consume_projection_records"));
-    assert!(builder.contains("projection.actor_known_records_for_context"));
+    assert!(builder.contains("projection.classified_actor_known_records_for_context"));
+    assert!(builder.contains("ActorKnownProjectionFreshness::CurrentlyPerceived"));
+    assert_absent(consume_projection_record, "ActorKnownFact::observed_now");
+    assert!(push_projection_fact.contains("ActorKnownFact::observed_now"));
+    assert!(push_projection_fact.contains("ActorKnownFact::remembered_belief"));
     assert_absent(&builder, "pub fn from_event_log(");
     assert_absent(&builder, "fn consume_role_assignment_notice");
     assert_absent(&builder, "fn consume_starting_belief");
@@ -1798,7 +1954,8 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     );
     assert_absent(&projection, "actor_known_workplaces_for_context(state");
     assert!(
-        projection.contains("fn actor_known_food_sources_for_context(context: &KnowledgeContext)"),
+        projection.contains("fn actor_known_food_sources_for_context")
+            && projection.contains("context: &KnowledgeContext"),
         "embodied food affordances must be selected from sealed holder-known food facts"
     );
     assert!(
@@ -1819,6 +1976,18 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     assert_absent_from_sources(
         &projection_sources,
         "actor_known_workplaces_for_context(state",
+    );
+}
+
+#[test]
+fn guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability() {
+    let projection = production(PROJECTIONS_RS);
+    let phase3a_actions = body_after_marker(&projection, "fn phase3a_semantic_actions");
+
+    assert_absent(phase3a_actions, "SemanticActionEntry::new(");
+    assert!(
+        phase3a_actions.contains("SemanticActionEntry::with_availability("),
+        "Phase 3A actions must carry explicit availability evidence instead of literal true"
     );
 }
 
@@ -2045,23 +2214,29 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
 
     let allowlist = AGENT_WORLD_NOOP_ALLOWLIST
         .iter()
-        .map(|kind| kind.stable_id())
+        .map(|kind| {
+            let citation = match kind {
+                EventKind::FoodConsumed => "dual_stream_physical_food_supply_checksum",
+                EventKind::NoHumanDayStarted | EventKind::NoHumanDayCompleted => {
+                    "payload_free_no_human_marker"
+                }
+                _ => "",
+            };
+            (kind.stable_id(), citation)
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(
         allowlist,
         vec![
-            "candidate_goals_evaluated",
-            "food_consumed",
-            "continue_routine_proposed",
-            "continue_routine_accepted",
-            "continue_routine_rejected",
-            "no_human_day_started",
-            "no_human_day_completed",
+            ("food_consumed", "dual_stream_physical_food_supply_checksum"),
+            ("no_human_day_started", "payload_free_no_human_marker"),
+            ("no_human_day_completed", "payload_free_no_human_marker"),
         ]
     );
     for materialized in [
         EventKind::NeedThresholdCrossed,
+        EventKind::CandidateGoalsEvaluated,
         EventKind::SleepStarted,
         EventKind::SleepCompleted,
         EventKind::SleepInterrupted,
@@ -2070,6 +2245,9 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
         EventKind::WorkBlockStarted,
         EventKind::WorkBlockCompleted,
         EventKind::WorkBlockFailed,
+        EventKind::ContinueRoutineProposed,
+        EventKind::ContinueRoutineAccepted,
+        EventKind::ContinueRoutineRejected,
     ] {
         assert!(!AGENT_WORLD_NOOP_ALLOWLIST.contains(&materialized));
     }

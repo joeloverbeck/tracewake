@@ -46,10 +46,25 @@ pub struct ActorKnownFact {
     tick: Option<SimTick>,
     actor_id: ActorId,
     provenance: ActorKnownProvenance,
-    source_event_ids: Vec<EventId>,
+    source_event_ids: SourceEventIds,
 }
 
 impl ActorKnownFact {
+    /// Actor-known facts require typed source-event witnesses.
+    ///
+    /// ```compile_fail
+    /// use tracewake_core::agent::ActorKnownFact;
+    /// use tracewake_core::ids::ActorId;
+    ///
+    /// let _fact = ActorKnownFact::observed_now(
+    ///     ActorId::new("actor_tomas").unwrap(),
+    ///     "actor_knows_food_source",
+    ///     "food_stew",
+    ///     "test",
+    ///     None,
+    ///     Vec::new(),
+    /// );
+    /// ```
     pub fn observed_now(
         actor_id: ActorId,
         stable_id: impl Into<String>,
@@ -135,13 +150,19 @@ impl ActorKnownFact {
     }
 
     pub fn unproven(stable_id: impl Into<String>, note: impl Into<String>) -> Self {
-        Self::unbacked_for_rejected_test_only(
+        let source_event_ids = SourceEventIds::checked(vec![EventId::new(
+            "event_unproven_physical_truth_rejected_test_only",
+        )
+        .unwrap()])
+        .unwrap();
+        Self::new(
             ActorId::new("actor_unknown").unwrap(),
             stable_id,
             "unproven",
             "",
             None,
             ActorKnownProvenance::UnprovenPhysicalTruth { note: note.into() },
+            source_event_ids,
         )
     }
 
@@ -161,26 +182,7 @@ impl ActorKnownFact {
             tick,
             actor_id,
             provenance,
-            source_event_ids: source_event_ids.ids,
-        }
-    }
-
-    fn unbacked_for_rejected_test_only(
-        actor_id: ActorId,
-        stable_id: impl Into<String>,
-        semantic_kind: impl Into<String>,
-        value: impl Into<String>,
-        tick: Option<SimTick>,
-        provenance: ActorKnownProvenance,
-    ) -> Self {
-        Self {
-            stable_id: stable_id.into(),
-            semantic_kind: semantic_kind.into(),
-            value: value.into(),
-            tick,
-            actor_id,
-            provenance,
-            source_event_ids: Vec::new(),
+            source_event_ids,
         }
     }
 
@@ -217,7 +219,7 @@ impl ActorKnownFact {
     }
 
     pub fn source_event_ids(&self) -> &[EventId] {
-        &self.source_event_ids
+        self.source_event_ids.as_slice()
     }
 }
 
@@ -310,23 +312,24 @@ impl ActorKnownPlanningContext {
     pub(crate) fn from_observed_parts(
         actor_id: ActorId,
         current_place_id: PlaceId,
-        known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-        known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
-        known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
-        known_food_sources: BTreeSet<String>,
-        known_sleep_places: BTreeSet<PlaceId>,
-        known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
+        _known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+        _known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
+        _known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
+        _known_food_sources: BTreeSet<String>,
+        _known_sleep_places: BTreeSet<PlaceId>,
+        _known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
         facts: Vec<ActorKnownFact>,
     ) -> Self {
+        let derived = DerivedActorKnownFields::from_facts(&facts);
         let mut context = Self {
             actor_id,
             current_place_id,
-            known_edges,
-            known_closed_doors,
-            known_containers_by_place,
-            known_food_sources,
-            known_sleep_places,
-            known_workplaces,
+            known_edges: derived.known_edges,
+            known_closed_doors: derived.known_closed_doors,
+            known_containers_by_place: derived.known_containers_by_place,
+            known_food_sources: derived.known_food_sources,
+            known_sleep_places: derived.known_sleep_places,
+            known_workplaces: derived.known_workplaces,
             facts,
         };
         context.sort_facts();
@@ -453,6 +456,78 @@ impl ActorKnownPlanningContext {
         self.facts.iter().any(|fact| {
             fact.stable_id() == stable_id && fact.value() == value && fact.is_actor_known()
         })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct DerivedActorKnownFields {
+    known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+    known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
+    known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
+    known_food_sources: BTreeSet<String>,
+    known_sleep_places: BTreeSet<PlaceId>,
+    known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
+}
+
+impl DerivedActorKnownFields {
+    fn from_facts(facts: &[ActorKnownFact]) -> Self {
+        let mut derived = Self::default();
+        for fact in facts.iter().filter(|fact| fact.is_actor_known()) {
+            match fact.stable_id() {
+                "known_route_surface" => {
+                    if let Some((from, to)) =
+                        fact.value().split_once("->").and_then(|(from, to)| {
+                            Some((PlaceId::new(from).ok()?, PlaceId::new(to).ok()?))
+                        })
+                    {
+                        derived.known_edges.entry(from).or_default().insert(to);
+                    }
+                }
+                "known_closed_door_surface" => {
+                    if let Some((edge, door_id)) = fact.value().split_once('@') {
+                        if let Some((from, to)) = edge.split_once("->").and_then(|(from, to)| {
+                            Some((PlaceId::new(from).ok()?, PlaceId::new(to).ok()?))
+                        }) {
+                            derived
+                                .known_closed_doors
+                                .insert((from, to), door_id.to_string());
+                        }
+                    }
+                }
+                "known_container_surface" => {
+                    if let Some((container_id, place_id)) = fact.value().split_once('@') {
+                        if let (Ok(container_id), Ok(place_id)) =
+                            (ContainerId::new(container_id), PlaceId::new(place_id))
+                        {
+                            derived
+                                .known_containers_by_place
+                                .entry(place_id)
+                                .or_default()
+                                .insert(container_id);
+                        }
+                    }
+                }
+                "actor_knows_food_source" => {
+                    derived.known_food_sources.insert(fact.value().to_string());
+                }
+                "actor_knows_sleep_place" => {
+                    if let Ok(place_id) = PlaceId::new(fact.value()) {
+                        derived.known_sleep_places.insert(place_id);
+                    }
+                }
+                "actor_knows_workplace" => {
+                    if let Some((workplace_id, place_id)) = fact.value().split_once('@') {
+                        if let (Ok(workplace_id), Ok(place_id)) =
+                            (WorkplaceId::new(workplace_id), PlaceId::new(place_id))
+                        {
+                            derived.known_workplaces.insert(workplace_id, place_id);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        derived
     }
 }
 
@@ -651,19 +726,17 @@ pub fn observe_visible_local(
             visible_local_source.clone(),
         ));
     }
-    let mut context = ActorKnownPlanningContext {
-        actor_id: actor_id.clone(),
-        current_place_id: visible_local.current_place_id.clone(),
-        known_edges: visible_local.visible_edges.clone(),
-        known_closed_doors: visible_local.visible_closed_doors.clone(),
-        known_containers_by_place: visible_local.visible_containers_by_place.clone(),
-        known_food_sources: visible_local.visible_food_sources.clone(),
-        known_sleep_places: visible_local.visible_sleep_places.clone(),
-        known_workplaces: visible_local.visible_workplaces.clone(),
+    ActorKnownPlanningContext::from_observed_parts(
+        actor_id.clone(),
+        visible_local.current_place_id.clone(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeSet::new(),
+        BTreeSet::new(),
+        BTreeMap::new(),
         facts,
-    };
-    context.sort_facts();
-    context
+    )
 }
 
 pub fn derive_hidden_truth_audit(
@@ -762,7 +835,72 @@ mod tests {
     }
 
     #[test]
-    fn hidden_truth_audit_rejects_structured_context_without_matching_fact() {
+    fn structured_actor_known_fields_are_derived_from_facts() {
+        let actor_id = actor_id();
+        let source =
+            SourceEventIds::checked(vec![EventId::new("event_test_source").unwrap()]).unwrap();
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id.clone(),
+            place_id("home"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id.clone(),
+                    "known_route_surface",
+                    "home->market",
+                    "test:route",
+                    None,
+                    source.clone(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id.clone(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "test:food",
+                    None,
+                    source.clone(),
+                ),
+                ActorKnownFact::remembered_belief(
+                    actor_id.clone(),
+                    "actor_knows_sleep_place",
+                    "home",
+                    "test:sleep",
+                    None,
+                    source.clone(),
+                ),
+                ActorKnownFact::routine_assignment(
+                    actor_id,
+                    "actor_knows_workplace",
+                    "workshop@market",
+                    "test:workplace",
+                    None,
+                    source,
+                ),
+            ],
+        );
+
+        assert!(context
+            .known_edges()
+            .get(&place_id("home"))
+            .is_some_and(|edges| edges.contains(&place_id("market"))));
+        assert!(context.known_food_sources().contains("food_stew"));
+        assert!(context.known_sleep_places().contains(&place_id("home")));
+        assert_eq!(
+            context
+                .known_workplaces()
+                .get(&WorkplaceId::new("workshop").unwrap()),
+            Some(&place_id("market"))
+        );
+        assert!(context.audit_with(&[]).actor_known_only);
+    }
+
+    #[test]
+    fn structured_context_without_matching_fact_is_not_constructed() {
         let context = ActorKnownPlanningContext::from_observed_parts(
             actor_id(),
             place_id("home"),
@@ -777,9 +915,8 @@ mod tests {
 
         let audit = context.audit_with(&[]);
 
-        assert!(!audit.actor_known_only);
-        assert!(audit
-            .notes
-            .contains("structured_context_without_fact:known_food_sources:food_hidden"));
+        assert!(context.known_food_sources().is_empty());
+        assert!(audit.actor_known_only);
+        assert!(!audit.notes.contains("food_hidden"));
     }
 }

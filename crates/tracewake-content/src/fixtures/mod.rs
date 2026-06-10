@@ -1,3 +1,4 @@
+mod aged_food_record_surfaces_as_remembered_belief_not_observation_001;
 mod container_item_move_001;
 mod debug_attach_001;
 mod debug_omniscience_excluded_001;
@@ -8,6 +9,7 @@ mod embodied_view_omits_raw_assignment_without_context_001;
 mod embodied_view_omits_unknown_sleep_affordance_001;
 mod embodied_view_omits_unobserved_food_at_open_place_001;
 mod embodied_workplace_availability_reflects_belief_not_truth_001;
+mod embodied_workplace_believed_open_truth_closed_commit_fails_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
 mod forbidden_provenance_input_fails_closed_001;
@@ -47,6 +49,7 @@ mod sound_uncertainty_001;
 mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
+mod wait_then_window_passive_charges_each_tick_once_001;
 mod work_block_failed_then_sleep_succeeds_001;
 mod work_completion_fails_when_actor_displaced_001;
 mod workplace_assignment_provenance_001;
@@ -72,6 +75,7 @@ use crate::schema::{
 };
 use crate::serialization::serialize_fixture;
 
+pub use aged_food_record_surfaces_as_remembered_belief_not_observation_001::aged_food_record_surfaces_as_remembered_belief_not_observation_001;
 pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
 pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
@@ -82,6 +86,7 @@ pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_om
 pub use embodied_view_omits_unknown_sleep_affordance_001::embodied_view_omits_unknown_sleep_affordance_001;
 pub use embodied_view_omits_unobserved_food_at_open_place_001::embodied_view_omits_unobserved_food_at_open_place_001;
 pub use embodied_workplace_availability_reflects_belief_not_truth_001::embodied_workplace_availability_reflects_belief_not_truth_001;
+pub use embodied_workplace_believed_open_truth_closed_commit_fails_001::embodied_workplace_believed_open_truth_closed_commit_fails_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use forbidden_provenance_input_fails_closed_001::forbidden_provenance_input_fails_closed_001;
@@ -121,6 +126,7 @@ pub use sound_uncertainty_001::sound_uncertainty_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
 pub use view_model_local_actions_001::view_model_local_actions_001;
+pub use wait_then_window_passive_charges_each_tick_once_001::wait_then_window_passive_charges_each_tick_once_001;
 pub use work_block_failed_then_sleep_succeeds_001::work_block_failed_then_sleep_succeeds_001;
 pub use work_completion_fails_when_actor_displaced_001::work_completion_fails_when_actor_displaced_001;
 pub use workplace_assignment_provenance_001::workplace_assignment_provenance_001;
@@ -166,6 +172,7 @@ pub fn all() -> Vec<GoldenFixture> {
         embodied_view_omits_raw_assignment_without_context_001(),
         embodied_menu_lags_truth_change_without_perception_001(),
         embodied_workplace_availability_reflects_belief_not_truth_001(),
+        embodied_workplace_believed_open_truth_closed_commit_fails_001(),
         embodied_view_omits_unobserved_food_at_open_place_001(),
         embodied_view_omits_unknown_sleep_affordance_001(),
         embodied_exits_require_perceived_or_known_route_001(),
@@ -201,12 +208,14 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_metrics_require_typed_responsible_layer_001(),
         sleep_interrupted_by_severe_need_prorates_recovery_001(),
         sleep_spanning_window_boundary_charges_each_tick_once_001(),
+        wait_then_window_passive_charges_each_tick_once_001(),
         work_completion_fails_when_actor_displaced_001(),
         work_block_failed_then_sleep_succeeds_001(),
         hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001(),
         no_human_workplace_knowledge_requires_notice_event_001(),
         no_human_sleep_knowledge_requires_observation_or_record_001(),
         no_human_observation_facts_cite_log_events_001(),
+        aged_food_record_surfaces_as_remembered_belief_not_observation_001(),
         severe_safety_with_known_exit_produces_move_001(),
         severe_safety_without_known_exit_waits_with_knowledge_blocker_001(),
         no_human_day_001(),
@@ -548,6 +557,7 @@ fn workplace_schema(
         max_fatigue_to_start: 800,
         max_hunger_to_start: 850,
         access_open,
+        role_notice_access_open: access_open,
         output_tag: format!("{workplace_id}_ordinary_output"),
     }
 }
