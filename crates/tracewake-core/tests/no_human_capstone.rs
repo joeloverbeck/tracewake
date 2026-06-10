@@ -80,6 +80,12 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
     assert!(metrics.work_blocks_completed > 0);
     assert!(metrics.work_blocks_failed > 0);
     assert_eq!(metrics.player_conditioned_event_count, 0);
+    assert!(!log.events().iter().any(|event| {
+        event
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "unspecified_wait")
+    }));
 
     let context = ChecksumContext {
         fixture_id: FixtureId::new("phase3a_capstone").unwrap(),
@@ -578,6 +584,9 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         SleepAffordanceState::new(
             SleepAffordanceId::new("bed_elena").unwrap(),
             PlaceId::new("home_elena").unwrap(),
+            4,
+            20,
+            2,
         ),
     );
 
@@ -594,6 +603,11 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     let mut closed_workplace = WorkplaceState::new(
         WorkplaceId::new("workplace_anna_closed").unwrap(),
         PlaceId::new("office_anna").unwrap(),
+        4,
+        8,
+        4,
+        900,
+        900,
         "blocked_office_output",
     );
     closed_workplace
@@ -608,6 +622,11 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     let mut open_workplace = WorkplaceState::new(
         WorkplaceId::new("workplace_tomas").unwrap(),
         PlaceId::new("workshop_tomas").unwrap(),
+        4,
+        8,
+        4,
+        900,
+        900,
         "tomas_work_output",
     );
     open_workplace

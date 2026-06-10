@@ -98,6 +98,16 @@ pub enum ApplyError {
     MissingCause,
 }
 
+pub const AGENT_WORLD_NOOP_ALLOWLIST: &[EventKind] = &[
+    EventKind::CandidateGoalsEvaluated,
+    EventKind::FoodConsumed,
+    EventKind::ContinueRoutineProposed,
+    EventKind::ContinueRoutineAccepted,
+    EventKind::ContinueRoutineRejected,
+    EventKind::NoHumanDayStarted,
+    EventKind::NoHumanDayCompleted,
+];
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EpistemicApplyError {
     UnsupportedEventSchemaVersion(String),
@@ -205,11 +215,40 @@ pub fn apply_epistemic_event(
             Ok(ApplyOutcome::Applied)
         }
         EventKind::ObservationRecorded => {
-            let observation = parse_observation_payload(&payload)?;
+            let observation =
+                parse_observation_payload(&payload)?.with_raw_payload(event.payload.clone());
             projection.insert_observation(observation);
             Ok(ApplyOutcome::Applied)
         }
-        EventKind::RoleAssignmentNoticeRecorded | EventKind::StartingBeliefRecorded => {
+        EventKind::RoleAssignmentNoticeRecorded => {
+            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+            let workplace_id = required_epistemic(&payload, "workplace_id").and_then(|value| {
+                crate::ids::WorkplaceId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+                    key: "workplace_id",
+                    value: value.to_string(),
+                })
+            })?;
+            let place_id = parse_place_id_epistemic(&payload, "place_id")?;
+            projection.insert_role_assignment_notice(
+                actor_id,
+                workplace_id,
+                place_id,
+                event.event_id.clone(),
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::StartingBeliefRecorded => {
+            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+            let belief_kind = required_epistemic(&payload, "belief_kind")?;
+            let subject_id = required_epistemic(&payload, "subject_id")?;
+            let value = required_epistemic(&payload, "value")?;
+            projection.insert_starting_belief(
+                actor_id,
+                belief_kind,
+                subject_id,
+                value,
+                event.event_id.clone(),
+            );
             Ok(ApplyOutcome::Applied)
         }
         EventKind::ExpectationContradicted => {
@@ -335,22 +374,78 @@ fn apply_agent_event_with_capability(
             state.stuck_diagnostics.insert(diagnostic_id, record);
             Ok(ApplyOutcome::Applied)
         }
-        EventKind::NeedThresholdCrossed
-        | EventKind::CandidateGoalsEvaluated
-        | EventKind::SleepStarted
+        EventKind::NeedThresholdCrossed => {
+            let actor_id = ActorId::new(required(&payload, "actor_id")?).map_err(|_| {
+                ApplyError::BadPayload {
+                    key: "actor_id",
+                    value: required(&payload, "actor_id")
+                        .unwrap_or_default()
+                        .to_string(),
+                }
+            })?;
+            let need_kind = match required(&payload, "need_kind")? {
+                "hunger" => NeedKind::Hunger,
+                "fatigue" => NeedKind::Fatigue,
+                "safety" => NeedKind::Safety,
+                value => {
+                    return Err(ApplyError::BadPayload {
+                        key: "need_kind",
+                        value: value.to_string(),
+                    });
+                }
+            };
+            let from_value = required(&payload, "from_value")?
+                .parse::<u16>()
+                .map_err(|_| ApplyError::BadPayload {
+                    key: "from_value",
+                    value: required(&payload, "from_value")
+                        .unwrap_or_default()
+                        .to_string(),
+                })?;
+            let to_value = required(&payload, "to_value")?
+                .parse::<u16>()
+                .map_err(|_| ApplyError::BadPayload {
+                    key: "to_value",
+                    value: required(&payload, "to_value")
+                        .unwrap_or_default()
+                        .to_string(),
+                })?;
+            state.need_threshold_crossings.insert(
+                event.event_id.clone(),
+                crate::state::NeedThresholdCrossingRecord {
+                    event_id: event.event_id.clone(),
+                    actor_id,
+                    need_kind,
+                    from_value,
+                    to_value,
+                    from_band: required(&payload, "from_band")?.to_string(),
+                    to_band: required(&payload, "to_band")?.to_string(),
+                },
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::SleepStarted
         | EventKind::SleepCompleted
         | EventKind::SleepInterrupted
-        | EventKind::FoodConsumed
         | EventKind::FoodServiceUsed
         | EventKind::EatFailed
         | EventKind::WorkBlockStarted
         | EventKind::WorkBlockCompleted
-        | EventKind::WorkBlockFailed
-        | EventKind::ContinueRoutineProposed
-        | EventKind::ContinueRoutineAccepted
-        | EventKind::ContinueRoutineRejected
-        | EventKind::NoHumanDayStarted
-        | EventKind::NoHumanDayCompleted => Ok(ApplyOutcome::WorldNoOp),
+        | EventKind::WorkBlockFailed => {
+            state.ordinary_life_episodes.insert(
+                event.event_id.clone(),
+                crate::state::OrdinaryLifeEpisodeRecord {
+                    event_id: event.event_id.clone(),
+                    event_kind: event.event_type.stable_id().to_string(),
+                    actor_id: event.actor_id.clone(),
+                    proposal_id: event.proposal_id.clone(),
+                    sim_tick: event.sim_tick,
+                    summary: event.effects_summary.clone(),
+                },
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        kind if AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) => Ok(ApplyOutcome::WorldNoOp),
         _ => Err(ApplyError::NonAgentEvent),
     }
 }
@@ -1441,7 +1536,7 @@ mod tests {
     }
 
     fn base_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state.places.insert(
             place_id("shop_front"),
             PlaceState::new(place_id("shop_front"), "Shop front"),
@@ -1898,5 +1993,51 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn threshold_and_episode_events_materialize_agent_projection_state() {
+        let mut state = AgentState::default();
+        let mut threshold = caused_agent_event(
+            EventKind::NeedThresholdCrossed,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("from_value", "249"),
+                PayloadField::new("to_value", "254"),
+                PayloadField::new("from_band", "comfortable"),
+                PayloadField::new("to_band", "rising"),
+            ],
+        );
+        threshold.event_id = EventId::new("event.threshold.hunger.actor_tomas").unwrap();
+        threshold.actor_id = Some(actor_id("actor_tomas"));
+        threshold.sim_tick = SimTick::new(7);
+
+        let mut sleep = caused_agent_event(EventKind::SleepStarted, Vec::new());
+        sleep.event_id = EventId::new("event.sleep.started.actor_tomas").unwrap();
+        sleep.actor_id = Some(actor_id("actor_tomas"));
+        sleep.proposal_id = Some(crate::ids::ProposalId::new("proposal_sleep").unwrap());
+        sleep.sim_tick = SimTick::new(8);
+        sleep.effects_summary = "sleep episode started".to_string();
+
+        assert_eq!(
+            apply_agent_event(&mut state, &threshold),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &sleep),
+            Ok(ApplyOutcome::Applied)
+        );
+
+        assert_eq!(state.need_threshold_crossings.len(), 1);
+        assert_eq!(
+            state.need_threshold_crossings[&threshold.event_id].to_band,
+            "rising"
+        );
+        assert_eq!(state.ordinary_life_episodes.len(), 1);
+        assert_eq!(
+            state.ordinary_life_episodes[&sleep.event_id].event_kind,
+            "sleep_started"
+        );
     }
 }

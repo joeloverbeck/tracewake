@@ -1,0 +1,30 @@
+# Scoped lock-layer mutation baseline for ORD-HARD-025.
+#
+# The CI/manual command also passes explicit `-f` filters for the guarded files.
+# These exclusions keep ad hoc local `cargo mutants` runs inside the same
+# reviewed perimeter: actor cognition, scheduler, projections, and action
+# pipeline boundary code.
+additional_cargo_args = ["--workspace", "--locked"]
+exclude_globs = [
+  "crates/tracewake-content/**",
+  "crates/tracewake-tui/**",
+  "crates/tracewake-core/src/actions/defs/**",
+  "crates/tracewake-core/src/actions/mod.rs",
+  "crates/tracewake-core/src/actions/proposal.rs",
+  "crates/tracewake-core/src/actions/registry.rs",
+  "crates/tracewake-core/src/actions/report.rs",
+  "crates/tracewake-core/src/checksum.rs",
+  "crates/tracewake-core/src/controller.rs",
+  "crates/tracewake-core/src/debug_capability.rs",
+  "crates/tracewake-core/src/debug_reports.rs",
+  "crates/tracewake-core/src/epistemics/**",
+  "crates/tracewake-core/src/events/**",
+  "crates/tracewake-core/src/ids.rs",
+  "crates/tracewake-core/src/lib.rs",
+  "crates/tracewake-core/src/location.rs",
+  "crates/tracewake-core/src/need_accounting.rs",
+  "crates/tracewake-core/src/replay/**",
+  "crates/tracewake-core/src/state.rs",
+  "crates/tracewake-core/src/time.rs",
+  "crates/tracewake-core/src/view_models.rs",
+]

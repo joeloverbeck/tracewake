@@ -18,6 +18,7 @@ pub enum PlannerGoal {
     EatKnownFood(String),
     StartSleep(PlaceId),
     StartWorkBlock(String),
+    LeaveUnsafePlace,
     WaitWithReason(String),
 }
 
@@ -74,6 +75,7 @@ pub fn plan_local_actions(
         PlannerGoal::StartWorkBlock(workplace_id) => {
             plan_start_work_block(state, request, workplace_id)
         }
+        PlannerGoal::LeaveUnsafePlace => plan_leave_unsafe_place(state, request),
         PlannerGoal::WaitWithReason(reason) => {
             let proposal = PlannedProposal {
                 action_id: ActionId::new("wait").unwrap(),
@@ -92,6 +94,29 @@ pub fn plan_local_actions(
             })
         }
     }
+}
+
+#[allow(clippy::result_large_err)]
+fn plan_leave_unsafe_place(
+    state: &ActorKnownPlanningContext,
+    request: &LocalPlanRequest,
+) -> Result<LocalPlan, LocalPlanFailure> {
+    let Some(target) = state
+        .known_edges()
+        .get(state.current_place_id())
+        .and_then(|neighbors| neighbors.iter().next())
+        .cloned()
+    else {
+        return Err(failure(
+            state,
+            request,
+            BlockerCategory::Knowledge,
+            "no actor-known exit from unsafe place",
+            vec![format!("place:{}", state.current_place_id().as_str())],
+        ));
+    };
+
+    plan_route(state, request, &target)
 }
 
 #[allow(clippy::result_large_err)]
@@ -395,11 +420,19 @@ mod tests {
     }
 
     fn observed_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
-        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None)
+        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None, test_source())
     }
 
     fn remembered_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
-        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None)
+        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None, test_source())
+    }
+
+    fn test_source() -> crate::agent::SourceEventIds {
+        crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
+            "event_test_actor_known",
+        )
+        .unwrap()])
+        .unwrap()
     }
 
     fn known_state() -> ActorKnownPlanningState {
@@ -413,16 +446,37 @@ mod tests {
             actor_id(),
             home.clone(),
             known_edges,
-            BTreeMap::from([((home, street.clone()), "door_home_street".to_string())]),
+            BTreeMap::from([(
+                (home.clone(), street.clone()),
+                "door_home_street".to_string(),
+            )]),
             BTreeMap::new(),
             BTreeSet::from(["food_soup_pot".to_string()]),
             BTreeSet::from([place("home")]),
             BTreeMap::new(),
-            vec![observed_fact(
-                "actor_knows_food_source",
-                "food_soup_pot",
-                "test:known_state",
-            )],
+            vec![
+                observed_fact(
+                    "actor_knows_food_source",
+                    "food_soup_pot",
+                    "test:known_state",
+                ),
+                observed_fact("actor_knows_sleep_place", home.as_str(), "test:known_state"),
+                observed_fact(
+                    "known_route_surface",
+                    &format!("{}->{}", home.as_str(), street.as_str()),
+                    "test:known_state",
+                ),
+                observed_fact(
+                    "known_route_surface",
+                    &format!("{}->{}", street.as_str(), office.as_str()),
+                    "test:known_state",
+                ),
+                observed_fact(
+                    "known_closed_door_surface",
+                    &format!("{}->{}@door_home_street", home.as_str(), street.as_str()),
+                    "test:known_state",
+                ),
+            ],
         )
     }
 

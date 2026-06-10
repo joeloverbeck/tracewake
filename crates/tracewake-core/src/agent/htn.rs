@@ -265,7 +265,14 @@ pub fn resolve_condition(
         }
         RoutineCondition::FixtureAuthoredPossibility
         | RoutineCondition::SharedPipelinePreconditions => {
-            satisfied(condition, "fixture_seed:validation_allowed")
+            if let Some(proof) = modeled_fact_proof(actor_known_facts, condition.stable_id()) {
+                satisfied(condition, proof)
+            } else {
+                unknown(
+                    condition,
+                    format!("missing actor-known input {}", condition.stable_id()),
+                )
+            }
         }
     }
 }
@@ -329,11 +336,19 @@ mod tests {
     }
 
     fn observed_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
-        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None)
+        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None, test_source())
     }
 
     fn remembered_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
-        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None)
+        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None, test_source())
+    }
+
+    fn test_source() -> crate::agent::SourceEventIds {
+        crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
+            "event_test_actor_known",
+        )
+        .unwrap()])
+        .unwrap()
     }
 
     fn planning_state(known_food: &[&str]) -> ActorKnownPlanningState {
@@ -376,6 +391,16 @@ mod tests {
                 "known_route_surface",
                 "home_tomas->market_square",
                 "test:visible_route",
+            ),
+            remembered_fact(
+                "fixture_authored_possibility",
+                "fixture_allowed",
+                "test:fixture_possibility",
+            ),
+            remembered_fact(
+                "shared_pipeline_preconditions",
+                "pipeline_allowed",
+                "test:pipeline_preconditions",
             ),
         ];
         if !known_food.is_empty() {
@@ -570,7 +595,18 @@ mod tests {
         let selection = select_method_from_templates(
             &candidate(GoalKind::FindFood),
             &planning_state(&[]),
-            &[],
+            &[
+                remembered_fact(
+                    "fixture_authored_possibility",
+                    "fixture_allowed",
+                    "test:fixture_possibility",
+                ),
+                remembered_fact(
+                    "shared_pipeline_preconditions",
+                    "pipeline_allowed",
+                    "test:pipeline_preconditions",
+                ),
+            ],
             SimTick::new(10),
             &[selected, rejected],
         )
@@ -591,6 +627,44 @@ mod tests {
             .trace
             .beliefs_perceptions_known_places_used
             .iter()
-            .any(|proof| proof.contains("fixture_seed")));
+            .any(|proof| proof.contains("fixture_authored_possibility")));
+    }
+
+    #[test]
+    fn fixture_and_shared_conditions_require_actor_known_facts() {
+        let state = planning_state(&[]);
+
+        let fixture = resolve_condition(&RoutineCondition::FixtureAuthoredPossibility, &state, &[]);
+        assert!(matches!(fixture, ConditionResolution::Unknown { .. }));
+
+        let shared = resolve_condition(&RoutineCondition::SharedPipelinePreconditions, &state, &[]);
+        assert!(matches!(shared, ConditionResolution::Unknown { .. }));
+
+        let inputs = vec![
+            remembered_fact(
+                "fixture_authored_possibility",
+                "fixture_allowed",
+                "test:fixture_possibility",
+            ),
+            remembered_fact(
+                "shared_pipeline_preconditions",
+                "pipeline_allowed",
+                "test:pipeline_preconditions",
+            ),
+        ];
+
+        let fixture = resolve_condition(
+            &RoutineCondition::FixtureAuthoredPossibility,
+            &state,
+            &inputs,
+        );
+        assert!(matches!(fixture, ConditionResolution::Satisfied { .. }));
+
+        let shared = resolve_condition(
+            &RoutineCondition::SharedPipelinePreconditions,
+            &state,
+            &inputs,
+        );
+        assert!(matches!(shared, ConditionResolution::Satisfied { .. }));
     }
 }

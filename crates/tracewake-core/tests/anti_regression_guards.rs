@@ -43,6 +43,18 @@ struct SchedulerMarkerAllowlistEntry {
     responsible_layer: &'static str,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WorkspaceSourceClass {
+    GuardedLayer,
+    Exempt { rationale: &'static str },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct WorkspaceSourceClassification {
+    path: &'static str,
+    class: WorkspaceSourceClass,
+}
+
 const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
     BannedApiToken {
         token: "HashMap",
@@ -65,6 +77,10 @@ const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
         reason: "randomness must be seedable, scoped, recorded, and replayable",
     },
     BannedApiToken {
+        token: "std::env::var",
+        reason: "environment state is outside replay material; use content/config material",
+    },
+    BannedApiToken {
         token: "thread::spawn",
         reason: "thread scheduling is nondeterministic for outcome paths",
     },
@@ -75,6 +91,14 @@ const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
     BannedApiToken {
         token: "std::fs::",
         reason: "outcome paths must consume validated content, not ad hoc filesystem reads",
+    },
+    BannedApiToken {
+        token: "std::fs::write",
+        reason: "outcome paths must emit replayable events, not ad hoc filesystem writes",
+    },
+    BannedApiToken {
+        token: "OpenOptions",
+        reason: "outcome paths must not perform ad hoc filesystem reads or writes",
     },
     BannedApiToken {
         token: "File::open",
@@ -229,11 +253,25 @@ fn phase1_loader_later_phase_registration_violations(source: &str) -> Vec<String
     reason = "anti-regression test scans source files; this helper is not simulation outcome code"
 )]
 fn production_sources() -> Vec<(String, String)> {
-    let src_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("tracewake-core is under workspace crates directory");
     production_sources_from_roots(
-        vec![src_root],
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
+        vec![
+            workspace_root.join("crates/tracewake-core/src"),
+            workspace_root.join("crates/tracewake-content/src"),
+            workspace_root.join("crates/tracewake-tui/src"),
+        ],
+        workspace_root,
     )
+}
+
+fn core_production_sources() -> Vec<(String, String)> {
+    production_sources()
+        .into_iter()
+        .filter(|(path, _)| path.starts_with("crates/tracewake-core/src/"))
+        .collect()
 }
 
 #[allow(
@@ -267,24 +305,147 @@ fn production_sources_from_roots(
     sources
 }
 
-const GUARDED_LAYER_SOURCE_CENSUS: &[&str] = &[
-    "src/agent/actor_known.rs",
-    "src/agent/candidate.rs",
-    "src/agent/decision.rs",
-    "src/agent/generation.rs",
-    "src/agent/htn.rs",
-    "src/agent/intention.rs",
-    "src/agent/methods.rs",
-    "src/agent/mod.rs",
-    "src/agent/need.rs",
-    "src/agent/no_human_surface.rs",
-    "src/agent/perception.rs",
-    "src/agent/planner.rs",
-    "src/agent/routine.rs",
-    "src/agent/trace.rs",
-    "src/agent/transaction.rs",
-    "src/projections.rs",
-    "src/scheduler.rs",
+const CORE_FOUNDATION_RATIONALE: &str =
+    "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
+const CORE_ACTION_RATIONALE: &str =
+    "core action validation/registry code is covered by targeted action and pipeline guards";
+const CORE_EPISTEMIC_RATIONALE: &str =
+    "epistemic data model is covered by capability, provenance, and projection tests";
+const CONTENT_RATIONALE: &str =
+    "content crate fixture/schema/loader code is not the actor cognition or scheduler lock layer";
+const TUI_RATIONALE: &str =
+    "tui crate is a boundary/presentation layer, not authoritative simulation outcome logic";
+
+const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/container_item_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_attach_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_omniscience_excluded_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/door_access_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_exits_require_perceived_or_known_route_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_menu_lags_truth_change_without_perception_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_raw_assignment_without_context_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_unknown_sleep_affordance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_unobserved_food_at_open_place_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_workplace_availability_reflects_belief_not_truth_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/expectation_contradiction_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/food_unavailable_replan_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/forbidden_provenance_input_fails_closed_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/hidden_food_closed_container_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/hidden_food_unknown_route_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/hidden_route_edge_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/knowledge_blocker_accuse_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/method_fallback_requires_new_trace_or_stuck_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_hidden_truth_planning_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_advance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_current_place_without_sleep_affordance_does_not_sleep_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_day_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_epistemic_check_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_known_workplace_requires_provenance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_metrics_require_typed_responsible_layer_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_observation_facts_cite_log_events_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_sleep_knowledge_requires_observation_or_record_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_unseen_workplace_assignment_does_not_plan_work_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_workplace_knowledge_requires_notice_event_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/ordinary_workday_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/planner_trace_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/possession_does_not_reset_intention_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/possession_parity_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/prose_born_fact_rejected_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/replay_item_location_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/routine_blocked_diagnostic_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/routine_no_teleport_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/scheduler_cannot_rewrite_wait_reason_after_transaction_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/severe_safety_with_known_exit_produces_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/severe_safety_without_known_exit_waits_with_knowledge_blocker_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_eat_work_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_interrupted_by_severe_need_prorates_recovery_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_rejects_current_place_without_sleep_affordance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_spanning_window_boundary_charges_each_tick_once_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sound_uncertainty_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/strongbox_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/view_filtering_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/view_model_local_actions_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/work_block_failed_then_sleep_succeeds_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/work_completion_fails_when_actor_displaced_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/workplace_assignment_provenance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/lib.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/load.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/manifest.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/schema.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/serialization.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/validate.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/accuseprobe.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/checkcontainer.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/continue_routine.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/eat.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/inspect.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/movement.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/openclose.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/sleep.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/takeplace.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/wait.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/work.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/pipeline.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/proposal.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/registry.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/report.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/actor_known.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/candidate.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/decision.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/generation.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/htn.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/intention.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/methods.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/mod.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/need.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/no_human_surface.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/perception.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/planner.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/routine.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/trace.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/transaction.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/checksum.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/controller.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/debug_capability.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/debug_reports.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/belief.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/contradiction.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/knowledge_basis.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/knowledge_context.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/observation.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/projection.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/epistemics/proposition.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_EPISTEMIC_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/events/apply.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/events/envelope.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/events/log.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/events/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/events/mutation.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/ids.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/lib.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/location.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/need_accounting.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/projections.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/rebuild.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/report.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/scheduler.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/state.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/time.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/view_models.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/app.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/debug_panels.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/input.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/launch.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/lib.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/main.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/render.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/run.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/transcript.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
 ];
 
 #[derive(Clone, Copy)]
@@ -305,17 +466,20 @@ fn guarded_sources_for(layer: GuardedLayer) -> Vec<(String, String)> {
     guarded_layer_sources()
         .into_iter()
         .filter(|(path, _)| match layer {
-            GuardedLayer::Agent => path.starts_with("src/agent/"),
-            GuardedLayer::Scheduler => path.starts_with("src/scheduler"),
-            GuardedLayer::Projections => path.starts_with("src/projections"),
+            GuardedLayer::Agent => path.starts_with("crates/tracewake-core/src/agent/"),
+            GuardedLayer::Scheduler => path.starts_with("crates/tracewake-core/src/scheduler"),
+            GuardedLayer::Projections => path.starts_with("crates/tracewake-core/src/projections"),
         })
         .collect()
 }
 
 fn guarded_source(path: &str) -> String {
+    let legacy_core_path = format!("crates/tracewake-core/{path}");
     guarded_layer_sources()
         .into_iter()
-        .find_map(|(source_path, source)| (source_path == path).then_some(source))
+        .find_map(|(source_path, source)| {
+            (source_path == path || source_path == legacy_core_path).then_some(source)
+        })
         .unwrap_or_else(|| panic!("{path} is part of the guarded layer census"))
 }
 
@@ -328,9 +492,9 @@ fn guarded_layer_source_paths() -> Vec<String> {
 }
 
 fn is_guarded_layer_source(path: &str) -> bool {
-    path.starts_with("src/agent/")
-        || path.starts_with("src/scheduler")
-        || path.starts_with("src/projections")
+    WORKSPACE_SOURCE_CLASSIFICATIONS.iter().any(|entry| {
+        entry.path == path && matches!(entry.class, WorkspaceSourceClass::GuardedLayer)
+    })
 }
 
 fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
@@ -345,14 +509,71 @@ fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
 #[test]
 fn guarded_layer_source_census_matches_module_tree() {
     let actual = guarded_layer_source_paths();
-    let expected = GUARDED_LAYER_SOURCE_CENSUS
+    let expected = WORKSPACE_SOURCE_CLASSIFICATIONS
         .iter()
-        .map(|path| (*path).to_string())
+        .filter_map(|entry| {
+            matches!(entry.class, WorkspaceSourceClass::GuardedLayer)
+                .then_some(entry.path.to_string())
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(
         actual, expected,
-        "new files under src/agent/**, src/scheduler*, or src/projections* must be classified in the guard census"
+        "new guarded-layer files must be classified in the workspace guard census"
+    );
+}
+
+#[test]
+fn workspace_source_classification_census_matches_production_tree() {
+    let actual = production_sources()
+        .into_iter()
+        .map(|(path, _)| path)
+        .collect::<Vec<_>>();
+    let expected = WORKSPACE_SOURCE_CLASSIFICATIONS
+        .iter()
+        .map(|entry| entry.path.to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual, expected,
+        "every production source file across core, content, and tui must be classified as guarded-layer or exempt-with-rationale"
+    );
+
+    for entry in WORKSPACE_SOURCE_CLASSIFICATIONS {
+        match entry.class {
+            WorkspaceSourceClass::GuardedLayer => {}
+            WorkspaceSourceClass::Exempt { rationale } => {
+                assert!(
+                    !rationale.is_empty(),
+                    "{} has an empty exemption rationale",
+                    entry.path
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn guarded_layer_entries_are_exactly_the_workspace_guarded_classifications() {
+    for (path, _) in production_sources() {
+        let classified_guarded = WORKSPACE_SOURCE_CLASSIFICATIONS.iter().any(|entry| {
+            entry.path == path && matches!(entry.class, WorkspaceSourceClass::GuardedLayer)
+        });
+        assert_eq!(
+            is_guarded_layer_source(&path),
+            classified_guarded,
+            "{path} guarded-layer predicate drifted from the workspace source classification table"
+        );
+    }
+
+    assert!(
+        WORKSPACE_SOURCE_CLASSIFICATIONS
+            .iter()
+            .filter(|entry| matches!(entry.class, WorkspaceSourceClass::GuardedLayer))
+            .all(|entry| entry.path.starts_with("crates/tracewake-core/src/agent/")
+                || entry.path == "crates/tracewake-core/src/scheduler.rs"
+                || entry.path == "crates/tracewake-core/src/projections.rs"),
+        "guarded layer classification must stay a reviewed explicit set, not a broad crate shortcut"
     );
 }
 
@@ -775,25 +996,28 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         "scheduler autonomous proposals must come from the actor decision transaction"
     );
     assert!(
-        SLEEP_RS.contains("pub fn build_sleep_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
-        "sleep completion builder must require current physical and agent state for continuity checks"
+        SLEEP_RS.contains("pub fn build_sleep_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,\n    log: &EventLog,"),
+        "sleep completion builder must require current physical state, agent state, and event log for continuity and need-accounting checks"
     );
     assert!(
-        WORK_RS.contains("pub fn build_work_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
-        "work completion builder must require current physical and agent state for continuity checks"
+        WORK_RS.contains("pub fn build_work_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,\n    log: &EventLog,"),
+        "work completion builder must require current physical state, agent state, and event log for continuity and need-accounting checks"
     );
     assert!(
-        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,"),
-        "scheduler must pass current state into sleep completion continuity checks"
+        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,\n                    log,"),
+        "scheduler must pass current state and log into sleep completion continuity checks"
     );
     assert!(
-        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,"),
-        "scheduler must pass current state into work completion continuity checks"
+        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,\n                    log,"),
+        "scheduler must pass current state and log into work completion continuity checks"
     );
     assert!(
-        scheduler.contains("if appended.event_type == EventKind::SleepCompleted")
-            && scheduler.contains("if appended.event_type == EventKind::WorkBlockCompleted"),
-        "scheduler must only mark duration routine steps completed after actual completion events"
+        scheduler.contains("if is_duration_terminal(appended.event_type)"),
+        "scheduler must classify scheduled duration completions through the shared terminal predicate"
+    );
+    assert!(
+        scheduler.contains("classify_actor_tick_regimes("),
+        "scheduler passive need deltas must consume the tick-regime classifier"
     );
 
     let actor_id = ActorId::new("actor_tomas").unwrap();
@@ -808,13 +1032,16 @@ fn scheduler_never_direct_dispatches_primitive_action() {
     let mut registry = ActionRegistry::new();
     registry.register_phase1_inspect_wait();
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
-    let proposal = Proposal::new(
+    let mut proposal = Proposal::new(
         ProposalId::new("proposal_wait").unwrap(),
         ProposalOrigin::Scheduler,
         Some(actor_id.clone()),
         ActionId::new("wait").unwrap(),
         SimTick::ZERO,
     );
+    proposal
+        .parameters
+        .insert("reason".to_string(), "scheduled wait".to_string());
     let context = ChecksumContext {
         fixture_id: FixtureId::new("scheduler_no_direct_dispatch").unwrap(),
         content_version: ContentVersion::new("content_v1").unwrap(),
@@ -1227,12 +1454,12 @@ fn no_direct_apply_event_outside_event_replay_or_pipeline() {
     // Smoke-only source scan: compile-fail fixtures and capability privacy are
     // the primary enforcement layer; this catches obvious new direct calls.
     let allowed_paths = [
-        "src/events/apply.rs",
-        "src/replay/rebuild.rs",
-        "src/actions/pipeline.rs",
+        "crates/tracewake-core/src/events/apply.rs",
+        "crates/tracewake-core/src/replay/rebuild.rs",
+        "crates/tracewake-core/src/actions/pipeline.rs",
     ];
     let mut violations = Vec::new();
-    for (path, source) in production_sources() {
+    for (path, source) in core_production_sources() {
         let contains_direct_apply =
             source.contains("apply_event(") || source.contains("apply_event_stream(");
         if contains_direct_apply && !allowed_paths.iter().any(|allowed| *allowed == path) {
@@ -1404,12 +1631,50 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
 
 #[test]
 fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
-    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
-    assert_absent_from_sources(&scheduler_sources, "EpistemicProjection::new");
     let scheduler = guarded_source("src/scheduler.rs");
     assert!(
-        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_event_log"),
-        "no-human cognition must use the sealed actor-known surface builder"
+        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_projection"),
+        "no-human cognition must use the projection-backed sealed actor-known surface builder"
+    );
+    assert!(
+        scheduler.contains("fn epistemic_projection_from_log")
+            && scheduler.contains("apply_epistemic_event(&mut projection, event)"),
+        "scheduler projection construction must replay epistemic events instead of fabricating an empty projection"
+    );
+}
+
+#[test]
+fn guard_018_actor_known_facts_require_source_event_witness() {
+    assert!(
+        ACTOR_KNOWN_RS.contains("pub struct SourceEventIds"),
+        "actor-known facts must expose a typed source-event witness"
+    );
+    assert!(
+        !ACTOR_KNOWN_RS.contains("pub fn with_source_event_ids"),
+        "source ids must be supplied through SourceEventIds, not attached after construction"
+    );
+    assert!(
+        !NO_HUMAN_SURFACE_RS.contains("pub fn with_role_assignment_notice"),
+        "raw role-assignment convenience construction must stay deleted"
+    );
+    assert!(
+        !NO_HUMAN_SURFACE_RS.contains("pub fn with_sleep_place_knowledge"),
+        "raw sleep-place convenience construction must stay deleted"
+    );
+    assert_eq!(
+        ACTOR_KNOWN_RS
+            .matches("source_event_ids: Vec::new()")
+            .count(),
+        1,
+        "the only empty-source actor-known fact path must be the rejected unproven path"
+    );
+    assert!(
+        ACTOR_KNOWN_RS.contains("fn unbacked_for_rejected_test_only"),
+        "the remaining empty-source path must be explicitly named as rejected/test-only"
+    );
+    assert!(
+        TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
+        "transaction boundary must fail closed on dangling actor-known provenance"
     );
 }
 
@@ -1443,18 +1708,23 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "no-human actor-known surface must be constructed through a named builder"
     );
     assert!(
-        builder.contains("fn consume_observation"),
-        "no-human actor-known surface must consume recorded observations"
+        builder.contains("fn consume_projection_record"),
+        "no-human actor-known surface must consume projection-backed actor-known records"
     );
     assert!(
-        builder.contains("fn consume_role_assignment_notice"),
-        "no-human actor-known surface must consume recorded role notices"
+        builder.contains("ActorKnownProjectionRecord::Workplace"),
+        "no-human actor-known workplace facts must come from projection records"
     );
     assert!(
-        builder.contains("fn consume_starting_belief"),
-        "no-human actor-known surface must consume recorded starting beliefs"
+        builder.contains("ActorKnownProjectionRecord::SleepPlace"),
+        "no-human actor-known starting beliefs must come from projection records"
     );
     assert_absent(&builder, "PhysicalState");
+    assert_absent(&builder, "EventEnvelope");
+    assert_absent(&builder, "EventKind::RoleAssignmentNoticeRecorded");
+    assert_absent(&builder, "EventKind::StartingBeliefRecorded");
+    assert_absent(&builder, "EventKind::ObservationRecorded");
+    assert_absent(&builder, "payload_value(");
     assert_absent(&builder, "state.workplaces");
     assert_absent(&builder, "state.food_supplies");
     assert_absent(&builder, "state.sleep_affordances");
@@ -1495,13 +1765,13 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
 
     assert_absent(&actor_known, "pub fn extend_actor_known_facts");
     assert_absent(&actor_known, "pub fn add_actor_known_fact");
-    assert!(
-        builder.contains("pub fn from_event_log(")
-            && builder.contains("fn consume_role_assignment_notice")
-            && builder.contains("fn consume_starting_belief")
-            && builder.contains("fn consume_observation"),
-        "no-human cognition must remain event-log backed"
-    );
+    assert!(builder.contains("pub fn from_projection("));
+    assert!(builder.contains("fn consume_projection_records"));
+    assert!(builder.contains("projection.actor_known_records_for_context"));
+    assert_absent(&builder, "pub fn from_event_log(");
+    assert_absent(&builder, "fn consume_role_assignment_notice");
+    assert_absent(&builder, "fn consume_starting_belief");
+    assert_absent(&builder, "fn consume_observation");
 }
 
 #[test]
@@ -1510,10 +1780,12 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     let projection = guarded_source("src/projections.rs");
     let food_helper = body_after_marker(&projection, "fn actor_known_food_sources_for_context");
     let sleep_helper = body_after_marker(&projection, "fn visible_open_sleep_affordance");
+    let phase3a_actions = body_after_marker(&projection, "fn phase3a_semantic_actions");
     let view_builder = body_after_marker(&projection, "pub fn build_embodied_view_model");
 
     assert!(
-        projection.contains("fn actor_known_workplaces_for_context(context: &KnowledgeContext)"),
+        projection.contains("fn actor_known_workplaces_for_context(")
+            && projection.contains("context: &KnowledgeContext"),
         "embodied workplace affordances must be selected from the sealed holder-known context"
     );
     assert!(
@@ -1541,6 +1813,8 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     assert_absent(food_helper, "food_supplies()");
     assert_absent(sleep_helper, "state.sleep_affordances");
     assert_absent(sleep_helper, "sleep_affordances()");
+    assert_absent(phase3a_actions, "state.workplaces");
+    assert_absent(phase3a_actions, "workplaces()");
     assert_absent(view_builder, ".adjacent_place_ids");
     assert_absent_from_sources(
         &projection_sources,
@@ -1765,6 +2039,43 @@ fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_par
 }
 
 #[test]
+fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state() {
+    use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
+    use tracewake_core::events::EventKind;
+
+    let allowlist = AGENT_WORLD_NOOP_ALLOWLIST
+        .iter()
+        .map(|kind| kind.stable_id())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        allowlist,
+        vec![
+            "candidate_goals_evaluated",
+            "food_consumed",
+            "continue_routine_proposed",
+            "continue_routine_accepted",
+            "continue_routine_rejected",
+            "no_human_day_started",
+            "no_human_day_completed",
+        ]
+    );
+    for materialized in [
+        EventKind::NeedThresholdCrossed,
+        EventKind::SleepStarted,
+        EventKind::SleepCompleted,
+        EventKind::SleepInterrupted,
+        EventKind::FoodServiceUsed,
+        EventKind::EatFailed,
+        EventKind::WorkBlockStarted,
+        EventKind::WorkBlockCompleted,
+        EventKind::WorkBlockFailed,
+    ] {
+        assert!(!AGENT_WORLD_NOOP_ALLOWLIST.contains(&materialized));
+    }
+}
+
+#[test]
 fn guard_002_agent_state_keeps_typed_trace_and_diagnostic_records() {
     assert!(
         STATE_RS.contains("BTreeMap<DecisionTraceId, DecisionTraceRecord>"),
@@ -1942,7 +2253,7 @@ fn non_world_stream_cannot_change_physical_checksum() {
         sim_tick: SimTick::new(7),
         world_stream_position_applied: 3,
     };
-    let mut state = PhysicalState::default();
+    let mut state = PhysicalState::empty(tracewake_core::state::NeedModelState::new(5, 3));
     let before = compute_physical_checksum(&state, &context).checksum;
     let mut event = EventEnvelope::new_v1(
         EventId::new("event_non_world_physical_payload").unwrap(),
@@ -2074,8 +2385,8 @@ lines.push(format!("need|actor={}", actor_id.as_str()));
 
 #[test]
 fn guard_001_no_production_seed_mutation_outside_state_definition() {
-    for (path, source) in production_sources() {
-        if path == "src/state.rs" {
+    for (path, source) in core_production_sources() {
+        if path == "crates/tracewake-core/src/state.rs" {
             continue;
         }
         assert!(
@@ -2104,8 +2415,8 @@ fn guard_001_no_direct_state_collection_insert_outside_event_application() {
         ".decision_traces.insert",
         ".stuck_diagnostics.insert",
     ];
-    for (path, source) in production_sources() {
-        if path == "src/events/apply.rs" {
+    for (path, source) in core_production_sources() {
+        if path == "crates/tracewake-core/src/events/apply.rs" {
             continue;
         }
         for forbidden in forbidden_writes {

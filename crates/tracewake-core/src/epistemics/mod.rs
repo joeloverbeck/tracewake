@@ -24,7 +24,8 @@ pub use observation::{
     PrivacyScope, SourceRef, TickWindow,
 };
 pub use projection::{
-    EpistemicProjection, EpistemicProjectionChecksum, EpistemicProjectionChecksumReport,
-    NotebookEntry, ProjectionEventRange,
+    ActorKnownProjectionRecord, ActorKnownProjectionSource, EpistemicProjection,
+    EpistemicProjectionChecksum, EpistemicProjectionChecksumReport, NotebookEntry,
+    ProjectionEventRange,
 };
 pub use proposition::{Proposition, PropositionReferenceError};

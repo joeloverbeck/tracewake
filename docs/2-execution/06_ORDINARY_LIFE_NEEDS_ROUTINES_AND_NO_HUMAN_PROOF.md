@@ -90,6 +90,13 @@ Behavioral progress is one of:
 
 A pure `continue_routine` marker is not behavioral progress.
 
+Cross-tick stuck detection must include:
+
+- no-progress-past-expected-window: a routine window passes its expected progress boundary without a committed ordinary action, modeled wait, duration terminal event, or typed failure;
+- repeated-idle: an actor repeatedly reaches idle/wait outcomes inside the same routine window without new behavioral progress.
+
+Both categories must emit typed stuck diagnostics with responsible layer and blocker code, and no-human metrics may count them only as stuck/failure outcomes.
+
 ## Required ordinary-life adversarial fixtures
 
 The certification suite must include these fixture families, regardless of exact filenames:

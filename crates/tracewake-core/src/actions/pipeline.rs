@@ -25,7 +25,9 @@ use crate::events::apply::{
     apply_epistemic_event, apply_event, apply_event_stream, EventApplicationContext,
 };
 use crate::events::log::EventLog;
-use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{
+    is_duration_terminal, EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1,
+};
 use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState};
@@ -412,14 +414,7 @@ fn body_exclusive_reservation_conflict(
         .log
         .events()
         .iter()
-        .filter(|event| {
-            matches!(
-                event.event_type,
-                EventKind::SleepCompleted
-                    | EventKind::SleepInterrupted
-                    | EventKind::WorkBlockCompleted
-            )
-        })
+        .filter(|event| is_duration_terminal(event.event_type))
         .flat_map(|event| event.causes.iter())
         .filter_map(|cause| match cause {
             EventCause::Event(event_id) => Some(event_id.clone()),
@@ -567,6 +562,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
             ActionEffect::Wait => {
                 let events = match build_wait_events(
                     context.state,
+                    context.agent_state,
                     proposal,
                     context.ordering_key,
                     context.content_manifest_id,
@@ -817,7 +813,7 @@ fn source_context_check(
         if proposal
             .parameters
             .get("hidden_truth_audit_actor_known_only")
-            .is_some_and(|value| value == "false")
+            .is_none_or(|value| value != "true")
         {
             return Some(reject(
                 context,
@@ -826,7 +822,7 @@ fn source_context_check(
                 vec![ReasonCode::HiddenTruthInput],
                 checked_facts,
                 "That action was blocked by the actor-known audit.",
-                "agent-origin proposal carried a failed hidden-truth audit",
+                "agent-origin proposal lacked a clean hidden-truth audit stamp",
             ));
         }
         return None;
@@ -935,6 +931,7 @@ fn source_context_check(
 
     let expected_context = current_place_knowledge_context(
         context.state,
+        context.epistemic_projection,
         actor_id,
         source.context_tick,
         context.content_manifest_id,
@@ -1365,7 +1362,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state.actors.insert(
             actor_id("actor_tomas"),
             ActorBody::new(
@@ -1396,7 +1393,7 @@ mod tests {
     }
 
     fn door_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let actor_id = actor_id("actor_tomas");
         let shop = crate::ids::PlaceId::new("shop_front").unwrap();
         let back = crate::ids::PlaceId::new("back_room").unwrap();
@@ -1723,6 +1720,42 @@ mod tests {
     }
 
     #[test]
+    fn agent_source_context_rejects_absent_hidden_truth_audit_stamp() {
+        let registry = phase2a_registry();
+        let mut state = state();
+        let mut agent_state = AgentState::default();
+        let mut log = EventLog::new();
+        let mut proposal = proposal(ProposalOrigin::Agent);
+        proposal.source = Some(ProposalSource::Agent);
+        let mut context = PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: content_manifest_id(),
+            ordering_key: ordering_key(),
+        };
+
+        let result = run_pipeline(&mut context, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            result.report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert_eq!(
+            result.report.reason_codes,
+            vec![ReasonCode::HiddenTruthInput]
+        );
+        assert!(result
+            .report
+            .debug_summary
+            .contains("lacked a clean hidden-truth audit stamp"));
+    }
+
+    #[test]
     fn same_proposal_validates_same_for_human_and_scheduler_origin() {
         let mut registry = ActionRegistry::new();
         registry.register(ActionDefinition::query_only(
@@ -1856,13 +1889,16 @@ mod tests {
         let before_projection = projection.clone();
 
         let accepted_check = check_container_proposal("proposal_accept_check");
-        let accepted_wait = Proposal::new(
+        let mut accepted_wait = Proposal::new(
             ProposalId::new("proposal_accept_wait").unwrap(),
             ProposalOrigin::Test,
             Some(actor_id("actor_tomas")),
             action_id("wait"),
             SimTick::ZERO,
         );
+        accepted_wait
+            .parameters
+            .insert("reason".to_string(), "validation wait".to_string());
         let mut rejected_state = state.clone();
         rejected_state
             .containers

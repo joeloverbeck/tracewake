@@ -307,7 +307,7 @@ mod tests {
     }
 
     fn state(servings: u32) -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state
             .places
             .insert(place_id(), PlaceState::new(place_id(), "Kitchen"));

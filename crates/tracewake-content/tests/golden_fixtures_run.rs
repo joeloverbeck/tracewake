@@ -10,15 +10,16 @@ use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
 use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
-    build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
-    select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
+    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
+    generate_candidate_goals, plan_local_actions, select_goal_and_trace,
+    select_method_from_templates, ActorDecisionTransaction, ActorDecisionTransactionInput,
+    ActorDecisionTransactionOutcome, ActorKnownFact, BlockerCategory, CandidateGenerationInput,
     DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
-    NeedState, PlannerGoal, RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate,
-    VisibleLocalPlanningState,
+    NeedState, PlannerGoal, ResponsibleLayer, RoutineCondition, RoutineFamily, RoutineStep,
+    RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
-    ChecksumContext,
+    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
@@ -27,13 +28,13 @@ use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplic
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, FixtureId, FoodSupplyId, IntentionId,
-    RoutineExecutionId, RoutineTemplateId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId, FoodSupplyId,
+    IntentionId, PlaceId, RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
-use tracewake_core::replay::{rebuild_projection, run_replay};
+use tracewake_core::replay::{rebuild_decision_context_hashes, rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
-    default_day_windows, run_no_human_day, NoHumanDayConfig,
+    default_day_windows, run_no_human_day, DayWindow, NoHumanDayConfig,
 };
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
@@ -180,6 +181,105 @@ fn payload<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
+fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
+    let mut start_kind_by_event = BTreeMap::new();
+    for event in log.events() {
+        if matches!(
+            event.event_type,
+            EventKind::SleepStarted | EventKind::WorkBlockStarted
+        ) {
+            start_kind_by_event.insert(event.event_id.clone(), event.event_type);
+        }
+    }
+    let mut charged = BTreeMap::<(String, String, u64), BTreeSet<&'static str>>::new();
+    for event in log
+        .events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+    {
+        let Some(actor_id) = event.actor_id.as_ref() else {
+            continue;
+        };
+        let Some(need_kind) = payload(event, "need_kind") else {
+            continue;
+        };
+        let Some(cause_kind) = payload(event, "cause_kind") else {
+            continue;
+        };
+        match cause_kind {
+            "tick_delta" => {
+                let elapsed_ticks = payload(event, "elapsed_ticks")
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(0);
+                for tick in event
+                    .sim_tick
+                    .value()
+                    .saturating_sub(elapsed_ticks)
+                    .saturating_add(1)..=event.sim_tick.value()
+                {
+                    charged
+                        .entry((actor_id.to_string(), need_kind.to_string(), tick))
+                        .or_default()
+                        .insert("awake");
+                }
+            }
+            "action_effect" => {
+                let regime = event.causes.iter().find_map(|cause| match cause {
+                    tracewake_core::events::EventCause::Event(start_id) => {
+                        match start_kind_by_event.get(start_id) {
+                            Some(EventKind::SleepStarted) => Some("asleep"),
+                            Some(EventKind::WorkBlockStarted) => Some("working"),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                });
+                let Some(regime) = regime else {
+                    continue;
+                };
+                let elapsed_ticks = log
+                    .events()
+                    .iter()
+                    .find(|candidate| {
+                        candidate.sim_tick == event.sim_tick
+                            && candidate.actor_id == event.actor_id
+                            && candidate.causes == event.causes
+                            && matches!(
+                                candidate.event_type,
+                                EventKind::SleepCompleted
+                                    | EventKind::SleepInterrupted
+                                    | EventKind::WorkBlockCompleted
+                                    | EventKind::WorkBlockFailed
+                            )
+                    })
+                    .and_then(|terminal| payload(terminal, "elapsed_ticks"))
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(0);
+                for tick in event
+                    .sim_tick
+                    .value()
+                    .saturating_sub(elapsed_ticks)
+                    .saturating_add(1)..=event.sim_tick.value()
+                {
+                    charged
+                        .entry((actor_id.to_string(), need_kind.to_string(), tick))
+                        .or_default()
+                        .insert(regime);
+                }
+            }
+            _ => {}
+        }
+    }
+    let duplicates = charged
+        .iter()
+        .filter(|(_, regimes)| regimes.len() > 1)
+        .collect::<Vec<_>>();
+    assert!(
+        duplicates.is_empty(),
+        "duplicate need charges: {duplicates:?}"
+    );
+}
+
 fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
     log.events()
         .iter()
@@ -193,6 +293,34 @@ fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
             .expect("decision trace canonical parses")
         })
         .collect()
+}
+
+fn tamper_sleep_place_starting_belief(
+    log: &EventLog,
+    actor_id: &str,
+    replacement_place_id: &str,
+) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced
+            && event.event_type == EventKind::StartingBeliefRecorded
+            && payload(&event, "actor_id") == Some(actor_id)
+            && payload(&event, "belief_kind") == Some("sleep_place")
+        {
+            let value = event
+                .payload
+                .iter_mut()
+                .find(|field| field.key == "value")
+                .expect("sleep_place starting belief carries value");
+            value.value = replacement_place_id.to_string();
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(replaced, "fixture contains sleep_place starting belief");
+    tampered
 }
 
 #[test]
@@ -270,11 +398,13 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work, 2),
         &manifest_id,
         SimTick::new(12),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::ActorMoved));
@@ -319,11 +449,13 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
     let completion_events = build_sleep_completion_events(
         &state,
         &agent_state,
+        &log,
         &sleep_started,
         &ordering_key(&sleep, 1),
         &manifest_id,
         SimTick::new(4),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let eat = proposal(
@@ -379,11 +511,13 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work, 5),
         &manifest_id,
         SimTick::new(11),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     assert!(has_event(&log, EventKind::SleepCompleted));
@@ -404,6 +538,103 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
         apply_event(&mut replay_state, event).unwrap();
     }
     assert_eq!(replay_state, state);
+}
+
+#[test]
+fn work_block_failed_then_sleep_succeeds_fixture_closes_reservation() {
+    let (mut state, mut agent_state, manifest_id) =
+        load(fixtures::work_block_failed_then_sleep_succeeds_001());
+    let mut log = EventLog::new();
+
+    let work = proposal(
+        "proposal_failed_then_sleep_work",
+        "actor_tomas",
+        "work_block",
+        &["workplace_shop"],
+        0,
+    );
+    let work_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &work,
+        0,
+    );
+    let work_started = work_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .expect("work starts")
+        .clone();
+
+    let move_to_street = proposal(
+        "proposal_failed_then_sleep_move",
+        "actor_tomas",
+        "move",
+        &["street"],
+        1,
+    );
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &move_to_street,
+        1,
+    );
+
+    let completion_events = build_work_completion_events(
+        &state,
+        &agent_state,
+        &log,
+        &work_started,
+        &ordering_key(&work, 2),
+        &manifest_id,
+        SimTick::new(4),
+    )
+    .unwrap();
+    append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
+    assert!(has_event(&log, EventKind::WorkBlockFailed));
+
+    let mut sleep = proposal(
+        "proposal_failed_then_sleep_sleep",
+        "actor_tomas",
+        "sleep",
+        &["sleep_place_street"],
+        5,
+    );
+    sleep
+        .parameters
+        .insert("duration_ticks".to_string(), "2".to_string());
+    sleep
+        .parameters
+        .insert("sleep_place_id".to_string(), "street".to_string());
+    sleep.parameters.insert(
+        "sleep_affordance_id".to_string(),
+        "sleep_place_street".to_string(),
+    );
+    let sleep_events = run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &sleep,
+        3,
+    );
+
+    assert!(sleep_events
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepStarted));
+    assert!(!sleep_events.iter().any(|event| {
+        event.event_type == EventKind::ActionRejected
+            && payload(event, "reason_codes").is_some_and(|value| {
+                value
+                    .split(',')
+                    .any(|reason| reason == ReasonCode::ReservationConflict.stable_id())
+            })
+    }));
+    let replayed = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    assert_eq!(replayed, log);
 }
 
 #[test]
@@ -553,6 +784,8 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             "food_market_stew",
             "planner_trace_001:visible_food",
             None,
+            SourceEventIds::checked(vec![EventId::new("event_planner_trace_food").unwrap()])
+                .unwrap(),
         )],
         routine_window_goal: Some(GoalKind::GoToWork),
     });
@@ -703,6 +936,114 @@ fn routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry() {
         .payload
         .iter()
         .any(|field| field.key == "reason" && field.value == "actor not at workplace"));
+}
+
+#[test]
+fn severe_safety_with_known_exit_produces_move_and_replays() {
+    let golden = fixtures::severe_safety_with_known_exit_produces_move_001();
+    let (initial_state, initial_agent_state, manifest_id, mut log) = load_with_log(golden);
+    let mut state = initial_state.clone();
+    let mut agent_state = initial_agent_state.clone();
+    let actor_id = ActorId::new("actor_mara").unwrap();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id.clone()],
+            windows: vec![DayWindow {
+                window_id: "safety_window".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+
+    assert_eq!(report.actor_decision_order, vec![actor_id]);
+    let moved = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorMoved)
+        .expect("severe safety should commit a move");
+    assert_eq!(payload(moved, "to_place_id"), Some("safety_corridor"));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::DecisionTraceRecorded
+            && payload(event, "trace_canonical")
+                .is_some_and(|canonical| canonical.contains("leave_unsafe_place"))
+    }));
+
+    let context = checksum_context("severe_safety_with_known_exit_produces_move_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+    assert!(replay.matches_expected, "{replay:?}");
+    assert!(replay.agent_checksum_matches, "{replay:?}");
+    assert!(replay.application_errors.is_empty(), "{replay:?}");
+    assert!(replay.agent_application_errors.is_empty(), "{replay:?}");
+    assert!(
+        replay.decision_context_hash_failures.is_empty(),
+        "{replay:?}"
+    );
+}
+
+#[test]
+fn severe_safety_without_known_exit_is_local_knowledge_blocker() {
+    let golden = fixtures::severe_safety_without_known_exit_waits_with_knowledge_blocker_001();
+    let (state, agent_state, _manifest_id) = load(golden);
+    let actor_id = ActorId::new("actor_mara").unwrap();
+    let current_place = state
+        .actors()
+        .get(&actor_id)
+        .expect("fixture actor exists")
+        .current_place_id
+        .clone();
+    let actor_known_context = build_actor_known_planning_state_with_projection_limitation(
+        &actor_id,
+        &agent_state,
+        &VisibleLocalPlanningState::new(
+            current_place,
+            BTreeMap::<PlaceId, BTreeSet<PlaceId>>::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+        ),
+    );
+
+    let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+        actor_id,
+        decision_tick: SimTick::ZERO,
+        agent_state: &agent_state,
+        actor_known_context: &actor_known_context,
+        source_event_ids: None,
+        routine_window_family: None,
+        include_idle_fallback: true,
+    });
+
+    let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+        panic!("expected no-exit severe safety to fail closed");
+    };
+    assert_eq!(diagnostic.blocker_category, BlockerCategory::Knowledge);
+    assert_eq!(
+        diagnostic.concrete_blocker,
+        "no actor-known exit from unsafe place"
+    );
+    assert_eq!(
+        diagnostic.typed_diagnostic.responsible_layer,
+        ResponsibleLayer::LocalPlanning
+    );
 }
 
 #[test]
@@ -1055,11 +1396,13 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let completion_events = build_sleep_completion_events(
         &state,
         &agent_state,
+        &log,
         &sleep_started,
         &ordering_key(&sleep_elena, 103),
         &manifest_id,
         SimTick::new(39),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let move_tomas_commons = proposal(
@@ -1127,11 +1470,13 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work_tomas, 107),
         &manifest_id,
         SimTick::new(46),
-    );
+    )
+    .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
 
     let work_anna = proposal(
@@ -1254,6 +1599,60 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
 }
 
 #[test]
+fn sleep_spanning_window_boundary_charges_each_tick_once() {
+    let golden = fixtures::sleep_spanning_window_boundary_charges_each_tick_once_001();
+    let actor_id = "actor_elena".parse().unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(has_event(&log, EventKind::SleepStarted));
+    assert!(has_event(&log, EventKind::SleepCompleted));
+    assert_no_duplicate_need_regime_charges(&log);
+    assert!(!log.events().iter().any(|event| {
+        event.event_type == EventKind::NeedDeltaApplied
+            && payload(event, "cause_kind") == Some("tick_delta")
+            && payload(event, "window_id") == Some("morning")
+            && payload(event, "elapsed_ticks") == Some("4")
+    }));
+}
+
+#[test]
+fn no_human_need_ledger_has_no_duplicate_regime_charges() {
+    let golden = fixtures::no_human_day_001();
+    let actor_ids = [
+        "actor_anna".parse().unwrap(),
+        "actor_elena".parse().unwrap(),
+        "actor_mara".parse().unwrap(),
+        "actor_tomas".parse().unwrap(),
+    ];
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: actor_ids.to_vec(),
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    assert_no_duplicate_need_regime_charges(&log);
+}
+
+#[test]
 fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     let golden = fixtures::no_human_day_001();
     let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
@@ -1314,6 +1713,16 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     );
     assert!(replay.agent_checksum_matches);
     assert!(replay.epistemic_application_errors.is_empty());
+    assert!(
+        rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        rebuild.decision_context_hash_failures
+    );
+    assert!(
+        replay.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        replay.decision_context_hash_failures
+    );
     assert!(real_metrics.contains("no_human_day_metrics_v1"));
     assert_eq!(
         rebuild.final_agent_state.decision_traces(),
@@ -1344,6 +1753,8 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
 fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
     let golden = fixtures::no_human_observation_facts_cite_log_events_001();
     let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
     let actor_id = ActorId::new("actor_bruno").unwrap();
 
     run_no_human_day(
@@ -1369,9 +1780,10 @@ fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
         .collect::<BTreeSet<_>>();
     let records = decision_trace_records(&log);
     assert!(!records.is_empty());
+    let rebuilt_failures =
+        rebuild_decision_context_hashes(&initial_state, &initial_agent_state, &log);
+    assert!(rebuilt_failures.is_empty(), "{rebuilt_failures:?}");
     for record in records {
-        let recomputed = compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash;
-        assert_eq!(record.actor_known_context_hash, recomputed);
         assert!(!record.actor_known_inputs.is_empty());
         for input in &record.actor_known_inputs {
             let source_events = input
@@ -1387,6 +1799,47 @@ fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
             }
         }
     }
+}
+
+#[test]
+fn no_human_decision_context_hash_gate_fails_when_source_evidence_tampered() {
+    let golden = fixtures::no_human_day_001();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    let actor_ids = state.actors().keys().cloned().collect::<Vec<_>>();
+
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids,
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    let context = checksum_context("no_human_day_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_sleep_place_starting_belief(&log, "actor_elena", "home_mara");
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.decision_context_hash_failures.is_empty());
+    assert!(replay.decision_context_hash_failures[0]
+        .issue
+        .contains("decision_context_hash_mismatch"));
 }
 
 #[test]
@@ -1599,11 +2052,15 @@ fn phase2a_golden_fixtures_have_contracts_and_validate() {
 fn phase3a_golden_fixtures_have_contracts_and_validate() {
     let expected = [
         "ordinary_workday_001",
+        "embodied_menu_lags_truth_change_without_perception_001",
+        "embodied_workplace_availability_reflects_belief_not_truth_001",
         "sleep_eat_work_001",
         "food_unavailable_replan_001",
         "routine_blocked_diagnostic_001",
         "planner_trace_001",
         "routine_no_teleport_001",
+        "severe_safety_with_known_exit_produces_move_001",
+        "severe_safety_without_known_exit_waits_with_knowledge_blocker_001",
         "possession_does_not_reset_intention_001",
         "no_hidden_truth_planning_001",
         "no_human_day_001",

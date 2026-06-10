@@ -4,7 +4,7 @@ pub mod log;
 mod mutation;
 
 pub use envelope::{
-    event_schema_registry, event_schema_registry_entry, BeliefUpdatedPayload,
+    event_schema_registry, event_schema_registry_entry, is_duration_terminal, BeliefUpdatedPayload,
     ContainerCheckedPayload, EventCause, EventEnvelope, EventEnvelopeBuildError,
     EventEnvelopeParseError, EventKind, EventKindMetadata, EventReplayHandling,
     EventSchemaMigration, EventSchemaRegistryEntry, EventSchemaVersion, EventStream,

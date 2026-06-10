@@ -3,8 +3,11 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::agent::{NeedBand, NeedKind};
+use crate::events::apply::ApplyError;
+use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContentManifestId, EventId, WorkplaceId};
+use crate::need_accounting::classify_actor_tick_regimes_with_start;
 use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState, WorkplaceState};
 use crate::time::SimTick;
@@ -113,18 +116,28 @@ pub fn build_work_start_events(
 pub fn build_work_completion_events(
     state: &PhysicalState,
     agent_state: &AgentState,
+    log: &EventLog,
     work_started_event: &EventEnvelope,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     completion_tick: SimTick,
-) -> Vec<EventEnvelope> {
-    let elapsed_ticks = completion_tick
-        .value()
-        .saturating_sub(work_started_event.sim_tick.value());
+) -> Result<Vec<EventEnvelope>, ApplyError> {
+    let actor_id = work_started_event
+        .actor_id
+        .clone()
+        .expect("work start event carries actor");
+    let working_ticks = classify_actor_tick_regimes_with_start(
+        log,
+        &actor_id,
+        work_started_event.sim_tick,
+        completion_tick,
+        Some(work_started_event),
+    )
+    .working_ticks;
     let fatigue_delta =
-        payload_i32(work_started_event, "fatigue_delta_per_tick") * elapsed_ticks as i32;
+        payload_i32(work_started_event, "fatigue_delta_per_tick")? * working_ticks as i32;
     let hunger_delta =
-        payload_i32(work_started_event, "hunger_delta_per_tick") * elapsed_ticks as i32;
+        payload_i32(work_started_event, "hunger_delta_per_tick")? * working_ticks as i32;
     if let Some((blocker_kind, reason)) =
         work_completion_failure(state, agent_state, work_started_event)
     {
@@ -133,7 +146,7 @@ pub fn build_work_completion_events(
             ordering_key,
             content_manifest_id,
             completion_tick,
-            elapsed_ticks,
+            working_ticks,
             fatigue_delta,
             hunger_delta,
             blocker_kind,
@@ -155,15 +168,15 @@ pub fn build_work_completion_events(
             "hunger",
             hunger_delta,
         ));
-        return events;
+        return Ok(events);
     }
-    vec![
+    Ok(vec![
         work_completed_event(
             work_started_event,
             ordering_key,
             content_manifest_id,
             completion_tick,
-            elapsed_ticks,
+            working_ticks,
             fatigue_delta,
             hunger_delta,
         ),
@@ -183,7 +196,7 @@ pub fn build_work_completion_events(
             "hunger",
             hunger_delta,
         ),
-    ]
+    ])
 }
 
 fn work_completion_failure(
@@ -506,10 +519,17 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> &'a str {
         .expect("work start event carries required payload")
 }
 
-fn payload_i32(event: &EventEnvelope, key: &str) -> i32 {
-    payload_value(event, key)
-        .parse()
-        .expect("work start numeric payload is valid")
+fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyError> {
+    let value = event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+        .ok_or(ApplyError::MissingPayload(key))?;
+    value.parse().map_err(|_| ApplyError::BadPayload {
+        key,
+        value: value.to_string(),
+    })
 }
 
 fn actor_missing() -> ActionRejection {
@@ -568,7 +588,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state
             .places
             .insert(place_id(), PlaceState::new(place_id(), "Office"));
@@ -577,11 +597,26 @@ mod tests {
             .insert(actor_id(), ActorBody::new(actor_id(), place_id()));
         state.workplaces.insert(
             workplace_id(),
-            WorkplaceState::new(workplace_id(), place_id(), "service_completed_placeholder"),
+            WorkplaceState::new(
+                workplace_id(),
+                place_id(),
+                4,
+                8,
+                4,
+                900,
+                900,
+                "service_completed_placeholder",
+            ),
         );
         state.sleep_affordances.insert(
             SleepAffordanceId::new("bed_office").unwrap(),
-            SleepAffordanceState::new(SleepAffordanceId::new("bed_office").unwrap(), place_id()),
+            SleepAffordanceState::new(
+                SleepAffordanceId::new("bed_office").unwrap(),
+                place_id(),
+                4,
+                20,
+                2,
+            ),
         );
         state
     }
@@ -677,11 +712,13 @@ mod tests {
         let events = build_work_completion_events(
             &state(),
             &agent_state_with_needs(100, 100),
+            &EventLog::new(),
             &start,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(24),
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::WorkBlockCompleted);
         assert!(events[0].payload.iter().any(
@@ -698,6 +735,49 @@ mod tests {
                     .iter()
                     .any(|field| field.key == "delta" && field.value == "32")
         }));
+    }
+
+    #[test]
+    fn malformed_work_start_payload_returns_typed_error() {
+        let mut start = build_work_start_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap()
+        .remove(0);
+        for field in &mut start.payload {
+            if field.key == "fatigue_delta_per_tick" {
+                field.value = "not_i32".to_string();
+            }
+        }
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("work_block").unwrap(),
+            SimTick::new(24),
+            0,
+        );
+
+        let error = build_work_completion_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
+            &EventLog::new(),
+            &start,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(24),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            ApplyError::BadPayload {
+                key: "fatigue_delta_per_tick",
+                value: "not_i32".to_string()
+            }
+        );
     }
 
     #[test]
@@ -720,11 +800,13 @@ mod tests {
         let events = build_work_completion_events(
             &displaced_state(),
             &agent_state_with_needs(100, 100),
+            &EventLog::new(),
             &start,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
             SimTick::new(22),
-        );
+        )
+        .unwrap();
 
         assert_eq!(events[0].event_type, EventKind::WorkBlockFailed);
         assert!(events[0]
@@ -988,5 +1070,98 @@ mod tests {
             second.report.failed_stage,
             Some(PipelineStage::ReservationConflictCheck)
         );
+    }
+
+    #[test]
+    fn work_block_failed_closes_body_exclusive_reservation() {
+        let mut state = state();
+        let mut agent_state = agent_state_with_needs(100, 100);
+        let mut log = EventLog::new();
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_work();
+        registry.register_phase3a_sleep();
+
+        let first = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: ordering_key(),
+            },
+            &proposal(),
+        );
+        assert_eq!(first.report.status, ReportStatus::Accepted);
+        let work_started = first
+            .appended_events
+            .iter()
+            .find(|event| event.event_type == EventKind::WorkBlockStarted)
+            .expect("work starts")
+            .clone();
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("work_block").unwrap(),
+            SimTick::new(22),
+            0,
+        );
+        let failure = build_work_completion_events(
+            &displaced_state(),
+            &agent_state,
+            &log,
+            &work_started,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(22),
+        )
+        .unwrap()
+        .into_iter()
+        .find(|event| event.event_type == EventKind::WorkBlockFailed)
+        .expect("displacement fails the work block");
+        log.append(failure).unwrap();
+
+        let mut sleep = Proposal::new(
+            ProposalId::new("proposal_sleep_after_failed_work").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id()),
+            ActionId::new("sleep").unwrap(),
+            SimTick::new(23),
+        );
+        sleep
+            .parameters
+            .insert("sleep_place_id".to_string(), "office".to_string());
+        sleep
+            .parameters
+            .insert("sleep_affordance_id".to_string(), "bed_office".to_string());
+        let sleep_key = OrderingKey::new(
+            SimTick::new(23),
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id()),
+            ProposalSequence::new(1),
+            ActionId::new("sleep").unwrap(),
+            Vec::new(),
+            "sleep_after_failed_work",
+        );
+        let second = run_pipeline(
+            &mut PipelineContext {
+                registry: &registry,
+                state: &mut state,
+                agent_state: &mut agent_state,
+                log: &mut log,
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: ContentManifestId::new("phase3a_manifest").unwrap(),
+                ordering_key: sleep_key,
+            },
+            &sleep,
+        );
+
+        assert_eq!(second.report.status, ReportStatus::Accepted);
+        assert!(second
+            .appended_events
+            .iter()
+            .any(|event| event.event_type == EventKind::SleepStarted));
     }
 }

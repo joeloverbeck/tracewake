@@ -1,6 +1,10 @@
+use crate::agent::{
+    ActorKnownInputRef, DecisionTraceRecord, NoHumanActorKnownSurfaceBuilder,
+    NoHumanActorKnownSurfaceRequest,
+};
 use crate::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, AgentStateChecksum,
-    AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    AgentStateChecksum, AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
 };
 use crate::epistemics::{EpistemicProjection, EpistemicProjectionChecksum};
 use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApplicationError};
@@ -8,6 +12,7 @@ use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ContentManifestId, EventId};
 use crate::state::{AgentState, PhysicalState};
+use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectionRebuildReport {
@@ -28,6 +33,7 @@ pub struct ProjectionRebuildReport {
     pub invariant_violations: Vec<String>,
     pub epistemic_application_errors: Vec<String>,
     pub agent_application_errors: Vec<Phase3AReplayFailure>,
+    pub decision_context_hash_failures: Vec<Phase3AReplayFailure>,
     pub state_diff: Vec<String>,
 }
 
@@ -63,7 +69,14 @@ pub fn rebuild_projection(
     let content_manifest_id = ContentManifestId::new(context.content_version.as_str()).unwrap();
     let mut epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
 
+    for issue in verify_event_ordering(log) {
+        invariant_violations.push(issue);
+    }
+
     for event in log.events() {
+        if !invariant_violations.is_empty() {
+            break;
+        }
         if !event.has_supported_schema_version() {
             let message = format!(
                 "event_position={} event_id={} version={}",
@@ -105,7 +118,8 @@ pub fn rebuild_projection(
                 EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
             },
             Err(EventApplicationError::World(error)) => {
-                invariant_violations.push(format!("{}: {:?}", event.event_id.as_str(), error))
+                invariant_violations.push(format!("{}: {:?}", event.event_id.as_str(), error));
+                break;
             }
             Err(EventApplicationError::Epistemic(error)) => {
                 epistemic_application_errors.push(format!(
@@ -114,11 +128,13 @@ pub fn rebuild_projection(
                     event.event_id.as_str(),
                     error
                 ));
+                break;
             }
             Err(EventApplicationError::Agent(error)) => {
                 let mut failure = phase3a_failure(event, "agent_application_error");
                 failure.issue = format!("agent_application_error:{error:?}");
                 agent_application_errors.push(failure);
+                break;
             }
         }
     }
@@ -127,6 +143,8 @@ pub fn rebuild_projection(
     let final_epistemic_checksum = epistemic_projection.compute_checksum().checksum;
     let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, context);
     let final_agent_checksum = final_agent_checksum_report.checksum.clone();
+    let decision_context_hash_failures =
+        rebuild_decision_context_hashes(initial_state, initial_agent_state, log);
     let state_diff = expected_final_state
         .map(|expected| diff_physical_state(expected, &rebuilt))
         .unwrap_or_default();
@@ -149,8 +167,222 @@ pub fn rebuild_projection(
         invariant_violations,
         epistemic_application_errors,
         agent_application_errors,
+        decision_context_hash_failures,
         state_diff,
     }
+}
+
+fn verify_event_ordering(log: &EventLog) -> Vec<String> {
+    let mut issues = Vec::new();
+    let mut stream_positions = std::collections::BTreeMap::<EventStream, u64>::new();
+    for (index, event) in log.events().iter().enumerate() {
+        let expected_global = index as u64;
+        if event.global_order != expected_global {
+            issues.push(format!(
+                "event_order_mismatch:event_id={} expected_global_order={} actual_global_order={}",
+                event.event_id.as_str(),
+                expected_global,
+                event.global_order
+            ));
+            break;
+        }
+        let expected_stream = stream_positions.entry(event.stream).or_insert(0);
+        if event.stream_position != *expected_stream {
+            issues.push(format!(
+                "event_stream_position_mismatch:event_id={} expected_stream_position={} actual_stream_position={}",
+                event.event_id.as_str(),
+                *expected_stream,
+                event.stream_position
+            ));
+            break;
+        }
+        *expected_stream += 1;
+    }
+    issues
+}
+
+pub fn rebuild_decision_context_hashes(
+    initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
+    log: &EventLog,
+) -> Vec<Phase3AReplayFailure> {
+    log.events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .filter_map(|event| {
+            rebuild_decision_context_hash(initial_state, initial_agent_state, log, event)
+                .err()
+                .map(|failure| *failure)
+        })
+        .collect()
+}
+
+fn rebuild_decision_context_hash(
+    initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
+    log: &EventLog,
+    trace_event: &EventEnvelope,
+) -> Result<(), Box<Phase3AReplayFailure>> {
+    let record = decision_trace_record(trace_event)
+        .map_err(|issue| Box::new(phase3a_failure(trace_event, issue)))?;
+    let window_id = payload_value(trace_event, "window_id")
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_window_id")))?;
+    let window_end_tick = payload_value(trace_event, "window_end_tick")
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(SimTick::new)
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_window_end_tick")))?;
+    let ordinary_event_id = payload_value(trace_event, "ordinary_event_id")
+        .and_then(|value| EventId::new(value).ok())
+        .or_else(|| {
+            trace_event.causes.iter().find_map(|cause| match cause {
+                crate::events::EventCause::Event(event_id) => Some(event_id.clone()),
+                _ => None,
+            })
+        })
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_ordinary_event_id")))?;
+    let ordinary_index = log
+        .events()
+        .iter()
+        .position(|event| event.event_id == ordinary_event_id)
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "ordinary_event_not_found")))?;
+    let trace_index = log
+        .events()
+        .iter()
+        .position(|event| event.event_id == trace_event.event_id)
+        .ok_or_else(|| {
+            Box::new(phase3a_failure(
+                trace_event,
+                "decision_trace_event_not_found",
+            ))
+        })?;
+    if ordinary_index >= trace_index {
+        return Err(Box::new(phase3a_failure(
+            trace_event,
+            "ordinary_event_after_trace",
+        )));
+    }
+    let (prefix_log, prefix_state, prefix_agent_state, prefix_epistemic_projection) =
+        replay_prefix(
+            initial_state,
+            initial_agent_state,
+            &log.events()[..ordinary_index],
+        )
+        .map_err(|issue| Box::new(phase3a_failure(trace_event, issue)))?;
+    let actor = prefix_state.actors.get(&record.actor_id).ok_or_else(|| {
+        Box::new(phase3a_failure(
+            trace_event,
+            "actor_missing_at_decision_frontier",
+        ))
+    })?;
+    let surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &prefix_epistemic_projection,
+            agent_state: &prefix_agent_state,
+            actor_id: record.actor_id.clone(),
+            current_place_id: actor.current_place_id.clone(),
+            decision_tick: record.window_start_tick,
+            window_id,
+            window_end_tick,
+            frame_event_id: latest_frame_event_id(&prefix_log),
+        })
+        .build(&prefix_agent_state);
+    let rebuilt_inputs = surface
+        .context()
+        .actor_known_facts()
+        .iter()
+        .map(ActorKnownInputRef::from_fact)
+        .map(|input| input.render_for_trace())
+        .collect::<Vec<_>>();
+    let rebuilt_hash = compute_holder_known_context_hash(rebuilt_inputs.clone()).hash;
+    if rebuilt_hash != record.actor_known_context_hash {
+        let recorded_inputs = record
+            .actor_known_inputs
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        let rebuilt_input_set = rebuilt_inputs
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        let missing_rebuilt = recorded_inputs
+            .difference(&rebuilt_input_set)
+            .next()
+            .map(|value| value.as_str())
+            .unwrap_or("-");
+        let extra_rebuilt = rebuilt_input_set
+            .difference(&recorded_inputs)
+            .next()
+            .map(|value| value.as_str())
+            .unwrap_or("-");
+        return Err(Box::new(phase3a_failure(
+            trace_event,
+            format!(
+                "decision_context_hash_mismatch:recorded={} rebuilt={} recorded_count={} rebuilt_count={} missing_rebuilt={} extra_rebuilt={}",
+                record.actor_known_context_hash.as_str(),
+                rebuilt_hash.as_str(),
+                record.actor_known_inputs.len(),
+                rebuilt_inputs.len(),
+                missing_rebuilt,
+                extra_rebuilt
+            ),
+        )));
+    }
+    Ok(())
+}
+
+fn decision_trace_record(event: &EventEnvelope) -> Result<DecisionTraceRecord, &'static str> {
+    let canonical = payload_value(event, "trace_canonical").ok_or("missing_trace_canonical")?;
+    DecisionTraceRecord::deserialize_canonical(canonical.as_bytes())
+        .map_err(|_| "invalid_trace_canonical")
+}
+
+fn replay_prefix(
+    initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
+    events: &[EventEnvelope],
+) -> Result<(EventLog, PhysicalState, AgentState, EpistemicProjection), String> {
+    let mut prefix_log = EventLog::new();
+    let mut state = initial_state.clone();
+    let mut agent_state = initial_agent_state.clone();
+    let mut epistemic_projection = EpistemicProjection::new(
+        events
+            .first()
+            .map(|event| event.content_manifest_id.clone())
+            .unwrap_or_else(|| ContentManifestId::new("empty_prefix").unwrap()),
+    );
+    for event in events {
+        let appended = prefix_log
+            .append(event.clone())
+            .map_err(|error| format!("prefix_append_error:{error:?}"))?;
+        let mut application_context = EventApplicationContext {
+            physical_state: &mut state,
+            agent_state: &mut agent_state,
+            epistemic_projection: Some(&mut epistemic_projection),
+        };
+        apply_event_stream(&mut application_context, &appended)
+            .map_err(|error| format!("prefix_apply_error:{error:?}"))?;
+    }
+    Ok((prefix_log, state, agent_state, epistemic_projection))
+}
+
+fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            matches!(
+                event.event_type,
+                EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+            )
+        })
+        .map(|event| event.event_id.clone())
+        .or_else(|| log.events().first().map(|event| event.event_id.clone()))
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn phase3a_failure(event: &EventEnvelope, issue: impl Into<String>) -> Phase3AReplayFailure {
@@ -249,7 +481,7 @@ mod tests {
     }
 
     fn initial_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let shop = PlaceId::new("shop_front").unwrap();
         let back = PlaceId::new("back_room").unwrap();
         let mut shop_state = PlaceState::new(shop.clone(), "Shop front");
@@ -284,8 +516,8 @@ mod tests {
         let mut event = EventEnvelope::new_v1(
             EventId::new(id).unwrap(),
             kind,
-            99,
-            99,
+            0,
+            0,
             SimTick::new(3),
             ordering_key("check_container"),
             ContentManifestId::new("phase2a_manifest").unwrap(),
@@ -298,8 +530,8 @@ mod tests {
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(id).unwrap(),
             kind,
-            99,
-            99,
+            0,
+            0,
             SimTick::new(3),
             ordering_key("continue_routine"),
             ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -353,6 +585,17 @@ mod tests {
             sim_tick: SimTick::ZERO,
             world_stream_position_applied: 2,
         }
+    }
+
+    fn ordered_test_log(mut events: Vec<EventEnvelope>) -> EventLog {
+        let mut stream_positions = std::collections::BTreeMap::<EventStream, u64>::new();
+        for (index, event) in events.iter_mut().enumerate() {
+            event.global_order = index as u64;
+            let stream_position = stream_positions.entry(event.stream).or_insert(0);
+            event.stream_position = *stream_position;
+            *stream_position += 1;
+        }
+        EventLog::from_ordered_events_for_replay_tests(events)
     }
 
     fn live_run() -> (PhysicalState, EventLog, PhysicalState) {
@@ -422,9 +665,74 @@ mod tests {
     }
 
     #[test]
+    fn reordered_in_memory_log_is_detected_before_rebuild() {
+        let (initial, log, _) = live_run();
+        let mut events = log.events().to_vec();
+        events.swap(0, 1);
+        let reordered = EventLog::from_ordered_events_for_replay_tests(events);
+
+        let report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &reordered,
+            &context(),
+            None,
+        );
+
+        assert_eq!(report.event_count_applied, 0);
+        assert!(report
+            .invariant_violations
+            .iter()
+            .any(|issue| issue.contains("event_order_mismatch")));
+    }
+
+    #[test]
+    fn corrupt_midstream_agent_event_poisons_rebuild() {
+        let initial = initial_state();
+        let mut log = EventLog::new();
+        let mut corrupt = agent_event(
+            "event.threshold.corrupt",
+            EventKind::NeedThresholdCrossed,
+            vec![
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("from_value", "249"),
+                PayloadField::new("to_value", "254"),
+                PayloadField::new("from_band", "comfortable"),
+                PayloadField::new("to_band", "rising"),
+            ],
+        );
+        corrupt.actor_id = Some(actor_id());
+        log.append(corrupt).unwrap();
+        let valid = agent_event(
+            "event.threshold.valid",
+            EventKind::NeedThresholdCrossed,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("from_value", "254"),
+                PayloadField::new("to_value", "500"),
+                PayloadField::new("from_band", "rising"),
+                PayloadField::new("to_band", "urgent"),
+            ],
+        );
+        log.append(valid).unwrap();
+
+        let report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &log,
+            &context(),
+            None,
+        );
+
+        assert_eq!(report.agent_application_errors.len(), 1);
+        assert_eq!(report.final_agent_state.need_threshold_crossings().len(), 0);
+    }
+
+    #[test]
     fn epistemic_rebuild_is_deterministic_across_repeated_runs() {
         let initial = initial_state();
-        let log = EventLog::from_ordered_events_for_replay_tests(vec![epistemic_event(
+        let log = ordered_test_log(vec![epistemic_event(
             "event_belief_updated",
             EventKind::BeliefUpdated,
             belief_payload(),
@@ -461,7 +769,7 @@ mod tests {
             belief_payload(),
         );
         event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
-        let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
+        let log = ordered_test_log(vec![event]);
 
         let report = rebuild_projection(
             &initial,
@@ -474,7 +782,7 @@ mod tests {
         assert!(report.final_epistemic_projection.is_empty());
         assert_eq!(
             report.unsupported_epistemic_versions,
-            ["event_position=99 event_id=event_bad_epistemic_version version=event_schema_v999"]
+            ["event_position=0 event_id=event_bad_epistemic_version version=event_schema_v999"]
         );
     }
 
@@ -507,7 +815,7 @@ mod tests {
         );
         assert_eq!(live_state, initial);
 
-        let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
+        let log = ordered_test_log(vec![event]);
         let report = rebuild_projection(
             &initial,
             &crate::state::AgentState::default(),
@@ -525,7 +833,7 @@ mod tests {
     #[test]
     fn agent_state_rebuild_is_deterministic_and_catches_need_delta_divergence() {
         let initial = initial_state();
-        let log = EventLog::from_ordered_events_for_replay_tests(vec![
+        let log = ordered_test_log(vec![
             agent_event(
                 "event_hunger_initial",
                 EventKind::NeedDeltaApplied,
@@ -537,7 +845,7 @@ mod tests {
                 hunger_delta_payload(40, "tick_delta"),
             ),
         ]);
-        let changed_log = EventLog::from_ordered_events_for_replay_tests(vec![
+        let changed_log = ordered_test_log(vec![
             agent_event(
                 "event_hunger_initial",
                 EventKind::NeedDeltaApplied,
@@ -596,7 +904,7 @@ mod tests {
             ],
         );
         event.event_schema_version = SchemaVersion::new("event_schema_v999").unwrap();
-        let log = EventLog::from_ordered_events_for_replay_tests(vec![event]);
+        let log = ordered_test_log(vec![event]);
 
         let report = rebuild_projection(
             &initial,
@@ -609,7 +917,7 @@ mod tests {
         assert!(report.final_agent_state.routine_executions.is_empty());
         assert_eq!(report.unsupported_agent_versions.len(), 1);
         let failure = &report.unsupported_agent_versions[0];
-        assert_eq!(failure.event_position, 99);
+        assert_eq!(failure.event_position, 0);
         assert_eq!(failure.event_kind, EventKind::RoutineStepStarted);
         assert_eq!(failure.schema_version, "event_schema_v999");
         assert_eq!(failure.actor_id.as_deref(), Some("actor_tomas"));
@@ -623,7 +931,7 @@ mod tests {
     #[test]
     fn windowed_need_delta_batching_rebuilds_same_final_agent_state() {
         let initial = initial_state();
-        let unbatched = EventLog::from_ordered_events_for_replay_tests(vec![
+        let unbatched = ordered_test_log(vec![
             agent_event(
                 "event_hunger_initial",
                 EventKind::NeedDeltaApplied,
@@ -640,7 +948,7 @@ mod tests {
                 hunger_delta_payload(20, "tick_delta"),
             ),
         ]);
-        let batched = EventLog::from_ordered_events_for_replay_tests(vec![
+        let batched = ordered_test_log(vec![
             agent_event(
                 "event_hunger_initial",
                 EventKind::NeedDeltaApplied,

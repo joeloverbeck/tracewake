@@ -11,6 +11,8 @@ pub enum EventLogError {
     Parse(EventEnvelopeParseError),
     BadHex,
     InvalidUtf8,
+    GlobalOrderMismatch { expected: u64, actual: u64 },
+    StreamPositionMismatch { expected: u64, actual: u64 },
 }
 
 impl EventLog {
@@ -31,6 +33,37 @@ impl EventLog {
             .iter()
             .filter(|existing| existing.stream == event.stream)
             .count() as u64;
+        self.events.push(event.clone());
+        Ok(event)
+    }
+
+    fn append_deserialized(
+        &mut self,
+        event: EventEnvelope,
+    ) -> Result<EventEnvelope, EventLogError> {
+        if !event.has_supported_schema_version() {
+            return Err(EventLogError::UnsupportedSchemaVersion(
+                event.event_schema_version.as_str().to_string(),
+            ));
+        }
+        let expected_global_order = self.events.len() as u64;
+        if event.global_order != expected_global_order {
+            return Err(EventLogError::GlobalOrderMismatch {
+                expected: expected_global_order,
+                actual: event.global_order,
+            });
+        }
+        let expected_stream_position = self
+            .events
+            .iter()
+            .filter(|existing| existing.stream == event.stream)
+            .count() as u64;
+        if event.stream_position != expected_stream_position {
+            return Err(EventLogError::StreamPositionMismatch {
+                expected: expected_stream_position,
+                actual: event.stream_position,
+            });
+        }
         self.events.push(event.clone());
         Ok(event)
     }
@@ -64,7 +97,7 @@ impl EventLog {
             let event_bytes = decode_hex(line)?;
             let event =
                 EventEnvelope::deserialize_canonical(&event_bytes).map_err(EventLogError::Parse)?;
-            log.append(event)?;
+            log.append_deserialized(event)?;
         }
         Ok(log)
     }
@@ -153,5 +186,27 @@ mod tests {
         let round_tripped = EventLog::deserialize_canonical(&bytes).unwrap();
 
         assert_eq!(round_tripped, log);
+    }
+
+    #[test]
+    fn deserialization_rejects_reordered_global_order() {
+        let mut log = EventLog::new();
+        log.append(event("event_0001", EventKind::ActorWaited))
+            .unwrap();
+        log.append(event("event_0002", EventKind::ActionRejected))
+            .unwrap();
+        let text = String::from_utf8(log.serialize_canonical()).unwrap();
+        let mut lines = text.lines().collect::<Vec<_>>();
+        lines.swap(0, 1);
+
+        let error = EventLog::deserialize_canonical(lines.join("\n").as_bytes()).unwrap_err();
+
+        assert_eq!(
+            error,
+            EventLogError::GlobalOrderMismatch {
+                expected: 0,
+                actual: 1
+            }
+        );
     }
 }

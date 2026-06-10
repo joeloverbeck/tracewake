@@ -10,6 +10,7 @@ pub mod epistemics;
 pub mod events;
 pub mod ids;
 pub mod location;
+pub mod need_accounting;
 pub mod projections;
 pub mod replay;
 pub mod scheduler;

@@ -15,14 +15,14 @@ fn bind_render_submit_rerender_and_show_why_not() {
     let first_view = app.current_view().unwrap();
     assert_eq!(
         first_view.holder_known_context_id.as_str(),
-        "hkc.actor_tomas.0.2"
+        "hkc.actor_tomas.0.3"
     );
     assert!(first_view
         .holder_known_context_hash
         .as_str()
         .starts_with("hkc1-"));
-    assert!(first.contains("Knowledge context: id=hkc.actor_tomas.0.2 hash=hkc1-"));
-    assert!(first.contains("tick=0 frontier=2 sources=allowed=5 provenance=5"));
+    assert!(first.contains("Knowledge context: id=hkc.actor_tomas.0.3 hash=hkc1-"));
+    assert!(first.contains("tick=0 frontier=3 sources=allowed=5 provenance=5"));
     assert!(!first.contains("Knowledge context: knowledge."));
 
     let accepted = app
@@ -62,6 +62,8 @@ fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth(
 
     assert!(rendered.contains("Needs:"));
     assert!(rendered.contains("- hunger:"));
+    assert!(rendered.contains("band="));
+    assert!(!rendered.contains("value="));
     assert!(rendered.contains("Intention:"));
     assert!(rendered.contains("Routine:"));
     assert!(rendered.contains("Eat food_stew_home_tomas"));
@@ -83,6 +85,28 @@ fn embodied_view_omits_raw_workplace_assignment_without_context() {
     let rendered = app.render_current_view().unwrap();
 
     assert!(rendered.contains("move.to.workshop_tomas"));
+    assert!(!rendered.contains("Work at workplace_tomas"));
+    assert!(!view.semantic_actions.iter().any(|entry| {
+        entry.action_id.as_str() == "work_block"
+            || entry
+                .target_ids
+                .iter()
+                .any(|target| target == "workplace_tomas")
+    }));
+}
+
+#[test]
+fn embodied_workplace_availability_reflects_belief_not_truth_fixture() {
+    let mut app = TuiApp::from_golden(
+        fixtures::embodied_workplace_availability_reflects_belief_not_truth_001(),
+    )
+    .unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let rendered = app.render_current_view().unwrap();
+
     assert!(!rendered.contains("Work at workplace_tomas"));
     assert!(!view.semantic_actions.iter().any(|entry| {
         entry.action_id.as_str() == "work_block"

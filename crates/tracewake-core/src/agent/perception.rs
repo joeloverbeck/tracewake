@@ -1,16 +1,17 @@
 use crate::epistemics::{
     ActorKnownFoodSourceFact, ActorKnownRouteFact, ActorKnownSleepAffordanceFact, Channel,
-    Confidence, KnowledgeContext,
+    Confidence, EpistemicProjection, KnowledgeContext, Observation, ObservationSubject,
+    ObservationTarget, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, PlaceId, ProcessId,
+    ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, ObservationId, PlaceId, ProcessId,
     SleepAffordanceId,
 };
 use crate::location::Location;
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
 pub fn record_current_place_perception(
@@ -27,6 +28,23 @@ pub fn record_current_place_perception(
                 .expect("current-place perception event is versioned")
         })
         .collect()
+}
+
+pub fn record_current_place_perception_and_project(
+    log: &mut EventLog,
+    state: &mut PhysicalState,
+    _agent_state: &mut AgentState,
+    epistemic_projection: &mut EpistemicProjection,
+    actor_id: &ActorId,
+    decision_tick: SimTick,
+    content_manifest_id: &ContentManifestId,
+) -> Vec<EventEnvelope> {
+    let events =
+        record_current_place_perception(log, state, actor_id, decision_tick, content_manifest_id);
+    for event in &events {
+        project_perception_event(epistemic_projection, event);
+    }
+    events
 }
 
 pub fn current_place_perception_events(
@@ -98,28 +116,64 @@ pub fn current_place_perception_events(
 
 pub fn current_place_knowledge_context(
     state: &PhysicalState,
+    epistemic_projection: Option<&EpistemicProjection>,
     actor_id: &ActorId,
     decision_tick: SimTick,
-    content_manifest_id: &ContentManifestId,
+    _content_manifest_id: &ContentManifestId,
     event_frontier: u64,
 ) -> KnowledgeContext {
-    let perception_events =
-        current_place_perception_events(state, actor_id, decision_tick, content_manifest_id);
     let mut food_sources = Vec::new();
     let mut sleep_affordances = Vec::new();
     let mut routes = Vec::new();
 
-    for event in &perception_events {
-        let source_key = format!("evented_perception:{}", event.event_id.as_str());
-        match payload_value(event, "perceived_kind") {
+    let Some(actor) = state.actors().get(actor_id) else {
+        return KnowledgeContext::embodied_at_frontier_with_facts(
+            actor_id.clone(),
+            decision_tick,
+            event_frontier,
+            Vec::new(),
+            food_sources,
+            sleep_affordances,
+            routes,
+        );
+    };
+    let Some(epistemic_projection) = epistemic_projection else {
+        return KnowledgeContext::embodied_at_frontier_with_facts(
+            actor_id.clone(),
+            decision_tick,
+            event_frontier,
+            Vec::new(),
+            food_sources,
+            sleep_affordances,
+            routes,
+        );
+    };
+    let filter_context =
+        KnowledgeContext::embodied_at_frontier(actor_id.clone(), decision_tick, event_frontier);
+    let observations = epistemic_projection.observations_for_context(&filter_context);
+    let latest_current_place_tick = observations
+        .iter()
+        .filter(|observation| observation.observer_place_id() == &actor.current_place_id)
+        .map(|observation| observation.observed_tick())
+        .max();
+
+    for observation in observations {
+        if observation.observer_place_id() != &actor.current_place_id {
+            continue;
+        }
+        if Some(observation.observed_tick()) != latest_current_place_tick {
+            continue;
+        }
+        let source_key = observation_source_key(observation);
+        match observation_payload_value(observation, "perceived_kind") {
             Some("visible_exit") => {
-                let Some(from_place_id) =
-                    payload_value(event, "subject_id").and_then(|value| PlaceId::new(value).ok())
+                let Some(from_place_id) = observation_payload_value(observation, "subject_id")
+                    .and_then(|value| PlaceId::new(value).ok())
                 else {
                     continue;
                 };
-                let Some(to_place_id) =
-                    payload_value(event, "target_id").and_then(|value| PlaceId::new(value).ok())
+                let Some(to_place_id) = observation_payload_value(observation, "target_id")
+                    .and_then(|value| PlaceId::new(value).ok())
                 else {
                     continue;
                 };
@@ -130,7 +184,7 @@ pub fn current_place_knowledge_context(
                 ));
             }
             Some("visible_food_supply") => {
-                let Some(food_supply_id) = payload_value(event, "target_id")
+                let Some(food_supply_id) = observation_payload_value(observation, "target_id")
                     .and_then(|value| FoodSupplyId::new(value).ok())
                 else {
                     continue;
@@ -138,12 +192,12 @@ pub fn current_place_knowledge_context(
                 food_sources.push(ActorKnownFoodSourceFact::new(food_supply_id, source_key));
             }
             Some("visible_sleep_affordance") => {
-                let Some(place_id) =
-                    payload_value(event, "place_id").and_then(|value| PlaceId::new(value).ok())
+                let Some(place_id) = observation_payload_value(observation, "place_id")
+                    .and_then(|value| PlaceId::new(value).ok())
                 else {
                     continue;
                 };
-                let Some(sleep_affordance_id) = payload_value(event, "target_id")
+                let Some(sleep_affordance_id) = observation_payload_value(observation, "target_id")
                     .and_then(|value| SleepAffordanceId::new(value).ok())
                 else {
                     continue;
@@ -169,6 +223,48 @@ pub fn current_place_knowledge_context(
     )
 }
 
+fn observation_source_key(observation: &Observation) -> String {
+    match observation.source() {
+        SourceRef::Event(event_id) => format!("evented_perception:{}", event_id.as_str()),
+        SourceRef::Action(action_id) => format!("evented_perception:{}", action_id.as_str()),
+        SourceRef::Cause(cause) => format!("evented_perception:{cause:?}"),
+    }
+}
+
+fn project_perception_event(projection: &mut EpistemicProjection, event: &EventEnvelope) {
+    let Some(actor_id) = event.actor_id.clone() else {
+        return;
+    };
+    let Some(place_id) = event.place_id.clone() else {
+        return;
+    };
+    let Some(observation_id) =
+        payload_value(event, "observation_id").and_then(|value| ObservationId::new(value).ok())
+    else {
+        return;
+    };
+    let Some(observed_tick) = payload_value(event, "observed_tick")
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(SimTick::new)
+    else {
+        return;
+    };
+    let observation = Observation::new(
+        observation_id,
+        actor_id,
+        Channel::DirectSight,
+        observed_tick,
+        place_id.clone(),
+        ObservationSubject::Place(place_id.clone()),
+        ObservationTarget::Place(place_id),
+        Confidence::MAX,
+        SourceRef::Event(event.event_id.clone()),
+    )
+    .with_raw_payload(event.payload.clone());
+    projection.insert_observation(observation);
+    projection.record_applied_event(event.event_id.clone());
+}
+
 fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
     let Some(place) = state.places().get(place_id) else {
         return false;
@@ -180,6 +276,14 @@ fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
     event
         .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
+fn observation_payload_value<'a>(observation: &'a Observation, key: &str) -> Option<&'a str> {
+    observation
+        .raw_payload()
         .iter()
         .find(|field| field.key == key)
         .map(|field| field.value.as_str())
@@ -264,6 +368,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+    use crate::epistemics::EpistemicProjection;
     use crate::ids::{FoodSupplyId, SleepAffordanceId};
     use crate::state::{ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState};
 
@@ -304,7 +409,7 @@ mod tests {
         let mut sleep_affordances = BTreeMap::new();
         sleep_affordances.insert(
             sleep_affordance_id.clone(),
-            SleepAffordanceState::new(sleep_affordance_id, home),
+            SleepAffordanceState::new(sleep_affordance_id, home, 4, 20, 2),
         );
 
         PhysicalState::from_seed_parts(
@@ -316,6 +421,7 @@ mod tests {
             food_supplies,
             BTreeMap::new(),
             sleep_affordances,
+            crate::state::NeedModelState::new(5, 3),
         )
     }
 
@@ -335,6 +441,7 @@ mod tests {
             BTreeMap::new(),
             BTreeMap::new(),
             BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
         )
     }
 
@@ -409,5 +516,82 @@ mod tests {
         );
 
         assert_eq!(first.serialize_canonical(), second.serialize_canonical());
+    }
+
+    #[test]
+    fn current_place_knowledge_context_uses_latest_projection_window_not_live_truth() {
+        let actor = actor_id("actor_tomas");
+        let mut state = state_with_visible_current_place_surfaces();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let stale_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(5),
+            &manifest_id,
+            3,
+        );
+        assert!(stale_context
+            .actor_known_food_sources()
+            .iter()
+            .any(|fact| fact.food_supply_id().as_str() == "food_breakfast_tomas"));
+
+        state.food_supplies.clear();
+        let replacement_food_id = FoodSupplyId::new("food_lunch_tomas").unwrap();
+        state.food_supplies.insert(
+            replacement_food_id.clone(),
+            FoodSupplyState::new(
+                replacement_food_id,
+                Location::AtPlace(place_id("home_tomas")),
+                1,
+                180,
+            ),
+        );
+
+        let stale_after_truth_change = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(6),
+            &manifest_id,
+            3,
+        );
+        assert!(stale_after_truth_change
+            .actor_known_food_sources()
+            .iter()
+            .any(|fact| fact.food_supply_id().as_str() == "food_breakfast_tomas"));
+        assert!(!stale_after_truth_change
+            .actor_known_food_sources()
+            .iter()
+            .any(|fact| fact.food_supply_id().as_str() == "food_lunch_tomas"));
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(7), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let refreshed_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(8),
+            &manifest_id,
+            6,
+        );
+        assert!(!refreshed_context
+            .actor_known_food_sources()
+            .iter()
+            .any(|fact| fact.food_supply_id().as_str() == "food_breakfast_tomas"));
+        assert!(refreshed_context
+            .actor_known_food_sources()
+            .iter()
+            .any(|fact| fact.food_supply_id().as_str() == "food_lunch_tomas"));
     }
 }

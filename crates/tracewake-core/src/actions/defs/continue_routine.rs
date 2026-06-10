@@ -189,7 +189,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let office_id = PlaceId::new("office").unwrap();
         let hallway_id = PlaceId::new("hallway").unwrap();
         let mut office = PlaceState::new(office_id.clone(), "Office");
@@ -226,6 +226,7 @@ mod tests {
         let content_manifest_id = ContentManifestId::new("phase3a_manifest").unwrap();
         let context = current_place_knowledge_context(
             state,
+            None,
             &actor_id(),
             proposal.requested_tick,
             &content_manifest_id,

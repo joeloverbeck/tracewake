@@ -614,16 +614,16 @@ impl FixtureSchema {
             let mut workplace_state = WorkplaceState::new(
                 workplace.workplace_id.clone(),
                 workplace.place_id.clone(),
+                workplace.work_duration_ticks,
+                workplace.fatigue_delta_per_tick,
+                workplace.hunger_delta_per_tick,
+                workplace.max_fatigue_to_start,
+                workplace.max_hunger_to_start,
                 workplace.output_tag.clone(),
             );
             workplace_state
                 .assigned_actor_ids
                 .extend(workplace.assigned_actor_ids.iter().cloned());
-            workplace_state.work_duration_ticks = workplace.work_duration_ticks;
-            workplace_state.fatigue_delta_per_tick = workplace.fatigue_delta_per_tick;
-            workplace_state.hunger_delta_per_tick = workplace.hunger_delta_per_tick;
-            workplace_state.max_fatigue_to_start = workplace.max_fatigue_to_start;
-            workplace_state.max_hunger_to_start = workplace.max_hunger_to_start;
             workplace_state.access_open = workplace.access_open;
             workplaces.insert(workplace.workplace_id.clone(), workplace_state);
         }
@@ -633,15 +633,15 @@ impl FixtureSchema {
             let mut sleep_affordance = SleepAffordanceState::new(
                 sleep_affordance_id.clone(),
                 sleep_place.place_id.clone(),
+                sleep_place.duration_ticks,
+                sleep_place.fatigue_recovery_per_tick,
+                sleep_place.hunger_rise_per_tick,
             );
             sleep_affordance.access_open = sleep_place.access_open;
-            sleep_affordance.duration_ticks = sleep_place.duration_ticks;
-            sleep_affordance.fatigue_recovery_per_tick = sleep_place.fatigue_recovery_per_tick;
-            sleep_affordance.hunger_rise_per_tick = sleep_place.hunger_rise_per_tick;
             sleep_affordances.insert(sleep_affordance_id, sleep_affordance);
         }
 
-        let mut physical_state = PhysicalState::from_seed_parts(
+        PhysicalState::from_seed_parts(
             actors,
             places,
             doors,
@@ -650,12 +650,11 @@ impl FixtureSchema {
             food_supplies,
             workplaces,
             sleep_affordances,
-        );
-        physical_state.set_need_model(NeedModelState {
-            awake_hunger_delta_per_tick: self.need_model.awake_hunger_delta_per_tick,
-            awake_fatigue_delta_per_tick: self.need_model.awake_fatigue_delta_per_tick,
-        });
-        physical_state
+            NeedModelState {
+                awake_hunger_delta_per_tick: self.need_model.awake_hunger_delta_per_tick,
+                awake_fatigue_delta_per_tick: self.need_model.awake_fatigue_delta_per_tick,
+            },
+        )
     }
 
     pub fn to_agent_state(&self) -> AgentState {
@@ -763,6 +762,7 @@ fn routine_family_assignment_suffix(family: RoutineFamily) -> &'static str {
         RoutineFamily::ReturnHome => "return_home",
         RoutineFamily::SleepNight => "sleep",
         RoutineFamily::FindFood => "find_food",
+        RoutineFamily::LeaveUnsafePlace => "leave_unsafe",
         RoutineFamily::ContinueCurrentIntention => "continue",
         RoutineFamily::Wait | RoutineFamily::IdleWithReason => "wait",
     }

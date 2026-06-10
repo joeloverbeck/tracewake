@@ -8,6 +8,19 @@ Detailed rules for two SKILL.md branches: the triage recommendation (Step 3 §Tr
 
 Used when the brainstorm evaluates a report, finding-set, or diagnostic question and produces work items, instead of proposing approaches.
 
+### Audit fan-out (delegated deep review)
+
+When the triage requires deep per-surface review of code or docs (an alignment audit, a hardening pass) rather than mere location of relevant files, delegate with structure instead of improvising:
+
+- **Slice by subsystem × governing docs** — each agent gets one code surface plus the doc-tier files that govern it, so no agent's context dilutes across the whole repo.
+- **Use a read-only, review-capable agent type** — Explore-type agents locate code but don't audit it; pick an agent that reads function bodies (e.g. an architecture-review agent restricted to Read/Grep/Glob).
+- **Prompt for adversarial verification** — when prior specs claim fixes on the audited surface, instruct agents to verify the claims in code, not trust them ("a passing test is only as good as what it asserts").
+- **Fix the evidence format** — grep-stable named symbols (no line numbers), severity from the lineage's existing vocabulary, a why-existing-guards-miss-it line, and a fix-plus-lock sketch per finding.
+- **Request a verified-holding list** alongside findings so confirmations are recorded and not re-litigated.
+- **Cap per-agent output** (~900 words) and state that the final message is synthesis data, not user prose.
+
+The SKILL.md verification rules then apply to what comes back: blocker/high and load-bearing findings are independently verified before the triage; lower-severity findings are spot-verified (or marked agent-reported) before they're embedded in a persisted deliverable.
+
 ### Per-item structure
 
 Each triage item has:

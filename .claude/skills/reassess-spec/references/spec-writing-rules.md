@@ -11,7 +11,7 @@ Example:
 | Finding | Check | Result |
 |---------|-------|--------|
 | I1 | `grep -nE "INV-0?18" docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` | INV-018 "Deterministic replay is foundational" present — determinism citation valid |
-| I2 | `test -f docs/1-architecture/03_EVENT_LOG_REPLAY_PROJECTIONS_AND_SAVE_PACKAGES.md` | file exists — event-log contract path valid |
+| I2 | `test -f docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md` | file exists — event-log contract path valid |
 | M3 | Judgment — actor-knowledge no-leak reasoning; Q2 delegated | selected (a): the debug view is non-diegetic and must not feed the actor-filtered view model, per INV-024 / INV-031 |
 
 **Row shapes**:
@@ -32,7 +32,7 @@ When in doubt, treat the mismatch as recommendation-changing and re-present — 
 
 ## Apply Changes
 
-- Incorporate corrections from the user's question responses. Preserve existing structure and voice; change only what was agreed upon. Keep the spec's own section set (take it as authoritative; mirror sibling exemplars `specs/0002_*`, `docs/4-specs/0001_*` for convention) — prefer explicit `not applicable` rows over silent omissions.
+- Incorporate corrections from the user's question responses. Preserve existing structure and voice; change only what was agreed upon. Keep the spec's own section set (take it as authoritative; mirror sibling exemplars `archive/specs/0002_*`, `docs/4-specs/0001_*` for convention) — prefer explicit `not applicable` rows over silent omissions.
 - Prefer `Edit` for ≤3 localized changes; prefer full `Write` when insertions cause **cascading renumbering** or the change is a **diffuse rewrite** of contiguous prose. The decision keys on the *shape* of the change, not the count of sections touched — many independent surgical edits across many sections are well-served by targeted Edits.
 - **Inserting deliverables / required-area items**: renumber all subsequent items and update intra-spec cross-references (dependency-order references, acceptance-criteria rows that name an item, sequencing). **Removing items**: grep the spec for all references to the removed number/ID (Scope, Deliverables, required areas, acceptance/exit criteria, binding invariants, forbidden changes, assumptions, cross-references) and update or remove them. Exclude citations to OTHER phases'/specs' deliverables (e.g. `Phase 2 §epistemics`) from renumbering — those are external and preserved verbatim.
 - **Material mechanism modification (number unchanged)**: grep the spec for the deliverable's old key concepts (function/type/module/fixture names the modification eliminates) and scan Purpose, Scope, Deliverables, binding-invariants alignment, acceptance criteria, assumptions for restatements.
@@ -46,7 +46,7 @@ When in doubt, treat the mismatch as recommendation-changing and re-present — 
 If Step 3 concluded all deliverables already landed, Step 7's output is NOT deliverable refinement. Instead:
 
 1. Flip the spec's **Status** to `Done` (or the repo's done marker; reflect the same in the `docs/4-specs/SPEC_LEDGER.md` entry).
-2. Populate the **Acceptance evidence** section (and/or an **Outcome** note) with: completion date (absolute); landed changes (cite file/module paths + line numbers); delivering commit(s) or sibling spec(s); deviations from the original plan; verification / acceptance-gate commands **re-run at reassessment time** with pass/fail status (do not copy from memory — rerun each to catch post-delivery regressions, e.g. test runs, deterministic-replay/hash checks, fixture/golden-trace checks per `docs/2-execution/10_TESTING_DEBUGGING_OBSERVABILITY_AND_METRICS.md`).
+2. Populate the **Acceptance evidence** section (and/or an **Outcome** note) with: completion date (absolute); landed changes (cite file/module paths + line numbers); delivering commit(s) or sibling spec(s); deviations from the original plan; verification / acceptance-gate commands **re-run at reassessment time** with pass/fail status (do not copy from memory — rerun each to catch post-delivery regressions, e.g. test runs, deterministic-replay/hash checks, fixture/golden-trace checks per `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`).
 3. Mark the historical **Purpose / motivating context** as such — a short parenthetical noting the gap it describes was closed by the landed implementation, so a future reader doesn't treat a stale condition as live.
 4. Cross-reference any later phases/specs/skills that extended or absorbed the original scope.
 5. Do NOT apply structural refinements to deliverables that already shipped — the spec is now a historical record; editing deliverable sections to match current code would confuse the causal narrative.

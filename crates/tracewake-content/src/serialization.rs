@@ -615,6 +615,7 @@ fn parse_routine_family(value: &str) -> Result<RoutineFamily, SerializationError
         "return_home" => Ok(RoutineFamily::ReturnHome),
         "sleep_night" => Ok(RoutineFamily::SleepNight),
         "find_food" => Ok(RoutineFamily::FindFood),
+        "leave_unsafe_place" => Ok(RoutineFamily::LeaveUnsafePlace),
         "continue_current_intention" => Ok(RoutineFamily::ContinueCurrentIntention),
         "wait" => Ok(RoutineFamily::Wait),
         "idle_with_reason" => Ok(RoutineFamily::IdleWithReason),

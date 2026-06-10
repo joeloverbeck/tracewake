@@ -7,10 +7,10 @@ use crate::agent::{
     LocalPlanRequest, PlannerGoal, ResponsibleLayer, RoutineFamily, RoutineStep,
     StuckDiagnosticRecord, StuckResultingStatus, TypedDiagnosticFields,
 };
-use crate::ids::{ActorId, ProposalId, StuckDiagnosticId};
+use crate::ids::{ActorId, EventId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
 use crate::time::SimTick;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug)]
 pub struct ActorDecisionTransactionInput<'a> {
@@ -18,6 +18,7 @@ pub struct ActorDecisionTransactionInput<'a> {
     pub decision_tick: SimTick,
     pub agent_state: &'a AgentState,
     pub actor_known_context: &'a ActorKnownPlanningContext,
+    pub source_event_ids: Option<&'a BTreeSet<EventId>>,
     pub routine_window_family: Option<RoutineFamily>,
     pub include_idle_fallback: bool,
 }
@@ -86,6 +87,18 @@ impl ActorDecisionTransaction {
     pub fn run(input: ActorDecisionTransactionInput<'_>) -> ActorDecisionTransactionOutcome {
         let active_intention = active_intention_for_actor(input.agent_state, &input.actor_id);
         let actor_known_facts = input.actor_known_context.actor_known_facts().to_vec();
+        if let Some(available_source_event_ids) = input.source_event_ids {
+            if let Some(diagnostic) = dangling_provenance_diagnostic(
+                &input.actor_id,
+                input.decision_tick,
+                &actor_known_facts,
+                available_source_event_ids,
+            ) {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(diagnostic),
+                };
+            }
+        }
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: input.actor_id.clone(),
             decision_tick: input.decision_tick,
@@ -135,6 +148,16 @@ impl ActorDecisionTransaction {
                     }),
                 };
             };
+            if !selection.trace.hidden_truth_audit_result.actor_known_only {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
+                        &input.actor_id,
+                        input.decision_tick,
+                        &selection.selected_goal,
+                        &selection.trace,
+                    )),
+                };
+            }
 
             match select_phase3a_method(
                 &selection.selected_goal,
@@ -157,16 +180,6 @@ impl ActorDecisionTransaction {
                 }
             }
         };
-        if !selection.trace.hidden_truth_audit_result.actor_known_only {
-            return ActorDecisionTransactionOutcome::Stuck {
-                diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
-                    &input.actor_id,
-                    input.decision_tick,
-                    &selection.selected_goal,
-                    &selection.trace,
-                )),
-            };
-        }
         let method_goal = selection.selected_goal.clone();
 
         let step =
@@ -397,11 +410,10 @@ fn planner_goal_for(
             .unwrap_or_else(|| {
                 PlannerGoal::WaitWithReason("no_actor_known_sleep_place".to_string())
             }),
-        GoalKind::ContinueCurrentIntention
-        | GoalKind::IdleWithReason
-        | GoalKind::LeaveUnsafePlace => {
+        GoalKind::ContinueCurrentIntention | GoalKind::IdleWithReason => {
             PlannerGoal::WaitWithReason("actor_decision_reevaluation".to_string())
         }
+        GoalKind::LeaveUnsafePlace => PlannerGoal::LeaveUnsafePlace,
     }
 }
 
@@ -410,12 +422,61 @@ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
         RoutineFamily::SleepNight => Some(GoalKind::SleepOrRest),
         RoutineFamily::EatMeal => Some(GoalKind::Eat),
         RoutineFamily::FindFood => Some(GoalKind::FindFood),
+        RoutineFamily::LeaveUnsafePlace => Some(GoalKind::LeaveUnsafePlace),
         RoutineFamily::GoToWork => Some(GoalKind::GoToWork),
         RoutineFamily::WorkBlock => Some(GoalKind::PerformWorkBlock),
         RoutineFamily::ReturnHome => Some(GoalKind::ReturnHome),
         RoutineFamily::ContinueCurrentIntention => Some(GoalKind::ContinueCurrentIntention),
         RoutineFamily::MorningWake | RoutineFamily::Wait | RoutineFamily::IdleWithReason => None,
     }
+}
+
+fn dangling_provenance_diagnostic(
+    actor_id: &ActorId,
+    tick: SimTick,
+    actor_known_facts: &[crate::agent::ActorKnownFact],
+    available_source_event_ids: &BTreeSet<EventId>,
+) -> Option<StuckDiagnosticRecord> {
+    let dangling = actor_known_facts
+        .iter()
+        .flat_map(|fact| fact.source_event_ids())
+        .find(|event_id| !available_source_event_ids.contains(*event_id))?;
+    Some(
+        StuckDiagnosticRecord::new(
+            StuckDiagnosticId::new(format!(
+                "stuck_actor_decision_{}_{}",
+                actor_id.as_str(),
+                tick.value()
+            ))
+            .unwrap(),
+            actor_id.clone(),
+            tick,
+            tick.advance_by(1),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::Knowledge,
+            "provenance dangling",
+            "actor decision transaction rejected unresolved actor-known source event",
+            format!("dangling_source_event_id={}", dangling.as_str()),
+            "typed_stuck_diagnostic",
+            StuckResultingStatus::Failed,
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::CandidateGeneration,
+            blocker_code: BlockerCode::ProvenanceDangling,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint:
+                "rebuild actor-known facts only from events present in the decision log frontier"
+                    .to_string(),
+        }),
+    )
 }
 
 fn stuck_diagnostic_for_hidden_truth_audit(
@@ -586,13 +647,32 @@ mod tests {
             BTreeSet::from(["food_stew".to_string()]),
             BTreeSet::from([home.clone()]),
             BTreeMap::new(),
-            vec![ActorKnownFact::observed_now(
-                actor_id(),
-                "actor_knows_food_source",
-                "food_stew",
-                "test:visible_food",
-                None,
-            )],
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "test:visible_food",
+                    None,
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_sleep_place",
+                    home.as_str(),
+                    "test:visible_sleep_place",
+                    None,
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "known_route_surface",
+                    format!("{}->{}", home.as_str(), workshop.as_str()),
+                    "test:visible_route",
+                    None,
+                    test_source(),
+                ),
+            ],
         )
     }
 
@@ -615,10 +695,51 @@ mod tests {
                     "food_stew",
                     "test:visible_food",
                     None,
+                    test_source(),
                 ),
                 ActorKnownFact::unproven("audit_probe", "typed_source_class_only"),
             ],
         )
+    }
+
+    fn no_exit_context() -> ActorKnownPlanningContext {
+        let home = place("home_tomas");
+        ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_stew".to_string()]),
+            BTreeSet::from([home.clone()]),
+            BTreeMap::new(),
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "test:visible_food",
+                    None,
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_sleep_place",
+                    home.as_str(),
+                    "test:visible_sleep_place",
+                    None,
+                    test_source(),
+                ),
+            ],
+        )
+    }
+
+    fn test_source() -> crate::agent::SourceEventIds {
+        crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
+            "event_test_actor_known",
+        )
+        .unwrap()])
+        .unwrap()
     }
 
     fn agent_state_with_hunger(value: i32) -> AgentState {
@@ -673,6 +794,7 @@ mod tests {
             decision_tick: SimTick::new(12),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -722,6 +844,7 @@ mod tests {
             decision_tick: SimTick::new(14),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: false,
         });
@@ -745,6 +868,7 @@ mod tests {
             decision_tick: SimTick::new(15),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -754,6 +878,7 @@ mod tests {
         };
 
         assert_eq!(diagnostic.concrete_blocker, "hidden truth input");
+        assert_eq!(diagnostic.routine_template_id, None);
         assert_eq!(
             diagnostic.typed_diagnostic.responsible_layer,
             ResponsibleLayer::CandidateGeneration
@@ -771,7 +896,37 @@ mod tests {
     }
 
     #[test]
-    fn method_fallback_reruns_selection_with_coherent_trace_and_candidate() {
+    fn dangling_actor_known_source_event_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let context = known_context();
+        let source_event_ids = BTreeSet::new();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(17),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: Some(&source_event_ids),
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected dangling provenance stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance dangling");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceDangling
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("event_test_actor_known"));
+    }
+
+    #[test]
+    fn severe_safety_with_known_exit_proposes_move_before_hunger() {
         let agent_state = agent_state_with_severe_safety_and_hunger();
         let context = known_context();
 
@@ -780,12 +935,13 @@ mod tests {
             decision_tick: SimTick::new(16),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
 
         let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
-            panic!("expected coherent fallback proposal");
+            panic!("expected severe safety move proposal");
         };
 
         let selected_goal_id = proposed
@@ -796,7 +952,12 @@ mod tests {
             .as_str()
             .to_string();
 
-        assert!(selected_goal_id.ends_with("_eat"));
+        assert!(selected_goal_id.ends_with("_leave_unsafe_place"));
+        assert_eq!(proposed.proposal.action_id().as_str(), "move");
+        assert_eq!(
+            proposed.proposal.target_ids(),
+            ["workshop_tomas".to_string()]
+        );
         assert_eq!(
             proposed.proposal.parameters().get("candidate_goal_id"),
             Some(&selected_goal_id)
@@ -811,16 +972,45 @@ mod tests {
                 .trace_id
                 .as_str()
                 .contains(&selected_goal_id),
-            "rerun trace id must be specific to the selected fallback candidate"
+            "trace id must be specific to the selected severe safety candidate"
         );
-        assert!(proposed
-            .decision_trace
-            .rejected_goals
-            .iter()
-            .any(
-                |rejected| rejected.stable_ref.ends_with("_leave_unsafe_place")
-                    && rejected.reason.starts_with("method_selection_rejected:")
-            ));
+        assert_eq!(
+            proposed.proposal.parameters().get("routine_template_id"),
+            Some(&"routine_leave_unsafe_place".to_string())
+        );
+    }
+
+    #[test]
+    fn severe_safety_without_known_exit_fails_with_knowledge_blocker() {
+        let agent_state = agent_state_with_severe_safety_and_hunger();
+        let context = no_exit_context();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(19),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: None,
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected no-exit knowledge blocker");
+        };
+
+        assert_eq!(
+            diagnostic.concrete_blocker,
+            "no actor-known exit from unsafe place"
+        );
+        assert_eq!(diagnostic.blocker_category, BlockerCategory::Knowledge);
+        assert_eq!(
+            diagnostic.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::LocalPlanning
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("no actor-known exit from unsafe place"));
     }
 
     #[test]
@@ -833,6 +1023,7 @@ mod tests {
             decision_tick: SimTick::new(18),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: Some(RoutineFamily::SleepNight),
             include_idle_fallback: true,
         });

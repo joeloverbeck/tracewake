@@ -27,7 +27,7 @@ To keep architecture clean, robust, and extensible, every new ticket must be cre
    - Map each important invariant to the exact verification surface that proves it.
    - Use one line per invariant. Valid verification surfaces for Tracewake tickets:
      - codebase grep-proof (Rust symbol existence, rename/removal confirmation, schema field presence)
-     - schema validation (entity/component, event, and content/domain-pack conformance against `docs/1-architecture/04_STATE_CONTENT_AUTHORING_DOMAIN_PACKS_AND_SCHEMA_VALIDATION.md` and `docs/2-execution/09_DATA_AUTHORING_VALIDATION_AND_GOLDEN_FIXTURES.md`)
+     - schema validation (entity/component, event, and content/domain-pack conformance against `docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` and `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`)
      - replay/golden-fixture check (deterministic replay over a golden scenario; no-human run advances)
      - skill dry-run (a `.claude/skills/` workflow invoked with a representative input; deliverable inspected without commit)
      - invariants alignment check (`INV-NNN` principle, rule, or schema cited by section)

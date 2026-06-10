@@ -16,7 +16,8 @@ pub mod trace;
 pub mod transaction;
 
 pub use actor_known::{
-    ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, VisibleLocalPlanningState,
+    ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, SourceEventIds,
+    SourceEventIdsError, VisibleLocalPlanningState,
 };
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
@@ -42,10 +43,12 @@ pub use need::{
     NeedBand, NeedChangeCause, NeedKind, NeedParseError, NeedPressure, NeedState,
     NeedThresholdCrossing, ThresholdDirection,
 };
-pub use no_human_surface::{NoHumanActorKnownSurfaceBuilder, SealedActorKnownSurface};
+pub use no_human_surface::{
+    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, SealedActorKnownSurface,
+};
 pub use perception::{
     current_place_knowledge_context, current_place_perception_events,
-    record_current_place_perception,
+    record_current_place_perception, record_current_place_perception_and_project,
 };
 pub use planner::{
     build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,

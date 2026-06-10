@@ -66,6 +66,9 @@ fn state(container_open: bool, door_open: bool) -> PhysicalState {
         SleepAffordanceState::new(
             SleepAffordanceId::new("bed_shop_front").unwrap(),
             shop.clone(),
+            4,
+            20,
+            2,
         ),
     );
 
@@ -234,6 +237,9 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         SleepAffordanceState::new(
             SleepAffordanceId::new("bed_elena").unwrap(),
             PlaceId::new("home_elena").unwrap(),
+            4,
+            20,
+            2,
         ),
     );
 
@@ -250,6 +256,11 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     let mut closed_workplace = WorkplaceState::new(
         WorkplaceId::new("workplace_anna_closed").unwrap(),
         PlaceId::new("office_anna").unwrap(),
+        4,
+        8,
+        4,
+        900,
+        900,
         "blocked_office_output",
     );
     closed_workplace
@@ -264,6 +275,11 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
     let mut open_workplace = WorkplaceState::new(
         WorkplaceId::new("workplace_tomas").unwrap(),
         PlaceId::new("workshop_tomas").unwrap(),
+        4,
+        8,
+        4,
+        900,
+        900,
         "tomas_work_output",
     );
     open_workplace
@@ -550,6 +566,7 @@ fn run_sleep(
         let content_manifest_id = ContentManifestId::new("phase3a_manifest").unwrap();
         let source_context = current_place_knowledge_context(
             state,
+            None,
             &actor_id(),
             proposal.requested_tick,
             &content_manifest_id,
@@ -671,6 +688,8 @@ fn phase3a_agent_events_apply_live_and_replay_to_same_agent_checksum() {
         SimTick::new(1),
     );
     wait.parameters.insert("ticks".to_string(), "3".to_string());
+    wait.parameters
+        .insert("reason".to_string(), "acceptance wait".to_string());
     wait.parameters.insert(
         "current_hunger".to_string(),
         agent_need(&live_agent_state, NeedKind::Hunger).to_string(),

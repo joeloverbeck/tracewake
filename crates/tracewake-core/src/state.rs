@@ -5,8 +5,8 @@ use crate::agent::{
 };
 use crate::ids::{
     ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, FoodSupplyId, IntentionId,
-    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, SleepAffordanceId, StuckDiagnosticId,
-    WorkplaceId,
+    ItemId, PlaceId, ProposalId, RoutineExecutionId, SchemaVersion, SleepAffordanceId,
+    StuckDiagnosticId, WorkplaceId,
 };
 use crate::location::Location;
 
@@ -123,7 +123,7 @@ pub struct PlaceState {
     pub visibility_default: VisibilityDefault,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PhysicalState {
     pub(crate) actors: BTreeMap<ActorId, ActorBody>,
     pub(crate) places: BTreeMap<PlaceId, PlaceState>,
@@ -144,9 +144,46 @@ pub struct AgentState {
     pub(crate) routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
     pub(crate) decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
     pub(crate) stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+    pub(crate) need_threshold_crossings: BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord>,
+    pub(crate) ordinary_life_episodes: BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NeedThresholdCrossingRecord {
+    pub event_id: crate::ids::EventId,
+    pub actor_id: ActorId,
+    pub need_kind: NeedKind,
+    pub from_value: u16,
+    pub to_value: u16,
+    pub from_band: String,
+    pub to_band: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct OrdinaryLifeEpisodeRecord {
+    pub event_id: crate::ids::EventId,
+    pub event_kind: String,
+    pub actor_id: Option<ActorId>,
+    pub proposal_id: Option<ProposalId>,
+    pub sim_tick: crate::time::SimTick,
+    pub summary: String,
 }
 
 impl PhysicalState {
+    pub fn empty(need_model: NeedModelState) -> Self {
+        Self {
+            actors: BTreeMap::new(),
+            places: BTreeMap::new(),
+            doors: BTreeMap::new(),
+            containers: BTreeMap::new(),
+            items: BTreeMap::new(),
+            food_supplies: BTreeMap::new(),
+            workplaces: BTreeMap::new(),
+            sleep_affordances: BTreeMap::new(),
+            need_model,
+        }
+    }
+
     #[allow(
         clippy::too_many_arguments,
         reason = "Seed construction mirrors authoritative state collections."
@@ -160,6 +197,7 @@ impl PhysicalState {
         food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
         workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
         sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
+        need_model: NeedModelState,
     ) -> Self {
         Self {
             actors,
@@ -170,7 +208,7 @@ impl PhysicalState {
             food_supplies,
             workplaces,
             sleep_affordances,
-            need_model: NeedModelState::default(),
+            need_model,
         }
     }
 
@@ -231,6 +269,8 @@ impl AgentState {
             routine_executions,
             decision_traces,
             stuck_diagnostics,
+            need_threshold_crossings: BTreeMap::new(),
+            ordinary_life_episodes: BTreeMap::new(),
         }
     }
 
@@ -256,6 +296,18 @@ impl AgentState {
 
     pub fn stuck_diagnostics(&self) -> &BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
         &self.stuck_diagnostics
+    }
+
+    pub fn need_threshold_crossings(
+        &self,
+    ) -> &BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord> {
+        &self.need_threshold_crossings
+    }
+
+    pub fn ordinary_life_episodes(
+        &self,
+    ) -> &BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord> {
+        &self.ordinary_life_episodes
     }
 }
 
@@ -376,15 +428,21 @@ pub struct SleepAffordanceState {
 }
 
 impl SleepAffordanceState {
-    pub fn new(sleep_affordance_id: SleepAffordanceId, place_id: PlaceId) -> Self {
+    pub fn new(
+        sleep_affordance_id: SleepAffordanceId,
+        place_id: PlaceId,
+        duration_ticks: u64,
+        fatigue_recovery_per_tick: i32,
+        hunger_rise_per_tick: i32,
+    ) -> Self {
         Self {
             sleep_affordance_id,
             place_id,
             access_open: true,
             rest_quality: 1,
-            duration_ticks: 4,
-            fatigue_recovery_per_tick: 20,
-            hunger_rise_per_tick: 2,
+            duration_ticks,
+            fatigue_recovery_per_tick,
+            hunger_rise_per_tick,
         }
     }
 }
@@ -395,30 +453,39 @@ pub struct NeedModelState {
     pub awake_fatigue_delta_per_tick: i32,
 }
 
-impl Default for NeedModelState {
-    fn default() -> Self {
+impl NeedModelState {
+    pub const fn new(awake_hunger_delta_per_tick: i32, awake_fatigue_delta_per_tick: i32) -> Self {
         Self {
-            awake_hunger_delta_per_tick: 5,
-            awake_fatigue_delta_per_tick: 3,
+            awake_hunger_delta_per_tick,
+            awake_fatigue_delta_per_tick,
         }
     }
 }
 
 impl WorkplaceState {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Workplace construction requires all authored tuning values explicitly."
+    )]
     pub fn new(
         workplace_id: WorkplaceId,
         place_id: PlaceId,
+        work_duration_ticks: u64,
+        fatigue_delta_per_tick: i32,
+        hunger_delta_per_tick: i32,
+        max_fatigue_to_start: i32,
+        max_hunger_to_start: i32,
         output_tag: impl Into<String>,
     ) -> Self {
         Self {
             workplace_id,
             place_id,
             assigned_actor_ids: BTreeSet::new(),
-            work_duration_ticks: 4,
-            fatigue_delta_per_tick: 8,
-            hunger_delta_per_tick: 4,
-            max_fatigue_to_start: 900,
-            max_hunger_to_start: 900,
+            work_duration_ticks,
+            fatigue_delta_per_tick,
+            hunger_delta_per_tick,
+            max_fatigue_to_start,
+            max_hunger_to_start,
             access_open: true,
             output_tag: output_tag.into(),
         }
@@ -610,6 +677,11 @@ mod tests {
         let mut workplace = WorkplaceState::new(
             workplace_id("workplace_office"),
             place_id("office"),
+            4,
+            8,
+            4,
+            900,
+            900,
             "service_completed_placeholder",
         );
         workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));

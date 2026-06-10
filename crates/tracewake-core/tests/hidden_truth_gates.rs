@@ -181,7 +181,9 @@ fn actor_known_context_unforgeable_from_truth() {
     assert!(
         ACTOR_KNOWN_RS.contains("```compile_fail")
             && ACTOR_KNOWN_RS.contains("ActorKnownPlanningContext::from_observed_parts")
-            && ACTOR_KNOWN_RS.contains("ActorKnownPlanningContext::from(PhysicalState::default())"),
+            && ACTOR_KNOWN_RS.contains(
+                "ActorKnownPlanningContext::from(PhysicalState::empty(NeedModelState::new(5, 3)))"
+            ),
         "actor-known unforgeability must be documented by compile-fail examples"
     );
     assert!(
@@ -422,6 +424,7 @@ fn hidden_food_unknown_route_does_not_become_transaction_target() {
         decision_tick: SimTick::ZERO,
         agent_state: &agent_state,
         actor_known_context: &context,
+        source_event_ids: None,
         routine_window_family: Some(RoutineFamily::EatMeal),
         include_idle_fallback: true,
     });

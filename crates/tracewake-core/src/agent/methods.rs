@@ -88,6 +88,16 @@ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
             None,
         ),
         template(
+            "routine_leave_unsafe_place",
+            RoutineFamily::LeaveUnsafePlace,
+            Vec::new(),
+            Vec::new(),
+            vec![step("move_toward_place", "move")],
+            vec!["no_actor_known_exit", "route_blocked"],
+            vec!["wait_with_reason", "fallback_stuck_diagnostic"],
+            None,
+        ),
+        template(
             "routine_continue_current_intention",
             RoutineFamily::ContinueCurrentIntention,
             vec![RoutineCondition::ActiveIntentionPresent],
@@ -118,9 +128,9 @@ pub fn family_for_goal(goal_kind: GoalKind) -> RoutineFamily {
         GoalKind::GoToWork => RoutineFamily::GoToWork,
         GoalKind::PerformWorkBlock => RoutineFamily::WorkBlock,
         GoalKind::ReturnHome => RoutineFamily::ReturnHome,
+        GoalKind::LeaveUnsafePlace => RoutineFamily::LeaveUnsafePlace,
         GoalKind::ContinueCurrentIntention => RoutineFamily::ContinueCurrentIntention,
         GoalKind::IdleWithReason => RoutineFamily::Wait,
-        GoalKind::LeaveUnsafePlace => RoutineFamily::Wait,
     }
 }
 
@@ -201,6 +211,7 @@ mod tests {
             RoutineFamily::ReturnHome,
             RoutineFamily::SleepNight,
             RoutineFamily::FindFood,
+            RoutineFamily::LeaveUnsafePlace,
             RoutineFamily::ContinueCurrentIntention,
             RoutineFamily::Wait,
         ] {
@@ -220,6 +231,25 @@ mod tests {
             .preconditions
             .contains(&RoutineCondition::SearchSurfaceActorKnown));
         assert!(!template.serialize_for_test().contains("hidden"));
+    }
+
+    #[test]
+    fn leave_unsafe_place_uses_flight_family_and_move_step() {
+        assert_eq!(
+            family_for_goal(GoalKind::LeaveUnsafePlace),
+            RoutineFamily::LeaveUnsafePlace
+        );
+
+        let template = phase3a_routine_templates()
+            .into_iter()
+            .find(|template| template.family == RoutineFamily::LeaveUnsafePlace)
+            .unwrap();
+
+        assert_eq!(template.template_id.as_str(), "routine_leave_unsafe_place");
+        assert_eq!(
+            template.steps.first().unwrap().proposed(),
+            RoutineStepProposal::Action(&SemanticActionId::new("move").unwrap())
+        );
     }
 
     trait TemplateTestRender {

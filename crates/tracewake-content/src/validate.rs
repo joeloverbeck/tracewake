@@ -856,6 +856,16 @@ fn validate_topology(fixture: &FixtureSchema, errors: &mut Vec<ContentValidation
 }
 
 fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    validate_nonnegative_tuning(
+        fixture.need_model.awake_hunger_delta_per_tick,
+        "need_model.awake_hunger_delta_per_tick",
+        errors,
+    );
+    validate_nonnegative_tuning(
+        fixture.need_model.awake_fatigue_delta_per_tick,
+        "need_model.awake_fatigue_delta_per_tick",
+        errors,
+    );
     for (index, door) in fixture.doors.iter().enumerate() {
         if door.is_locked && door.is_open {
             errors.push(ContentValidationError::new(
@@ -885,6 +895,58 @@ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationErr
                 "sleep duration must be greater than zero",
             ));
         }
+        validate_nonnegative_tuning(
+            sleep_place.fatigue_recovery_per_tick,
+            format!("sleep_places[{index}].fatigue_recovery_per_tick"),
+            errors,
+        );
+        validate_nonnegative_tuning(
+            sleep_place.hunger_rise_per_tick,
+            format!("sleep_places[{index}].hunger_rise_per_tick"),
+            errors,
+        );
+    }
+    for (index, food) in fixture.food_supplies.iter().enumerate() {
+        validate_nonnegative_tuning(
+            food.hunger_reduction_per_serving,
+            format!("food_supplies[{index}].hunger_reduction_per_serving"),
+            errors,
+        );
+    }
+    for (index, workplace) in fixture.workplaces.iter().enumerate() {
+        validate_nonnegative_tuning(
+            workplace.fatigue_delta_per_tick,
+            format!("workplaces[{index}].fatigue_delta_per_tick"),
+            errors,
+        );
+        validate_nonnegative_tuning(
+            workplace.hunger_delta_per_tick,
+            format!("workplaces[{index}].hunger_delta_per_tick"),
+            errors,
+        );
+    }
+}
+
+fn validate_nonnegative_tuning(
+    value: i32,
+    path: impl Into<String>,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    let path = path.into();
+    if value < 0 {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::State,
+            path,
+            "invalid_tuning_direction",
+            "need and routine tuning values must be nonnegative in their modeled direction",
+        ));
+    } else if value > 10_000 {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::State,
+            path,
+            "invalid_tuning_magnitude",
+            "need and routine tuning values must not exceed 10000 per tick or serving",
+        ));
     }
 }
 
@@ -1302,6 +1364,13 @@ fn validate_no_player(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
 }
 
 fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    for (index, place) in fixture.places.iter().enumerate() {
+        reject_script_marker_text(
+            &place.display_label,
+            format!("places[{index}].display_label"),
+            errors,
+        );
+    }
     for (index, affordance) in fixture.affordances.iter().enumerate() {
         if is_script_key(affordance.action_id.as_str()) {
             errors.push(ContentValidationError::new(
@@ -1314,6 +1383,11 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
                 ),
             ));
         }
+        reject_script_marker_text(
+            &affordance.target_id,
+            format!("affordances[{index}].target_id"),
+            errors,
+        );
     }
     for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
         let planner_intended = planner_intended_seed_text(belief).any(contains_planner_seed_marker);
@@ -1327,6 +1401,13 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
         }
     }
     for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+        for (index, value) in template.failure_modes.iter().enumerate() {
+            reject_script_marker_text(
+                value,
+                format!("routine_templates[{template_index}].failure_modes[{index}]"),
+                errors,
+            );
+        }
         for (index, value) in template.debug_labels.iter().enumerate() {
             reject_script_marker_text(
                 value,
@@ -1369,6 +1450,17 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
         }
     }
 }
+
+#[cfg(test)]
+const SCANNED_STRING_FIELDS: &[&str] = &[
+    "PlaceSchema.display_label",
+    "ActionAffordanceSchema.target_id",
+    "WorkplaceSchema.output_tag",
+    "RoutineTemplateSchema.failure_modes",
+    "RoutineTemplateSchema.fallback_rules",
+    "RoutineTemplateSchema.debug_labels",
+    "RoutineTemplateSchema.reservable_resource",
+];
 
 fn planner_intended_seed_text(
     belief: &crate::schema::InitialBeliefSchema,
@@ -2007,6 +2099,70 @@ mod tests {
             .physical_state
             .places()
             .contains_key(&PlaceId::new("shop_front").unwrap()));
+    }
+
+    #[test]
+    fn negative_need_tuning_direction_is_rejected() {
+        let mut fixture = fixture();
+        fixture.need_model.awake_hunger_delta_per_tick = -50;
+
+        let errors = validate_fixture(&fixture, &registry()).unwrap_err();
+
+        assert!(errors.report.errors.iter().any(|error| {
+            error.code == "invalid_tuning_direction"
+                && error.path == "need_model.awake_hunger_delta_per_tick"
+        }));
+    }
+
+    #[test]
+    fn display_label_script_marker_is_rejected() {
+        let mut fixture = fixture();
+        fixture.places[0].display_label = "expected_final_event hidden truth".to_string();
+
+        let errors = validate_fixture(&fixture, &registry()).unwrap_err();
+
+        assert!(errors.report.errors.iter().any(|error| {
+            error.code == "authored_outcome_chain" && error.path == "places[0].display_label"
+        }));
+    }
+
+    #[test]
+    fn schema_string_fields_are_classified_for_script_scanning() {
+        let schema = include_str!("schema.rs");
+        let mut current_struct = None;
+        let mut discovered = std::collections::BTreeSet::new();
+        for line in schema.lines() {
+            let trimmed = line.trim();
+            if let Some(rest) = trimmed.strip_prefix("pub struct ") {
+                current_struct = rest
+                    .split_whitespace()
+                    .next()
+                    .map(|name| name.trim_end_matches('{').to_string());
+                continue;
+            }
+            let Some(struct_name) = current_struct.as_ref() else {
+                continue;
+            };
+            if trimmed == "}" {
+                current_struct = None;
+                continue;
+            }
+            if trimmed.starts_with("pub ") && trimmed.contains("String") {
+                let field = trimmed
+                    .trim_start_matches("pub ")
+                    .split(':')
+                    .next()
+                    .unwrap();
+                discovered.insert(format!("{struct_name}.{field}"));
+            }
+        }
+
+        let registered = SCANNED_STRING_FIELDS
+            .iter()
+            .copied()
+            .map(str::to_string)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(discovered, registered);
     }
 
     #[test]

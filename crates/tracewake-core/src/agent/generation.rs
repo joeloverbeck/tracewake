@@ -301,7 +301,16 @@ mod tests {
             "food_soup",
             "test:visible_food",
             None,
+            test_source(),
         )
+    }
+
+    fn test_source() -> crate::agent::SourceEventIds {
+        crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
+            "event_test_actor_known",
+        )
+        .unwrap()])
+        .unwrap()
     }
 
     #[test]
@@ -346,6 +355,7 @@ mod tests {
                 "home_tomas",
                 "test:visible_sleep_place",
                 None,
+                test_source(),
             )],
             routine_window_goal: Some(GoalKind::GoToWork),
         };
@@ -373,6 +383,7 @@ mod tests {
                 "home_tomas",
                 "test:visible_place",
                 None,
+                test_source(),
             )],
             routine_window_goal: None,
         });
