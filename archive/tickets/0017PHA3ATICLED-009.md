@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-009: Generative lock tier — sequence generator, differential and metamorphic oracles
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (new test-side generative harness); no production code, no new dependencies
@@ -81,3 +81,28 @@ The three oracle families from Verification Layers, each over the full seed corp
 
 1. `cargo test -p tracewake-core --test generative_lock`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added an in-tree deterministic LCG generator under `tests/support/generative.rs` with four committed seeds and no new dependencies.
+- Added `tests/generative_lock.rs`, which runs generated scheduled wait/no-human sequences through the real scheduler and action pipeline.
+- Added replay differential checks comparing live physical and agent checksums against `run_replay`.
+- Added metamorphic checks for canonical event-log round-trip, prefix replay, diagnostic marker no-op physical checksum behavior, and single need-charge per actor/tick/kind.
+- Added reachability assertions proving the generated corpus emits actor waits, need deltas, no-human markers, replay checks, and prefix replay checks.
+
+Deviations from original plan:
+
+- The first generated corpus is intentionally bounded to scheduled wait/no-human sequences. It exercises the production scheduler, pipeline, replay, and need-accounting surfaces without adding fixture dependencies or new generation libraries.
+- Duration terminal coverage such as sleep/work completion and `WorkBlockFailed` remains covered by existing golden/capstone fixtures in this batch; this ticket adds the generated oracle tier rather than duplicating the full capstone fixture shape inside the generator.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-core --test generative_lock` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
