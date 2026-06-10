@@ -5,7 +5,7 @@ Date: 2026-06-10
 Target implementation commit under review:
 `9a9d3d322029d3ef4fe84d9c5e8b46b3b14a6d00`
 
-Scope: `specs/0016_PHASE_3A_NEED_ACCOUNTING_REPLAY_EVIDENCE_AUDIT_COVERAGE_AND_LOCK_DURABILITY_HARDENING_SPEC.md`
+Scope: `archive/specs/0016_PHASE_3A_NEED_ACCOUNTING_REPLAY_EVIDENCE_AUDIT_COVERAGE_AND_LOCK_DURABILITY_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the Phase 3A
 ordinary-life hardening work. It is not latest-main verification beyond the
@@ -34,8 +34,10 @@ Ticket commits included in the target implementation:
 
 Capstone scope adds this report only. It introduces no production logic.
 
-Recorded deferral: `tickets/0016PHA3ANEEACC-015.md` exists and records the
-full no-human actor-known surface unification onto `EpistemicProjection`.
+Outcome amendment, 2026-06-10: the recorded deferral was completed by
+`archive/tickets/0016PHA3ANEEACC-015.md`. No-human actor-known construction now
+uses projection-backed records from `EpistemicProjection` instead of
+builder-local raw event payload scans.
 
 ## Verification Commands
 
