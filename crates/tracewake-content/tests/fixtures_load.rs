@@ -42,6 +42,36 @@ fn registry() -> ActionRegistry {
     registry
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "fixture census test scans source constructors; this is test substrate, not simulation outcome code"
+)]
+fn positive_fixture_constructor_ids_from_source() -> BTreeSet<String> {
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/fixtures");
+    let mut ids = BTreeSet::new();
+    for entry in std::fs::read_dir(fixtures_dir).expect("fixtures directory is readable") {
+        let path = entry.expect("fixture directory entry is readable").path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("rs")
+            || path.file_name().and_then(|file_name| file_name.to_str()) == Some("mod.rs")
+        {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path).expect("fixture source is readable");
+        for line in source.lines() {
+            let Some(signature) = line.trim_start().strip_prefix("pub fn ") else {
+                continue;
+            };
+            let Some((name, remainder)) = signature.split_once('(') else {
+                continue;
+            };
+            if name.ends_with("_001") && remainder.contains("-> GoldenFixture") {
+                ids.insert(name.to_string());
+            }
+        }
+    }
+    ids
+}
+
 fn phase3a_fixture() -> FixtureSchema {
     FixtureSchema {
         fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
@@ -151,7 +181,6 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 56);
 
     let ids = all
         .iter()
@@ -159,64 +188,8 @@ fn all_fixtures_load_deterministically_and_validate() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         ids,
-        BTreeSet::from([
-            "aged_food_record_surfaces_as_remembered_belief_not_observation_001".to_string(),
-            "container_item_move_001".to_string(),
-            "debug_attach_001".to_string(),
-            "debug_omniscience_excluded_001".to_string(),
-            "door_access_001".to_string(),
-            "embodied_exits_require_perceived_or_known_route_001".to_string(),
-            "embodied_menu_lags_truth_change_without_perception_001".to_string(),
-            "embodied_view_omits_raw_assignment_without_context_001".to_string(),
-            "embodied_workplace_believed_open_truth_closed_commit_fails_001".to_string(),
-            "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
-            "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
-            "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
-            "expectation_contradiction_001".to_string(),
-            "food_unavailable_replan_001".to_string(),
-            "forbidden_provenance_input_fails_closed_001".to_string(),
-            "hidden_food_closed_container_001".to_string(),
-            "hidden_food_unknown_route_001".to_string(),
-            "hidden_route_edge_001".to_string(),
-            "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001".to_string(),
-            "knowledge_blocker_accuse_001".to_string(),
-            "method_fallback_requires_new_trace_or_stuck_001".to_string(),
-            "no_human_advance_001".to_string(),
-            "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
-            "no_human_day_001".to_string(),
-            "no_human_epistemic_check_001".to_string(),
-            "no_human_known_workplace_requires_provenance_001".to_string(),
-            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
-            "no_human_observation_facts_cite_log_events_001".to_string(),
-            "no_human_sleep_knowledge_requires_observation_or_record_001".to_string(),
-            "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
-            "no_human_workplace_knowledge_requires_notice_event_001".to_string(),
-            "no_hidden_truth_planning_001".to_string(),
-            "ordinary_workday_001".to_string(),
-            "planner_trace_001".to_string(),
-            "possession_parity_001".to_string(),
-            "possession_does_not_reset_intention_001".to_string(),
-            "replay_item_location_001".to_string(),
-            "routine_blocked_diagnostic_001".to_string(),
-            "routine_no_teleport_001".to_string(),
-            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
-            "severe_safety_with_known_exit_produces_move_001".to_string(),
-            "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
-            "seeded_food_source_unknown_to_all_actors_001".to_string(),
-            "sleep_eat_work_001".to_string(),
-            "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
-            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
-            "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
-            "stale_workplace_notice_superseded_by_newer_001".to_string(),
-            "wait_then_window_passive_charges_each_tick_once_001".to_string(),
-            "sound_uncertainty_001".to_string(),
-            "strongbox_001".to_string(),
-            "view_filtering_001".to_string(),
-            "view_model_local_actions_001".to_string(),
-            "work_block_failed_then_sleep_succeeds_001".to_string(),
-            "work_completion_fails_when_actor_displaced_001".to_string(),
-            "workplace_assignment_provenance_001".to_string(),
-        ])
+        positive_fixture_constructor_ids_from_source(),
+        "every positive fixture constructor must be registered in fixtures::all()"
     );
 
     for golden in all {
@@ -337,76 +310,30 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             .collect::<BTreeSet<_>>()
     };
 
-    assert_eq!(
-        ids_for_scope(FixtureScope::Phase1),
-        BTreeSet::from([
-            "container_item_move_001".to_string(),
-            "debug_attach_001".to_string(),
-            "door_access_001".to_string(),
-            "no_human_advance_001".to_string(),
-            "replay_item_location_001".to_string(),
-            "strongbox_001".to_string(),
-            "view_model_local_actions_001".to_string(),
-        ])
+    let phase1_ids = ids_for_scope(FixtureScope::Phase1);
+    let phase2_ids = ids_for_scope(FixtureScope::Phase2AHistorical);
+    let phase3_ids = ids_for_scope(FixtureScope::Phase3AHistorical);
+    assert!(
+        !phase1_ids.is_empty(),
+        "Phase 1 fixtures must remain covered"
     );
-    assert_eq!(
-        ids_for_scope(FixtureScope::Phase2AHistorical),
-        BTreeSet::from([
-            "expectation_contradiction_001".to_string(),
-            "knowledge_blocker_accuse_001".to_string(),
-            "no_human_epistemic_check_001".to_string(),
-            "possession_parity_001".to_string(),
-            "sound_uncertainty_001".to_string(),
-            "view_filtering_001".to_string(),
-        ])
+    assert!(
+        !phase2_ids.is_empty(),
+        "Phase 2A historical fixtures must remain covered"
     );
+    assert!(
+        !phase3_ids.is_empty(),
+        "Phase 3A historical fixtures must remain covered"
+    );
+
+    let mut registered_ids = BTreeSet::new();
+    registered_ids.extend(phase1_ids);
+    registered_ids.extend(phase2_ids);
+    registered_ids.extend(phase3_ids);
     assert_eq!(
-        ids_for_scope(FixtureScope::Phase3AHistorical),
-        BTreeSet::from([
-            "aged_food_record_surfaces_as_remembered_belief_not_observation_001".to_string(),
-            "debug_omniscience_excluded_001".to_string(),
-            "embodied_exits_require_perceived_or_known_route_001".to_string(),
-            "embodied_menu_lags_truth_change_without_perception_001".to_string(),
-            "embodied_view_omits_raw_assignment_without_context_001".to_string(),
-            "embodied_workplace_believed_open_truth_closed_commit_fails_001".to_string(),
-            "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
-            "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
-            "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
-            "food_unavailable_replan_001".to_string(),
-            "forbidden_provenance_input_fails_closed_001".to_string(),
-            "hidden_food_closed_container_001".to_string(),
-            "hidden_food_unknown_route_001".to_string(),
-            "hidden_route_edge_001".to_string(),
-            "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001".to_string(),
-            "method_fallback_requires_new_trace_or_stuck_001".to_string(),
-            "no_hidden_truth_planning_001".to_string(),
-            "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
-            "no_human_day_001".to_string(),
-            "no_human_known_workplace_requires_provenance_001".to_string(),
-            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
-            "no_human_observation_facts_cite_log_events_001".to_string(),
-            "no_human_sleep_knowledge_requires_observation_or_record_001".to_string(),
-            "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
-            "no_human_workplace_knowledge_requires_notice_event_001".to_string(),
-            "ordinary_workday_001".to_string(),
-            "planner_trace_001".to_string(),
-            "possession_does_not_reset_intention_001".to_string(),
-            "routine_blocked_diagnostic_001".to_string(),
-            "routine_no_teleport_001".to_string(),
-            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
-            "severe_safety_with_known_exit_produces_move_001".to_string(),
-            "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
-            "seeded_food_source_unknown_to_all_actors_001".to_string(),
-            "sleep_eat_work_001".to_string(),
-            "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
-            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
-            "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
-            "stale_workplace_notice_superseded_by_newer_001".to_string(),
-            "wait_then_window_passive_charges_each_tick_once_001".to_string(),
-            "work_block_failed_then_sleep_succeeds_001".to_string(),
-            "work_completion_fails_when_actor_displaced_001".to_string(),
-            "workplace_assignment_provenance_001".to_string(),
-        ])
+        registered_ids,
+        positive_fixture_constructor_ids_from_source(),
+        "every positive fixture constructor must have exactly one declared fixture scope"
     );
 }
 

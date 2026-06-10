@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-009: Census durability — content negatives, fixture registry, mutants ratchet, zero-dependency census
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: LOW
 **Effort**: Medium
 **Engine Changes**: Yes — test/CI substrate (`tracewake-content` tests, `tracewake-core` lock-layer tests, `.github/workflows/ci.yml`, `clippy.toml` as surfaced); no production code changes
@@ -91,3 +91,23 @@ A registry in `validate.rs` (or sibling) mapping each policy variant to its prov
 
 1. `cargo test -p tracewake-content --test fixtures_load`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-11:
+
+1. Added `CONTENT_NEGATIVE_PROOFS` in `validate.rs` and a census test covering every `NumericFieldPolicy` and `StringScanPolicy` variant, including the three existing inline negatives and a raw negative count proof for the unsigned count policy.
+2. Replaced hand-maintained positive fixture ID sets in `fixtures_load.rs` with a source-derived constructor census for `pub fn *_001() -> GoldenFixture`, while preserving Phase 1 registry boundary checks and scope coverage assertions.
+3. Updated the scheduled `mutants-lock-layer` workflow check to normalize file+mutation+function entries, drop line/column drift, ratchet with `comm -23`, and write new misses to the job summary.
+4. Added `workspace_dependency_posture_matches_allowlist` in `anti_regression_guards.rs`, asserting `tracewake-core` has empty `[dependencies]` and the workspace dependency set matches the committed allowlist. No new `clippy.toml` entries were surfaced beyond the existing stable-path bans.
+
+Verification:
+
+1. `cargo test -p tracewake-content content_negative_registry_covers_validation_policy_variants_and_tests`
+2. `cargo test -p tracewake-content --test fixtures_load`
+3. `cargo test -p tracewake-core workspace_dependency_posture_matches_allowlist`
+4. `cargo test -p tracewake-core --test anti_regression_guards`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`

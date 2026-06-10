@@ -62,6 +62,13 @@ struct WorkspaceSourceClassification {
     class: WorkspaceSourceClass,
 }
 
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct DependencyEntry {
+    manifest_path: String,
+    section: String,
+    dependency: String,
+}
+
 const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
     BannedApiToken {
         token: "HashMap",
@@ -428,6 +435,70 @@ fn production_sources_from_roots(
     sources
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "anti-regression test scans Cargo manifests; this helper is not simulation outcome code"
+)]
+fn workspace_dependency_entries() -> std::collections::BTreeSet<DependencyEntry> {
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("tracewake-core is under workspace crates directory");
+    [
+        "Cargo.toml",
+        "crates/tracewake-core/Cargo.toml",
+        "crates/tracewake-content/Cargo.toml",
+        "crates/tracewake-tui/Cargo.toml",
+    ]
+    .into_iter()
+    .flat_map(|manifest_path| {
+        let source = std::fs::read_to_string(workspace_root.join(manifest_path))
+            .expect("Cargo manifest is readable");
+        dependency_entries_from_manifest(manifest_path, &source)
+    })
+    .collect()
+}
+
+fn dependency_entries_from_manifest(manifest_path: &str, source: &str) -> Vec<DependencyEntry> {
+    let mut section = None;
+    let mut entries = Vec::new();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            let section_name = trimmed.trim_matches(['[', ']']);
+            section = matches!(
+                section_name,
+                "dependencies"
+                    | "dev-dependencies"
+                    | "build-dependencies"
+                    | "workspace.dependencies"
+            )
+            .then_some(section_name.to_string());
+            continue;
+        }
+        let Some(current_section) = section.as_ref() else {
+            continue;
+        };
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let dependency = trimmed
+            .split_once('=')
+            .map_or(trimmed, |(name, _)| name)
+            .trim()
+            .trim_matches('"');
+        if dependency.is_empty() {
+            continue;
+        }
+        entries.push(DependencyEntry {
+            manifest_path: manifest_path.to_string(),
+            section: current_section.clone(),
+            dependency: dependency.to_string(),
+        });
+    }
+    entries
+}
+
 const CORE_FOUNDATION_RATIONALE: &str =
     "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
 const CORE_ACTION_RATIONALE: &str =
@@ -438,6 +509,24 @@ const CONTENT_RATIONALE: &str =
     "content crate fixture/schema/loader code is not the actor cognition or scheduler lock layer";
 const TUI_RATIONALE: &str =
     "tui crate is a boundary/presentation layer, not authoritative simulation outcome logic";
+
+const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
+    (
+        "crates/tracewake-content/Cargo.toml",
+        "dependencies",
+        "tracewake-core",
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dependencies",
+        "tracewake-content",
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dependencies",
+        "tracewake-core",
+    ),
+];
 
 const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -723,6 +812,35 @@ fn workspace_source_classification_census_matches_production_tree() {
             }
         }
     }
+}
+
+#[test]
+fn workspace_dependency_posture_matches_allowlist() {
+    let actual = workspace_dependency_entries();
+    let expected = WORKSPACE_DEPENDENCY_ALLOWLIST
+        .iter()
+        .map(|(manifest_path, section, dependency)| DependencyEntry {
+            manifest_path: (*manifest_path).to_string(),
+            section: (*section).to_string(),
+            dependency: (*dependency).to_string(),
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+
+    assert!(
+        actual
+            .iter()
+            .filter(
+                |entry| entry.manifest_path == "crates/tracewake-core/Cargo.toml"
+                    && entry.section == "dependencies"
+            )
+            .count()
+            == 0,
+        "tracewake-core must keep [dependencies] empty"
+    );
+    assert_eq!(
+        actual, expected,
+        "workspace dependency posture changed; review crate ownership before updating the allowlist"
+    );
 }
 
 #[test]

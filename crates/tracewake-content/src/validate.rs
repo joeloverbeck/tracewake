@@ -1018,7 +1018,7 @@ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationErr
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum NumericFieldPolicy {
     PressureNonnegative,
     ReliefPositive,
@@ -1033,6 +1033,22 @@ enum NumericFieldPolicy {
 struct NumericFieldRegistration {
     field: &'static str,
     policy: NumericFieldPolicy,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ContentNegativePolicy {
+    Numeric(NumericFieldPolicy),
+    StringScan(StringScanPolicy),
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ContentNegativeProof {
+    policy: ContentNegativePolicy,
+    proving_test: &'static str,
+    rejection_code: &'static str,
+    rejection_path: &'static str,
 }
 
 #[cfg(test)]
@@ -1100,6 +1116,52 @@ const NUMERIC_FIELD_REGISTRY: &[NumericFieldRegistration] = &[
     NumericFieldRegistration {
         field: "RoutineTemplateSchema.interruption_points",
         policy: NumericFieldPolicy::CountNonnegative,
+    },
+];
+
+#[cfg(test)]
+const CONTENT_NEGATIVE_PROOFS: &[ContentNegativeProof] = &[
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::PressureNonnegative),
+        proving_test: "negative_need_tuning_direction_is_rejected",
+        rejection_code: "invalid_tuning_direction",
+        rejection_path: "need_model.awake_hunger_delta_per_tick",
+    },
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::ReliefPositive),
+        proving_test: "fixture_relief_zero_and_need_gate_out_of_band_are_rejected_001",
+        rejection_code: "invalid_relief_magnitude",
+        rejection_path: "food_supplies[0].hunger_reduction_per_serving",
+    },
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::DurationAtLeastOne),
+        proving_test: "fixture_workplace_zero_duration_rejected_001",
+        rejection_code: "invalid_duration",
+        rejection_path: "workplaces[0].work_duration_ticks",
+    },
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::NeedBandI32),
+        proving_test: "fixture_relief_zero_and_need_gate_out_of_band_are_rejected_001",
+        rejection_code: "invalid_need_band",
+        rejection_path: "workplaces[0].max_fatigue_to_start",
+    },
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::NeedBandU16),
+        proving_test: "fixture_initial_need_out_of_band_rejected_001",
+        rejection_code: "invalid_need_band",
+        rejection_path: "initial_needs[0].value",
+    },
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::CountNonnegative),
+        proving_test: "fixture_food_supply_negative_servings_rejected_001",
+        rejection_code: "bad_number",
+        rejection_path: "fixture.number",
+    },
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::StringScan(StringScanPolicy::Union),
+        proving_test: "fixture_output_tag_script_marker_rejected_001",
+        rejection_code: "authored_outcome_chain",
+        rejection_path: "workplaces[0].output_tag",
     },
 ];
 
@@ -1715,7 +1777,7 @@ struct StringFieldScanRegistration {
     rationale: &'static str,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum StringScanPolicy {
     Union,
 }
@@ -2466,6 +2528,19 @@ mod tests {
     }
 
     #[test]
+    fn fixture_food_supply_negative_servings_rejected_001() {
+        let raw = b"fixture|phase3a_bad_servings_001\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|546f6d617320686f6d65|\nfood_supply|food_soup_pot|at:home_tomas|-1|180";
+
+        let errors = validate_fixture_bytes(raw, &registry()).unwrap_err();
+
+        assert!(errors
+            .report
+            .errors
+            .iter()
+            .any(|error| { error.code == "bad_number" && error.path == "fixture.number" }));
+    }
+
+    #[test]
     fn fixture_relief_zero_and_need_gate_out_of_band_are_rejected_001() {
         let mut fixture = phase3a_fixture();
         fixture.food_supplies[0].hunger_reduction_per_serving = 0;
@@ -2518,6 +2593,58 @@ mod tests {
 
         assert!(errors.report.errors.iter().any(|error| {
             error.code == "authored_outcome_chain" && error.path == "workplaces[0].output_tag"
+        }));
+    }
+
+    #[test]
+    fn content_negative_registry_covers_validation_policy_variants_and_tests() {
+        let expected_numeric_policies = BTreeSet::from([
+            NumericFieldPolicy::PressureNonnegative,
+            NumericFieldPolicy::ReliefPositive,
+            NumericFieldPolicy::DurationAtLeastOne,
+            NumericFieldPolicy::NeedBandI32,
+            NumericFieldPolicy::NeedBandU16,
+            NumericFieldPolicy::CountNonnegative,
+        ]);
+        let expected_string_policies = BTreeSet::from([StringScanPolicy::Union]);
+        let actual_numeric_policies = CONTENT_NEGATIVE_PROOFS
+            .iter()
+            .filter_map(|proof| match proof.policy {
+                ContentNegativePolicy::Numeric(policy) => Some(policy),
+                ContentNegativePolicy::StringScan(_) => None,
+            })
+            .collect::<BTreeSet<_>>();
+        let actual_string_policies = CONTENT_NEGATIVE_PROOFS
+            .iter()
+            .filter_map(|proof| match proof.policy {
+                ContentNegativePolicy::Numeric(_) => None,
+                ContentNegativePolicy::StringScan(policy) => Some(policy),
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(actual_numeric_policies, expected_numeric_policies);
+        assert_eq!(actual_string_policies, expected_string_policies);
+        for proof in CONTENT_NEGATIVE_PROOFS {
+            assert!(
+                proof.proving_test.ends_with("_rejected_001")
+                    || proof.proving_test == "negative_need_tuning_direction_is_rejected",
+                "{proof:?} must point to a named negative rejection test"
+            );
+            assert!(!proof.rejection_code.is_empty(), "{proof:?}");
+            assert!(!proof.rejection_path.is_empty(), "{proof:?}");
+        }
+        assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
+            proof.proving_test == "fixture_workplace_zero_duration_rejected_001"
+                && proof.policy
+                    == ContentNegativePolicy::Numeric(NumericFieldPolicy::DurationAtLeastOne)
+        }));
+        assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
+            proof.proving_test == "fixture_initial_need_out_of_band_rejected_001"
+                && proof.policy == ContentNegativePolicy::Numeric(NumericFieldPolicy::NeedBandU16)
+        }));
+        assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
+            proof.proving_test == "fixture_output_tag_script_marker_rejected_001"
+                && proof.policy == ContentNegativePolicy::StringScan(StringScanPolicy::Union)
         }));
     }
 
