@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` log-ordering verification, agent-event allowlist census, episode-state materialization into `AgentState` (checksum registry growth), fail-fast rebuild, schema-upcast fixture
-**Deps**: 0016PHA3ANEEACC-002, 0016PHA3ANEEACC-003
+**Deps**: `archive/tickets/0016PHA3ANEEACC-002.md`, 0016PHA3ANEEACC-003
 
 ## Problem
 

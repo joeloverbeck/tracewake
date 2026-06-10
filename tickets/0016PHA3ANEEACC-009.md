@@ -67,7 +67,7 @@ Route `display_label` (and every `FixtureSchema` `String` field) through the scr
 
 ## Out of Scope
 
-- Need-delta routing/accounting semantics (0016PHA3ANEEACC-002 — this ticket constrains authored values, not how they are charged).
+- Need-delta routing/accounting semantics (`archive/tickets/0016PHA3ANEEACC-002.md` — this ticket constrains authored values, not how they are charged).
 - The fixture-directory census reconciling `FIXTURES` against disk (0016PHA3ANEEACC-012).
 - New tuning vocabulary or content fields (validation of the existing surface only).
 

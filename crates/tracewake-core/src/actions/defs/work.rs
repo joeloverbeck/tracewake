@@ -3,8 +3,10 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::agent::{NeedBand, NeedKind};
+use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContentManifestId, EventId, WorkplaceId};
+use crate::need_accounting::classify_actor_tick_regimes_with_start;
 use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState, WorkplaceState};
 use crate::time::SimTick;
@@ -113,18 +115,28 @@ pub fn build_work_start_events(
 pub fn build_work_completion_events(
     state: &PhysicalState,
     agent_state: &AgentState,
+    log: &EventLog,
     work_started_event: &EventEnvelope,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     completion_tick: SimTick,
 ) -> Vec<EventEnvelope> {
-    let elapsed_ticks = completion_tick
-        .value()
-        .saturating_sub(work_started_event.sim_tick.value());
+    let actor_id = work_started_event
+        .actor_id
+        .clone()
+        .expect("work start event carries actor");
+    let working_ticks = classify_actor_tick_regimes_with_start(
+        log,
+        &actor_id,
+        work_started_event.sim_tick,
+        completion_tick,
+        Some(work_started_event),
+    )
+    .working_ticks;
     let fatigue_delta =
-        payload_i32(work_started_event, "fatigue_delta_per_tick") * elapsed_ticks as i32;
+        payload_i32(work_started_event, "fatigue_delta_per_tick") * working_ticks as i32;
     let hunger_delta =
-        payload_i32(work_started_event, "hunger_delta_per_tick") * elapsed_ticks as i32;
+        payload_i32(work_started_event, "hunger_delta_per_tick") * working_ticks as i32;
     if let Some((blocker_kind, reason)) =
         work_completion_failure(state, agent_state, work_started_event)
     {
@@ -133,7 +145,7 @@ pub fn build_work_completion_events(
             ordering_key,
             content_manifest_id,
             completion_tick,
-            elapsed_ticks,
+            working_ticks,
             fatigue_delta,
             hunger_delta,
             blocker_kind,
@@ -163,7 +175,7 @@ pub fn build_work_completion_events(
             ordering_key,
             content_manifest_id,
             completion_tick,
-            elapsed_ticks,
+            working_ticks,
             fatigue_delta,
             hunger_delta,
         ),
@@ -677,6 +689,7 @@ mod tests {
         let events = build_work_completion_events(
             &state(),
             &agent_state_with_needs(100, 100),
+            &EventLog::new(),
             &start,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -720,6 +733,7 @@ mod tests {
         let events = build_work_completion_events(
             &displaced_state(),
             &agent_state_with_needs(100, 100),
+            &EventLog::new(),
             &start,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -1028,6 +1042,7 @@ mod tests {
         let failure = build_work_completion_events(
             &displaced_state(),
             &agent_state,
+            &log,
             &work_started,
             &completion_key,
             &ContentManifestId::new("phase3a_manifest").unwrap(),

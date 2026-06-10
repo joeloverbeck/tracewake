@@ -775,24 +775,28 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         "scheduler autonomous proposals must come from the actor decision transaction"
     );
     assert!(
-        SLEEP_RS.contains("pub fn build_sleep_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
-        "sleep completion builder must require current physical and agent state for continuity checks"
+        SLEEP_RS.contains("pub fn build_sleep_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,\n    log: &EventLog,"),
+        "sleep completion builder must require current physical state, agent state, and event log for continuity and need-accounting checks"
     );
     assert!(
-        WORK_RS.contains("pub fn build_work_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,"),
-        "work completion builder must require current physical and agent state for continuity checks"
+        WORK_RS.contains("pub fn build_work_completion_events(\n    state: &PhysicalState,\n    agent_state: &AgentState,\n    log: &EventLog,"),
+        "work completion builder must require current physical state, agent state, and event log for continuity and need-accounting checks"
     );
     assert!(
-        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,"),
-        "scheduler must pass current state into sleep completion continuity checks"
+        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,\n                    log,"),
+        "scheduler must pass current state and log into sleep completion continuity checks"
     );
     assert!(
-        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,"),
-        "scheduler must pass current state into work completion continuity checks"
+        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,\n                    log,"),
+        "scheduler must pass current state and log into work completion continuity checks"
     );
     assert!(
         scheduler.contains("if is_duration_terminal(appended.event_type)"),
         "scheduler must classify scheduled duration completions through the shared terminal predicate"
+    );
+    assert!(
+        scheduler.contains("classify_actor_tick_regimes("),
+        "scheduler passive need deltas must consume the tick-regime classifier"
     );
 
     let actor_id = ActorId::new("actor_tomas").unwrap();

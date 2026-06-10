@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` cross-window stuck detectors, wait-reason rejection, authoritative threshold recomputation, open-duration decision skip, typed payload errors; two new fixtures; capstone extension; golden repricing
-**Deps**: `archive/tickets/0016PHA3ANEEACC-001.md`, 0016PHA3ANEEACC-002
+**Deps**: `archive/tickets/0016PHA3ANEEACC-001.md`, `archive/tickets/0016PHA3ANEEACC-002.md`
 
 ## Problem
 
@@ -22,7 +22,7 @@ ORD-HARD-023: stuck-actor detection lacks its cross-tick categories and wait dis
 2. Spec/docs: spec 0016 §ORD-HARD-023 (evidence, required correction, structural lock); `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` stuck clauses; `archive/specs/0005_*` §8.8 (:496) and §9.10 (:689); `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` INV-040, INV-041.
 3. Shared boundary under audit: the typed stuck-diagnostic vocabulary spanning scheduler, routine lifecycle, and the wait/duration action layer. The open-duration window-skip consumes `is_duration_terminal` (`archive/tickets/0016PHA3ANEEACC-001.md`) — no third open/closed classification (spec §5 item 1).
 4. INV-040 — agents are bounded but competent: an actor silently spinning on waits is neither. INV-041 — decisions need debug traces; stuck states need typed, inspectable diagnostics. Restated before trusting the ticket narrative.
-5. Deterministic-replay / fail-closed surfaces: (a) the window-skip removes per-window decision churn for actors inside open durations — golden checksums reprice (diffs ledger-explained, building on 0016PHA3ANEEACC-002's accounting); (b) threshold crossings recompute from authoritative `AgentState`, closing the forgeable-parameter channel (proposal-supplied need params are ignored, as work validation already does); (c) `payload_i32` panics become typed event-application errors, so adversarial/corrupt logs produce loud typed failures instead of crashes (feeding 0016PHA3ANEEACC-011's poisoned-rebuild contract).
+5. Deterministic-replay / fail-closed surfaces: (a) the window-skip removes per-window decision churn for actors inside open durations — golden checksums reprice (diffs ledger-explained, building on `archive/tickets/0016PHA3ANEEACC-002.md`'s accounting); (b) threshold crossings recompute from authoritative `AgentState`, closing the forgeable-parameter channel (proposal-supplied need params are ignored, as work validation already does); (c) `payload_i32` panics become typed event-application errors, so adversarial/corrupt logs produce loud typed failures instead of crashes (feeding 0016PHA3ANEEACC-011's poisoned-rebuild contract).
 6. Schema extension: the stuck-diagnostic vocabulary gains the two canonical cross-tick categories (no-progress-past-expected-window, repeated-idle) as typed variants. Consumers: diagnostic records in `AgentState`/checksum, debug reports, the capstone's metrics. Additive-only — no existing diagnostic changes shape.
 7. Adjacent contradictions: execution doc 06 does not yet list the cross-tick categories explicitly — the execution-tier clarification is ticket 0016PHA3ANEEACC-013's surface (spec §6), a required consequence routed to the docs ticket.
 
@@ -82,7 +82,7 @@ The two fixtures; the reasonless-wait rejection test; the forged-param test; the
 
 ## Out of Scope
 
-- The tick-regime accounting itself (0016PHA3ANEEACC-002) and the terminal predicate (`archive/tickets/0016PHA3ANEEACC-001.md` — both consumed here).
+- The tick-regime accounting itself (`archive/tickets/0016PHA3ANEEACC-002.md`) and the terminal predicate (`archive/tickets/0016PHA3ANEEACC-001.md` — both consumed here).
 - Replay ordering/poisoning gates (0016PHA3ANEEACC-011 — consumes this ticket's typed payload errors).
 - The exec-doc-06 clause-list clarification (0016PHA3ANEEACC-013).
 

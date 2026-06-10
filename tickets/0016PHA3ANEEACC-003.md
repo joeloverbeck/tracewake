@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — replay-frontier context rebuild gate in `tracewake-core` replay path + golden runner; tamper test
-**Deps**: 0016PHA3ANEEACC-002
+**Deps**: `archive/tickets/0016PHA3ANEEACC-002.md`
 
 ## Problem
 
@@ -18,7 +18,7 @@ The fix: during replay rebuild, at each recorded decision frontier, re-run the p
 2. Spec/docs: spec 0016 §ORD-HARD-016 (evidence, required correction, structural lock), §9 (per-decision builder re-runs may be slow on large logs — acceptable for golden runs; do not sample); archived `archive/specs/0015_*` :196–197/:426/:521 (the promised rebuild gate this ticket implements as specified); `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` INV-018, INV-102, INV-105.
 3. Shared boundary under audit: the replay rebuild path ↔ the production surface builder. The gate must invoke the production builder — no parallel reimplementation of context derivation, or the gate proves the reimplementation rather than the channel.
 4. INV-018 — deterministic replay is foundational: recorded decision context must be reconstructible from the log. INV-102 — cognition inputs require provenance sufficient for replay review. INV-105 — diagnostics are authoritative, not decorative: a gate that cannot fail proves nothing. Restated before trusting the ticket narrative.
-5. Deterministic-replay enforcement surface: this ticket *is* the gate. It must (a) cover every decision in every golden no-human run, (b) be proven able to fail via the tamper test (corrupt one seed knowledge event in a copied log ⇒ gate fails at the first affected decision), and (c) not weaken the existing citation-integrity check, which remains as a complementary assertion. Depends on 0016PHA3ANEEACC-002 because the gate replays the repriced goldens and the post-002 duration model (spec §8 ordering).
+5. Deterministic-replay enforcement surface: this ticket *is* the gate. It must (a) cover every decision in every golden no-human run, (b) be proven able to fail via the tamper test (corrupt one seed knowledge event in a copied log ⇒ gate fails at the first affected decision), and (c) not weaken the existing citation-integrity check, which remains as a complementary assertion. Depends on `archive/tickets/0016PHA3ANEEACC-002.md` because the gate replays the repriced goldens and the post-002 duration model (spec §8 ordering).
 6. Adjacent contradictions: `deserialize_canonical`'s hash-from-stored-inputs consistency check is internally valid (it detects serialization corruption) — it stays, but the acceptance gate is the from-log re-derivation. The overturned 0015 outcome claim is recorded in the conformance index by ticket 0016PHA3ANEEACC-013.
 
 ## Architecture Check
@@ -55,7 +55,7 @@ Copy a golden log, corrupt one seed knowledge event, and assert the gate fails a
 
 ## Out of Scope
 
-- Golden checksum repricing and the need ledger (0016PHA3ANEEACC-002).
+- Golden checksum repricing and the need ledger (`archive/tickets/0016PHA3ANEEACC-002.md`).
 - Replay ordering verification, `WorldNoOp` census, and rebuild poisoning (0016PHA3ANEEACC-011 — shares `rebuild.rs`; declares Deps on this ticket).
 - Source-event witness types and dangling-provenance fail-closed at the transaction boundary (0016PHA3ANEEACC-004).
 

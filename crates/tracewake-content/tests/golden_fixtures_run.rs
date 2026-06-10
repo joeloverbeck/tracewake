@@ -180,6 +180,105 @@ fn payload<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
+fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
+    let mut start_kind_by_event = BTreeMap::new();
+    for event in log.events() {
+        if matches!(
+            event.event_type,
+            EventKind::SleepStarted | EventKind::WorkBlockStarted
+        ) {
+            start_kind_by_event.insert(event.event_id.clone(), event.event_type);
+        }
+    }
+    let mut charged = BTreeMap::<(String, String, u64), BTreeSet<&'static str>>::new();
+    for event in log
+        .events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+    {
+        let Some(actor_id) = event.actor_id.as_ref() else {
+            continue;
+        };
+        let Some(need_kind) = payload(event, "need_kind") else {
+            continue;
+        };
+        let Some(cause_kind) = payload(event, "cause_kind") else {
+            continue;
+        };
+        match cause_kind {
+            "tick_delta" => {
+                let elapsed_ticks = payload(event, "elapsed_ticks")
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(0);
+                for tick in event
+                    .sim_tick
+                    .value()
+                    .saturating_sub(elapsed_ticks)
+                    .saturating_add(1)..=event.sim_tick.value()
+                {
+                    charged
+                        .entry((actor_id.to_string(), need_kind.to_string(), tick))
+                        .or_default()
+                        .insert("awake");
+                }
+            }
+            "action_effect" => {
+                let regime = event.causes.iter().find_map(|cause| match cause {
+                    tracewake_core::events::EventCause::Event(start_id) => {
+                        match start_kind_by_event.get(start_id) {
+                            Some(EventKind::SleepStarted) => Some("asleep"),
+                            Some(EventKind::WorkBlockStarted) => Some("working"),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                });
+                let Some(regime) = regime else {
+                    continue;
+                };
+                let elapsed_ticks = log
+                    .events()
+                    .iter()
+                    .find(|candidate| {
+                        candidate.sim_tick == event.sim_tick
+                            && candidate.actor_id == event.actor_id
+                            && candidate.causes == event.causes
+                            && matches!(
+                                candidate.event_type,
+                                EventKind::SleepCompleted
+                                    | EventKind::SleepInterrupted
+                                    | EventKind::WorkBlockCompleted
+                                    | EventKind::WorkBlockFailed
+                            )
+                    })
+                    .and_then(|terminal| payload(terminal, "elapsed_ticks"))
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(0);
+                for tick in event
+                    .sim_tick
+                    .value()
+                    .saturating_sub(elapsed_ticks)
+                    .saturating_add(1)..=event.sim_tick.value()
+                {
+                    charged
+                        .entry((actor_id.to_string(), need_kind.to_string(), tick))
+                        .or_default()
+                        .insert(regime);
+                }
+            }
+            _ => {}
+        }
+    }
+    let duplicates = charged
+        .iter()
+        .filter(|(_, regimes)| regimes.len() > 1)
+        .collect::<Vec<_>>();
+    assert!(
+        duplicates.is_empty(),
+        "duplicate need charges: {duplicates:?}"
+    );
+}
+
 fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
     log.events()
         .iter()
@@ -270,6 +369,7 @@ fn ordinary_workday_fixture_moves_before_work_completion() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work, 2),
         &manifest_id,
@@ -319,6 +419,7 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
     let completion_events = build_sleep_completion_events(
         &state,
         &agent_state,
+        &log,
         &sleep_started,
         &ordering_key(&sleep, 1),
         &manifest_id,
@@ -379,6 +480,7 @@ fn sleep_eat_work_fixture_logs_need_effects_and_replays() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work, 5),
         &manifest_id,
@@ -452,6 +554,7 @@ fn work_block_failed_then_sleep_succeeds_fixture_closes_reservation() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work, 2),
         &manifest_id,
@@ -1150,6 +1253,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let completion_events = build_sleep_completion_events(
         &state,
         &agent_state,
+        &log,
         &sleep_started,
         &ordering_key(&sleep_elena, 103),
         &manifest_id,
@@ -1222,6 +1326,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let completion_events = build_work_completion_events(
         &state,
         &agent_state,
+        &log,
         &work_started,
         &ordering_key(&work_tomas, 107),
         &manifest_id,
@@ -1346,6 +1451,60 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     assert!(metrics.need_threshold_crossings > 0);
     assert_eq!(metrics.player_conditioned_event_count, 0);
     assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
+}
+
+#[test]
+fn sleep_spanning_window_boundary_charges_each_tick_once() {
+    let golden = fixtures::sleep_spanning_window_boundary_charges_each_tick_once_001();
+    let actor_id = "actor_elena".parse().unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(has_event(&log, EventKind::SleepStarted));
+    assert!(has_event(&log, EventKind::SleepCompleted));
+    assert_no_duplicate_need_regime_charges(&log);
+    assert!(!log.events().iter().any(|event| {
+        event.event_type == EventKind::NeedDeltaApplied
+            && payload(event, "cause_kind") == Some("tick_delta")
+            && payload(event, "window_id") == Some("morning")
+            && payload(event, "elapsed_ticks") == Some("4")
+    }));
+}
+
+#[test]
+fn no_human_need_ledger_has_no_duplicate_regime_charges() {
+    let golden = fixtures::no_human_day_001();
+    let actor_ids = [
+        "actor_anna".parse().unwrap(),
+        "actor_elena".parse().unwrap(),
+        "actor_mara".parse().unwrap(),
+        "actor_tomas".parse().unwrap(),
+    ];
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: actor_ids.to_vec(),
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    assert_no_duplicate_need_regime_charges(&log);
 }
 
 #[test]

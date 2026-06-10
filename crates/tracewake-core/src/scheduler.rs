@@ -225,6 +225,7 @@ pub mod no_human {
         ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, ProcessId,
         RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
+    use crate::need_accounting::classify_actor_tick_regimes;
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
     };
@@ -739,6 +740,7 @@ pub mod no_human {
                 for event in build_sleep_completion_events(
                     state,
                     agent_state,
+                    log,
                     &sleep_started,
                     &ordering_key,
                     content_manifest_id,
@@ -777,6 +779,7 @@ pub mod no_human {
                 for event in build_work_completion_events(
                     state,
                     agent_state,
+                    log,
                     &work_started,
                     &ordering_key,
                     content_manifest_id,
@@ -1061,7 +1064,24 @@ pub mod no_human {
         if elapsed_ticks == 0 {
             return;
         }
-        let deltas = crate::time::passive_awake_need_deltas(state.need_model(), elapsed_ticks);
+        let previous_tick = SimTick::new(
+            context
+                .window
+                .start_tick
+                .value()
+                .saturating_sub(elapsed_ticks),
+        );
+        let regime_counts = classify_actor_tick_regimes(
+            log,
+            context.actor_id,
+            previous_tick,
+            context.window.start_tick,
+        );
+        if regime_counts.awake_ticks == 0 {
+            return;
+        }
+        let deltas =
+            crate::time::passive_awake_need_deltas(state.need_model(), regime_counts.awake_ticks);
         for (need_kind, delta) in [
             (NeedKind::Hunger, deltas.hunger_delta),
             (NeedKind::Fatigue, deltas.fatigue_delta),
@@ -1086,7 +1106,7 @@ pub mod no_human {
                     context.content_manifest_id,
                     need_kind,
                     delta,
-                    elapsed_ticks,
+                    regime_counts.awake_ticks,
                 ),
             );
             if let Some(crossing) = crossing {
