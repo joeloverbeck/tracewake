@@ -18,6 +18,7 @@ pub enum PlannerGoal {
     EatKnownFood(String),
     StartSleep(PlaceId),
     StartWorkBlock(String),
+    LeaveUnsafePlace,
     WaitWithReason(String),
 }
 
@@ -74,6 +75,7 @@ pub fn plan_local_actions(
         PlannerGoal::StartWorkBlock(workplace_id) => {
             plan_start_work_block(state, request, workplace_id)
         }
+        PlannerGoal::LeaveUnsafePlace => plan_leave_unsafe_place(state, request),
         PlannerGoal::WaitWithReason(reason) => {
             let proposal = PlannedProposal {
                 action_id: ActionId::new("wait").unwrap(),
@@ -92,6 +94,29 @@ pub fn plan_local_actions(
             })
         }
     }
+}
+
+#[allow(clippy::result_large_err)]
+fn plan_leave_unsafe_place(
+    state: &ActorKnownPlanningContext,
+    request: &LocalPlanRequest,
+) -> Result<LocalPlan, LocalPlanFailure> {
+    let Some(target) = state
+        .known_edges()
+        .get(state.current_place_id())
+        .and_then(|neighbors| neighbors.iter().next())
+        .cloned()
+    else {
+        return Err(failure(
+            state,
+            request,
+            BlockerCategory::Knowledge,
+            "no actor-known exit from unsafe place",
+            vec![format!("place:{}", state.current_place_id().as_str())],
+        ));
+    };
+
+    plan_route(state, request, &target)
 }
 
 #[allow(clippy::result_large_err)]

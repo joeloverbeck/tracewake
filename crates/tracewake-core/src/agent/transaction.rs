@@ -410,11 +410,10 @@ fn planner_goal_for(
             .unwrap_or_else(|| {
                 PlannerGoal::WaitWithReason("no_actor_known_sleep_place".to_string())
             }),
-        GoalKind::ContinueCurrentIntention
-        | GoalKind::IdleWithReason
-        | GoalKind::LeaveUnsafePlace => {
+        GoalKind::ContinueCurrentIntention | GoalKind::IdleWithReason => {
             PlannerGoal::WaitWithReason("actor_decision_reevaluation".to_string())
         }
+        GoalKind::LeaveUnsafePlace => PlannerGoal::LeaveUnsafePlace,
     }
 }
 
@@ -423,6 +422,7 @@ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
         RoutineFamily::SleepNight => Some(GoalKind::SleepOrRest),
         RoutineFamily::EatMeal => Some(GoalKind::Eat),
         RoutineFamily::FindFood => Some(GoalKind::FindFood),
+        RoutineFamily::LeaveUnsafePlace => Some(GoalKind::LeaveUnsafePlace),
         RoutineFamily::GoToWork => Some(GoalKind::GoToWork),
         RoutineFamily::WorkBlock => Some(GoalKind::PerformWorkBlock),
         RoutineFamily::ReturnHome => Some(GoalKind::ReturnHome),
@@ -702,6 +702,38 @@ mod tests {
         )
     }
 
+    fn no_exit_context() -> ActorKnownPlanningContext {
+        let home = place("home_tomas");
+        ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_stew".to_string()]),
+            BTreeSet::from([home.clone()]),
+            BTreeMap::new(),
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "test:visible_food",
+                    None,
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_sleep_place",
+                    home.as_str(),
+                    "test:visible_sleep_place",
+                    None,
+                    test_source(),
+                ),
+            ],
+        )
+    }
+
     fn test_source() -> crate::agent::SourceEventIds {
         crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
             "event_test_actor_known",
@@ -894,7 +926,7 @@ mod tests {
     }
 
     #[test]
-    fn method_fallback_reruns_selection_with_coherent_trace_and_candidate() {
+    fn severe_safety_with_known_exit_proposes_move_before_hunger() {
         let agent_state = agent_state_with_severe_safety_and_hunger();
         let context = known_context();
 
@@ -909,7 +941,7 @@ mod tests {
         });
 
         let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
-            panic!("expected coherent fallback proposal");
+            panic!("expected severe safety move proposal");
         };
 
         let selected_goal_id = proposed
@@ -920,7 +952,12 @@ mod tests {
             .as_str()
             .to_string();
 
-        assert!(selected_goal_id.ends_with("_eat"));
+        assert!(selected_goal_id.ends_with("_leave_unsafe_place"));
+        assert_eq!(proposed.proposal.action_id().as_str(), "move");
+        assert_eq!(
+            proposed.proposal.target_ids(),
+            ["workshop_tomas".to_string()]
+        );
         assert_eq!(
             proposed.proposal.parameters().get("candidate_goal_id"),
             Some(&selected_goal_id)
@@ -935,16 +972,45 @@ mod tests {
                 .trace_id
                 .as_str()
                 .contains(&selected_goal_id),
-            "rerun trace id must be specific to the selected fallback candidate"
+            "trace id must be specific to the selected severe safety candidate"
         );
-        assert!(proposed
-            .decision_trace
-            .rejected_goals
-            .iter()
-            .any(
-                |rejected| rejected.stable_ref.ends_with("_leave_unsafe_place")
-                    && rejected.reason.starts_with("method_selection_rejected:")
-            ));
+        assert_eq!(
+            proposed.proposal.parameters().get("routine_template_id"),
+            Some(&"routine_leave_unsafe_place".to_string())
+        );
+    }
+
+    #[test]
+    fn severe_safety_without_known_exit_fails_with_knowledge_blocker() {
+        let agent_state = agent_state_with_severe_safety_and_hunger();
+        let context = no_exit_context();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(19),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: None,
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected no-exit knowledge blocker");
+        };
+
+        assert_eq!(
+            diagnostic.concrete_blocker,
+            "no actor-known exit from unsafe place"
+        );
+        assert_eq!(diagnostic.blocker_category, BlockerCategory::Knowledge);
+        assert_eq!(
+            diagnostic.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::LocalPlanning
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("no actor-known exit from unsafe place"));
     }
 
     #[test]

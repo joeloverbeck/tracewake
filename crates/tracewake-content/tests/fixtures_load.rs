@@ -143,7 +143,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 47);
+    assert_eq!(all.len(), 49);
 
     let ids = all
         .iter()
@@ -188,6 +188,8 @@ fn all_fixtures_load_deterministically_and_validate() {
             "routine_blocked_diagnostic_001".to_string(),
             "routine_no_teleport_001".to_string(),
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
+            "severe_safety_with_known_exit_produces_move_001".to_string(),
+            "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
             "sleep_eat_work_001".to_string(),
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
@@ -373,6 +375,8 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "routine_blocked_diagnostic_001".to_string(),
             "routine_no_teleport_001".to_string(),
             "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
+            "severe_safety_with_known_exit_produces_move_001".to_string(),
+            "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
             "sleep_eat_work_001".to_string(),
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),

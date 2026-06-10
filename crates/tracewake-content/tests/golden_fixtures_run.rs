@@ -10,11 +10,13 @@ use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
 use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
-    build_actor_known_planning_state, generate_candidate_goals, plan_local_actions,
-    select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
+    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
+    generate_candidate_goals, plan_local_actions, select_goal_and_trace,
+    select_method_from_templates, ActorDecisionTransaction, ActorDecisionTransactionInput,
+    ActorDecisionTransactionOutcome, ActorKnownFact, BlockerCategory, CandidateGenerationInput,
     DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
-    NeedState, PlannerGoal, RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate,
-    SourceEventIds, VisibleLocalPlanningState,
+    NeedState, PlannerGoal, ResponsibleLayer, RoutineCondition, RoutineFamily, RoutineStep,
+    RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
@@ -27,12 +29,12 @@ use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId, FoodSupplyId,
-    IntentionId, RoutineExecutionId, RoutineTemplateId,
+    IntentionId, PlaceId, RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_decision_context_hashes, rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
-    default_day_windows, run_no_human_day, NoHumanDayConfig,
+    default_day_windows, run_no_human_day, DayWindow, NoHumanDayConfig,
 };
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
@@ -930,6 +932,114 @@ fn routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry() {
         .payload
         .iter()
         .any(|field| field.key == "reason" && field.value == "actor not at workplace"));
+}
+
+#[test]
+fn severe_safety_with_known_exit_produces_move_and_replays() {
+    let golden = fixtures::severe_safety_with_known_exit_produces_move_001();
+    let (initial_state, initial_agent_state, manifest_id, mut log) = load_with_log(golden);
+    let mut state = initial_state.clone();
+    let mut agent_state = initial_agent_state.clone();
+    let actor_id = ActorId::new("actor_mara").unwrap();
+
+    let report = run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id.clone()],
+            windows: vec![DayWindow {
+                window_id: "safety_window".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+
+    assert_eq!(report.actor_decision_order, vec![actor_id]);
+    let moved = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorMoved)
+        .expect("severe safety should commit a move");
+    assert_eq!(payload(moved, "to_place_id"), Some("safety_corridor"));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::DecisionTraceRecorded
+            && payload(event, "trace_canonical")
+                .is_some_and(|canonical| canonical.contains("leave_unsafe_place"))
+    }));
+
+    let context = checksum_context("severe_safety_with_known_exit_produces_move_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+    assert!(replay.matches_expected, "{replay:?}");
+    assert!(replay.agent_checksum_matches, "{replay:?}");
+    assert!(replay.application_errors.is_empty(), "{replay:?}");
+    assert!(replay.agent_application_errors.is_empty(), "{replay:?}");
+    assert!(
+        replay.decision_context_hash_failures.is_empty(),
+        "{replay:?}"
+    );
+}
+
+#[test]
+fn severe_safety_without_known_exit_is_local_knowledge_blocker() {
+    let golden = fixtures::severe_safety_without_known_exit_waits_with_knowledge_blocker_001();
+    let (state, agent_state, _manifest_id) = load(golden);
+    let actor_id = ActorId::new("actor_mara").unwrap();
+    let current_place = state
+        .actors()
+        .get(&actor_id)
+        .expect("fixture actor exists")
+        .current_place_id
+        .clone();
+    let actor_known_context = build_actor_known_planning_state_with_projection_limitation(
+        &actor_id,
+        &agent_state,
+        &VisibleLocalPlanningState::new(
+            current_place,
+            BTreeMap::<PlaceId, BTreeSet<PlaceId>>::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+        ),
+    );
+
+    let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+        actor_id,
+        decision_tick: SimTick::ZERO,
+        agent_state: &agent_state,
+        actor_known_context: &actor_known_context,
+        source_event_ids: None,
+        routine_window_family: None,
+        include_idle_fallback: true,
+    });
+
+    let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+        panic!("expected no-exit severe safety to fail closed");
+    };
+    assert_eq!(diagnostic.blocker_category, BlockerCategory::Knowledge);
+    assert_eq!(
+        diagnostic.concrete_blocker,
+        "no actor-known exit from unsafe place"
+    );
+    assert_eq!(
+        diagnostic.typed_diagnostic.responsible_layer,
+        ResponsibleLayer::LocalPlanning
+    );
 }
 
 #[test]
@@ -1941,6 +2051,8 @@ fn phase3a_golden_fixtures_have_contracts_and_validate() {
         "routine_blocked_diagnostic_001",
         "planner_trace_001",
         "routine_no_teleport_001",
+        "severe_safety_with_known_exit_produces_move_001",
+        "severe_safety_without_known_exit_waits_with_knowledge_blocker_001",
         "possession_does_not_reset_intention_001",
         "no_hidden_truth_planning_001",
         "no_human_day_001",

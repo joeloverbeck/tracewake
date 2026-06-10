@@ -763,6 +763,7 @@ fn routine_family_assignment_suffix(family: RoutineFamily) -> &'static str {
         RoutineFamily::ReturnHome => "return_home",
         RoutineFamily::SleepNight => "sleep",
         RoutineFamily::FindFood => "find_food",
+        RoutineFamily::LeaveUnsafePlace => "leave_unsafe",
         RoutineFamily::ContinueCurrentIntention => "continue",
         RoutineFamily::Wait | RoutineFamily::IdleWithReason => "wait",
     }

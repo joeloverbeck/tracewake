@@ -35,6 +35,8 @@ mod replay_item_location_001;
 mod routine_blocked_diagnostic_001;
 mod routine_no_teleport_001;
 mod scheduler_cannot_rewrite_wait_reason_after_transaction_001;
+mod severe_safety_with_known_exit_produces_move_001;
+mod severe_safety_without_known_exit_waits_with_knowledge_blocker_001;
 mod sleep_eat_work_001;
 mod sleep_interrupted_by_severe_need_prorates_recovery_001;
 mod sleep_rejects_current_place_without_sleep_affordance_001;
@@ -105,6 +107,8 @@ pub use replay_item_location_001::replay_item_location_001;
 pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
 pub use routine_no_teleport_001::routine_no_teleport_001;
 pub use scheduler_cannot_rewrite_wait_reason_after_transaction_001::scheduler_cannot_rewrite_wait_reason_after_transaction_001;
+pub use severe_safety_with_known_exit_produces_move_001::severe_safety_with_known_exit_produces_move_001;
+pub use severe_safety_without_known_exit_waits_with_knowledge_blocker_001::severe_safety_without_known_exit_waits_with_knowledge_blocker_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
 pub use sleep_interrupted_by_severe_need_prorates_recovery_001::sleep_interrupted_by_severe_need_prorates_recovery_001;
 pub use sleep_rejects_current_place_without_sleep_affordance_001::sleep_rejects_current_place_without_sleep_affordance_001;
@@ -197,6 +201,8 @@ pub fn all() -> Vec<GoldenFixture> {
         no_human_workplace_knowledge_requires_notice_event_001(),
         no_human_sleep_knowledge_requires_observation_or_record_001(),
         no_human_observation_facts_cite_log_events_001(),
+        severe_safety_with_known_exit_produces_move_001(),
+        severe_safety_without_known_exit_waits_with_knowledge_blocker_001(),
         no_human_day_001(),
     ]
 }

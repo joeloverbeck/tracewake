@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-006: Severe-safety flight — LeaveUnsafePlace routine family with known-edge move
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new `tracewake-core` `RoutineFamily` variant + routine template; goal-mapping rewiring; two new golden fixtures
@@ -88,3 +88,20 @@ New variant in `agent/routine.rs`; template in `agent/methods.rs::phase3a_routin
 
 1. `cargo test -p tracewake-core methods && cargo test -p tracewake-content golden`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented a dedicated `RoutineFamily::LeaveUnsafePlace` with a `routine_leave_unsafe_place` move template. `GoalKind::LeaveUnsafePlace` now maps to that family, and the transaction maps severe-safety flight to a local `PlannerGoal::LeaveUnsafePlace` that chooses the first actor-known edge from the current place. If no actor-known exit exists, local planning fails closed with a `Knowledge` blocker and a typed local-planning stuck diagnostic.
+
+Added two golden fixtures: `severe_safety_with_known_exit_produces_move_001` proves a no-human severe-safety run commits an `ActorMoved` event to the known exit and replays cleanly; `severe_safety_without_known_exit_waits_with_knowledge_blocker_001` proves the no-exit path is a local-planning knowledge blocker without hidden adjacency fallback. Content serialization/schema support and fixture census lists were updated for the new routine family and fixtures.
+
+Verification passed:
+
+1. `cargo test -p tracewake-core methods`
+2. `cargo test -p tracewake-core transaction`
+3. `cargo test -p tracewake-content severe_safety`
+4. `cargo test -p tracewake-content all_fixtures_load_deterministically_and_validate`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`
