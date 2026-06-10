@@ -447,6 +447,11 @@ pub mod no_human {
                     ordering_key,
                 };
                 let result = run_pipeline(&mut context, &proposal);
+                if let Some(latest_charged_tick) =
+                    latest_action_tick_delta_tick(&result.appended_events, actor_id)
+                {
+                    last_decision_tick_by_actor.insert(actor_id.clone(), latest_charged_tick);
+                }
                 pending_sleep_starts.extend(
                     result
                         .appended_events
@@ -1323,6 +1328,24 @@ pub mod no_human {
         let appended = log.append(event).expect("agent event is appendable");
         apply_agent_event(agent_state, &appended).expect("agent event applies to live state");
         appended
+    }
+
+    fn latest_action_tick_delta_tick(
+        events: &[EventEnvelope],
+        actor_id: &ActorId,
+    ) -> Option<SimTick> {
+        events
+            .iter()
+            .filter(|event| {
+                event.event_type == EventKind::NeedDeltaApplied
+                    && event.actor_id.as_ref() == Some(actor_id)
+                    && payload_value(event, "cause_kind") == Some("tick_delta")
+                    && event.causes.iter().any(|cause| {
+                        matches!(cause, EventCause::Proposal(_) | EventCause::Event(_))
+                    })
+            })
+            .map(|event| event.sim_tick)
+            .max()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2891,6 +2914,67 @@ pub mod no_human {
                 .iter()
                 .any(|field| field.value.contains("rewrite_window")));
             assert!(!wait_event.effects_summary.contains("rewrite_window"));
+        }
+
+        #[test]
+        fn action_wait_delta_advances_next_passive_charge_frontier() {
+            let actor_id = actor_id();
+            let home = PlaceId::new("home_tomas").unwrap();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state
+                .actors
+                .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), home));
+            let mut agent_state = agent_state(&actor_id);
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![
+                        DayWindow {
+                            window_id: "first_idle".to_string(),
+                            start_tick: SimTick::ZERO,
+                            end_tick: SimTick::new(1),
+                        },
+                        DayWindow {
+                            window_id: "second_idle".to_string(),
+                            start_tick: SimTick::new(4),
+                            end_tick: SimTick::new(5),
+                        },
+                    ],
+                },
+            );
+
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::ActorWaited
+                    && event.sim_tick == SimTick::new(1)));
+            let second_window_passive =
+                log.events()
+                    .iter()
+                    .find(|event| {
+                        event.event_type == EventKind::NeedDeltaApplied
+                            && event.payload.iter().any(|field| {
+                                field.key == "window_id" && field.value == "second_idle"
+                            })
+                            && event
+                                .payload
+                                .iter()
+                                .any(|field| field.key == "need_kind" && field.value == "hunger")
+                    })
+                    .expect("second window emits passive hunger delta");
+            assert!(second_window_passive
+                .payload
+                .iter()
+                .any(|field| { field.key == "elapsed_ticks" && field.value == "3" }));
         }
 
         #[test]

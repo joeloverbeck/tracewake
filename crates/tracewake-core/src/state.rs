@@ -139,6 +139,7 @@ pub struct PhysicalState {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AgentState {
     pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+    pub(crate) need_tick_charges: BTreeSet<(ActorId, NeedKind, u64)>,
     pub(crate) intentions: BTreeMap<IntentionId, Intention>,
     pub(crate) active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
     pub(crate) routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
@@ -265,6 +266,7 @@ impl AgentState {
     ) -> Self {
         Self {
             needs_by_actor,
+            need_tick_charges: BTreeSet::new(),
             intentions,
             active_intention_by_actor,
             routine_executions,

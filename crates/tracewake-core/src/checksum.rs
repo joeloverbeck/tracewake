@@ -73,6 +73,11 @@ pub const AGENT_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
     },
     StateChecksumCoverage {
         state_kind: ChecksumStateKind::Agent,
+        field_name: "need_tick_charges",
+        field_family: "need_tick_charge",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
         field_name: "intentions",
         field_family: "intention",
     },
@@ -333,6 +338,15 @@ pub fn compute_agent_state_checksum(
                 need.serialize_canonical()
             ));
         }
+    }
+
+    for (actor_id, need_kind, tick) in &state.need_tick_charges {
+        lines.push(format!(
+            "need_tick_charge|actor={}|need={}|tick={}",
+            actor_id.as_str(),
+            need_kind.stable_id(),
+            tick
+        ));
     }
 
     for (intention_id, intention) in &state.intentions {

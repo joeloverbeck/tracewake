@@ -143,7 +143,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 51);
+    assert_eq!(all.len(), 52);
 
     let ids = all
         .iter()
@@ -196,6 +196,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
+            "wait_then_window_passive_charges_each_tick_once_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
             "view_filtering_001".to_string(),
@@ -385,6 +386,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
+            "wait_then_window_passive_charges_each_tick_once_001".to_string(),
             "work_block_failed_then_sleep_succeeds_001".to_string(),
             "work_completion_fails_when_actor_displaced_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),

@@ -301,7 +301,7 @@ fn apply_agent_event_with_capability(
     let payload = payload_map(&event.payload);
     match event.event_type {
         EventKind::NeedDeltaApplied => {
-            apply_need_delta(state, &payload).map(|_| ApplyOutcome::Applied)
+            apply_need_delta(state, event, &payload).map(|_| ApplyOutcome::Applied)
         }
         EventKind::IntentionStarted => {
             apply_intention_started(state, &payload).map(|_| ApplyOutcome::Applied)
@@ -1044,12 +1044,14 @@ fn parse_u64_agent(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<
 
 fn apply_need_delta(
     state: &mut AgentState,
+    event: &EventEnvelope,
     payload: &BTreeMap<&str, &str>,
 ) -> Result<(), ApplyError> {
     let actor_id = parse_actor_id(payload)?;
     let need_kind = parse_need_kind(payload)?;
     let delta = parse_i32(payload, "delta")?;
     let cause = parse_need_change_cause(payload)?;
+    assert_single_tick_delta_charge(state, event, payload, &actor_id, need_kind);
     if matches!(cause, NeedChangeCause::FixtureInitial) {
         let needs = state.needs_by_actor.entry(actor_id.clone()).or_default();
         needs
@@ -1068,6 +1070,47 @@ fn apply_need_delta(
 
     need_state.apply_delta(delta, cause);
     Ok(())
+}
+
+fn assert_single_tick_delta_charge(
+    state: &mut AgentState,
+    event: &EventEnvelope,
+    payload: &BTreeMap<&str, &str>,
+    actor_id: &ActorId,
+    need_kind: NeedKind,
+) {
+    let Some(elapsed_ticks) = payload
+        .get("elapsed_ticks")
+        .and_then(|value| value.parse::<u64>().ok())
+    else {
+        return;
+    };
+    if elapsed_ticks == 0 {
+        return;
+    }
+    let Some(cause_kind) = payload.get("cause_kind") else {
+        return;
+    };
+    if !matches!(*cause_kind, "tick_delta" | "action_effect") {
+        return;
+    }
+    let first_tick = event
+        .sim_tick
+        .value()
+        .saturating_sub(elapsed_ticks)
+        .saturating_add(1);
+    for tick in first_tick..=event.sim_tick.value() {
+        let inserted = state
+            .need_tick_charges
+            .insert((actor_id.clone(), need_kind, tick));
+        assert!(
+            inserted,
+            "duplicate need tick charge actor={} need={} tick={}",
+            actor_id.as_str(),
+            need_kind.stable_id(),
+            tick
+        );
+    }
 }
 
 fn apply_intention_started(

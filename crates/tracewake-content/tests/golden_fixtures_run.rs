@@ -191,7 +191,7 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
             start_kind_by_event.insert(event.event_id.clone(), event.event_type);
         }
     }
-    let mut charged = BTreeMap::<(String, String, u64), BTreeSet<&'static str>>::new();
+    let mut charged = BTreeMap::<(String, String, u64), u64>::new();
     for event in log
         .events()
         .iter()
@@ -219,8 +219,8 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                 {
                     charged
                         .entry((actor_id.to_string(), need_kind.to_string(), tick))
-                        .or_default()
-                        .insert("awake");
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
                 }
             }
             "action_effect" => {
@@ -234,7 +234,7 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                     }
                     _ => None,
                 });
-                let Some(regime) = regime else {
+                let Some(_regime) = regime else {
                     continue;
                 };
                 let elapsed_ticks = log
@@ -263,8 +263,8 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                 {
                     charged
                         .entry((actor_id.to_string(), need_kind.to_string(), tick))
-                        .or_default()
-                        .insert(regime);
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
                 }
             }
             _ => {}
@@ -272,7 +272,7 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
     }
     let duplicates = charged
         .iter()
-        .filter(|(_, regimes)| regimes.len() > 1)
+        .filter(|(_, count)| **count > 1)
         .collect::<Vec<_>>();
     assert!(
         duplicates.is_empty(),
@@ -1646,6 +1646,51 @@ fn no_human_need_ledger_has_no_duplicate_regime_charges() {
         },
     );
 
+    assert_no_duplicate_need_regime_charges(&log);
+}
+
+#[test]
+fn wait_then_window_passive_charges_each_tick_once() {
+    let golden = fixtures::wait_then_window_passive_charges_each_tick_once_001();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id],
+            windows: vec![
+                DayWindow {
+                    window_id: "first_idle".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(1),
+                },
+                DayWindow {
+                    window_id: "second_idle".to_string(),
+                    start_tick: SimTick::new(4),
+                    end_tick: SimTick::new(5),
+                },
+            ],
+        },
+    );
+
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::ActorWaited && event.sim_tick == SimTick::new(1)
+    }));
+    let second_window_passive = log
+        .events()
+        .iter()
+        .find(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && payload(event, "window_id") == Some("second_idle")
+                && payload(event, "need_kind") == Some("hunger")
+        })
+        .expect("second window passive hunger delta exists");
+    assert_eq!(payload(second_window_passive, "elapsed_ticks"), Some("3"));
     assert_no_duplicate_need_regime_charges(&log);
 }
 

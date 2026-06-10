@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-002: Single-charge tick ledger covering action-emitted deltas
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`scheduler`, `need_accounting`); `tracewake-content` (golden gate rewrite, one new adversarial fixture); golden checksums reprice
@@ -94,3 +94,35 @@ In the need-delta application path, `assert!` (not `debug_assert!`) that the cha
 
 1. `cargo test -p tracewake-content golden_fixtures_run`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-10.
+
+Implemented the single-charge tick ledger by advancing the no-human scheduler's
+per-actor passive frontier from committed action-emitted `tick_delta`
+`NeedDeltaApplied` events, so an autonomous wait tick is not recharged by the next
+passive window. Added live/replay-covered `AgentState::need_tick_charges`, wired
+it into canonical agent checksums, and added a release `assert!` in the
+`NeedDeltaApplied` apply path for duplicate `(actor, need, tick)` charges.
+
+Rewrote the content golden need-ledger gate to count charge occurrences instead
+of deduping by regime label, added the adversarial
+`wait_then_window_passive_charges_each_tick_once_001` fixture/test, and updated
+fixture census/source-guard coverage for the new content file.
+
+Implementation note: the accepted fix used the scheduler's committed event
+ledger plus the live/replay apply-path ledger as the single-charge enforcement
+surface. No event payload shape changes or explicit golden checksum constants
+were required; the existing workspace replay/checksum gates remained stable.
+
+Verification run:
+
+1. `cargo test -p tracewake-content no_human_need_ledger`
+2. `cargo test -p tracewake-core action_wait_delta_advances_next_passive_charge_frontier`
+3. `cargo test -p tracewake-content wait_then_window_passive_charges_each_tick_once`
+4. `cargo test -p tracewake-content --test fixtures_load`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`
