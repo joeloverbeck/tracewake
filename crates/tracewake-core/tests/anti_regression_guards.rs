@@ -1548,10 +1548,12 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     let projection = guarded_source("src/projections.rs");
     let food_helper = body_after_marker(&projection, "fn actor_known_food_sources_for_context");
     let sleep_helper = body_after_marker(&projection, "fn visible_open_sleep_affordance");
+    let phase3a_actions = body_after_marker(&projection, "fn phase3a_semantic_actions");
     let view_builder = body_after_marker(&projection, "pub fn build_embodied_view_model");
 
     assert!(
-        projection.contains("fn actor_known_workplaces_for_context(context: &KnowledgeContext)"),
+        projection.contains("fn actor_known_workplaces_for_context(")
+            && projection.contains("context: &KnowledgeContext"),
         "embodied workplace affordances must be selected from the sealed holder-known context"
     );
     assert!(
@@ -1579,6 +1581,8 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     assert_absent(food_helper, "food_supplies()");
     assert_absent(sleep_helper, "state.sleep_affordances");
     assert_absent(sleep_helper, "sleep_affordances()");
+    assert_absent(phase3a_actions, "state.workplaces");
+    assert_absent(phase3a_actions, "workplaces()");
     assert_absent(view_builder, ".adjacent_place_ids");
     assert_absent_from_sources(
         &projection_sources,

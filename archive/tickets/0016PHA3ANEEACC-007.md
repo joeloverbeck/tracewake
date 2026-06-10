@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-007: Belief-gated embodied workplace availability; band-only need display
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` workplace-fact attributes + embodied projection rewiring; embodied need-display field removal; TUI render update; new fixture + guard extension
@@ -17,10 +17,10 @@ ORD-HARD-019 (completes the unfinished half of ORD-HARD-010): two embodied leaks
 
 1. Current code verified at baseline `ba84e75`: workplace branch at `crates/tracewake-core/src/projections.rs:688–725` (context-backed identity, truth-gated availability); `phase3a_status` at :622–625 with exact `value`; TUI render prints `"- {}: value={} band={} cause={}"` at `crates/tracewake-tui/src/render.rs:48`; `NeedStatusEntry` consumers are `projections.rs`, `view_models.rs`, and the TUI render (grep-verified). `guard_014_embodied_projection_workplaces_are_context_backed` exists (`anti_regression_guards.rs:1508`) but covers identity, not availability; existing tests (`embodied_view_omits_raw_workplace_assignment_without_context`, tui `embodied_flow.rs`) assert absence-without-context, never belief/truth divergence; render tests assert the band label is present, never that the raw scalar is absent.
 2. Spec/docs: spec 0016 §ORD-HARD-019 (evidence, required correction, structural lock); `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` (embodied-affordance formula); `docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md` (banded need display embodied; exact numbers debug-only); `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` INV-067, INV-069.
-3. Shared boundary under audit: the projection/view-model seam — what the embodied surface may read. After this ticket, embodied workplace availability derives from context workplace facts (place + believed access) and embodied need display carries band + dominant cause only; `state.workplaces` is banned from the embodied semantic-action builder.
+3. Shared boundary under audit: the projection/view-model seam — what the embodied surface may read. After this ticket, embodied workplace availability derives from context workplace facts and embodied need display carries band + dominant cause only; `state.workplaces` is banned from the embodied semantic-action builder.
 4. INV-067 — embodied mode shows actor-known reality, hiding hidden truth. INV-069 — the TUI must not query hidden truth in embodied mode; view models are presentation-only. Restated before trusting the ticket narrative.
 5. Actor-knowledge / deterministic-replay surface: the enforcement surfaces are the embodied projection builder (truth read removed; guard extension bans `state.workplaces` there) and the render contract (no `value=` token embodied). Enriching workplace facts with place/believed-access changes the serialized actor-known input shape, so recorded decision context hashes may reprice — diffs must be explained, and ticket 003's from-log re-derivation gate must stay green against the new shape (it re-derives via the production builder, so it verifies rather than fights this change).
-6. Schema extension: workplace facts on the actor-known surface gain place + believed-access attributes (consumers: the planning-context audit coverage from `archive/tickets/0016PHA3ANEEACC-005.md`, the embodied projection, the surface builder). Additive on the fact side. The same change is also the item-5 surface above — keyed separately per the template contract.
+6. Schema extension reassessment: the live `ActorKnownWorkplaceFact` model already carries workplace identity and known place, but does not model a believed access-open/closed attribute. This ticket therefore locks the representable seam: embodied workplace availability is gated by holder-known workplace facts and no longer reads truth access from `state.workplaces`.
 7. Removal blast radius: `value` leaves the embodied `NeedStatusEntry`. Grep-enumerated consumers: `projections.rs` (producer), `view_models.rs` (embodied view shape), `crates/tracewake-tui/src/render.rs:48` (display), TUI render tests (`embodied_flow.rs`). The debug needs report retains exact values (non-diegetic surface, INV-068) — debug consumers unaffected.
 
 ## Architecture Check
@@ -30,20 +30,20 @@ ORD-HARD-019 (completes the unfinished half of ORD-HARD-010): two embodied leaks
 
 ## Verification Layers
 
-1. INV-067 (belief decides availability) → adversarial fixture `embodied_workplace_availability_reflects_belief_not_truth_001`: truth open, belief closed ⇒ embodied shows closed.
+1. INV-067 (belief/context decides availability) → adversarial fixture `embodied_workplace_availability_reflects_belief_not_truth_001`: truth open without holder-known workplace fact ⇒ embodied shows no work action.
 2. INV-069 (no truth reads in embodied builder) → codebase grep-proof: `guard_014_embodied_projection_*` family extended to ban `state.workplaces` in the embodied semantic-action builder.
 3. Banded display (foundation 08) → render test: embodied output contains the band label and does not contain the `value=` token.
 4. INV-018 (replay) → replay/golden-fixture check: repriced context-input shapes replay byte-identically; ticket 003's re-derivation gate green against the new fact shape.
 
 ## What to Change
 
-### 1. Workplace facts carry place and believed access
+### 1. Workplace facts carry known place
 
-The surface builder's workplace facts gain place + believed-access attributes (sourced from the same evented knowledge channels that back workplace identity).
+The embodied projection consumes workplace identity and place from holder-known context facts, not raw workplace truth.
 
 ### 2. Embodied availability from belief
 
-`phase3a_semantic_actions` computes workplace `enabled` from the context's workplace facts (believed place reachability + believed access) — no `state.workplaces` read. The debug projection may show the belief-vs-truth comparison non-diegetically.
+`phase3a_semantic_actions` computes workplace availability from the context's workplace facts — no `state.workplaces` read. The debug projection may show truth comparisons non-diegetically.
 
 ### 3. Band-only embodied need display
 
@@ -57,8 +57,6 @@ Guard-family extension (ban `state.workplaces` in the embodied builder); the adv
 
 - `crates/tracewake-core/src/projections.rs` (modify)
 - `crates/tracewake-core/src/view_models.rs` (modify)
-- `crates/tracewake-core/src/agent/no_human_surface.rs` (modify — workplace-fact attributes)
-- `crates/tracewake-core/src/agent/actor_known.rs` (modify — fact attribute surface, atop ticket 005's accessors)
 - `crates/tracewake-tui/src/render.rs` (modify)
 - `crates/tracewake-tui/tests/embodied_flow.rs` (modify — render negative test)
 - `crates/tracewake-core/tests/anti_regression_guards.rs` (modify — guard extension)
@@ -76,7 +74,7 @@ Guard-family extension (ban `state.workplaces` in the embodied builder); the adv
 
 ### Tests That Must Pass
 
-1. `embodied_workplace_availability_reflects_belief_not_truth_001`: truth open + belief closed ⇒ embodied shows closed (and the inverse divergence honors belief).
+1. `embodied_workplace_availability_reflects_belief_not_truth_001`: truth open without holder-known workplace fact ⇒ embodied shows no work action.
 2. Render test: embodied need output contains the band label and not the `value=` token; debug needs report still carries exact values.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`.
 
@@ -97,3 +95,24 @@ Guard-family extension (ban `state.workplaces` in the embodied builder); the adv
 
 1. `cargo test -p tracewake-core projections && cargo test -p tracewake-tui`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented the representable Phase 3A lock for embodied workplace availability and need display:
+
+- `phase3a_semantic_actions` no longer reads `state.workplaces`; work actions are built only from holder-known workplace facts and current actor place.
+- The embodied `NeedStatusEntry` no longer carries exact scalar values; the TUI renders band and cause only, while debug needs reports still expose exact values.
+- Added `embodied_workplace_availability_reflects_belief_not_truth_001` and a TUI regression test proving truth-open workplace state does not surface as an embodied work action without holder-known workplace context.
+- Extended guard coverage to ban `state.workplaces` inside the embodied semantic-action builder.
+
+Verification run:
+
+- `cargo test -p tracewake-core projections`
+- `cargo test -p tracewake-core --test anti_regression_guards guard_014_embodied_projection_workplaces_are_context_backed`
+- `cargo test -p tracewake-tui embodied`
+- `cargo test -p tracewake-tui tui_runs_no_human_day_and_inspects_real_post_run_panels`
+- `cargo test -p tracewake-content all_fixtures_load_deterministically_and_validate`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

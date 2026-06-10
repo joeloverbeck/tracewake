@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` embodied knowledge-context staleness sourced from the Phase 2A epistemic projection; new multi-tick fixture; authored deferral ticket
-**Deps**: 0016PHA3ANEEACC-007
+**Deps**: `archive/tickets/0016PHA3ANEEACC-007.md`
 
 ## Problem
 
@@ -65,7 +65,7 @@ Write `tickets/0016PHA3ANEEACC-015.md` (ID confirmed free at implementation) sco
 
 - Full unification of `NoHumanActorKnownSurfaceBuilder` onto the epistemic projection (the recorded follow-up ticket this ticket authors; candidate core of spec 0017).
 - The conformance-index row itself (0016PHA3ANEEACC-013 — cites this ticket's landed state).
-- Workplace availability/believed-access (0016PHA3ANEEACC-007 — upstream of this ticket).
+- Workplace availability/believed-access (`archive/tickets/0016PHA3ANEEACC-007.md` — upstream of this ticket).
 
 ## Acceptance Criteria
 

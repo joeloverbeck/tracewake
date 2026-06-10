@@ -431,7 +431,8 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(report.ordinary_pipeline_events > 0);
     assert!(after_run_events > before_events);
     assert!(embodied.contains("Needs:"));
-    assert!(embodied.contains("- hunger: value=410 band=rising cause=tick_delta"));
+    assert!(embodied.contains("- hunger: band=rising cause=tick_delta"));
+    assert!(!embodied.contains("value=410"));
     assert!(embodied.contains("Intention:"));
     assert!(embodied.contains("active:routine_tomas_go_work:wait"));
     assert!(!embodied.contains("DEBUG NON-DIEGETIC"));
@@ -477,7 +478,8 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(!rendered.contains("ordinary_events="));
     assert!(rendered.contains("work_failed=2"));
     assert!(rendered.contains("routine_interruptions=2"));
-    assert!(rendered.contains("- hunger: value=410 band=rising cause=tick_delta"));
+    assert!(rendered.contains("- hunger: band=rising cause=tick_delta"));
+    assert!(!rendered.contains("value=410"));
     assert!(rendered.contains("Actor: actor_tomas"));
     assert!(!rendered.contains("food_hidden_pantry"));
 }

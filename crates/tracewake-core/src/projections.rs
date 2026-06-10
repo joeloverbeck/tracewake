@@ -25,6 +25,12 @@ use crate::view_models::{
     VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotView,
 };
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ActorKnownWorkplaceSurface {
+    workplace_id: WorkplaceId,
+    place_id: PlaceId,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProjectionError {
     ActorNotFound(ActorId),
@@ -38,7 +44,7 @@ pub struct EmbodiedProjectionSource<'a> {
     actor_known_food_sources: Vec<FoodSupplyId>,
     actor_known_sleep_affordances: Vec<SleepAffordanceId>,
     actor_known_routes: Vec<PlaceId>,
-    actor_known_workplaces: Vec<WorkplaceId>,
+    actor_known_workplaces: Vec<ActorKnownWorkplaceSurface>,
 }
 
 impl<'a> EmbodiedProjectionSource<'a> {
@@ -104,11 +110,16 @@ fn actor_known_routes_for_context(
     routes
 }
 
-fn actor_known_workplaces_for_context(context: &KnowledgeContext) -> Vec<WorkplaceId> {
+fn actor_known_workplaces_for_context(
+    context: &KnowledgeContext,
+) -> Vec<ActorKnownWorkplaceSurface> {
     let mut workplaces = context
         .actor_known_workplaces()
         .iter()
-        .map(|fact| fact.workplace_id().clone())
+        .map(|fact| ActorKnownWorkplaceSurface {
+            workplace_id: fact.workplace_id().clone(),
+            place_id: fact.place_id().clone(),
+        })
         .collect::<Vec<_>>();
     workplaces.sort();
     workplaces.dedup();
@@ -621,7 +632,6 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
         .flat_map(|needs| needs.values())
         .map(|need| NeedStatusEntry {
             kind: need.kind().stable_id().to_string(),
-            value: need.value(),
             band_label: need.band().stable_id().to_string(),
             last_cause: need.last_change_cause().stable_id().to_string(),
         })
@@ -656,7 +666,7 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
 }
 
 fn phase3a_semantic_actions(
-    state: &PhysicalState,
+    _state: &PhysicalState,
     agent_state: Option<&AgentState>,
     source: &EmbodiedProjectionSource<'_>,
     actor: &ActorBody,
@@ -685,28 +695,15 @@ fn phase3a_semantic_actions(
         ));
     }
 
-    for workplace_id in &source.actor_known_workplaces {
-        let Some(workplace) = state.workplaces.get(workplace_id) else {
-            continue;
-        };
+    for workplace in &source.actor_known_workplaces {
         let at_workplace = workplace.place_id == actor.current_place_id;
-        let enabled = at_workplace && workplace.access_open;
+        let enabled = at_workplace;
         let availability = if enabled {
             ActionAvailability::available()
-        } else if !at_workplace {
+        } else {
             ActionAvailability::disabled(
                 vec![ReasonCode::ActorNotAtRequiredPlace],
                 "You are not at that workplace.",
-                vec![ActionAvailabilityProvenance::new(
-                    ActionAvailabilityProvenanceKind::HolderKnownContext,
-                    source.knowledge_context_id.as_str(),
-                )],
-                Vec::new(),
-            )
-        } else {
-            ActionAvailability::disabled(
-                vec![ReasonCode::TargetNotReachable],
-                "That workplace is not available.",
                 vec![ActionAvailabilityProvenance::new(
                     ActionAvailabilityProvenanceKind::HolderKnownContext,
                     source.knowledge_context_id.as_str(),
@@ -1794,7 +1791,7 @@ mod tests {
         let status = view.phase3a_status.as_ref().unwrap();
         assert_eq!(status.need_summaries.len(), 1);
         assert_eq!(status.need_summaries[0].kind, "hunger");
-        assert_eq!(status.need_summaries[0].value, 620);
+        assert_eq!(status.need_summaries[0].band_label, "urgent");
         assert_eq!(status.need_summaries[0].last_cause, "fixture_initial");
         assert!(status
             .intention_summary

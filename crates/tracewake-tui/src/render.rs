@@ -45,8 +45,8 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         }
         for need in &status.need_summaries {
             lines.push(format!(
-                "- {}: value={} band={} cause={}",
-                need.kind, need.value, need.band_label, need.last_cause
+                "- {}: band={} cause={}",
+                need.kind, need.band_label, need.last_cause
             ));
         }
         lines.push(format!(

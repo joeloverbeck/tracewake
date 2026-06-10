@@ -2046,6 +2046,7 @@ fn phase2a_golden_fixtures_have_contracts_and_validate() {
 fn phase3a_golden_fixtures_have_contracts_and_validate() {
     let expected = [
         "ordinary_workday_001",
+        "embodied_workplace_availability_reflects_belief_not_truth_001",
         "sleep_eat_work_001",
         "food_unavailable_replan_001",
         "routine_blocked_diagnostic_001",
