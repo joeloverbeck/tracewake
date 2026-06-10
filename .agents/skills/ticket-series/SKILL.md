@@ -20,6 +20,12 @@ If an input glob is ambiguous, inspect matching paths and choose only when the
 repo context makes the intended family clear. Ask before proceeding if multiple
 families plausibly match.
 
+If an input glob has zero matches, do not silently proceed. Search nearby
+prefixes once, such as the same numeric/spec prefix with small spelling
+differences. If exactly one obvious correction exists in the live checkout,
+report the correction and use that path family. Stop and ask if there are zero
+or multiple plausible corrections.
+
 ## Startup
 
 1. Read the live checkout first. Do not rely on memory or prior runs for current
@@ -94,19 +100,24 @@ cargo test --workspace
 4. Archive the spec to `archive/specs/`, using `git mv` when tracked.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
-   Use concrete sweeps for the exact spec filename, ticket prefix, and live
-   paths, for example:
+   Use concrete sweeps for the exact spec filename, ticket prefix, live paths,
+   and archive paths, for example:
 
 ```sh
-rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket prefix>" docs reports specs tickets
+rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket prefix>|archive/specs/<spec filename>|archive/tickets/<ticket prefix>" docs reports specs tickets
 ```
 
    Update active references that should point to `archive/specs/` or
    `archive/tickets/`. Leave intentionally historical archive references alone
    unless they describe current location or current status.
+   Check active reports and acceptance artifacts for recorded deferrals, live
+   ticket paths, live spec paths, and target-commit claims that became stale
+   after the last ticket or spec archive.
 6. Re-read updated ticket/spec outcomes and reports after the final verification
    run. Confirm the recorded commands, paths, statuses, and skipped/deviated
-   checks match what actually happened.
+   checks match what actually happened. If a report originally recorded a
+   deferral that was completed later in the same series, amend the report so the
+   final archived state is truthful.
 7. Run a final status/diff check and commit the spec archive/truthing work.
 8. Before sending the final response or marking a `/goal` complete, confirm:
    - no matching active ticket paths remain under `tickets/`;
@@ -114,8 +125,10 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
    - the archived spec exists under `archive/specs/`;
    - active ledgers, reports, specs, docs, and ticket references no longer point
      at stale live paths;
-   - the final status/diff check shows only intended changes, or the worktree is
-     clean after the final commit;
+   - there are no staged changes after the final commit;
+   - the final status/diff check shows only intended changes, a clean worktree,
+     or documented unrelated pre-existing changes that were deliberately left
+     untouched;
    - the spec archive/truthing commit exists.
 9. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
