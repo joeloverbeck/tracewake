@@ -9,6 +9,7 @@ mod embodied_view_omits_raw_assignment_without_context_001;
 mod embodied_view_omits_unknown_sleep_affordance_001;
 mod embodied_view_omits_unobserved_food_at_open_place_001;
 mod embodied_workplace_availability_reflects_belief_not_truth_001;
+mod embodied_workplace_believed_open_truth_closed_commit_fails_001;
 mod expectation_contradiction_001;
 mod food_unavailable_replan_001;
 mod forbidden_provenance_input_fails_closed_001;
@@ -85,6 +86,7 @@ pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_om
 pub use embodied_view_omits_unknown_sleep_affordance_001::embodied_view_omits_unknown_sleep_affordance_001;
 pub use embodied_view_omits_unobserved_food_at_open_place_001::embodied_view_omits_unobserved_food_at_open_place_001;
 pub use embodied_workplace_availability_reflects_belief_not_truth_001::embodied_workplace_availability_reflects_belief_not_truth_001;
+pub use embodied_workplace_believed_open_truth_closed_commit_fails_001::embodied_workplace_believed_open_truth_closed_commit_fails_001;
 pub use expectation_contradiction_001::expectation_contradiction_001;
 pub use food_unavailable_replan_001::food_unavailable_replan_001;
 pub use forbidden_provenance_input_fails_closed_001::forbidden_provenance_input_fails_closed_001;
@@ -170,6 +172,7 @@ pub fn all() -> Vec<GoldenFixture> {
         embodied_view_omits_raw_assignment_without_context_001(),
         embodied_menu_lags_truth_change_without_perception_001(),
         embodied_workplace_availability_reflects_belief_not_truth_001(),
+        embodied_workplace_believed_open_truth_closed_commit_fails_001(),
         embodied_view_omits_unobserved_food_at_open_place_001(),
         embodied_view_omits_unknown_sleep_affordance_001(),
         embodied_exits_require_perceived_or_known_route_001(),
@@ -554,6 +557,7 @@ fn workplace_schema(
         max_fatigue_to_start: 800,
         max_hunger_to_start: 850,
         access_open,
+        role_notice_access_open: access_open,
         output_tag: format!("{workplace_id}_ordinary_output"),
     }
 }

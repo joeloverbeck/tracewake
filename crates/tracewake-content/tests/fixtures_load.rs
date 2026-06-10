@@ -107,6 +107,7 @@ fn phase3a_fixture() -> FixtureSchema {
             max_fatigue_to_start: 800,
             max_hunger_to_start: 850,
             access_open: true,
+            role_notice_access_open: true,
             output_tag: "service_completed_placeholder".to_string(),
         }],
         routine_templates: vec![RoutineTemplateSchema {
@@ -143,7 +144,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 53);
+    assert_eq!(all.len(), 54);
 
     let ids = all
         .iter()
@@ -160,6 +161,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "embodied_exits_require_perceived_or_known_route_001".to_string(),
             "embodied_menu_lags_truth_change_without_perception_001".to_string(),
             "embodied_view_omits_raw_assignment_without_context_001".to_string(),
+            "embodied_workplace_believed_open_truth_closed_commit_fails_001".to_string(),
             "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
             "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
             "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
@@ -357,6 +359,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "embodied_exits_require_perceived_or_known_route_001".to_string(),
             "embodied_menu_lags_truth_change_without_perception_001".to_string(),
             "embodied_view_omits_raw_assignment_without_context_001".to_string(),
+            "embodied_workplace_believed_open_truth_closed_commit_fails_001".to_string(),
             "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
             "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
             "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),

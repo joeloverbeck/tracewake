@@ -1,5 +1,7 @@
 use tracewake_content::fixtures;
+use tracewake_core::actions::ReasonCode;
 use tracewake_core::actions::ReportStatus;
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::{ActorId, SemanticActionId};
 use tracewake_tui::app::TuiApp;
 
@@ -96,7 +98,7 @@ fn embodied_view_omits_raw_workplace_assignment_without_context() {
 }
 
 #[test]
-fn embodied_workplace_availability_reflects_belief_not_truth_fixture() {
+fn embodied_workplace_availability_reflects_belief_not_truth() {
     let mut app = TuiApp::from_golden(
         fixtures::embodied_workplace_availability_reflects_belief_not_truth_001(),
     )
@@ -107,14 +109,68 @@ fn embodied_workplace_availability_reflects_belief_not_truth_fixture() {
     let view = app.current_view().unwrap();
     let rendered = app.render_current_view().unwrap();
 
-    assert!(!rendered.contains("Work at workplace_tomas"));
-    assert!(!view.semantic_actions.iter().any(|entry| {
-        entry.action_id.as_str() == "work_block"
-            || entry
-                .target_ids
-                .iter()
-                .any(|target| target == "workplace_tomas")
-    }));
+    let entry = view
+        .semantic_actions
+        .iter()
+        .find(|entry| {
+            entry.action_id.as_str() == "work_block"
+                && entry
+                    .target_ids
+                    .iter()
+                    .any(|target| target == "workplace_tomas")
+        })
+        .expect("workplace action is present from actor-known workplace fact");
+
+    assert!(rendered.contains("Work at workplace_tomas"));
+    assert!(rendered.contains("disabled: You know that workplace access is closed."));
+    assert!(!entry.availability.is_available());
+    assert_eq!(
+        entry.availability.reason_codes(),
+        &[ReasonCode::KnowledgePreconditionNotMet]
+    );
+}
+
+#[test]
+fn embodied_workplace_believed_open_truth_closed() {
+    let mut app = TuiApp::from_golden(
+        fixtures::embodied_workplace_believed_open_truth_closed_commit_fails_001(),
+    )
+    .unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let rendered = app.render_current_view().unwrap();
+    let entry = view
+        .semantic_actions
+        .iter()
+        .find(|entry| {
+            entry.semantic_action_id.as_str() == "work.block.workplace_tomas"
+                && entry.action_id.as_str() == "work_block"
+        })
+        .expect("workplace action is present from actor-known open-access fact");
+
+    assert!(rendered.contains("Work at workplace_tomas"));
+    assert!(!rendered.contains("disabled: You know that workplace access is closed."));
+    assert!(entry.availability.is_available());
+
+    let result = app
+        .submit_semantic_action(&SemanticActionId::new("work.block.workplace_tomas").unwrap())
+        .unwrap();
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+    let failure = result
+        .appended_events
+        .iter()
+        .find(|event| event.event_type == EventKind::WorkBlockFailed)
+        .expect("closed physical workplace records a work failure event");
+    assert!(failure
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_kind" && field.value == "access"));
+    assert!(failure
+        .payload
+        .iter()
+        .any(|field| field.key == "reason" && field.value == "workplace access closed"));
 }
 
 #[test]

@@ -158,6 +158,7 @@ impl KnowledgeProvenanceEntry {
 pub struct ActorKnownWorkplaceFact {
     workplace_id: WorkplaceId,
     place_id: PlaceId,
+    believed_access_open: bool,
     source_key: String,
 }
 
@@ -165,11 +166,13 @@ impl ActorKnownWorkplaceFact {
     pub fn new(
         workplace_id: WorkplaceId,
         place_id: PlaceId,
+        believed_access_open: bool,
         source_key: impl Into<String>,
     ) -> Self {
         Self {
             workplace_id,
             place_id,
+            believed_access_open,
             source_key: source_key.into(),
         }
     }
@@ -182,15 +185,20 @@ impl ActorKnownWorkplaceFact {
         &self.place_id
     }
 
+    pub fn believed_access_open(&self) -> bool {
+        self.believed_access_open
+    }
+
     pub fn source_key(&self) -> &str {
         &self.source_key
     }
 
     fn canonical_key(&self) -> String {
         format!(
-            "{}@{}:{}",
+            "{}@{}:access_open={}:{}",
             self.workplace_id.as_str(),
             self.place_id.as_str(),
+            self.believed_access_open,
             self.source_key
         )
     }
@@ -199,13 +207,23 @@ impl ActorKnownWorkplaceFact {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ActorKnownFoodSourceFact {
     food_supply_id: FoodSupplyId,
+    believed_servings: Option<u32>,
     source_key: String,
 }
 
 impl ActorKnownFoodSourceFact {
     pub fn new(food_supply_id: FoodSupplyId, source_key: impl Into<String>) -> Self {
+        Self::with_believed_servings(food_supply_id, None, source_key)
+    }
+
+    pub fn with_believed_servings(
+        food_supply_id: FoodSupplyId,
+        believed_servings: Option<u32>,
+        source_key: impl Into<String>,
+    ) -> Self {
         Self {
             food_supply_id,
+            believed_servings,
             source_key: source_key.into(),
         }
     }
@@ -214,12 +232,23 @@ impl ActorKnownFoodSourceFact {
         &self.food_supply_id
     }
 
+    pub fn believed_servings(&self) -> Option<u32> {
+        self.believed_servings
+    }
+
     pub fn source_key(&self) -> &str {
         &self.source_key
     }
 
     fn canonical_key(&self) -> String {
-        format!("{}:{}", self.food_supply_id.as_str(), self.source_key)
+        format!(
+            "{}:servings={}:{}",
+            self.food_supply_id.as_str(),
+            self.believed_servings
+                .map(|servings| servings.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            self.source_key
+        )
     }
 }
 
@@ -873,6 +902,7 @@ mod tests {
             vec![ActorKnownWorkplaceFact::new(
                 WorkplaceId::new("workplace_tomas").unwrap(),
                 PlaceId::new("workshop_tomas").unwrap(),
+                true,
                 "routine_assignment_notice",
             )],
         );

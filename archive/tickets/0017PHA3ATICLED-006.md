@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-006: Believed-access workplace facts and actor-known embodied availability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/knowledge_context`, `epistemics/projection`, `projections`); `tracewake-content` (one reworked + one new fixture); `tracewake-tui` (embodied tests); one new source guard
@@ -95,3 +95,29 @@ Rework the placeholder fixture into the real divergence case; add the inverse fi
 
 1. `cargo test -p tracewake-tui embodied_workplace`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added believed workplace access and believed food servings to actor-known fact flow, including projection records, canonical serialization, and knowledge-context surfaces.
+- Derived Phase-3A embodied action availability from actor-known context facts instead of literal enabled flags, with typed actor-known failure reasons for closed workplaces and empty known food.
+- Reworked the workplace divergence fixture to cover belief-closed/truth-open, and added the inverse belief-open/truth-closed fixture that renders available but records a modeled `WorkBlockFailed` consequence at commit time.
+- Moved epistemic projection seeding into `tracewake-content` fixture loading so TUI setup consumes loaded projections without directly applying events.
+- Added guard coverage against literal-true Phase-3A semantic availability and maintained the TUI direct-event-application boundary guard.
+
+Deviations from original plan:
+
+- The inverse workplace case records an accepted pipeline report with a `WorkBlockFailed` event for closed access, matching the existing work-action model, rather than a rejected submission report.
+- Projection seeding moved from the TUI fixture constructor into the content loader to preserve the existing anti-regression boundary that TUI sources do not call event application directly.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-tui embodied_workplace` — passed
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed

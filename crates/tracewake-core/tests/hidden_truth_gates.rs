@@ -376,8 +376,9 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
         SimTick::ZERO,
         0,
         Vec::new(),
-        vec![ActorKnownFoodSourceFact::new(
+        vec![ActorKnownFoodSourceFact::with_believed_servings(
             food_supply_id("food_empty_pantry_mara"),
+            Some(0),
             "visible_food_supply",
         )],
         Vec::new(),

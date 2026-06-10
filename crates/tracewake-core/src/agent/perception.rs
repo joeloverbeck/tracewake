@@ -1,7 +1,8 @@
 use crate::epistemics::{
     ActorKnownFoodSourceFact, ActorKnownProjectionRecord, ActorKnownRouteFact,
-    ActorKnownSleepAffordanceFact, Channel, Confidence, EpistemicProjection, KnowledgeContext,
-    Observation, ObservationSubject, ObservationTarget, SourceRef,
+    ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact, Channel, Confidence,
+    EpistemicProjection, KnowledgeContext, Observation, ObservationSubject, ObservationTarget,
+    SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -64,6 +65,7 @@ pub fn current_place_perception_events(
         subject_id: current_place_id.as_str().to_string(),
         target_id: current_place_id.as_str().to_string(),
         place_id: current_place_id.clone(),
+        servings: None,
     });
 
     if let Some(place) = state.places().get(&current_place_id) {
@@ -76,6 +78,7 @@ pub fn current_place_perception_events(
                 subject_id: current_place_id.as_str().to_string(),
                 target_id: adjacent_place_id.as_str().to_string(),
                 place_id: current_place_id.clone(),
+                servings: None,
             });
         }
     }
@@ -88,6 +91,7 @@ pub fn current_place_perception_events(
             subject_id: current_place_id.as_str().to_string(),
             target_id: food.food_supply_id.as_str().to_string(),
             place_id: current_place_id.clone(),
+            servings: Some(food.servings),
         });
     }
 
@@ -103,6 +107,7 @@ pub fn current_place_perception_events(
             subject_id: current_place_id.as_str().to_string(),
             target_id: sleep_affordance.sleep_affordance_id.as_str().to_string(),
             place_id: current_place_id.clone(),
+            servings: None,
         });
     }
 
@@ -132,6 +137,7 @@ pub fn current_place_knowledge_context(
     let mut food_sources = Vec::new();
     let mut sleep_affordances = Vec::new();
     let mut routes = Vec::new();
+    let mut workplaces = Vec::new();
 
     let Some(actor) = state.actors().get(actor_id) else {
         return KnowledgeContext::embodied_at_frontier_with_facts(
@@ -160,11 +166,16 @@ pub fn current_place_knowledge_context(
     for classified in epistemic_projection
         .classified_actor_known_records_for_context(&filter_context, &actor.current_place_id)
     {
-        if !classified.is_latest_current_place_record() {
+        if !classified.is_latest_current_place_record()
+            && !matches!(
+                classified.record(),
+                ActorKnownProjectionRecord::Workplace { .. }
+            )
+        {
             continue;
         }
         let source_key = format!(
-            "evented_perception:{}",
+            "epistemic_projection:{}",
             classified.record().source_event_id().as_str()
         );
         match classified.record() {
@@ -179,11 +190,19 @@ pub fn current_place_knowledge_context(
                     source_key,
                 ));
             }
-            ActorKnownProjectionRecord::FoodSource { food_source_id, .. } => {
+            ActorKnownProjectionRecord::FoodSource {
+                food_source_id,
+                believed_servings,
+                ..
+            } => {
                 let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
                     continue;
                 };
-                food_sources.push(ActorKnownFoodSourceFact::new(food_supply_id, source_key));
+                food_sources.push(ActorKnownFoodSourceFact::with_believed_servings(
+                    food_supply_id,
+                    *believed_servings,
+                    source_key,
+                ));
             }
             ActorKnownProjectionRecord::SleepPlace {
                 place_id,
@@ -202,7 +221,21 @@ pub fn current_place_knowledge_context(
                     source_key,
                 ));
             }
-            ActorKnownProjectionRecord::Workplace { .. } => {}
+            ActorKnownProjectionRecord::Workplace {
+                workplace_id,
+                place_id,
+                believed_access_open,
+                ..
+            } => {
+                if place_id == &actor.current_place_id {
+                    workplaces.push(ActorKnownWorkplaceFact::new(
+                        workplace_id.clone(),
+                        place_id.clone(),
+                        *believed_access_open,
+                        source_key,
+                    ));
+                }
+            }
         }
     }
 
@@ -210,7 +243,7 @@ pub fn current_place_knowledge_context(
         actor_id.clone(),
         decision_tick,
         event_frontier,
-        Vec::new(),
+        workplaces,
         food_sources,
         sleep_affordances,
         routes,
@@ -273,6 +306,7 @@ struct PerceivedThing {
     subject_id: String,
     target_id: String,
     place_id: PlaceId,
+    servings: Option<u32>,
 }
 
 fn observation_event(
@@ -334,6 +368,11 @@ fn observation_event(
         PayloadField::new("subject_id", perceived.subject_id),
         PayloadField::new("target_id", perceived.target_id.clone()),
     ];
+    if let Some(servings) = perceived.servings {
+        event
+            .payload
+            .push(PayloadField::new("servings", servings.to_string()));
+    }
     event.effects_summary = format!(
         "current-place perception recorded {} {}",
         perceived.kind, perceived.target_id

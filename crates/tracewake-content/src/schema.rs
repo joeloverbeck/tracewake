@@ -374,6 +374,7 @@ pub struct WorkplaceSchema {
     pub max_fatigue_to_start: i32,
     pub max_hunger_to_start: i32,
     pub access_open: bool,
+    pub role_notice_access_open: bool,
     pub output_tag: String,
 }
 

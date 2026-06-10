@@ -185,6 +185,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             ActorKnownProjectionRecord::FoodSource {
                 food_source_id,
                 place_id,
+                believed_servings: _,
                 source,
                 source_event_id,
                 ..
@@ -222,6 +223,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             ActorKnownProjectionRecord::Workplace {
                 workplace_id,
                 place_id,
+                believed_access_open,
                 source,
                 source_event_id,
                 ..
@@ -229,6 +231,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                 self.add_role_assignment_notice(
                     workplace_id.clone(),
                     place_id.clone(),
+                    *believed_access_open,
                     source.source_label(),
                     vec![source_event_id.clone()],
                     source_tick,
@@ -274,6 +277,7 @@ impl NoHumanActorKnownSurfaceBuilder {
         &mut self,
         workplace_id: WorkplaceId,
         place_id: PlaceId,
+        believed_access_open: bool,
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
         source_tick: SimTick,
@@ -295,6 +299,14 @@ impl NoHumanActorKnownSurfaceBuilder {
             self.actor_id.clone(),
             "workplace_assignment_active",
             workplace_id.as_str(),
+            format!("role_assignment_notice:{source}"),
+            Some(source_tick),
+            source_event_ids.clone(),
+        ));
+        self.facts.push(ActorKnownFact::routine_assignment(
+            self.actor_id.clone(),
+            "workplace_believed_accessible",
+            format!("{}:{}", workplace_id.as_str(), believed_access_open),
             format!("role_assignment_notice:{source}"),
             Some(source_tick),
             source_event_ids.clone(),

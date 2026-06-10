@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (new test-side generative harness); no production code, no new dependencies
-**Deps**: `archive/tickets/0017PHA3ATICLED-005.md`, `0017PHA3ATICLED-006` (the behavioral surface the oracles exercise is finished; transitive over `-001`…`-004`); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (§5 tier 5)
+**Deps**: `archive/tickets/0017PHA3ATICLED-005.md`, `archive/tickets/0017PHA3ATICLED-006.md` (the behavioral surface the oracles exercise is finished; transitive over `-001`…`-004`); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (§5 tier 5)
 
 ## Problem
 

@@ -196,7 +196,7 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for workplace in fixture.workplaces {
         lines.push(format!(
-            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             canonical_key_for_schema_field("workplaces"),
             workplace.workplace_id.as_str(),
             workplace.place_id.as_str(),
@@ -207,6 +207,7 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             workplace.max_fatigue_to_start,
             workplace.max_hunger_to_start,
             workplace.access_open,
+            workplace.role_notice_access_open,
             encode(&workplace.output_tag)
         ));
     }
@@ -388,7 +389,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                     hunger_reduction_per_serving: parse_i32(hunger_reduction_per_serving)?,
                 })
             }
-            ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, output_tag] => {
+            ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, role_notice_access_open, output_tag] => {
                 workplaces.push(WorkplaceSchema {
                     workplace_id: WorkplaceId::new(*workplace_id)?,
                     place_id: PlaceId::new(*place_id)?,
@@ -399,6 +400,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                     max_fatigue_to_start: parse_i32(max_fatigue_to_start)?,
                     max_hunger_to_start: parse_i32(max_hunger_to_start)?,
                     access_open: parse_bool(access_open)?,
+                    role_notice_access_open: parse_bool(role_notice_access_open)?,
                     output_tag: decode(output_tag)?,
                 })
             }

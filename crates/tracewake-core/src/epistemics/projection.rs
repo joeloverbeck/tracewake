@@ -52,6 +52,7 @@ pub enum ActorKnownProjectionRecord {
         actor_id: ActorId,
         food_source_id: String,
         place_id: Option<PlaceId>,
+        believed_servings: Option<u32>,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
         source_tick: SimTick,
@@ -68,6 +69,7 @@ pub enum ActorKnownProjectionRecord {
         actor_id: ActorId,
         workplace_id: WorkplaceId,
         place_id: PlaceId,
+        believed_access_open: bool,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
         source_tick: SimTick,
@@ -216,6 +218,7 @@ impl EpistemicProjection {
         actor_id: ActorId,
         workplace_id: WorkplaceId,
         place_id: PlaceId,
+        believed_access_open: bool,
         source_event_id: EventId,
         source_tick: SimTick,
     ) {
@@ -226,6 +229,7 @@ impl EpistemicProjection {
                 actor_id,
                 workplace_id,
                 place_id,
+                believed_access_open,
                 source: ActorKnownProjectionSource::RoleAssignmentNotice,
                 source_event_id,
                 source_tick,
@@ -653,13 +657,17 @@ impl ActorKnownProjectionRecord {
             Self::FoodSource {
                 food_source_id,
                 place_id,
+                believed_servings,
                 source,
                 source_event_id,
                 source_tick,
                 ..
             } => format!(
-                "food|id={food_source_id}|place={}|source={}|event={}|tick={}",
+                "food|id={food_source_id}|place={}|servings={}|source={}|event={}|tick={}",
                 place_id.as_ref().map(|id| id.as_str()).unwrap_or(""),
+                believed_servings
+                    .map(|servings| servings.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
                 source.stable_id(),
                 source_event_id.as_str(),
                 source_tick.value()
@@ -682,14 +690,16 @@ impl ActorKnownProjectionRecord {
             Self::Workplace {
                 workplace_id,
                 place_id,
+                believed_access_open,
                 source,
                 source_event_id,
                 source_tick,
                 ..
             } => format!(
-                "workplace|id={}|place={}|source={}|event={}|tick={}",
+                "workplace|id={}|place={}|access_open={}|source={}|event={}|tick={}",
                 workplace_id.as_str(),
                 place_id.as_str(),
+                believed_access_open,
                 source.stable_id(),
                 source_event_id.as_str(),
                 source_tick.value()
@@ -762,6 +772,8 @@ fn actor_known_records_from_observation(
                 actor_id,
                 food_source_id: food_source_id.to_string(),
                 place_id: Some(observation.observer_place_id().clone()),
+                believed_servings: observation_payload_value(observation, "servings")
+                    .and_then(|value| value.parse::<u32>().ok()),
                 source: ActorKnownProjectionSource::VisibleFoodSupply,
                 source_event_id,
                 source_tick: observation.observed_tick(),
@@ -811,6 +823,7 @@ fn actor_known_record_from_starting_belief(
                 actor_id,
                 food_source_id: subject_id.to_string(),
                 place_id: Some(place_id),
+                believed_servings: None,
                 source: ActorKnownProjectionSource::StartingBelief,
                 source_event_id,
                 source_tick,

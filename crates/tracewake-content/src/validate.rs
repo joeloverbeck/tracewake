@@ -2060,6 +2060,7 @@ mod tests {
             max_fatigue_to_start: 800,
             max_hunger_to_start: 850,
             access_open: true,
+            role_notice_access_open: true,
             output_tag: "service_completed_placeholder".to_string(),
         });
         fixture.routine_templates.push(valid_routine_template());

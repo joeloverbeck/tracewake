@@ -108,14 +108,7 @@ impl TuiApp {
         registry.register_phase3a_eat();
         registry.register_phase3a_work();
         registry.register_phase3a_continue_routine();
-        let epistemic_projection = EpistemicProjection::from_initial_beliefs(
-            loaded.manifest.manifest_id.clone(),
-            loaded
-                .fixture
-                .initial_beliefs
-                .iter()
-                .map(|seed| seed.to_belief()),
-        );
+        let epistemic_projection = loaded.epistemic_projection;
         Ok(Self {
             registry,
             initial_state: loaded.canonical_world.clone(),

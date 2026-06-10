@@ -231,10 +231,23 @@ pub fn apply_epistemic_event(
                 })
             })?;
             let place_id = parse_place_id_epistemic(&payload, "place_id")?;
+            let access_open = payload
+                .get("access_open")
+                .map(|value| match *value {
+                    "true" => Ok(true),
+                    "false" => Ok(false),
+                    _ => Err(EpistemicApplyError::BadPayload {
+                        key: "access_open",
+                        value: (*value).to_string(),
+                    }),
+                })
+                .transpose()?
+                .unwrap_or(true);
             projection.insert_role_assignment_notice(
                 actor_id,
                 workplace_id,
                 place_id,
+                access_open,
                 event.event_id.clone(),
                 event.sim_tick,
             );

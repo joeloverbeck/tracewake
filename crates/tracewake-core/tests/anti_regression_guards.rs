@@ -328,6 +328,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_unknown_sleep_affordance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_unobserved_food_at_open_place_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_workplace_availability_reflects_belief_not_truth_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_workplace_believed_open_truth_closed_commit_fails_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/expectation_contradiction_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/food_unavailable_replan_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/forbidden_provenance_input_fails_closed_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -1806,7 +1807,8 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     );
     assert_absent(&projection, "actor_known_workplaces_for_context(state");
     assert!(
-        projection.contains("fn actor_known_food_sources_for_context(context: &KnowledgeContext)"),
+        projection.contains("fn actor_known_food_sources_for_context")
+            && projection.contains("context: &KnowledgeContext"),
         "embodied food affordances must be selected from sealed holder-known food facts"
     );
     assert!(
@@ -1827,6 +1829,18 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     assert_absent_from_sources(
         &projection_sources,
         "actor_known_workplaces_for_context(state",
+    );
+}
+
+#[test]
+fn guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability() {
+    let projection = production(PROJECTIONS_RS);
+    let phase3a_actions = body_after_marker(&projection, "fn phase3a_semantic_actions");
+
+    assert_absent(phase3a_actions, "SemanticActionEntry::new(");
+    assert!(
+        phase3a_actions.contains("SemanticActionEntry::with_availability("),
+        "Phase 3A actions must carry explicit availability evidence instead of literal true"
     );
 }
 
