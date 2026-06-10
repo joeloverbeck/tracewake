@@ -1,0 +1,9 @@
+[package]
+name = "banned_rand_entry_points"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+rand = "0.9.2"
+
+[workspace]

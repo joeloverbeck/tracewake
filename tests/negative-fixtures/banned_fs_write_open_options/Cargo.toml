@@ -1,0 +1,6 @@
+[package]
+name = "banned_fs_write_open_options"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]

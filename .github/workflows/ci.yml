@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
 
 # Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
@@ -89,3 +92,35 @@ jobs:
           cargo test --locked -p tracewake-content --test forbidden_content
           cargo test --locked -p tracewake-tui --test adversarial_gates
           cargo test --locked -p tracewake-tui --test tui_seam_conformance
+
+  mutants-lock-layer:
+    name: mutation baseline (lock layer)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-mutants-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-mutants-
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+      - name: Run guarded-layer mutation baseline
+        run: |
+          cargo mutants --workspace \
+            -f 'crates/tracewake-core/src/agent/**' \
+            -f 'crates/tracewake-core/src/scheduler*' \
+            -f 'crates/tracewake-core/src/projections*' \
+            -f 'crates/tracewake-core/src/actions/pipeline.rs' \
+            --no-shuffle
+      - name: Upload mutation baseline output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-mutants-lock-layer
+          path: mutants.out

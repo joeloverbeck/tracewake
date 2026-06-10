@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CLIPPY_TOML: &str = include_str!("../../../clippy.toml");
 
 struct NegativeFixture {
     name: &'static str,
@@ -9,6 +10,14 @@ struct NegativeFixture {
 }
 
 const FIXTURES: &[NegativeFixture] = &[
+    NegativeFixture {
+        name: "banned_env_var",
+        expected_stderr: "disallowed_methods",
+    },
+    NegativeFixture {
+        name: "banned_float_confidence_types",
+        expected_stderr: "disallowed_types",
+    },
     NegativeFixture {
         name: "banned_hashmap_direct_path",
         expected_stderr: "disallowed_types",
@@ -39,6 +48,14 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "banned_fs_read_and_file_open",
+        expected_stderr: "disallowed_methods",
+    },
+    NegativeFixture {
+        name: "banned_fs_write_open_options",
+        expected_stderr: "disallowed_methods",
+    },
+    NegativeFixture {
+        name: "banned_rand_entry_points",
         expected_stderr: "disallowed_methods",
     },
     NegativeFixture {
@@ -111,11 +128,159 @@ const FIXTURES: &[NegativeFixture] = &[
     },
 ];
 
+struct ClippyBanProof {
+    clippy_path: &'static str,
+    proving_fixture: &'static str,
+}
+
+const CLIPPY_BAN_PROOFS: &[ClippyBanProof] = &[
+    ClippyBanProof {
+        clippy_path: "f32",
+        proving_fixture: "banned_float_confidence_types",
+    },
+    ClippyBanProof {
+        clippy_path: "f64",
+        proving_fixture: "banned_float_confidence_types",
+    },
+    ClippyBanProof {
+        clippy_path: "rand::random",
+        proving_fixture: "banned_rand_entry_points",
+    },
+    ClippyBanProof {
+        clippy_path: "rand::rng",
+        proving_fixture: "banned_rand_entry_points",
+    },
+    ClippyBanProof {
+        clippy_path: "std::collections::HashMap",
+        proving_fixture: "banned_hashmap_direct_path",
+    },
+    ClippyBanProof {
+        clippy_path: "std::collections::HashSet",
+        proving_fixture: "banned_hashset_reexport",
+    },
+    ClippyBanProof {
+        clippy_path: "std::env::var",
+        proving_fixture: "banned_env_var",
+    },
+    ClippyBanProof {
+        clippy_path: "std::fs::File::open",
+        proving_fixture: "banned_fs_read_and_file_open",
+    },
+    ClippyBanProof {
+        clippy_path: "std::fs::OpenOptions",
+        proving_fixture: "banned_fs_write_open_options",
+    },
+    ClippyBanProof {
+        clippy_path: "std::fs::read",
+        proving_fixture: "banned_fs_read_and_file_open",
+    },
+    ClippyBanProof {
+        clippy_path: "std::fs::read_to_string",
+        proving_fixture: "banned_fs_read_and_file_open",
+    },
+    ClippyBanProof {
+        clippy_path: "std::fs::write",
+        proving_fixture: "banned_fs_write_open_options",
+    },
+    ClippyBanProof {
+        clippy_path: "std::net::TcpStream::connect",
+        proving_fixture: "banned_tcp_udp_network_calls",
+    },
+    ClippyBanProof {
+        clippy_path: "std::net::UdpSocket::bind",
+        proving_fixture: "banned_tcp_udp_network_calls",
+    },
+    ClippyBanProof {
+        clippy_path: "std::process::Command::new",
+        proving_fixture: "banned_process_command_new",
+    },
+    ClippyBanProof {
+        clippy_path: "std::thread::spawn",
+        proving_fixture: "banned_thread_spawn_direct",
+    },
+    ClippyBanProof {
+        clippy_path: "std::time::Instant",
+        proving_fixture: "banned_instant_alias",
+    },
+    ClippyBanProof {
+        clippy_path: "std::time::SystemTime",
+        proving_fixture: "banned_systemtime_alias",
+    },
+];
+
 fn fixture_root(fixture: &NegativeFixture) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join("tests/negative-fixtures")
         .join(fixture.name)
+}
+
+fn negative_fixture_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("tests/negative-fixtures")
+}
+
+fn registered_fixture_names() -> Vec<String> {
+    let mut names = FIXTURES
+        .iter()
+        .map(|fixture| fixture.name.to_string())
+        .collect::<Vec<_>>();
+    names.sort();
+    names
+}
+
+#[allow(
+    clippy::disallowed_methods,
+    reason = "negative fixture census must inspect fixture directories outside simulation outcome code"
+)]
+fn fixture_directory_names() -> Vec<String> {
+    let mut names = std::fs::read_dir(negative_fixture_dir())
+        .expect("negative fixture directory is readable")
+        .map(|entry| {
+            let entry = entry.expect("negative fixture directory entry is readable");
+            let path = entry.path();
+            assert!(
+                path.is_dir(),
+                "{} is not a fixture directory",
+                path.display()
+            );
+            entry
+                .file_name()
+                .into_string()
+                .expect("fixture directory name is valid UTF-8")
+        })
+        .collect::<Vec<_>>();
+    names.sort();
+    names
+}
+
+fn clippy_ban_paths() -> Vec<String> {
+    let mut paths = CLIPPY_TOML
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let after_path = trimmed.strip_prefix("{ path = \"")?;
+            Some(
+                after_path
+                    .split('"')
+                    .next()
+                    .expect("clippy ban path is closed")
+                    .to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+}
+
+fn clippy_ban_proof_paths() -> Vec<String> {
+    let mut paths = CLIPPY_BAN_PROOFS
+        .iter()
+        .map(|proof| proof.clippy_path.to_string())
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
 }
 
 fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
@@ -230,6 +395,36 @@ fn assert_negative_fixture_fails(fixture: &NegativeFixture) {
 fn banned_api_negative_fixtures_fail_with_expected_lints() {
     for fixture in FIXTURES {
         assert_negative_fixture_fails(fixture);
+    }
+}
+
+#[test]
+fn registered_negative_fixtures_match_directory_census() {
+    assert_eq!(
+        registered_fixture_names(),
+        fixture_directory_names(),
+        "tests/negative-fixtures directories and FIXTURES registry must match exactly"
+    );
+}
+
+#[test]
+fn clippy_ban_entries_have_proving_negative_fixtures() {
+    assert_eq!(
+        clippy_ban_paths(),
+        clippy_ban_proof_paths(),
+        "every clippy.toml disallowed type/method entry must have a proving negative fixture"
+    );
+
+    let registered = registered_fixture_names();
+    for proof in CLIPPY_BAN_PROOFS {
+        assert!(
+            registered
+                .binary_search(&proof.proving_fixture.to_string())
+                .is_ok(),
+            "{} is proved by unregistered fixture {}",
+            proof.clippy_path,
+            proof.proving_fixture
+        );
     }
 }
 

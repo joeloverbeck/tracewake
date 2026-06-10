@@ -5,14 +5,19 @@ disallowed-types = [
   { path = "std::time::Instant", reason = "Tracewake outcome paths must use SimTick and event/replay material, never wall-clock time." },
   { path = "f32", reason = "Epistemic confidence must stay deterministic and integer/canonical, never raw float." },
   { path = "f64", reason = "Epistemic confidence must stay deterministic and integer/canonical, never raw float." },
+  { path = "std::fs::OpenOptions", reason = "Outcome-affecting code must use validated content inputs and replayable events, not ad hoc filesystem access." },
 ]
 
 disallowed-methods = [
+  { path = "rand::random", reason = "Randomness must be seedable, scoped, recorded, and replayable." },
+  { path = "rand::rng", reason = "Ambient thread-local randomness cannot influence deterministic replay." },
   { path = "std::thread::spawn", reason = "Thread scheduling is nondeterministic for outcome-affecting simulation code." },
   { path = "std::process::Command::new", reason = "Process execution cannot influence deterministic replay or simulation outcomes." },
+  { path = "std::env::var", reason = "Environment state is outside replay material; use content/config material instead." },
   { path = "std::fs::read", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
   { path = "std::fs::read_to_string", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
   { path = "std::fs::File::open", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
+  { path = "std::fs::write", reason = "Outcome-affecting code must emit replayable events, not ad hoc filesystem writes." },
   { path = "std::net::TcpStream::connect", reason = "Network timing and responses cannot influence deterministic replay." },
   { path = "std::net::UdpSocket::bind", reason = "Network timing and responses cannot influence deterministic replay." },
 ]

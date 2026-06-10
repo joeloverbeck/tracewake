@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-012: Lock-layer durability — workspace census, fixture census, clippy bans, mutants baseline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — test-oracle layer only: workspace-wide guard census, negative-fixture/clippy parity censuses, `clippy.toml` additions, `cargo-mutants` configuration + CI job; no production simulation logic
@@ -101,3 +101,31 @@ Audit the positive-presence guards: where one has no runtime backstop, add one o
 1. `cargo test -p tracewake-core --test anti_regression_guards && cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' --no-shuffle` (baseline; exact invocation finalized against the installed cargo-mutants version)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- `anti_regression_guards.rs` now scans production sources across `tracewake-core`, `tracewake-content`, and `tracewake-tui`, with an exact workspace source classification table and fail-closed guarded-layer census.
+- `negative_fixture_runner.rs` now asserts the repo-root `tests/negative-fixtures/` directory equals `FIXTURES` exactly and that every `clippy.toml` disallowed type/method has a proving negative fixture.
+- Added proving fixtures for raw floats, `rand` entry points, `std::fs::write`/`std::fs::OpenOptions`, and `std::env::var`.
+- Expanded `clippy.toml` bans for `rand::random`, `rand::rng`, `std::fs::write`, `std::fs::OpenOptions`, and `std::env::var`.
+- Added `.cargo/mutants.toml`, a scheduled/manual CI mutation-baseline job, and `reports/0016_ord_hard_025_mutants_baseline.md`.
+
+Deviations:
+
+- No production simulation logic changed. Older source guards that were intentionally core-only were kept core-scoped after `production_sources()` became workspace-wide.
+- The mutation baseline completed with misses and one timeout; those are recorded as baseline dispositions for ticket 014 rather than fixed in this test-oracle ticket.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' --no-shuffle`
+  - Result: 919 tested in 63m; 581 caught, 145 missed, 192 unviable, 1 timeout.
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
