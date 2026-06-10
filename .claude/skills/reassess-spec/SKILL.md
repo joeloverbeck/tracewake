@@ -4,7 +4,7 @@ description: "Use when preparing a Tracewake spec for implementation. Reassesses
 user-invocable: true
 arguments:
   - name: spec_path
-    description: "Path to the spec file (e.g., specs/0002_PHASE_1_KERNEL_TUI_EVENT_LOG_AND_REPLAY_IMPLEMENTATION_SPEC.md or docs/4-specs/0001_PHASE_0_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md)"
+    description: "Path to the spec file (e.g., specs/0016_PHASE_3A_NEED_ACCOUNTING_REPLAY_EVIDENCE_AUDIT_COVERAGE_AND_LOCK_DURABILITY_HARDENING_SPEC.md or docs/4-specs/0001_MISSING_PROPERTY_VILLAGE_ONTOLOGY_AND_FIXTURE_CONTRACTS.md)"
     required: true
 ---
 
@@ -31,7 +31,7 @@ This gate holds under auto mode and any autonomous-execution context. Auto-mode 
 
 **Glob resolution**: if the argument contains wildcards, resolve via `ls`/`find`; proceed if exactly one match (note the resolution inline), disambiguate if many, stop with an error if none.
 
-**Inline user hint (optional)**: text accompanying the path — a parenthetical, post-dash note, or follow-on message (e.g. `specs/0002_PHASE_1_*.md (Note: I'm worried the determinism contract is under-specified)`) — is an audit-lens constraint. It shapes severity assignment at Step 5 and may reframe Questions at Step 6; it is NOT a second path argument and does NOT override foundation-doctrine alignment or approved recommendations. When a hint materially shaped a finding's classification, cite it in the Step 6 presentation. A hint that would force a doctrine hard-fail (a constitutional-invariant violation or a Phase acceptance-gate violation) is flagged as a CRITICAL Issue, not applied.
+**Inline user hint (optional)**: text accompanying the path — a parenthetical, post-dash note, or follow-on message (e.g. `specs/0016_PHASE_3A_*.md (Note: I'm worried the determinism contract is under-specified)`) — is an audit-lens constraint. It shapes severity assignment at Step 5 and may reframe Questions at Step 6; it is NOT a second path argument and does NOT override foundation-doctrine alignment or approved recommendations. When a hint materially shaped a finding's classification, cite it in the Step 6 presentation. A hint that would force a doctrine hard-fail (a constitutional-invariant violation or a Phase acceptance-gate violation) is flagged as a CRITICAL Issue, not applied.
 
 ## Process Flow
 
@@ -110,6 +110,8 @@ Classify the spec into exactly one of four classes. Classification drives which 
 
 **Removal target that never existed**: when a spec tasks removing a symbol that returns zero matches AND was never created, there is nothing to delete — classify as a stale-premise Issue (HIGH when restated across multiple sections), drop the removal framing, and where the symbol name still appears in exit/acceptance criteria, keep it as a trivially-passing absence guard.
 
+**Hardening/audit specs** (the `NNNN_*_HARDENING_SPEC` genre staged in `specs/` — e.g. the 0006–0016 series, archived to `archive/specs/` on acceptance): classify as (b). Validation pivots from deliverable-shape checks to evidence verification: each finding's **Evidence** block is the primary reference set — verify or refute every evidence claim against code (a refuted claim can collapse or reshape its finding); verbatim-verify overturned/re-opened prior-audit claims against the archived predecessor spec; spot-check-sample any "verified holding" list rather than re-proving every entry.
+
 **Hybrid specs**: apply the union of applicable substeps, using the most rigorous classification's checklist for shared substeps.
 
 **Re-reassessment shortcut**: if the same spec was reassessed earlier this session and not externally modified, Steps 2–3 may scope to only the references affected by the triggering change. Step 1 still applies.
@@ -121,7 +123,7 @@ Read both before any analysis:
 1. **The spec file** (entire).
 2. **`docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`** — skip only if read earlier this session and unmodified.
 
-Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority order, source-authority summary, evidence ledger) and its sections. Tracewake specs do not share one fixed template; the section set varies (e.g. `specs/0002_*` uses Evidence ledger / Source authority summary / Purpose / Scope / Non-goals / Binding invariants / Binding architecture constraints / Relationship to prior spec / Workspace shape / Determinism contract / Event log and replay contract / Entity-component model …). Take the spec's own section set as authoritative, and use sibling specs (`specs/0002_*`, `docs/4-specs/0001_*`) and `docs/4-specs/README.md` as the convention exemplars.
+Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority order, source-authority summary, evidence ledger) and its sections. Tracewake specs do not share one fixed template; the section set varies (e.g. `archive/specs/0002_*` uses Evidence ledger / Source authority summary / Purpose / Scope / Non-goals / Binding invariants / Binding architecture constraints / Relationship to prior spec / Workspace shape / Determinism contract / Event log and replay contract / Entity-component model …). Take the spec's own section set as authoritative, and use sibling specs (`archive/specs/0002_*`, `docs/4-specs/0001_*`) and `docs/4-specs/README.md` as the convention exemplars.
 
 **Non-standard sections**: treat each distinct implementation item, required-area entry, scope line, or numbered deliverable as a deliverable for validation purposes, regardless of the heading it sits under.
 
@@ -129,18 +131,18 @@ Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority or
 
 Extract every concrete codebase / doctrine reference from the spec:
 
-- **File paths / target tree** — both existing (`docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`, `docs/1-architecture/01_SYSTEM_AUTHORITY_RUST_WORKSPACE_AND_BOUNDARIES.md`, `docs/4-specs/0001_*`) and proposed (the recommended Rust workspace/module paths the spec names for future implementation).
+- **File paths / target tree** — both existing (`docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`, `docs/1-architecture/01_AUTHORITY_BOUNDARIES_RUST_WORKSPACE_AND_DEPENDENCY_RULES.md`, `docs/4-specs/0001_*`) and proposed (the recommended Rust workspace/module paths the spec names for future implementation).
 - **Type / record / schema / contract names** — entity kinds, components/records, event kinds and envelope fields, claim/proposition families, view-model fields, checksum/hash fields, fixture names, serialization-boundary fields, content-manifest entries.
 - **Module / function / command / tool names** — recommended core/content/TUI modules, CLI tools (`simulate`, `replay-check`, …), and any engine symbols the spec names.
 - **Skill names** — `.claude/skills/<name>/`.
-- **Spec sequencing** — the `authority order` list, the Relationship-to-prior-spec section's predecessor, the execution phase ladder position (`docs/2-execution/02_PHASE_LADDER_AND_ACCEPTANCE_GATES.md` and the per-phase docs 03–08), and the spec's `docs/4-specs/SPEC_LEDGER.md` entry.
-- **Source documents** — when the spec cites a source (an execution phase doc, an architecture contract, Spec 0001, a report, a brainstorm output) in its Purpose / Scope / Required-areas, extract the path AND enumerate its actionable claims at Step 2 itself (read the source; for oversized docs use targeted greps with permissive anchoring). Tag each claim's adjudication status (accept / reject / defer / unadjudicated) by scanning the spec's Scope / Deliverables / Non-goals. This feeds Step 3.10.
+- **Spec sequencing** — the `authority order` list, the Relationship-to-prior-spec section's predecessor, the execution phase ladder position (`docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md` and the per-surface docs 04–12), and the spec's `docs/4-specs/SPEC_LEDGER.md` entry.
+- **Source documents** — when the spec cites a source (an execution phase doc, an architecture contract, Spec 0001, a report, a brainstorm output) in its Purpose / Scope / Required-areas, extract the path AND enumerate its actionable claims at Step 2 itself (read the source; for oversized docs use targeted greps with permissive anchoring). Tag each claim's adjudication status (accept / reject / defer / unadjudicated) by scanning the spec's Scope / Deliverables / Non-goals. This feeds Step 3.10. For hardening/audit specs, sources are typically the predecessor audit specs (under `archive/specs/`) plus doctrine anchors: engagement there means verbatim-verifying each overturned/re-opened prior claim against the archived predecessor and confirming the anchors resolve — claim-by-claim adjudication applies only to genuinely directive sources.
 - **Code / tree / schema examples** (Rust signatures, JSON/TOML schema snippets, directory trees, event-envelope layouts) — extract for fidelity checking.
 - **Verification surfaces / thresholds** — exit/acceptance criteria, determinism/replay checks, fixture lists, golden-trace requirements, and severity mappings (blocker vs warning per the acceptance architecture).
 
-**Reference-count checkpoint**: before Step 3, emit a one-line note with the exact reference count and the tracking decision — e.g. `Reference count: 12 — mental tracking sufficient` or `Reference count: 23 — TaskCreate recommended`. Use an exact integer (not `~20` or `20+`); the >15 threshold-decision must be reproducible. For specs with >15 references spanning unrelated areas, consider `TaskCreate` per-reference tracking; for tightly-clustered sets, mental tracking is acceptable. A fixed closed set checked by one presence grep counts as 1 reference, not N.
+**Reference-count checkpoint**: before Step 3, emit a one-line note with the exact reference count and the tracking decision — e.g. `Reference count: 12 — mental tracking sufficient` or `Reference count: 23 — TaskCreate recommended`. Use an exact integer (not `~20` or `20+`); the >15 threshold-decision must be reproducible. Above 50 references, an exact cluster count plus per-category subtotals (e.g. `12 finding-clusters: 32 files + 10 docs + 103 symbols + 15 tests + 6 artifacts`) replaces the single grand-total integer — the threshold decision, not the total, is what must be reproducible. For specs with >15 references spanning unrelated areas, consider `TaskCreate` per-reference tracking; for tightly-clustered sets, mental tracking is acceptable. A fixed closed set checked by one presence grep counts as 1 reference, not N.
 
-**Source-document engagement checkpoint** (when source documents are cited): emit a one-line note naming each source and its per-document adjudication counts — `Source-document engagement: <doc>: N claims enumerated, M adjudicated (accept / reject / defer), (N-M) unadjudicated flagged as findings.` When no source document is cited, emit `Source-document engagement: N/A — no external source cited`.
+**Source-document engagement checkpoint** (when source documents are cited): emit a one-line note naming each source and its per-document adjudication counts — `Source-document engagement: <doc>: N claims enumerated, M adjudicated (accept / reject / defer), (N-M) unadjudicated flagged as findings.` When no source document is cited, emit `Source-document engagement: N/A — no external source cited`. For hardening/audit specs, a per-source line may instead read `<predecessor spec>: N overturned claims quote-verified`.
 
 Prioritize references most likely to have drifted (proposed module/file paths, record/field names the spec extends, fixture names, event-kind vocabularies, sibling-spec sequencing, doc-tier paths after a doc reorg). Stable references (constitutional invariant names, phase names) can be spot-checked.
 
@@ -150,7 +152,7 @@ Prioritize references most likely to have drifted (proposed module/file paths, r
 
 ## Step 4: Foundation Alignment Check
 
-**Load `references/foundation-alignment.md` before alignment classification.** Then check the spec against the foundation doc pack — the constitutional invariants (`INV-NNN`), the kernel-authority and dependency-direction boundaries, the no-scripting / content-is-possibility rule, the determinism/replay contract, the no-leak / actor-knowledge firewall, the LLM/language boundary, and the Phase acceptance gates. Any constitutional invariant the spec would violate, or any Phase acceptance gate it would break, is a CRITICAL Issue. An architecture-changing decision that contradicts an accepted foundation/architecture doc requires a foundational-doc amendment first (per `docs/4-specs/0001_FOUNDATIONAL_DOC_AMENDMENTS.md`); a missing amendment is a HIGH Issue.
+**Load `references/foundation-alignment.md` before alignment classification.** Then check the spec against the foundation doc pack — the constitutional invariants (`INV-NNN`), the kernel-authority and dependency-direction boundaries, the no-scripting / content-is-possibility rule, the determinism/replay contract, the no-leak / actor-knowledge firewall, the LLM/language boundary, and the Phase acceptance gates. Any constitutional invariant the spec would violate, or any Phase acceptance gate it would break, is a CRITICAL Issue. An architecture-changing decision that contradicts an accepted foundation/architecture doc requires a foundational-doc amendment first (recorded through the spec layer — `docs/README.md` routes architecture replacement, constitutional amendments, and acceptance weakening through the spec package); a missing amendment is a HIGH Issue.
 
 ## Steps 5-6: Classify and Present Findings
 
@@ -189,6 +191,7 @@ Do NOT commit. Leave the file for user review.
 - **Substantial redesign flag**: if reassessment changes >50% of deliverables' approach, flag at Step 6.
 - **Worktree discipline**: inside a worktree, all paths resolve from the worktree root.
 - **Plan-mode discipline**: load `references/plan-mode.md`, write the plan file, call ExitPlanMode, then execute Steps 7–8 after approval.
+- **Skill self-maintenance**: after a doc-pack reorg, re-run a citation census over this skill's own files (every `docs/…md` path and `NN_*`/range citation in `SKILL.md` and `references/`, checked against the actual tree) — the doc-tier path drift Step 3.1 warns specs about applies to this skill too.
 - **Do not `git commit`**: writes land in the working tree; the user reviews and commits.
 
 ## Foundation Alignment
@@ -197,12 +200,12 @@ Do NOT commit. Leave the file for user review.
 |-----------|------|-----------|
 | Kernel authority (INV-008, INV-042; arch 01/10) | Step 3.8, Step 4 | Specs are checked to keep the event-sourced world kernel authoritative and TUI/view-models presentation-only; a spec that lets a view or the LLM decide world legality or state is flagged. |
 | Kernel boundary + dependency direction (arch 01) | Steps 3.1, 3.8, 4 | Specs touching the kernel are checked so authority flows in the doctrine-mandated direction and no presentation/content layer inverts it; an inversion is a boundary-failure Issue. |
-| Content is possibility, not script (INV no-scripting; foundation 09; arch 04) | Step 4 | Specs introducing content/fixtures are checked for behavior-looking fields (selectors, branches, triggers, authored outcome chains); an authored script or director logic is a CRITICAL Issue. |
-| Determinism & replay (INV-017, INV-018; arch 03; spec §determinism/§replay) | Steps 3.8, 4 | Specs touching RNG, event ordering, serialization order, hashing, snapshots, or replay are checked to keep identical inputs+versions byte-identical and randomness seedable/auditable; deviations are flagged. |
-| No telepathy / no-leak firewall (INV-024, INV-006; arch 05/10) | Steps 3.8, 4 | Specs touching view models, possession, traces, debug views, or projections are checked so hidden information reaches no viewer the actor-knowledge filter forbids; leakage is CRITICAL. |
-| LLM/language boundary (INV-042; foundation 11; arch 06) | Step 4 | Specs touching speech acts or text are checked to keep the LLM out of world authority and behind validated extraction; an LLM deciding world state is CRITICAL. |
-| Constitutional invariants + Phase acceptance gates (foundation 02/12; execution 02) | Steps 3.8, 4 | Any invariant the spec would violate, or any Phase acceptance gate (no-human run, deterministic replay, TUI playability, why-not, missing-property proof) it would break, is a CRITICAL Issue blocking implementation. |
-| Foundational-doc amendment (no ADR system) | Step 4 | A spec making an architecture-changing decision that contradicts an accepted foundation/architecture doc must carry a foundational-doc amendment first (per `docs/4-specs/0001_FOUNDATIONAL_DOC_AMENDMENTS.md`); a missing amendment is a HIGH Issue. |
+| Content is possibility, not script (INV no-scripting; foundation 09; execution 08) | Step 4 | Specs introducing content/fixtures are checked for behavior-looking fields (selectors, branches, triggers, authored outcome chains); an authored script or director logic is a CRITICAL Issue. |
+| Determinism & replay (INV-017, INV-018; arch 02; spec §determinism/§replay) | Steps 3.8, 4 | Specs touching RNG, event ordering, serialization order, hashing, snapshots, or replay are checked to keep identical inputs+versions byte-identical and randomness seedable/auditable; deviations are flagged. |
+| No telepathy / no-leak firewall (INV-024, INV-006; arch 06/10) | Steps 3.8, 4 | Specs touching view models, possession, traces, debug views, or projections are checked so hidden information reaches no viewer the actor-knowledge filter forbids; leakage is CRITICAL. |
+| LLM/language boundary (INV-042; foundation 11; arch 07) | Step 4 | Specs touching speech acts or text are checked to keep the LLM out of world authority and behind validated extraction; an LLM deciding world state is CRITICAL. |
+| Constitutional invariants + Phase acceptance gates (foundation 02/12; execution 02/03) | Steps 3.8, 4 | Any invariant the spec would violate, or any Phase acceptance gate (no-human run, deterministic replay, TUI playability, why-not, missing-property proof) it would break, is a CRITICAL Issue blocking implementation. |
+| Foundational-doc amendment (no ADR system) | Step 4 | A spec making an architecture-changing decision that contradicts an accepted foundation/architecture doc must carry a foundational-doc amendment first (a spec-layer amendment per `docs/README.md`); a missing amendment is a HIGH Issue. |
 
 ## Final Rule
 
