@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/knowledge_context`, `epistemics/projection`, `projections`); `tracewake-content` (one reworked + one new fixture); `tracewake-tui` (embodied tests); one new source guard
-**Deps**: `0017PHA3ATICLED-003` (workplace facts flow through the projection freshness rework); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-029)
+**Deps**: `archive/tickets/0017PHA3ATICLED-003.md` (workplace facts flow through the projection freshness rework); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-029)
 
 ## Problem
 

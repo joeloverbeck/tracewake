@@ -11,12 +11,13 @@ use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
     build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
-    generate_candidate_goals, plan_local_actions, select_goal_and_trace,
-    select_method_from_templates, ActorDecisionTransaction, ActorDecisionTransactionInput,
-    ActorDecisionTransactionOutcome, ActorKnownFact, BlockerCategory, CandidateGenerationInput,
-    DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
-    NeedState, PlannerGoal, ResponsibleLayer, RoutineCondition, RoutineFamily, RoutineStep,
-    RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
+    generate_candidate_goals, plan_local_actions, record_current_place_perception_and_project,
+    select_goal_and_trace, select_method_from_templates, ActorDecisionTransaction,
+    ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
+    BlockerCategory, CandidateGenerationInput, DecisionInput, DecisionTraceRecord, GoalKind,
+    LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder,
+    NoHumanActorKnownSurfaceRequest, PlannerGoal, ResponsibleLayer, RoutineCondition,
+    RoutineFamily, RoutineStep, RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
@@ -1692,6 +1693,58 @@ fn wait_then_window_passive_charges_each_tick_once() {
         .expect("second window passive hunger delta exists");
     assert_eq!(payload(second_window_passive, "elapsed_ticks"), Some("3"));
     assert_no_duplicate_need_regime_charges(&log);
+}
+
+#[test]
+fn aged_food_record_surfaces_as_remembered_belief() {
+    let golden = fixtures::aged_food_record_surfaces_as_remembered_belief_not_observation_001();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let current_place_id = PlaceId::new("home_tomas").unwrap();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let mut epistemic_projection = EpistemicProjection::new(manifest_id.clone());
+
+    let perception_events = record_current_place_perception_and_project(
+        &mut log,
+        &mut state,
+        &mut agent_state,
+        &mut epistemic_projection,
+        &actor_id,
+        SimTick::new(4),
+        &manifest_id,
+    );
+    assert!(perception_events.iter().any(|event| {
+        event.event_type == EventKind::ObservationRecorded
+            && payload(event, "target_id") == Some("food_stew_home_tomas")
+    }));
+
+    let surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &epistemic_projection,
+            agent_state: &agent_state,
+            actor_id,
+            current_place_id,
+            decision_tick: SimTick::new(9),
+            window_id: "later_window",
+            window_end_tick: SimTick::new(12),
+            frame_event_id: None,
+        })
+        .build(&agent_state);
+
+    assert!(surface
+        .context()
+        .known_food_sources()
+        .contains("food_stew_home_tomas"));
+    let food_fact = surface
+        .context()
+        .actor_known_facts()
+        .iter()
+        .find(|fact| fact.stable_id() == "actor_knows_food_source")
+        .expect("food source fact remains available as memory");
+    assert_eq!(food_fact.semantic_kind(), "remembered_belief");
+    assert_eq!(food_fact.tick(), Some(SimTick::new(4)));
+    assert!(food_fact
+        .proof_note()
+        .contains("remembered_belief:evented_perception:visible_food_supply"));
 }
 
 #[test]

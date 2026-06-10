@@ -240,6 +240,7 @@ pub fn apply_epistemic_event(
                 workplace_id,
                 place_id,
                 event.event_id.clone(),
+                event.sim_tick,
             );
             Ok(ApplyOutcome::Applied)
         }
@@ -254,6 +255,7 @@ pub fn apply_epistemic_event(
                 subject_id,
                 value,
                 event.event_id.clone(),
+                event.sim_tick,
             );
             Ok(ApplyOutcome::Applied)
         }

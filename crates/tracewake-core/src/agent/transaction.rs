@@ -1,9 +1,9 @@
 use crate::actions::{Proposal, ProposalOrigin};
 use crate::agent::{
     generate_candidate_goals_from_agent_state, plan_local_actions, select_goal_and_trace,
-    select_phase3a_method, ActorKnownPlanningContext, ApplicabilityResult, BlockerCategory,
-    BlockerCode, CandidateGoal, DecisionInput, DecisionTrace, DecisionTraceRecord, GoalKind,
-    IntentionLifecycleEffect, LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure,
+    select_phase3a_method, ActorKnownPlanningContext, ActorKnownProvenance, ApplicabilityResult,
+    BlockerCategory, BlockerCode, CandidateGoal, DecisionInput, DecisionTrace, DecisionTraceRecord,
+    GoalKind, IntentionLifecycleEffect, LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure,
     LocalPlanRequest, PlannerGoal, ResponsibleLayer, RoutineFamily, RoutineStep,
     StuckDiagnosticRecord, StuckResultingStatus, TypedDiagnosticFields,
 };
@@ -98,6 +98,15 @@ impl ActorDecisionTransaction {
                     diagnostic: Box::new(diagnostic),
                 };
             }
+        }
+        if let Some(diagnostic) = provenance_class_mismatch_diagnostic(
+            &input.actor_id,
+            input.decision_tick,
+            &actor_known_facts,
+        ) {
+            return ActorDecisionTransactionOutcome::Stuck {
+                diagnostic: Box::new(diagnostic),
+            };
         }
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: input.actor_id.clone(),
@@ -474,6 +483,59 @@ fn dangling_provenance_diagnostic(
             hidden_truth_referenced: false,
             remediation_hint:
                 "rebuild actor-known facts only from events present in the decision log frontier"
+                    .to_string(),
+        }),
+    )
+}
+
+fn provenance_class_mismatch_diagnostic(
+    actor_id: &ActorId,
+    tick: SimTick,
+    actor_known_facts: &[crate::agent::ActorKnownFact],
+) -> Option<StuckDiagnosticRecord> {
+    let stale_observation = actor_known_facts.iter().find(|fact| {
+        matches!(fact.provenance(), ActorKnownProvenance::ObservedNow { .. })
+            && fact.tick().is_some_and(|fact_tick| fact_tick < tick)
+    })?;
+    Some(
+        StuckDiagnosticRecord::new(
+            StuckDiagnosticId::new(format!(
+                "stuck_actor_decision_{}_{}",
+                actor_id.as_str(),
+                tick.value()
+            ))
+            .unwrap(),
+            actor_id.clone(),
+            tick,
+            tick.advance_by(1),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::Knowledge,
+            "provenance class mismatch",
+            "actor decision transaction rejected stale fact stamped observed_now",
+            format!(
+                "stale_observed_now_fact={} tick={}",
+                stale_observation.stable_id(),
+                stale_observation
+                    .tick()
+                    .map_or_else(|| "none".to_string(), |tick| tick.value().to_string())
+            ),
+            "typed_stuck_diagnostic",
+            StuckResultingStatus::Failed,
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::Projection,
+            blocker_code: BlockerCode::ProvenanceClassMismatch,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint:
+                "mint stale projection records as remembered_belief with their source tick"
                     .to_string(),
         }),
     )
@@ -923,6 +985,53 @@ mod tests {
         assert!(diagnostic
             .debug_only_details
             .contains("event_test_actor_known"));
+    }
+
+    #[test]
+    fn provenance_class_mismatch_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let home = place("home_tomas");
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_stew".to_string()]),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "actor_knows_food_source",
+                "food_stew",
+                "evented_perception:visible_food_supply",
+                Some(SimTick::new(4)),
+                test_source(),
+            )],
+        );
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(9),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: None,
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected provenance class mismatch stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance class mismatch");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceClassMismatch
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("actor_knows_food_source"));
     }
 
     #[test]

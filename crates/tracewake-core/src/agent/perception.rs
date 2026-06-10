@@ -1,7 +1,7 @@
 use crate::epistemics::{
-    ActorKnownFoodSourceFact, ActorKnownRouteFact, ActorKnownSleepAffordanceFact, Channel,
-    Confidence, EpistemicProjection, KnowledgeContext, Observation, ObservationSubject,
-    ObservationTarget, SourceRef,
+    ActorKnownFoodSourceFact, ActorKnownProjectionRecord, ActorKnownRouteFact,
+    ActorKnownSleepAffordanceFact, Channel, Confidence, EpistemicProjection, KnowledgeContext,
+    Observation, ObservationSubject, ObservationTarget, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -150,65 +150,52 @@ pub fn current_place_knowledge_context(
     };
     let filter_context =
         KnowledgeContext::embodied_at_frontier(actor_id.clone(), decision_tick, event_frontier);
-    let observations = epistemic_projection.observations_for_context(&filter_context);
-    let latest_current_place_tick = observations
-        .iter()
-        .filter(|observation| observation.observer_place_id() == &actor.current_place_id)
-        .map(|observation| observation.observed_tick())
-        .max();
-
-    for observation in observations {
-        if observation.observer_place_id() != &actor.current_place_id {
+    for classified in epistemic_projection
+        .classified_actor_known_records_for_context(&filter_context, &actor.current_place_id)
+    {
+        if !classified.is_latest_current_place_record() {
             continue;
         }
-        if Some(observation.observed_tick()) != latest_current_place_tick {
-            continue;
-        }
-        let source_key = observation_source_key(observation);
-        match observation_payload_value(observation, "perceived_kind") {
-            Some("visible_exit") => {
-                let Some(from_place_id) = observation_payload_value(observation, "subject_id")
-                    .and_then(|value| PlaceId::new(value).ok())
-                else {
-                    continue;
-                };
-                let Some(to_place_id) = observation_payload_value(observation, "target_id")
-                    .and_then(|value| PlaceId::new(value).ok())
-                else {
-                    continue;
-                };
+        let source_key = format!(
+            "evented_perception:{}",
+            classified.record().source_event_id().as_str()
+        );
+        match classified.record() {
+            ActorKnownProjectionRecord::Route {
+                from_place_id,
+                to_place_id,
+                ..
+            } => {
                 routes.push(ActorKnownRouteFact::new(
-                    from_place_id,
-                    to_place_id,
+                    from_place_id.clone(),
+                    to_place_id.clone(),
                     source_key,
                 ));
             }
-            Some("visible_food_supply") => {
-                let Some(food_supply_id) = observation_payload_value(observation, "target_id")
-                    .and_then(|value| FoodSupplyId::new(value).ok())
-                else {
+            ActorKnownProjectionRecord::FoodSource { food_source_id, .. } => {
+                let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
                     continue;
                 };
                 food_sources.push(ActorKnownFoodSourceFact::new(food_supply_id, source_key));
             }
-            Some("visible_sleep_affordance") => {
-                let Some(place_id) = observation_payload_value(observation, "place_id")
-                    .and_then(|value| PlaceId::new(value).ok())
-                else {
-                    continue;
-                };
-                let Some(sleep_affordance_id) = observation_payload_value(observation, "target_id")
+            ActorKnownProjectionRecord::SleepPlace {
+                place_id,
+                sleep_affordance_id,
+                ..
+            } => {
+                let Some(sleep_affordance_id) = sleep_affordance_id
+                    .as_deref()
                     .and_then(|value| SleepAffordanceId::new(value).ok())
                 else {
                     continue;
                 };
                 sleep_affordances.push(ActorKnownSleepAffordanceFact::new(
                     sleep_affordance_id,
-                    place_id,
+                    place_id.clone(),
                     source_key,
                 ));
             }
-            _ => {}
+            ActorKnownProjectionRecord::Workplace { .. } => {}
         }
     }
 
@@ -221,14 +208,6 @@ pub fn current_place_knowledge_context(
         sleep_affordances,
         routes,
     )
-}
-
-fn observation_source_key(observation: &Observation) -> String {
-    match observation.source() {
-        SourceRef::Event(event_id) => format!("evented_perception:{}", event_id.as_str()),
-        SourceRef::Action(action_id) => format!("evented_perception:{}", action_id.as_str()),
-        SourceRef::Cause(cause) => format!("evented_perception:{cause:?}"),
-    }
 }
 
 fn project_perception_event(projection: &mut EpistemicProjection, event: &EventEnvelope) {
@@ -276,14 +255,6 @@ fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
     event
         .payload
-        .iter()
-        .find(|field| field.key == key)
-        .map(|field| field.value.as_str())
-}
-
-fn observation_payload_value<'a>(observation: &'a Observation, key: &str) -> Option<&'a str> {
-    observation
-        .raw_payload()
         .iter()
         .find(|field| field.key == key)
         .map(|field| field.value.as_str())

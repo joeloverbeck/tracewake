@@ -8,6 +8,7 @@ use crate::ids::{
     ActorId, BeliefId, ContentManifestId, ContradictionId, EpistemicProjectionVersion, EventId,
     ObservationId, PlaceId, SchemaVersion, WorkplaceId,
 };
+use crate::time::SimTick;
 use crate::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
     DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView,
@@ -45,6 +46,7 @@ pub enum ActorKnownProjectionRecord {
         to_place_id: PlaceId,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
+        source_tick: SimTick,
     },
     FoodSource {
         actor_id: ActorId,
@@ -52,6 +54,7 @@ pub enum ActorKnownProjectionRecord {
         place_id: Option<PlaceId>,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
+        source_tick: SimTick,
     },
     SleepPlace {
         actor_id: ActorId,
@@ -59,6 +62,7 @@ pub enum ActorKnownProjectionRecord {
         sleep_affordance_id: Option<String>,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
+        source_tick: SimTick,
     },
     Workplace {
         actor_id: ActorId,
@@ -66,7 +70,39 @@ pub enum ActorKnownProjectionRecord {
         place_id: PlaceId,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
+        source_tick: SimTick,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActorKnownProjectionFreshness {
+    CurrentlyPerceived,
+    Remembered,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ClassifiedActorKnownProjectionRecord<'a> {
+    record: &'a ActorKnownProjectionRecord,
+    freshness: ActorKnownProjectionFreshness,
+    latest_current_place_record: bool,
+}
+
+impl<'a> ClassifiedActorKnownProjectionRecord<'a> {
+    pub fn record(&self) -> &'a ActorKnownProjectionRecord {
+        self.record
+    }
+
+    pub fn freshness(&self) -> ActorKnownProjectionFreshness {
+        self.freshness
+    }
+
+    pub fn source_tick(&self) -> SimTick {
+        self.record.source_tick()
+    }
+
+    pub fn is_latest_current_place_record(&self) -> bool {
+        self.latest_current_place_record
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -181,6 +217,7 @@ impl EpistemicProjection {
         workplace_id: WorkplaceId,
         place_id: PlaceId,
         source_event_id: EventId,
+        source_tick: SimTick,
     ) {
         self.actor_known_records_by_actor
             .entry(actor_id.clone())
@@ -191,6 +228,7 @@ impl EpistemicProjection {
                 place_id,
                 source: ActorKnownProjectionSource::RoleAssignmentNotice,
                 source_event_id,
+                source_tick,
             });
     }
 
@@ -201,6 +239,7 @@ impl EpistemicProjection {
         subject_id: &str,
         value: &str,
         source_event_id: EventId,
+        source_tick: SimTick,
     ) {
         let Some(record) = actor_known_record_from_starting_belief(
             actor_id,
@@ -208,6 +247,7 @@ impl EpistemicProjection {
             subject_id,
             value,
             source_event_id,
+            source_tick,
         ) else {
             return;
         };
@@ -312,14 +352,39 @@ impl EpistemicProjection {
         }
     }
 
-    pub fn actor_known_records_for_context(
+    pub fn classified_actor_known_records_for_context(
         &self,
         context: &KnowledgeContext,
-    ) -> Vec<&ActorKnownProjectionRecord> {
+        current_place_id: &PlaceId,
+    ) -> Vec<ClassifiedActorKnownProjectionRecord<'_>> {
+        let latest_current_place_tick = self
+            .observations_for_context(context)
+            .into_iter()
+            .filter(|observation| observation.observer_place_id() == current_place_id)
+            .filter(|observation| observation.observed_tick() <= context.current_tick())
+            .map(|observation| observation.observed_tick())
+            .max();
+
         self.actor_known_records_by_actor
             .get(context.viewer_actor_id())
             .into_iter()
             .flat_map(|records| records.iter())
+            .map(|record| {
+                let latest_current_place_record = is_latest_current_place_record(
+                    record,
+                    current_place_id,
+                    latest_current_place_tick,
+                );
+                ClassifiedActorKnownProjectionRecord {
+                    record,
+                    freshness: record_freshness(
+                        record,
+                        latest_current_place_record,
+                        context.current_tick(),
+                    ),
+                    latest_current_place_record,
+                }
+            })
             .collect()
     }
 
@@ -545,6 +610,29 @@ impl ActorKnownProjectionRecord {
         }
     }
 
+    pub fn source_tick(&self) -> SimTick {
+        match self {
+            Self::Route { source_tick, .. }
+            | Self::FoodSource { source_tick, .. }
+            | Self::SleepPlace { source_tick, .. }
+            | Self::Workplace { source_tick, .. } => *source_tick,
+        }
+    }
+
+    fn relevant_place_id(&self) -> &PlaceId {
+        match self {
+            Self::Route { from_place_id, .. } => from_place_id,
+            Self::FoodSource {
+                place_id: Some(place_id),
+                ..
+            } => place_id,
+            Self::FoodSource { place_id: None, .. } => {
+                panic!("projection food-source records must carry source place")
+            }
+            Self::SleepPlace { place_id, .. } | Self::Workplace { place_id, .. } => place_id,
+        }
+    }
+
     fn serialize_canonical(&self) -> String {
         match self {
             Self::Route {
@@ -552,54 +640,90 @@ impl ActorKnownProjectionRecord {
                 to_place_id,
                 source,
                 source_event_id,
+                source_tick,
                 ..
             } => format!(
-                "route|from={}|to={}|source={}|event={}",
+                "route|from={}|to={}|source={}|event={}|tick={}",
                 from_place_id.as_str(),
                 to_place_id.as_str(),
                 source.stable_id(),
-                source_event_id.as_str()
+                source_event_id.as_str(),
+                source_tick.value()
             ),
             Self::FoodSource {
                 food_source_id,
                 place_id,
                 source,
                 source_event_id,
+                source_tick,
                 ..
             } => format!(
-                "food|id={food_source_id}|place={}|source={}|event={}",
+                "food|id={food_source_id}|place={}|source={}|event={}|tick={}",
                 place_id.as_ref().map(|id| id.as_str()).unwrap_or(""),
                 source.stable_id(),
-                source_event_id.as_str()
+                source_event_id.as_str(),
+                source_tick.value()
             ),
             Self::SleepPlace {
                 place_id,
                 sleep_affordance_id,
                 source,
                 source_event_id,
+                source_tick,
                 ..
             } => format!(
-                "sleep|place={}|affordance={}|source={}|event={}",
+                "sleep|place={}|affordance={}|source={}|event={}|tick={}",
                 place_id.as_str(),
                 sleep_affordance_id.as_deref().unwrap_or(""),
                 source.stable_id(),
-                source_event_id.as_str()
+                source_event_id.as_str(),
+                source_tick.value()
             ),
             Self::Workplace {
                 workplace_id,
                 place_id,
                 source,
                 source_event_id,
+                source_tick,
                 ..
             } => format!(
-                "workplace|id={}|place={}|source={}|event={}",
+                "workplace|id={}|place={}|source={}|event={}|tick={}",
                 workplace_id.as_str(),
                 place_id.as_str(),
                 source.stable_id(),
-                source_event_id.as_str()
+                source_event_id.as_str(),
+                source_tick.value()
             ),
         }
     }
+}
+
+fn record_freshness(
+    record: &ActorKnownProjectionRecord,
+    latest_current_place_record: bool,
+    context_tick: SimTick,
+) -> ActorKnownProjectionFreshness {
+    if !matches!(
+        record.source(),
+        ActorKnownProjectionSource::VisibleExit
+            | ActorKnownProjectionSource::VisibleFoodSupply
+            | ActorKnownProjectionSource::VisibleSleepAffordance
+    ) {
+        return ActorKnownProjectionFreshness::Remembered;
+    }
+    if !latest_current_place_record || record.source_tick() != context_tick {
+        return ActorKnownProjectionFreshness::Remembered;
+    }
+    ActorKnownProjectionFreshness::CurrentlyPerceived
+}
+
+fn is_latest_current_place_record(
+    record: &ActorKnownProjectionRecord,
+    current_place_id: &PlaceId,
+    latest_current_place_tick: Option<SimTick>,
+) -> bool {
+    record.relevant_place_id() == current_place_id
+        && Some(record.source_tick()) == latest_current_place_tick
 }
 
 fn actor_known_records_from_observation(
@@ -627,6 +751,7 @@ fn actor_known_records_from_observation(
                 to_place_id,
                 source: ActorKnownProjectionSource::VisibleExit,
                 source_event_id,
+                source_tick: observation.observed_tick(),
             }]
         }
         Some("visible_food_supply") => {
@@ -636,9 +761,10 @@ fn actor_known_records_from_observation(
             vec![ActorKnownProjectionRecord::FoodSource {
                 actor_id,
                 food_source_id: food_source_id.to_string(),
-                place_id: None,
+                place_id: Some(observation.observer_place_id().clone()),
                 source: ActorKnownProjectionSource::VisibleFoodSupply,
                 source_event_id,
+                source_tick: observation.observed_tick(),
             }]
         }
         Some("visible_sleep_affordance") => {
@@ -654,6 +780,7 @@ fn actor_known_records_from_observation(
                     .map(ToString::to_string),
                 source: ActorKnownProjectionSource::VisibleSleepAffordance,
                 source_event_id,
+                source_tick: observation.observed_tick(),
             }]
         }
         _ => Vec::new(),
@@ -666,6 +793,7 @@ fn actor_known_record_from_starting_belief(
     subject_id: &str,
     value: &str,
     source_event_id: EventId,
+    source_tick: SimTick,
 ) -> Option<ActorKnownProjectionRecord> {
     match belief_kind {
         "sleep_place" => Some(ActorKnownProjectionRecord::SleepPlace {
@@ -674,6 +802,7 @@ fn actor_known_record_from_starting_belief(
             sleep_affordance_id: Some(subject_id.to_string()),
             source: ActorKnownProjectionSource::StartingBelief,
             source_event_id,
+            source_tick,
         }),
         "household_food_source" => {
             let place_value = value.strip_prefix("place:")?;
@@ -684,6 +813,7 @@ fn actor_known_record_from_starting_belief(
                 place_id: Some(place_id),
                 source: ActorKnownProjectionSource::StartingBelief,
                 source_event_id,
+                source_tick,
             })
         }
         _ => None,

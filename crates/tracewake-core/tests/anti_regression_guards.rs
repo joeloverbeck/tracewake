@@ -317,6 +317,7 @@ const TUI_RATIONALE: &str =
     "tui crate is a boundary/presentation layer, not authoritative simulation outcome logic";
 
 const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/container_item_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_attach_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_omniscience_excluded_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -1740,6 +1741,8 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
     let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     let agent_sources = guarded_sources_for(GuardedLayer::Agent);
     let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+    let consume_projection_record = body_after_marker(&builder, "fn consume_projection_record");
+    let push_projection_fact = body_after_marker(&builder, "fn push_projection_fact");
 
     for forbidden in [
         "PhysicalState",
@@ -1768,7 +1771,11 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
     assert_absent(&actor_known, "pub fn add_actor_known_fact");
     assert!(builder.contains("pub fn from_projection("));
     assert!(builder.contains("fn consume_projection_records"));
-    assert!(builder.contains("projection.actor_known_records_for_context"));
+    assert!(builder.contains("projection.classified_actor_known_records_for_context"));
+    assert!(builder.contains("ActorKnownProjectionFreshness::CurrentlyPerceived"));
+    assert_absent(consume_projection_record, "ActorKnownFact::observed_now");
+    assert!(push_projection_fact.contains("ActorKnownFact::observed_now"));
+    assert!(push_projection_fact.contains("ActorKnownFact::remembered_belief"));
     assert_absent(&builder, "pub fn from_event_log(");
     assert_absent(&builder, "fn consume_role_assignment_notice");
     assert_absent(&builder, "fn consume_starting_belief");

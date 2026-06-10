@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-003: Projection freshness rule and honest provenance classes
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/projection`, `agent/no_human_surface`, `agent/perception`, `agent/transaction`); one new content fixture; one new source guard; golden trace/checksum updates
@@ -97,3 +97,47 @@ New fixture (registered in `fixtures/mod.rs`); `anti_regression_guards.rs` gains
 
 1. `cargo test -p tracewake-core provenance_class`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-10.
+
+Replaced the unfiltered actor-known projection accessor with
+`classified_actor_known_records_for_context`, which classifies projection records by current
+place and source tick. Projection records now carry `source_tick`, visible food records
+retain their observed place, and both `no_human_surface.rs` and
+`perception.rs` consume the shared projection classification rather than owning separate
+staleness logic.
+
+The no-human surface now mints `observed_now` only through the freshness helper when a
+record is currently perceived at the decision tick; aged projection records become
+`remembered_belief` with the original source tick. Added the transaction backstop
+`BlockerCode::ProvenanceClassMismatch` for stale facts mislabeled `observed_now`.
+
+Added the adversarial fixture
+`aged_food_record_surfaces_as_remembered_belief_not_observation_001`, a content test for
+aged food knowledge, unit coverage for the no-human surface and transaction audit, fixture
+census/source-guard updates, and a guard that projection-record consumption cannot directly
+construct `ActorKnownFact::observed_now` outside the freshness helper.
+
+Implementation note: the embodied current-place context still uses the latest
+current-place projection window for affordance facts, but the shared projection
+classification distinguishes that "latest known" record from a fact currently observed at
+the decision tick. No golden checksum constants needed rebaselining; the workspace replay
+and context-hash gates stayed stable.
+
+Verification run:
+
+1. `cargo test -p tracewake-content aged_food_record_surfaces_as_remembered_belief`
+2. `cargo test -p tracewake-core aged_food_record_surfaces_as_remembered_belief_not_observation`
+3. `cargo test -p tracewake-core provenance_class_mismatch`
+4. `cargo test -p tracewake-core current_place_knowledge_context_uses_latest_projection_window_not_live_truth`
+5. `cargo test -p tracewake-content --test fixtures_load`
+6. `cargo test -p tracewake-content --test golden_fixtures_run`
+7. `cargo test -p tracewake-core guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth`
+8. `cargo test -p tracewake-core workspace_source_classification_census_matches_production_tree`
+9. `cargo test -p tracewake-core every_blocker_category_serializes_and_round_trips`
+10. `cargo fmt --all --check`
+11. `cargo clippy --workspace --all-targets -- -D warnings`
+12. `cargo build --workspace --all-targets --locked`
+13. `cargo test --workspace`
