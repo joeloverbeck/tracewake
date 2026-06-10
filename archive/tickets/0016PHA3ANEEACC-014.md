@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-014: 0016 scoped acceptance artifact
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — acceptance-evidence report only
@@ -74,3 +74,24 @@ Following `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` and the 0015 repor
 
 1. `test -f reports/0016_ord_life_cert_scoped_acceptance.md && test -f tickets/0016PHA3ANEEACC-015.md`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added `reports/0016_ord_life_cert_scoped_acceptance.md`.
+- The report records all eight spec §7 evidence items, the `tickets/0016PHA3ANEEACC-015.md` deferral existence check, the cargo-mutants baseline counts/dispositions, and the explicit non-certification boundary.
+
+Deviations:
+
+- None. This was report-only; no production code changed.
+
+Verification:
+
+- `test -f reports/0016_ord_life_cert_scoped_acceptance.md && test -f tickets/0016PHA3ANEEACC-015.md`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
