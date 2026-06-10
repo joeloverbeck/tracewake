@@ -460,10 +460,19 @@ fn dangling_provenance_diagnostic(
     actor_known_facts: &[crate::agent::ActorKnownFact],
     available_source_event_ids: &BTreeSet<EventId>,
 ) -> Option<StuckDiagnosticRecord> {
+    let empty_witness_fact = actor_known_facts
+        .iter()
+        .find(|fact| fact.source_event_ids().is_empty());
     let dangling = actor_known_facts
         .iter()
         .flat_map(|fact| fact.source_event_ids())
-        .find(|event_id| !available_source_event_ids.contains(*event_id))?;
+        .find(|event_id| !available_source_event_ids.contains(*event_id));
+    let debug_only_details = if let Some(fact) = empty_witness_fact {
+        format!("empty_source_event_ids_fact={}", fact.stable_id())
+    } else {
+        let dangling = dangling?;
+        format!("dangling_source_event_id={}", dangling.as_str())
+    };
     Some(
         StuckDiagnosticRecord::new(
             StuckDiagnosticId::new(format!(
@@ -485,7 +494,7 @@ fn dangling_provenance_diagnostic(
             BlockerCategory::Knowledge,
             "provenance dangling",
             "actor decision transaction rejected unresolved actor-known source event",
-            format!("dangling_source_event_id={}", dangling.as_str()),
+            debug_only_details,
             "typed_stuck_diagnostic",
             StuckResultingStatus::Failed,
         )

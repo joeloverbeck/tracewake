@@ -43,6 +43,13 @@ struct SchedulerMarkerAllowlistEntry {
     responsible_layer: &'static str,
 }
 
+struct TruthAccessorAllowlistEntry {
+    path: &'static str,
+    token: &'static str,
+    rationale: &'static str,
+    responsible_layer: &'static str,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum WorkspaceSourceClass {
     GuardedLayer,
@@ -147,6 +154,96 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
     },
 ];
 
+const COGNITION_TRUTH_ACCESSOR_TOKENS: &[&str] = &[
+    "state.workplaces",
+    "state.food_supplies",
+    "state.sleep_affordances",
+    ".workplaces()",
+    ".food_supplies()",
+    ".sleep_affordances()",
+];
+
+const TRUTH_ACCESSOR_ALLOWLIST: &[TruthAccessorAllowlistEntry] = &[
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/eat.rs",
+        token: "state.food_supplies",
+        rationale: "eat validator reads authoritative food supply truth at commit time",
+        responsible_layer: "action_validation",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/sleep.rs",
+        token: "state.sleep_affordances",
+        rationale: "sleep validator reads authoritative sleep affordance truth at commit time",
+        responsible_layer: "action_validation",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/work.rs",
+        token: "state.workplaces",
+        rationale: "work validator reads authoritative workplace truth at commit time",
+        responsible_layer: "action_validation",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/agent/perception.rs",
+        token: "state.food_supplies",
+        rationale: "perception derives evented observations from visible current-place truth",
+        responsible_layer: "projection",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/agent/perception.rs",
+        token: ".food_supplies()",
+        rationale: "perception derives evented observations from visible current-place truth",
+        responsible_layer: "projection",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/agent/perception.rs",
+        token: ".sleep_affordances()",
+        rationale: "perception derives evented observations from visible current-place truth",
+        responsible_layer: "projection",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/projections.rs",
+        token: ".food_supplies()",
+        rationale: "view projections render current physical truth, not actor cognition inputs",
+        responsible_layer: "view_model",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/projections.rs",
+        token: ".sleep_affordances()",
+        rationale: "view projections render current physical truth, not actor cognition inputs",
+        responsible_layer: "view_model",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/projections.rs",
+        token: ".workplaces()",
+        rationale: "view projections render current physical truth, not actor cognition inputs",
+        responsible_layer: "view_model",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/checksum.rs",
+        token: "state.food_supplies",
+        rationale: "checksum code serializes authoritative state for replay verification",
+        responsible_layer: "replay_checksum",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/checksum.rs",
+        token: "state.workplaces",
+        rationale: "checksum code serializes authoritative state for replay verification",
+        responsible_layer: "replay_checksum",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-core/src/checksum.rs",
+        token: "state.sleep_affordances",
+        rationale: "checksum code serializes authoritative state for replay verification",
+        responsible_layer: "replay_checksum",
+    },
+    TruthAccessorAllowlistEntry {
+        path: "crates/tracewake-content/src/fixtures/no_human_unseen_workplace_assignment_does_not_plan_work_001.rs",
+        token: "state.workplaces",
+        rationale: "fixture contract text names the forbidden raw assignment surface being tested",
+        responsible_layer: "content_fixture_contract",
+    },
+];
+
 const LATER_PHASE_REGISTRATION_CALLS: &[&str] = &[
     "register_phase2a_",
     "register_phase3a_",
@@ -205,6 +302,10 @@ fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
         !haystack.as_ref().contains(needle),
         "forbidden shortcut reintroduced: {needle}"
     );
+}
+
+fn normalized_source(source: &str) -> String {
+    source.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
@@ -507,6 +608,50 @@ fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
             "{path}: forbidden shortcut reintroduced: {needle}"
         );
     }
+}
+
+fn truth_accessor_is_allowlisted(path: &str, token: &str) -> bool {
+    TRUTH_ACCESSOR_ALLOWLIST.iter().any(|entry| {
+        entry.path == path
+            && entry.token == token
+            && !entry.rationale.is_empty()
+            && !entry.responsible_layer.is_empty()
+    })
+}
+
+fn cognition_input_truth_accessor_violations_from_sources(
+    sources: &[(String, String)],
+) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (path, source) in sources {
+        for token in COGNITION_TRUTH_ACCESSOR_TOKENS {
+            if source.contains(token) && !truth_accessor_is_allowlisted(path, token) {
+                violations.push(format!("{path}: unallowlisted truth accessor {token}"));
+            }
+        }
+    }
+    violations
+}
+
+#[test]
+fn cognition_inputs_are_context_backed() {
+    let violations = cognition_input_truth_accessor_violations_from_sources(&production_sources());
+    assert!(
+        violations.is_empty(),
+        "truth accessors must be workspace-wide allowlisted outside actor-known context derivation: {violations:#?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/view_models.rs".to_string(),
+        "fn leak(state: &PhysicalState) { let _ = state.workplaces.get(&id); }".to_string(),
+    )];
+    let synthetic = cognition_input_truth_accessor_violations_from_sources(&synthetic_sources);
+    assert!(
+        synthetic
+            .iter()
+            .any(|violation| violation.contains("state.workplaces")),
+        "synthetic exempt-file truth accessor must fail the workspace-wide guard"
+    );
 }
 
 #[test]
@@ -1648,6 +1793,7 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
 
 #[test]
 fn guard_018_actor_known_facts_require_source_event_witness() {
+    let actor_known_normalized = normalized_source(ACTOR_KNOWN_RS);
     assert!(
         ACTOR_KNOWN_RS.contains("pub struct SourceEventIds"),
         "actor-known facts must expose a typed source-event witness"
@@ -1664,20 +1810,21 @@ fn guard_018_actor_known_facts_require_source_event_witness() {
         !NO_HUMAN_SURFACE_RS.contains("pub fn with_sleep_place_knowledge"),
         "raw sleep-place convenience construction must stay deleted"
     );
-    assert_eq!(
-        ACTOR_KNOWN_RS
-            .matches("source_event_ids: Vec::new()")
-            .count(),
-        1,
-        "the only empty-source actor-known fact path must be the rejected unproven path"
+    assert!(
+        actor_known_normalized.contains("source_event_ids: SourceEventIds"),
+        "ActorKnownFact must store the typed source-event witness, not a raw Vec"
     );
     assert!(
-        ACTOR_KNOWN_RS.contains("fn unbacked_for_rejected_test_only"),
-        "the remaining empty-source path must be explicitly named as rejected/test-only"
+        !actor_known_normalized.contains("source_event_ids: Vec < EventId >")
+            && !actor_known_normalized.contains("source_event_ids: Vec<EventId>")
+            && !actor_known_normalized.contains("source_event_ids: Vec::new")
+            && !actor_known_normalized.contains("source_event_ids: vec!"),
+        "ActorKnownFact must not store or construct raw/empty source-event id vectors"
     );
     assert!(
-        TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
-        "transaction boundary must fail closed on dangling actor-known provenance"
+        TRANSACTION_RS.contains("fact.source_event_ids().is_empty()")
+            && TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
+        "transaction boundary must fail closed on empty or dangling actor-known provenance"
     );
 }
 

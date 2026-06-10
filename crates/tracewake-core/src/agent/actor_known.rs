@@ -46,10 +46,25 @@ pub struct ActorKnownFact {
     tick: Option<SimTick>,
     actor_id: ActorId,
     provenance: ActorKnownProvenance,
-    source_event_ids: Vec<EventId>,
+    source_event_ids: SourceEventIds,
 }
 
 impl ActorKnownFact {
+    /// Actor-known facts require typed source-event witnesses.
+    ///
+    /// ```compile_fail
+    /// use tracewake_core::agent::ActorKnownFact;
+    /// use tracewake_core::ids::ActorId;
+    ///
+    /// let _fact = ActorKnownFact::observed_now(
+    ///     ActorId::new("actor_tomas").unwrap(),
+    ///     "actor_knows_food_source",
+    ///     "food_stew",
+    ///     "test",
+    ///     None,
+    ///     Vec::new(),
+    /// );
+    /// ```
     pub fn observed_now(
         actor_id: ActorId,
         stable_id: impl Into<String>,
@@ -135,13 +150,19 @@ impl ActorKnownFact {
     }
 
     pub fn unproven(stable_id: impl Into<String>, note: impl Into<String>) -> Self {
-        Self::unbacked_for_rejected_test_only(
+        let source_event_ids = SourceEventIds::checked(vec![EventId::new(
+            "event_unproven_physical_truth_rejected_test_only",
+        )
+        .unwrap()])
+        .unwrap();
+        Self::new(
             ActorId::new("actor_unknown").unwrap(),
             stable_id,
             "unproven",
             "",
             None,
             ActorKnownProvenance::UnprovenPhysicalTruth { note: note.into() },
+            source_event_ids,
         )
     }
 
@@ -161,26 +182,7 @@ impl ActorKnownFact {
             tick,
             actor_id,
             provenance,
-            source_event_ids: source_event_ids.ids,
-        }
-    }
-
-    fn unbacked_for_rejected_test_only(
-        actor_id: ActorId,
-        stable_id: impl Into<String>,
-        semantic_kind: impl Into<String>,
-        value: impl Into<String>,
-        tick: Option<SimTick>,
-        provenance: ActorKnownProvenance,
-    ) -> Self {
-        Self {
-            stable_id: stable_id.into(),
-            semantic_kind: semantic_kind.into(),
-            value: value.into(),
-            tick,
-            actor_id,
-            provenance,
-            source_event_ids: Vec::new(),
+            source_event_ids,
         }
     }
 
@@ -217,7 +219,7 @@ impl ActorKnownFact {
     }
 
     pub fn source_event_ids(&self) -> &[EventId] {
-        &self.source_event_ids
+        self.source_event_ids.as_slice()
     }
 }
 

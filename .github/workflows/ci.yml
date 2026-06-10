@@ -93,6 +93,39 @@ jobs:
           cargo test --locked -p tracewake-tui --test adversarial_gates
           cargo test --locked -p tracewake-tui --test tui_seam_conformance
 
+  mutants-in-diff:
+    name: mutation in-diff (lock layer)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check guarded-layer diff
+        id: guarded_diff
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs)' >/dev/null; then
+            echo "run_mutants=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_mutants=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Cache cargo
+        if: steps.guarded_diff.outputs.run_mutants == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-mutants-in-diff-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-mutants-in-diff-
+      - name: Install cargo-mutants
+        if: steps.guarded_diff.outputs.run_mutants == 'true'
+        run: cargo install cargo-mutants --version 27.1.0 --locked
+      - name: Run guarded-layer mutants in diff
+        if: steps.guarded_diff.outputs.run_mutants == 'true'
+        run: cargo mutants --in-diff --no-shuffle
+
   mutants-lock-layer:
     name: mutation baseline (lock layer)
     runs-on: ubuntu-latest
@@ -109,7 +142,7 @@ jobs:
           key: ${{ runner.os }}-mutants-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-mutants-
       - name: Install cargo-mutants
-        run: cargo install cargo-mutants --locked
+        run: cargo install cargo-mutants --version 27.1.0 --locked
       - name: Run guarded-layer mutation baseline
         run: |
           cargo mutants --workspace \
@@ -118,6 +151,14 @@ jobs:
             -f 'crates/tracewake-core/src/projections*' \
             -f 'crates/tracewake-core/src/actions/pipeline.rs' \
             --no-shuffle
+      - name: Check missed-mutant baseline
+        run: |
+          if [ ! -f mutants.out/missed.txt ]; then
+            echo "cargo-mutants did not produce mutants.out/missed.txt; inspect artifact before updating the baseline."
+            find mutants.out -maxdepth 2 -type f -print || true
+            exit 1
+          fi
+          diff -u .cargo/mutants-baseline-misses.txt mutants.out/missed.txt
       - name: Upload mutation baseline output
         if: always()
         uses: actions/upload-artifact@v4

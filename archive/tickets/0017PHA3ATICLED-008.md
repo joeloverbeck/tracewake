@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-008: Lock-layer durability — witness field type, workspace bans, pinned mutants
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`agent/actor_known`, `agent/transaction`, anti-regression guard suite); CI workflow; mutants baseline data file
@@ -87,3 +87,31 @@ Pin the `cargo-mutants` version; commit the baseline miss-set at `.cargo/mutants
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Retyped `ActorKnownFact.source_event_ids` from raw `Vec<EventId>` storage to the `SourceEventIds` witness type.
+- Removed the empty-source rejected/test-only constructor path; the unproven helper now carries an explicit nonempty rejected-test-only sentinel witness.
+- Added a compile-fail doctest proving raw `Vec<EventId>` construction cannot satisfy actor-known fact construction.
+- Strengthened transaction dangling-provenance detection with an explicit empty-witness backstop before unresolved-event detection.
+- Added a workspace-wide cognition truth-accessor guard with an explicit allowlist and synthetic exempt-file violation proof.
+- Updated the actor-known provenance guard to use whitespace-normalized source matching and to reject raw/empty source-vector spellings.
+- Pinned `cargo-mutants` to `27.1.0`, added a guarded-layer PR `--in-diff` mutation job, and committed the 145-entry accepted missed-mutant baseline for scheduled/manual ratchet comparison.
+
+Deviations from original plan:
+
+- The explicit `UnprovenPhysicalTruth` test helper was kept because existing hidden-truth tests use it as the negative source-class fixture; it now uses a nonempty sentinel source id rather than an empty witness.
+- The mutation baseline file was derived from the existing accepted 0016 baseline report instead of rerunning mutants; rerunning the post-batch baseline remains out of scope for this ticket and is owned by the capstone evidence ticket.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-core cognition_inputs_are_context_backed` — passed
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
