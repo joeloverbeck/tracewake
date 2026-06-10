@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::agent::{ActorKnownFact, ActorKnownPlanningContext};
+use crate::agent::{ActorKnownFact, ActorKnownPlanningContext, SourceEventIds};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{ActorId, EventId, PlaceId, WorkplaceId};
@@ -26,6 +26,40 @@ impl SealedActorKnownSurface {
     }
 }
 
+/// Event-log-backed actor-known surface builder for no-human decisions.
+///
+/// Raw convenience construction without source events is intentionally absent.
+///
+/// ```compile_fail
+/// use tracewake_core::agent::NoHumanActorKnownSurfaceBuilder;
+/// use tracewake_core::ids::{ActorId, PlaceId, WorkplaceId};
+///
+/// let builder = NoHumanActorKnownSurfaceBuilder::new(
+///     ActorId::new("actor_tomas").unwrap(),
+///     PlaceId::new("home_tomas").unwrap(),
+///     None,
+/// );
+/// let _ = builder.with_role_assignment_notice(
+///     WorkplaceId::new("workplace_tomas").unwrap(),
+///     PlaceId::new("workshop_tomas").unwrap(),
+///     "raw_assignment",
+/// );
+/// ```
+///
+/// ```compile_fail
+/// use tracewake_core::agent::NoHumanActorKnownSurfaceBuilder;
+/// use tracewake_core::ids::{ActorId, PlaceId};
+///
+/// let builder = NoHumanActorKnownSurfaceBuilder::new(
+///     ActorId::new("actor_tomas").unwrap(),
+///     PlaceId::new("home_tomas").unwrap(),
+///     None,
+/// );
+/// let _ = builder.with_sleep_place_knowledge(
+///     PlaceId::new("home_tomas").unwrap(),
+///     "raw_sleep_truth",
+/// );
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoHumanActorKnownSurfaceBuilder {
     actor_id: ActorId,
@@ -70,48 +104,6 @@ impl NoHumanActorKnownSurfaceBuilder {
         builder.consume_events(log);
         builder.add_window_framing_facts(agent_state, window_id, window_end_tick, frame_event_id);
         builder
-    }
-
-    pub fn with_role_assignment_notice(
-        mut self,
-        workplace_id: WorkplaceId,
-        place_id: PlaceId,
-        source: impl Into<String>,
-    ) -> Self {
-        self.add_role_assignment_notice(workplace_id, place_id, source, Vec::new());
-        self
-    }
-
-    pub fn with_sleep_place_knowledge(
-        mut self,
-        sleep_place_id: PlaceId,
-        source: impl Into<String>,
-    ) -> Self {
-        let source = source.into();
-        self.known_sleep_places.insert(sleep_place_id.clone());
-        self.push_fact(
-            ActorKnownFact::remembered_belief(
-                self.actor_id.clone(),
-                "actor_knows_sleep_place",
-                sleep_place_id.as_str(),
-                format!("sleep_place_knowledge:{source}"),
-                self.decision_tick,
-            ),
-            Vec::new(),
-        );
-        if sleep_place_id == self.current_place_id {
-            self.push_fact(
-                ActorKnownFact::observed_now(
-                    self.actor_id.clone(),
-                    "sleep_place_believed_accessible",
-                    sleep_place_id.as_str(),
-                    "modeled_observation:sleep_place_accessible",
-                    self.decision_tick,
-                ),
-                Vec::new(),
-            );
-        }
-        self
     }
 
     pub fn build(self, _agent_state: &AgentState) -> SealedActorKnownSurface {
@@ -219,16 +211,14 @@ impl NoHumanActorKnownSurfaceBuilder {
                     .entry(self.current_place_id.clone())
                     .or_default()
                     .insert(target_id.clone());
-                self.push_fact(
-                    ActorKnownFact::observed_now(
-                        self.actor_id.clone(),
-                        "known_route_surface",
-                        format!("{}->{}", self.current_place_id.as_str(), target_id.as_str()),
-                        "evented_perception:visible_exit",
-                        self.decision_tick,
-                    ),
-                    vec![event.event_id.clone()],
-                );
+                self.facts.push(ActorKnownFact::observed_now(
+                    self.actor_id.clone(),
+                    "known_route_surface",
+                    format!("{}->{}", self.current_place_id.as_str(), target_id.as_str()),
+                    "evented_perception:visible_exit",
+                    self.decision_tick,
+                    SourceEventIds::from_event(event),
+                ));
             }
             Some("visible_food_supply") => {
                 let Some(food_source) = payload_value(event, "target_id") else {
@@ -259,45 +249,41 @@ impl NoHumanActorKnownSurfaceBuilder {
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
     ) {
+        let source_event_ids = SourceEventIds::checked(source_event_ids)
+            .expect("role notice source ids are non-empty");
         let source = source.into();
         self.known_workplaces
             .insert(workplace_id.clone(), place_id.clone());
-        self.push_fact(
-            ActorKnownFact::routine_assignment(
-                self.actor_id.clone(),
-                "actor_knows_workplace",
-                format!("{}@{}", workplace_id.as_str(), place_id.as_str()),
-                format!("role_assignment_notice:{source}"),
-                self.decision_tick,
-            ),
+        self.facts.push(ActorKnownFact::routine_assignment(
+            self.actor_id.clone(),
+            "actor_knows_workplace",
+            format!("{}@{}", workplace_id.as_str(), place_id.as_str()),
+            format!("role_assignment_notice:{source}"),
+            self.decision_tick,
             source_event_ids.clone(),
-        );
-        self.push_fact(
-            ActorKnownFact::routine_assignment(
-                self.actor_id.clone(),
-                "workplace_assignment_active",
-                workplace_id.as_str(),
-                format!("role_assignment_notice:{source}"),
-                self.decision_tick,
-            ),
+        ));
+        self.facts.push(ActorKnownFact::routine_assignment(
+            self.actor_id.clone(),
+            "workplace_assignment_active",
+            workplace_id.as_str(),
+            format!("role_assignment_notice:{source}"),
+            self.decision_tick,
             source_event_ids.clone(),
-        );
+        ));
         if place_id == self.current_place_id {
             for stable_id in [
                 "actor_at_workplace",
                 "assigned_workplace_known",
                 "at_workplace",
             ] {
-                self.push_fact(
-                    ActorKnownFact::observed_now(
-                        self.actor_id.clone(),
-                        stable_id,
-                        place_id.as_str(),
-                        "evented_perception:actor_at_noticed_workplace",
-                        self.decision_tick,
-                    ),
+                self.facts.push(ActorKnownFact::observed_now(
+                    self.actor_id.clone(),
+                    stable_id,
+                    place_id.as_str(),
+                    "evented_perception:actor_at_noticed_workplace",
+                    self.decision_tick,
                     source_event_ids.clone(),
-                );
+                ));
             }
         }
     }
@@ -308,28 +294,26 @@ impl NoHumanActorKnownSurfaceBuilder {
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
     ) {
+        let source_event_ids =
+            SourceEventIds::checked(source_event_ids).expect("food source ids are non-empty");
         let source = source.into();
         self.known_food_sources.insert(food_source.to_string());
-        self.push_fact(
-            ActorKnownFact::observed_now(
-                self.actor_id.clone(),
-                "actor_knows_food_source",
-                food_source,
-                source.clone(),
-                self.decision_tick,
-            ),
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "actor_knows_food_source",
+            food_source,
+            source.clone(),
+            self.decision_tick,
             source_event_ids.clone(),
-        );
-        self.push_fact(
-            ActorKnownFact::observed_now(
-                self.actor_id.clone(),
-                "food_source_believed_accessible",
-                food_source,
-                source,
-                self.decision_tick,
-            ),
+        ));
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "food_source_believed_accessible",
+            food_source,
+            source,
+            self.decision_tick,
             source_event_ids,
-        );
+        ));
     }
 
     fn add_sleep_place_knowledge(
@@ -339,41 +323,37 @@ impl NoHumanActorKnownSurfaceBuilder {
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
     ) {
+        let source_event_ids =
+            SourceEventIds::checked(source_event_ids).expect("sleep source ids are non-empty");
         let source = source.into();
         self.known_sleep_places.insert(place_id.clone());
         if let Some(sleep_affordance_id) = sleep_affordance_id {
-            self.push_fact(
-                ActorKnownFact::observed_now(
-                    self.actor_id.clone(),
-                    "actor_knows_sleep_affordance",
-                    sleep_affordance_id,
-                    source.clone(),
-                    self.decision_tick,
-                ),
-                source_event_ids.clone(),
-            );
-        }
-        self.push_fact(
-            ActorKnownFact::remembered_belief(
+            self.facts.push(ActorKnownFact::observed_now(
                 self.actor_id.clone(),
-                "actor_knows_sleep_place",
-                place_id.as_str(),
+                "actor_knows_sleep_affordance",
+                sleep_affordance_id,
                 source.clone(),
                 self.decision_tick,
-            ),
+                source_event_ids.clone(),
+            ));
+        }
+        self.facts.push(ActorKnownFact::remembered_belief(
+            self.actor_id.clone(),
+            "actor_knows_sleep_place",
+            place_id.as_str(),
+            source.clone(),
+            self.decision_tick,
             source_event_ids.clone(),
-        );
+        ));
         if place_id == self.current_place_id {
-            self.push_fact(
-                ActorKnownFact::observed_now(
-                    self.actor_id.clone(),
-                    "sleep_place_believed_accessible",
-                    place_id.as_str(),
-                    source,
-                    self.decision_tick,
-                ),
+            self.facts.push(ActorKnownFact::observed_now(
+                self.actor_id.clone(),
+                "sleep_place_believed_accessible",
+                place_id.as_str(),
+                source,
+                self.decision_tick,
                 source_event_ids,
-            );
+            ));
         }
     }
 
@@ -384,91 +364,76 @@ impl NoHumanActorKnownSurfaceBuilder {
         window_end_tick: SimTick,
         source_event_id: Option<EventId>,
     ) {
-        let source_event_ids = source_event_id.into_iter().collect::<Vec<_>>();
-        self.push_fact(
-            ActorKnownFact::observed_now(
-                self.actor_id.clone(),
-                "actor_current_place_visible",
-                self.current_place_id.as_str(),
-                "evented_frame:current_place",
-                self.decision_tick,
-            ),
+        let Some(source_event_ids) = source_event_id
+            .map(|id| SourceEventIds::checked(vec![id]).expect("frame event id is non-empty"))
+        else {
+            return;
+        };
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "actor_current_place_visible",
+            self.current_place_id.as_str(),
+            "evented_frame:current_place",
+            self.decision_tick,
             source_event_ids.clone(),
-        );
+        ));
         if agent_state.needs_by_actor().contains_key(&self.actor_id) {
-            self.push_fact(
-                ActorKnownFact::remembered_belief(
-                    self.actor_id.clone(),
-                    "agent_needs_present",
-                    "needs_present",
-                    "agent_state:needs_present",
-                    self.decision_tick,
-                ),
+            self.facts.push(ActorKnownFact::remembered_belief(
+                self.actor_id.clone(),
+                "agent_needs_present",
+                "needs_present",
+                "agent_state:needs_present",
+                self.decision_tick,
                 source_event_ids.clone(),
-            );
+            ));
         }
-        self.push_fact(
-            ActorKnownFact::remembered_belief(
-                self.actor_id.clone(),
-                "actor_belief_projection_limitation",
-                "not_supplied",
-                "no_human_day:typed_projection_limitation",
-                self.decision_tick,
-            ),
+        self.facts.push(ActorKnownFact::remembered_belief(
+            self.actor_id.clone(),
+            "actor_belief_projection_limitation",
+            "not_supplied",
+            "no_human_day:typed_projection_limitation",
+            self.decision_tick,
             source_event_ids.clone(),
-        );
-        self.push_fact(
-            ActorKnownFact::remembered_belief(
-                self.actor_id.clone(),
-                "modeled_wait_reason",
-                "bounded_idle",
-                format!("window_id={window_id}:bounded_idle"),
-                self.decision_tick,
-            ),
+        ));
+        self.facts.push(ActorKnownFact::remembered_belief(
+            self.actor_id.clone(),
+            "modeled_wait_reason",
+            "bounded_idle",
+            format!("window_id={window_id}:bounded_idle"),
+            self.decision_tick,
             source_event_ids.clone(),
-        );
-        self.push_fact(
-            ActorKnownFact::remembered_belief(
-                self.actor_id.clone(),
-                "reevaluation_window_known",
+        ));
+        self.facts.push(ActorKnownFact::remembered_belief(
+            self.actor_id.clone(),
+            "reevaluation_window_known",
+            window_id,
+            format!(
+                "window_id={}:{}..{}",
                 window_id,
-                format!(
-                    "window_id={}:{}..{}",
-                    window_id,
-                    self.decision_tick.map_or(0, |tick| tick.value()),
-                    window_end_tick.value()
-                ),
-                self.decision_tick,
+                self.decision_tick.map_or(0, |tick| tick.value()),
+                window_end_tick.value()
             ),
+            self.decision_tick,
             source_event_ids.clone(),
-        );
+        ));
         if has_active_intention(agent_state, &self.actor_id) {
-            self.push_fact(
-                ActorKnownFact::remembered_belief(
-                    self.actor_id.clone(),
-                    "active_intention_present",
-                    "active",
-                    "agent_state:active_intention",
-                    self.decision_tick,
-                ),
+            self.facts.push(ActorKnownFact::remembered_belief(
+                self.actor_id.clone(),
+                "active_intention_present",
+                "active",
+                "agent_state:active_intention",
+                self.decision_tick,
                 source_event_ids.clone(),
-            );
-            self.push_fact(
-                ActorKnownFact::remembered_belief(
-                    self.actor_id.clone(),
-                    "next_step_available",
-                    "modeled_next_step",
-                    "agent_state:active_intention_next_step",
-                    self.decision_tick,
-                ),
+            ));
+            self.facts.push(ActorKnownFact::remembered_belief(
+                self.actor_id.clone(),
+                "next_step_available",
+                "modeled_next_step",
+                "agent_state:active_intention_next_step",
+                self.decision_tick,
                 source_event_ids,
-            );
+            ));
         }
-    }
-
-    fn push_fact(&mut self, fact: ActorKnownFact, source_event_ids: Vec<EventId>) {
-        self.facts
-            .push(fact.with_source_event_ids(source_event_ids));
     }
 }
 

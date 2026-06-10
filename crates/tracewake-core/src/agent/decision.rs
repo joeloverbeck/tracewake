@@ -334,11 +334,16 @@ mod tests {
     use crate::agent::generation::{generate_candidate_goals, CandidateGenerationInput};
     use crate::agent::{
         ActorKnownFact, GoalKind, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
+        SourceEventIds,
     };
-    use crate::ids::{CandidateGoalId, IntentionId, RoutineTemplateId};
+    use crate::ids::{CandidateGoalId, EventId, IntentionId, RoutineTemplateId};
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
+    }
+
+    fn test_source() -> SourceEventIds {
+        SourceEventIds::checked(vec![EventId::new("event_test_actor_known").unwrap()]).unwrap()
     }
 
     fn active_work_intention() -> Intention {
@@ -372,6 +377,7 @@ mod tests {
                 "food_soup",
                 "test:visible_food",
                 None,
+                test_source(),
             )],
             routine_window_goal: None,
         });

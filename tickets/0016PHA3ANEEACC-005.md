@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` planning-context restructure (computed accessors), typed audit stamp in the pipeline, transaction-stage reordering, HTN condition tightening
-**Deps**: 0016PHA3ANEEACC-004
+**Deps**: `archive/tickets/0016PHA3ANEEACC-004.md`
 
 ## Problem
 
@@ -65,7 +65,7 @@ In `ActorDecisionTransaction::run`, evaluate the hidden-truth audit before `sele
 
 ## Out of Scope
 
-- The `SourceEventIds` witness and dangling-provenance fail-closed (0016PHA3ANEEACC-004 — this ticket builds on its fact-layer restructure).
+- The `SourceEventIds` witness and dangling-provenance fail-closed (`archive/tickets/0016PHA3ANEEACC-004.md` — this ticket builds on its fact-layer restructure).
 - Workplace-fact believed-access attributes (0016PHA3ANEEACC-007 — consumes the accessor structure this ticket creates).
 - Wait/stuck discipline in the transaction (0016PHA3ANEEACC-010).
 

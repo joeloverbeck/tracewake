@@ -329,11 +329,19 @@ mod tests {
     }
 
     fn observed_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
-        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None)
+        ActorKnownFact::observed_now(actor_id(), stable_id, value, source, None, test_source())
     }
 
     fn remembered_fact(stable_id: &str, value: &str, source: &str) -> ActorKnownFact {
-        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None)
+        ActorKnownFact::remembered_belief(actor_id(), stable_id, value, source, None, test_source())
+    }
+
+    fn test_source() -> crate::agent::SourceEventIds {
+        crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
+            "event_test_actor_known",
+        )
+        .unwrap()])
+        .unwrap()
     }
 
     fn planning_state(known_food: &[&str]) -> ActorKnownPlanningState {

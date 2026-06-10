@@ -133,6 +133,7 @@ pub enum BlockerCode {
     EmptyLocalPlan,
     LocalPlanFailed,
     HiddenTruthInput,
+    ProvenanceDangling,
 }
 
 impl BlockerCode {
@@ -153,6 +154,7 @@ impl BlockerCode {
             Self::EmptyLocalPlan => "empty_local_plan",
             Self::LocalPlanFailed => "local_plan_failed",
             Self::HiddenTruthInput => "hidden_truth_input",
+            Self::ProvenanceDangling => "provenance_dangling",
         }
     }
 
@@ -173,6 +175,7 @@ impl BlockerCode {
             "empty_local_plan" => Ok(Self::EmptyLocalPlan),
             "local_plan_failed" => Ok(Self::LocalPlanFailed),
             "hidden_truth_input" => Ok(Self::HiddenTruthInput),
+            "provenance_dangling" => Ok(Self::ProvenanceDangling),
             _ => Err(DiagnosticFieldParseError::InvalidBlockerCode),
         }
     }

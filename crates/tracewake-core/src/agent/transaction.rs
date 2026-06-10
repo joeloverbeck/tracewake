@@ -7,10 +7,10 @@ use crate::agent::{
     LocalPlanRequest, PlannerGoal, ResponsibleLayer, RoutineFamily, RoutineStep,
     StuckDiagnosticRecord, StuckResultingStatus, TypedDiagnosticFields,
 };
-use crate::ids::{ActorId, ProposalId, StuckDiagnosticId};
+use crate::ids::{ActorId, EventId, ProposalId, StuckDiagnosticId};
 use crate::state::AgentState;
 use crate::time::SimTick;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug)]
 pub struct ActorDecisionTransactionInput<'a> {
@@ -18,6 +18,7 @@ pub struct ActorDecisionTransactionInput<'a> {
     pub decision_tick: SimTick,
     pub agent_state: &'a AgentState,
     pub actor_known_context: &'a ActorKnownPlanningContext,
+    pub source_event_ids: Option<&'a BTreeSet<EventId>>,
     pub routine_window_family: Option<RoutineFamily>,
     pub include_idle_fallback: bool,
 }
@@ -86,6 +87,18 @@ impl ActorDecisionTransaction {
     pub fn run(input: ActorDecisionTransactionInput<'_>) -> ActorDecisionTransactionOutcome {
         let active_intention = active_intention_for_actor(input.agent_state, &input.actor_id);
         let actor_known_facts = input.actor_known_context.actor_known_facts().to_vec();
+        if let Some(available_source_event_ids) = input.source_event_ids {
+            if let Some(diagnostic) = dangling_provenance_diagnostic(
+                &input.actor_id,
+                input.decision_tick,
+                &actor_known_facts,
+                available_source_event_ids,
+            ) {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(diagnostic),
+                };
+            }
+        }
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: input.actor_id.clone(),
             decision_tick: input.decision_tick,
@@ -418,6 +431,54 @@ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
     }
 }
 
+fn dangling_provenance_diagnostic(
+    actor_id: &ActorId,
+    tick: SimTick,
+    actor_known_facts: &[crate::agent::ActorKnownFact],
+    available_source_event_ids: &BTreeSet<EventId>,
+) -> Option<StuckDiagnosticRecord> {
+    let dangling = actor_known_facts
+        .iter()
+        .flat_map(|fact| fact.source_event_ids())
+        .find(|event_id| !available_source_event_ids.contains(*event_id))?;
+    Some(
+        StuckDiagnosticRecord::new(
+            StuckDiagnosticId::new(format!(
+                "stuck_actor_decision_{}_{}",
+                actor_id.as_str(),
+                tick.value()
+            ))
+            .unwrap(),
+            actor_id.clone(),
+            tick,
+            tick.advance_by(1),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::Knowledge,
+            "provenance dangling",
+            "actor decision transaction rejected unresolved actor-known source event",
+            format!("dangling_source_event_id={}", dangling.as_str()),
+            "typed_stuck_diagnostic",
+            StuckResultingStatus::Failed,
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::CandidateGeneration,
+            blocker_code: BlockerCode::ProvenanceDangling,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint:
+                "rebuild actor-known facts only from events present in the decision log frontier"
+                    .to_string(),
+        }),
+    )
+}
+
 fn stuck_diagnostic_for_hidden_truth_audit(
     actor_id: &ActorId,
     tick: SimTick,
@@ -592,6 +653,7 @@ mod tests {
                 "food_stew",
                 "test:visible_food",
                 None,
+                test_source(),
             )],
         )
     }
@@ -615,10 +677,19 @@ mod tests {
                     "food_stew",
                     "test:visible_food",
                     None,
+                    test_source(),
                 ),
                 ActorKnownFact::unproven("audit_probe", "typed_source_class_only"),
             ],
         )
+    }
+
+    fn test_source() -> crate::agent::SourceEventIds {
+        crate::agent::SourceEventIds::checked(vec![crate::ids::EventId::new(
+            "event_test_actor_known",
+        )
+        .unwrap()])
+        .unwrap()
     }
 
     fn agent_state_with_hunger(value: i32) -> AgentState {
@@ -673,6 +744,7 @@ mod tests {
             decision_tick: SimTick::new(12),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -722,6 +794,7 @@ mod tests {
             decision_tick: SimTick::new(14),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: false,
         });
@@ -745,6 +818,7 @@ mod tests {
             decision_tick: SimTick::new(15),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -771,6 +845,36 @@ mod tests {
     }
 
     #[test]
+    fn dangling_actor_known_source_event_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let context = known_context();
+        let source_event_ids = BTreeSet::new();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(17),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: Some(&source_event_ids),
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected dangling provenance stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance dangling");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceDangling
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("event_test_actor_known"));
+    }
+
+    #[test]
     fn method_fallback_reruns_selection_with_coherent_trace_and_candidate() {
         let agent_state = agent_state_with_severe_safety_and_hunger();
         let context = known_context();
@@ -780,6 +884,7 @@ mod tests {
             decision_tick: SimTick::new(16),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: None,
             include_idle_fallback: true,
         });
@@ -833,6 +938,7 @@ mod tests {
             decision_tick: SimTick::new(18),
             agent_state: &agent_state,
             actor_known_context: &context,
+            source_event_ids: None,
             routine_window_family: Some(RoutineFamily::SleepNight),
             include_idle_fallback: true,
         });

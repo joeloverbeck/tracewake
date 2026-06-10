@@ -16,7 +16,8 @@ pub mod trace;
 pub mod transaction;
 
 pub use actor_known::{
-    ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, VisibleLocalPlanningState,
+    ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, SourceEventIds,
+    SourceEventIdsError, VisibleLocalPlanningState,
 };
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,

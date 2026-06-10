@@ -71,7 +71,7 @@ Audit the positive-presence guards: where one has no runtime backstop, add one o
 
 ## Out of Scope
 
-- The type-level boundary conversions themselves (0016PHA3ANEEACC-004/005 — already landed upstream of this ticket).
+- The type-level boundary conversions themselves (`archive/tickets/0016PHA3ANEEACC-004.md`/0016PHA3ANEEACC-005 — already landed upstream of this ticket).
 - Any production simulation logic change (this ticket is test-oracle/CI only).
 - The acceptance artifact assembly (0016PHA3ANEEACC-014 — consumes this ticket's census inventory and mutants baseline).
 

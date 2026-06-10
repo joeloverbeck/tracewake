@@ -422,6 +422,7 @@ fn hidden_food_unknown_route_does_not_become_transaction_target() {
         decision_tick: SimTick::ZERO,
         agent_state: &agent_state,
         actor_known_context: &context,
+        source_event_ids: None,
         routine_window_family: Some(RoutineFamily::EatMeal),
         include_idle_fallback: true,
     });

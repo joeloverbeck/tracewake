@@ -14,7 +14,7 @@ use tracewake_core::agent::{
     select_goal_and_trace, select_method_from_templates, ActorKnownFact, CandidateGenerationInput,
     DecisionInput, DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind,
     NeedState, PlannerGoal, RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate,
-    VisibleLocalPlanningState,
+    SourceEventIds, VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
@@ -26,8 +26,8 @@ use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplic
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, FixtureId, FoodSupplyId, IntentionId,
-    RoutineExecutionId, RoutineTemplateId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId, FoodSupplyId,
+    IntentionId, RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_decision_context_hashes, rebuild_projection, run_replay};
@@ -778,6 +778,8 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
             "food_market_stew",
             "planner_trace_001:visible_food",
             None,
+            SourceEventIds::checked(vec![EventId::new("event_planner_trace_food").unwrap()])
+                .unwrap(),
         )],
         routine_window_goal: Some(GoalKind::GoToWork),
     });

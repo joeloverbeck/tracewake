@@ -571,11 +571,17 @@ pub mod no_human {
         )
         .build(agent_state)
         .into_context();
+        let source_event_ids = log
+            .events()
+            .iter()
+            .map(|event| event.event_id.clone())
+            .collect::<std::collections::BTreeSet<_>>();
         match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
             actor_known_context: &actor_known_state,
+            source_event_ids: Some(&source_event_ids),
             routine_window_family: routine_window_family(
                 agent_state,
                 actor_id,

@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-004: Source-event witness type; delete and demote unbacked fact channels
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` fact-construction retype (`SourceEventIds` witness), deleted/demoted constructors, transaction-boundary provenance validation, new negative fixture, new source guard
@@ -105,3 +105,21 @@ Negative fixture `dangling_source_event_ids_fail_closed_001` (registered in `neg
 
 1. `cargo test -p tracewake-core --test negative_fixture_runner && cargo test -p tracewake-core --doc`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented a `SourceEventIds` witness for actor-known facts and removed the unbacked no-human builder convenience constructors. No-human actor-known facts now carry checked non-empty event IDs from the source event or the real no-human frame marker; the old `with_source_event_ids` attachment path is gone.
+
+`ActorDecisionTransactionInput` now accepts the decision frontier source-event index, and the no-human scheduler passes the live log frontier. The transaction fails closed with typed `BlockerCode::ProvenanceDangling` before proposal construction if any consumed actor-known fact cites an event outside that frontier.
+
+Added compile-fail doctests for the deleted no-human raw constructors, a dangling provenance transaction test, and an anti-regression source guard for the witness/API shape.
+
+Verification passed:
+
+1. `cargo test -p tracewake-core dangling_actor_known_source_event_fails_closed_before_proposal`
+2. `cargo test -p tracewake-core --test anti_regression_guards guard_018_actor_known_facts_require_source_event_witness`
+3. `cargo test -p tracewake-core --doc`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

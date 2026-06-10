@@ -1417,6 +1417,41 @@ fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
 }
 
 #[test]
+fn guard_018_actor_known_facts_require_source_event_witness() {
+    assert!(
+        ACTOR_KNOWN_RS.contains("pub struct SourceEventIds"),
+        "actor-known facts must expose a typed source-event witness"
+    );
+    assert!(
+        !ACTOR_KNOWN_RS.contains("pub fn with_source_event_ids"),
+        "source ids must be supplied through SourceEventIds, not attached after construction"
+    );
+    assert!(
+        !NO_HUMAN_SURFACE_RS.contains("pub fn with_role_assignment_notice"),
+        "raw role-assignment convenience construction must stay deleted"
+    );
+    assert!(
+        !NO_HUMAN_SURFACE_RS.contains("pub fn with_sleep_place_knowledge"),
+        "raw sleep-place convenience construction must stay deleted"
+    );
+    assert_eq!(
+        ACTOR_KNOWN_RS
+            .matches("source_event_ids: Vec::new()")
+            .count(),
+        1,
+        "the only empty-source actor-known fact path must be the rejected unproven path"
+    );
+    assert!(
+        ACTOR_KNOWN_RS.contains("fn unbacked_for_rejected_test_only"),
+        "the remaining empty-source path must be explicitly named as rejected/test-only"
+    );
+    assert!(
+        TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
+        "transaction boundary must fail closed on dangling actor-known provenance"
+    );
+}
+
+#[test]
 fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth() {
     let scheduler = guarded_source("src/scheduler.rs");
     let builder = guarded_source("src/agent/no_human_surface.rs");

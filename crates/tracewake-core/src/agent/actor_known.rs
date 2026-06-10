@@ -7,6 +7,38 @@ use crate::state::AgentState;
 use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceEventIds {
+    ids: Vec<EventId>,
+}
+
+impl SourceEventIds {
+    pub fn from_event(event: &crate::events::EventEnvelope) -> Self {
+        Self {
+            ids: vec![event.event_id.clone()],
+        }
+    }
+
+    pub fn checked(mut ids: Vec<EventId>) -> Result<Self, SourceEventIdsError> {
+        ids.sort();
+        ids.dedup();
+        if ids.is_empty() {
+            Err(SourceEventIdsError::Empty)
+        } else {
+            Ok(Self { ids })
+        }
+    }
+
+    pub fn as_slice(&self) -> &[EventId] {
+        &self.ids
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceEventIdsError {
+    Empty,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ActorKnownFact {
     stable_id: String,
     semantic_kind: String,
@@ -24,6 +56,7 @@ impl ActorKnownFact {
         value: impl Into<String>,
         source: impl Into<String>,
         tick: Option<SimTick>,
+        source_event_ids: SourceEventIds,
     ) -> Self {
         Self::new(
             actor_id,
@@ -34,6 +67,7 @@ impl ActorKnownFact {
             ActorKnownProvenance::ObservedNow {
                 source: source.into(),
             },
+            source_event_ids,
         )
     }
 
@@ -43,6 +77,7 @@ impl ActorKnownFact {
         value: impl Into<String>,
         source: impl Into<String>,
         tick: Option<SimTick>,
+        source_event_ids: SourceEventIds,
     ) -> Self {
         Self::new(
             actor_id,
@@ -53,6 +88,7 @@ impl ActorKnownFact {
             ActorKnownProvenance::RememberedBelief {
                 source: source.into(),
             },
+            source_event_ids,
         )
     }
 
@@ -62,6 +98,7 @@ impl ActorKnownFact {
         value: impl Into<String>,
         source: impl Into<String>,
         tick: Option<SimTick>,
+        source_event_ids: SourceEventIds,
     ) -> Self {
         Self::new(
             actor_id,
@@ -72,6 +109,7 @@ impl ActorKnownFact {
             ActorKnownProvenance::RoutineAssignment {
                 source: source.into(),
             },
+            source_event_ids,
         )
     }
 
@@ -81,6 +119,7 @@ impl ActorKnownFact {
         value: impl Into<String>,
         source: impl Into<String>,
         tick: Option<SimTick>,
+        source_event_ids: SourceEventIds,
     ) -> Self {
         Self::new(
             actor_id,
@@ -91,11 +130,12 @@ impl ActorKnownFact {
             ActorKnownProvenance::FixturePossibility {
                 source: source.into(),
             },
+            source_event_ids,
         )
     }
 
     pub fn unproven(stable_id: impl Into<String>, note: impl Into<String>) -> Self {
-        Self::new(
+        Self::unbacked_for_rejected_test_only(
             ActorId::new("actor_unknown").unwrap(),
             stable_id,
             "unproven",
@@ -112,6 +152,26 @@ impl ActorKnownFact {
         value: impl Into<String>,
         tick: Option<SimTick>,
         provenance: ActorKnownProvenance,
+        source_event_ids: SourceEventIds,
+    ) -> Self {
+        Self {
+            stable_id: stable_id.into(),
+            semantic_kind: semantic_kind.into(),
+            value: value.into(),
+            tick,
+            actor_id,
+            provenance,
+            source_event_ids: source_event_ids.ids,
+        }
+    }
+
+    fn unbacked_for_rejected_test_only(
+        actor_id: ActorId,
+        stable_id: impl Into<String>,
+        semantic_kind: impl Into<String>,
+        value: impl Into<String>,
+        tick: Option<SimTick>,
+        provenance: ActorKnownProvenance,
     ) -> Self {
         Self {
             stable_id: stable_id.into(),
@@ -122,13 +182,6 @@ impl ActorKnownFact {
             provenance,
             source_event_ids: Vec::new(),
         }
-    }
-
-    pub fn with_source_event_ids(mut self, mut source_event_ids: Vec<EventId>) -> Self {
-        source_event_ids.sort();
-        source_event_ids.dedup();
-        self.source_event_ids = source_event_ids;
-        self
     }
 
     pub fn stable_id(&self) -> &str {
@@ -407,6 +460,11 @@ pub fn observe_visible_local(
     agent_state: &AgentState,
     visible_local: &VisibleLocalPlanningState,
 ) -> ActorKnownPlanningContext {
+    let visible_local_source =
+        SourceEventIds::checked(vec![
+            EventId::new("event_visible_local_planning_state").unwrap()
+        ])
+        .unwrap();
     let mut facts = vec![ActorKnownFact::observed_now(
         actor_id.clone(),
         "actor_current_place_visible",
@@ -416,6 +474,7 @@ pub fn observe_visible_local(
             visible_local.current_place_id.as_str()
         ),
         None,
+        visible_local_source.clone(),
     )];
     if agent_state.needs_by_actor.contains_key(actor_id) {
         facts.push(ActorKnownFact::remembered_belief(
@@ -424,6 +483,7 @@ pub fn observe_visible_local(
             "needs_present",
             "agent_state:needs_present",
             None,
+            visible_local_source.clone(),
         ));
     }
     if let Some(epistemic_projection) = epistemic_projection {
@@ -434,6 +494,7 @@ pub fn observe_visible_local(
             actor_belief_count.to_string(),
             format!("epistemic_projection:actor_beliefs:{actor_belief_count}"),
             None,
+            visible_local_source.clone(),
         ));
     } else {
         facts.push(ActorKnownFact::remembered_belief(
@@ -442,6 +503,7 @@ pub fn observe_visible_local(
             "not_supplied",
             "no_human_day:typed_projection_limitation",
             None,
+            visible_local_source.clone(),
         ));
     }
     for (from, tos) in &visible_local.visible_edges {
@@ -452,6 +514,7 @@ pub fn observe_visible_local(
                 format!("{}->{}", from.as_str(), to.as_str()),
                 format!("visible_local:edge:{}->{}", from.as_str(), to.as_str()),
                 None,
+                visible_local_source.clone(),
             ));
         }
     }
@@ -462,6 +525,7 @@ pub fn observe_visible_local(
             food_source,
             format!("visible_local:food:{food_source}"),
             None,
+            visible_local_source.clone(),
         ));
     }
     for sleep_place in &visible_local.visible_sleep_places {
@@ -471,6 +535,7 @@ pub fn observe_visible_local(
             sleep_place.as_str(),
             format!("visible_local:sleep_place:{}", sleep_place.as_str()),
             None,
+            visible_local_source.clone(),
         ));
     }
     for (workplace_id, place_id) in &visible_local.visible_workplaces {
@@ -484,6 +549,7 @@ pub fn observe_visible_local(
                 place_id.as_str()
             ),
             None,
+            visible_local_source.clone(),
         ));
         facts.push(ActorKnownFact::routine_assignment(
             actor_id.clone(),
@@ -494,6 +560,7 @@ pub fn observe_visible_local(
                 workplace_id.as_str()
             ),
             None,
+            visible_local_source.clone(),
         ));
     }
     let mut context = ActorKnownPlanningContext {
