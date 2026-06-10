@@ -254,6 +254,28 @@ const LATER_PHASE_REGISTRATION_CALLS: &[&str] = &[
     "register_phase3a_continue_routine",
 ];
 
+const NO_HUMAN_SURFACE_FACT_STABLE_IDS: &[&str] = &[
+    "active_intention_present",
+    "actor_at_workplace",
+    "actor_belief_projection_limitation",
+    "actor_current_place_visible",
+    "actor_knows_food_source",
+    "actor_knows_sleep_affordance",
+    "actor_knows_sleep_place",
+    "actor_knows_workplace",
+    "agent_needs_present",
+    "assigned_workplace_known",
+    "at_workplace",
+    "food_source_believed_accessible",
+    "known_route_surface",
+    "modeled_wait_reason",
+    "next_step_available",
+    "reevaluation_window_known",
+    "sleep_place_believed_accessible",
+    "workplace_assignment_active",
+    "workplace_believed_accessible",
+];
+
 fn production(source: &str) -> String {
     let mut output = String::new();
     let lines = source.lines().collect::<Vec<_>>();
@@ -1825,6 +1847,33 @@ fn guard_018_actor_known_facts_require_source_event_witness() {
         TRANSACTION_RS.contains("fact.source_event_ids().is_empty()")
             && TRANSACTION_RS.contains("BlockerCode::ProvenanceDangling"),
         "transaction boundary must fail closed on empty or dangling actor-known provenance"
+    );
+}
+
+#[test]
+fn guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms() {
+    let surface = production(NO_HUMAN_SURFACE_RS);
+    let transaction = production(TRANSACTION_RS);
+    let witness_body = body_after_marker(&transaction, "fn witness_kind_allowed");
+
+    for stable_id in NO_HUMAN_SURFACE_FACT_STABLE_IDS {
+        assert!(
+            surface.contains(&format!("\"{stable_id}\"")),
+            "no-human surface fact stable id census contains stale entry {stable_id}"
+        );
+        assert!(
+            witness_body.contains(&format!("\"{stable_id}\"")),
+            "fact stable id {stable_id} must have an explicit witness_kind_allowed arm"
+        );
+    }
+
+    assert!(
+        witness_body.contains("_ => false"),
+        "witness_kind_allowed must fail closed for unlisted fact stable ids"
+    );
+    assert!(
+        !witness_body.contains("_ => true"),
+        "witness_kind_allowed must not contain a wildcard-true arm"
     );
 }
 

@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-001: Fail-closed witness table and honest workplace-presence facts
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`agent/transaction`, `agent/no_human_surface`, `agent/htn`, scheduler wiring as surfaced); new source guards; context-hash / golden checksum updates
@@ -91,3 +91,43 @@ Update context-hash / golden checksum expectations surfaced by the corrected fac
 
 1. `cargo test -p tracewake-core provenance_witness`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Chose the perception-witnessed `observed_now` direction from the ticket: same-place
+  workplace-presence facts (`actor_at_workplace`, `assigned_workplace_known`,
+  `at_workplace`) now cite the scheduler-provided same-tick current-place
+  `ObservationRecorded` event instead of the role-assignment notice.
+- Inverted `witness_kind_allowed` to fail closed for unlisted fact stable ids and
+  enumerated the current no-human surface fact ids with their legitimate witness event
+  kinds.
+- Added transaction tests proving notice-only workplace-presence facts and unknown
+  stable ids produce typed `provenance_witness_mismatch` diagnostics before proposal
+  construction.
+- Added a no-human surface test proving workplace-presence facts cite the current-place
+  observation witness, plus an anti-regression guard proving every no-human surface fact
+  stable id has an explicit witness-table arm and no wildcard-true arm exists.
+
+Deviations:
+
+- No HTN condition change was needed because the facts remain `observed_now`; only their
+  event witness changed.
+- No golden checksum or context-hash rebaseline was needed; the golden fixture suite
+  stayed green.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core provenance_witness` — passed; ran the existing mismatch
+  test plus the notice-only and unknown-stable-id fail-closed tests.
+- `cargo test -p tracewake-core witness_kind` — passed; ran the explicit witness-arm and
+  wildcard-ban guard.
+- `cargo test -p tracewake-core workplace_presence_facts` — passed.
+- `cargo test -p tracewake-content --test golden_fixtures_run` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
