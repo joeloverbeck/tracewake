@@ -4,22 +4,33 @@ use std::collections::BTreeSet;
 
 use support::generative::{
     actor_id, content_manifest_id, generate_case, initial_agent_state, initial_world,
-    no_human_state_mut, registry, scheduled_waits, windows, GENERATIVE_SEEDS,
+    no_human_state_mut, registry, scheduled_proposals, windows, GeneratedActionKind,
+    GENERATIVE_SEEDS,
 };
+use tracewake_core::actions::defs::sleep::build_sleep_completion_events;
+use tracewake_core::actions::defs::work::build_work_completion_events;
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
+use tracewake_core::events::apply::{apply_agent_event, apply_event};
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventKind, EventStream};
-use tracewake_core::ids::{ContentVersion, FixtureId};
+use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
+use tracewake_core::ids::{ActionId, ContentVersion, FixtureId, ProcessId};
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::scheduler::no_human::advance_no_human;
+use tracewake_core::scheduler::{
+    no_human::advance_no_human, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+};
 use tracewake_core::time::SimTick;
 
 #[derive(Default)]
 struct Reachability {
     actor_waited: bool,
     need_delta: bool,
+    food_consumed: bool,
+    sleep_block: bool,
+    work_block: bool,
+    duration_terminal: bool,
+    interruption: bool,
     no_human_marker: bool,
     replay_round_trip: bool,
     prefix_replay: bool,
@@ -28,11 +39,41 @@ struct Reachability {
 #[test]
 fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
     let mut reachability = Reachability::default();
+    let mut masks = BTreeSet::new();
+    let mut sequence_lengths = BTreeSet::new();
+    let mut terminal_kinds = BTreeSet::new();
     for seed in GENERATIVE_SEEDS {
         let case = generate_case(*seed);
+        masks.insert(case.mask.stable_id());
+        sequence_lengths.insert(case.sequence.len());
         let run = run_case(&case);
         reachability.actor_waited |= has_event(&run.log, EventKind::ActorWaited);
         reachability.need_delta |= has_event(&run.log, EventKind::NeedDeltaApplied);
+        reachability.food_consumed |= has_event(&run.log, EventKind::FoodConsumed);
+        reachability.sleep_block |= has_event(&run.log, EventKind::SleepStarted);
+        reachability.work_block |= has_event(&run.log, EventKind::WorkBlockStarted);
+        reachability.duration_terminal |= run.log.events().iter().any(|event| {
+            matches!(
+                event.event_type,
+                EventKind::SleepCompleted
+                    | EventKind::SleepInterrupted
+                    | EventKind::WorkBlockCompleted
+                    | EventKind::WorkBlockFailed
+            )
+        });
+        reachability.interruption |= has_event(&run.log, EventKind::SleepInterrupted);
+        terminal_kinds.extend(
+            run.log
+                .events()
+                .iter()
+                .filter_map(|event| match event.event_type {
+                    EventKind::SleepCompleted
+                    | EventKind::SleepInterrupted
+                    | EventKind::WorkBlockCompleted
+                    | EventKind::WorkBlockFailed => Some(event.event_type.stable_id()),
+                    _ => None,
+                }),
+        );
         reachability.no_human_marker |= has_event(&run.log, EventKind::NoHumanAdvanceStarted)
             && has_event(&run.log, EventKind::NoHumanAdvanceCompleted);
 
@@ -46,10 +87,35 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
         reachability.prefix_replay = true;
     }
 
-    assert!(reachability.actor_waited, "generated corpus never waited");
+    let corpus_summary =
+        format!("seeds={GENERATIVE_SEEDS:x?} masks={masks:?} lengths={sequence_lengths:?}");
+    assert!(
+        reachability.actor_waited,
+        "generated corpus never waited; {corpus_summary}"
+    );
     assert!(
         reachability.need_delta,
-        "generated corpus never charged needs"
+        "generated corpus never charged needs; {corpus_summary}"
+    );
+    assert!(
+        reachability.food_consumed,
+        "generated corpus never consumed food; {corpus_summary}"
+    );
+    assert!(
+        reachability.sleep_block,
+        "generated corpus never started sleep; {corpus_summary}"
+    );
+    assert!(
+        reachability.work_block,
+        "generated corpus never started work; {corpus_summary}"
+    );
+    assert!(
+        reachability.duration_terminal,
+        "generated corpus never emitted duration terminals; terminals={terminal_kinds:?} {corpus_summary}"
+    );
+    assert!(
+        reachability.interruption,
+        "generated corpus never emitted interruption terminal; terminals={terminal_kinds:?} {corpus_summary}"
     );
     assert!(
         reachability.no_human_marker,
@@ -62,6 +128,18 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
     assert!(
         reachability.prefix_replay,
         "generated corpus never exercised prefix replay"
+    );
+    assert!(
+        terminal_kinds.len() >= 2,
+        "generated corpus terminal diversity too low: {terminal_kinds:?}; {corpus_summary}"
+    );
+    assert!(
+        masks.len() >= 4,
+        "generated corpus mask diversity too low: {masks:?}; {corpus_summary}"
+    );
+    assert!(
+        sequence_lengths.len() >= 2,
+        "generated corpus sequence-length diversity too low: {sequence_lengths:?}; {corpus_summary}"
     );
 }
 
@@ -90,7 +168,7 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         case.end_tick
             .value()
             .saturating_sub(case.start_tick.value()),
-        scheduled_waits(case),
+        scheduled_proposals(case),
     );
     assert_eq!(report.final_tick, case.end_tick, "seed={}", case.seed);
     assert_eq!(
@@ -98,6 +176,12 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         case.sequence.len(),
         "seed={}",
         case.seed
+    );
+    append_generated_duration_terminals(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        content_manifest_id(case.seed),
     );
     GeneratedRun {
         initial_world,
@@ -107,6 +191,91 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         log,
         final_tick: report.final_tick,
     }
+}
+
+fn append_generated_duration_terminals(
+    world: &mut tracewake_core::state::PhysicalState,
+    agent_state: &mut tracewake_core::state::AgentState,
+    log: &mut EventLog,
+    content_manifest_id: tracewake_core::ids::ContentManifestId,
+) {
+    let started_events = log
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.event_type,
+                EventKind::SleepStarted | EventKind::WorkBlockStarted
+            )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let process_id = ProcessId::new("generated_duration_completion").unwrap();
+    for (index, started) in started_events.iter().enumerate() {
+        let Some(completion_tick) = payload_value(started, "expected_completion_tick")
+            .and_then(|value| value.parse::<u64>().ok())
+            .map(SimTick::new)
+        else {
+            continue;
+        };
+        let (action_id, target_label) = match started.event_type {
+            EventKind::SleepStarted => ("sleep_completed", GeneratedActionKind::Sleep.stable_id()),
+            EventKind::WorkBlockStarted => (
+                "work_block_completed",
+                GeneratedActionKind::Work.stable_id(),
+            ),
+            _ => continue,
+        };
+        let ordering_key = OrderingKey::new(
+            completion_tick,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Process(process_id.clone()),
+            ProposalSequence::new(index as u64),
+            ActionId::new(action_id).unwrap(),
+            vec![started.event_id.as_str().to_string()],
+            format!(
+                "generated_duration_terminal:{target_label}:{}",
+                started.event_id.as_str()
+            ),
+        );
+        let events = match started.event_type {
+            EventKind::SleepStarted => build_sleep_completion_events(
+                world,
+                agent_state,
+                log,
+                started,
+                &ordering_key,
+                &content_manifest_id,
+                completion_tick,
+            )
+            .expect("generated sleep completion builds"),
+            EventKind::WorkBlockStarted => build_work_completion_events(
+                world,
+                agent_state,
+                log,
+                started,
+                &ordering_key,
+                &content_manifest_id,
+                completion_tick,
+            )
+            .expect("generated work completion builds"),
+            _ => Vec::new(),
+        };
+        for event in events {
+            append_and_apply_generated_event(world, agent_state, log, event);
+        }
+    }
+}
+
+fn append_and_apply_generated_event(
+    world: &mut tracewake_core::state::PhysicalState,
+    agent_state: &mut tracewake_core::state::AgentState,
+    log: &mut EventLog,
+    event: EventEnvelope,
+) {
+    log.append(event.clone()).unwrap();
+    apply_event(world, &event).unwrap();
+    apply_agent_event(agent_state, &event).unwrap();
 }
 
 fn checksum_context(seed: u64, log: &EventLog, tick: SimTick) -> ChecksumContext {
@@ -191,7 +360,9 @@ fn assert_prefix_replay_matches_full(run: &GeneratedRun, seed: u64) {
 
 fn assert_marker_append_does_not_change_physical_checksum(run: &GeneratedRun, seed: u64) {
     let before_context = checksum_context(seed, &run.log, run.final_tick);
-    let before = compute_physical_checksum(&run.final_world, &before_context).checksum;
+    let before_physical = compute_physical_checksum(&run.final_world, &before_context).checksum;
+    let before_agent =
+        compute_agent_state_checksum(&run.final_agent_state, &before_context).checksum;
     let mut marker_log = run.log.clone();
     let marker = run
         .log
@@ -203,8 +374,10 @@ fn assert_marker_append_does_not_change_physical_checksum(run: &GeneratedRun, se
         .expect("generated run emits completion marker");
     marker_log.append(marker).unwrap();
     let after_context = checksum_context(seed, &marker_log, run.final_tick);
-    let after = compute_physical_checksum(&run.final_world, &after_context).checksum;
-    assert_eq!(before, after, "seed={seed}");
+    let after_physical = compute_physical_checksum(&run.final_world, &after_context).checksum;
+    let after_agent = compute_agent_state_checksum(&run.final_agent_state, &after_context).checksum;
+    assert_eq!(before_physical, after_physical, "seed={seed}");
+    assert_eq!(before_agent, after_agent, "seed={seed}");
 }
 
 fn assert_single_need_charge_per_actor_tick_kind(log: &EventLog, seed: u64) {

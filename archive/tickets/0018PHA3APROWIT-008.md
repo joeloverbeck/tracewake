@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-008: Generative tier Phase 3A reach, swarm masks, and dual-checksum marker relation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test substrate only (`tracewake-core` `tests/support/generative.rs`, `tests/generative_lock.rs`); no production code changes
@@ -86,3 +86,30 @@ The marker-append relation asserts physical AND agent checksums unchanged.
 
 1. `cargo test -p tracewake-core --test generative_lock`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Expanded the generated corpus from wait-only to seeded Phase 3A scheduled proposals for wait, eat, sleep, and work.
+- Added deterministic action masks and an expanded seed set; generated failure messages now report seed, mask, and sequence-length diversity.
+- Seeded generated worlds with a food source, sleep affordance, and workplace so the Phase 3A actions are physically proposable.
+- Added deterministic duration terminal synthesis for generated sleep/work starts using the public sleep/work completion builders, then appended/applied those events into the generated log/state before replay checks.
+- Extended reachability assertions to require food consumption, sleep starts, work starts, duration terminals, and sleep interruption.
+- Added terminal-kind, mask, and sequence-length diversity assertions.
+- Extended the marker metamorphic relation to assert both physical and agent checksums are unchanged by appending a no-human marker.
+
+Deviations from original plan:
+
+- The generator remains scheduled-proposal based rather than switching to autonomous `run_no_human_day`; this keeps the corpus bounded and reproducible while still exercising the shared pipeline and generated replay log.
+- Duration terminals are appended by the test harness after the scheduled proposal phase with deterministic ordering keys, because `advance_no_human` does not own due-completion scheduling.
+
+Verification:
+
+- `cargo test -p tracewake-core --test generative_lock`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
