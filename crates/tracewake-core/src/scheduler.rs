@@ -1009,19 +1009,15 @@ pub mod no_human {
         actor_id: &ActorId,
         tick: SimTick,
     ) -> bool {
-        log.events()
+        crate::need_accounting::open_body_exclusive_starts(log, actor_id, tick)
+            .expect("duplicate duration terminals are rejected before no-human scheduling")
             .iter()
-            .filter(|event| {
-                event.actor_id.as_ref() == Some(actor_id)
-                    && payload_value(event, "body_exclusive") == Some("true")
-                    && scheduled_completion_tick(event).is_some_and(|completion| completion > tick)
-            })
-            .any(|start| {
-                let proposal_id = start.proposal_id.as_ref();
-                !log.events().iter().any(|event| {
-                    event.sim_tick <= tick
-                        && is_duration_terminal(event.event_type)
-                        && event.proposal_id.as_ref() == proposal_id
+            .any(|event_id| {
+                log.events().iter().any(|event| {
+                    &event.event_id == event_id
+                        && payload_value(event, "body_exclusive") == Some("true")
+                        && scheduled_completion_tick(event)
+                            .is_some_and(|completion| completion > tick)
                 })
             })
     }

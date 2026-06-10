@@ -165,6 +165,7 @@ pub struct OrdinaryLifeEpisodeRecord {
     pub event_kind: String,
     pub actor_id: Option<ActorId>,
     pub proposal_id: Option<ProposalId>,
+    pub caused_event_ids: Vec<crate::ids::EventId>,
     pub sim_tick: crate::time::SimTick,
     pub summary: String,
 }

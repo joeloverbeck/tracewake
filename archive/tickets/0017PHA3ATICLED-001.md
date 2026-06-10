@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-001: Single open-duration authority and duplicate-terminal rejection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`need_accounting`, `scheduler`, `actions/pipeline`, `replay/rebuild`, `events/apply`); one new replay negative gate
@@ -88,3 +88,31 @@ In-file unit tests for the forged divergent-key and double-terminal cases; the `
 
 1. `cargo test -p tracewake-core duplicate_duration_terminal`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added `need_accounting::open_body_exclusive_starts` as the shared event-cause keyed open-duration authority for body-exclusive `SleepStarted` / `WorkBlockStarted` events.
+- Rebased the tick-regime interval builder on checked terminal pairing and changed duplicate duration terminals from silent earliest-tick reconciliation to a typed `DuplicateDurationTerminal` error.
+- Rewired the action pipeline reservation check and the no-human scheduler open-duration skip to consume `open_body_exclusive_starts` instead of maintaining independent closed-start / `proposal_id` matching logic.
+- Added live agent-apply rejection for duplicate duration terminals by recording event-cause ancestry on ordinary-life episode projection records.
+- Added replay invariant detection for duplicate duration terminals and a `duplicate_duration_terminal_poisons_rebuild_001` gate that makes `run_replay(...).matches_expected` false for tampered duplicate-terminal history.
+- Corrected `no_human_day_fixture_has_roster_activity_and_metrics_envelope` to complete the `SleepStarted` event returned by the manual sleep proposal it just ran, instead of accidentally selecting an earlier same-actor sleep start from the whole log. The new duplicate-terminal enforcement exposed that stale test selection.
+
+Deviations from original plan:
+
+- Replay duplicate-terminal detection is performed as a log-level invariant before rebuild application, while live rejection is performed in `apply_agent_event` using the ordinary-life episode projection. This keeps tampered replay histories fail-closed and live application typed without changing event schemas or golden checksums.
+- The direct forged divergent-key assertion landed in `need_accounting.rs`, proving the shared authority and classifier close by `EventCause::Event` despite a mismatched `proposal_id`. The existing scheduler open-duration test exercises the consumer path.
+
+Verification results:
+
+- `cargo test -p tracewake-core open_body_exclusive` — passed.
+- `cargo test -p tracewake-core duplicate_duration_terminal` — passed.
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_fixture_has_roster_activity_and_metrics_envelope` — passed after the stale-start test correction.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

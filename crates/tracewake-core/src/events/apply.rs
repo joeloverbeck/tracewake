@@ -8,7 +8,10 @@ use crate::epistemics::{
     Observation, ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
 };
 use crate::events::mutation::{AgentMutationCapability, WorldMutationCapability};
-use crate::events::{EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{
+    is_duration_terminal, EventCause, EventEnvelope, EventKind, EventStream, PayloadField,
+    EVENT_SCHEMA_V1,
+};
 use crate::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContradictionId, DoorId, EventId, FoodSupplyId,
     IntentionId, ItemId, ObservationId, PlaceId, RoutineExecutionId,
@@ -96,6 +99,9 @@ pub enum ApplyError {
     MissingIntention(IntentionId),
     MissingRoutineExecution(RoutineExecutionId),
     MissingCause,
+    DuplicateDurationTerminal {
+        start_event_id: EventId,
+    },
 }
 
 pub const AGENT_WORLD_NOOP_ALLOWLIST: &[EventKind] = &[
@@ -432,6 +438,7 @@ fn apply_agent_event_with_capability(
         | EventKind::WorkBlockStarted
         | EventKind::WorkBlockCompleted
         | EventKind::WorkBlockFailed => {
+            reject_duplicate_duration_terminal(state, event)?;
             state.ordinary_life_episodes.insert(
                 event.event_id.clone(),
                 crate::state::OrdinaryLifeEpisodeRecord {
@@ -439,6 +446,14 @@ fn apply_agent_event_with_capability(
                     event_kind: event.event_type.stable_id().to_string(),
                     actor_id: event.actor_id.clone(),
                     proposal_id: event.proposal_id.clone(),
+                    caused_event_ids: event
+                        .causes
+                        .iter()
+                        .filter_map(|cause| match cause {
+                            EventCause::Event(event_id) => Some(event_id.clone()),
+                            _ => None,
+                        })
+                        .collect(),
                     sim_tick: event.sim_tick,
                     summary: event.effects_summary.clone(),
                 },
@@ -448,6 +463,38 @@ fn apply_agent_event_with_capability(
         kind if AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) => Ok(ApplyOutcome::WorldNoOp),
         _ => Err(ApplyError::NonAgentEvent),
     }
+}
+
+fn reject_duplicate_duration_terminal(
+    state: &AgentState,
+    event: &EventEnvelope,
+) -> Result<(), ApplyError> {
+    if !is_duration_terminal(event.event_type) {
+        return Ok(());
+    }
+    for start_event_id in event.causes.iter().filter_map(|cause| match cause {
+        EventCause::Event(event_id) => Some(event_id),
+        _ => None,
+    }) {
+        let already_terminated = state.ordinary_life_episodes.values().any(|episode| {
+            matches!(
+                episode.event_kind.as_str(),
+                "sleep_completed"
+                    | "sleep_interrupted"
+                    | "work_block_completed"
+                    | "work_block_failed"
+            ) && episode
+                .caused_event_ids
+                .iter()
+                .any(|id| id == start_event_id)
+        });
+        if already_terminated {
+            return Err(ApplyError::DuplicateDurationTerminal {
+                start_event_id: start_event_id.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn validate_typed_diagnostic_payload(
@@ -2038,6 +2085,39 @@ mod tests {
         assert_eq!(
             state.ordinary_life_episodes[&sleep.event_id].event_kind,
             "sleep_started"
+        );
+    }
+
+    #[test]
+    fn duplicate_duration_terminal_rejected_live() {
+        let mut state = AgentState::default();
+        let mut start = caused_agent_event(EventKind::WorkBlockStarted, Vec::new());
+        start.event_id = EventId::new("event.work.started.actor_tomas").unwrap();
+        start.actor_id = Some(actor_id("actor_tomas"));
+
+        let mut completed = caused_agent_event(EventKind::WorkBlockCompleted, Vec::new());
+        completed.event_id = EventId::new("event.work.completed.actor_tomas").unwrap();
+        completed.actor_id = Some(actor_id("actor_tomas"));
+        completed.causes = vec![EventCause::Event(start.event_id.clone())];
+
+        let mut failed = caused_agent_event(EventKind::WorkBlockFailed, Vec::new());
+        failed.event_id = EventId::new("event.work.failed.actor_tomas").unwrap();
+        failed.actor_id = Some(actor_id("actor_tomas"));
+        failed.causes = vec![EventCause::Event(start.event_id.clone())];
+
+        assert_eq!(
+            apply_agent_event(&mut state, &start),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &completed),
+            Ok(ApplyOutcome::Applied)
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &failed),
+            Err(ApplyError::DuplicateDurationTerminal {
+                start_event_id: start.event_id
+            })
         );
     }
 }

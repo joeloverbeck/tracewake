@@ -7,14 +7,14 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{BlockerCode, NeedChangeCause, NeedKind, NeedState, ResponsibleLayer};
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
 use tracewake_core::events::log::{EventLog, EventLogError};
-use tracewake_core::events::{EventEnvelope, EventKind, EventStream, PayloadField};
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream, PayloadField};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId, ItemId,
     PlaceId, SchemaVersion,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
-use tracewake_core::replay::rebuild_projection;
+use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
@@ -56,6 +56,27 @@ fn event(id: &str, kind: EventKind, sequence: u64) -> EventEnvelope {
         ordering_key(sequence, kind.stable_id()),
         manifest_id(),
     )
+}
+
+fn caused_event(
+    id: &str,
+    kind: EventKind,
+    sequence: u64,
+    causes: Vec<EventCause>,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(id).unwrap(),
+        kind,
+        sequence,
+        sequence,
+        SimTick::ZERO,
+        ordering_key(sequence, kind.stable_id()),
+        manifest_id(),
+        causes,
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id());
+    event
 }
 
 fn world_state() -> PhysicalState {
@@ -162,6 +183,68 @@ fn unsupported_event_schema_append_rejected() {
         ))
     );
     assert!(log.events().is_empty());
+}
+
+#[test]
+fn duplicate_duration_terminal_poisons_rebuild_001() {
+    let initial_world = world_state();
+    let initial_agent_state = agent_state();
+    let mut log = EventLog::new();
+    let start = append_to_log(
+        &mut log,
+        caused_event(
+            "event_work_started_duplicate_terminal_gate",
+            EventKind::WorkBlockStarted,
+            0,
+            vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+        ),
+    );
+    append_to_log(
+        &mut log,
+        caused_event(
+            "event_work_completed_duplicate_terminal_gate",
+            EventKind::WorkBlockCompleted,
+            1,
+            vec![EventCause::Event(start.event_id.clone())],
+        ),
+    );
+    append_to_log(
+        &mut log,
+        caused_event(
+            "event_work_failed_duplicate_terminal_gate",
+            EventKind::WorkBlockFailed,
+            2,
+            vec![EventCause::Event(start.event_id.clone())],
+        ),
+    );
+
+    let context = checksum_context("duplicate_duration_terminal_poisons_rebuild_001", &log);
+    let rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&initial_world),
+    );
+    let replay = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&initial_world),
+        None,
+        None,
+    );
+
+    assert!(
+        rebuild
+            .invariant_violations
+            .iter()
+            .any(|violation| violation.contains("duplicate_duration_terminal")),
+        "{:?}",
+        rebuild.invariant_violations
+    );
+    assert!(!replay.matches_expected);
 }
 
 #[test]

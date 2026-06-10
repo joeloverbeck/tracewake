@@ -1376,20 +1376,17 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &sleep_elena,
         102,
     );
-    let sleep_started = log
-        .events()
+    let sleep_started = sleep_events
         .iter()
-        .find(|event| {
-            event.event_type == EventKind::SleepStarted
-                && event
-                    .actor_id
-                    .as_ref()
-                    .is_some_and(|actor| actor.as_str() == "actor_elena")
-        })
+        .find(|event| event.event_type == EventKind::SleepStarted)
         .or_else(|| {
-            sleep_events
-                .iter()
-                .find(|event| event.event_type == EventKind::SleepStarted)
+            log.events().iter().find(|event| {
+                event.event_type == EventKind::SleepStarted
+                    && event
+                        .actor_id
+                        .as_ref()
+                        .is_some_and(|actor| actor.as_str() == "actor_elena")
+            })
         })
         .unwrap()
         .clone();

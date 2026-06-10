@@ -25,9 +25,7 @@ use crate::events::apply::{
     apply_epistemic_event, apply_event, apply_event_stream, EventApplicationContext,
 };
 use crate::events::log::EventLog;
-use crate::events::{
-    is_duration_terminal, EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1,
-};
+use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState};
@@ -410,28 +408,13 @@ fn body_exclusive_reservation_conflict(
         return None;
     }
 
-    let closed_starts = context
-        .log
-        .events()
-        .iter()
-        .filter(|event| is_duration_terminal(event.event_type))
-        .flat_map(|event| event.causes.iter())
-        .filter_map(|cause| match cause {
-            EventCause::Event(event_id) => Some(event_id.clone()),
-            _ => None,
-        })
-        .collect::<std::collections::BTreeSet<_>>();
-
-    context
-        .log
-        .events()
-        .iter()
-        .find(|event| {
-            event.actor_id.as_ref() == Some(&actor_id)
-                && is_body_exclusive_start(event)
-                && !closed_starts.contains(&event.event_id)
-        })
-        .map(|event| event.event_id.clone())
+    let open_starts = crate::need_accounting::open_body_exclusive_starts(
+        context.log,
+        &actor_id,
+        context.ordering_key.sim_tick,
+    )
+    .expect("duplicate duration terminals are rejected before reservation checks");
+    open_starts.into_iter().next()
 }
 
 fn is_body_exclusive_start(event: &EventEnvelope) -> bool {

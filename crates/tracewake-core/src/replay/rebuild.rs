@@ -72,6 +72,9 @@ pub fn rebuild_projection(
     for issue in verify_event_ordering(log) {
         invariant_violations.push(issue);
     }
+    for issue in crate::need_accounting::duplicate_duration_terminal_violations(log) {
+        invariant_violations.push(issue);
+    }
 
     for event in log.events() {
         if !invariant_violations.is_empty() {
