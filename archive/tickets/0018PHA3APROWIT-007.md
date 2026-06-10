@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-007: Embodied workplace fact freshness and event witness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/knowledge_context`, `agent/perception`, `projections`); one new content fixture; TUI test extension
@@ -91,3 +91,34 @@ New supersession fixture (registered in `fixtures/mod.rs` + census); extend the 
 
 1. `cargo test -p tracewake-content stale_workplace_notice_superseded`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Removed the workplace exemption from `current_place_knowledge_context`, so workplace records now use the same latest-current-place freshness gate as route, food, and sleep records.
+- Added `SourceEventIds` and acquisition tick to `ActorKnownWorkplaceFact`, including context-hash participation and accessors.
+- Threaded workplace source event ids into disabled work action availability provenance through a new `SourceEvent` provenance kind.
+- Added `stale_workplace_notice_superseded_by_newer_001` as a registered fixture and content regression proving a newer modeled role notice supersedes the older seeded notice.
+- Extended the TUI workplace availability test to assert the disabled work entry includes the role-notice source event id.
+- Added a core unit test proving stale workplace notices are not resurfaced by the current-place knowledge context.
+
+Deviations from original plan:
+
+- The fixture schema still authors a single seed role notice. The superseding newer notice is appended in the test through the normal event/apply path, because duplicate role notices are events, not a separate fixture-schema authoring construct.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core current_place_knowledge_context_applies_freshness_to_workplace_notices`
+- `cargo test -p tracewake-content stale_workplace_notice_superseded`
+- `cargo test -p tracewake-tui embodied_workplace_availability_reflects_belief_not_truth`
+- `cargo test -p tracewake-core guard_014`
+- `cargo test -p tracewake-core cognition_inputs_are_context_backed`
+- `cargo test -p tracewake-content --test fixtures_load`
+- `cargo test -p tracewake-content --test golden_fixtures_run`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

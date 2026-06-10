@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use crate::agent::SourceEventIds;
 use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash};
 use crate::debug_capability::DebugCapability;
 use crate::epistemics::observation::{PrivacyScope, EPISTEMIC_RECORD_SCHEMA_V1};
@@ -160,20 +161,27 @@ pub struct ActorKnownWorkplaceFact {
     place_id: PlaceId,
     believed_access_open: bool,
     source_key: String,
+    source_event_ids: SourceEventIds,
+    acquired_tick: SimTick,
 }
 
 impl ActorKnownWorkplaceFact {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         workplace_id: WorkplaceId,
         place_id: PlaceId,
         believed_access_open: bool,
         source_key: impl Into<String>,
+        source_event_ids: SourceEventIds,
+        acquired_tick: SimTick,
     ) -> Self {
         Self {
             workplace_id,
             place_id,
             believed_access_open,
             source_key: source_key.into(),
+            source_event_ids,
+            acquired_tick,
         }
     }
 
@@ -193,13 +201,30 @@ impl ActorKnownWorkplaceFact {
         &self.source_key
     }
 
+    pub fn source_event_ids(&self) -> &SourceEventIds {
+        &self.source_event_ids
+    }
+
+    pub fn acquired_tick(&self) -> SimTick {
+        self.acquired_tick
+    }
+
     fn canonical_key(&self) -> String {
+        let source_events = self
+            .source_event_ids
+            .as_slice()
+            .iter()
+            .map(|event_id| event_id.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
         format!(
-            "{}@{}:access_open={}:{}",
+            "{}@{}:access_open={}:{}:events={}:tick={}",
             self.workplace_id.as_str(),
             self.place_id.as_str(),
             self.believed_access_open,
-            self.source_key
+            self.source_key,
+            source_events,
+            self.acquired_tick.value()
         )
     }
 }
@@ -815,6 +840,7 @@ fn canonical_hash_inputs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ids::EventId;
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
@@ -904,6 +930,12 @@ mod tests {
                 PlaceId::new("workshop_tomas").unwrap(),
                 true,
                 "routine_assignment_notice",
+                SourceEventIds::checked(vec![EventId::new(
+                    "event_role_notice_actor_tomas_workplace_tomas",
+                )
+                .unwrap()])
+                .unwrap(),
+                SimTick::new(0),
             )],
         );
 

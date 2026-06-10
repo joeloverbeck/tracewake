@@ -10,19 +10,23 @@ use tracewake_content::schema::{
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::current_place_knowledge_context;
+use tracewake_core::agent::{
+    current_place_knowledge_context, record_current_place_perception_and_project,
+};
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
-use tracewake_core::events::EventKind;
+use tracewake_core::events::apply::apply_epistemic_event;
+use tracewake_core::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
-    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
-    WorkplaceId,
+    FoodSupplyId, PlaceId, ProcessId, RoutineTemplateId, SchemaVersion, SemanticActionId,
+    SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -147,7 +151,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 55);
+    assert_eq!(all.len(), 56);
 
     let ids = all
         .iter()
@@ -203,6 +207,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
+            "stale_workplace_notice_superseded_by_newer_001".to_string(),
             "wait_then_window_passive_charges_each_tick_once_001".to_string(),
             "sound_uncertainty_001".to_string(),
             "strongbox_001".to_string(),
@@ -396,12 +401,89 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
             "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
             "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
+            "stale_workplace_notice_superseded_by_newer_001".to_string(),
             "wait_then_window_passive_charges_each_tick_once_001".to_string(),
             "work_block_failed_then_sleep_succeeds_001".to_string(),
             "work_completion_fails_when_actor_displaced_001".to_string(),
             "workplace_assignment_provenance_001".to_string(),
         ])
     );
+}
+
+#[test]
+fn stale_workplace_notice_superseded_by_newer_001() {
+    let golden = fixtures::stale_workplace_notice_superseded_by_newer_001();
+    let mut loaded = load_fixture_package(
+        ContentManifestId::new("manifest_stale_workplace_notice").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let decision_tick = SimTick::new(3);
+
+    record_current_place_perception_and_project(
+        &mut loaded.seed_event_log,
+        &mut loaded.canonical_world,
+        &mut loaded.canonical_agent_state,
+        &mut loaded.epistemic_projection,
+        &actor_id,
+        decision_tick,
+        &loaded.manifest.manifest_id,
+    );
+
+    let newer_notice_id = EventId::new("event_role_notice_newer_open_workplace_tomas").unwrap();
+    let mut newer_notice = EventEnvelope::new_v1(
+        newer_notice_id.clone(),
+        EventKind::RoleAssignmentNoticeRecorded,
+        loaded.seed_event_log.events().len() as u64,
+        loaded.seed_event_log.events().len() as u64,
+        decision_tick,
+        OrderingKey::new(
+            decision_tick,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Actor(actor_id.clone()),
+            ProposalSequence::new(99),
+            ActionId::new("role_assignment_notice").unwrap(),
+            vec!["workplace_tomas".to_string()],
+            "newer_role_notice",
+        ),
+        loaded.manifest.manifest_id.clone(),
+    );
+    newer_notice.actor_id = Some(actor_id.clone());
+    newer_notice.place_id = Some(PlaceId::new("workshop_tomas").unwrap());
+    newer_notice.process_id = Some(ProcessId::new("role_assignment_notice").unwrap());
+    newer_notice.participants = vec![
+        actor_id.as_str().to_string(),
+        "workplace_tomas".to_string(),
+        "workshop_tomas".to_string(),
+    ];
+    newer_notice.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("source_kind", "modeled_role_update"),
+        PayloadField::new("actor_id", actor_id.as_str()),
+        PayloadField::new("workplace_id", "workplace_tomas"),
+        PayloadField::new("place_id", "workshop_tomas"),
+        PayloadField::new("access_open", "true"),
+    ];
+    loaded.seed_event_log.append(newer_notice.clone()).unwrap();
+    apply_epistemic_event(&mut loaded.epistemic_projection, &newer_notice).unwrap();
+
+    let context = current_place_knowledge_context(
+        &loaded.canonical_world,
+        Some(&loaded.epistemic_projection),
+        &actor_id,
+        SimTick::new(4),
+        &loaded.manifest.manifest_id,
+        loaded.seed_event_log.events().len() as u64,
+    );
+
+    assert_eq!(context.actor_known_workplaces().len(), 1);
+    let workplace = &context.actor_known_workplaces()[0];
+    assert_eq!(workplace.workplace_id().as_str(), "workplace_tomas");
+    assert!(workplace.believed_access_open());
+    assert_eq!(workplace.acquired_tick(), decision_tick);
+    assert_eq!(workplace.source_event_ids().as_slice(), &[newer_notice_id]);
 }
 
 #[test]
