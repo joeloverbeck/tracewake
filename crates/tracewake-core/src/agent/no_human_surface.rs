@@ -82,6 +82,8 @@ pub struct NoHumanActorKnownSurfaceRequest<'a> {
     pub decision_tick: SimTick,
     pub window_id: &'a str,
     pub window_end_tick: SimTick,
+    pub current_place_witness_event_id: Option<EventId>,
+    pub needs_witness_event_id: Option<EventId>,
     pub frame_event_id: Option<EventId>,
 }
 
@@ -114,6 +116,8 @@ impl NoHumanActorKnownSurfaceBuilder {
             request.agent_state,
             request.window_id,
             request.window_end_tick,
+            request.current_place_witness_event_id,
+            request.needs_witness_event_id,
             request.frame_event_id,
         );
         builder
@@ -391,30 +395,40 @@ impl NoHumanActorKnownSurfaceBuilder {
         agent_state: &AgentState,
         window_id: &str,
         window_end_tick: SimTick,
-        source_event_id: Option<EventId>,
+        current_place_witness_event_id: Option<EventId>,
+        needs_witness_event_id: Option<EventId>,
+        frame_event_id: Option<EventId>,
     ) {
-        let Some(source_event_ids) = source_event_id
+        let Some(frame_source_event_ids) = frame_event_id
             .map(|id| SourceEventIds::checked(vec![id]).expect("frame event id is non-empty"))
         else {
             return;
         };
-        self.facts.push(ActorKnownFact::observed_now(
-            self.actor_id.clone(),
-            "actor_current_place_visible",
-            self.current_place_id.as_str(),
-            "evented_frame:current_place",
-            self.decision_tick,
-            source_event_ids.clone(),
-        ));
-        if agent_state.needs_by_actor().contains_key(&self.actor_id) {
-            self.facts.push(ActorKnownFact::remembered_belief(
+        if let Some(current_place_source_event_ids) = current_place_witness_event_id
+            .map(|id| SourceEventIds::checked(vec![id]).expect("place witness id is non-empty"))
+        {
+            self.facts.push(ActorKnownFact::observed_now(
                 self.actor_id.clone(),
-                "agent_needs_present",
-                "needs_present",
-                "agent_state:needs_present",
+                "actor_current_place_visible",
+                self.current_place_id.as_str(),
+                "evented_perception:current_place",
                 self.decision_tick,
-                source_event_ids.clone(),
+                current_place_source_event_ids,
             ));
+        }
+        if agent_state.needs_by_actor().contains_key(&self.actor_id) {
+            if let Some(needs_source_event_ids) = needs_witness_event_id
+                .map(|id| SourceEventIds::checked(vec![id]).expect("needs witness id is non-empty"))
+            {
+                self.facts.push(ActorKnownFact::remembered_belief(
+                    self.actor_id.clone(),
+                    "agent_needs_present",
+                    "needs_present",
+                    "agent_state:needs_present",
+                    self.decision_tick,
+                    needs_source_event_ids,
+                ));
+            }
         }
         self.facts.push(ActorKnownFact::remembered_belief(
             self.actor_id.clone(),
@@ -422,7 +436,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             "not_supplied",
             "no_human_day:typed_projection_limitation",
             self.decision_tick,
-            source_event_ids.clone(),
+            frame_source_event_ids.clone(),
         ));
         self.facts.push(ActorKnownFact::remembered_belief(
             self.actor_id.clone(),
@@ -430,7 +444,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             "bounded_idle",
             format!("window_id={window_id}:bounded_idle"),
             self.decision_tick,
-            source_event_ids.clone(),
+            frame_source_event_ids.clone(),
         ));
         self.facts.push(ActorKnownFact::remembered_belief(
             self.actor_id.clone(),
@@ -443,7 +457,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                 window_end_tick.value()
             ),
             self.decision_tick,
-            source_event_ids.clone(),
+            frame_source_event_ids.clone(),
         ));
         if has_active_intention(agent_state, &self.actor_id) {
             self.facts.push(ActorKnownFact::remembered_belief(
@@ -452,7 +466,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                 "active",
                 "agent_state:active_intention",
                 self.decision_tick,
-                source_event_ids.clone(),
+                frame_source_event_ids.clone(),
             ));
             self.facts.push(ActorKnownFact::remembered_belief(
                 self.actor_id.clone(),
@@ -460,7 +474,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                 "modeled_next_step",
                 "agent_state:active_intention_next_step",
                 self.decision_tick,
-                source_event_ids,
+                frame_source_event_ids,
             ));
         }
     }
@@ -555,6 +569,8 @@ mod tests {
             decision_tick: SimTick::ZERO,
             window_id: "morning",
             window_end_tick: SimTick::new(4),
+            current_place_witness_event_id: frame_event_id.clone(),
+            needs_witness_event_id: None,
             frame_event_id,
         })
         .build(&agent_state)
@@ -733,6 +749,8 @@ mod tests {
                 decision_tick: SimTick::new(9),
                 window_id: "morning",
                 window_end_tick: SimTick::new(12),
+                current_place_witness_event_id: Some(EventId::new(event_id).unwrap()),
+                needs_witness_event_id: None,
                 frame_event_id: Some(EventId::new(event_id).unwrap()),
             })
             .build(&agent_state);

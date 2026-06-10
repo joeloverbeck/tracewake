@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-004: Witness-compatible provenance citations and bidirectional fact reconciliation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/no_human_surface`, `agent/actor_known`, `agent/transaction`, `agent/trace`); hidden-truth gate additions
@@ -89,3 +89,43 @@ A fact-kind → admissible-witness-event-kind table, enforced alongside `danglin
 
 1. `cargo test -p tracewake-core provenance_witness`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-10.
+
+Added witness-kind auditing to `ActorDecisionTransaction`: transaction inputs can now carry
+a log-derived source-event kind map, and mismatched actor-known citations fail closed with
+`BlockerCode::ProvenanceWitnessMismatch`. The audit currently covers the no-human framing
+fact kinds corrected by this ticket (`actor_current_place_visible`, `agent_needs_present`,
+window framing, and active-intention procedure-state facts).
+
+Reworked no-human framing citations so current-place visibility cites a same-tick
+`ObservationRecorded` event, needs-present cites a `NeedDeltaApplied` event, and generic
+window/procedure framing cites the no-human frame marker. Removed the unsafe "first event
+is frame" fallback in live scheduling and replay rebuild.
+
+Made current-place perception emit an explicit `current_place` observation even when no
+other visible surface is present, giving `actor_current_place_visible` a real modeled
+witness. Replay context-hash rebuilding now derives the same current-place and need witness
+ids as the live scheduler.
+
+Moved structured actor-known fields behind fact derivation in `ActorKnownPlanningContext`:
+known routes, food sources, sleep places, workplaces, containers, and closed doors are now
+computed from actor-known facts during construction. Added unit coverage for fact-derived
+structured fields and for caller-supplied structured fields without facts being discarded by
+construction.
+
+Verification run:
+
+1. `cargo test -p tracewake-core provenance_witness`
+2. `cargo test -p tracewake-core structured_actor_known_fields_are_derived_from_facts`
+3. `cargo test -p tracewake-core structured_context_without_matching_fact_is_not_constructed`
+4. `cargo test -p tracewake-core current_place_perception`
+5. `cargo test -p tracewake-core --test hidden_truth_gates`
+6. `cargo test -p tracewake-content --test golden_fixtures_run`
+7. `cargo test -p tracewake-tui --test embodied_flow`
+8. `cargo fmt --all --check`
+9. `cargo clippy --workspace --all-targets -- -D warnings`
+10. `cargo build --workspace --all-targets --locked`
+11. `cargo test --workspace`

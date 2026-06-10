@@ -10,7 +10,7 @@ use crate::epistemics::{EpistemicProjection, EpistemicProjectionChecksum};
 use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApplicationError};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
-use crate::ids::{ContentManifestId, EventId};
+use crate::ids::{ActorId, ContentManifestId, EventId, PlaceId};
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
@@ -286,6 +286,13 @@ fn rebuild_decision_context_hash(
             decision_tick: record.window_start_tick,
             window_id,
             window_end_tick,
+            current_place_witness_event_id: latest_current_place_perception_event_id(
+                &prefix_log,
+                &record.actor_id,
+                record.window_start_tick,
+                &actor.current_place_id,
+            ),
+            needs_witness_event_id: latest_need_event_id(&prefix_log, &record.actor_id),
             frame_event_id: latest_frame_event_id(&prefix_log),
         })
         .build(&prefix_agent_state);
@@ -377,7 +384,36 @@ fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
             )
         })
         .map(|event| event.event_id.clone())
-        .or_else(|| log.events().first().map(|event| event.event_id.clone()))
+}
+
+fn latest_current_place_perception_event_id(
+    log: &EventLog,
+    actor_id: &ActorId,
+    tick: SimTick,
+    place_id: &PlaceId,
+) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            event.event_type == EventKind::ObservationRecorded
+                && event.actor_id.as_ref() == Some(actor_id)
+                && event.sim_tick == tick
+                && event.place_id.as_ref() == Some(place_id)
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && (event.actor_id.as_ref() == Some(actor_id)
+                    || payload_value(event, "actor_id") == Some(actor_id.as_str()))
+        })
+        .map(|event| event.event_id.clone())
 }
 
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {

@@ -224,8 +224,8 @@ pub mod no_human {
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
     use crate::ids::{
-        ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, ProcessId,
-        RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
+        ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, PlaceId,
+        ProcessId, RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
     use crate::need_accounting::classify_actor_tick_regimes;
     use crate::scheduler::{
@@ -617,6 +617,13 @@ pub mod no_human {
                 decision_tick: window.start_tick,
                 window_id: &window.window_id,
                 window_end_tick: window.end_tick,
+                current_place_witness_event_id: latest_current_place_perception_event_id(
+                    log,
+                    actor_id,
+                    window.start_tick,
+                    &actor.current_place_id,
+                ),
+                needs_witness_event_id: latest_need_event_id(log, actor_id),
                 frame_event_id: latest_frame_event_id(log),
             })
             .build(agent_state)
@@ -626,12 +633,18 @@ pub mod no_human {
             .iter()
             .map(|event| event.event_id.clone())
             .collect::<std::collections::BTreeSet<_>>();
+        let source_event_kinds = log
+            .events()
+            .iter()
+            .map(|event| (event.event_id.clone(), event.event_type))
+            .collect::<std::collections::BTreeMap<_, _>>();
         match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
             actor_id: actor_id.clone(),
             decision_tick: window.start_tick,
             agent_state,
             actor_known_context: &actor_known_state,
             source_event_ids: Some(&source_event_ids),
+            source_event_kinds: Some(&source_event_kinds),
             routine_window_family: routine_window_family(
                 agent_state,
                 actor_id,
@@ -672,7 +685,36 @@ pub mod no_human {
                 )
             })
             .map(|event| event.event_id.clone())
-            .or_else(|| log.events().first().map(|event| event.event_id.clone()))
+    }
+
+    fn latest_current_place_perception_event_id(
+        log: &EventLog,
+        actor_id: &ActorId,
+        tick: SimTick,
+        place_id: &PlaceId,
+    ) -> Option<EventId> {
+        log.events()
+            .iter()
+            .rev()
+            .find(|event| {
+                event.event_type == EventKind::ObservationRecorded
+                    && event.actor_id.as_ref() == Some(actor_id)
+                    && event.sim_tick == tick
+                    && event.place_id.as_ref() == Some(place_id)
+            })
+            .map(|event| event.event_id.clone())
+    }
+
+    fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+        log.events()
+            .iter()
+            .rev()
+            .find(|event| {
+                event.event_type == EventKind::NeedDeltaApplied
+                    && (event.actor_id.as_ref() == Some(actor_id)
+                        || payload_value(event, "actor_id") == Some(actor_id.as_str()))
+            })
+            .map(|event| event.event_id.clone())
     }
 
     fn routine_window_family(
@@ -2719,6 +2761,20 @@ pub mod no_human {
                 ),
             );
             let mut log = EventLog::new();
+            log.append(build_window_passive_need_delta_event(
+                &ProcessId::new("test_need_witness").unwrap(),
+                &actor_id,
+                &DayWindow {
+                    window_id: "midday".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(4),
+                },
+                &content_manifest_id(),
+                NeedKind::Hunger,
+                0,
+                0,
+            ))
+            .unwrap();
             record_current_place_perception(
                 &mut log,
                 &state,
@@ -2833,7 +2889,7 @@ pub mod no_human {
                 .iter()
                 .filter(|event| event.event_type == EventKind::ObservationRecorded)
                 .collect::<Vec<_>>();
-            assert_eq!(observations.len(), 3);
+            assert_eq!(observations.len(), 4);
             let perceived_kinds = observations
                 .iter()
                 .filter_map(|event| {
@@ -2847,6 +2903,7 @@ pub mod no_human {
             assert_eq!(
                 perceived_kinds,
                 std::collections::BTreeSet::from([
+                    "current_place",
                     "visible_exit",
                     "visible_food_supply",
                     "visible_sleep_affordance"

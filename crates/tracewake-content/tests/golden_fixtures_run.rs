@@ -1029,6 +1029,7 @@ fn severe_safety_without_known_exit_is_local_knowledge_blocker() {
         agent_state: &agent_state,
         actor_known_context: &actor_known_context,
         source_event_ids: None,
+        source_event_kinds: None,
         routine_window_family: None,
         include_idle_fallback: true,
     });
@@ -1726,6 +1727,10 @@ fn aged_food_record_surfaces_as_remembered_belief() {
             decision_tick: SimTick::new(9),
             window_id: "later_window",
             window_end_tick: SimTick::new(12),
+            current_place_witness_event_id: perception_events
+                .first()
+                .map(|event| event.event_id.clone()),
+            needs_witness_event_id: None,
             frame_event_id: None,
         })
         .build(&agent_state);

@@ -59,6 +59,13 @@ pub fn current_place_perception_events(
     let current_place_id = actor.current_place_id.clone();
     let mut observations = Vec::new();
 
+    observations.push(PerceivedThing {
+        kind: "current_place",
+        subject_id: current_place_id.as_str().to_string(),
+        target_id: current_place_id.as_str().to_string(),
+        place_id: current_place_id.clone(),
+    });
+
     if let Some(place) = state.places().get(&current_place_id) {
         for adjacent_place_id in &place.adjacent_place_ids {
             if !is_visible_exit_target(state, adjacent_place_id) {
@@ -438,6 +445,7 @@ mod tests {
         assert_eq!(
             perceived_kinds,
             std::collections::BTreeSet::from([
+                "current_place",
                 "visible_exit",
                 "visible_food_supply",
                 "visible_sleep_affordance"
@@ -454,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn current_place_perception_emits_no_absence_facts() {
+    fn current_place_perception_emits_only_current_place_without_visible_surfaces() {
         let events = current_place_perception_events(
             &state_without_visible_surfaces(),
             &actor_id("actor_tomas"),
@@ -462,7 +470,11 @@ mod tests {
             &manifest_id(),
         );
 
-        assert!(events.is_empty());
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            payload_value(&events[0], "perceived_kind"),
+            Some("current_place")
+        );
     }
 
     #[test]
