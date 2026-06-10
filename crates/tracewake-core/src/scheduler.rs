@@ -214,10 +214,12 @@ pub mod no_human {
         record_current_place_perception, ActorDecisionTransaction, ActorDecisionTransactionInput,
         ActorDecisionTransactionOutcome, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
         DecisionTraceRecord, Intention, IntentionSource, NeedBand, NeedKind, NeedState,
-        NoHumanActorKnownSurfaceBuilder, ResponsibleLayer, RoutineFamily, RoutineStepStatus,
-        StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
+        NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, ResponsibleLayer,
+        RoutineFamily, RoutineStepStatus, StuckDiagnostic, StuckResultingStatus,
+        TypedDiagnosticFields,
     };
-    use crate::events::apply::apply_agent_event;
+    use crate::epistemics::EpistemicProjection;
+    use crate::events::apply::{apply_agent_event, apply_epistemic_event};
     use crate::events::is_duration_terminal;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
@@ -597,20 +599,23 @@ pub mod no_human {
         log: &EventLog,
         actor_id: &ActorId,
         window: &DayWindow,
-        _content_manifest_id: &ContentManifestId,
+        content_manifest_id: &ContentManifestId,
     ) -> Option<BuiltAgentProposal> {
         let actor = state.actors.get(actor_id)?;
-        let actor_known_state = NoHumanActorKnownSurfaceBuilder::from_event_log(
-            log,
-            agent_state,
-            actor_id.clone(),
-            actor.current_place_id.clone(),
-            window.start_tick,
-            &window.window_id,
-            window.end_tick,
-        )
-        .build(agent_state)
-        .into_context();
+        let epistemic_projection = epistemic_projection_from_log(log, content_manifest_id);
+        let actor_known_state =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &epistemic_projection,
+                agent_state,
+                actor_id: actor_id.clone(),
+                current_place_id: actor.current_place_id.clone(),
+                decision_tick: window.start_tick,
+                window_id: &window.window_id,
+                window_end_tick: window.end_tick,
+                frame_event_id: latest_frame_event_id(log),
+            })
+            .build(agent_state)
+            .into_context();
         let source_event_ids = log
             .events()
             .iter()
@@ -636,6 +641,33 @@ pub mod no_human {
             }),
             ActorDecisionTransactionOutcome::Stuck { .. } => None,
         }
+    }
+
+    fn epistemic_projection_from_log(
+        log: &EventLog,
+        content_manifest_id: &ContentManifestId,
+    ) -> EpistemicProjection {
+        let mut projection = EpistemicProjection::new(content_manifest_id.clone());
+        for event in log.events() {
+            if apply_epistemic_event(&mut projection, event).is_err() {
+                continue;
+            }
+        }
+        projection
+    }
+
+    fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+        log.events()
+            .iter()
+            .rev()
+            .find(|event| {
+                matches!(
+                    event.event_type,
+                    EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+                )
+            })
+            .map(|event| event.event_id.clone())
+            .or_else(|| log.events().first().map(|event| event.event_id.clone()))
     }
 
     fn routine_window_family(
@@ -2242,7 +2274,7 @@ pub mod no_human {
         use crate::actions::proposal::{Proposal, ProposalOrigin};
         use crate::events::apply::apply_agent_event;
         use crate::events::apply::apply_event;
-        use crate::events::{EventCause, EventStream};
+        use crate::events::{EventCause, EventStream, EVENT_SCHEMA_V1};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
             ProposalId, RoutineExecutionId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
@@ -3124,6 +3156,8 @@ pub mod no_human {
             role_notice.actor_id = Some(actor_id.clone());
             role_notice.participants = vec![actor_id.as_str().to_string()];
             role_notice.payload = vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("source_kind", "authored_prehistory"),
                 PayloadField::new("actor_id", actor_id.as_str()),
                 PayloadField::new("workplace_id", workplace_id.as_str()),
                 PayloadField::new("place_id", "workshop"),

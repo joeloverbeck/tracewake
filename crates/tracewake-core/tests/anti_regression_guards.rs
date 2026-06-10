@@ -1631,12 +1631,15 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
 
 #[test]
 fn guard_006_scheduler_does_not_fabricate_empty_epistemic_projection() {
-    let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
-    assert_absent_from_sources(&scheduler_sources, "EpistemicProjection::new");
     let scheduler = guarded_source("src/scheduler.rs");
     assert!(
-        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_event_log"),
-        "no-human cognition must use the sealed actor-known surface builder"
+        scheduler.contains("NoHumanActorKnownSurfaceBuilder::from_projection"),
+        "no-human cognition must use the projection-backed sealed actor-known surface builder"
+    );
+    assert!(
+        scheduler.contains("fn epistemic_projection_from_log")
+            && scheduler.contains("apply_epistemic_event(&mut projection, event)"),
+        "scheduler projection construction must replay epistemic events instead of fabricating an empty projection"
     );
 }
 
@@ -1705,18 +1708,23 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "no-human actor-known surface must be constructed through a named builder"
     );
     assert!(
-        builder.contains("fn consume_observation"),
-        "no-human actor-known surface must consume recorded observations"
+        builder.contains("fn consume_projection_record"),
+        "no-human actor-known surface must consume projection-backed actor-known records"
     );
     assert!(
-        builder.contains("fn consume_role_assignment_notice"),
-        "no-human actor-known surface must consume recorded role notices"
+        builder.contains("ActorKnownProjectionRecord::Workplace"),
+        "no-human actor-known workplace facts must come from projection records"
     );
     assert!(
-        builder.contains("fn consume_starting_belief"),
-        "no-human actor-known surface must consume recorded starting beliefs"
+        builder.contains("ActorKnownProjectionRecord::SleepPlace"),
+        "no-human actor-known starting beliefs must come from projection records"
     );
     assert_absent(&builder, "PhysicalState");
+    assert_absent(&builder, "EventEnvelope");
+    assert_absent(&builder, "EventKind::RoleAssignmentNoticeRecorded");
+    assert_absent(&builder, "EventKind::StartingBeliefRecorded");
+    assert_absent(&builder, "EventKind::ObservationRecorded");
+    assert_absent(&builder, "payload_value(");
     assert_absent(&builder, "state.workplaces");
     assert_absent(&builder, "state.food_supplies");
     assert_absent(&builder, "state.sleep_affordances");
@@ -1757,13 +1765,13 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
 
     assert_absent(&actor_known, "pub fn extend_actor_known_facts");
     assert_absent(&actor_known, "pub fn add_actor_known_fact");
-    assert!(
-        builder.contains("pub fn from_event_log(")
-            && builder.contains("fn consume_role_assignment_notice")
-            && builder.contains("fn consume_starting_belief")
-            && builder.contains("fn consume_observation"),
-        "no-human cognition must remain event-log backed"
-    );
+    assert!(builder.contains("pub fn from_projection("));
+    assert!(builder.contains("fn consume_projection_records"));
+    assert!(builder.contains("projection.actor_known_records_for_context"));
+    assert_absent(&builder, "pub fn from_event_log(");
+    assert_absent(&builder, "fn consume_role_assignment_notice");
+    assert_absent(&builder, "fn consume_starting_belief");
+    assert_absent(&builder, "fn consume_observation");
 }
 
 #[test]

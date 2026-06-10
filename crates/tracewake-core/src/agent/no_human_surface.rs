@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::agent::{ActorKnownFact, ActorKnownPlanningContext, SourceEventIds};
-use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind};
+use crate::epistemics::{ActorKnownProjectionRecord, EpistemicProjection, KnowledgeContext};
 use crate::ids::{ActorId, EventId, PlaceId, WorkplaceId};
 use crate::state::AgentState;
 use crate::time::SimTick;
@@ -72,6 +71,17 @@ pub struct NoHumanActorKnownSurfaceBuilder {
     facts: Vec<ActorKnownFact>,
 }
 
+pub struct NoHumanActorKnownSurfaceRequest<'a> {
+    pub projection: &'a EpistemicProjection,
+    pub agent_state: &'a AgentState,
+    pub actor_id: ActorId,
+    pub current_place_id: PlaceId,
+    pub decision_tick: SimTick,
+    pub window_id: &'a str,
+    pub window_end_tick: SimTick,
+    pub frame_event_id: Option<EventId>,
+}
+
 impl NoHumanActorKnownSurfaceBuilder {
     pub fn new(
         actor_id: ActorId,
@@ -90,19 +100,19 @@ impl NoHumanActorKnownSurfaceBuilder {
         }
     }
 
-    pub fn from_event_log(
-        log: &EventLog,
-        agent_state: &AgentState,
-        actor_id: ActorId,
-        current_place_id: PlaceId,
-        decision_tick: SimTick,
-        window_id: &str,
-        window_end_tick: SimTick,
-    ) -> Self {
-        let frame_event_id = latest_frame_event_id(log);
-        let mut builder = Self::new(actor_id, current_place_id, Some(decision_tick));
-        builder.consume_events(log);
-        builder.add_window_framing_facts(agent_state, window_id, window_end_tick, frame_event_id);
+    pub fn from_projection(request: NoHumanActorKnownSurfaceRequest<'_>) -> Self {
+        let mut builder = Self::new(
+            request.actor_id,
+            request.current_place_id,
+            Some(request.decision_tick),
+        );
+        builder.consume_projection_records(request.projection);
+        builder.add_window_framing_facts(
+            request.agent_state,
+            request.window_id,
+            request.window_end_tick,
+            request.frame_event_id,
+        );
         builder
     }
 
@@ -121,124 +131,86 @@ impl NoHumanActorKnownSurfaceBuilder {
         SealedActorKnownSurface::new(context)
     }
 
-    fn consume_events(&mut self, log: &EventLog) {
-        for event in log.events() {
-            match event.event_type {
-                EventKind::RoleAssignmentNoticeRecorded => {
-                    self.consume_role_assignment_notice(event);
-                }
-                EventKind::StartingBeliefRecorded => {
-                    self.consume_starting_belief(event);
-                }
-                EventKind::ObservationRecorded => {
-                    self.consume_observation(event);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn consume_role_assignment_notice(&mut self, event: &EventEnvelope) {
-        if payload_value(event, "actor_id") != Some(self.actor_id.as_str()) {
-            return;
-        }
-        let Some(workplace_id) =
-            payload_value(event, "workplace_id").and_then(|value| WorkplaceId::new(value).ok())
-        else {
-            return;
-        };
-        let Some(place_id) =
-            payload_value(event, "place_id").and_then(|value| PlaceId::new(value).ok())
-        else {
-            return;
-        };
-        self.add_role_assignment_notice(
-            workplace_id,
-            place_id,
-            "evented_role_assignment_notice",
-            vec![event.event_id.clone()],
+    fn consume_projection_records(&mut self, projection: &EpistemicProjection) {
+        let context = KnowledgeContext::embodied(
+            self.actor_id.clone(),
+            self.decision_tick.unwrap_or(SimTick::ZERO),
         );
-    }
-
-    fn consume_starting_belief(&mut self, event: &EventEnvelope) {
-        if payload_value(event, "actor_id") != Some(self.actor_id.as_str()) {
-            return;
-        }
-        match payload_value(event, "belief_kind") {
-            Some("sleep_place") => {
-                let Some(place_id) =
-                    payload_value(event, "value").and_then(|value| PlaceId::new(value).ok())
-                else {
-                    return;
-                };
-                self.add_sleep_place_knowledge(
-                    place_id,
-                    payload_value(event, "subject_id"),
-                    "evented_starting_belief",
-                    vec![event.event_id.clone()],
-                );
-            }
-            Some("household_food_source") => {
-                let current_place_value = format!("place:{}", self.current_place_id.as_str());
-                if payload_value(event, "value") != Some(current_place_value.as_str()) {
-                    return;
-                }
-                let Some(food_source) = payload_value(event, "subject_id") else {
-                    return;
-                };
-                self.add_food_source_knowledge(
-                    food_source,
-                    "evented_starting_belief",
-                    vec![event.event_id.clone()],
-                );
-            }
-            _ => {}
+        for record in projection.actor_known_records_for_context(&context) {
+            self.consume_projection_record(record);
         }
     }
 
-    fn consume_observation(&mut self, event: &EventEnvelope) {
-        if event.actor_id.as_ref() != Some(&self.actor_id) {
-            return;
-        }
-        match payload_value(event, "perceived_kind") {
-            Some("visible_exit") => {
-                let Some(target_id) =
-                    payload_value(event, "target_id").and_then(|value| PlaceId::new(value).ok())
-                else {
-                    return;
-                };
+    fn consume_projection_record(&mut self, record: &ActorKnownProjectionRecord) {
+        match record {
+            ActorKnownProjectionRecord::Route {
+                from_place_id,
+                to_place_id,
+                source,
+                source_event_id,
+                ..
+            } => {
                 self.known_edges
-                    .entry(self.current_place_id.clone())
+                    .entry(from_place_id.clone())
                     .or_default()
-                    .insert(target_id.clone());
+                    .insert(to_place_id.clone());
                 self.facts.push(ActorKnownFact::observed_now(
                     self.actor_id.clone(),
                     "known_route_surface",
-                    format!("{}->{}", self.current_place_id.as_str(), target_id.as_str()),
-                    "evented_perception:visible_exit",
+                    format!("{}->{}", from_place_id.as_str(), to_place_id.as_str()),
+                    source.source_label(),
                     self.decision_tick,
-                    SourceEventIds::from_event(event),
+                    SourceEventIds::checked(vec![source_event_id.clone()])
+                        .expect("projection record source ids are non-empty"),
                 ));
             }
-            Some("visible_food_supply") => {
-                let Some(food_source) = payload_value(event, "target_id") else {
+            ActorKnownProjectionRecord::FoodSource {
+                food_source_id,
+                place_id,
+                source,
+                source_event_id,
+                ..
+            } => {
+                if place_id
+                    .as_ref()
+                    .is_some_and(|place_id| place_id != &self.current_place_id)
+                {
                     return;
-                };
+                }
                 self.add_food_source_knowledge(
-                    food_source,
-                    "evented_perception:visible_food_supply",
-                    vec![event.event_id.clone()],
+                    food_source_id,
+                    source.source_label(),
+                    vec![source_event_id.clone()],
                 );
             }
-            Some("visible_sleep_affordance") => {
+            ActorKnownProjectionRecord::SleepPlace {
+                place_id,
+                sleep_affordance_id,
+                source,
+                source_event_id,
+                ..
+            } => {
                 self.add_sleep_place_knowledge(
-                    self.current_place_id.clone(),
-                    payload_value(event, "target_id"),
-                    "evented_perception:visible_sleep_affordance",
-                    vec![event.event_id.clone()],
+                    place_id.clone(),
+                    sleep_affordance_id.as_deref(),
+                    source.source_label(),
+                    vec![source_event_id.clone()],
                 );
             }
-            _ => {}
+            ActorKnownProjectionRecord::Workplace {
+                workplace_id,
+                place_id,
+                source,
+                source_event_id,
+                ..
+            } => {
+                self.add_role_assignment_notice(
+                    workplace_id.clone(),
+                    place_id.clone(),
+                    source.source_label(),
+                    vec![source_event_id.clone()],
+                );
+            }
         }
     }
 
@@ -437,28 +409,6 @@ impl NoHumanActorKnownSurfaceBuilder {
     }
 }
 
-fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
-    log.events()
-        .iter()
-        .rev()
-        .find(|event| {
-            matches!(
-                event.event_type,
-                EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
-            )
-        })
-        .map(|event| event.event_id.clone())
-        .or_else(|| log.events().first().map(|event| event.event_id.clone()))
-}
-
-fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
-    event
-        .payload
-        .iter()
-        .find(|field| field.key == key)
-        .map(|field| field.value.as_str())
-}
-
 fn has_active_intention(agent_state: &AgentState, actor_id: &ActorId) -> bool {
     agent_state
         .active_intention_by_actor()
@@ -468,7 +418,9 @@ fn has_active_intention(agent_state: &AgentState, actor_id: &ActorId) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::PayloadField;
+    use crate::events::apply::apply_epistemic_event;
+    use crate::events::log::EventLog;
+    use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
     use crate::ids::{ActionId, ContentManifestId};
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 
@@ -523,22 +475,42 @@ mod tests {
         event
     }
 
+    fn projection_from_log(log: &EventLog) -> EpistemicProjection {
+        let mut projection = EpistemicProjection::new(content_manifest_id());
+        for event in log.events() {
+            apply_epistemic_event(&mut projection, event).unwrap();
+        }
+        projection
+    }
+
+    fn build_surface(
+        projection: &EpistemicProjection,
+        actor_id: ActorId,
+        current_place_id: PlaceId,
+        frame_event_id: Option<EventId>,
+    ) -> SealedActorKnownSurface {
+        let agent_state = AgentState::default();
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection,
+            agent_state: &agent_state,
+            actor_id,
+            current_place_id,
+            decision_tick: SimTick::ZERO,
+            window_id: "morning",
+            window_end_tick: SimTick::new(4),
+            frame_event_id,
+        })
+        .build(&agent_state)
+    }
+
     #[test]
     fn raw_workplace_assignment_is_not_actor_known_without_notice() {
         let actor_id = actor_id();
         let home = place_id("home_tomas");
         let log = EventLog::new();
+        let projection = projection_from_log(&log);
 
-        let surface = NoHumanActorKnownSurfaceBuilder::from_event_log(
-            &log,
-            &AgentState::default(),
-            actor_id,
-            home,
-            SimTick::ZERO,
-            "morning",
-            SimTick::new(4),
-        )
-        .build(&AgentState::default());
+        let surface = build_surface(&projection, actor_id, home, None);
 
         assert!(surface.context().known_workplaces().is_empty());
         assert!(!surface
@@ -553,17 +525,9 @@ mod tests {
         let actor_id = actor_id();
         let home = place_id("home_tomas");
         let log = EventLog::new();
+        let projection = projection_from_log(&log);
 
-        let surface = NoHumanActorKnownSurfaceBuilder::from_event_log(
-            &log,
-            &AgentState::default(),
-            actor_id,
-            home,
-            SimTick::ZERO,
-            "morning",
-            SimTick::new(4),
-        )
-        .build(&AgentState::default());
+        let surface = build_surface(&projection, actor_id, home, None);
 
         assert!(surface.context().known_sleep_places().is_empty());
         assert!(!surface
@@ -586,23 +550,21 @@ mod tests {
             SimTick::ZERO,
             "role_assignment_notice",
             vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
                 PayloadField::new("actor_id", actor_id.as_str()),
                 PayloadField::new("workplace_id", workplace_id().as_str()),
                 PayloadField::new("place_id", workshop.as_str()),
             ],
         ))
         .unwrap();
+        let projection = projection_from_log(&log);
 
-        let surface = NoHumanActorKnownSurfaceBuilder::from_event_log(
-            &log,
-            &AgentState::default(),
+        let surface = build_surface(
+            &projection,
             actor_id,
             workshop.clone(),
-            SimTick::ZERO,
-            "work_window",
-            SimTick::new(4),
-        )
-        .build(&AgentState::default());
+            Some(EventId::new(event_id).unwrap()),
+        );
 
         assert_eq!(surface.context().known_workplaces().len(), 1);
         let workplace_fact = surface
@@ -630,23 +592,30 @@ mod tests {
             SimTick::ZERO,
             "record_observation",
             vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
                 PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("observer_actor_id", actor_id.as_str()),
+                PayloadField::new("observer_place_id", kitchen.as_str()),
+                PayloadField::new("observation_id", "observation.visible_food.actor_tomas"),
+                PayloadField::new("observed_tick", "0"),
+                PayloadField::new("source_event_id", event_id),
+                PayloadField::new("channel", "direct_sight"),
+                PayloadField::new("place_id", kitchen.as_str()),
+                PayloadField::new("confidence", "1000"),
                 PayloadField::new("perceived_kind", "visible_food_supply"),
+                PayloadField::new("subject_id", kitchen.as_str()),
                 PayloadField::new("target_id", "visible_meal"),
             ],
         ))
         .unwrap();
+        let projection = projection_from_log(&log);
 
-        let surface = NoHumanActorKnownSurfaceBuilder::from_event_log(
-            &log,
-            &AgentState::default(),
+        let surface = build_surface(
+            &projection,
             actor_id,
             kitchen,
-            SimTick::ZERO,
-            "morning",
-            SimTick::new(4),
-        )
-        .build(&AgentState::default());
+            Some(EventId::new(event_id).unwrap()),
+        );
 
         assert!(surface
             .context()

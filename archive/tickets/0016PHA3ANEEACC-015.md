@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-015: Unify no-human actor-known surface builder onto epistemic projection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` no-human cognition surface, epistemic projection accessors, replay hash rebuilding, and related fixtures/tests
@@ -84,3 +84,14 @@ Add guard coverage that prevents reintroducing direct event-payload scans as the
 1. `cargo test -p tracewake-core no_human_surface`
 2. `cargo test -p tracewake-core rebuild_decision_context_hashes`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed in this changeset. `NoHumanActorKnownSurfaceBuilder` now builds from
+projection-backed actor-known records instead of scanning raw event payloads, and
+the scheduler and replay decision-context hash rebuild both use the same
+projection-backed surface. `EpistemicProjection` retains typed actor-known
+records for role notices, starting beliefs, and retained observations, with
+source-event witnesses preserved in the existing decision inputs. Guard coverage
+now fails if the no-human surface reintroduces direct event-payload scans for
+actor-known cognition.

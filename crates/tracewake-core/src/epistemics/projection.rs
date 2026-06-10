@@ -6,7 +6,7 @@ use crate::epistemics::knowledge_context::{KnowledgeContext, ViewMode};
 use crate::epistemics::observation::{Observation, SourceRef, EPISTEMIC_RECORD_SCHEMA_V1};
 use crate::ids::{
     ActorId, BeliefId, ContentManifestId, ContradictionId, EpistemicProjectionVersion, EventId,
-    ObservationId, SchemaVersion,
+    ObservationId, PlaceId, SchemaVersion, WorkplaceId,
 };
 use crate::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
@@ -28,6 +28,47 @@ pub struct NotebookEntry {
     pub summary: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ActorKnownProjectionSource {
+    RoleAssignmentNotice,
+    StartingBelief,
+    VisibleExit,
+    VisibleFoodSupply,
+    VisibleSleepAffordance,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ActorKnownProjectionRecord {
+    Route {
+        actor_id: ActorId,
+        from_place_id: PlaceId,
+        to_place_id: PlaceId,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+    },
+    FoodSource {
+        actor_id: ActorId,
+        food_source_id: String,
+        place_id: Option<PlaceId>,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+    },
+    SleepPlace {
+        actor_id: ActorId,
+        place_id: PlaceId,
+        sleep_affordance_id: Option<String>,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+    },
+    Workplace {
+        actor_id: ActorId,
+        workplace_id: WorkplaceId,
+        place_id: PlaceId,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+    },
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EpistemicProjection {
     observations_by_id: BTreeMap<ObservationId, Observation>,
@@ -37,6 +78,7 @@ pub struct EpistemicProjection {
     contradictions_by_id: BTreeMap<ContradictionId, Contradiction>,
     contradictions_by_holder: BTreeMap<ActorId, BTreeSet<ContradictionId>>,
     notebook_entries_by_actor: BTreeMap<ActorId, BTreeSet<NotebookEntry>>,
+    actor_known_records_by_actor: BTreeMap<ActorId, BTreeSet<ActorKnownProjectionRecord>>,
     projection_version: EpistemicProjectionVersion,
     projection_schema_version: SchemaVersion,
     event_range: ProjectionEventRange,
@@ -79,6 +121,7 @@ impl EpistemicProjection {
             contradictions_by_id: BTreeMap::new(),
             contradictions_by_holder: BTreeMap::new(),
             notebook_entries_by_actor: BTreeMap::new(),
+            actor_known_records_by_actor: BTreeMap::new(),
             projection_version: EpistemicProjectionVersion::new("epistemic_projection_v1").unwrap(),
             projection_schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
             event_range: ProjectionEventRange::default(),
@@ -108,6 +151,12 @@ impl EpistemicProjection {
     pub(crate) fn insert_observation(&mut self, observation: Observation) {
         let observation_id = observation.observation_id().clone();
         let actor_id = observation.observer_actor_id().clone();
+        for record in actor_known_records_from_observation(&observation) {
+            self.actor_known_records_by_actor
+                .entry(actor_id.clone())
+                .or_default()
+                .insert(record);
+        }
         self.observations_by_actor
             .entry(actor_id)
             .or_default()
@@ -124,6 +173,49 @@ impl EpistemicProjection {
                 .insert(belief_id.clone());
         }
         self.beliefs_by_id.insert(belief_id, belief);
+    }
+
+    pub(crate) fn insert_role_assignment_notice(
+        &mut self,
+        actor_id: ActorId,
+        workplace_id: WorkplaceId,
+        place_id: PlaceId,
+        source_event_id: EventId,
+    ) {
+        self.actor_known_records_by_actor
+            .entry(actor_id.clone())
+            .or_default()
+            .insert(ActorKnownProjectionRecord::Workplace {
+                actor_id,
+                workplace_id,
+                place_id,
+                source: ActorKnownProjectionSource::RoleAssignmentNotice,
+                source_event_id,
+            });
+    }
+
+    pub(crate) fn insert_starting_belief(
+        &mut self,
+        actor_id: ActorId,
+        belief_kind: &str,
+        subject_id: &str,
+        value: &str,
+        source_event_id: EventId,
+    ) {
+        let Some(record) = actor_known_record_from_starting_belief(
+            actor_id,
+            belief_kind,
+            subject_id,
+            value,
+            source_event_id,
+        ) else {
+            return;
+        };
+        let actor_id = record.actor_id().clone();
+        self.actor_known_records_by_actor
+            .entry(actor_id)
+            .or_default()
+            .insert(record);
     }
 
     pub(crate) fn insert_contradiction(&mut self, contradiction: Contradiction) {
@@ -156,6 +248,7 @@ impl EpistemicProjection {
             && self.beliefs_by_id.is_empty()
             && self.contradictions_by_id.is_empty()
             && self.notebook_entries_by_actor.is_empty()
+            && self.actor_known_records_by_actor.is_empty()
     }
 
     pub fn projection_version(&self) -> &EpistemicProjectionVersion {
@@ -217,6 +310,17 @@ impl EpistemicProjection {
                 .flat_map(|entries| entries.iter())
                 .collect(),
         }
+    }
+
+    pub fn actor_known_records_for_context(
+        &self,
+        context: &KnowledgeContext,
+    ) -> Vec<&ActorKnownProjectionRecord> {
+        self.actor_known_records_by_actor
+            .get(context.viewer_actor_id())
+            .into_iter()
+            .flat_map(|records| records.iter())
+            .collect()
     }
 
     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
@@ -365,12 +469,240 @@ impl EpistemicProjection {
             }
         }
 
+        for (actor_id, records) in &self.actor_known_records_by_actor {
+            for record in records {
+                lines.push(format!(
+                    "actor_known|actor={}|record={}",
+                    actor_id.as_str(),
+                    record.serialize_canonical()
+                ));
+            }
+        }
+
         let checksum = EpistemicProjectionChecksum::from_canonical_lines(&lines);
         EpistemicProjectionChecksumReport {
             checksum,
             canonical_input: lines,
         }
     }
+}
+
+impl ActorKnownProjectionSource {
+    pub fn source_label(&self) -> &'static str {
+        match self {
+            Self::RoleAssignmentNotice => "evented_role_assignment_notice",
+            Self::StartingBelief => "evented_starting_belief",
+            Self::VisibleExit => "evented_perception:visible_exit",
+            Self::VisibleFoodSupply => "evented_perception:visible_food_supply",
+            Self::VisibleSleepAffordance => "evented_perception:visible_sleep_affordance",
+        }
+    }
+
+    fn stable_id(&self) -> &'static str {
+        match self {
+            Self::RoleAssignmentNotice => "role_assignment_notice",
+            Self::StartingBelief => "starting_belief",
+            Self::VisibleExit => "visible_exit",
+            Self::VisibleFoodSupply => "visible_food_supply",
+            Self::VisibleSleepAffordance => "visible_sleep_affordance",
+        }
+    }
+}
+
+impl ActorKnownProjectionRecord {
+    pub fn actor_id(&self) -> &ActorId {
+        match self {
+            Self::Route { actor_id, .. }
+            | Self::FoodSource { actor_id, .. }
+            | Self::SleepPlace { actor_id, .. }
+            | Self::Workplace { actor_id, .. } => actor_id,
+        }
+    }
+
+    pub fn source(&self) -> &ActorKnownProjectionSource {
+        match self {
+            Self::Route { source, .. }
+            | Self::FoodSource { source, .. }
+            | Self::SleepPlace { source, .. }
+            | Self::Workplace { source, .. } => source,
+        }
+    }
+
+    pub fn source_event_id(&self) -> &EventId {
+        match self {
+            Self::Route {
+                source_event_id, ..
+            }
+            | Self::FoodSource {
+                source_event_id, ..
+            }
+            | Self::SleepPlace {
+                source_event_id, ..
+            }
+            | Self::Workplace {
+                source_event_id, ..
+            } => source_event_id,
+        }
+    }
+
+    fn serialize_canonical(&self) -> String {
+        match self {
+            Self::Route {
+                from_place_id,
+                to_place_id,
+                source,
+                source_event_id,
+                ..
+            } => format!(
+                "route|from={}|to={}|source={}|event={}",
+                from_place_id.as_str(),
+                to_place_id.as_str(),
+                source.stable_id(),
+                source_event_id.as_str()
+            ),
+            Self::FoodSource {
+                food_source_id,
+                place_id,
+                source,
+                source_event_id,
+                ..
+            } => format!(
+                "food|id={food_source_id}|place={}|source={}|event={}",
+                place_id.as_ref().map(|id| id.as_str()).unwrap_or(""),
+                source.stable_id(),
+                source_event_id.as_str()
+            ),
+            Self::SleepPlace {
+                place_id,
+                sleep_affordance_id,
+                source,
+                source_event_id,
+                ..
+            } => format!(
+                "sleep|place={}|affordance={}|source={}|event={}",
+                place_id.as_str(),
+                sleep_affordance_id.as_deref().unwrap_or(""),
+                source.stable_id(),
+                source_event_id.as_str()
+            ),
+            Self::Workplace {
+                workplace_id,
+                place_id,
+                source,
+                source_event_id,
+                ..
+            } => format!(
+                "workplace|id={}|place={}|source={}|event={}",
+                workplace_id.as_str(),
+                place_id.as_str(),
+                source.stable_id(),
+                source_event_id.as_str()
+            ),
+        }
+    }
+}
+
+fn actor_known_records_from_observation(
+    observation: &Observation,
+) -> Vec<ActorKnownProjectionRecord> {
+    let Some(source_event_id) = source_event_id(observation.source()) else {
+        return Vec::new();
+    };
+    let actor_id = observation.observer_actor_id().clone();
+    match observation_payload_value(observation, "perceived_kind") {
+        Some("visible_exit") => {
+            let Some(from_place_id) = observation_payload_value(observation, "subject_id")
+                .and_then(|value| PlaceId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(to_place_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| PlaceId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::Route {
+                actor_id,
+                from_place_id,
+                to_place_id,
+                source: ActorKnownProjectionSource::VisibleExit,
+                source_event_id,
+            }]
+        }
+        Some("visible_food_supply") => {
+            let Some(food_source_id) = observation_payload_value(observation, "target_id") else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::FoodSource {
+                actor_id,
+                food_source_id: food_source_id.to_string(),
+                place_id: None,
+                source: ActorKnownProjectionSource::VisibleFoodSupply,
+                source_event_id,
+            }]
+        }
+        Some("visible_sleep_affordance") => {
+            let Some(place_id) = observation_payload_value(observation, "place_id")
+                .and_then(|value| PlaceId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::SleepPlace {
+                actor_id,
+                place_id,
+                sleep_affordance_id: observation_payload_value(observation, "target_id")
+                    .map(ToString::to_string),
+                source: ActorKnownProjectionSource::VisibleSleepAffordance,
+                source_event_id,
+            }]
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn actor_known_record_from_starting_belief(
+    actor_id: ActorId,
+    belief_kind: &str,
+    subject_id: &str,
+    value: &str,
+    source_event_id: EventId,
+) -> Option<ActorKnownProjectionRecord> {
+    match belief_kind {
+        "sleep_place" => Some(ActorKnownProjectionRecord::SleepPlace {
+            actor_id,
+            place_id: PlaceId::new(value).ok()?,
+            sleep_affordance_id: Some(subject_id.to_string()),
+            source: ActorKnownProjectionSource::StartingBelief,
+            source_event_id,
+        }),
+        "household_food_source" => {
+            let place_value = value.strip_prefix("place:")?;
+            let place_id = PlaceId::new(place_value).ok()?;
+            Some(ActorKnownProjectionRecord::FoodSource {
+                actor_id,
+                food_source_id: subject_id.to_string(),
+                place_id: Some(place_id),
+                source: ActorKnownProjectionSource::StartingBelief,
+                source_event_id,
+            })
+        }
+        _ => None,
+    }
+}
+
+fn source_event_id(source: &SourceRef) -> Option<EventId> {
+    match source {
+        SourceRef::Event(event_id) => Some(event_id.clone()),
+        SourceRef::Action(_) | SourceRef::Cause(_) => None,
+    }
+}
+
+fn observation_payload_value<'a>(observation: &'a Observation, key: &str) -> Option<&'a str> {
+    observation
+        .raw_payload()
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn holder_key(holder: &HolderKind) -> String {

@@ -1,4 +1,7 @@
-use crate::agent::{ActorKnownInputRef, DecisionTraceRecord, NoHumanActorKnownSurfaceBuilder};
+use crate::agent::{
+    ActorKnownInputRef, DecisionTraceRecord, NoHumanActorKnownSurfaceBuilder,
+    NoHumanActorKnownSurfaceRequest,
+};
 use crate::checksum::{
     compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
     AgentStateChecksum, AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
@@ -258,28 +261,31 @@ fn rebuild_decision_context_hash(
             "ordinary_event_after_trace",
         )));
     }
-    let (prefix_log, prefix_state, prefix_agent_state) = replay_prefix(
-        initial_state,
-        initial_agent_state,
-        &log.events()[..ordinary_index],
-    )
-    .map_err(|issue| Box::new(phase3a_failure(trace_event, issue)))?;
+    let (prefix_log, prefix_state, prefix_agent_state, prefix_epistemic_projection) =
+        replay_prefix(
+            initial_state,
+            initial_agent_state,
+            &log.events()[..ordinary_index],
+        )
+        .map_err(|issue| Box::new(phase3a_failure(trace_event, issue)))?;
     let actor = prefix_state.actors.get(&record.actor_id).ok_or_else(|| {
         Box::new(phase3a_failure(
             trace_event,
             "actor_missing_at_decision_frontier",
         ))
     })?;
-    let surface = NoHumanActorKnownSurfaceBuilder::from_event_log(
-        &prefix_log,
-        &prefix_agent_state,
-        record.actor_id.clone(),
-        actor.current_place_id.clone(),
-        record.window_start_tick,
-        window_id,
-        window_end_tick,
-    )
-    .build(&prefix_agent_state);
+    let surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &prefix_epistemic_projection,
+            agent_state: &prefix_agent_state,
+            actor_id: record.actor_id.clone(),
+            current_place_id: actor.current_place_id.clone(),
+            decision_tick: record.window_start_tick,
+            window_id,
+            window_end_tick,
+            frame_event_id: latest_frame_event_id(&prefix_log),
+        })
+        .build(&prefix_agent_state);
     let rebuilt_inputs = surface
         .context()
         .actor_known_facts()
@@ -332,7 +338,7 @@ fn replay_prefix(
     initial_state: &PhysicalState,
     initial_agent_state: &AgentState,
     events: &[EventEnvelope],
-) -> Result<(EventLog, PhysicalState, AgentState), String> {
+) -> Result<(EventLog, PhysicalState, AgentState, EpistemicProjection), String> {
     let mut prefix_log = EventLog::new();
     let mut state = initial_state.clone();
     let mut agent_state = initial_agent_state.clone();
@@ -354,7 +360,21 @@ fn replay_prefix(
         apply_event_stream(&mut application_context, &appended)
             .map_err(|error| format!("prefix_apply_error:{error:?}"))?;
     }
-    Ok((prefix_log, state, agent_state))
+    Ok((prefix_log, state, agent_state, epistemic_projection))
+}
+
+fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            matches!(
+                event.event_type,
+                EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+            )
+        })
+        .map(|event| event.event_id.clone())
+        .or_else(|| log.events().first().map(|event| event.event_id.clone()))
 }
 
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {

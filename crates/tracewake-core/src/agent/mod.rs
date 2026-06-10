@@ -43,7 +43,9 @@ pub use need::{
     NeedBand, NeedChangeCause, NeedKind, NeedParseError, NeedPressure, NeedState,
     NeedThresholdCrossing, ThresholdDirection,
 };
-pub use no_human_surface::{NoHumanActorKnownSurfaceBuilder, SealedActorKnownSurface};
+pub use no_human_surface::{
+    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, SealedActorKnownSurface,
+};
 pub use perception::{
     current_place_knowledge_context, current_place_perception_events,
     record_current_place_perception, record_current_place_perception_and_project,

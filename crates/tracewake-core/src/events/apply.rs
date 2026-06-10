@@ -220,7 +220,35 @@ pub fn apply_epistemic_event(
             projection.insert_observation(observation);
             Ok(ApplyOutcome::Applied)
         }
-        EventKind::RoleAssignmentNoticeRecorded | EventKind::StartingBeliefRecorded => {
+        EventKind::RoleAssignmentNoticeRecorded => {
+            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+            let workplace_id = required_epistemic(&payload, "workplace_id").and_then(|value| {
+                crate::ids::WorkplaceId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+                    key: "workplace_id",
+                    value: value.to_string(),
+                })
+            })?;
+            let place_id = parse_place_id_epistemic(&payload, "place_id")?;
+            projection.insert_role_assignment_notice(
+                actor_id,
+                workplace_id,
+                place_id,
+                event.event_id.clone(),
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::StartingBeliefRecorded => {
+            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+            let belief_kind = required_epistemic(&payload, "belief_kind")?;
+            let subject_id = required_epistemic(&payload, "subject_id")?;
+            let value = required_epistemic(&payload, "value")?;
+            projection.insert_starting_belief(
+                actor_id,
+                belief_kind,
+                subject_id,
+                value,
+                event.event_id.clone(),
+            );
             Ok(ApplyOutcome::Applied)
         }
         EventKind::ExpectationContradicted => {
