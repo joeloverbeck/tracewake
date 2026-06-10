@@ -111,6 +111,16 @@ pub const AGENT_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
         field_name: "ordinary_life_episodes",
         field_family: "ordinary_life_episode",
     },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "candidate_goal_evaluations",
+        field_family: "candidate_goal_evaluation",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "continue_routine_arbitrations",
+        field_family: "continue_routine_arbitration",
+    },
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -455,6 +465,50 @@ pub fn compute_agent_state_checksum(
         ));
     }
 
+    for (event_id, evaluation) in &state.candidate_goal_evaluations {
+        lines.push(format!(
+            "candidate_goal_evaluation|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}|summary={}",
+            event_id.as_str(),
+            evaluation.event_kind,
+            evaluation
+                .actor_id
+                .as_ref()
+                .map(crate::ids::ActorId::as_str)
+                .unwrap_or("-"),
+            evaluation
+                .proposal_id
+                .as_ref()
+                .map(crate::ids::ProposalId::as_str)
+                .unwrap_or("-"),
+            join_ids(evaluation.caused_event_ids.iter().map(|id| id.as_str())),
+            evaluation.sim_tick.value(),
+            join_pairs(&evaluation.payload_fields),
+            evaluation.summary
+        ));
+    }
+
+    for (event_id, arbitration) in &state.continue_routine_arbitrations {
+        lines.push(format!(
+            "continue_routine_arbitration|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}|summary={}",
+            event_id.as_str(),
+            arbitration.event_kind,
+            arbitration
+                .actor_id
+                .as_ref()
+                .map(crate::ids::ActorId::as_str)
+                .unwrap_or("-"),
+            arbitration
+                .proposal_id
+                .as_ref()
+                .map(crate::ids::ProposalId::as_str)
+                .unwrap_or("-"),
+            join_ids(arbitration.caused_event_ids.iter().map(|id| id.as_str())),
+            arbitration.sim_tick.value(),
+            join_pairs(&arbitration.payload_fields),
+            arbitration.summary
+        ));
+    }
+
     let checksum = AgentStateChecksum::from_canonical_lines(&lines);
     AgentStateChecksumReport {
         projection_version,
@@ -509,6 +563,14 @@ fn join_ids<'a>(ids: impl Iterator<Item = &'a str>) -> String {
     ids.collect::<Vec<_>>().join(",")
 }
 
+fn join_pairs(pairs: &[(String, String)]) -> String {
+    pairs
+        .iter()
+        .map(|(key, value)| format!("{}:{}={}:{}", key.len(), key, value.len(), value))
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
 fn location_key(location: &Location) -> String {
     match location {
         Location::AtPlace(id) => format!("at_place:{}", id.as_str()),
@@ -539,8 +601,9 @@ mod tests {
         StuckDiagnostic, StuckResultingStatus,
     };
     use crate::ids::{
-        ActorId, CandidateGoalId, ContainerId, ControllerId, DecisionTraceId, DoorId, IntentionId,
-        ItemId, PlaceId, RoutineExecutionId, RoutineTemplateId, StuckDiagnosticId, WorkplaceId,
+        ActorId, CandidateGoalId, ContainerId, ControllerId, DecisionTraceId, DoorId, EventId,
+        IntentionId, ItemId, PlaceId, RoutineExecutionId, RoutineTemplateId, StuckDiagnosticId,
+        WorkplaceId,
     };
     use crate::location::Location;
     use crate::state::{
@@ -904,6 +967,36 @@ mod tests {
                 .get_mut(&StuckDiagnosticId::new("stuck_breakfast").unwrap())
                 .unwrap()
                 .concrete_blocker = "closed pantry".to_string();
+        });
+        assert_agent_checksum_changes(|state| {
+            state.candidate_goal_evaluations.insert(
+                EventId::new("event.candidate_goals.test").unwrap(),
+                crate::state::CandidateGoalEvaluationRecord {
+                    event_id: EventId::new("event.candidate_goals.test").unwrap(),
+                    event_kind: "candidate_goals_evaluated".to_string(),
+                    actor_id: Some(actor_id("actor_tomas")),
+                    proposal_id: None,
+                    caused_event_ids: vec![EventId::new("event.source.test").unwrap()],
+                    sim_tick: SimTick::new(3),
+                    payload_fields: vec![("candidate_goal_count".to_string(), "2".to_string())],
+                    summary: "candidate goals evaluated".to_string(),
+                },
+            );
+        });
+        assert_agent_checksum_changes(|state| {
+            state.continue_routine_arbitrations.insert(
+                EventId::new("event.continue_routine.test").unwrap(),
+                crate::state::ContinueRoutineArbitrationRecord {
+                    event_id: EventId::new("event.continue_routine.test").unwrap(),
+                    event_kind: "continue_routine_rejected".to_string(),
+                    actor_id: Some(actor_id("actor_tomas")),
+                    proposal_id: None,
+                    caused_event_ids: vec![EventId::new("event.source.test").unwrap()],
+                    sim_tick: SimTick::new(3),
+                    payload_fields: vec![("reason".to_string(), "blocked".to_string())],
+                    summary: "continue routine rejected".to_string(),
+                },
+            );
         });
     }
 

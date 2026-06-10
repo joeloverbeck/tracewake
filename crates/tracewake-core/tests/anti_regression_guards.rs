@@ -2053,23 +2053,29 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
 
     let allowlist = AGENT_WORLD_NOOP_ALLOWLIST
         .iter()
-        .map(|kind| kind.stable_id())
+        .map(|kind| {
+            let citation = match kind {
+                EventKind::FoodConsumed => "dual_stream_physical_food_supply_checksum",
+                EventKind::NoHumanDayStarted | EventKind::NoHumanDayCompleted => {
+                    "payload_free_no_human_marker"
+                }
+                _ => "",
+            };
+            (kind.stable_id(), citation)
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(
         allowlist,
         vec![
-            "candidate_goals_evaluated",
-            "food_consumed",
-            "continue_routine_proposed",
-            "continue_routine_accepted",
-            "continue_routine_rejected",
-            "no_human_day_started",
-            "no_human_day_completed",
+            ("food_consumed", "dual_stream_physical_food_supply_checksum"),
+            ("no_human_day_started", "payload_free_no_human_marker"),
+            ("no_human_day_completed", "payload_free_no_human_marker"),
         ]
     );
     for materialized in [
         EventKind::NeedThresholdCrossed,
+        EventKind::CandidateGoalsEvaluated,
         EventKind::SleepStarted,
         EventKind::SleepCompleted,
         EventKind::SleepInterrupted,
@@ -2078,6 +2084,9 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
         EventKind::WorkBlockStarted,
         EventKind::WorkBlockCompleted,
         EventKind::WorkBlockFailed,
+        EventKind::ContinueRoutineProposed,
+        EventKind::ContinueRoutineAccepted,
+        EventKind::ContinueRoutineRejected,
     ] {
         assert!(!AGENT_WORLD_NOOP_ALLOWLIST.contains(&materialized));
     }

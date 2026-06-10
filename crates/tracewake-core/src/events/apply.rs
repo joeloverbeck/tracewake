@@ -105,11 +105,7 @@ pub enum ApplyError {
 }
 
 pub const AGENT_WORLD_NOOP_ALLOWLIST: &[EventKind] = &[
-    EventKind::CandidateGoalsEvaluated,
     EventKind::FoodConsumed,
-    EventKind::ContinueRoutineProposed,
-    EventKind::ContinueRoutineAccepted,
-    EventKind::ContinueRoutineRejected,
     EventKind::NoHumanDayStarted,
     EventKind::NoHumanDayCompleted,
 ];
@@ -462,9 +458,64 @@ fn apply_agent_event_with_capability(
             );
             Ok(ApplyOutcome::Applied)
         }
+        EventKind::CandidateGoalsEvaluated => {
+            state.candidate_goal_evaluations.insert(
+                event.event_id.clone(),
+                crate::state::CandidateGoalEvaluationRecord {
+                    event_id: event.event_id.clone(),
+                    event_kind: event.event_type.stable_id().to_string(),
+                    actor_id: event.actor_id.clone(),
+                    proposal_id: event.proposal_id.clone(),
+                    caused_event_ids: caused_event_ids(event),
+                    sim_tick: event.sim_tick,
+                    payload_fields: payload_fields(event),
+                    summary: event.effects_summary.clone(),
+                },
+            );
+            Ok(ApplyOutcome::Applied)
+        }
+        EventKind::ContinueRoutineProposed
+        | EventKind::ContinueRoutineAccepted
+        | EventKind::ContinueRoutineRejected => {
+            state.continue_routine_arbitrations.insert(
+                event.event_id.clone(),
+                crate::state::ContinueRoutineArbitrationRecord {
+                    event_id: event.event_id.clone(),
+                    event_kind: event.event_type.stable_id().to_string(),
+                    actor_id: event.actor_id.clone(),
+                    proposal_id: event.proposal_id.clone(),
+                    caused_event_ids: caused_event_ids(event),
+                    sim_tick: event.sim_tick,
+                    payload_fields: payload_fields(event),
+                    summary: event.effects_summary.clone(),
+                },
+            );
+            Ok(ApplyOutcome::Applied)
+        }
         kind if AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) => Ok(ApplyOutcome::WorldNoOp),
         _ => Err(ApplyError::NonAgentEvent),
     }
+}
+
+fn caused_event_ids(event: &EventEnvelope) -> Vec<EventId> {
+    event
+        .causes
+        .iter()
+        .filter_map(|cause| match cause {
+            EventCause::Event(event_id) => Some(event_id.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn payload_fields(event: &EventEnvelope) -> Vec<(String, String)> {
+    let mut fields = event
+        .payload
+        .iter()
+        .map(|field| (field.key.clone(), field.value.clone()))
+        .collect::<Vec<_>>();
+    fields.sort();
+    fields
 }
 
 fn reject_duplicate_duration_terminal(

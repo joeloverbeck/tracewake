@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-005: Materialize agent event payloads for replay verifiability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, `state`, `checksum`, capstone test); tamper gates in `tracewake-content` golden tests
@@ -91,3 +91,31 @@ Two tamper tests in `golden_fixtures_run.rs` (flip + reason-rewrite ⇒ poisoned
 
 1. `cargo test -p tracewake-core no_human_capstone`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added `AgentState` ledgers for candidate-goal evaluations and continue-routine arbitrations, keyed by event id and populated during agent event application.
+- Removed `CandidateGoalsEvaluated` and `ContinueRoutine{Proposed,Accepted,Rejected}` from `AGENT_WORLD_NOOP_ALLOWLIST`; the remaining allowlist entries are limited to the dual-stream `FoodConsumed` exception and no-human day markers with explicit guard citations.
+- Registered both new ledger families in `AGENT_STATE_CHECKSUM_COVERAGE` and included deterministic event-kind, actor/proposal, cause, tick, payload, and summary data in the agent checksum.
+- Added capstone coverage for `decision_context_hash_failures` and mapped the gate in the phase-3A checklist.
+- Added content tamper gates proving continue-routine event-kind and payload rewrites poison replay through the agent checksum.
+
+Deviations from original plan:
+
+- Current production flows emit `ContinueRoutineProposed`, not `ContinueRoutineAccepted`; the kind-flip tamper gate therefore flips an emitted proposed arbitration event to `ContinueRoutineRejected` while exercising the same materialized checksum family.
+- The checksum payload encoding records all event payload key/value pairs with length-prefixed key and value components instead of parsing a fixed event-specific field list, so future payload fields are covered without a new parser branch.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-core agent_checksum_changes_for_each_authoritative_field_family` — passed
+- `cargo test -p tracewake-content continue_routine_tamper` — passed
+- `cargo test -p tracewake-core no_human_capstone` — passed
+- `cargo test -p tracewake-core agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed

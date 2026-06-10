@@ -112,6 +112,11 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
     assert!(rebuild.unsupported_agent_versions.is_empty());
     assert!(rebuild.invariant_violations.is_empty());
     assert!(rebuild.epistemic_application_errors.is_empty());
+    assert!(
+        rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        rebuild.decision_context_hash_failures
+    );
     let non_marker_agent_errors = rebuild
         .agent_application_errors
         .iter()
@@ -426,8 +431,12 @@ fn assert_phase3a_checklist_is_mapped() {
         ("adversarial_fixtures", "0008PHA3AANTCON-008/009 gates"),
         ("anti_regression", "0008PHA3AANTCON-007 gates"),
         ("replay", "capstone live/rebuild typed state equality"),
+        (
+            "decision_context_hash_gate",
+            "capstone asserts no replay context-hash failures",
+        ),
     ];
-    assert_eq!(CHECKLIST.len(), 13);
+    assert_eq!(CHECKLIST.len(), 14);
     assert!(CHECKLIST
         .iter()
         .all(|(item, evidence)| !item.is_empty() && !evidence.is_empty()));

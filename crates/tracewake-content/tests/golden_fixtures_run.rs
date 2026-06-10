@@ -27,7 +27,7 @@ use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
 use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
+use tracewake_core::events::{EventEnvelope, EventKind, EventStream, PayloadField};
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId, FoodSupplyId,
     IntentionId, PlaceId, RoutineExecutionId, RoutineTemplateId,
@@ -322,6 +322,103 @@ fn tamper_sleep_place_starting_belief(
     }
     assert!(replaced, "fixture contains sleep_place starting belief");
     tampered
+}
+
+fn tamper_first_continue_routine_kind(log: &EventLog, replacement_kind: EventKind) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced && event.event_type == EventKind::ContinueRoutineProposed {
+            event.event_type = replacement_kind;
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(
+        replaced,
+        "fixture contains continue-routine arbitration event"
+    );
+    tampered
+}
+
+fn tamper_first_continue_routine_reason(log: &EventLog, replacement_reason: &str) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced && event.event_type == EventKind::ContinueRoutineProposed {
+            if let Some(reason) = event.payload.iter_mut().find(|field| field.key == "reason") {
+                reason.value = replacement_reason.to_string();
+            } else {
+                event
+                    .payload
+                    .push(PayloadField::new("reason", replacement_reason));
+            }
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(
+        replaced,
+        "fixture contains continue-routine arbitration event"
+    );
+    tampered
+}
+
+fn possession_continue_routine_replay_fixture() -> (
+    PhysicalState,
+    AgentState,
+    PhysicalState,
+    AgentState,
+    EventLog,
+) {
+    let golden = fixtures::possession_does_not_reset_intention_001();
+    let manifest_id =
+        ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
+    let loaded = load_fixture_package(
+        manifest_id.clone(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let mut state = loaded.canonical_world;
+    let mut agent_state = loaded.canonical_agent_state;
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let mut continue_proposal = proposal(
+        "proposal_mara_continue_after_possession",
+        "actor_mara",
+        "continue_routine",
+        &[],
+        4,
+    );
+    continue_proposal.parameters.insert(
+        "active_intention_id".to_string(),
+        "intention_mara_work".to_string(),
+    );
+    continue_proposal
+        .parameters
+        .insert("intention_status".to_string(), "active".to_string());
+    continue_proposal.parameters.insert(
+        "routine_execution_id".to_string(),
+        "routine_exec_mara_work".to_string(),
+    );
+    continue_proposal
+        .parameters
+        .insert("next_action_id".to_string(), "work_block".to_string());
+    run(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &manifest_id,
+        &continue_proposal,
+        1,
+    );
+
+    assert!(has_event(&log, EventKind::ContinueRoutineProposed));
+    (initial_state, initial_agent_state, state, agent_state, log)
 }
 
 #[test]
@@ -1127,7 +1224,16 @@ fn possession_fixture_preserves_intention_needs_and_can_continue() {
     );
 
     assert!(has_event(&log, EventKind::ContinueRoutineProposed));
-    assert_eq!(agent_state, before_agent_state);
+    assert_eq!(agent_state.intentions(), before_agent_state.intentions());
+    assert_eq!(
+        agent_state.routine_executions(),
+        before_agent_state.routine_executions()
+    );
+    assert_eq!(
+        agent_state.needs_by_actor(),
+        before_agent_state.needs_by_actor()
+    );
+    assert_eq!(agent_state.continue_routine_arbitrations().len(), 1);
 }
 
 #[test]
@@ -1847,6 +1953,50 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     );
     assert!(!corrupted.matches_expected);
     assert!(!corrupted.state_diff.is_empty() || !corrupted.application_errors.is_empty());
+}
+
+#[test]
+fn continue_routine_tamper_kind_flip_poisons_replay() {
+    let (initial_state, initial_agent_state, state, agent_state, log) =
+        possession_continue_routine_replay_fixture();
+    let context = checksum_context("possession_does_not_reset_intention_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_first_continue_routine_kind(&log, EventKind::ContinueRoutineRejected);
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.agent_checksum_matches);
+}
+
+#[test]
+fn continue_routine_tamper_reason_rewrite_poisons_replay() {
+    let (initial_state, initial_agent_state, state, agent_state, log) =
+        possession_continue_routine_replay_fixture();
+    let context = checksum_context("possession_does_not_reset_intention_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_first_continue_routine_reason(&log, "tampered_continue_routine_reason");
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.agent_checksum_matches);
 }
 
 #[test]
