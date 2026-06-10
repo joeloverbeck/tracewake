@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` workplace-fact attributes + embodied projection rewiring; embodied need-display field removal; TUI render update; new fixture + guard extension
-**Deps**: 0016PHA3ANEEACC-005
+**Deps**: `archive/tickets/0016PHA3ANEEACC-005.md`
 
 ## Problem
 
@@ -20,7 +20,7 @@ ORD-HARD-019 (completes the unfinished half of ORD-HARD-010): two embodied leaks
 3. Shared boundary under audit: the projection/view-model seam — what the embodied surface may read. After this ticket, embodied workplace availability derives from context workplace facts (place + believed access) and embodied need display carries band + dominant cause only; `state.workplaces` is banned from the embodied semantic-action builder.
 4. INV-067 — embodied mode shows actor-known reality, hiding hidden truth. INV-069 — the TUI must not query hidden truth in embodied mode; view models are presentation-only. Restated before trusting the ticket narrative.
 5. Actor-knowledge / deterministic-replay surface: the enforcement surfaces are the embodied projection builder (truth read removed; guard extension bans `state.workplaces` there) and the render contract (no `value=` token embodied). Enriching workplace facts with place/believed-access changes the serialized actor-known input shape, so recorded decision context hashes may reprice — diffs must be explained, and ticket 003's from-log re-derivation gate must stay green against the new shape (it re-derives via the production builder, so it verifies rather than fights this change).
-6. Schema extension: workplace facts on the actor-known surface gain place + believed-access attributes (consumers: the planning-context accessors from 0016PHA3ANEEACC-005, the embodied projection, the surface builder). Additive on the fact side. The same change is also the item-5 surface above — keyed separately per the template contract.
+6. Schema extension: workplace facts on the actor-known surface gain place + believed-access attributes (consumers: the planning-context audit coverage from `archive/tickets/0016PHA3ANEEACC-005.md`, the embodied projection, the surface builder). Additive on the fact side. The same change is also the item-5 surface above — keyed separately per the template contract.
 7. Removal blast radius: `value` leaves the embodied `NeedStatusEntry`. Grep-enumerated consumers: `projections.rs` (producer), `view_models.rs` (embodied view shape), `crates/tracewake-tui/src/render.rs:48` (display), TUI render tests (`embodied_flow.rs`). The debug needs report retains exact values (non-diegetic surface, INV-068) — debug consumers unaffected.
 
 ## Architecture Check
@@ -69,7 +69,7 @@ Guard-family extension (ban `state.workplaces` in the embodied builder); the adv
 ## Out of Scope
 
 - Multi-tick staleness of embodied knowledge from the epistemic projection (0016PHA3ANEEACC-008 — Deps on this ticket).
-- The computed-accessor restructure itself (0016PHA3ANEEACC-005).
+- The audit-coverage restructure itself (`archive/tickets/0016PHA3ANEEACC-005.md`).
 - Debug-view redesign (the debug needs report keeps its current exact-value shape).
 
 ## Acceptance Criteria

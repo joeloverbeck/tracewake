@@ -62,7 +62,7 @@ New variant in `agent/routine.rs`; template in `agent/methods.rs::phase3a_routin
 
 - Safety-pressure *generation* changes (`generation.rs` candidate emission is correct today).
 - Cross-window stuck detection and wait-reason discipline (0016PHA3ANEEACC-010).
-- Audit ordering in the transaction (0016PHA3ANEEACC-005 — shares `transaction.rs`; coordinate the mechanical merge).
+- Audit ordering in the transaction (`archive/tickets/0016PHA3ANEEACC-005.md` — shares `transaction.rs`; coordinate the mechanical merge).
 
 ## Acceptance Criteria
 

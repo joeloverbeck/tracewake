@@ -812,7 +812,7 @@ fn source_context_check(
         if proposal
             .parameters
             .get("hidden_truth_audit_actor_known_only")
-            .is_some_and(|value| value == "false")
+            .is_none_or(|value| value != "true")
         {
             return Some(reject(
                 context,
@@ -821,7 +821,7 @@ fn source_context_check(
                 vec![ReasonCode::HiddenTruthInput],
                 checked_facts,
                 "That action was blocked by the actor-known audit.",
-                "agent-origin proposal carried a failed hidden-truth audit",
+                "agent-origin proposal lacked a clean hidden-truth audit stamp",
             ));
         }
         return None;
@@ -1715,6 +1715,42 @@ mod tests {
             event.event_type == EventKind::ActionRejected
                 && payload_value(event, "reason_code") == Some("hidden_truth_input")
         }));
+    }
+
+    #[test]
+    fn agent_source_context_rejects_absent_hidden_truth_audit_stamp() {
+        let registry = phase2a_registry();
+        let mut state = state();
+        let mut agent_state = AgentState::default();
+        let mut log = EventLog::new();
+        let mut proposal = proposal(ProposalOrigin::Agent);
+        proposal.source = Some(ProposalSource::Agent);
+        let mut context = PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: content_manifest_id(),
+            ordering_key: ordering_key(),
+        };
+
+        let result = run_pipeline(&mut context, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            result.report.failed_stage,
+            Some(PipelineStage::SourceContextValidation)
+        );
+        assert_eq!(
+            result.report.reason_codes,
+            vec![ReasonCode::HiddenTruthInput]
+        );
+        assert!(result
+            .report
+            .debug_summary
+            .contains("lacked a clean hidden-truth audit stamp"));
     }
 
     #[test]

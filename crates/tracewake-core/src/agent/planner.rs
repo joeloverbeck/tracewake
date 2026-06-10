@@ -421,16 +421,37 @@ mod tests {
             actor_id(),
             home.clone(),
             known_edges,
-            BTreeMap::from([((home, street.clone()), "door_home_street".to_string())]),
+            BTreeMap::from([(
+                (home.clone(), street.clone()),
+                "door_home_street".to_string(),
+            )]),
             BTreeMap::new(),
             BTreeSet::from(["food_soup_pot".to_string()]),
             BTreeSet::from([place("home")]),
             BTreeMap::new(),
-            vec![observed_fact(
-                "actor_knows_food_source",
-                "food_soup_pot",
-                "test:known_state",
-            )],
+            vec![
+                observed_fact(
+                    "actor_knows_food_source",
+                    "food_soup_pot",
+                    "test:known_state",
+                ),
+                observed_fact("actor_knows_sleep_place", home.as_str(), "test:known_state"),
+                observed_fact(
+                    "known_route_surface",
+                    &format!("{}->{}", home.as_str(), street.as_str()),
+                    "test:known_state",
+                ),
+                observed_fact(
+                    "known_route_surface",
+                    &format!("{}->{}", street.as_str(), office.as_str()),
+                    "test:known_state",
+                ),
+                observed_fact(
+                    "known_closed_door_surface",
+                    &format!("{}->{}@door_home_street", home.as_str(), street.as_str()),
+                    "test:known_state",
+                ),
+            ],
         )
     }
 

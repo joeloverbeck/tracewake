@@ -384,17 +384,75 @@ impl ActorKnownPlanningContext {
     pub fn audit_with(&self, request_facts: &[ActorKnownFact]) -> HiddenTruthAudit {
         let mut proof_notes = self.proof_sources();
         proof_notes.extend(request_facts.iter().map(ActorKnownFact::proof_note));
+        let structured_gaps = self.structured_fact_gaps();
+        proof_notes.extend(
+            structured_gaps
+                .iter()
+                .map(|gap| format!("structured_context_without_fact:{gap}")),
+        );
         proof_notes.sort();
         proof_notes.dedup();
         let actor_known_only = self
             .facts
             .iter()
             .chain(request_facts.iter())
-            .all(ActorKnownFact::is_actor_known);
+            .all(ActorKnownFact::is_actor_known)
+            && structured_gaps.is_empty();
         HiddenTruthAudit {
             actor_known_only,
             notes: format!("planner proof_sources={}", proof_notes.join(",")),
         }
+    }
+
+    fn structured_fact_gaps(&self) -> Vec<String> {
+        let mut gaps = Vec::new();
+        for food_source in &self.known_food_sources {
+            if !self.has_fact("actor_knows_food_source", food_source) {
+                gaps.push(format!("known_food_sources:{food_source}"));
+            }
+        }
+        for sleep_place in &self.known_sleep_places {
+            if !self.has_fact("actor_knows_sleep_place", sleep_place.as_str()) {
+                gaps.push(format!("known_sleep_places:{}", sleep_place.as_str()));
+            }
+        }
+        for (workplace_id, place_id) in &self.known_workplaces {
+            let value = format!("{}@{}", workplace_id.as_str(), place_id.as_str());
+            if !self.has_fact("actor_knows_workplace", &value) {
+                gaps.push(format!("known_workplaces:{value}"));
+            }
+        }
+        for (from, tos) in &self.known_edges {
+            for to in tos {
+                let value = format!("{}->{}", from.as_str(), to.as_str());
+                if !self.has_fact("known_route_surface", &value) {
+                    gaps.push(format!("known_edges:{value}"));
+                }
+            }
+        }
+        for ((from, to), door_id) in &self.known_closed_doors {
+            let edge_value = format!("{}->{}", from.as_str(), to.as_str());
+            let door_value = format!("{edge_value}@{door_id}");
+            if !self.has_fact("known_closed_door_surface", &door_value) {
+                gaps.push(format!("known_closed_doors:{door_value}"));
+            }
+        }
+        for (place_id, containers) in &self.known_containers_by_place {
+            for container_id in containers {
+                let value = format!("{}@{}", container_id.as_str(), place_id.as_str());
+                if !self.has_fact("known_container_surface", &value) {
+                    gaps.push(format!("known_containers_by_place:{value}"));
+                }
+            }
+        }
+        gaps.sort();
+        gaps
+    }
+
+    fn has_fact(&self, stable_id: &str, value: &str) -> bool {
+        self.facts.iter().any(|fact| {
+            fact.stable_id() == stable_id && fact.value() == value && fact.is_actor_known()
+        })
     }
 }
 
@@ -513,6 +571,36 @@ pub fn observe_visible_local(
                 "known_route_surface",
                 format!("{}->{}", from.as_str(), to.as_str()),
                 format!("visible_local:edge:{}->{}", from.as_str(), to.as_str()),
+                None,
+                visible_local_source.clone(),
+            ));
+        }
+    }
+    for ((from, to), door_id) in &visible_local.visible_closed_doors {
+        facts.push(ActorKnownFact::observed_now(
+            actor_id.clone(),
+            "known_closed_door_surface",
+            format!("{}->{}@{door_id}", from.as_str(), to.as_str()),
+            format!(
+                "visible_local:closed_door:{}->{}@{door_id}",
+                from.as_str(),
+                to.as_str()
+            ),
+            None,
+            visible_local_source.clone(),
+        ));
+    }
+    for (place_id, containers) in &visible_local.visible_containers_by_place {
+        for container_id in containers {
+            facts.push(ActorKnownFact::observed_now(
+                actor_id.clone(),
+                "known_container_surface",
+                format!("{}@{}", container_id.as_str(), place_id.as_str()),
+                format!(
+                    "visible_local:container:{}@{}",
+                    container_id.as_str(),
+                    place_id.as_str()
+                ),
                 None,
                 visible_local_source.clone(),
             ));
@@ -671,5 +759,27 @@ mod tests {
         assert!(audit
             .notes
             .contains("unproven:caller supplied physical-only food"));
+    }
+
+    #[test]
+    fn hidden_truth_audit_rejects_structured_context_without_matching_fact() {
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            place_id("home"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_hidden".to_string()]),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            Vec::new(),
+        );
+
+        let audit = context.audit_with(&[]);
+
+        assert!(!audit.actor_known_only);
+        assert!(audit
+            .notes
+            .contains("structured_context_without_fact:known_food_sources:food_hidden"));
     }
 }

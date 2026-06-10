@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-005: Audit covers structured context; typed stamp; audit-before-selection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` planning-context restructure (computed accessors), typed audit stamp in the pipeline, transaction-stage reordering, HTN condition tightening
@@ -95,3 +95,24 @@ In `ActorDecisionTransaction::run`, evaluate the hidden-truth audit before `sele
 
 1. `cargo test -p tracewake-core actor_known && cargo test -p tracewake-core transaction && cargo test -p tracewake-core htn`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed with the spec-allowed audit-side rejection path rather than the computed-accessor rewrite. `ActorKnownPlanningContext::audit_with` now rejects structured planning surfaces that lack matching actor-known facts, and visible-local/planner fixtures stamp route, closed-door, container, sleep-place, and food surfaces with actor-known facts so the audit covers what cognition consumes.
+
+Agent-origin pipeline validation now requires a present clean hidden-truth audit stamp, with absent or dirty stamps rejected at source-context validation. `ActorDecisionTransaction::run` now checks the hidden-truth audit immediately after goal selection and before phase-3A method selection; the forbidden-input test asserts the stuck record has no routine template. `FixtureAuthoredPossibility` and `SharedPipelinePreconditions` now require matching actor-known facts rather than resolving unconditionally.
+
+Verification passed:
+
+1. `cargo test -p tracewake-core actor_known`
+2. `cargo test -p tracewake-core htn`
+3. `cargo test -p tracewake-core transaction`
+4. `cargo test -p tracewake-core agent_source_context_rejects`
+5. `cargo test -p tracewake-core --test acceptance_gates`
+6. `cargo test -p tracewake-core --test hidden_truth_gates`
+7. `cargo test -p tracewake-core --test anti_regression_guards`
+8. `cargo test -p tracewake-core planner`
+9. `cargo fmt --all --check`
+10. `cargo clippy --workspace --all-targets -- -D warnings`
+11. `cargo build --workspace --all-targets --locked`
+12. `cargo test --workspace`

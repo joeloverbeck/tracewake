@@ -148,6 +148,16 @@ impl ActorDecisionTransaction {
                     }),
                 };
             };
+            if !selection.trace.hidden_truth_audit_result.actor_known_only {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
+                        &input.actor_id,
+                        input.decision_tick,
+                        &selection.selected_goal,
+                        &selection.trace,
+                    )),
+                };
+            }
 
             match select_phase3a_method(
                 &selection.selected_goal,
@@ -170,16 +180,6 @@ impl ActorDecisionTransaction {
                 }
             }
         };
-        if !selection.trace.hidden_truth_audit_result.actor_known_only {
-            return ActorDecisionTransactionOutcome::Stuck {
-                diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
-                    &input.actor_id,
-                    input.decision_tick,
-                    &selection.selected_goal,
-                    &selection.trace,
-                )),
-            };
-        }
         let method_goal = selection.selected_goal.clone();
 
         let step =
@@ -647,14 +647,32 @@ mod tests {
             BTreeSet::from(["food_stew".to_string()]),
             BTreeSet::from([home.clone()]),
             BTreeMap::new(),
-            vec![ActorKnownFact::observed_now(
-                actor_id(),
-                "actor_knows_food_source",
-                "food_stew",
-                "test:visible_food",
-                None,
-                test_source(),
-            )],
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "test:visible_food",
+                    None,
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_sleep_place",
+                    home.as_str(),
+                    "test:visible_sleep_place",
+                    None,
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "known_route_surface",
+                    format!("{}->{}", home.as_str(), workshop.as_str()),
+                    "test:visible_route",
+                    None,
+                    test_source(),
+                ),
+            ],
         )
     }
 
@@ -828,6 +846,7 @@ mod tests {
         };
 
         assert_eq!(diagnostic.concrete_blocker, "hidden truth input");
+        assert_eq!(diagnostic.routine_template_id, None);
         assert_eq!(
             diagnostic.typed_diagnostic.responsible_layer,
             ResponsibleLayer::CandidateGeneration

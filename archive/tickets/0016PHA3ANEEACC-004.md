@@ -76,7 +76,7 @@ Negative fixture `dangling_source_event_ids_fail_closed_001` (registered in `neg
 
 ## Out of Scope
 
-- Making structured context fields computed accessors over audited facts (0016PHA3ANEEACC-005 — same files; that ticket Deps this one).
+- Making structured context consumption covered by audited facts (`archive/tickets/0016PHA3ANEEACC-005.md` — same files; that ticket Deps this one).
 - Workplace-fact attribute changes for embodied availability (0016PHA3ANEEACC-007).
 - The from-log context-hash gate (`archive/tickets/0016PHA3ANEEACC-003.md`).
 
