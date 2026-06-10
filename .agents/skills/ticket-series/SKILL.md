@@ -77,6 +77,12 @@ criteria must pass, or the ticket must be explicitly blocked with evidence.
 
 After all tickets in the series are complete:
 
+Complete, archive, and commit the final ticket before spec archival when the
+final ticket is ordinary implementation work. If the final ticket is itself the
+capstone acceptance artifact or spec-closeout vehicle, it may be combined with
+the spec archive/truthing commit; record that choice and any resulting
+deviations in the ticket and spec outcomes.
+
 1. Re-read the reference spec and verify every acceptance item is either done,
    explicitly rejected, deferred, or not implemented.
    - If the final ticket says spec archival is out of scope, deferred, or left
@@ -113,6 +119,11 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
    Check active reports and acceptance artifacts for recorded deferrals, live
    ticket paths, live spec paths, and target-commit claims that became stale
    after the last ticket or spec archive.
+   If the series commits verifier baselines or generated outputs, run the exact
+   comparison command that will be used later, inspect the generated file
+   format, and refresh the committed baseline when that file is the intended
+   truth source. Leave transient output directories untracked unless the
+   ticket/spec explicitly requires archiving them.
 6. Re-read updated ticket/spec outcomes and reports after the final verification
    run. Confirm the recorded commands, paths, statuses, and skipped/deviated
    checks match what actually happened. If a report originally recorded a
@@ -132,7 +143,10 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
    - the spec archive/truthing commit exists.
 9. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
-   checks, and required commits are done.
+   checks, and required commits are done. On a resumed `/goal` turn, re-run the
+   active-path, archive-path, reference, status, and final-commit audit against
+   the live checkout before marking complete; do not rely on a prior final
+   response alone.
 
 ## Reporting
 
