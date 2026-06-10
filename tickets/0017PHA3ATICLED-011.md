@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — verification-only capstone; one new report document
-**Deps**: `0017PHA3ATICLED-010` (transitively covers `-001`…`-009`; the corrected 0016 report is itself an evidence item); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (§7)
+**Deps**: `archive/tickets/0017PHA3ATICLED-010.md` (transitively covers `-001`…`-009`; the corrected 0016 report is itself an evidence item); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (§7)
 
 ## Problem
 

@@ -28,6 +28,11 @@ Needs are bounded pressures with event-sourced changes and actor-known visibilit
 
 A need may produce candidate families such as eat known food, search known surfaces, ask, travel to known place, sleep at known sleep place, continue work, wait with reason, or abandon an intention. It may not produce a direct primitive action using hidden truth.
 
+Need accounting is single-charge-per-actor/per-need/per-tick across both passive
+window deltas and action-emitted awake deltas. A modeled wait or other ordinary
+action that advances a tick must leave ledger coverage that prevents the later
+passive window from charging the same actor/need/tick again.
+
 ## Intentions
 
 Intentions are durable commitments. They prevent jitter and make action history explainable.

@@ -60,6 +60,15 @@ holder_known_context:
 
 Every item used by candidate generation, method selection, local planning, speech interpretation, institutional procedure, view-model affordance selection, lead interpretation, or LOD promotion must be addressable inside this packet.
 
+### Projection freshness
+
+Projection-backed holder knowledge uses one freshness rule across no-human
+cognition and embodied affordance views. Knowledge from the actor's current
+perception window may surface as `observed_now`; older usable knowledge remains
+available only as remembered belief carrying the original source timing and
+provenance. A consumer may not restamp an aged projection record as a current
+observation merely because it is selected for a later decision.
+
 ### Provenance classes
 
 Allowed provenance classes include:

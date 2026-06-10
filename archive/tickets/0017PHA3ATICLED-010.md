@@ -1,6 +1,6 @@
 # 0017PHA3ATICLED-010: Audit-history corrections and conformance documentation
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — markdown documentation only
@@ -79,3 +79,28 @@ Add the §5.6 rows (each citing its implementing symbol/test); add overturned-cl
 
 1. `grep -n "2026 correction" reports/0016_ord_life_cert_scoped_acceptance.md`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-10.
+
+- Added `## 2026 correction (spec 0017)` to
+  `reports/0016_ord_life_cert_scoped_acceptance.md`, recording the
+  loud-rejection-only schema contract, the corrected embodied workplace
+  divergence pair, and the inline content-validation test convention.
+- Added 0017 conformance-index rows for tick-charge attribution, open-duration
+  authority, projection freshness, provenance witness auditing, replay payload
+  evidence, believed-access embodied availability, content policy registries,
+  lock-layer durability, and the bounded generative lock tier.
+- Added the execution single-charge clarification for action-emitted awake
+  deltas and the architecture projection-freshness clarification.
+
+Verification:
+
+- `grep -n "2026 correction (spec 0017)" reports/0016_ord_life_cert_scoped_acceptance.md`
+- `grep -c "0017" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `git diff --check`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
