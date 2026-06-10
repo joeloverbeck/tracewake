@@ -4,11 +4,11 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — acceptance-evidence report only
-**Deps**: 0016PHA3ANEEACC-013
+**Deps**: `archive/tickets/0016PHA3ANEEACC-013.md`
 
 ## Problem
 
-Spec 0016 §7: the implementation commits need a recorded acceptance artifact — `reports/0016_ord_life_cert_scoped_acceptance.md` — assembling the evidence that each finding's correction landed and its lock can fail. This is the capstone: it introduces no production logic and exercises the pipeline the earlier tickets composed (its `Deps: 0016PHA3ANEEACC-013` transitively covers the entire batch — 013 → {003, 008, 012} → all implementation tickets).
+Spec 0016 §7: the implementation commits need a recorded acceptance artifact — `reports/0016_ord_life_cert_scoped_acceptance.md` — assembling the evidence that each finding's correction landed and its lock can fail. This is the capstone: it introduces no production logic and exercises the pipeline the earlier tickets composed (its `Deps` entry, `archive/tickets/0016PHA3ANEEACC-013.md`, transitively covers the entire batch — 013 → {003, 008, 012} → all implementation tickets).
 
 ## Assumption Reassessment (2026-06-10)
 

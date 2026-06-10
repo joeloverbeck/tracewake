@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-013: Conformance-index rows, overturned-claims record, exec-06 stuck clauses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — documentation-only (architecture conformance index + execution-tier clarification)
@@ -75,3 +75,24 @@ Add the cross-tick stuck-detection categories (no-progress-past-expected-window,
 1. `grep -n "need-tick\|terminal-set\|re-derivation\|cognition-substrate\|workspace census" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
 2. `grep -n "no-progress\|repeated-idle" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Added six Phase 3A conformance rows for need-tick authority, duration terminal-set, context-hash re-derivation, cognition-substrate source, embodied workplace availability source, and lock-layer workspace census.
+- Added an audit-history overturn note for the 0015 passive-delta double-counting and context-hash rebuild claims, citing `ORD-HARD-014` and `ORD-HARD-016`.
+- Clarified execution doc 06 with cross-tick stuck-detection categories `no-progress-past-expected-window` and `repeated-idle`.
+
+Deviations:
+
+- None. This was documentation-only; no production code changed.
+
+Verification:
+
+- `grep -n "need-tick\\|terminal-set\\|re-derivation\\|cognition-substrate\\|workspace census" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `grep -n "ORD-HARD-014\\|ORD-HARD-016\\|double-count\\|context-hash rebuild" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `grep -n "no-progress\\|repeated-idle" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+- `cargo test --workspace`
