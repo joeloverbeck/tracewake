@@ -96,6 +96,16 @@ pub const AGENT_STATE_CHECKSUM_COVERAGE: &[StateChecksumCoverage] = &[
         field_name: "stuck_diagnostics",
         field_family: "stuck_diagnostic",
     },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "need_threshold_crossings",
+        field_family: "need_threshold_crossing",
+    },
+    StateChecksumCoverage {
+        state_kind: ChecksumStateKind::Agent,
+        field_name: "ordinary_life_episodes",
+        field_family: "ordinary_life_episode",
+    },
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -395,6 +405,39 @@ pub fn compute_agent_state_checksum(
             "stuck_diagnostic|id={}|canonical={}",
             diagnostic_id.as_str(),
             diagnostic.serialize_canonical()
+        ));
+    }
+
+    for (event_id, crossing) in &state.need_threshold_crossings {
+        lines.push(format!(
+            "need_threshold_crossing|event={}|actor={}|need={}|from_value={}|to_value={}|from_band={}|to_band={}",
+            event_id.as_str(),
+            crossing.actor_id.as_str(),
+            crossing.need_kind.stable_id(),
+            crossing.from_value,
+            crossing.to_value,
+            crossing.from_band,
+            crossing.to_band
+        ));
+    }
+
+    for (event_id, episode) in &state.ordinary_life_episodes {
+        lines.push(format!(
+            "ordinary_life_episode|event={}|kind={}|actor={}|proposal={}|tick={}|summary={}",
+            event_id.as_str(),
+            episode.event_kind,
+            episode
+                .actor_id
+                .as_ref()
+                .map(crate::ids::ActorId::as_str)
+                .unwrap_or("-"),
+            episode
+                .proposal_id
+                .as_ref()
+                .map(crate::ids::ProposalId::as_str)
+                .unwrap_or("-"),
+            episode.sim_tick.value(),
+            episode.summary
         ));
     }
 

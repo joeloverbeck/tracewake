@@ -1810,6 +1810,43 @@ fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_par
 }
 
 #[test]
+fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state() {
+    use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
+    use tracewake_core::events::EventKind;
+
+    let allowlist = AGENT_WORLD_NOOP_ALLOWLIST
+        .iter()
+        .map(|kind| kind.stable_id())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        allowlist,
+        vec![
+            "candidate_goals_evaluated",
+            "food_consumed",
+            "continue_routine_proposed",
+            "continue_routine_accepted",
+            "continue_routine_rejected",
+            "no_human_day_started",
+            "no_human_day_completed",
+        ]
+    );
+    for materialized in [
+        EventKind::NeedThresholdCrossed,
+        EventKind::SleepStarted,
+        EventKind::SleepCompleted,
+        EventKind::SleepInterrupted,
+        EventKind::FoodServiceUsed,
+        EventKind::EatFailed,
+        EventKind::WorkBlockStarted,
+        EventKind::WorkBlockCompleted,
+        EventKind::WorkBlockFailed,
+    ] {
+        assert!(!AGENT_WORLD_NOOP_ALLOWLIST.contains(&materialized));
+    }
+}
+
+#[test]
 fn guard_002_agent_state_keeps_typed_trace_and_diagnostic_records() {
     assert!(
         STATE_RS.contains("BTreeMap<DecisionTraceId, DecisionTraceRecord>"),

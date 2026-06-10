@@ -5,8 +5,8 @@ use crate::agent::{
 };
 use crate::ids::{
     ActorId, ContainerId, ControllerId, DecisionTraceId, DoorId, ExitId, FoodSupplyId, IntentionId,
-    ItemId, PlaceId, RoutineExecutionId, SchemaVersion, SleepAffordanceId, StuckDiagnosticId,
-    WorkplaceId,
+    ItemId, PlaceId, ProposalId, RoutineExecutionId, SchemaVersion, SleepAffordanceId,
+    StuckDiagnosticId, WorkplaceId,
 };
 use crate::location::Location;
 
@@ -144,6 +144,29 @@ pub struct AgentState {
     pub(crate) routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
     pub(crate) decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
     pub(crate) stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+    pub(crate) need_threshold_crossings: BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord>,
+    pub(crate) ordinary_life_episodes: BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NeedThresholdCrossingRecord {
+    pub event_id: crate::ids::EventId,
+    pub actor_id: ActorId,
+    pub need_kind: NeedKind,
+    pub from_value: u16,
+    pub to_value: u16,
+    pub from_band: String,
+    pub to_band: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct OrdinaryLifeEpisodeRecord {
+    pub event_id: crate::ids::EventId,
+    pub event_kind: String,
+    pub actor_id: Option<ActorId>,
+    pub proposal_id: Option<ProposalId>,
+    pub sim_tick: crate::time::SimTick,
+    pub summary: String,
 }
 
 impl PhysicalState {
@@ -246,6 +269,8 @@ impl AgentState {
             routine_executions,
             decision_traces,
             stuck_diagnostics,
+            need_threshold_crossings: BTreeMap::new(),
+            ordinary_life_episodes: BTreeMap::new(),
         }
     }
 
@@ -271,6 +296,18 @@ impl AgentState {
 
     pub fn stuck_diagnostics(&self) -> &BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
         &self.stuck_diagnostics
+    }
+
+    pub fn need_threshold_crossings(
+        &self,
+    ) -> &BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord> {
+        &self.need_threshold_crossings
+    }
+
+    pub fn ordinary_life_episodes(
+        &self,
+    ) -> &BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord> {
+        &self.ordinary_life_episodes
     }
 }
 

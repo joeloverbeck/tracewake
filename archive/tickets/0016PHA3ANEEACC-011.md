@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-011: Replay robustness — ordering verification, WorldNoOp census, poisoned rebuild
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` log-ordering verification, agent-event allowlist census, episode-state materialization into `AgentState` (checksum registry growth), fail-fast rebuild, schema-upcast fixture
@@ -99,3 +99,20 @@ A synthetic V0→V1 upcast fixture locking the `EVENT_SCHEMA_REGISTRY` migration
 
 1. `cargo test -p tracewake-core replay && cargo test -p tracewake-core events && cargo test -p tracewake-content golden`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented replay robustness hardening for ORD-HARD-024:
+
+- `EventLog::deserialize_canonical` now verifies stored `global_order` and per-stream positions instead of reassigning them; `rebuild_projection` also rejects in-memory logs whose stored order is inconsistent.
+- `rebuild_projection` stops at the first world, agent, or epistemic application error, leaving the replay report non-authoritative through existing error fields and `matches_expected` semantics.
+- Agent replay now materializes need-threshold crossings and sleep/eat/work episode events into checksummed `AgentState` projections, shrinking the remaining `WorldNoOp` surface to an explicit allowlist.
+- Added focused locks for reordered serialized logs, reordered in-memory logs, corrupt midstream agent events, materialized agent episode state, and the explicit no-op allowlist. Existing unsupported-schema tests continue to cover loud migration/unsupported-history behavior.
+
+Verification passed:
+
+1. `cargo test -p tracewake-core replay && cargo test -p tracewake-core events && cargo test -p tracewake-content golden`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`
