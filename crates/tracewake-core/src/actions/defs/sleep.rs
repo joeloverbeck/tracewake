@@ -60,6 +60,7 @@ pub fn build_sleep_start_event(
     event.proposal_id = Some(proposal.proposal_id.clone());
     event.participants = vec![actor_id.to_string()];
     event.payload = vec![
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("duration_ticks", duration_ticks.to_string()),
         PayloadField::new(
@@ -316,6 +317,7 @@ fn build_sleep_end_events(
     lifecycle.proposal_id = sleep_started_event.proposal_id.clone();
     lifecycle.participants = vec![actor_id.to_string()];
     lifecycle.payload = vec![
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("elapsed_ticks", sleep_ticks.to_string()),
         PayloadField::new("reason", reason),

@@ -6,6 +6,7 @@ use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{BlockerCode, NeedChangeCause, NeedKind, NeedState, ResponsibleLayer};
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
+use tracewake_core::events::apply::{apply_agent_event, ApplyError};
 use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream, PayloadField};
 use tracewake_core::ids::{
@@ -76,6 +77,7 @@ fn caused_event(
     )
     .unwrap();
     event.actor_id = Some(actor_id());
+    event.payload = vec![PayloadField::new("payload_schema_version", "1")];
     event
 }
 
@@ -245,6 +247,60 @@ fn duplicate_duration_terminal_poisons_rebuild_001() {
         rebuild.invariant_violations
     );
     assert!(!replay.matches_expected);
+}
+
+#[test]
+fn forged_payload_schema_version_rejected_for_materialized_agent_replay_001() {
+    let initial_world = world_state();
+    let initial_agent_state = agent_state();
+    let mut log = EventLog::new();
+    let forged = append_to_log(
+        &mut log,
+        caused_event(
+            "event_work_started_forged_payload_schema",
+            EventKind::WorkBlockStarted,
+            0,
+            vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+        ),
+    );
+    let mut forged_live = forged.clone();
+    forged_live.payload = vec![PayloadField::new("payload_schema_version", "2")];
+
+    let mut live_agent = initial_agent_state.clone();
+    assert!(matches!(
+        apply_agent_event(&mut live_agent, &forged_live),
+        Err(ApplyError::BadPayload {
+            key: "payload_schema_version",
+            value
+        }) if value == "2"
+    ));
+
+    let mut replay_log = EventLog::new();
+    append_to_log(&mut replay_log, forged_live);
+    let context = checksum_context(
+        "forged_payload_schema_version_rejected_for_materialized_agent_replay_001",
+        &replay_log,
+    );
+    let replay = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &replay_log,
+        &context,
+        Some(&initial_world),
+        None,
+        None,
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(
+        replay.agent_application_errors.iter().any(|failure| {
+            failure.issue.contains("BadPayload")
+                && failure.issue.contains("payload_schema_version")
+                && failure.issue.contains("\"2\"")
+        }),
+        "{:?}",
+        replay.agent_application_errors
+    );
 }
 
 #[test]

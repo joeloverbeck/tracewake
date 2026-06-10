@@ -76,6 +76,7 @@ pub fn build_continue_routine_event(
     event.participants = vec![actor_id.to_string(), intention_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("intention_id", intention_id.as_str()),
         PayloadField::new("next_action_id", next_action_id.as_str()),

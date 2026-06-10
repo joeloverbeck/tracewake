@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-004: Payload schema-version gates on materialized agent kinds
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, event producers for the materialized agent kinds); new replay gate; apply-arm census; golden checksum updates
@@ -91,3 +91,27 @@ Regenerate/reprice golden expectations changed by the payload addition.
 
 1. `cargo test -p tracewake-core payload_schema_version`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Added `payload_schema_version = "1"` to the production materialized-agent payload producers for sleep lifecycle events, work lifecycle/failure events, eat failure events, and continue-routine proposal events.
+- Required `payload_schema_version = "1"` before `apply.rs` inserts ordinary-life episode, candidate-goal evaluation, or continue-routine arbitration records.
+- Added `forged_payload_schema_version_rejected_for_materialized_agent_replay_001`, proving a forged materialized-agent payload version is rejected by live apply and recorded as a replay agent-application failure.
+- Added `materialized_agent_apply_arms_require_payload_schema_version`, a source census that keeps the materialized-agent apply arms gated.
+
+Deviations from original plan:
+
+- `FoodServiceUsed` is included in the gated ordinary-life episode arm because current code materializes it with the sleep/work/eat episode family. No production `FoodServiceUsed`, `CandidateGoalsEvaluated`, `ContinueRoutineAccepted`, or `ContinueRoutineRejected` emitter was present under `crates/tracewake-core/src`; those kinds now fail closed if appended without the payload version.
+- No golden expectation files needed updates; the full workspace test suite remained green after producers began stamping the field.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core payload_schema_version`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

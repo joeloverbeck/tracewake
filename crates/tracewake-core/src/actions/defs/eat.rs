@@ -182,6 +182,7 @@ fn eat_failed_event(
     event.participants = vec![actor_id.to_string(), food_supply_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("food_supply_id", food_supply_id),
         PayloadField::new("blocker_kind", blocker_kind),

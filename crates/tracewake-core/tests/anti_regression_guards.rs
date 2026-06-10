@@ -2340,6 +2340,74 @@ fn materialized_agent_payload_records_keep_payload_fields() {
 }
 
 #[test]
+fn materialized_agent_apply_arms_require_payload_schema_version() {
+    let required_call = r#"require_payload_version(&payload, "payload_schema_version", "1")"#;
+    let episode_arm_tail = EVENTS_APPLY_RS
+        .split("EventKind::SleepStarted")
+        .nth(1)
+        .expect("ordinary-life episode materialization arm is present")
+        .split("EventKind::CandidateGoalsEvaluated")
+        .next()
+        .expect("ordinary-life episode arm is bounded by candidate-goal arm");
+    let episode_arm = format!("EventKind::SleepStarted{episode_arm_tail}");
+    for kind in [
+        "SleepStarted",
+        "SleepCompleted",
+        "SleepInterrupted",
+        "FoodServiceUsed",
+        "EatFailed",
+        "WorkBlockStarted",
+        "WorkBlockCompleted",
+        "WorkBlockFailed",
+    ] {
+        assert!(
+            episode_arm.contains(&format!("EventKind::{kind}")),
+            "ordinary-life episode arm must still include EventKind::{kind}"
+        );
+    }
+    assert!(
+        episode_arm.contains(required_call),
+        "ordinary-life episode materialization arm must require payload_schema_version"
+    );
+
+    let candidate_arm_tail = EVENTS_APPLY_RS
+        .split("EventKind::CandidateGoalsEvaluated")
+        .nth(1)
+        .expect("candidate-goal materialization arm is present")
+        .split("EventKind::ContinueRoutineProposed")
+        .next()
+        .expect("candidate-goal arm is bounded by continue-routine arm");
+    let candidate_arm = format!("EventKind::CandidateGoalsEvaluated{candidate_arm_tail}");
+    assert!(
+        candidate_arm.contains(required_call),
+        "candidate-goal materialization arm must require payload_schema_version"
+    );
+
+    let continue_arm_tail = EVENTS_APPLY_RS
+        .split("EventKind::ContinueRoutineProposed")
+        .nth(1)
+        .expect("continue-routine materialization arm is present")
+        .split("kind if AGENT_WORLD_NOOP_ALLOWLIST")
+        .next()
+        .expect("continue-routine arm is bounded by allowlist arm");
+    let continue_arm = format!("EventKind::ContinueRoutineProposed{continue_arm_tail}");
+    for kind in [
+        "ContinueRoutineProposed",
+        "ContinueRoutineAccepted",
+        "ContinueRoutineRejected",
+    ] {
+        assert!(
+            continue_arm.contains(&format!("EventKind::{kind}")),
+            "continue-routine arm must still include EventKind::{kind}"
+        );
+    }
+    assert!(
+        continue_arm.contains(required_call),
+        "continue-routine materialization arm must require payload_schema_version"
+    );
+}
+
+#[test]
 fn guard_002_agent_state_keeps_typed_trace_and_diagnostic_records() {
     assert!(
         STATE_RS.contains("BTreeMap<DecisionTraceId, DecisionTraceRecord>"),

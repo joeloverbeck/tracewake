@@ -277,6 +277,7 @@ fn work_started_event(
     event.participants = vec![actor_id.to_string(), workplace.workplace_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("workplace_id", workplace.workplace_id.as_str()),
         PayloadField::new("place_id", workplace.place_id.as_str()),
@@ -336,6 +337,7 @@ fn work_completed_event(
     event.participants = vec![actor_id.to_string(), workplace_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("workplace_id", workplace_id),
         PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
@@ -377,6 +379,7 @@ fn work_failed_event(
     event.participants = vec![actor_id.to_string(), workplace.workplace_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("workplace_id", workplace.workplace_id.as_str()),
         PayloadField::new("blocker_kind", blocker_kind),
@@ -424,6 +427,7 @@ fn work_failed_from_start_event(
     event.participants = vec![actor_id.to_string(), workplace_id.to_string()];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("workplace_id", workplace_id),
         PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
