@@ -580,7 +580,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state
             .places
             .insert(place_id(), PlaceState::new(place_id(), "Office"));
@@ -589,11 +589,26 @@ mod tests {
             .insert(actor_id(), ActorBody::new(actor_id(), place_id()));
         state.workplaces.insert(
             workplace_id(),
-            WorkplaceState::new(workplace_id(), place_id(), "service_completed_placeholder"),
+            WorkplaceState::new(
+                workplace_id(),
+                place_id(),
+                4,
+                8,
+                4,
+                900,
+                900,
+                "service_completed_placeholder",
+            ),
         );
         state.sleep_affordances.insert(
             SleepAffordanceId::new("bed_office").unwrap(),
-            SleepAffordanceState::new(SleepAffordanceId::new("bed_office").unwrap(), place_id()),
+            SleepAffordanceState::new(
+                SleepAffordanceId::new("bed_office").unwrap(),
+                place_id(),
+                4,
+                20,
+                2,
+            ),
         );
         state
     }

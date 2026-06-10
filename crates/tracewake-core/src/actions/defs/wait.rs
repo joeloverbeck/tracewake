@@ -284,7 +284,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state.actors.insert(
             actor_id(),
             ActorBody::new(actor_id(), crate::ids::PlaceId::new("shop_front").unwrap()),

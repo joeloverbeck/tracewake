@@ -287,9 +287,9 @@ pub struct RestrictedProvenance {
 ///
 /// ```compile_fail
 /// use tracewake_core::agent::ActorKnownPlanningContext;
-/// use tracewake_core::state::PhysicalState;
+/// use tracewake_core::state::{NeedModelState, PhysicalState};
 ///
-/// let _context = ActorKnownPlanningContext::from(PhysicalState::default());
+/// let _context = ActorKnownPlanningContext::from(PhysicalState::empty(NeedModelState::new(5, 3)));
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ActorKnownPlanningContext {

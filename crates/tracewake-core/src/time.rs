@@ -57,13 +57,13 @@ mod tests {
     #[test]
     fn passive_awake_need_deltas_are_deterministic_and_non_reducing() {
         assert_eq!(
-            passive_awake_need_deltas(&NeedModelState::default(), 3),
+            passive_awake_need_deltas(&NeedModelState::new(5, 3), 3),
             PassiveNeedDeltas {
                 hunger_delta: 15,
                 fatigue_delta: 9,
             }
         );
-        assert!(passive_awake_need_deltas(&NeedModelState::default(), 10).hunger_delta >= 0);
-        assert!(passive_awake_need_deltas(&NeedModelState::default(), 10).fatigue_delta >= 0);
+        assert!(passive_awake_need_deltas(&NeedModelState::new(5, 3), 10).hunger_delta >= 0);
+        assert!(passive_awake_need_deltas(&NeedModelState::new(5, 3), 10).fatigue_delta >= 0);
     }
 }

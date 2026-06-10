@@ -10,8 +10,8 @@ use tracewake_core::ids::{
     RoutineExecutionId, SleepAffordanceId, StuckDiagnosticId, WorkplaceId,
 };
 use tracewake_core::state::{
-    ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, PhysicalState,
-    PlaceState, SleepAffordanceState, WorkplaceState,
+    ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, NeedModelState,
+    PhysicalState, PlaceState, SleepAffordanceState, WorkplaceState,
 };
 
 #[derive(Default)]
@@ -88,6 +88,7 @@ impl PhysicalSeed {
             self.food_supplies,
             self.workplaces,
             self.sleep_affordances,
+            NeedModelState::new(5, 3),
         )
     }
 }

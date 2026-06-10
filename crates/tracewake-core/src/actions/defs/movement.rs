@@ -191,7 +191,7 @@ mod tests {
 
     fn state(with_adjacency: bool, door_open: bool) -> PhysicalState {
         let (actor_id, from, to) = ids();
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let mut from_place = PlaceState::new(from.clone(), "Shop front");
         if with_adjacency {
             from_place.adjacent_place_ids.insert(to.clone());

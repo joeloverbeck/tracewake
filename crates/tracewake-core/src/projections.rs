@@ -1181,7 +1181,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let mut shop = PlaceState::new(place_id("shop_front"), "Shop front");
         shop.adjacent_place_ids.insert(place_id("back_room"));
         state.places.insert(place_id("shop_front"), shop);
@@ -1309,6 +1309,9 @@ mod tests {
             SleepAffordanceState::new(
                 SleepAffordanceId::new("bed_tomas").unwrap(),
                 place_id("shop_front"),
+                4,
+                20,
+                2,
             ),
         );
         let state = PhysicalState::from_seed_parts(
@@ -1320,6 +1323,7 @@ mod tests {
             base.food_supplies().clone(),
             base.workplaces().clone(),
             sleep_affordances,
+            crate::state::NeedModelState::new(5, 3),
         );
         let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(1));
         let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
@@ -1723,6 +1727,11 @@ mod tests {
         let mut workplace = WorkplaceState::new(
             WorkplaceId::new("workplace_tomas").unwrap(),
             place_id("shop_front"),
+            4,
+            8,
+            4,
+            900,
+            900,
             "repair_output",
         );
         workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));

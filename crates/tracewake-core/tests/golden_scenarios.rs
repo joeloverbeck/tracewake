@@ -150,6 +150,9 @@ fn initial_state(container_open: bool, door_open: bool) -> PhysicalState {
         SleepAffordanceState::new(
             SleepAffordanceId::new("bed_shop_front").unwrap(),
             shop.clone(),
+            4,
+            20,
+            2,
         ),
     );
 

@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-009: Directional content validation, required tuning, scanned-field registry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` numeric/prose validation rules; `tracewake-core` tuning-constructor hardening (`Default` deletion); two new negative fixtures; schema String-field census
@@ -96,3 +96,25 @@ Route `display_label` (and every `FixtureSchema` `String` field) through the scr
 
 1. `cargo test -p tracewake-content validate && cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented ORD-HARD-022 content/tuning hardening:
+
+- `validate_state` now rejects negative or excessive need/sleep/work/food tuning values with typed validation errors.
+- `places[*].display_label`, affordance targets, and routine failure-mode strings now pass through script/prose marker scanning.
+- Added a schema string-field census test so new `FixtureSchema` string fields fail until classified in the scan registry.
+- Removed `Default` for `NeedModelState`; `PhysicalState` no longer derives `Default`.
+- Added explicit `PhysicalState::empty(NeedModelState)`, required `NeedModelState` in `from_seed_parts`, and made sleep/workplace constructors require tuning values.
+- Updated test construction sites to pass explicit authored tuning.
+
+The two requested negative content cases are covered by focused content validation tests (`negative_need_tuning_direction_is_rejected` and `display_label_script_marker_is_rejected`). The existing `negative_fixture_runner` remains compile-fail-crate oriented and was verified unchanged.
+
+Verification run:
+
+- `cargo test -p tracewake-content validate`
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

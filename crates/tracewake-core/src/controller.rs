@@ -207,7 +207,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let place_id = PlaceId::new("shop_front").unwrap();
         state.places.insert(
             place_id.clone(),

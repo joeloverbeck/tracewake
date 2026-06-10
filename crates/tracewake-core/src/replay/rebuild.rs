@@ -422,7 +422,7 @@ mod tests {
     }
 
     fn initial_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let shop = PlaceId::new("shop_front").unwrap();
         let back = PlaceId::new("back_room").unwrap();
         let mut shop_state = PlaceState::new(shop.clone(), "Shop front");

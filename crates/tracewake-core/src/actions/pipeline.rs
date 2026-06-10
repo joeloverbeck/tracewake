@@ -1361,7 +1361,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state.actors.insert(
             actor_id("actor_tomas"),
             ActorBody::new(
@@ -1392,7 +1392,7 @@ mod tests {
     }
 
     fn door_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let actor_id = actor_id("actor_tomas");
         let shop = crate::ids::PlaceId::new("shop_front").unwrap();
         let back = crate::ids::PlaceId::new("back_room").unwrap();

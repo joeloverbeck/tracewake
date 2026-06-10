@@ -2093,7 +2093,7 @@ pub mod no_human {
 
         #[test]
         fn advance_runs_without_controller_and_marks_diagnostic_stream() {
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             let mut log = EventLog::new();
             let registry = ActionRegistry::new();
 
@@ -2120,7 +2120,7 @@ pub mod no_human {
 
         #[test]
         fn diagnostic_markers_are_physical_noops_under_replay() {
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             let before = state.clone();
             let mut log = EventLog::new();
             let registry = ActionRegistry::new();
@@ -2147,7 +2147,7 @@ pub mod no_human {
 
         #[test]
         fn scheduled_proposal_uses_shared_pipeline() {
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id(),
                 ActorBody::new(actor_id(), crate::ids::PlaceId::new("shop_front").unwrap()),
@@ -2193,7 +2193,7 @@ pub mod no_human {
 
         #[test]
         fn continue_routine_marker_only_is_not_ordinary_progress() {
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id(),
                 ActorBody::new(actor_id(), crate::ids::PlaceId::new("shop_front").unwrap()),
@@ -2245,7 +2245,7 @@ pub mod no_human {
         fn no_human_proposal_comes_from_transaction_candidate_for_routine_family() {
             let actor_id = actor_id();
             let kitchen = PlaceId::new("kitchen").unwrap();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), kitchen.clone()),
@@ -2319,7 +2319,7 @@ pub mod no_human {
             let actor_id = actor_id();
             let home = PlaceId::new("home_tomas").unwrap();
             let workshop = PlaceId::new("workshop_tomas").unwrap();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), home.clone()),
@@ -2341,7 +2341,13 @@ pub mod no_human {
             );
             state.sleep_affordances.insert(
                 SleepAffordanceId::new("bed_tomas").unwrap(),
-                SleepAffordanceState::new(SleepAffordanceId::new("bed_tomas").unwrap(), home),
+                SleepAffordanceState::new(
+                    SleepAffordanceId::new("bed_tomas").unwrap(),
+                    home,
+                    4,
+                    20,
+                    2,
+                ),
             );
             let mut first_agent_state = agent_state(&actor_id);
             let mut registry = ActionRegistry::new();
@@ -2420,7 +2426,7 @@ pub mod no_human {
         fn scheduler_cannot_rewrite_wait_reason_after_transaction() {
             let actor_id = actor_id();
             let home = PlaceId::new("home_tomas").unwrap();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state
                 .actors
                 .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), home));
@@ -2497,7 +2503,7 @@ pub mod no_human {
         #[test]
         fn no_human_day_starts_continues_and_replays_active_intention() {
             let actor_id = actor_id();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
@@ -2585,7 +2591,7 @@ pub mod no_human {
         #[test]
         fn no_human_day_records_routine_step_ancestry_and_replays_it() {
             let actor_id = actor_id();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), PlaceId::new("shop_front").unwrap()),
@@ -2667,13 +2673,21 @@ pub mod no_human {
             let actor_id = actor_id();
             let workshop = PlaceId::new("workshop").unwrap();
             let workplace_id = WorkplaceId::new("workplace_blocked").unwrap();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), workshop.clone()),
             );
-            let mut workplace =
-                WorkplaceState::new(workplace_id.clone(), workshop, "blocked_output");
+            let mut workplace = WorkplaceState::new(
+                workplace_id.clone(),
+                workshop,
+                4,
+                8,
+                4,
+                900,
+                900,
+                "blocked_output",
+            );
             workplace.assigned_actor_ids.insert(actor_id.clone());
             workplace.access_open = false;
             state.workplaces.insert(workplace_id.clone(), workplace);
@@ -2766,7 +2780,7 @@ pub mod no_human {
         fn no_human_day_applies_passive_needs_before_decision_and_replays_need_state() {
             let actor_id = actor_id();
             let kitchen = PlaceId::new("kitchen").unwrap();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), kitchen.clone()),
@@ -2885,7 +2899,7 @@ pub mod no_human {
         #[test]
         fn severe_need_threshold_marks_active_intention_interruption_cause() {
             let actor_id = actor_id();
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), PlaceId::new("workshop").unwrap()),
@@ -2961,7 +2975,7 @@ pub mod no_human {
 
         #[test]
         fn no_human_day_runs_windows_in_stable_actor_order_without_controller_facts() {
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 ActorId::new("actor_tomas").unwrap(),
                 ActorBody::new(
@@ -3038,7 +3052,7 @@ pub mod no_human {
 
         #[test]
         fn no_human_day_records_stuck_diagnostics_without_progress() {
-            let mut state = PhysicalState::default();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
             state.actors.insert(
                 ActorId::new("actor_tomas").unwrap(),
                 ActorBody::new(
@@ -3265,7 +3279,7 @@ mod tests {
     fn passive_need_delta_emission_is_deterministic_over_advancement() {
         let process = process_id("ambient_tick");
         let actors = vec![actor_id("actor_mara"), actor_id("actor_tomas")];
-        let need_model = NeedModelState::default();
+        let need_model = NeedModelState::new(5, 3);
 
         let first = build_passive_need_delta_events(
             &need_model,
@@ -3344,7 +3358,7 @@ mod tests {
 
     #[test]
     fn no_human_advance_requires_no_controller_and_emits_diagnostic_markers() {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let mut log = EventLog::new();
         let registry = ActionRegistry::new();
 
@@ -3384,7 +3398,7 @@ mod tests {
 
     #[test]
     fn no_human_markers_replay_as_physical_noops() {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let before = state.clone();
         let mut log = EventLog::new();
         let registry = ActionRegistry::new();
@@ -3411,7 +3425,7 @@ mod tests {
 
     #[test]
     fn no_human_scheduled_actions_use_shared_pipeline() {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state.actors.insert(
             actor_id("actor_tomas"),
             ActorBody::new(
@@ -3457,7 +3471,7 @@ mod tests {
             2
         );
 
-        let mut direct_state = PhysicalState::default();
+        let mut direct_state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         direct_state.actors.insert(
             actor_id("actor_tomas"),
             ActorBody::new(

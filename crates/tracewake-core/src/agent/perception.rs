@@ -409,7 +409,7 @@ mod tests {
         let mut sleep_affordances = BTreeMap::new();
         sleep_affordances.insert(
             sleep_affordance_id.clone(),
-            SleepAffordanceState::new(sleep_affordance_id, home),
+            SleepAffordanceState::new(sleep_affordance_id, home, 4, 20, 2),
         );
 
         PhysicalState::from_seed_parts(
@@ -421,6 +421,7 @@ mod tests {
             food_supplies,
             BTreeMap::new(),
             sleep_affordances,
+            crate::state::NeedModelState::new(5, 3),
         )
     }
 
@@ -440,6 +441,7 @@ mod tests {
             BTreeMap::new(),
             BTreeMap::new(),
             BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
         )
     }
 

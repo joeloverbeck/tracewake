@@ -1984,7 +1984,7 @@ fn non_world_stream_cannot_change_physical_checksum() {
         sim_tick: SimTick::new(7),
         world_stream_position_applied: 3,
     };
-    let mut state = PhysicalState::default();
+    let mut state = PhysicalState::empty(tracewake_core::state::NeedModelState::new(5, 3));
     let before = compute_physical_checksum(&state, &context).checksum;
     let mut event = EventEnvelope::new_v1(
         EventId::new("event_non_world_physical_payload").unwrap(),

@@ -204,7 +204,7 @@ mod tests {
     }
 
     fn initial_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let shop = PlaceId::new("shop_front").unwrap();
         state
             .places

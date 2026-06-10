@@ -439,7 +439,7 @@ mod tests {
     }
 
     fn state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         state.actors.insert(
             actor_id(),
             ActorBody::new(actor_id(), PlaceId::new("tomas_room").unwrap()),
@@ -449,6 +449,9 @@ mod tests {
             SleepAffordanceState::new(
                 SleepAffordanceId::new("bed_tomas").unwrap(),
                 PlaceId::new("tomas_room").unwrap(),
+                4,
+                20,
+                2,
             ),
         );
         state
@@ -714,6 +717,9 @@ mod tests {
             SleepAffordanceState::new(
                 SleepAffordanceId::new("bed_elsewhere").unwrap(),
                 PlaceId::new("market").unwrap(),
+                4,
+                20,
+                2,
             ),
         );
         let rejection = build_sleep_start_event(

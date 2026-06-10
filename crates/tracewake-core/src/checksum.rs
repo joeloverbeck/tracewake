@@ -525,7 +525,7 @@ mod tests {
     }
 
     fn state_with_insert_order(reversed: bool) -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let mut actor = ActorBody::new(actor_id("actor_tomas"), place_id("shop_front"));
         actor.carried_item_ids.insert(item_id("coin_stack_02"));
         actor.carried_item_ids.insert(item_id("coin_stack_01"));
@@ -569,7 +569,7 @@ mod tests {
     }
 
     fn response_physical_state() -> PhysicalState {
-        let mut state = PhysicalState::default();
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let shop = place_id("shop_front");
         let back = place_id("back_room");
         let mut shop_state = PlaceState::new(shop.clone(), "Shop front");
@@ -608,7 +608,16 @@ mod tests {
                 20,
             ),
         );
-        let mut workplace = WorkplaceState::new(workplace_id("workshop"), shop, "work_done");
+        let mut workplace = WorkplaceState::new(
+            workplace_id("workshop"),
+            shop,
+            4,
+            8,
+            4,
+            900,
+            900,
+            "work_done",
+        );
         workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));
         state
             .workplaces
