@@ -1,6 +1,7 @@
+use crate::agent::{ActorKnownInputRef, DecisionTraceRecord, NoHumanActorKnownSurfaceBuilder};
 use crate::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, AgentStateChecksum,
-    AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    AgentStateChecksum, AgentStateChecksumReport, ChecksumContext, PhysicalChecksum,
 };
 use crate::epistemics::{EpistemicProjection, EpistemicProjectionChecksum};
 use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApplicationError};
@@ -8,6 +9,7 @@ use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ContentManifestId, EventId};
 use crate::state::{AgentState, PhysicalState};
+use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectionRebuildReport {
@@ -28,6 +30,7 @@ pub struct ProjectionRebuildReport {
     pub invariant_violations: Vec<String>,
     pub epistemic_application_errors: Vec<String>,
     pub agent_application_errors: Vec<Phase3AReplayFailure>,
+    pub decision_context_hash_failures: Vec<Phase3AReplayFailure>,
     pub state_diff: Vec<String>,
 }
 
@@ -127,6 +130,8 @@ pub fn rebuild_projection(
     let final_epistemic_checksum = epistemic_projection.compute_checksum().checksum;
     let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, context);
     let final_agent_checksum = final_agent_checksum_report.checksum.clone();
+    let decision_context_hash_failures =
+        rebuild_decision_context_hashes(initial_state, initial_agent_state, log);
     let state_diff = expected_final_state
         .map(|expected| diff_physical_state(expected, &rebuilt))
         .unwrap_or_default();
@@ -149,8 +154,176 @@ pub fn rebuild_projection(
         invariant_violations,
         epistemic_application_errors,
         agent_application_errors,
+        decision_context_hash_failures,
         state_diff,
     }
+}
+
+pub fn rebuild_decision_context_hashes(
+    initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
+    log: &EventLog,
+) -> Vec<Phase3AReplayFailure> {
+    log.events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .filter_map(|event| {
+            rebuild_decision_context_hash(initial_state, initial_agent_state, log, event)
+                .err()
+                .map(|failure| *failure)
+        })
+        .collect()
+}
+
+fn rebuild_decision_context_hash(
+    initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
+    log: &EventLog,
+    trace_event: &EventEnvelope,
+) -> Result<(), Box<Phase3AReplayFailure>> {
+    let record = decision_trace_record(trace_event)
+        .map_err(|issue| Box::new(phase3a_failure(trace_event, issue)))?;
+    let window_id = payload_value(trace_event, "window_id")
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_window_id")))?;
+    let window_end_tick = payload_value(trace_event, "window_end_tick")
+        .and_then(|value| value.parse::<u64>().ok())
+        .map(SimTick::new)
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_window_end_tick")))?;
+    let ordinary_event_id = payload_value(trace_event, "ordinary_event_id")
+        .and_then(|value| EventId::new(value).ok())
+        .or_else(|| {
+            trace_event.causes.iter().find_map(|cause| match cause {
+                crate::events::EventCause::Event(event_id) => Some(event_id.clone()),
+                _ => None,
+            })
+        })
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_ordinary_event_id")))?;
+    let ordinary_index = log
+        .events()
+        .iter()
+        .position(|event| event.event_id == ordinary_event_id)
+        .ok_or_else(|| Box::new(phase3a_failure(trace_event, "ordinary_event_not_found")))?;
+    let trace_index = log
+        .events()
+        .iter()
+        .position(|event| event.event_id == trace_event.event_id)
+        .ok_or_else(|| {
+            Box::new(phase3a_failure(
+                trace_event,
+                "decision_trace_event_not_found",
+            ))
+        })?;
+    if ordinary_index >= trace_index {
+        return Err(Box::new(phase3a_failure(
+            trace_event,
+            "ordinary_event_after_trace",
+        )));
+    }
+    let (prefix_log, prefix_state, prefix_agent_state) = replay_prefix(
+        initial_state,
+        initial_agent_state,
+        &log.events()[..ordinary_index],
+    )
+    .map_err(|issue| Box::new(phase3a_failure(trace_event, issue)))?;
+    let actor = prefix_state.actors.get(&record.actor_id).ok_or_else(|| {
+        Box::new(phase3a_failure(
+            trace_event,
+            "actor_missing_at_decision_frontier",
+        ))
+    })?;
+    let surface = NoHumanActorKnownSurfaceBuilder::from_event_log(
+        &prefix_log,
+        &prefix_agent_state,
+        record.actor_id.clone(),
+        actor.current_place_id.clone(),
+        record.window_start_tick,
+        window_id,
+        window_end_tick,
+    )
+    .build(&prefix_agent_state);
+    let rebuilt_inputs = surface
+        .context()
+        .actor_known_facts()
+        .iter()
+        .map(ActorKnownInputRef::from_fact)
+        .map(|input| input.render_for_trace())
+        .collect::<Vec<_>>();
+    let rebuilt_hash = compute_holder_known_context_hash(rebuilt_inputs.clone()).hash;
+    if rebuilt_hash != record.actor_known_context_hash {
+        let recorded_inputs = record
+            .actor_known_inputs
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        let rebuilt_input_set = rebuilt_inputs
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        let missing_rebuilt = recorded_inputs
+            .difference(&rebuilt_input_set)
+            .next()
+            .map(|value| value.as_str())
+            .unwrap_or("-");
+        let extra_rebuilt = rebuilt_input_set
+            .difference(&recorded_inputs)
+            .next()
+            .map(|value| value.as_str())
+            .unwrap_or("-");
+        return Err(Box::new(phase3a_failure(
+            trace_event,
+            format!(
+                "decision_context_hash_mismatch:recorded={} rebuilt={} recorded_count={} rebuilt_count={} missing_rebuilt={} extra_rebuilt={}",
+                record.actor_known_context_hash.as_str(),
+                rebuilt_hash.as_str(),
+                record.actor_known_inputs.len(),
+                rebuilt_inputs.len(),
+                missing_rebuilt,
+                extra_rebuilt
+            ),
+        )));
+    }
+    Ok(())
+}
+
+fn decision_trace_record(event: &EventEnvelope) -> Result<DecisionTraceRecord, &'static str> {
+    let canonical = payload_value(event, "trace_canonical").ok_or("missing_trace_canonical")?;
+    DecisionTraceRecord::deserialize_canonical(canonical.as_bytes())
+        .map_err(|_| "invalid_trace_canonical")
+}
+
+fn replay_prefix(
+    initial_state: &PhysicalState,
+    initial_agent_state: &AgentState,
+    events: &[EventEnvelope],
+) -> Result<(EventLog, PhysicalState, AgentState), String> {
+    let mut prefix_log = EventLog::new();
+    let mut state = initial_state.clone();
+    let mut agent_state = initial_agent_state.clone();
+    let mut epistemic_projection = EpistemicProjection::new(
+        events
+            .first()
+            .map(|event| event.content_manifest_id.clone())
+            .unwrap_or_else(|| ContentManifestId::new("empty_prefix").unwrap()),
+    );
+    for event in events {
+        let appended = prefix_log
+            .append(event.clone())
+            .map_err(|error| format!("prefix_append_error:{error:?}"))?;
+        let mut application_context = EventApplicationContext {
+            physical_state: &mut state,
+            agent_state: &mut agent_state,
+            epistemic_projection: Some(&mut epistemic_projection),
+        };
+        apply_event_stream(&mut application_context, &appended)
+            .map_err(|error| format!("prefix_apply_error:{error:?}"))?;
+    }
+    Ok((prefix_log, state, agent_state))
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn phase3a_failure(event: &EventEnvelope, issue: impl Into<String>) -> Phase3AReplayFailure {

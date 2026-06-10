@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` log-ordering verification, agent-event allowlist census, episode-state materialization into `AgentState` (checksum registry growth), fail-fast rebuild, schema-upcast fixture
-**Deps**: `archive/tickets/0016PHA3ANEEACC-002.md`, 0016PHA3ANEEACC-003
+**Deps**: `archive/tickets/0016PHA3ANEEACC-002.md`, `archive/tickets/0016PHA3ANEEACC-003.md`
 
 ## Problem
 
@@ -70,7 +70,7 @@ A synthetic V0→V1 upcast fixture locking the `EVENT_SCHEMA_REGISTRY` migration
 
 ## Out of Scope
 
-- The per-decision context-hash re-derivation gate (0016PHA3ANEEACC-003 — shares `rebuild.rs`; this ticket Deps it).
+- The per-decision context-hash re-derivation gate (`archive/tickets/0016PHA3ANEEACC-003.md` — shares `rebuild.rs`; this ticket Deps it).
 - Typed payload errors in completion builders (0016PHA3ANEEACC-010 — consumed here).
 - Workspace census / mutants baseline (0016PHA3ANEEACC-012).
 

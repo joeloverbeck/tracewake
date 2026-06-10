@@ -39,6 +39,7 @@ pub struct ReplayReport {
     pub application_errors: Vec<String>,
     pub epistemic_application_errors: Vec<String>,
     pub agent_application_errors: Vec<Phase3AReplayFailure>,
+    pub decision_context_hash_failures: Vec<Phase3AReplayFailure>,
     pub final_checksum: PhysicalChecksum,
     pub final_epistemic_checksum: EpistemicProjectionChecksum,
     pub epistemic_projection_version: String,
@@ -99,7 +100,8 @@ pub fn run_replay(
         && rebuild.unsupported_agent_versions.is_empty()
         && rebuild.invariant_violations.is_empty()
         && rebuild.epistemic_application_errors.is_empty()
-        && rebuild.agent_application_errors.is_empty();
+        && rebuild.agent_application_errors.is_empty()
+        && rebuild.decision_context_hash_failures.is_empty();
     let epistemic_projection_version = rebuild
         .final_epistemic_projection
         .projection_version()
@@ -118,6 +120,7 @@ pub fn run_replay(
         epistemic_application_errors: rebuild.epistemic_application_errors,
         unsupported_agent_versions: rebuild.unsupported_agent_versions,
         agent_application_errors: rebuild.agent_application_errors,
+        decision_context_hash_failures: rebuild.decision_context_hash_failures,
         final_checksum: rebuild.final_checksum,
         final_epistemic_checksum: rebuild.final_epistemic_checksum,
         epistemic_projection_version,

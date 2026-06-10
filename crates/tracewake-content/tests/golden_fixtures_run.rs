@@ -17,8 +17,7 @@ use tracewake_core::agent::{
     VisibleLocalPlanningState,
 };
 use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
-    ChecksumContext,
+    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
@@ -31,7 +30,7 @@ use tracewake_core::ids::{
     RoutineExecutionId, RoutineTemplateId,
 };
 use tracewake_core::projections::no_human_day_metrics;
-use tracewake_core::replay::{rebuild_projection, run_replay};
+use tracewake_core::replay::{rebuild_decision_context_hashes, rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig,
 };
@@ -292,6 +291,34 @@ fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
             .expect("decision trace canonical parses")
         })
         .collect()
+}
+
+fn tamper_sleep_place_starting_belief(
+    log: &EventLog,
+    actor_id: &str,
+    replacement_place_id: &str,
+) -> EventLog {
+    let mut tampered = EventLog::new();
+    let mut replaced = false;
+    for event in log.events() {
+        let mut event = event.clone();
+        if !replaced
+            && event.event_type == EventKind::StartingBeliefRecorded
+            && payload(&event, "actor_id") == Some(actor_id)
+            && payload(&event, "belief_kind") == Some("sleep_place")
+        {
+            let value = event
+                .payload
+                .iter_mut()
+                .find(|field| field.key == "value")
+                .expect("sleep_place starting belief carries value");
+            value.value = replacement_place_id.to_string();
+            replaced = true;
+        }
+        tampered.append(event).unwrap();
+    }
+    assert!(replaced, "fixture contains sleep_place starting belief");
+    tampered
 }
 
 #[test]
@@ -1568,6 +1595,16 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
     );
     assert!(replay.agent_checksum_matches);
     assert!(replay.epistemic_application_errors.is_empty());
+    assert!(
+        rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        rebuild.decision_context_hash_failures
+    );
+    assert!(
+        replay.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        replay.decision_context_hash_failures
+    );
     assert!(real_metrics.contains("no_human_day_metrics_v1"));
     assert_eq!(
         rebuild.final_agent_state.decision_traces(),
@@ -1598,6 +1635,8 @@ fn no_human_day_real_run_replays_metrics_and_trace_projection() {
 fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
     let golden = fixtures::no_human_observation_facts_cite_log_events_001();
     let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
     let actor_id = ActorId::new("actor_bruno").unwrap();
 
     run_no_human_day(
@@ -1623,9 +1662,10 @@ fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
         .collect::<BTreeSet<_>>();
     let records = decision_trace_records(&log);
     assert!(!records.is_empty());
+    let rebuilt_failures =
+        rebuild_decision_context_hashes(&initial_state, &initial_agent_state, &log);
+    assert!(rebuilt_failures.is_empty(), "{rebuilt_failures:?}");
     for record in records {
-        let recomputed = compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash;
-        assert_eq!(record.actor_known_context_hash, recomputed);
         assert!(!record.actor_known_inputs.is_empty());
         for input in &record.actor_known_inputs {
             let source_events = input
@@ -1641,6 +1681,47 @@ fn no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash() {
             }
         }
     }
+}
+
+#[test]
+fn no_human_decision_context_hash_gate_fails_when_source_evidence_tampered() {
+    let golden = fixtures::no_human_day_001();
+    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let initial_state = state.clone();
+    let initial_agent_state = agent_state.clone();
+    let actor_ids = state.actors().keys().cloned().collect::<Vec<_>>();
+
+    run_no_human_day(
+        &mut state,
+        &mut agent_state,
+        &mut log,
+        &registry(),
+        manifest_id,
+        NoHumanDayConfig {
+            actor_ids,
+            windows: default_day_windows(SimTick::ZERO),
+        },
+    );
+
+    let context = checksum_context("no_human_day_001", &log);
+    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let tampered = tamper_sleep_place_starting_belief(&log, "actor_elena", "home_mara");
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &tampered,
+        &context,
+        Some(&state),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(!replay.decision_context_hash_failures.is_empty());
+    assert!(replay.decision_context_hash_failures[0]
+        .issue
+        .contains("decision_context_hash_mismatch"));
 }
 
 #[test]

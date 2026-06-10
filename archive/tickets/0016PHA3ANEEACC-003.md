@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-003: From-log context-hash re-derivation gate at every decision
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — replay-frontier context rebuild gate in `tracewake-core` replay path + golden runner; tamper test
@@ -83,3 +83,19 @@ Copy a golden log, corrupt one seed knowledge event, and assert the gate fails a
 
 1. `cargo test -p tracewake-content golden`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented the replay-path decision context hash re-derivation gate. `rebuild_projection` and `run_replay` now report `decision_context_hash_failures`, and replay marks the report non-matching when a recorded decision trace cannot be rebuilt from the event-log prefix, rebuilt state, and production `NoHumanActorKnownSurfaceBuilder`.
+
+Decision trace events now persist no-human window bounds so replay can reconstruct the same actor-known window framing. The old stored-input hash assertion was replaced with a from-log rebuild assertion, while the source-event citation check remains. Added a tamper test that changes a seed sleep-place belief in a copied log and asserts the replay gate fails with `decision_context_hash_mismatch`.
+
+Verification passed:
+
+1. `cargo test -p tracewake-content no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`
+2. `cargo test -p tracewake-content no_human_decision_context_hash_gate_fails_when_source_evidence_tampered`
+3. `cargo test -p tracewake-content --test golden_fixtures_run`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

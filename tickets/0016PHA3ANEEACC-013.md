@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — documentation-only (architecture conformance index + execution-tier clarification)
-**Deps**: 0016PHA3ANEEACC-003, 0016PHA3ANEEACC-008, 0016PHA3ANEEACC-012
+**Deps**: `archive/tickets/0016PHA3ANEEACC-003.md`, 0016PHA3ANEEACC-008, 0016PHA3ANEEACC-012
 
 ## Problem
 

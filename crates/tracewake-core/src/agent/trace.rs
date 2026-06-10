@@ -291,6 +291,8 @@ impl DecisionTraceRecord {
                     .collect::<Vec<_>>();
                 let actor_known_context_hash =
                     compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
+                // This checks trace serialization integrity. Replay derivability from the event
+                // log is enforced by the replay context-hash rebuild gate.
                 if fields[7] != actor_known_context_hash.as_str() {
                     return Err(DecisionTraceRecordParseError::InvalidContextHash);
                 }

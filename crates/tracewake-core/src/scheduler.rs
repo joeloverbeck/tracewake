@@ -989,6 +989,8 @@ pub mod no_human {
             PayloadField::new("trace_canonical", trace_canonical),
             PayloadField::new("actor_id", actor_id.as_str()),
             PayloadField::new("window_id", window.window_id.as_str()),
+            PayloadField::new("window_start_tick", window.start_tick.value().to_string()),
+            PayloadField::new("window_end_tick", window.end_tick.value().to_string()),
             PayloadField::new("action_id", proposal.action_id.as_str()),
             PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
             PayloadField::new(
