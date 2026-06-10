@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-006: Proof-of-validation token on fixture materialization
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-content` (`schema`, `validate`, `load`); one typed-error/compile-fail test
@@ -81,3 +81,29 @@ A compile-fail doctest (or typed-error test) proving the unvalidated path is unc
 
 1. `cargo test -p tracewake-content --doc`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Added `FixtureValidationToken`, a crate-controlled proof token minted only by successful fixture validation.
+- Extended `InitialWorld` to carry the validation token alongside the accepted physical state.
+- Changed `FixtureSchema::to_agent_state` to require the validation token, and threaded that token through `load_fixture_package`.
+- Added compile-fail doctests proving callers outside `tracewake-content` cannot construct or mint the token, and that tokenless `to_agent_state` calls no longer compile.
+
+Deviations from original plan:
+
+- Used compile-fail doctests rather than a runtime typed-error test because the intended lock is compile-time unconstructability.
+- No fixture-load behavior changed on the validated production path.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-content --doc`
+- `cargo test -p tracewake-content --test fixtures_load`
+- `cargo test -p tracewake-content --test golden_fixtures_run`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -92,8 +92,9 @@ pub fn load_fixture_package(
         .collect();
     manifest.actor_roster.sort();
     manifest.no_human_day_windows.sort();
+    let validation_token = accepted_world.validation_token;
     let canonical_world = accepted_world.physical_state;
-    let canonical_agent_state = fixture.to_agent_state();
+    let canonical_agent_state = fixture.to_agent_state(validation_token);
     let seed_event_log = seed_event_log(&fixture, manifest.manifest_id.clone());
     let epistemic_projection =
         seed_epistemic_projection(manifest.manifest_id.clone(), &seed_event_log)?;

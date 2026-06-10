@@ -21,6 +21,8 @@ use tracewake_core::state::{
 };
 use tracewake_core::time::SimTick;
 
+use crate::validate::FixtureValidationToken;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ValidationPhase {
     ParseSchema = 1,
@@ -693,7 +695,18 @@ impl FixtureSchema {
         )
     }
 
-    pub fn to_agent_state(&self) -> AgentState {
+    /// Materializes validated fixture-authored agent state.
+    ///
+    /// Callers must obtain the validation token from the content validation
+    /// gate before authored need seeds can become authoritative agent state.
+    ///
+    /// ```compile_fail
+    /// use tracewake_content::schema::FixtureSchema;
+    ///
+    /// let fixture: FixtureSchema = todo!();
+    /// let _agent_state = fixture.to_agent_state();
+    /// ```
+    pub fn to_agent_state(&self, _validation: FixtureValidationToken) -> AgentState {
         let mut needs_by_actor: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
         let mut intentions = BTreeMap::new();
         let mut active_intention_by_actor = BTreeMap::new();

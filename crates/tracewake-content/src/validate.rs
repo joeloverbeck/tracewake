@@ -20,6 +20,34 @@ use crate::serialization::{deserialize_fixture, serialize_fixture, Serialization
 pub struct InitialWorld {
     pub fixture: FixtureSchema,
     pub physical_state: PhysicalState,
+    pub validation_token: FixtureValidationToken,
+}
+
+/// Proof that a fixture passed the content validation gate.
+///
+/// The token can be named outside the crate, but only `tracewake-content` can
+/// mint it after validation succeeds.
+///
+/// ```compile_fail
+/// use tracewake_content::validate::FixtureValidationToken;
+///
+/// let _token = FixtureValidationToken { private: () };
+/// ```
+///
+/// ```compile_fail
+/// use tracewake_content::validate::FixtureValidationToken;
+///
+/// let _token = FixtureValidationToken::mint();
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FixtureValidationToken {
+    private: (),
+}
+
+impl FixtureValidationToken {
+    pub(crate) const fn mint() -> Self {
+        Self { private: () }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,6 +148,7 @@ fn accepted_world(mut fixture: FixtureSchema) -> InitialWorld {
     InitialWorld {
         fixture,
         physical_state,
+        validation_token: FixtureValidationToken::mint(),
     }
 }
 
