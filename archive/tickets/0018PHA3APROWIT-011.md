@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-011: 0018 scoped acceptance artifact
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence artifact (`reports/0018_ord_life_cert_scoped_acceptance.md`); no production code changes
@@ -81,3 +81,30 @@ Append the four-gate run results for the finished tree.
 
 1. The §7 runbook commands (What to Change §1, items 1–7).
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-11:
+
+1. Authored `reports/0018_ord_life_cert_scoped_acceptance.md` against target implementation commit `9e6904f1f0a3e075758e8c1177c7f2d1d597194b`.
+2. Recorded one evidence section for each spec §7 item: witness-table/presence-fact behavior, episode payload tamper and allowlist coverage, need-ledger and golden checksum evidence, generative reachability, seed-knowledge fixture proof, tokenless-materialization rejection, census outputs plus mutation ratchet, and explicit non-certification boundary.
+3. Recorded the finished-tree four-gate results in the report.
+
+Verification:
+
+1. `cargo test -p tracewake-core provenance_witness`
+2. `cargo test -p tracewake-core witness_kind`
+3. `cargo test -p tracewake-content episode_tamper`
+4. `cargo test -p tracewake-core materialized_agent_payload_records_keep_payload_fields`
+5. `cargo test -p tracewake-core agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state`
+6. `cargo test -p tracewake-content --test golden_fixtures_run`
+7. `cargo test -p tracewake-core --test generative_lock`
+8. `cargo test -p tracewake-content seeded_food_source_unknown`
+9. `cargo test -p tracewake-content --doc`
+10. `cargo test -p tracewake-content content_negative_registry_covers_validation_policy_variants_and_tests`
+11. `cargo test -p tracewake-content --test fixtures_load`
+12. `cargo test -p tracewake-core workspace_dependency_posture_matches_allowlist`
+13. `cargo fmt --all --check`
+14. `cargo clippy --workspace --all-targets -- -D warnings`
+15. `cargo build --workspace --all-targets --locked`
+16. `cargo test --workspace`
