@@ -2016,6 +2016,30 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "duplicate need tick charge")]
+    fn single_tick_delta_charge_rejects_overlapping_action_effect_duration() {
+        let mut state = agent_state();
+        let mut event = caused_agent_event(
+            EventKind::NeedDeltaApplied,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("delta", "40"),
+                PayloadField::new("elapsed_ticks", "2"),
+                PayloadField::new("cause_kind", "action_effect"),
+                PayloadField::new("cause_action_id", "sleep"),
+            ],
+        );
+        event.sim_tick = SimTick::new(5);
+
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+        let _ = apply_agent_event(&mut state, &event);
+    }
+
+    #[test]
     fn agent_intention_transition_event_records_status_and_reason() {
         let mut state = agent_state();
         let event = caused_agent_event(

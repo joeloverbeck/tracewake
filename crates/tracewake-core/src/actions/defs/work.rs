@@ -159,6 +159,7 @@ pub fn build_work_completion_events(
             completion_tick,
             "fatigue",
             fatigue_delta,
+            working_ticks,
         ));
         events.push(need_delta_event(
             work_started_event,
@@ -167,6 +168,7 @@ pub fn build_work_completion_events(
             completion_tick,
             "hunger",
             hunger_delta,
+            working_ticks,
         ));
         return Ok(events);
     }
@@ -187,6 +189,7 @@ pub fn build_work_completion_events(
             completion_tick,
             "fatigue",
             fatigue_delta,
+            working_ticks,
         ),
         need_delta_event(
             work_started_event,
@@ -195,6 +198,7 @@ pub fn build_work_completion_events(
             completion_tick,
             "hunger",
             hunger_delta,
+            working_ticks,
         ),
     ])
 }
@@ -440,6 +444,7 @@ fn need_delta_event(
     tick: SimTick,
     need_kind: &str,
     delta: i32,
+    elapsed_ticks: u64,
 ) -> EventEnvelope {
     let actor_id = work_started_event
         .actor_id
@@ -468,6 +473,7 @@ fn need_delta_event(
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("need_kind", need_kind),
         PayloadField::new("delta", delta.to_string()),
+        PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
         PayloadField::new("cause_kind", "action_effect"),
         PayloadField::new("cause_action_id", "work_block"),
     ];

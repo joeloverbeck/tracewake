@@ -211,7 +211,8 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
             "tick_delta" => {
                 let elapsed_ticks = payload(event, "elapsed_ticks")
                     .and_then(|value| value.parse::<u64>().ok())
-                    .unwrap_or(0);
+                    .expect("tick_delta need charge carries elapsed_ticks");
+                assert!(elapsed_ticks > 0, "tick_delta charge interval is positive");
                 for tick in event
                     .sim_tick
                     .value()
@@ -238,24 +239,13 @@ fn assert_no_duplicate_need_regime_charges(log: &EventLog) {
                 let Some(_regime) = regime else {
                     continue;
                 };
-                let elapsed_ticks = log
-                    .events()
-                    .iter()
-                    .find(|candidate| {
-                        candidate.sim_tick == event.sim_tick
-                            && candidate.actor_id == event.actor_id
-                            && candidate.causes == event.causes
-                            && matches!(
-                                candidate.event_type,
-                                EventKind::SleepCompleted
-                                    | EventKind::SleepInterrupted
-                                    | EventKind::WorkBlockCompleted
-                                    | EventKind::WorkBlockFailed
-                            )
-                    })
-                    .and_then(|terminal| payload(terminal, "elapsed_ticks"))
+                let elapsed_ticks = payload(event, "elapsed_ticks")
                     .and_then(|value| value.parse::<u64>().ok())
-                    .unwrap_or(0);
+                    .expect("action_effect need charge carries elapsed_ticks");
+                assert!(
+                    elapsed_ticks > 0,
+                    "action_effect duration charge interval is positive"
+                );
                 for tick in event
                     .sim_tick
                     .value()

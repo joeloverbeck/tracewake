@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test substrate only (`tracewake-core` `tests/support/generative.rs`, `tests/generative_lock.rs`); no production code changes
-**Deps**: `tickets/0018PHA3APROWIT-002.md`, `tickets/0018PHA3APROWIT-003.md`, `tickets/0018PHA3APROWIT-004.md`, `tickets/0018PHA3APROWIT-007.md` (the tier exercises the finished behavioral surface; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-037)
+**Deps**: `archive/tickets/0018PHA3APROWIT-002.md`, `tickets/0018PHA3APROWIT-003.md`, `tickets/0018PHA3APROWIT-004.md`, `tickets/0018PHA3APROWIT-007.md` (the tier exercises the finished behavioral surface; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-037)
 
 ## Problem
 

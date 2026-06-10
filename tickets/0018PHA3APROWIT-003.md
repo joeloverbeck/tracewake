@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`state`, `events/apply`, `checksum`); tamper tests and golden checksum updates in `tracewake-content`; lock-layer census rewrite
-**Deps**: `tickets/0018PHA3APROWIT-002.md` (replays the corrected duration payloads; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-036)
+**Deps**: `archive/tickets/0018PHA3APROWIT-002.md` (replays the corrected duration payloads; spec §8 ordering); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (ORD-HARD-036)
 
 ## Problem
 

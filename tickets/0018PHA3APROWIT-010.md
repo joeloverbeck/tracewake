@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — documentation only (`docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`, `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`)
-**Deps**: `archive/tickets/0018PHA3APROWIT-001.md`, `tickets/0018PHA3APROWIT-002.md`, `tickets/0018PHA3APROWIT-003.md`, `tickets/0018PHA3APROWIT-005.md`, `tickets/0018PHA3APROWIT-008.md`, `tickets/0018PHA3APROWIT-009.md` (each row cites a surface one of these lands); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (§6)
+**Deps**: `archive/tickets/0018PHA3APROWIT-001.md`, `archive/tickets/0018PHA3APROWIT-002.md`, `tickets/0018PHA3APROWIT-003.md`, `tickets/0018PHA3APROWIT-005.md`, `tickets/0018PHA3APROWIT-008.md`, `tickets/0018PHA3APROWIT-009.md` (each row cites a surface one of these lands); `specs/0018_PHASE_3A_PROVENANCE_WITNESS_EPISODE_REPLAY_EVIDENCE_GENERATIVE_REACHABILITY_AND_SEED_EPISTEMICS_HARDENING_SPEC.md` (§6)
 
 ## Problem
 

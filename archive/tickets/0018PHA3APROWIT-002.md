@@ -1,6 +1,6 @@
 # 0018PHA3APROWIT-002: Duration-delta elapsed_ticks and runtime single-charge coverage
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`actions/defs/sleep`, `actions/defs/work`, `events/apply`); reconciliation-gate rewrite in `tracewake-content` tests; golden checksum updates
@@ -86,3 +86,33 @@ Reprice golden checksum expectations changed by the payload addition; record per
 
 1. `cargo test -p tracewake-core single_tick_delta_charge`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Sleep and work `NeedDeltaApplied` events with `cause_kind=action_effect` now carry
+  `elapsed_ticks` from the duration interval they charge.
+- The release-build single-charge assertion now records duration action-effect ticks
+  because those payloads are self-describing.
+- Added a runtime assertion test proving overlapping action-effect duration charges panic
+  with `duplicate need tick charge`.
+- Rewrote the golden reconciliation gate to read action-effect intervals from the
+  `NeedDeltaApplied` event's own `elapsed_ticks` payload and to require positive
+  intervals for both `tick_delta` and `action_effect` charges.
+
+Deviations:
+
+- No golden checksum or context-hash rebaseline was needed; the golden fixture suite
+  stayed green after the payload addition.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core single_tick_delta_charge` — passed.
+- `cargo test -p tracewake-content --test golden_fixtures_run` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
