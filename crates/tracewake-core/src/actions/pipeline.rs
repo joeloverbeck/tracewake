@@ -930,6 +930,7 @@ fn source_context_check(
 
     let expected_context = current_place_knowledge_context(
         context.state,
+        context.epistemic_projection,
         actor_id,
         source.context_tick,
         context.content_manifest_id,

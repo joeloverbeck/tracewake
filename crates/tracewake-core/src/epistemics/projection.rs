@@ -97,7 +97,7 @@ impl EpistemicProjection {
         projection
     }
 
-    pub(crate) fn record_applied_event(&mut self, event_id: EventId) {
+    pub fn record_applied_event(&mut self, event_id: EventId) {
         self.event_range.event_count += 1;
         if self.event_range.first_event_id.is_none() {
             self.event_range.first_event_id = Some(event_id.clone());

@@ -143,7 +143,7 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 50);
+    assert_eq!(all.len(), 51);
 
     let ids = all
         .iter()
@@ -157,6 +157,7 @@ fn all_fixtures_load_deterministically_and_validate() {
             "debug_omniscience_excluded_001".to_string(),
             "door_access_001".to_string(),
             "embodied_exits_require_perceived_or_known_route_001".to_string(),
+            "embodied_menu_lags_truth_change_without_perception_001".to_string(),
             "embodied_view_omits_raw_assignment_without_context_001".to_string(),
             "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
             "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
@@ -351,6 +352,7 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
         BTreeSet::from([
             "debug_omniscience_excluded_001".to_string(),
             "embodied_exits_require_perceived_or_known_route_001".to_string(),
+            "embodied_menu_lags_truth_change_without_perception_001".to_string(),
             "embodied_view_omits_raw_assignment_without_context_001".to_string(),
             "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
             "embodied_view_omits_unknown_sleep_affordance_001".to_string(),

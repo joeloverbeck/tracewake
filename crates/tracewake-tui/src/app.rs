@@ -3,7 +3,9 @@ use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
 };
-use tracewake_core::agent::current_place_knowledge_context;
+use tracewake_core::agent::{
+    current_place_knowledge_context, record_current_place_perception_and_project,
+};
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext, PhysicalChecksum,
 };
@@ -145,6 +147,15 @@ impl TuiApp {
             &mut self.log,
             self.content_manifest_id.clone(),
         );
+        record_current_place_perception_and_project(
+            &mut self.log,
+            &mut self.state,
+            &mut self.agent_state,
+            &mut self.epistemic_projection,
+            &actor_id,
+            self.scheduler.current_tick,
+            &self.content_manifest_id,
+        );
         self.bound_actor_id = Some(actor_id);
         Ok(())
     }
@@ -175,6 +186,7 @@ impl TuiApp {
     fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
         current_place_knowledge_context(
             &self.state,
+            Some(&self.epistemic_projection),
             actor_id,
             self.scheduler.current_tick,
             &self.content_manifest_id,

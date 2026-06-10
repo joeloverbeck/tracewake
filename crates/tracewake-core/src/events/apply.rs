@@ -205,7 +205,8 @@ pub fn apply_epistemic_event(
             Ok(ApplyOutcome::Applied)
         }
         EventKind::ObservationRecorded => {
-            let observation = parse_observation_payload(&payload)?;
+            let observation =
+                parse_observation_payload(&payload)?.with_raw_payload(event.payload.clone());
             projection.insert_observation(observation);
             Ok(ApplyOutcome::Applied)
         }

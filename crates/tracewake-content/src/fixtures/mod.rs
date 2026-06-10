@@ -3,6 +3,7 @@ mod debug_attach_001;
 mod debug_omniscience_excluded_001;
 mod door_access_001;
 mod embodied_exits_require_perceived_or_known_route_001;
+mod embodied_menu_lags_truth_change_without_perception_001;
 mod embodied_view_omits_raw_assignment_without_context_001;
 mod embodied_view_omits_unknown_sleep_affordance_001;
 mod embodied_view_omits_unobserved_food_at_open_place_001;
@@ -76,6 +77,7 @@ pub use debug_attach_001::debug_attach_001;
 pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
 pub use door_access_001::door_access_001;
 pub use embodied_exits_require_perceived_or_known_route_001::embodied_exits_require_perceived_or_known_route_001;
+pub use embodied_menu_lags_truth_change_without_perception_001::embodied_menu_lags_truth_change_without_perception_001;
 pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_omits_raw_assignment_without_context_001;
 pub use embodied_view_omits_unknown_sleep_affordance_001::embodied_view_omits_unknown_sleep_affordance_001;
 pub use embodied_view_omits_unobserved_food_at_open_place_001::embodied_view_omits_unobserved_food_at_open_place_001;
@@ -162,6 +164,7 @@ pub fn all() -> Vec<GoldenFixture> {
         possession_parity_001(),
         view_filtering_001(),
         embodied_view_omits_raw_assignment_without_context_001(),
+        embodied_menu_lags_truth_change_without_perception_001(),
         embodied_workplace_availability_reflects_belief_not_truth_001(),
         embodied_view_omits_unobserved_food_at_open_place_001(),
         embodied_view_omits_unknown_sleep_affordance_001(),

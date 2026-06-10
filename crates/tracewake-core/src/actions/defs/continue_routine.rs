@@ -226,6 +226,7 @@ mod tests {
         let content_manifest_id = ContentManifestId::new("phase3a_manifest").unwrap();
         let context = current_place_knowledge_context(
             state,
+            None,
             &actor_id(),
             proposal.requested_tick,
             &content_manifest_id,

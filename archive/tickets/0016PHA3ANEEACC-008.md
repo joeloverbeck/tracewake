@@ -1,6 +1,6 @@
 # 0016PHA3ANEEACC-008: Embodied staleness from the epistemic projection + recorded unification deferral
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` embodied knowledge-context staleness sourced from the Phase 2A epistemic projection; new multi-tick fixture; authored deferral ticket
@@ -92,3 +92,27 @@ Write `tickets/0016PHA3ANEEACC-015.md` (ID confirmed free at implementation) sco
 1. `cargo test -p tracewake-core perception && cargo test -p tracewake-content golden`
 2. `test -f tickets/0016PHA3ANEEACC-015.md`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Implemented the minimum acceptable cut for ORD-HARD-021:
+
+- `current_place_knowledge_context` now derives embodied food/sleep/route facts from retained `EpistemicProjection` observations, filtered to the actor's current place and latest observed same-place perception window, instead of recomputing those facts from live truth.
+- Perception events retain their raw payload in the epistemic projection so projection-backed context derivation can read the modeled perceived kind and target.
+- TUI actor binding records and projects a modeled current-place perception event, keeping first-view affordances event-backed without calling the event applier from the TUI layer.
+- Added `embodied_menu_lags_truth_change_without_perception_001` and a core staleness test proving truth mutation does not change embodied menu facts until a later perception event refreshes the projection window.
+- Authored `tickets/0016PHA3ANEEACC-015.md` as the recorded follow-up for full no-human surface-builder unification onto `EpistemicProjection`.
+
+Verification run:
+
+- `cargo test -p tracewake-core current_place_knowledge_context_uses_latest_projection_window_not_live_truth`
+- `cargo test -p tracewake-content all_fixtures_load_deterministically_and_validate`
+- `cargo test -p tracewake-content phase3a_golden_fixtures_have_contracts_and_validate`
+- `test -f tickets/0016PHA3ANEEACC-015.md`
+- `cargo test -p tracewake-tui`
+- `cargo test -p tracewake-core human_source_context_fresh_view_passes_source_validation`
+- `cargo test -p tracewake-core --test anti_regression_guards no_direct_apply_event_outside_event_replay_or_pipeline`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

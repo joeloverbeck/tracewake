@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — test-oracle layer only: workspace-wide guard census, negative-fixture/clippy parity censuses, `clippy.toml` additions, `cargo-mutants` configuration + CI job; no production simulation logic
-**Deps**: `archive/tickets/0016PHA3ANEEACC-006.md`, 0016PHA3ANEEACC-008, 0016PHA3ANEEACC-009, 0016PHA3ANEEACC-010, 0016PHA3ANEEACC-011
+**Deps**: `archive/tickets/0016PHA3ANEEACC-006.md`, `archive/tickets/0016PHA3ANEEACC-008.md`, 0016PHA3ANEEACC-009, 0016PHA3ANEEACC-010, 0016PHA3ANEEACC-011
 
 ## Problem
 
