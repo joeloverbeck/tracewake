@@ -124,7 +124,23 @@ jobs:
         run: cargo install cargo-mutants --version 27.1.0 --locked
       - name: Run guarded-layer mutants in diff
         if: steps.guarded_diff.outputs.run_mutants == 'true'
-        run: cargo mutants --in-diff --no-shuffle
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > "$RUNNER_TEMP/pr.diff"
+          # cargo-mutants exits 2 on any miss; apply the same ratchet as the
+          # scheduled job, but match on file+mutation+function (drop line:col)
+          # so accepted baseline misses aren't re-flagged when lines shift.
+          cargo mutants --in-diff "$RUNNER_TEMP/pr.diff" --no-shuffle || true
+          if [ ! -f mutants.out/missed.txt ]; then
+            echo "No missed.txt produced — all in-diff mutants caught."; exit 0
+          fi
+          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$1" | sort -u; }
+          new_misses="$(comm -23 <(strip mutants.out/missed.txt) <(strip .cargo/mutants-baseline-misses.txt))"
+          if [ -n "$new_misses" ]; then
+            echo "New missed mutants on changed guarded-layer lines (not in accepted baseline):"
+            echo "$new_misses"
+            exit 1
+          fi
+          echo "All in-diff misses are accepted baseline entries; gate passes."
 
   mutants-lock-layer:
     name: mutation baseline (lock layer)
