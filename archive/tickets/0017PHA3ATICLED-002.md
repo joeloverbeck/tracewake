@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`scheduler`, `need_accounting`); `tracewake-content` (golden gate rewrite, one new adversarial fixture); golden checksums reprice
-**Deps**: `archive/tickets/0017PHA3ATICLED-001.md` (consumes the shared open-duration authority); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-026)
+**Deps**: `archive/tickets/0017PHA3ATICLED-001.md` (consumes the shared open-duration authority); `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-026)
 
 ## Problem
 

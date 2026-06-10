@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, `state`, `checksum`, capstone test); tamper gates in `tracewake-content` golden tests
-**Deps**: `archive/tickets/0017PHA3ATICLED-004.md` (replays the corrected durations and provenance; transitive over `-003`/`-002`/`-001`); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-028)
+**Deps**: `archive/tickets/0017PHA3ATICLED-004.md` (replays the corrected durations and provenance; transitive over `-003`/`-002`/`-001`); `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-028)
 
 ## Problem
 

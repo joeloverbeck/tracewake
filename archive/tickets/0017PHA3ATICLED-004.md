@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/no_human_surface`, `agent/actor_known`, `agent/transaction`, `agent/trace`); hidden-truth gate additions
-**Deps**: `archive/tickets/0017PHA3ATICLED-003.md` (same fact-minting surface, sequential by design); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-031)
+**Deps**: `archive/tickets/0017PHA3ATICLED-003.md` (same fact-minting surface, sequential by design); `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-031)
 
 ## Problem
 

@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/projection`, `agent/no_human_surface`, `agent/perception`, `agent/transaction`); one new content fixture; one new source guard; golden trace/checksum updates
-**Deps**: `archive/tickets/0017PHA3ATICLED-002.md` (rides the same golden re-baseline window; spec §8 ordering); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-027)
+**Deps**: `archive/tickets/0017PHA3ATICLED-002.md` (rides the same golden re-baseline window; spec §8 ordering); `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-027)
 
 ## Problem
 

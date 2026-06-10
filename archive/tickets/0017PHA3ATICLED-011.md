@@ -1,10 +1,10 @@
 # 0017PHA3ATICLED-011: Scoped acceptance artifact for ORD-LIFE-CERT evidence
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — verification-only capstone; one new report document
-**Deps**: `archive/tickets/0017PHA3ATICLED-010.md` (transitively covers `-001`…`-009`; the corrected 0016 report is itself an evidence item); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (§7)
+**Deps**: `archive/tickets/0017PHA3ATICLED-010.md` (transitively covers `-001`…`-009`; the corrected 0016 report is itself an evidence item); `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (§7)
 
 ## Problem
 
@@ -81,3 +81,27 @@ Write `reports/0017_ord_life_cert_scoped_acceptance.md` with the nine §7 sectio
 
 1. `cargo test --workspace`
 2. `grep -c "##" reports/0017_ord_life_cert_scoped_acceptance.md` — section census against spec §7's nine items.
+
+## Outcome
+
+Completed on 2026-06-10.
+
+- Added `reports/0017_ord_life_cert_scoped_acceptance.md` with the nine spec
+  §7 sections: need ledgers, provenance proof, replay payload tamper gates,
+  embodied divergence, numeric policy rejections, generative summary, mutation
+  baseline, corrected 0016 report, and explicit non-certification.
+- Ran the pinned guarded-layer mutation baseline with `cargo-mutants 27.1.0` at
+  the post-`-010` tree. Result: 937 tested, 593 caught, 148 missed, 195
+  unviable, 1 timeout.
+- Refreshed `.cargo/mutants-baseline-misses.txt` from `mutants.out/missed.txt`
+  because the scheduled workflow diffs the raw `missed.txt` format. The
+  refreshed baseline has 148 raw entries and `diff -u` passes.
+
+Verification:
+
+- `test -f reports/0017_ord_life_cert_scoped_acceptance.md`
+- `grep -q "not Phase 4 entry" reports/0017_ord_life_cert_scoped_acceptance.md`
+- `grep -c "##" reports/0017_ord_life_cert_scoped_acceptance.md`
+- `cargo mutants --version`
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' --no-shuffle`
+- `diff -u .cargo/mutants-baseline-misses.txt mutants.out/missed.txt`

@@ -1,7 +1,7 @@
 # 0017 Phase 3A Tick Ledger, Epistemic Staleness, Replay Payload Evidence, and Generative Lock Hardening Spec
 
-**Status**: PROPOSED
-**Staging path:** `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md`
+**Status**: COMPLETED
+**Staging path:** `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md`
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `114e2af` (post-0016 closeout; all `0016PHA3ANEEACC` tickets landed).
@@ -710,3 +710,42 @@ recording, for the implementation commits:
   (`ORD-HARD-034`), not silently rewritten.
 - [x] No doctrine amendment; no compatibility shims; crate direction preserved.
 - [x] Scope stays within the Phase 3A ordinary-life surface.
+
+## Outcome
+
+Completed: 2026-06-10
+
+What changed:
+
+- Landed shared duration-open authority, duplicate-terminal rejection, and
+  single-charge tick-ledger coverage for action-emitted awake deltas.
+- Added projection freshness classification, provenance-class and witness
+  audits, replay payload materialization, and tamper-flip replay gates.
+- Added believed-access embodied availability, content numeric/string policy
+  registries, lock-layer durability updates, and a bounded in-tree generative
+  lock tier.
+- Added 0017 conformance rows, corrected the overstated 0016 acceptance
+  evidence, and created `reports/0017_ord_life_cert_scoped_acceptance.md`.
+- Refreshed `.cargo/mutants-baseline-misses.txt` to the raw finished-tree
+  missed-mutant set consumed by the scheduled mutation workflow.
+
+Deviations from original plan:
+
+- The generative tier uses an in-tree seeded LCG generator rather than
+  `proptest`; this preserves the production and test dependency posture for
+  this pass.
+- Kani was skipped without prejudice; the acceptance report records the
+  bounded metamorphic generator as the delivered lock tier.
+- The mutation baseline had to be refreshed during capstone closeout because
+  the committed file was Markdown-formatted while CI diffs raw
+  `mutants.out/missed.txt`.
+
+Verification results:
+
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' --no-shuffle` completed with 937 tested, 593 caught, 148 missed, 195 unviable, and 1 timeout.
+- `diff -u .cargo/mutants-baseline-misses.txt mutants.out/missed.txt` passed
+  after the baseline refresh.

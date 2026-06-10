@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — markdown documentation only
-**Deps**: `archive/tickets/0017PHA3ATICLED-008.md`, `archive/tickets/0017PHA3ATICLED-009.md` (leaf set — transitively covers `-001`…`-007`; the conformance rows cite every implemented surface); `specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-034 + §6)
+**Deps**: `archive/tickets/0017PHA3ATICLED-008.md`, `archive/tickets/0017PHA3ATICLED-009.md` (leaf set — transitively covers `-001`…`-007`; the conformance rows cite every implemented surface); `archive/specs/0017_PHASE_3A_TICK_LEDGER_EPISTEMIC_STALENESS_REPLAY_PAYLOAD_EVIDENCE_AND_GENERATIVE_LOCK_HARDENING_SPEC.md` (ORD-HARD-034 + §6)
 
 ## Problem
 

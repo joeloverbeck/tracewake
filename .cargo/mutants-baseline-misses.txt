@@ -1,145 +1,148 @@
-- `crates/tracewake-core/src/projections.rs:88:5: replace actor_known_sleep_affordances_for_context -> Vec<SleepAffordanceId> with vec![]`
-- `crates/tracewake-core/src/projections.rs:232:21: replace && with || in no_human_day_metrics`
-- `crates/tracewake-core/src/projections.rs:261:9: replace || with && in is_typed_planner_failure_event`
-- `crates/tracewake-core/src/projections.rs:272:5: replace typed_responsible_layer -> Option<ResponsibleLayer> with None`
-- `crates/tracewake-core/src/projections.rs:276:5: replace typed_blocker_code -> Option<BlockerCode> with None`
-- `crates/tracewake-core/src/projections.rs:310:9: replace || with && in contains_player_conditioned_fact`
-- `crates/tracewake-core/src/projections.rs:313:53: replace || with && in contains_player_conditioned_fact`
-- `crates/tracewake-core/src/projections.rs:699:47: replace == with != in phase3a_semantic_actions`
-- `crates/tracewake-core/src/projections.rs:1041:33: replace == with != in proposal_from_semantic_action_entry`
-- `crates/tracewake-core/src/projections.rs:1070:5: replace visible_open_sleep_affordance -> Option<SleepAffordanceId> with None`
-- `crates/tracewake-core/src/scheduler.rs:655:66: replace < with <= in no_human::routine_window_family`
-- `crates/tracewake-core/src/scheduler.rs:695:13: replace no_human::PendingCompletion::tick -> Option<SimTick> with None`
-- `crates/tracewake-core/src/scheduler.rs:695:13: replace no_human::PendingCompletion::tick -> Option<SimTick> with Some(Default::default())`
-- `crates/tracewake-core/src/scheduler.rs:862:13: delete match arm EventKind::WorkBlockCompleted in no_human::append_routine_step_completed_after_duration_completion`
-- `crates/tracewake-core/src/scheduler.rs:985:93: replace > with >= in no_human::actor_has_open_body_exclusive_duration`
-- `crates/tracewake-core/src/scheduler.rs:990:36: replace <= with > in no_human::actor_has_open_body_exclusive_duration`
-- `crates/tracewake-core/src/scheduler.rs:992:55: replace == with != in no_human::actor_has_open_body_exclusive_duration`
-- `crates/tracewake-core/src/scheduler.rs:1037:34: replace < with <= in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1037:86: replace < with > in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1037:86: replace < with <= in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1047:21: replace && with || in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1046:21: replace && with || in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1046:52: replace > with >= in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1047:53: replace < with <= in no_human::routine_stuck_diagnostic_kinds`
-- `crates/tracewake-core/src/scheduler.rs:1415:59: replace && with || in no_human::build_window_need_threshold_event`
-- `crates/tracewake-core/src/scheduler.rs:1760:9: replace no_human::is_instant_routine_progress_event -> bool with true`
-- `crates/tracewake-core/src/scheduler.rs:1760:29: replace == with != in no_human::is_instant_routine_progress_event`
-- `crates/tracewake-core/src/scheduler.rs:1919:13: delete match arm EventKind::ActionRejected in no_human::routine_failure_reason`
-- `crates/tracewake-core/src/scheduler.rs:1920:13: delete match arm EventKind::EatFailed in no_human::routine_failure_reason`
-- `crates/tracewake-core/src/scheduler.rs:1922:13: delete match arm EventKind::ContinueRoutineRejected in no_human::routine_failure_reason`
-- `crates/tracewake-core/src/scheduler.rs:2061:17: replace == with != in no_human::append_marker`
-- `crates/tracewake-core/src/scheduler.rs:2080:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with ""`
-- `crates/tracewake-core/src/scheduler.rs:2080:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with "xyzzy"`
-- `crates/tracewake-core/src/scheduler.rs:2088:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""`
-- `crates/tracewake-core/src/scheduler.rs:2088:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with "xyzzy"`
-- `crates/tracewake-core/src/actions/pipeline.rs:441:7: replace && with || in is_body_exclusive_start`
-- `crates/tracewake-core/src/actions/pipeline.rs:444:52: replace && with || in is_body_exclusive_start`
-- `crates/tracewake-core/src/actions/pipeline.rs:477:28: replace match guard actor.enabled with true in decide_proposal`
-- `crates/tracewake-core/src/actions/pipeline.rs:508:47: replace == with != in decide_proposal`
-- `crates/tracewake-core/src/actions/pipeline.rs:742:5: replace controller_binding_check -> Option<PipelineDecision> with None`
-- `crates/tracewake-core/src/actions/pipeline.rs:892:9: replace || with && in source_context_check`
-- `crates/tracewake-core/src/actions/pipeline.rs:975:27: replace || with && in semantic_action_matches_action`
-- `crates/tracewake-core/src/agent/actor_known.rs:32:9: replace SourceEventIds::as_slice -> &[EventId] with Vec::leak(Vec::new())`
-- `crates/tracewake-core/src/agent/actor_known.rs:192:9: replace ActorKnownFact::semantic_kind -> &str with ""`
-- `crates/tracewake-core/src/agent/actor_known.rs:192:9: replace ActorKnownFact::semantic_kind -> &str with "xyzzy"`
-- `crates/tracewake-core/src/agent/actor_known.rs:200:9: replace ActorKnownFact::tick -> Option<SimTick> with None`
-- `crates/tracewake-core/src/agent/actor_known.rs:200:9: replace ActorKnownFact::tick -> Option<SimTick> with Some(Default::default())`
-- `crates/tracewake-core/src/agent/actor_known.rs:353:9: replace ActorKnownPlanningContext::known_containers_by_place -> &BTreeMap<PlaceId, BTreeSet<ContainerId>> with Box::leak(Box::new(BTreeMap::new()))`
-- `crates/tracewake-core/src/agent/actor_known.rs:377:9: replace ActorKnownPlanningContext::sort_facts with ()`
-- `crates/tracewake-core/src/agent/actor_known.rs:421:16: delete ! in ActorKnownPlanningContext::structured_fact_gaps`
-- `crates/tracewake-core/src/agent/actor_known.rs:443:20: delete ! in ActorKnownPlanningContext::structured_fact_gaps`
-- `crates/tracewake-core/src/agent/actor_known.rs:454:68: replace && with || in ActorKnownPlanningContext::has_fact`
-- `crates/tracewake-core/src/agent/actor_known.rs:454:43: replace && with || in ActorKnownPlanningContext::has_fact`
-- `crates/tracewake-core/src/agent/candidate.rs:21:9: replace GoalKind::stable_id -> &'static str with ""`
-- `crates/tracewake-core/src/agent/candidate.rs:21:9: replace GoalKind::stable_id -> &'static str with "xyzzy"`
-- `crates/tracewake-core/src/agent/candidate.rs:47:9: replace CandidateGoalSource::stable_id -> &'static str with ""`
-- `crates/tracewake-core/src/agent/candidate.rs:47:9: replace CandidateGoalSource::stable_id -> &'static str with "xyzzy"`
-- `crates/tracewake-core/src/agent/decision.rs:21:9: replace ActorKnownInputSourceClass::stable_id -> &'static str with ""`
-- `crates/tracewake-core/src/agent/decision.rs:21:9: replace ActorKnownInputSourceClass::stable_id -> &'static str with "xyzzy"`
-- `crates/tracewake-core/src/agent/decision.rs:155:57: replace != with == in select_goal_and_trace`
-- `crates/tracewake-core/src/agent/decision.rs:318:5: replace durability_level_for -> u8 with 0`
-- `crates/tracewake-core/src/agent/decision.rs:318:5: replace durability_level_for -> u8 with 1`
-- `crates/tracewake-core/src/agent/generation.rs:112:13: delete match arm (NeedKind::Fatigue, NeedBand::Severe) in generate_candidate_goals`
-- `crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec![]`
-- `crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec![String::new()]`
-- `crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec!["xyzzy".into()]`
-- `crates/tracewake-core/src/agent/htn.rs:230:20: delete ! in resolve_condition`
-- `crates/tracewake-core/src/agent/htn.rs:238:17: replace && with || in resolve_condition`
-- `crates/tracewake-core/src/agent/htn.rs:238:20: delete ! in resolve_condition`
-- `crates/tracewake-core/src/agent/htn.rs:281:5: replace has_modeled_fact -> bool with false`
-- `crates/tracewake-core/src/agent/intention.rs:16:9: replace IntentionStatus::stable_id -> &'static str with ""`
-- `crates/tracewake-core/src/agent/intention.rs:16:9: replace IntentionStatus::stable_id -> &'static str with "xyzzy"`
-- `crates/tracewake-core/src/agent/methods.rs:138:5: replace all_steps_are_proposals -> bool with true`
-- `crates/tracewake-core/src/agent/methods.rs:141:56: delete ! in all_steps_are_proposals`
-- `crates/tracewake-core/src/agent/need.rs:27:13: delete match arm "fatigue" in NeedKind::parse`
-- `crates/tracewake-core/src/agent/need.rs:28:13: delete match arm "safety" in NeedKind::parse`
-- `crates/tracewake-core/src/agent/need.rs:63:13: delete match arm "comfortable" in NeedBand::parse`
-- `crates/tracewake-core/src/agent/need.rs:66:13: delete match arm "severe" in NeedBand::parse`
-- `crates/tracewake-core/src/agent/need.rs:88:13: delete match arm "increasing_pressure" in ThresholdDirection::parse`
-- `crates/tracewake-core/src/agent/need.rs:113:9: replace NeedThresholdCrossing::parse -> Result<Option<Self>, NeedParseError> with Ok(None)`
-- `crates/tracewake-core/src/agent/need.rs:211:9: replace NeedState::last_threshold_crossing -> Option<NeedThresholdCrossing> with None`
-- `crates/tracewake-core/src/agent/need.rs:240:37: replace > with >= in NeedState::threshold_crossing`
-- `crates/tracewake-core/src/agent/need.rs:299:36: replace || with && in NeedState::deserialize_canonical`
-- `crates/tracewake-core/src/agent/need.rs:306:23: replace > with == in NeedState::deserialize_canonical`
-- `crates/tracewake-core/src/agent/need.rs:306:23: replace > with >= in NeedState::deserialize_canonical`
-- `crates/tracewake-core/src/agent/need.rs:347:9: replace <impl fmt::Display for NeedParseError>::fmt -> fmt::Result with Ok(Default::default())`
-- `crates/tracewake-core/src/agent/no_human_surface.rs:164:45: replace != with == in NoHumanActorKnownSurfaceBuilder::consume_starting_belief`
-- `crates/tracewake-core/src/agent/no_human_surface.rs:181:13: delete match arm Some("household_food_source") in NoHumanActorKnownSurfaceBuilder::consume_starting_belief`
-- `crates/tracewake-core/src/agent/no_human_surface.rs:463:5: replace has_active_intention -> bool with true`
-- `crates/tracewake-core/src/agent/no_human_surface.rs:463:5: replace has_active_intention -> bool with false`
-- `crates/tracewake-core/src/agent/perception.rs:194:13: delete match arm Some("visible_sleep_affordance") in current_place_knowledge_context`
-- `crates/tracewake-core/src/agent/perception.rs:227:5: replace observation_source_key -> String with String::new()`
-- `crates/tracewake-core/src/agent/perception.rs:227:5: replace observation_source_key -> String with "xyzzy".into()`
-- `crates/tracewake-core/src/agent/perception.rs:273:9: replace && with || in is_visible_exit_target`
-- `crates/tracewake-core/src/agent/planner.rs:129:9: replace && with || in plan_start_sleep`
-- `crates/tracewake-core/src/agent/planner.rs:167:57: replace && with || in plan_start_work_block`
-- `crates/tracewake-core/src/agent/routine.rs:133:36: replace || with && in RoutineStep::deserialize_canonical`
-- `crates/tracewake-core/src/agent/routine.rs:244:13: delete match arm "actor_knows_food_source" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:245:13: delete match arm "actor_knows_workplace" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:246:13: delete match arm "workplace_assignment_active" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:247:13: delete match arm "actor_knows_home" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:248:13: delete match arm "actor_knows_sleep_place" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:249:13: delete match arm "actor_has_food_search_knowledge" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:250:13: delete match arm "active_intention_present" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:251:13: delete match arm "sleep_state_can_end" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:252:13: delete match arm "food_source_believed_accessible" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:253:13: delete match arm "actor_at_workplace" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:254:13: delete match arm "sleep_place_believed_accessible" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:255:13: delete match arm "search_surface_actor_known" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:256:13: delete match arm "next_step_available" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:257:13: delete match arm "known_route_surface" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:258:13: delete match arm "modeled_wait_reason" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:259:13: delete match arm "reevaluation_window_known" in RoutineCondition::parse`
-- `crates/tracewake-core/src/agent/routine.rs:433:9: replace RoutineExecution::suspend with ()`
-- `crates/tracewake-core/src/agent/routine.rs:445:9: replace RoutineExecution::abandon with ()`
-- `crates/tracewake-core/src/agent/routine.rs:476:9: replace <impl fmt::Display for RoutineStepParseError>::fmt -> fmt::Result with Ok(Default::default())`
-- `crates/tracewake-core/src/agent/trace.rs:40:13: delete match arm "waited" in DecisionOutcome::parse`
-- `crates/tracewake-core/src/agent/trace.rs:41:13: delete match arm "replanned" in DecisionOutcome::parse`
-- `crates/tracewake-core/src/agent/trace.rs:42:13: delete match arm "failed" in DecisionOutcome::parse`
-- `crates/tracewake-core/src/agent/trace.rs:104:13: delete match arm "intention_lifecycle" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:105:13: delete match arm "method_selection" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:107:13: delete match arm "proposal_construction" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:109:13: delete match arm "action_validation" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:110:13: delete match arm "projection" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:111:13: delete match arm "view_model" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:112:13: delete match arm "test_oracle" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:113:13: delete match arm "debug_quarantine" in ResponsibleLayer::parse`
-- `crates/tracewake-core/src/agent/trace.rs:173:13: delete match arm "no_applicable_candidate" in BlockerCode::parse`
-- `crates/tracewake-core/src/agent/trace.rs:174:13: delete match arm "no_applicable_method" in BlockerCode::parse`
-- `crates/tracewake-core/src/agent/trace.rs:175:13: delete match arm "empty_local_plan" in BlockerCode::parse`
-- `crates/tracewake-core/src/agent/trace.rs:176:13: delete match arm "local_plan_failed" in BlockerCode::parse`
-- `crates/tracewake-core/src/agent/trace.rs:177:13: delete match arm "hidden_truth_input" in BlockerCode::parse`
-- `crates/tracewake-core/src/agent/trace.rs:178:13: delete match arm "provenance_dangling" in BlockerCode::parse`
-- `crates/tracewake-core/src/agent/trace.rs:285:54: replace || with && in DecisionTraceRecord::deserialize_canonical`
-- `crates/tracewake-core/src/agent/trace.rs:354:57: delete ! in DecisionTraceRecord::deserialize_canonical`
-- `crates/tracewake-core/src/agent/trace.rs:387:13: delete match arm StuckDiagnosticParseError::InvalidTextPayload | StuckDiagnosticParseError::InvalidUtf8 in <impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError>::from`
-- `crates/tracewake-core/src/agent/trace.rs:596:13: delete match arm "suspended" in StuckResultingStatus::parse`
-- `crates/tracewake-core/src/agent/trace.rs:597:13: delete match arm "completed" in StuckResultingStatus::parse`
-- `crates/tracewake-core/src/agent/trace.rs:732:45: replace || with && in StuckDiagnostic::deserialize_canonical`
-- `crates/tracewake-core/src/agent/trace.rs:818:9: replace <impl fmt::Display for StuckDiagnosticParseError>::fmt -> fmt::Result with Ok(Default::default())`
-- `crates/tracewake-core/src/agent/trace.rs:876:9: delete match arm "fatigue" in decode_opt_need`
-- `crates/tracewake-core/src/agent/trace.rs:877:9: delete match arm "safety" in decode_opt_need`
-- `crates/tracewake-core/src/agent/transaction.rs:339:5: replace active_intention_for_actor -> Option<crate::agent::Intention> with None`
-- `crates/tracewake-core/src/agent/transaction.rs:533:9: delete match arm "no applicable candidate" in stuck_diagnostic`
-- `crates/tracewake-core/src/agent/transaction.rs:541:9: delete match arm "empty local plan" in stuck_diagnostic`
+crates/tracewake-core/src/projections.rs:100:5: replace actor_known_sleep_affordances_for_context -> Vec<SleepAffordanceId> with vec![]
+crates/tracewake-core/src/projections.rs:245:21: replace && with || in no_human_day_metrics
+crates/tracewake-core/src/projections.rs:274:9: replace || with && in is_typed_planner_failure_event
+crates/tracewake-core/src/projections.rs:285:5: replace typed_responsible_layer -> Option<ResponsibleLayer> with None
+crates/tracewake-core/src/projections.rs:289:5: replace typed_blocker_code -> Option<BlockerCode> with None
+crates/tracewake-core/src/projections.rs:323:9: replace || with && in contains_player_conditioned_fact
+crates/tracewake-core/src/projections.rs:326:53: replace || with && in contains_player_conditioned_fact
+crates/tracewake-core/src/projections.rs:701:13: delete match arm Some(0) in phase3a_semantic_actions
+crates/tracewake-core/src/projections.rs:1073:33: replace == with != in proposal_from_semantic_action_entry
+crates/tracewake-core/src/projections.rs:1102:5: replace visible_open_sleep_affordance -> Option<SleepAffordanceId> with None
+crates/tracewake-core/src/scheduler.rs:703:21: replace && with || in no_human::latest_current_place_perception_event_id
+crates/tracewake-core/src/scheduler.rs:702:21: replace && with || in no_human::latest_current_place_perception_event_id
+crates/tracewake-core/src/scheduler.rs:701:21: replace && with || in no_human::latest_current_place_perception_event_id
+crates/tracewake-core/src/scheduler.rs:715:25: replace || with && in no_human::latest_need_event_id
+crates/tracewake-core/src/scheduler.rs:774:13: replace no_human::PendingCompletion::tick -> Option<SimTick> with None
+crates/tracewake-core/src/scheduler.rs:774:13: replace no_human::PendingCompletion::tick -> Option<SimTick> with Some(Default::default())
+crates/tracewake-core/src/scheduler.rs:941:13: delete match arm EventKind::WorkBlockCompleted in no_human::append_routine_step_completed_after_duration_completion
+crates/tracewake-core/src/scheduler.rs:1066:25: replace && with || in no_human::actor_has_open_body_exclusive_duration
+crates/tracewake-core/src/scheduler.rs:1065:25: replace && with || in no_human::actor_has_open_body_exclusive_duration
+crates/tracewake-core/src/scheduler.rs:1067:66: replace > with >= in no_human::actor_has_open_body_exclusive_duration
+crates/tracewake-core/src/scheduler.rs:1112:34: replace < with <= in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1112:86: replace < with > in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1112:86: replace < with <= in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1122:21: replace && with || in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1121:21: replace && with || in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1121:52: replace > with >= in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1122:53: replace < with <= in no_human::routine_stuck_diagnostic_kinds
+crates/tracewake-core/src/scheduler.rs:1385:21: replace && with || in no_human::latest_action_tick_delta_tick
+crates/tracewake-core/src/scheduler.rs:1384:21: replace && with || in no_human::latest_action_tick_delta_tick
+crates/tracewake-core/src/scheduler.rs:1383:21: replace && with || in no_human::latest_action_tick_delta_tick
+crates/tracewake-core/src/scheduler.rs:1508:59: replace && with || in no_human::build_window_need_threshold_event
+crates/tracewake-core/src/scheduler.rs:1853:9: replace no_human::is_instant_routine_progress_event -> bool with true
+crates/tracewake-core/src/scheduler.rs:1853:29: replace == with != in no_human::is_instant_routine_progress_event
+crates/tracewake-core/src/scheduler.rs:2012:13: delete match arm EventKind::ActionRejected in no_human::routine_failure_reason
+crates/tracewake-core/src/scheduler.rs:2013:13: delete match arm EventKind::EatFailed in no_human::routine_failure_reason
+crates/tracewake-core/src/scheduler.rs:2015:13: delete match arm EventKind::ContinueRoutineRejected in no_human::routine_failure_reason
+crates/tracewake-core/src/scheduler.rs:2154:17: replace == with != in no_human::append_marker
+crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with ""
+crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""
+crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with "xyzzy"
+crates/tracewake-core/src/actions/pipeline.rs:424:7: replace && with || in is_body_exclusive_start
+crates/tracewake-core/src/actions/pipeline.rs:427:52: replace && with || in is_body_exclusive_start
+crates/tracewake-core/src/actions/pipeline.rs:460:28: replace match guard actor.enabled with true in decide_proposal
+crates/tracewake-core/src/actions/pipeline.rs:491:47: replace == with != in decide_proposal
+crates/tracewake-core/src/actions/pipeline.rs:725:5: replace controller_binding_check -> Option<PipelineDecision> with None
+crates/tracewake-core/src/actions/pipeline.rs:875:9: replace || with && in source_context_check
+crates/tracewake-core/src/actions/pipeline.rs:958:27: replace || with && in semantic_action_matches_action
+crates/tracewake-core/src/agent/actor_known.rs:356:9: replace ActorKnownPlanningContext::known_containers_by_place -> &BTreeMap<PlaceId, BTreeSet<ContainerId>> with Box::leak(Box::new(BTreeMap::new()))
+crates/tracewake-core/src/agent/actor_known.rs:380:9: replace ActorKnownPlanningContext::sort_facts with ()
+crates/tracewake-core/src/agent/actor_known.rs:411:9: replace ActorKnownPlanningContext::structured_fact_gaps -> Vec<String> with vec![]
+crates/tracewake-core/src/agent/actor_known.rs:446:20: delete ! in ActorKnownPlanningContext::structured_fact_gaps
+crates/tracewake-core/src/agent/actor_known.rs:456:9: replace ActorKnownPlanningContext::has_fact -> bool with true
+crates/tracewake-core/src/agent/actor_known.rs:457:68: replace && with || in ActorKnownPlanningContext::has_fact
+crates/tracewake-core/src/agent/actor_known.rs:457:43: replace && with || in ActorKnownPlanningContext::has_fact
+crates/tracewake-core/src/agent/actor_known.rs:497:17: delete match arm "known_container_surface" in DerivedActorKnownFields::from_facts
+crates/tracewake-core/src/agent/candidate.rs:21:9: replace GoalKind::stable_id -> &'static str with ""
+crates/tracewake-core/src/agent/candidate.rs:21:9: replace GoalKind::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/agent/candidate.rs:47:9: replace CandidateGoalSource::stable_id -> &'static str with ""
+crates/tracewake-core/src/agent/candidate.rs:47:9: replace CandidateGoalSource::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/agent/decision.rs:21:9: replace ActorKnownInputSourceClass::stable_id -> &'static str with ""
+crates/tracewake-core/src/agent/decision.rs:21:9: replace ActorKnownInputSourceClass::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/agent/decision.rs:155:57: replace != with == in select_goal_and_trace
+crates/tracewake-core/src/agent/decision.rs:318:5: replace durability_level_for -> u8 with 0
+crates/tracewake-core/src/agent/decision.rs:318:5: replace durability_level_for -> u8 with 1
+crates/tracewake-core/src/agent/generation.rs:112:13: delete match arm (NeedKind::Fatigue, NeedBand::Severe) in generate_candidate_goals
+crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec![]
+crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec![String::new()]
+crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec!["xyzzy".into()]
+crates/tracewake-core/src/agent/htn.rs:230:20: delete ! in resolve_condition
+crates/tracewake-core/src/agent/htn.rs:238:17: replace && with || in resolve_condition
+crates/tracewake-core/src/agent/htn.rs:238:20: delete ! in resolve_condition
+crates/tracewake-core/src/agent/htn.rs:281:5: replace has_modeled_fact -> bool with false
+crates/tracewake-core/src/agent/intention.rs:16:9: replace IntentionStatus::stable_id -> &'static str with ""
+crates/tracewake-core/src/agent/intention.rs:16:9: replace IntentionStatus::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/agent/methods.rs:138:5: replace all_steps_are_proposals -> bool with true
+crates/tracewake-core/src/agent/methods.rs:141:56: delete ! in all_steps_are_proposals
+crates/tracewake-core/src/agent/need.rs:27:13: delete match arm "fatigue" in NeedKind::parse
+crates/tracewake-core/src/agent/need.rs:28:13: delete match arm "safety" in NeedKind::parse
+crates/tracewake-core/src/agent/need.rs:63:13: delete match arm "comfortable" in NeedBand::parse
+crates/tracewake-core/src/agent/need.rs:66:13: delete match arm "severe" in NeedBand::parse
+crates/tracewake-core/src/agent/need.rs:88:13: delete match arm "increasing_pressure" in ThresholdDirection::parse
+crates/tracewake-core/src/agent/need.rs:113:9: replace NeedThresholdCrossing::parse -> Result<Option<Self>, NeedParseError> with Ok(None)
+crates/tracewake-core/src/agent/need.rs:211:9: replace NeedState::last_threshold_crossing -> Option<NeedThresholdCrossing> with None
+crates/tracewake-core/src/agent/need.rs:240:37: replace > with >= in NeedState::threshold_crossing
+crates/tracewake-core/src/agent/need.rs:299:36: replace || with && in NeedState::deserialize_canonical
+crates/tracewake-core/src/agent/need.rs:306:23: replace > with == in NeedState::deserialize_canonical
+crates/tracewake-core/src/agent/need.rs:306:23: replace > with >= in NeedState::deserialize_canonical
+crates/tracewake-core/src/agent/need.rs:347:9: replace <impl fmt::Display for NeedParseError>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/agent/no_human_surface.rs:496:5: replace has_active_intention -> bool with true
+crates/tracewake-core/src/agent/no_human_surface.rs:496:5: replace has_active_intention -> bool with false
+crates/tracewake-core/src/agent/perception.rs:292:9: replace && with || in is_visible_exit_target
+crates/tracewake-core/src/agent/planner.rs:129:9: replace && with || in plan_start_sleep
+crates/tracewake-core/src/agent/planner.rs:167:57: replace && with || in plan_start_work_block
+crates/tracewake-core/src/agent/routine.rs:133:36: replace || with && in RoutineStep::deserialize_canonical
+crates/tracewake-core/src/agent/routine.rs:244:13: delete match arm "actor_knows_food_source" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:245:13: delete match arm "actor_knows_workplace" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:246:13: delete match arm "workplace_assignment_active" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:247:13: delete match arm "actor_knows_home" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:248:13: delete match arm "actor_knows_sleep_place" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:249:13: delete match arm "actor_has_food_search_knowledge" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:250:13: delete match arm "active_intention_present" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:251:13: delete match arm "sleep_state_can_end" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:252:13: delete match arm "food_source_believed_accessible" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:253:13: delete match arm "actor_at_workplace" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:254:13: delete match arm "sleep_place_believed_accessible" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:255:13: delete match arm "search_surface_actor_known" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:256:13: delete match arm "next_step_available" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:257:13: delete match arm "known_route_surface" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:258:13: delete match arm "modeled_wait_reason" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:259:13: delete match arm "reevaluation_window_known" in RoutineCondition::parse
+crates/tracewake-core/src/agent/routine.rs:433:9: replace RoutineExecution::suspend with ()
+crates/tracewake-core/src/agent/routine.rs:445:9: replace RoutineExecution::abandon with ()
+crates/tracewake-core/src/agent/routine.rs:476:9: replace <impl fmt::Display for RoutineStepParseError>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/agent/trace.rs:40:13: delete match arm "waited" in DecisionOutcome::parse
+crates/tracewake-core/src/agent/trace.rs:41:13: delete match arm "replanned" in DecisionOutcome::parse
+crates/tracewake-core/src/agent/trace.rs:42:13: delete match arm "failed" in DecisionOutcome::parse
+crates/tracewake-core/src/agent/trace.rs:104:13: delete match arm "intention_lifecycle" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:105:13: delete match arm "method_selection" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:107:13: delete match arm "proposal_construction" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:109:13: delete match arm "action_validation" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:110:13: delete match arm "projection" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:111:13: delete match arm "view_model" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:112:13: delete match arm "test_oracle" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:113:13: delete match arm "debug_quarantine" in ResponsibleLayer::parse
+crates/tracewake-core/src/agent/trace.rs:177:13: delete match arm "no_applicable_candidate" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:178:13: delete match arm "no_applicable_method" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:179:13: delete match arm "empty_local_plan" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:180:13: delete match arm "local_plan_failed" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:181:13: delete match arm "hidden_truth_input" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:182:13: delete match arm "provenance_dangling" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:183:13: delete match arm "provenance_class_mismatch" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:184:13: delete match arm "provenance_witness_mismatch" in BlockerCode::parse
+crates/tracewake-core/src/agent/trace.rs:291:54: replace || with && in DecisionTraceRecord::deserialize_canonical
+crates/tracewake-core/src/agent/trace.rs:360:57: delete ! in DecisionTraceRecord::deserialize_canonical
+crates/tracewake-core/src/agent/trace.rs:393:13: delete match arm StuckDiagnosticParseError::InvalidTextPayload | StuckDiagnosticParseError::InvalidUtf8 in <impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError>::from
+crates/tracewake-core/src/agent/trace.rs:602:13: delete match arm "suspended" in StuckResultingStatus::parse
+crates/tracewake-core/src/agent/trace.rs:603:13: delete match arm "completed" in StuckResultingStatus::parse
+crates/tracewake-core/src/agent/trace.rs:738:45: replace || with && in StuckDiagnostic::deserialize_canonical
+crates/tracewake-core/src/agent/trace.rs:824:9: replace <impl fmt::Display for StuckDiagnosticParseError>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/agent/trace.rs:882:9: delete match arm "fatigue" in decode_opt_need
+crates/tracewake-core/src/agent/trace.rs:883:9: delete match arm "safety" in decode_opt_need
+crates/tracewake-core/src/agent/transaction.rs:362:5: replace active_intention_for_actor -> Option<crate::agent::Intention> with None
+crates/tracewake-core/src/agent/transaction.rs:576:9: delete match arm "agent_needs_present" in witness_kind_allowed
+crates/tracewake-core/src/agent/transaction.rs:577:9: delete match arm "actor_belief_projection_limitation" | "modeled_wait_reason" | "reevaluation_window_known" in witness_kind_allowed
+crates/tracewake-core/src/agent/transaction.rs:583:9: delete match arm "active_intention_present" | "next_step_available" in witness_kind_allowed
+crates/tracewake-core/src/agent/transaction.rs:699:9: delete match arm "no applicable candidate" in stuck_diagnostic
+crates/tracewake-core/src/agent/transaction.rs:707:9: delete match arm "empty local plan" in stuck_diagnostic
