@@ -83,6 +83,13 @@ pub enum ActorKnownProjectionFreshness {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActorKnownProjectionPolicy {
+    CurrentPlaceLatestOnly,
+    ReclassifyWhenStale,
+    SupersedeNewestBySubject,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ClassifiedActorKnownProjectionRecord<'a> {
     record: &'a ActorKnownProjectionRecord,
     freshness: ActorKnownProjectionFreshness,
@@ -369,10 +376,21 @@ impl EpistemicProjection {
             .map(|observation| observation.observed_tick())
             .max();
 
+        let selected_workplaces = newest_workplace_records(
+            self.actor_known_records_by_actor
+                .get(context.viewer_actor_id()),
+        );
+
         self.actor_known_records_by_actor
             .get(context.viewer_actor_id())
             .into_iter()
             .flat_map(|records| records.iter())
+            .filter(|record| match record {
+                ActorKnownProjectionRecord::Workplace { workplace_id, .. } => selected_workplaces
+                    .get(workplace_id)
+                    .is_some_and(|selected| *selected == *record),
+                _ => true,
+            })
             .map(|record| {
                 let latest_current_place_record = is_latest_current_place_record(
                     record,
@@ -623,6 +641,15 @@ impl ActorKnownProjectionRecord {
         }
     }
 
+    pub fn policy(&self) -> ActorKnownProjectionPolicy {
+        match self {
+            Self::Route { .. } | Self::FoodSource { .. } | Self::SleepPlace { .. } => {
+                ActorKnownProjectionPolicy::ReclassifyWhenStale
+            }
+            Self::Workplace { .. } => ActorKnownProjectionPolicy::SupersedeNewestBySubject,
+        }
+    }
+
     fn relevant_place_id(&self) -> &PlaceId {
         match self {
             Self::Route { from_place_id, .. } => from_place_id,
@@ -706,6 +733,51 @@ impl ActorKnownProjectionRecord {
             ),
         }
     }
+}
+
+pub fn actor_known_projection_policy_kinds() -> BTreeMap<&'static str, ActorKnownProjectionPolicy> {
+    BTreeMap::from([
+        ("route", ActorKnownProjectionPolicy::ReclassifyWhenStale),
+        (
+            "food_source",
+            ActorKnownProjectionPolicy::ReclassifyWhenStale,
+        ),
+        (
+            "sleep_place",
+            ActorKnownProjectionPolicy::ReclassifyWhenStale,
+        ),
+        (
+            "workplace",
+            ActorKnownProjectionPolicy::SupersedeNewestBySubject,
+        ),
+    ])
+}
+
+fn newest_workplace_records<'a>(
+    records: Option<&'a BTreeSet<ActorKnownProjectionRecord>>,
+) -> BTreeMap<WorkplaceId, &'a ActorKnownProjectionRecord> {
+    let mut newest: BTreeMap<WorkplaceId, &'a ActorKnownProjectionRecord> = BTreeMap::new();
+    for record in records.into_iter().flat_map(|records| records.iter()) {
+        let ActorKnownProjectionRecord::Workplace { workplace_id, .. } = record else {
+            continue;
+        };
+        if newest
+            .get(workplace_id)
+            .is_none_or(|previous| workplace_record_is_newer(record, previous))
+        {
+            newest.insert(workplace_id.clone(), record);
+        }
+    }
+    newest
+}
+
+fn workplace_record_is_newer(
+    candidate: &ActorKnownProjectionRecord,
+    previous: &ActorKnownProjectionRecord,
+) -> bool {
+    candidate.source_tick() > previous.source_tick()
+        || (candidate.source_tick() == previous.source_tick()
+            && candidate.source_event_id() > previous.source_event_id())
 }
 
 fn record_freshness(
@@ -930,6 +1002,14 @@ mod tests {
         EventId::new(value).unwrap()
     }
 
+    fn place_id(value: &str) -> PlaceId {
+        PlaceId::new(value).unwrap()
+    }
+
+    fn workplace_id(value: &str) -> WorkplaceId {
+        WorkplaceId::new(value).unwrap()
+    }
+
     fn item_id(value: &str) -> ItemId {
         ItemId::new(value).unwrap()
     }
@@ -955,6 +1035,93 @@ mod tests {
             SourceRef::Event(event_id(id)),
             SimTick::new(3),
         )
+    }
+
+    #[test]
+    fn actor_known_projection_policy_table_declares_every_record_kind() {
+        let policies = actor_known_projection_policy_kinds();
+
+        assert_eq!(
+            policies.keys().copied().collect::<Vec<_>>(),
+            ["food_source", "route", "sleep_place", "workplace"]
+        );
+        assert_eq!(
+            policies["food_source"],
+            ActorKnownProjectionPolicy::ReclassifyWhenStale
+        );
+        assert_eq!(
+            policies["sleep_place"],
+            ActorKnownProjectionPolicy::ReclassifyWhenStale
+        );
+        assert_eq!(
+            policies["workplace"],
+            ActorKnownProjectionPolicy::SupersedeNewestBySubject
+        );
+    }
+
+    #[test]
+    fn classified_actor_known_records_supersede_workplaces_by_tick_then_event_id() {
+        let actor = actor_id("actor_tomas");
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            workplace_id("workplace_tomas"),
+            place_id("home_tomas"),
+            false,
+            event_id("event_role_notice_same_tick_closed"),
+            SimTick::new(8),
+        );
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            workplace_id("workplace_tomas"),
+            place_id("home_tomas"),
+            true,
+            event_id("event_role_notice_same_tick_open"),
+            SimTick::new(8),
+        );
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            workplace_id("workplace_other"),
+            place_id("market"),
+            true,
+            event_id("event_role_notice_other"),
+            SimTick::new(7),
+        );
+
+        let context = KnowledgeContext::embodied(actor, SimTick::new(9));
+        let workplace_records: Vec<_> = projection
+            .classified_actor_known_records_for_context(&context, &place_id("home_tomas"))
+            .into_iter()
+            .filter_map(|classified| match classified.record() {
+                ActorKnownProjectionRecord::Workplace {
+                    workplace_id,
+                    believed_access_open,
+                    source_event_id,
+                    ..
+                } => Some((
+                    workplace_id.as_str().to_string(),
+                    *believed_access_open,
+                    source_event_id.as_str().to_string(),
+                )),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(
+            workplace_records,
+            [
+                (
+                    "workplace_other".to_string(),
+                    true,
+                    "event_role_notice_other".to_string()
+                ),
+                (
+                    "workplace_tomas".to_string(),
+                    true,
+                    "event_role_notice_same_tick_open".to_string()
+                )
+            ]
+        );
     }
 
     #[test]

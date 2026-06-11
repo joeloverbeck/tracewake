@@ -113,7 +113,7 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     assert!(!output.contains("Ran no-human day:"));
     assert!(!output.contains("ordinary_events="));
     assert!(output.contains("routine_events=8"));
-    assert!(output.contains("work_failed=2"));
+    assert!(output.contains("work_failed=1"));
     assert!(output.contains("routine_interruptions=2"));
     assert!(output.contains("routine_exec_mara_eat"));
     assert!(output.contains("status=Failed"));

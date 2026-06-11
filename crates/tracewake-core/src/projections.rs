@@ -16,7 +16,7 @@ use crate::ids::{
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::AgentState;
-use crate::state::{ActorBody, PhysicalState};
+use crate::state::{ActorBody, DoorState, PhysicalState};
 use crate::time::SimTick;
 use crate::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
@@ -367,8 +367,13 @@ pub fn build_embodied_view_model(
         .iter()
         .cloned()
         .map(|destination_place_id| VisibleExit {
+            blocker_summary: visible_exit_blocker_summary(
+                state,
+                &visible.connected_doors,
+                &actor.current_place_id,
+                &destination_place_id,
+            ),
             destination_place_id,
-            blocker_summary: None,
         })
         .collect::<Vec<_>>();
     visible_exits.sort();
@@ -842,6 +847,37 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
     }
 }
 
+fn visible_exit_blocker_summary(
+    state: &PhysicalState,
+    connected_doors: &std::collections::BTreeSet<crate::ids::DoorId>,
+    from_place_id: &PlaceId,
+    destination_place_id: &PlaceId,
+) -> Option<String> {
+    connected_doors
+        .iter()
+        .filter_map(|door_id| state.doors.get(door_id))
+        .find(|door| door_connects_edge(door, from_place_id, destination_place_id))
+        .and_then(|door| {
+            if door.is_locked && !door.is_open {
+                Some(format!(
+                    "door {} is closed and locked",
+                    door.door_id.as_str()
+                ))
+            } else if door.is_locked {
+                Some(format!("door {} is locked", door.door_id.as_str()))
+            } else if !door.is_open && door.blocks_movement_when_closed {
+                Some(format!("door {} is closed", door.door_id.as_str()))
+            } else {
+                None
+            }
+        })
+}
+
+fn door_connects_edge(door: &DoorState, from_place_id: &PlaceId, to_place_id: &PlaceId) -> bool {
+    (&door.endpoint_a == from_place_id && &door.endpoint_b == to_place_id)
+        || (&door.endpoint_b == from_place_id && &door.endpoint_a == to_place_id)
+}
+
 #[derive(Clone)]
 struct SemanticActionPreflightContext<'a> {
     state: &'a PhysicalState,
@@ -1245,6 +1281,13 @@ mod tests {
     }
 
     fn view_for(state: &PhysicalState) -> EmbodiedViewModel {
+        view_for_known_route(state, place_id("back_room"))
+    }
+
+    fn view_for_known_route(
+        state: &PhysicalState,
+        destination_place_id: PlaceId,
+    ) -> EmbodiedViewModel {
         let context = KnowledgeContext::embodied_at_frontier_with_facts(
             actor_id("actor_tomas"),
             SimTick::new(1),
@@ -1254,7 +1297,7 @@ mod tests {
             Vec::new(),
             vec![crate::epistemics::ActorKnownRouteFact::new(
                 place_id("shop_front"),
-                place_id("back_room"),
+                destination_place_id,
                 "visible_exit",
             )],
         );
@@ -1434,6 +1477,51 @@ mod tests {
             .semantic_actions
             .iter()
             .any(|entry| entry.semantic_action_id.as_str() == "move.to.back_room"));
+    }
+
+    #[test]
+    fn embodied_exit_surfaces_perceived_closed_locked_door_blocker() {
+        let mut state = state();
+        let door = state
+            .doors
+            .get_mut(&DoorId::new("door_shop_back").unwrap())
+            .unwrap();
+        door.is_open = false;
+        door.is_locked = true;
+
+        let view = view_for(&state);
+
+        assert_eq!(view.visible_exits.len(), 1);
+        assert_eq!(
+            view.visible_exits[0].blocker_summary.as_deref(),
+            Some("door door_shop_back is closed and locked")
+        );
+    }
+
+    #[test]
+    fn embodied_exit_omits_unperceived_door_blocker_on_known_route() {
+        let mut state = state();
+        state.places.insert(
+            place_id("remote_room"),
+            PlaceState::new(place_id("remote_room"), "Remote room"),
+        );
+        let mut remote_door = DoorState::new(
+            DoorId::new("door_back_remote").unwrap(),
+            place_id("back_room"),
+            place_id("remote_room"),
+        );
+        remote_door.is_open = false;
+        remote_door.is_locked = true;
+        state.doors.insert(remote_door.door_id.clone(), remote_door);
+
+        let view = view_for_known_route(&state, place_id("remote_room"));
+
+        assert_eq!(view.visible_exits.len(), 1);
+        assert_eq!(
+            view.visible_exits[0].destination_place_id,
+            place_id("remote_room")
+        );
+        assert_eq!(view.visible_exits[0].blocker_summary, None);
     }
 
     #[test]
@@ -2189,5 +2277,119 @@ mod tests {
         assert!(metrics.need_threshold_crossings > 0);
         assert_eq!(metrics.player_conditioned_event_count, 0);
         assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
+    }
+
+    fn door_between(id: &str, a: &str, b: &str) -> DoorState {
+        DoorState::new(DoorId::new(id).unwrap(), place_id(a), place_id(b))
+    }
+
+    fn blocker_summary_for(door: DoorState, from: &str, to: &str) -> Option<String> {
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+        let door_id = door.door_id.clone();
+        state.doors.insert(door_id.clone(), door);
+        let mut connected = std::collections::BTreeSet::new();
+        connected.insert(door_id);
+        visible_exit_blocker_summary(&state, &connected, &place_id(from), &place_id(to))
+    }
+
+    #[test]
+    fn door_connects_edge_requires_the_full_endpoint_pair() {
+        let door = door_between("door_ab", "place_a", "place_b");
+
+        // A door connects its edge in both traversal directions. The reverse case
+        // pins the `endpoint_b == from && endpoint_a == to` comparisons (kills the
+        // `== -> !=` mutants on that clause).
+        assert!(door_connects_edge(
+            &door,
+            &place_id("place_a"),
+            &place_id("place_b")
+        ));
+        assert!(door_connects_edge(
+            &door,
+            &place_id("place_b"),
+            &place_id("place_a")
+        ));
+
+        // Exactly one endpoint matching must NOT connect the edge. These kill the
+        // `&& -> ||` mutants on both clauses, which would otherwise let a single
+        // matching endpoint satisfy the predicate.
+        assert!(!door_connects_edge(
+            &door,
+            &place_id("place_a"),
+            &place_id("place_c")
+        ));
+        assert!(!door_connects_edge(
+            &door,
+            &place_id("place_c"),
+            &place_id("place_a")
+        ));
+        assert!(!door_connects_edge(
+            &door,
+            &place_id("place_c"),
+            &place_id("place_b")
+        ));
+
+        // A wholly unrelated edge does not connect.
+        assert!(!door_connects_edge(
+            &door,
+            &place_id("place_c"),
+            &place_id("place_d")
+        ));
+    }
+
+    #[test]
+    fn visible_exit_blocker_summary_distinguishes_blocker_branches() {
+        let edge = ("place_a", "place_b");
+
+        // Locked + closed -> "closed and locked".
+        let mut locked_closed = door_between("door_lc", edge.0, edge.1);
+        locked_closed.is_open = false;
+        locked_closed.is_locked = true;
+        assert_eq!(
+            blocker_summary_for(locked_closed, edge.0, edge.1),
+            Some("door door_lc is closed and locked".to_string())
+        );
+
+        // Locked + OPEN -> "locked" (not "closed and locked"). Kills the
+        // `is_locked && !is_open -> is_locked || !is_open` mutant, which would
+        // misreport an open-but-locked door as closed.
+        let mut locked_open = door_between("door_lo", edge.0, edge.1);
+        locked_open.is_open = true;
+        locked_open.is_locked = true;
+        assert_eq!(
+            blocker_summary_for(locked_open, edge.0, edge.1),
+            Some("door door_lo is locked".to_string())
+        );
+
+        // Unlocked + closed + blocks-when-closed -> "closed".
+        let mut closed_blocking = door_between("door_cb", edge.0, edge.1);
+        closed_blocking.is_open = false;
+        closed_blocking.is_locked = false;
+        closed_blocking.blocks_movement_when_closed = true;
+        assert_eq!(
+            blocker_summary_for(closed_blocking, edge.0, edge.1),
+            Some("door door_cb is closed".to_string())
+        );
+
+        // Unlocked + OPEN + blocks-when-closed -> no blocker. Kills the
+        // `delete !` mutant on `!door.is_open`, which would treat an open door
+        // as closed.
+        let mut open_passable = door_between("door_op", edge.0, edge.1);
+        open_passable.is_open = true;
+        open_passable.is_locked = false;
+        open_passable.blocks_movement_when_closed = true;
+        assert_eq!(blocker_summary_for(open_passable, edge.0, edge.1), None);
+
+        // Unlocked + closed + does NOT block when closed -> no blocker. Kills the
+        // `!is_open && blocks_movement_when_closed -> ... || ...` mutant, which
+        // would report a passable closed door as a blocker.
+        let mut closed_non_blocking = door_between("door_cn", edge.0, edge.1);
+        closed_non_blocking.is_open = false;
+        closed_non_blocking.is_locked = false;
+        closed_non_blocking.blocks_movement_when_closed = false;
+        assert_eq!(
+            blocker_summary_for(closed_non_blocking, edge.0, edge.1),
+            None
+        );
     }
 }

@@ -323,6 +323,26 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Retirement criteria:** Do not retire until sustained review tooling and documentation patterns make historical-vs-certified status unambiguous across prompts, specs, tickets, README maps, and gate artifacts. Even then, keep as Watch while archived specs remain frequently cited.
 - **Status / review cadence:** Active for post-overhaul documentation realignment and future baseline audits; review at every session start and every expansion proposal.
 
+### R-27 — Acceptance-Evidence Reachability Overstatement
+
+- **Why it matters:** A report can claim a path was reached while the evidence came from harness fabrication, fixture setup, or an adjacent surface. That makes acceptance artifacts look stronger than the mechanics they certify.
+- **Symptoms:** Acceptance reports cite terminal events, candidate goals, replay divergence, or no-human behavior without proving the path under test emitted them; conformance rows say a family is locked when the test proves one instance; generated state stands in for scheduler, planner, or action-pipeline output.
+- **Mitigation / guardrails:** Count only path-under-test emissions for reachability claims. Keep fabricator source bans, advance-emitted-only floors, and explicit per-family contributor ledgers. Reports should name the command and the emitting path, not just the observed state.
+- **Evidence to watch:** Acceptance artifacts, conformance rows, no-human reports, generative fixtures, and replay checks that cite reachability without naming the emitter and the guard against harness fabrication.
+- **Escalation trigger:** Any acceptance artifact or conformance row claims reachability, replay coverage, or ordinary-life evidence while the tested path could have been bypassed or pre-seeded by the harness.
+- **Retirement criteria:** Retire only for a bounded artifact family with source bans, emitted-only counters, and report checks that fail on fabricated evidence.
+- **Status / review cadence:** Watch. Review at every acceptance artifact, conformance-row update, and no-human/generative evidence claim.
+
+### R-28 — Incomplete Correction Closure
+
+- **Why it matters:** A fix can land on the cited instance while sibling surfaces in the same defect class keep the bug. The next audit then rediscovers the same class under a different filename or consumer.
+- **Symptoms:** A correction touches one consumer but not the shared classifier; a derived census is extended by hand; a CI perimeter admits the named files but drops the conditional sibling; tests assert the originally cited site while no guard enumerates the full family.
+- **Mitigation / guardrails:** Treat every named defect as a family until proven otherwise. Enumerate all members, record explicit exemptions, hoist shared rules where possible, and add structural guards that derive membership instead of trusting review memory.
+- **Evidence to watch:** Multi-surface facts, duplicated filters, literal censuses, allowlists, mutation perimeters, projection/view-model fields, and tickets whose acceptance criteria say "all", "every", "both", or contain unresolved conditionals.
+- **Escalation trigger:** A correction is marked complete without enumerating the defect class and proving each member fixed or explicitly exempted with rationale.
+- **Retirement criteria:** Retire only for a specific defect family after the shared rule and family-level guard exist; the general risk remains Watch for hardening passes.
+- **Status / review cadence:** Watch. Review during ticket reassessment, implementation closeout, and spec acceptance.
+
 ## Maintenance rule
 
 Add a risk only when a recurring relapse mode needs compact memory across coding, spec writing, fixture authoring, schema review, prompt construction, and gate review. Retire a risk only with named evidence that would catch its return. Do not use this register to define new doctrine, redefine gate semantics, certify code, or create implementation work.

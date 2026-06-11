@@ -1,7 +1,7 @@
 use crate::fixtures::*;
 
 pub fn hidden_route_edge_001() -> GoldenFixture {
-    hidden_truth_adversarial_fixture(
+    with_actor_mara_known_hidden_food(hidden_truth_adversarial_fixture(
         "hidden_route_edge_001",
         "Prove a physical route edge absent from the actor-known local view cannot drive movement planning.",
         vec![
@@ -13,5 +13,5 @@ pub fn hidden_route_edge_001() -> GoldenFixture {
             "known_edges excludes hidden_workshop when not observed",
             "movement proposals cannot target hidden_workshop from physical adjacency alone",
         ],
-    )
+    ))
 }

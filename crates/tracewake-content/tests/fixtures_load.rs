@@ -90,7 +90,6 @@ const LEGACY_KNOWN_FOOD_SOURCE_HELPER_CALL_SITES: &[&str] = &[
     "src/fixtures/hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001.rs",
     "src/fixtures/knowledge_blocker_accuse_001.rs",
     "src/fixtures/method_fallback_requires_new_trace_or_stuck_001.rs",
-    "src/fixtures/mod.rs",
     "src/fixtures/no_hidden_truth_planning_001.rs",
     "src/fixtures/no_human_advance_001.rs",
     "src/fixtures/no_human_current_place_without_sleep_affordance_does_not_sleep_001.rs",
@@ -132,22 +131,73 @@ const LEGACY_KNOWN_FOOD_SOURCE_HELPER_CALL_SITES: &[&str] = &[
 )]
 fn known_food_source_helper_call_sites_from_source() -> BTreeSet<String> {
     let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/fixtures");
-    let mut call_sites = BTreeSet::new();
+    let mut sources = Vec::new();
     for entry in std::fs::read_dir(fixtures_dir).expect("fixtures directory is readable") {
         let path = entry.expect("fixture directory entry is readable").path();
         if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
             continue;
         }
         let source = std::fs::read_to_string(&path).expect("fixture source is readable");
-        if source.contains(".populate_known_food_sources_for_all_actors(") {
-            let file_name = path
-                .file_name()
-                .and_then(|file_name| file_name.to_str())
-                .expect("fixture source has file name");
-            call_sites.insert(format!("src/fixtures/{file_name}"));
+        let file_name = path
+            .file_name()
+            .and_then(|file_name| file_name.to_str())
+            .expect("fixture source has file name");
+        sources.push((format!("src/fixtures/{file_name}"), source));
+    }
+    known_food_source_helper_call_sites_from_sources(&sources)
+}
+
+fn known_food_source_helper_call_sites_from_sources(
+    sources: &[(String, String)],
+) -> BTreeSet<String> {
+    const HELPER_CALL: &str = ".populate_known_food_sources_for_all_actors(";
+    let mut call_sites = BTreeSet::new();
+    let mut helper_wrappers = BTreeSet::new();
+    for (path, source) in sources {
+        if source.contains(HELPER_CALL) {
+            call_sites.insert(path.clone());
+        }
+        for function_name in function_names_before_helper_calls(source, HELPER_CALL) {
+            helper_wrappers.insert(function_name);
+        }
+    }
+    for (path, source) in sources {
+        for wrapper in &helper_wrappers {
+            if source_defines_function(source, wrapper) {
+                continue;
+            }
+            let wrapper_call = format!("{wrapper}(");
+            if source.contains(&wrapper_call) {
+                call_sites.insert(path.clone());
+            }
         }
     }
     call_sites
+}
+
+fn function_names_before_helper_calls(source: &str, helper_call: &str) -> BTreeSet<String> {
+    let mut function_names = BTreeSet::new();
+    let mut search_start = 0;
+    while let Some(relative_index) = source[search_start..].find(helper_call) {
+        let helper_index = search_start + relative_index;
+        if let Some(function_marker_index) = source[..helper_index].rfind("fn ") {
+            let name_start = function_marker_index + "fn ".len();
+            let name_end = source[name_start..]
+                .find('(')
+                .map(|offset| name_start + offset)
+                .expect("fixture function signature has parameter list");
+            let function_name = source[name_start..name_end].trim();
+            if !function_name.ends_with("_001") {
+                function_names.insert(function_name.to_string());
+            }
+        }
+        search_start = helper_index + helper_call.len();
+    }
+    function_names
+}
+
+fn source_defines_function(source: &str, function_name: &str) -> bool {
+    source.contains(&format!("fn {function_name}("))
 }
 
 fn known_food_source_helper_census_errors(call_sites: &BTreeSet<String>) -> Vec<String> {
@@ -330,6 +380,35 @@ fn known_food_source_blanket_helper_call_sites_are_allowlisted() {
             .iter()
             .any(|error| error.contains("synthetic_new_fixture_001.rs")),
         "synthetic new blanket helper call site must fail with the file named"
+    );
+
+    let synthetic_indirect = known_food_source_helper_call_sites_from_sources(&[
+        (
+            "src/fixtures/mod.rs".to_string(),
+            r#"
+            fn hidden_truth_adversarial_fixture() -> GoldenFixture {
+                fixture.populate_known_food_sources_for_all_actors();
+                golden
+            }
+            "#
+            .to_string(),
+        ),
+        (
+            "src/fixtures/synthetic_indirect_consumer_001.rs".to_string(),
+            r#"
+            pub fn synthetic_indirect_consumer_001() -> GoldenFixture {
+                hidden_truth_adversarial_fixture()
+            }
+            "#
+            .to_string(),
+        ),
+    ]);
+    let synthetic_indirect_errors = known_food_source_helper_census_errors(&synthetic_indirect);
+    assert!(
+        synthetic_indirect_errors
+            .iter()
+            .any(|error| error.contains("synthetic_indirect_consumer_001.rs")),
+        "synthetic indirect blanket helper consumer must fail with the file named"
     );
 }
 

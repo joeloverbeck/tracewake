@@ -8,13 +8,12 @@ use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, ObservationId, PlaceId, ProcessId,
-    SleepAffordanceId, WorkplaceId,
+    SleepAffordanceId,
 };
 use crate::location::Location;
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
-use std::collections::BTreeMap;
 
 pub fn record_current_place_perception(
     log: &mut EventLog,
@@ -164,8 +163,6 @@ pub fn current_place_knowledge_context(
     };
     let filter_context =
         KnowledgeContext::embodied_at_frontier(actor_id.clone(), decision_tick, event_frontier);
-    let mut newest_workplace_by_id: BTreeMap<WorkplaceId, ActorKnownWorkplaceFact> =
-        BTreeMap::new();
     for classified in epistemic_projection
         .classified_actor_known_records_for_context(&filter_context, &actor.current_place_id)
     {
@@ -232,7 +229,7 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if place_id == &actor.current_place_id {
-                    let fact = ActorKnownWorkplaceFact::new(
+                    workplaces.push(ActorKnownWorkplaceFact::new(
                         workplace_id.clone(),
                         place_id.clone(),
                         *believed_access_open,
@@ -243,18 +240,11 @@ pub fn current_place_knowledge_context(
                             .clone()])
                         .expect("projection workplace records carry a source event"),
                         classified.source_tick(),
-                    );
-                    let replace = newest_workplace_by_id
-                        .get(workplace_id)
-                        .is_none_or(|previous| previous.acquired_tick() <= fact.acquired_tick());
-                    if replace {
-                        newest_workplace_by_id.insert(workplace_id.clone(), fact);
-                    }
+                    ));
                 }
             }
         }
     }
-    workplaces.extend(newest_workplace_by_id.into_values());
 
     KnowledgeContext::embodied_at_frontier_with_facts(
         actor_id.clone(),
@@ -402,8 +392,10 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+    use crate::agent::{NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest};
     use crate::epistemics::{ActorKnownProjectionFreshness, EpistemicProjection};
     use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
+    use crate::state::AgentState;
     use crate::state::{
         ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, WorkplaceState,
     };
@@ -834,6 +826,74 @@ mod tests {
         assert_eq!(
             workplace.source_event_ids().as_slice(),
             &[EventId::new("event_role_notice_remembered_open").unwrap()]
+        );
+    }
+
+    #[test]
+    fn workplace_same_tick_tie_breaks_on_source_event_id_for_both_surfaces() {
+        let actor = actor_id("actor_tomas");
+        let state = state_with_current_place_workplace();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            WorkplaceId::new("workplace_tomas").unwrap(),
+            place_id("home_tomas"),
+            false,
+            EventId::new("event_role_notice_same_tick_closed").unwrap(),
+            SimTick::new(8),
+        );
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            WorkplaceId::new("workplace_tomas").unwrap(),
+            place_id("home_tomas"),
+            true,
+            EventId::new("event_role_notice_same_tick_open").unwrap(),
+            SimTick::new(8),
+        );
+
+        let embodied = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(9),
+            &manifest_id,
+            8,
+        );
+        let agent_state = AgentState::default();
+        let no_human =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &projection,
+                agent_state: &agent_state,
+                actor_id: actor,
+                current_place_id: place_id("home_tomas"),
+                decision_tick: SimTick::new(9),
+                window_id: "morning",
+                window_end_tick: SimTick::new(12),
+                current_place_witness_event_id: None,
+                needs_witness_event_id: None,
+                frame_event_id: Some(EventId::new("event_role_notice_same_tick_open").unwrap()),
+            })
+            .build(&agent_state);
+
+        let embodied_workplace = &embodied.actor_known_workplaces()[0];
+        let no_human_access_fact = no_human
+            .context()
+            .actor_known_facts()
+            .iter()
+            .find(|fact| fact.stable_id() == "workplace_believed_accessible")
+            .expect("no-human workplace access fact should be present");
+
+        assert_eq!(embodied.actor_known_workplaces().len(), 1);
+        assert!(embodied_workplace.believed_access_open());
+        assert_eq!(
+            embodied_workplace.source_event_ids().as_slice(),
+            &[EventId::new("event_role_notice_same_tick_open").unwrap()]
+        );
+        assert_eq!(no_human_access_fact.value(), "workplace_tomas:true");
+        assert_eq!(
+            no_human_access_fact.source_event_ids(),
+            &[EventId::new("event_role_notice_same_tick_open").unwrap()]
         );
     }
 }

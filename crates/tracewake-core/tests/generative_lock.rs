@@ -5,12 +5,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use support::generative::{
     actor_id, content_manifest_id, generate_case, initial_agent_state, initial_world,
     no_human_state_mut, registry, scheduled_proposals, windows, GENERATIVE_SEEDS,
+    SLEEP_INTERRUPT_HUNGER_VALUE, WORK_FAILURE_HUNGER_VALUE,
 };
+use tracewake_core::agent::NeedBand;
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventKind, EventStream};
+use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{ContentVersion, FixtureId};
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
@@ -36,15 +38,32 @@ struct TerminalCounts {
     sleep_interrupted: usize,
     work_completed: usize,
     work_failed: usize,
+    continuity_failure: usize,
 }
 
 impl TerminalCounts {
-    fn record(&mut self, kind: EventKind) {
-        match kind {
+    fn record(&mut self, event: &EventEnvelope) {
+        match event.event_type {
             EventKind::SleepCompleted => self.sleep_completed += 1,
-            EventKind::SleepInterrupted => self.sleep_interrupted += 1,
+            EventKind::SleepInterrupted => {
+                self.sleep_interrupted += 1;
+                if matches!(
+                    payload_value(event, "reason"),
+                    Some("actor_displaced" | "sleep_affordance_closed")
+                ) {
+                    self.continuity_failure += 1;
+                }
+            }
             EventKind::WorkBlockCompleted => self.work_completed += 1,
-            EventKind::WorkBlockFailed => self.work_failed += 1,
+            EventKind::WorkBlockFailed => {
+                self.work_failed += 1;
+                if matches!(
+                    payload_value(event, "reason"),
+                    Some("actor_displaced" | "workplace_unusable")
+                ) {
+                    self.continuity_failure += 1;
+                }
+            }
             _ => {}
         }
     }
@@ -52,11 +71,23 @@ impl TerminalCounts {
 
 #[test]
 fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
+    assert_eq!(
+        NeedBand::for_value(SLEEP_INTERRUPT_HUNGER_VALUE as u16),
+        NeedBand::Severe,
+        "sleep-interrupt generator constant must stay in the Severe hunger band"
+    );
+    assert_eq!(
+        NeedBand::for_value(WORK_FAILURE_HUNGER_VALUE as u16),
+        NeedBand::Severe,
+        "work-failure generator constant must stay in the Severe hunger band"
+    );
+
     let mut reachability = Reachability::default();
     let mut masks = BTreeSet::new();
     let mut sequence_lengths = BTreeSet::new();
     let mut terminal_kinds = BTreeSet::new();
     let mut terminal_counts = TerminalCounts::default();
+    let mut terminal_tamper_cases = 0_usize;
     let mut seed_contributors: BTreeMap<&'static str, BTreeSet<u64>> = BTreeMap::new();
     for seed in GENERATIVE_SEEDS {
         let case = generate_case(*seed);
@@ -132,6 +163,12 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
             "work_failed",
             has_event(&run.log, EventKind::WorkBlockFailed),
         );
+        record_seed_contribution(
+            &mut seed_contributors,
+            *seed,
+            "continuity_failure",
+            has_continuity_failure_terminal(&run.log),
+        );
         terminal_kinds.extend(
             run.log
                 .events()
@@ -145,13 +182,17 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
                 }),
         );
         for event in run.log.events() {
-            terminal_counts.record(event.event_type);
+            terminal_counts.record(event);
         }
         reachability.no_human_marker |= has_event(&run.log, EventKind::NoHumanAdvanceStarted)
             && has_event(&run.log, EventKind::NoHumanAdvanceCompleted);
 
         assert_live_matches_replay(&run, *seed);
         assert_payload_tamper_poisons_replay(&run, *seed);
+        if duration_terminal_event_index(&run.log).is_ok() {
+            assert_duration_terminal_payload_tamper_poisons_replay(&run, *seed);
+            terminal_tamper_cases += 1;
+        }
         assert_serialization_round_trip(&run.log, *seed);
         assert_prefix_replay_matches_full(&run, *seed);
         assert_marker_append_does_not_change_physical_checksum(&run, *seed);
@@ -219,7 +260,16 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
         terminal_counts.work_failed > 0,
         "generated corpus never emitted work-fail terminal; terminals={terminal_kinds:?}; {corpus_summary}"
     );
+    assert!(
+        terminal_tamper_cases > 0,
+        "generated corpus never ran terminal-targeted tamper checks; terminals={terminal_kinds:?}; {corpus_summary}"
+    );
+    assert!(
+        terminal_counts.continuity_failure > 0,
+        "generated corpus never emitted continuity-reason duration terminal; terminals={terminal_kinds:?}; {corpus_summary}"
+    );
     assert_multi_seed_contributors(&seed_contributors, &corpus_summary);
+    assert_derived_seed_contributors(&seed_contributors, &corpus_summary);
     assert!(
         masks.len() >= 4,
         "generated corpus mask diversity too low: {masks:?}; {corpus_summary}"
@@ -227,6 +277,15 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
     assert!(
         sequence_lengths.len() >= 2,
         "generated corpus sequence-length diversity too low: {sequence_lengths:?}; {corpus_summary}"
+    );
+}
+
+#[test]
+fn duration_terminal_targeted_tamper_requires_duration_terminal() {
+    let empty = EventLog::new();
+    assert!(
+        duration_terminal_event_index(&empty).is_err(),
+        "terminal-targeted tamper guard must fail loudly when no duration terminal exists"
     );
 }
 
@@ -262,6 +321,62 @@ fn assert_multi_seed_contributors(
             "generated corpus flag {flag} has too few contributing seeds: {seeds:x?}; {corpus_summary}"
         );
     }
+}
+
+fn assert_derived_seed_contributors(
+    contributors: &BTreeMap<&'static str, BTreeSet<u64>>,
+    corpus_summary: &str,
+) {
+    assert_derived_contributor_set(
+        contributors,
+        "sleep_interrupted",
+        derived_seed_set(|case| case.mask.interrupt_sleep),
+        corpus_summary,
+    );
+    assert_derived_contributor_set(
+        contributors,
+        "work_failed",
+        derived_seed_set(|case| case.mask.work && !case.mask.eat && !case.mask.sleep),
+        corpus_summary,
+    );
+    assert_derived_contributor_set(
+        contributors,
+        "continuity_failure",
+        derived_seed_set(|case| case.mask.displace_during_work),
+        corpus_summary,
+    );
+}
+
+fn derived_seed_set(
+    predicate: impl Fn(&support::generative::GeneratedCase) -> bool,
+) -> BTreeSet<u64> {
+    GENERATIVE_SEEDS
+        .iter()
+        .copied()
+        .filter(|seed| predicate(&generate_case(*seed)))
+        .collect()
+}
+
+fn assert_derived_contributor_set(
+    contributors: &BTreeMap<&'static str, BTreeSet<u64>>,
+    flag: &'static str,
+    expected: BTreeSet<u64>,
+    corpus_summary: &str,
+) {
+    let actual = contributors.get(flag).cloned().unwrap_or_default();
+    assert_eq!(
+        actual, expected,
+        "generated corpus flag {flag} contributors no longer match the mask predicate: actual={actual:x?} expected={expected:x?}; {corpus_summary}"
+    );
+
+    let mut missing_one = actual.clone();
+    if let Some(seed) = expected.first() {
+        missing_one.remove(seed);
+    }
+    assert_ne!(
+        missing_one, expected,
+        "synthetic removal of a derived {flag} contributor must fail the contributor assertion"
+    );
 }
 
 struct GeneratedRun {
@@ -381,6 +496,69 @@ fn assert_payload_tamper_poisons_replay(run: &GeneratedRun, seed: u64) {
     panic!("seed={seed} had no payload perturbation that poisoned replay");
 }
 
+fn assert_duration_terminal_payload_tamper_poisons_replay(run: &GeneratedRun, seed: u64) {
+    let event_index = duration_terminal_event_index(&run.log)
+        .unwrap_or_else(|message| panic!("seed={seed} {message}"));
+    let event = &run.log.events()[event_index];
+    assert!(
+        !event.payload.is_empty(),
+        "seed={seed} duration terminal {} has no payload fields to tamper",
+        event.event_type.stable_id()
+    );
+    for payload_index in 0..event.payload.len() {
+        let tampered_log = tampered_log(&run.log, event_index, payload_index);
+        assert!(
+            replay_is_poisoned(run, &tampered_log, seed),
+            "seed={seed} duration terminal {} payload field {} did not poison replay",
+            event.event_type.stable_id(),
+            event.payload[payload_index].key
+        );
+    }
+}
+
+fn duration_terminal_event_index(log: &EventLog) -> Result<usize, String> {
+    log.events()
+        .iter()
+        .position(|event| {
+            matches!(
+                event.event_type,
+                EventKind::SleepCompleted
+                    | EventKind::SleepInterrupted
+                    | EventKind::WorkBlockCompleted
+                    | EventKind::WorkBlockFailed
+            )
+        })
+        .ok_or_else(|| "duration-terminal tamper floor had no duration terminal event".to_string())
+}
+
+fn tampered_log(log: &EventLog, event_index: usize, payload_index: usize) -> EventLog {
+    let mut tampered_log = EventLog::new();
+    for (candidate_index, mut candidate) in log.events().iter().cloned().enumerate() {
+        if candidate_index == event_index {
+            candidate.payload[payload_index].value =
+                format!("tampered_{}", candidate.payload[payload_index].value);
+        }
+        tampered_log.append(candidate).unwrap();
+    }
+    tampered_log
+}
+
+fn replay_is_poisoned(run: &GeneratedRun, tampered_log: &EventLog, seed: u64) -> bool {
+    let context = checksum_context(seed, tampered_log, run.final_tick);
+    let live_physical = compute_physical_checksum(&run.final_world, &context).checksum;
+    let live_agent = compute_agent_state_checksum(&run.final_agent_state, &context).checksum;
+    let replay = run_replay(
+        &run.initial_world,
+        &run.initial_agent_state,
+        tampered_log,
+        &context,
+        Some(&run.final_world),
+        Some(live_physical),
+        Some(live_agent),
+    );
+    !replay.matches_expected || !replay.agent_checksum_matches
+}
+
 fn assert_serialization_round_trip(log: &EventLog, seed: u64) {
     let encoded = log.serialize_canonical();
     let decoded = EventLog::deserialize_canonical(&encoded).unwrap();
@@ -470,6 +648,20 @@ fn assert_single_need_charge_per_actor_tick_kind(log: &EventLog, seed: u64) {
 
 fn has_event(log: &EventLog, kind: EventKind) -> bool {
     log.events().iter().any(|event| event.event_type == kind)
+}
+
+fn has_continuity_failure_terminal(log: &EventLog) -> bool {
+    log.events().iter().any(|event| match event.event_type {
+        EventKind::SleepInterrupted => matches!(
+            payload_value(event, "reason"),
+            Some("actor_displaced" | "sleep_affordance_closed")
+        ),
+        EventKind::WorkBlockFailed => matches!(
+            payload_value(event, "reason"),
+            Some("actor_displaced" | "workplace_unusable")
+        ),
+        _ => false,
+    })
 }
 
 fn payload_value<'a>(

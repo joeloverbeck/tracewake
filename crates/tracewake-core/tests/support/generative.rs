@@ -41,6 +41,7 @@ pub enum GeneratedActionKind {
     Eat,
     Sleep,
     Work,
+    Move,
 }
 
 impl GeneratedActionKind {
@@ -50,6 +51,7 @@ impl GeneratedActionKind {
             Self::Eat => "eat",
             Self::Sleep => "sleep",
             Self::Work => "work_block",
+            Self::Move => "move",
         }
     }
 }
@@ -61,6 +63,7 @@ pub struct ActionMask {
     pub sleep: bool,
     pub work: bool,
     pub interrupt_sleep: bool,
+    pub displace_during_work: bool,
 }
 
 impl ActionMask {
@@ -71,13 +74,15 @@ impl ActionMask {
             self.sleep,
             self.work,
             self.interrupt_sleep,
+            self.displace_during_work,
         ) {
-            (true, true, false, false, false) => "wait_eat",
-            (true, false, false, true, false) => "wait_work",
-            (true, false, true, false, false) => "wait_sleep",
-            (true, false, true, false, true) => "wait_sleep_interrupt",
-            (false, true, false, true, false) => "eat_work",
-            (true, true, true, true, false) => "all",
+            (true, true, false, false, false, false) => "wait_eat",
+            (true, false, false, true, false, false) => "wait_work",
+            (true, false, true, false, false, false) => "wait_sleep",
+            (true, false, true, false, true, false) => "wait_sleep_interrupt",
+            (false, true, false, true, false, false) => "eat_work",
+            (true, false, false, true, false, true) => "wait_work_displace",
+            (true, true, true, true, false, false) => "all",
             _ => "mixed",
         }
     }
@@ -96,9 +101,15 @@ impl ActionMask {
         if self.work {
             kinds.push(GeneratedActionKind::Work);
         }
+        if self.displace_during_work {
+            kinds.push(GeneratedActionKind::Move);
+        }
         kinds
     }
 }
+
+pub const SLEEP_INTERRUPT_HUNGER_VALUE: i32 = 930;
+pub const WORK_FAILURE_HUNGER_VALUE: i32 = 820;
 
 pub const GENERATIVE_SEEDS: &[u64] = &[
     0x18_00_00_10,
@@ -111,6 +122,7 @@ pub const GENERATIVE_SEEDS: &[u64] = &[
     0x18_00_00_23,
     0x18_00_00_24,
     0x18_00_00_29,
+    0x18_00_00_2A,
     0x18_00_00_57,
 ];
 
@@ -146,14 +158,26 @@ pub fn generate_case(seed: u64) -> GeneratedCase {
     let step_count = rng.range(3, 6);
     for index in 0..step_count {
         let mut kind = allowed_kinds[(rng.range(0, allowed_kinds.len() as u64 - 1)) as usize];
-        if index == step_count - 1 && mask.sleep {
+        if mask.displace_during_work {
+            kind = if index + 2 == step_count {
+                GeneratedActionKind::Work
+            } else if index + 1 == step_count {
+                GeneratedActionKind::Move
+            } else if kind == GeneratedActionKind::Move {
+                GeneratedActionKind::Wait
+            } else {
+                kind
+            };
+        } else if index == step_count - 1 && mask.sleep {
             kind = GeneratedActionKind::Sleep;
         } else if index == step_count - 1 && mask.work {
             kind = GeneratedActionKind::Work;
         }
         let duration = match kind {
             GeneratedActionKind::Sleep | GeneratedActionKind::Work => rng.range(2, 4),
-            GeneratedActionKind::Wait | GeneratedActionKind::Eat => rng.range(1, 2),
+            GeneratedActionKind::Wait | GeneratedActionKind::Eat | GeneratedActionKind::Move => {
+                rng.range(1, 2)
+            }
         };
         let start_tick = tick;
         let end_tick = start_tick + duration;
@@ -192,6 +216,7 @@ fn mask_for_seed(seed: u64) -> ActionMask {
             sleep: false,
             work: false,
             interrupt_sleep: false,
+            displace_during_work: false,
         },
         1 => ActionMask {
             wait: true,
@@ -199,6 +224,7 @@ fn mask_for_seed(seed: u64) -> ActionMask {
             sleep: false,
             work: true,
             interrupt_sleep: false,
+            displace_during_work: false,
         },
         2 => ActionMask {
             wait: true,
@@ -206,6 +232,7 @@ fn mask_for_seed(seed: u64) -> ActionMask {
             sleep: true,
             work: false,
             interrupt_sleep: false,
+            displace_during_work: false,
         },
         3 => ActionMask {
             wait: true,
@@ -213,6 +240,7 @@ fn mask_for_seed(seed: u64) -> ActionMask {
             sleep: true,
             work: false,
             interrupt_sleep: true,
+            displace_during_work: false,
         },
         4 => ActionMask {
             wait: false,
@@ -220,6 +248,15 @@ fn mask_for_seed(seed: u64) -> ActionMask {
             sleep: false,
             work: true,
             interrupt_sleep: false,
+            displace_during_work: false,
+        },
+        10 => ActionMask {
+            wait: true,
+            eat: false,
+            sleep: false,
+            work: true,
+            interrupt_sleep: false,
+            displace_during_work: true,
         },
         _ => ActionMask {
             wait: true,
@@ -227,6 +264,7 @@ fn mask_for_seed(seed: u64) -> ActionMask {
             sleep: true,
             work: true,
             interrupt_sleep: false,
+            displace_during_work: false,
         },
     }
 }
@@ -242,6 +280,7 @@ pub fn content_manifest_id(seed: u64) -> ContentManifestId {
 pub fn registry() -> ActionRegistry {
     let mut registry = ActionRegistry::new();
     registry.register_phase1_inspect_wait();
+    registry.register_phase1_movement_open_close();
     registry.register_phase3a_sleep();
     registry.register_phase3a_eat();
     registry.register_phase3a_work();
@@ -252,10 +291,13 @@ pub fn registry() -> ActionRegistry {
 pub fn initial_world(seed: u64) -> PhysicalState {
     let mut state = PhysicalSeed::from_state(&PhysicalState::empty(NeedModelState::new(5, 3)));
     let home_place_id = place_id();
-    state.places_mut().insert(
-        home_place_id.clone(),
-        PlaceState::new(home_place_id.clone(), "Generated home"),
-    );
+    let outside_place_id = away_place_id();
+    let mut home = PlaceState::new(home_place_id.clone(), "Generated home");
+    home.adjacent_place_ids.insert(outside_place_id.clone());
+    state.places_mut().insert(home_place_id.clone(), home);
+    let mut outside = PlaceState::new(outside_place_id.clone(), "Generated outside");
+    outside.adjacent_place_ids.insert(home_place_id.clone());
+    state.places_mut().insert(outside_place_id, outside);
     state
         .actors_mut()
         .insert(actor_id(), ActorBody::new(actor_id(), home_place_id));
@@ -290,9 +332,9 @@ pub fn initial_agent_state(seed: u64) -> AgentState {
     let mut rng = Lcg::new(seed ^ 0xA11CE);
     let mask = mask_for_seed(seed);
     let hunger = if mask.interrupt_sleep {
-        930
+        SLEEP_INTERRUPT_HUNGER_VALUE
     } else if mask.work && !mask.eat && !mask.sleep {
-        820
+        WORK_FAILURE_HUNGER_VALUE
     } else {
         rng.range(100, 500) as i32
     };
@@ -321,6 +363,10 @@ pub fn initial_agent_state(seed: u64) -> AgentState {
 
 pub fn place_id() -> PlaceId {
     PlaceId::new("generated_home").unwrap()
+}
+
+pub fn away_place_id() -> PlaceId {
+    PlaceId::new("generated_outside").unwrap()
 }
 
 pub fn food_supply_id() -> FoodSupplyId {
@@ -385,6 +431,9 @@ pub fn scheduled_proposals(case: &GeneratedCase) -> Vec<Proposal> {
                 }
                 GeneratedActionKind::Work => {
                     proposal.target_ids.push(workplace_id().to_string());
+                }
+                GeneratedActionKind::Move => {
+                    proposal.target_ids.push(away_place_id().to_string());
                 }
             }
             proposal

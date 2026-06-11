@@ -51,12 +51,27 @@ For each ticket:
 1. Reassess assumptions against current code, docs, and crate ownership.
    If the ticket/spec diverges from current truth, correct the ticket/spec first
    and commit that correction separately when it is material.
-2. Identify the narrow implementation surface and the exact acceptance criteria.
+   If acceptance criteria contain an un-expanded quantifier ("every …",
+   "both …", "all …", a named defect class) or an unresolved conditional
+   ("if nontrivial", "where applicable"), treat that as ticket divergence:
+   enumerate the actual members against the current codebase, record the
+   enumeration (or the conditional's recorded yes/no resolution) in the ticket
+   before implementing, and never read the quantifier as meaning only the
+   spec's cited instance. The cited site is where the defect was found, not
+   the scope of the fix.
+2. Identify the narrow implementation surface and the exact acceptance
+   criteria, including the full member list of any enumerated criterion.
 3. Make the minimal code/doc/test changes that satisfy the ticket while
    preserving the repository's documented invariants, ownership boundaries, and
    dependency direction.
 4. Run targeted checks that prove the ticket acceptance criteria. Use broader
    gates when the touched surface or ticket requires them.
+   When acceptance criteria enumerate members (apply arms, surfaces, record
+   kinds, files), prove each member individually; a representative instance
+   does not satisfy the list.
+   For acceptance-artifact or report tickets, run the checks the artifact claims
+   after composing or amending it, unless intentionally combining that ticket
+   with the spec archive/truthing commit and recording that choice.
 5. Update the ticket with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
 6. Archive the ticket:
@@ -64,9 +79,15 @@ For each ticket:
    - Prefer `git mv` for tracked tickets.
    - Use plain `mv` only for untracked tickets.
    - Confirm the original `tickets/` path is gone.
-   - After `git mv`, stage the move with rename-aware staging such as
-     `git add -A tickets archive/tickets` or by staging the relevant old and
-     archive parent directories.
+   - After `git mv`, stage the move with `git add -A tickets archive/tickets`
+     or equivalent rename-aware staging of the relevant old and archive parent
+     directories.
+     Do not pass the removed source file path to `git add` after `git mv`;
+     stage the archive destination plus `git add -u`, or use `git add -A` on
+     the relevant parent directories.
+     Run Git index-mutating commands serially; do not parallelize `git add`,
+     `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
+     appears, check for active Git processes, then retry serially.
 7. Sweep active specs, ledgers, docs, and ticket references for stale live
    ticket paths. Update references that should now point to `archive/tickets/`.
 8. Review the diff for unrelated changes.
@@ -75,6 +96,11 @@ For each ticket:
 
 Do not advance to the next ticket on plausible implementation alone. Acceptance
 criteria must pass, or the ticket must be explicitly blocked with evidence.
+Never narrow an enumerated criterion silently: if a member proves un-fixable,
+moot, or wrongly listed mid-implementation, give it an explicit recorded
+disposition in the ticket `Outcome` (done, deferred to a named follow-up
+ticket, or dropped with rationale and evidence). Silently shipping N-1 of N
+members is a failed ticket, not a completed one.
 
 ## Final Spec Closeout
 
@@ -114,6 +140,12 @@ cargo test --workspace
    After `git mv`, stage the move with rename-aware staging such as
    `git add -A specs archive/specs` or by staging the relevant old and archive
    parent directories, rather than only the now-removed live path.
+   Do not pass the removed source file path to `git add` after `git mv`;
+   stage the archive destination plus `git add -u`, or use `git add -A` on the
+   relevant parent directories.
+   Run Git index-mutating commands serially; do not parallelize `git add`,
+   `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
+   appears, check for active Git processes, then retry serially.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
    Use concrete sweeps for the exact spec filename, ticket prefix, live paths,
@@ -166,6 +198,8 @@ Final responses must include:
 - Spec archived or reason it remains active.
 - Verification commands actually run.
 - Any checks not run and why.
+- Any enumerated-criterion members deferred or dropped, with their recorded
+  dispositions, or explicitly `None`.
 - Any unrelated pre-existing changes left untouched, or explicitly `None`.
 
 ## Maintenance
