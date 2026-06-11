@@ -1,6 +1,6 @@
 # 0021 Phase 3A Possession-Rebind Hygiene, Guard-Vacuity Closure, Harness-Provenance Fidelity, and Reject-Loudly Replay Posture Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `89059a5` (post-0020 closeout; all `0020PHA3ACOGSUR` tickets landed, merge PR #28).
@@ -1279,3 +1279,33 @@ recording, for the implementation commits:
   for explicit owner decision, not designed against.
 - [x] Scope stays within the Phase 3A ordinary-life surface and its lock/evidence
   layer.
+
+## Outcome
+
+Completed: 2026-06-11
+
+Spec 0021 landed as thirteen ticket commits, ending with the scoped acceptance
+artifact commit `a466d13`. The implementation closed the possession-rebind,
+harness-provenance, census, mutation-CI, policy-dispatch, reject-loudly,
+typed-place-visibility, event/state-perimeter, content-integrity, embodied-sweep,
+generative-parity, and low-severity remainder findings recorded by this spec.
+
+The final artifact is `reports/0021_ord_life_cert_scoped_acceptance.md`; it records
+the implementation commit manifest, the §7 evidence map, the refreshed observer-only
+EMERGE-OBS table, the deferred INV-087 owner-decision boundary, and the explicit
+non-certification posture. No doctrine amendment was made.
+
+Deviations from the original plan: `ORD-HARD-095` landed as an explicit deferred
+owner-decision record rather than a constitutional edit, and the capstone made no
+production or test-oracle changes.
+
+Verification passed on 2026-06-11:
+
+```sh
+cargo test -p tracewake-core --test emergence_ledger -- --nocapture
+rg -n "EmergeObs|emerge_obs|emergence_ledger" crates/tracewake-core/src crates/tracewake-content/src crates/tracewake-tui/src
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo build --workspace --all-targets --locked
+cargo test --workspace
+```

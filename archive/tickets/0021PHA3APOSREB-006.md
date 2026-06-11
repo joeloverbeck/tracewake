@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, `actions/defs/{sleep,work,wait,continue_routine}`, `scheduler` completion paths, shared crossing emitter); golden repricing in `tracewake-content` as surfaced
-**Deps**: `specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md` (ORD-HARD-076, ORD-HARD-077, ORD-HARD-085)
+**Deps**: `archive/specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md` (ORD-HARD-076, ORD-HARD-077, ORD-HARD-085)
 
 ## Problem
 

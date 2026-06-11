@@ -7,7 +7,7 @@ Target implementation commits under review:
 `e0ff5f6e6d62a7320f7eee79fdbee918b5d42a7e`
 
 Scope:
-`specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md`
+`archive/specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the 0021 Phase 3A
 possession-rebind, provenance, replay-posture, event-perimeter, content-integrity,

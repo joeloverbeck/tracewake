@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (`app`, `render`), `tracewake-core` (`projections`, anti-regression guard); `docs/3-reference/01_DESIGN_RISK_REGISTER.md` Watch entry; conformance-index row
-**Deps**: `specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md` (ORD-HARD-066, ORD-HARD-082, ORD-HARD-096; §6)
+**Deps**: `archive/specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md` (ORD-HARD-066, ORD-HARD-082, ORD-HARD-096; §6)
 
 ## Problem
 

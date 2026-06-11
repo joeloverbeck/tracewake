@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `.github/workflows/ci.yml`, `.cargo/mutants.toml` (if perimeter widens), `.cargo/mutants-baseline-misses.txt`, `tracewake-core` test oracle (perimeter/baseline guards), baseline disposition ledger, conformance-index mutation rows
-**Deps**: `specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md` (ORD-HARD-067, 071, 072, 073, 097)
+**Deps**: `archive/specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md` (ORD-HARD-067, 071, 072, 073, 097)
 
 ## Problem
 
