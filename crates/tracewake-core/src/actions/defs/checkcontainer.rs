@@ -2,7 +2,7 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
-use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContainerId, ContentManifestId, EventId};
 use crate::location::Location;
 use crate::scheduler::OrderingKey;
@@ -53,7 +53,7 @@ pub fn build_check_container_event(
         ));
     }
 
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.container_checked.{}",
             proposal.proposal_id.as_str()
@@ -65,7 +65,9 @@ pub fn build_check_container_event(
         proposal.requested_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Proposal(proposal.proposal_id.clone())],
+    )
+    .expect("container check events carry proposal ancestry");
     event.actor_id = Some(actor_id.clone());
     event.place_id = Some(actor.current_place_id.clone());
     event.proposal_id = Some(proposal.proposal_id.clone());
@@ -98,7 +100,7 @@ pub fn build_observation_recorded_event(
     let observed_tick = payload_value(check_event, "observed_tick")
         .expect("check event carries observed_tick payload");
 
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.observation_recorded.{}",
             check_event
@@ -114,13 +116,12 @@ pub fn build_observation_recorded_event(
         check_event.sim_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Event(check_event.event_id.clone())],
+    )
+    .expect("container observation events carry check event ancestry");
     event.actor_id = Some(actor_id.clone());
     event.place_id = Some(place_id.clone());
     event.proposal_id = check_event.proposal_id.clone();
-    event.causes = vec![crate::events::EventCause::Event(
-        check_event.event_id.clone(),
-    )];
     event.payload = vec![
         PayloadField::new("schema_version", EVENT_SCHEMA_V1),
         PayloadField::new(

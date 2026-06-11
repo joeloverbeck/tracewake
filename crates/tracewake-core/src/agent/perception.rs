@@ -5,7 +5,7 @@ use crate::epistemics::{
     SourceRef,
 };
 use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, ObservationId, PlaceId, ProcessId,
     SleepAffordanceId,
@@ -344,7 +344,8 @@ fn observation_event(
         vec![perceived.kind.to_string(), perceived.target_id.clone()],
         format!("perception_{index:04}"),
     );
-    let mut event = EventEnvelope::new_v1(
+    let process_id = ProcessId::new("current_place_perception").unwrap();
+    let mut event = EventEnvelope::new_caused_v1(
         event_id.clone(),
         EventKind::ObservationRecorded,
         0,
@@ -352,10 +353,12 @@ fn observation_event(
         decision_tick,
         ordering_key,
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Process(process_id.clone())],
+    )
+    .expect("perception observations carry process ancestry");
     event.actor_id = Some(actor_id.clone());
     event.place_id = Some(perceived.place_id.clone());
-    event.process_id = Some(ProcessId::new("current_place_perception").unwrap());
+    event.process_id = Some(process_id);
     event.participants = vec![
         actor_id.to_string(),
         perceived.place_id.to_string(),

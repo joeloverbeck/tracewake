@@ -495,6 +495,18 @@ pub fn diff_physical_state(expected: &PhysicalState, actual: &PhysicalState) -> 
             expected.workplaces, actual.workplaces
         ));
     }
+    if expected.sleep_affordances != actual.sleep_affordances {
+        diffs.push(format!(
+            "sleep_affordances expected={:?} actual={:?}",
+            expected.sleep_affordances, actual.sleep_affordances
+        ));
+    }
+    if expected.need_model != actual.need_model {
+        diffs.push(format!(
+            "need_model expected={:?} actual={:?}",
+            expected.need_model, actual.need_model
+        ));
+    }
     diffs.sort();
     diffs
 }
@@ -562,6 +574,11 @@ mod tests {
             ContentManifestId::new("phase2a_manifest").unwrap(),
         );
         event.payload = payload;
+        if kind.requires_cause() {
+            event.causes = vec![EventCause::Process(
+                ProcessId::new("process_epistemic").unwrap(),
+            )];
+        }
         event
     }
 

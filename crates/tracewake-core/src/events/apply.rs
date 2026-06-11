@@ -91,6 +91,7 @@ pub enum ApplyError {
         actual: String,
     },
     EventKindStreamMismatch,
+    UnhandledWorldEventKind(EventKind),
     NonAgentEvent,
     MissingNeedState {
         actor_id: ActorId,
@@ -124,6 +125,7 @@ pub enum EpistemicApplyError {
     BadPayload { key: &'static str, value: String },
     EventKindStreamMismatch,
     NonEpistemicEvent,
+    MissingCause,
     MissingHolder,
     MissingSource,
 }
@@ -153,6 +155,10 @@ fn apply_event_with_capability(
 
     if event.stream != EventStream::World {
         return Ok(ApplyOutcome::NonWorldNoOp);
+    }
+
+    if event.event_type.requires_cause() && event.causes.is_empty() {
+        return Err(ApplyError::MissingCause);
     }
 
     let payload = payload_map(&event.payload);
@@ -186,7 +192,7 @@ fn apply_event_with_capability(
             apply_food_consumed(state, &payload).map(|_| ApplyOutcome::Applied)
         }
         EventKind::ActorWaited | EventKind::TimeAdvanced => Ok(ApplyOutcome::WorldNoOp),
-        _ => Ok(ApplyOutcome::NonWorldNoOp),
+        other => Err(ApplyError::UnhandledWorldEventKind(other)),
     }
 }
 
@@ -206,6 +212,10 @@ pub fn apply_epistemic_event(
 
     if event.stream != EventStream::Epistemic {
         return Ok(ApplyOutcome::NonWorldNoOp);
+    }
+
+    if event.event_type.requires_cause() && event.causes.is_empty() {
+        return Err(EpistemicApplyError::MissingCause);
     }
 
     let payload = payload_map(&event.payload);
@@ -1743,6 +1753,11 @@ mod tests {
             ContentManifestId::new("phase1_manifest").unwrap(),
         );
         event.payload = payload;
+        if kind.requires_cause() {
+            event.causes = vec![EventCause::Process(
+                ProcessId::new("process_apply_test").unwrap(),
+            )];
+        }
         event
     }
 

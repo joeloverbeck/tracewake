@@ -17,8 +17,8 @@ use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream, PayloadField};
 use tracewake_core::ids::{
     ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
-    DecisionTraceId, EventId, FixtureId, IntentionId, ItemId, PlaceId, RoutineExecutionId,
-    RoutineTemplateId, SchemaVersion, WorkplaceId,
+    DecisionTraceId, EventId, FixtureId, IntentionId, ItemId, PlaceId, ProcessId,
+    RoutineExecutionId, RoutineTemplateId, SchemaVersion, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -719,10 +719,13 @@ fn unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied() {
     let initial_world = world_state();
     let initial_agent_state = agent_state();
     let mut log = EventLog::new();
-    let mut bad_payload = event(
+    let mut bad_payload = caused_event(
         "event_bad_epistemic_payload_schema",
         EventKind::BeliefUpdated,
         0,
+        vec![EventCause::Process(
+            ProcessId::new("process_bad_payload").unwrap(),
+        )],
     );
     bad_payload.payload = vec![PayloadField::new("schema_version", "event_schema_v999")];
     append_to_log(&mut log, bad_payload);

@@ -15,10 +15,10 @@ use tracewake_core::debug_reports::item_location_report;
 use tracewake_core::epistemics::{ActorKnownFoodSourceFact, EpistemicProjection, KnowledgeContext};
 use tracewake_core::events::apply::apply_epistemic_event;
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
-    FoodSupplyId, ItemId, PlaceId, WorkplaceId,
+    FoodSupplyId, ItemId, PlaceId, ProcessId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_embodied_view_model, EmbodiedProjectionSource};
@@ -112,6 +112,10 @@ fn content_manifest_id() -> ContentManifestId {
     ContentManifestId::new("hidden_truth_gate_manifest").unwrap()
 }
 
+fn helper_process_id(value: &str) -> ProcessId {
+    ProcessId::new(value).unwrap()
+}
+
 fn ordering_key(tick: SimTick, action_id: &str) -> OrderingKey {
     OrderingKey::new(
         tick,
@@ -125,7 +129,7 @@ fn ordering_key(tick: SimTick, action_id: &str) -> OrderingKey {
 }
 
 fn observation_event(event_id: &str, tick: SimTick) -> EventEnvelope {
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(event_id).unwrap(),
         EventKind::ObservationRecorded,
         0,
@@ -133,7 +137,11 @@ fn observation_event(event_id: &str, tick: SimTick) -> EventEnvelope {
         tick,
         ordering_key(tick, "observe"),
         content_manifest_id(),
-    );
+        vec![EventCause::Process(helper_process_id(
+            "process_hidden_truth_gate_observation",
+        ))],
+    )
+    .unwrap();
     event.actor_id = Some(actor_id());
     event.participants = vec![actor_id().as_str().to_string()];
     event.place_id = Some(place_id("home_mara"));
@@ -157,7 +165,7 @@ fn role_notice_event(
     tick: SimTick,
 ) -> EventEnvelope {
     let event_id = format!("event_notice_{}", workplace_id.as_str());
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(&event_id).unwrap(),
         EventKind::RoleAssignmentNoticeRecorded,
         0,
@@ -165,7 +173,11 @@ fn role_notice_event(
         tick,
         ordering_key(tick, "notice"),
         content_manifest_id(),
-    );
+        vec![EventCause::Process(helper_process_id(
+            "process_hidden_truth_gate_notice",
+        ))],
+    )
+    .unwrap();
     event.actor_id = Some(actor_id());
     event.participants = vec![
         actor_id().as_str().to_string(),

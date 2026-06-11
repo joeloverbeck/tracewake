@@ -2,7 +2,7 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
-use crate::events::{EventEnvelope, EventKind, PayloadField};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContentManifestId, EventId, PlaceId};
 use crate::scheduler::OrderingKey;
 use crate::state::PhysicalState;
@@ -116,7 +116,7 @@ pub fn build_move_event(
         }
     }
 
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.actor_moved.{}",
             proposal.proposal_id.as_str()
@@ -128,7 +128,9 @@ pub fn build_move_event(
         proposal.requested_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Proposal(proposal.proposal_id.clone())],
+    )
+    .expect("move events carry proposal ancestry");
     event.actor_id = Some(actor_id.clone());
     event.place_id = Some(from_place_id.clone());
     event.proposal_id = Some(proposal.proposal_id.clone());

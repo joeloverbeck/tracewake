@@ -131,7 +131,7 @@ pub fn build_wait_events(
         .chain(fatigue_events.iter())
         .any(|event| event.event_type == EventKind::NeedThresholdCrossed);
 
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.actor_waited.{}",
             proposal.proposal_id.as_str()
@@ -143,7 +143,9 @@ pub fn build_wait_events(
         proposal.requested_tick.advance_by(tick_count),
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Proposal(proposal.proposal_id.clone())],
+    )
+    .expect("wait events carry proposal ancestry");
     event.actor_id = Some(actor_id.clone());
     event.proposal_id = Some(proposal.proposal_id.clone());
     event.participants = vec![actor_id.to_string()];

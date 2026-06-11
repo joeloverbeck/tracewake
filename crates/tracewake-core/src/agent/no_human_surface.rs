@@ -521,7 +521,7 @@ mod tests {
     };
     use crate::events::apply::apply_epistemic_event;
     use crate::events::log::EventLog;
-    use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+    use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
     use crate::ids::{ActionId, ContentManifestId, SemanticActionId};
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 
@@ -571,6 +571,11 @@ mod tests {
             content_manifest_id(),
         );
         event.actor_id = Some(actor_id.clone());
+        if kind.requires_cause() {
+            event.causes = vec![EventCause::Process(
+                crate::ids::ProcessId::new("process_no_human_surface_test").unwrap(),
+            )];
+        }
         event.participants = vec![actor_id.as_str().to_string()];
         event.payload = payload;
         event

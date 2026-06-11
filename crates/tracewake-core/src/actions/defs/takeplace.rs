@@ -3,7 +3,7 @@ use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
 use crate::epistemics::Proposition;
-use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ActorId, ContainerId, ContentManifestId, EventId, ItemId, PlaceId};
 use crate::location::Location;
 use crate::scheduler::OrderingKey;
@@ -237,7 +237,7 @@ pub fn build_sound_observation_event(
     }
 
     let observation_id = format!("obs.sound.{}", source_event.event_id.as_str());
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.observation.sound.{}",
             source_event.event_id.as_str()
@@ -249,7 +249,9 @@ pub fn build_sound_observation_event(
         source_event.sim_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Event(source_event.event_id.clone())],
+    )
+    .expect("sound observation events carry source event ancestry");
     event.actor_id = Some(observer_actor_id.clone());
     event.proposal_id = source_event.proposal_id.clone();
     event.participants = vec![
@@ -288,7 +290,7 @@ pub fn build_sound_belief_event(
     let place_id = PlaceId::new(payload_value(observation_event, "place_id")?).ok()?;
     let observation_id = payload_value(observation_event, "observation_id")?;
     let proposition = Proposition::SoundHeardNearPlace { place_id };
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.belief.sound.{}",
             observation_event.event_id.as_str()
@@ -300,7 +302,9 @@ pub fn build_sound_belief_event(
         observation_event.sim_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Event(observation_event.event_id.clone())],
+    )
+    .expect("sound belief events carry observation event ancestry");
     event.actor_id = observation_event.actor_id.clone();
     event.proposal_id = observation_event.proposal_id.clone();
     event.participants = observation_event.participants.clone();
@@ -374,7 +378,7 @@ fn item_event(
     kind: EventKind,
     payload: Vec<PayloadField>,
 ) -> EventEnvelope {
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.{}.{}",
             kind.stable_id(),
@@ -387,7 +391,9 @@ fn item_event(
         proposal.requested_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Proposal(proposal.proposal_id.clone())],
+    )
+    .expect("item movement events carry proposal ancestry");
     event.actor_id = proposal.actor_id.clone();
     event.proposal_id = Some(proposal.proposal_id.clone());
     event.payload = payload;

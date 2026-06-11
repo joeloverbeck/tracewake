@@ -279,10 +279,6 @@ impl PhysicalState {
     pub const fn need_model(&self) -> &NeedModelState {
         &self.need_model
     }
-
-    pub fn set_need_model(&mut self, need_model: NeedModelState) {
-        self.need_model = need_model;
-    }
 }
 
 impl AgentState {

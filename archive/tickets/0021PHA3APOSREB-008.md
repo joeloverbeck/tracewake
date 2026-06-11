@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-008: Events/state perimeter — applier totality, mutator deletion, derived guard lists, cause allowlist, divergence families
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`events/{apply,envelope}`, `state`, `replay/{rebuild,report}`, action-def builders); derived state-visibility guards
@@ -62,6 +62,59 @@ and `need_model` — a checksum divergence there is detected but unexplainable
 7. Removal blast radius (`set_need_model`): zero callers workspace-wide (verified);
    removal touches only `state.rs` and the guard lists that should have named its
    family.
+
+## Implementation Outcome (2026-06-11)
+
+1. Closed the world/epistemic applier perimeter:
+   `apply_event_with_capability` now rejects missing causes for cause-required
+   world events and returns a typed `UnhandledWorldEventKind` instead of silently
+   no-oping an unknown world kind. `apply_epistemic_event` now also rejects
+   missing causes for cause-required epistemic events.
+2. Removed the dead `PhysicalState::set_need_model` event-free mutator. Guard
+   coverage now derives public-mutator and direct-insert checks from checksum
+   family coverage, including `need_model`, `sleep_affordances`,
+   `need_tick_charges`, and episode maps.
+3. Populated cause ancestry for all 13 action-emitted kinds by extending
+   `EventKind::requires_cause` and switching production builders/test fixtures to
+   caused envelopes:
+   - `ActorMoved`, `ActorWaited`, `ContainerChecked`, `ContainerClosed`,
+     `ContainerOpened`, `DoorClosed`, `DoorOpened`,
+     `ItemPlacedInContainer`, `ItemPlacedInPlace`,
+     `ItemRemovedFromContainer`, and `ItemTakenFromPlace` are caused by their
+     proposal in action builders.
+   - `ObservationRecorded` is caused by the event or process that produced the
+     observation: container-check event, item sound event, current-place
+     perception process, or deterministic fixture helper process.
+   - `BeliefUpdated` is caused by the observation that produced the derived
+     belief in production sound handling; replay/test helpers now provide
+     deterministic process causes when they synthesize epistemic events.
+4. Added replay divergence coverage for `sleep_affordances` and `need_model` in
+   `diff_physical_state` and `ReplayDivergenceFieldFamily`, with guards ensuring
+   every physical checksum family has an explainable diff path.
+5. Added/extended anti-regression guards for explicit physical-mutating apply
+   arms, absence of the old world no-op catch-all, source-level cause
+   disposition for action-emitted kinds, derived state write perimeter coverage,
+   and replay diff-family coverage. Existing golden/content tests accepted the
+   caused envelopes; no golden expectation files required changes.
+
+## Verification (2026-06-11)
+
+1. `cargo test -p tracewake-core events`
+2. `cargo test -p tracewake-core replay`
+3. `cargo test -p tracewake-core --test event_schema_replay_gates`
+4. `cargo test -p tracewake-core actions::defs::movement`
+5. `cargo test -p tracewake-core actions::defs::wait`
+6. `cargo test -p tracewake-core actions::defs::openclose`
+7. `cargo test -p tracewake-core actions::defs::checkcontainer`
+8. `cargo test -p tracewake-core actions::defs::takeplace`
+9. `cargo test -p tracewake-core --test anti_regression_guards`
+10. `cargo test -p tracewake-core --test hidden_truth_gates`
+11. `cargo test -p tracewake-core --lib`
+12. `cargo fmt --all --check`
+13. `cargo clippy --workspace --all-targets -- -D warnings`
+14. `cargo build --workspace --all-targets --locked`
+15. `cargo test --workspace`
+16. `git diff --check`
 
 ## Architecture Check
 

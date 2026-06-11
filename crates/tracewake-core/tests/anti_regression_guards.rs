@@ -7,6 +7,7 @@ use support::{AgentSeed, PhysicalSeed};
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
+const PERCEPTION_RS: &str = include_str!("../src/agent/perception.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const PIPELINE_RS: &str = include_str!("../src/actions/pipeline.rs");
@@ -19,6 +20,11 @@ const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
+const MOVEMENT_RS: &str = include_str!("../src/actions/defs/movement.rs");
+const WAIT_RS: &str = include_str!("../src/actions/defs/wait.rs");
+const OPENCLOSE_RS: &str = include_str!("../src/actions/defs/openclose.rs");
+const CHECKCONTAINER_RS: &str = include_str!("../src/actions/defs/checkcontainer.rs");
+const TAKEPLACE_RS: &str = include_str!("../src/actions/defs/takeplace.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const TIME_RS: &str = include_str!("../src/time.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
@@ -26,6 +32,8 @@ const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
 const VIEW_MODELS_RS: &str = include_str!("../src/view_models.rs");
+const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
+const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
@@ -4272,44 +4280,26 @@ fn guard_002_agent_state_keeps_typed_trace_and_diagnostic_records() {
 
 #[test]
 fn guard_001_authoritative_state_fields_are_not_publicly_mutable() {
-    for forbidden in [
-        "pub actors:",
-        "pub places:",
-        "pub doors:",
-        "pub containers:",
-        "pub items:",
-        "pub food_supplies:",
-        "pub workplaces:",
-        "pub needs_by_actor:",
-        "pub intentions:",
-        "pub active_intention_by_actor:",
-        "pub routine_executions:",
-        "pub decision_traces:",
-        "pub stuck_diagnostics:",
-    ] {
-        assert_absent(STATE_RS, forbidden);
-    }
+    use tracewake_core::checksum::{
+        AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
+    };
 
-    for required in [
-        "pub(crate) actors:",
-        "pub(crate) places:",
-        "pub(crate) doors:",
-        "pub(crate) containers:",
-        "pub(crate) items:",
-        "pub(crate) food_supplies:",
-        "pub(crate) workplaces:",
-        "pub(crate) needs_by_actor:",
-        "pub(crate) intentions:",
-        "pub(crate) active_intention_by_actor:",
-        "pub(crate) routine_executions:",
-        "pub(crate) decision_traces:",
-        "pub(crate) stuck_diagnostics:",
-    ] {
+    for field_name in PHYSICAL_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .chain(AGENT_STATE_CHECKSUM_COVERAGE)
+        .map(|entry| entry.field_name)
+    {
+        let forbidden = format!("pub {field_name}:");
+        assert_absent(STATE_RS, &forbidden);
+
+        let required = format!("pub(crate) {field_name}:");
         assert!(
-            STATE_RS.contains(required),
+            STATE_RS.contains(&required),
             "authoritative state field visibility changed: {required}"
         );
     }
+
+    assert_absent(STATE_RS, "pub fn set_need_model");
 }
 
 #[test]
@@ -4415,6 +4405,81 @@ fn event_kind_metadata_is_total() {
 }
 
 #[test]
+fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
+    use tracewake_core::events::EventKind;
+
+    let apply_body = body_after_marker(EVENTS_APPLY_RS, "fn apply_event_with_capability");
+    for kind in EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.metadata().physical_mutating)
+    {
+        let arm = format!("EventKind::{kind:?}");
+        assert!(
+            apply_body.contains(&arm),
+            "physical-mutating event kind lacks explicit world apply arm: {kind:?}"
+        );
+    }
+    assert_absent(apply_body, "_ => Ok(ApplyOutcome::NonWorldNoOp)");
+
+    let synthetic_apply = r#"
+        fn apply_event_with_capability(event: &EventEnvelope) -> Result<ApplyOutcome, ApplyError> {
+            match event.event_type {
+                EventKind::ActorMoved => Ok(ApplyOutcome::Applied),
+                _ => Ok(ApplyOutcome::NonWorldNoOp),
+            }
+        }
+    "#;
+    assert!(
+        !synthetic_apply.contains("EventKind::FoodConsumed")
+            && synthetic_apply.contains("_ => Ok(ApplyOutcome::NonWorldNoOp)"),
+        "synthetic missing-arm catch-all must fail the totality guard"
+    );
+}
+
+#[test]
+fn action_emitted_event_kinds_have_cause_disposition() {
+    use tracewake_core::events::EventKind;
+
+    let required = [
+        EventKind::ActorMoved,
+        EventKind::ActorWaited,
+        EventKind::BeliefUpdated,
+        EventKind::ContainerChecked,
+        EventKind::ContainerClosed,
+        EventKind::ContainerOpened,
+        EventKind::DoorClosed,
+        EventKind::DoorOpened,
+        EventKind::ItemPlacedInContainer,
+        EventKind::ItemPlacedInPlace,
+        EventKind::ItemRemovedFromContainer,
+        EventKind::ItemTakenFromPlace,
+        EventKind::ObservationRecorded,
+    ];
+
+    for kind in required {
+        assert!(
+            kind.requires_cause(),
+            "action-emitted kind lacks required-cause disposition: {kind:?}"
+        );
+    }
+
+    for source in [
+        MOVEMENT_RS,
+        WAIT_RS,
+        OPENCLOSE_RS,
+        CHECKCONTAINER_RS,
+        TAKEPLACE_RS,
+        PERCEPTION_RS,
+    ] {
+        assert!(
+            source.contains("EventEnvelope::new_caused_v1"),
+            "action-emitted source must construct caused envelopes"
+        );
+    }
+}
+
+#[test]
 fn non_world_stream_cannot_change_physical_checksum() {
     use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
     use tracewake_core::events::apply::{apply_event, ApplyOutcome};
@@ -4503,6 +4568,30 @@ fn checksum_coverage_is_total_for_authoritative_state() {
 }
 
 #[test]
+fn replay_physical_state_diff_covers_checksum_families() {
+    use tracewake_core::checksum::PHYSICAL_STATE_CHECKSUM_COVERAGE;
+
+    for entry in PHYSICAL_STATE_CHECKSUM_COVERAGE {
+        let diff_check = format!(
+            "expected.{} != actual.{}",
+            entry.field_name, entry.field_name
+        );
+        assert!(
+            REBUILD_RS.contains(&diff_check),
+            "diff_physical_state must explain checksum family {}",
+            entry.field_name
+        );
+
+        let report_prefix = format!("diff.starts_with(\"{} \")", entry.field_name);
+        assert!(
+            REPORT_RS.contains(&report_prefix),
+            "replay report must classify diff family {}",
+            entry.field_name
+        );
+    }
+}
+
+#[test]
 fn new_authoritative_field_without_checksum_registry_fails() {
     let state_source = r#"
 pub struct PhysicalState {
@@ -4579,28 +4668,22 @@ fn guard_001_no_production_seed_mutation_outside_state_definition() {
 
 #[test]
 fn guard_001_no_direct_state_collection_insert_outside_event_application() {
+    use tracewake_core::checksum::{
+        AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
+    };
+
     // Smoke-only source scan: direct mutation is primarily blocked by private
     // fields, private mutation capabilities, and compile-fail fixtures.
-    let forbidden_writes = [
-        ".actors.insert",
-        ".places.insert",
-        ".doors.insert",
-        ".containers.insert",
-        ".items.insert",
-        ".food_supplies.insert",
-        ".workplaces.insert",
-        ".needs_by_actor.insert",
-        ".intentions.insert",
-        ".active_intention_by_actor.insert",
-        ".routine_executions.insert",
-        ".decision_traces.insert",
-        ".stuck_diagnostics.insert",
-    ];
+    let forbidden_writes = PHYSICAL_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .chain(AGENT_STATE_CHECKSUM_COVERAGE)
+        .map(|entry| format!(".{}.insert", entry.field_name))
+        .collect::<Vec<_>>();
     for (path, source) in core_production_sources() {
         if path == "crates/tracewake-core/src/events/apply.rs" {
             continue;
         }
-        for forbidden in forbidden_writes {
+        for forbidden in &forbidden_writes {
             assert_absent(&source, forbidden);
         }
     }
