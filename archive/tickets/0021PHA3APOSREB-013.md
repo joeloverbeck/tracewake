@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-013: 0021 scoped acceptance artifact and EMERGE-OBS refresh (capstone)
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — evidence/reporting only (`reports/` artifact; re-runs existing suites)
@@ -121,3 +121,22 @@ finished tree; reproduce the table in the artifact; re-confirm observer-only sta
 1. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
 2. `rg -n "EmergeObs|emerge_obs|emergence_ledger" crates/tracewake-core/src crates/tracewake-content/src crates/tracewake-tui/src` (expect exit 1)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Implementation Outcome (2026-06-11)
+
+Created `reports/0021_ord_life_cert_scoped_acceptance.md` with the 12-ticket commit
+manifest, all 17 spec §7 evidence items, the deferred INV-087 decision record, the
+conformance/risk surfaces, the refreshed EMERGE-OBS table, and the explicit
+non-certification boundary. No production code, test logic, fixture behavior, or
+schema changed under this capstone.
+
+## Verification (2026-06-11)
+
+Passed:
+
+1. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+2. `rg -n "EmergeObs|emerge_obs|emergence_ledger" crates/tracewake-core/src crates/tracewake-content/src crates/tracewake-tui/src` exited 1 as expected.
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
