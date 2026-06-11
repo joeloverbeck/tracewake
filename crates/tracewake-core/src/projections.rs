@@ -640,6 +640,35 @@ fn staleness_label(context: &KnowledgeContext, detected_tick: SimTick) -> String
     }
 }
 
+fn phase3a_salient_interruption(
+    agent_state: &AgentState,
+    viewer_actor_id: &ActorId,
+) -> Option<String> {
+    agent_state
+        .ordinary_life_episodes()
+        .values()
+        .filter(|episode| episode.actor_id.as_ref() == Some(viewer_actor_id))
+        .filter(|episode| {
+            matches!(
+                episode.event_kind.as_str(),
+                "sleep_interrupted" | "work_block_failed"
+            )
+        })
+        .max_by(|left, right| {
+            left.sim_tick
+                .cmp(&right.sim_tick)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+        .map(|episode| {
+            format!(
+                "{} at tick {}: {}",
+                episode.event_kind,
+                episode.sim_tick.value(),
+                episode.summary
+            )
+        })
+}
+
 fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3AEmbodiedStatus {
     let mut need_summaries = agent_state
         .needs_by_actor
@@ -677,7 +706,7 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
         need_summaries,
         intention_summary,
         routine_summary,
-        salient_interruption: None,
+        salient_interruption: phase3a_salient_interruption(agent_state, viewer_actor_id),
     }
 }
 
@@ -1153,7 +1182,8 @@ mod tests {
         ProcessId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
     };
     use crate::state::{
-        ActorBody, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
+        ActorBody, ContainerState, DoorState, ItemState, OrdinaryLifeEpisodeRecord, PhysicalState,
+        PlaceState,
     };
     use crate::state::{AgentState, FoodSupplyState, SleepAffordanceState, WorkplaceState};
 
@@ -1902,6 +1932,72 @@ mod tests {
         let rendered = format!("{view:?}");
         assert!(!rendered.contains("actor_mara"));
         assert!(!rendered.contains("900"));
+    }
+
+    #[test]
+    fn view_models_embodied_phase3a_salient_interruption_is_viewer_scoped() {
+        let state = state();
+        let mut agent_state = AgentState::default();
+        agent_state.ordinary_life_episodes.insert(
+            event_id("event_mara_sleep_interrupted"),
+            OrdinaryLifeEpisodeRecord {
+                event_id: event_id("event_mara_sleep_interrupted"),
+                event_kind: "sleep_interrupted".to_string(),
+                actor_id: Some(actor_id("actor_mara")),
+                proposal_id: None,
+                caused_event_ids: Vec::new(),
+                sim_tick: SimTick::new(9),
+                payload_fields: vec![("reason".to_string(), "door_noise".to_string())],
+                summary: "Mara woke because of door noise".to_string(),
+            },
+        );
+        agent_state.ordinary_life_episodes.insert(
+            event_id("event_tomas_work_block_failed"),
+            OrdinaryLifeEpisodeRecord {
+                event_id: event_id("event_tomas_work_block_failed"),
+                event_kind: "work_block_failed".to_string(),
+                actor_id: Some(actor_id("actor_tomas")),
+                proposal_id: None,
+                caused_event_ids: Vec::new(),
+                sim_tick: SimTick::new(4),
+                payload_fields: vec![("reason".to_string(), "workplace_closed".to_string())],
+                summary: "Work blocked by closed workshop".to_string(),
+            },
+        );
+        agent_state.ordinary_life_episodes.insert(
+            event_id("event_tomas_sleep_interrupted"),
+            OrdinaryLifeEpisodeRecord {
+                event_id: event_id("event_tomas_sleep_interrupted"),
+                event_kind: "sleep_interrupted".to_string(),
+                actor_id: Some(actor_id("actor_tomas")),
+                proposal_id: None,
+                caused_event_ids: Vec::new(),
+                sim_tick: SimTick::new(8),
+                payload_fields: vec![("reason".to_string(), "hunger".to_string())],
+                summary: "Sleep interrupted by hunger".to_string(),
+            },
+        );
+
+        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(10));
+        let source =
+            EmbodiedProjectionSource::from_sealed_context(&context, &state, Some(&agent_state));
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+
+        let interruption = view
+            .phase3a_status
+            .as_ref()
+            .unwrap()
+            .salient_interruption
+            .as_deref()
+            .unwrap();
+        assert_eq!(
+            interruption,
+            "sleep_interrupted at tick 8: Sleep interrupted by hunger"
+        );
+        assert!(!interruption.contains("Mara"));
+        assert!(!interruption.contains("closed workshop"));
     }
 
     #[test]

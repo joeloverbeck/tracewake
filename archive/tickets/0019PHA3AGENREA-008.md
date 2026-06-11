@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-008: Embodied salient-interruption surfacing
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs` embodied status derivation); `tracewake-tui` render assertions as surfaced; fixture/test coverage
@@ -141,3 +141,38 @@ Layers 1–2; confirm the existing render arm displays the populated value (adju
 
 1. `cargo test -p tracewake-core phase3a_status`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed 2026-06-11.
+
+The required deferral re-check found no embodied interruption-surfacing deferral in
+`docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md` or
+`docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md`,
+so the implementation branch fired rather than the documented-downgrade branch.
+
+`crates/tracewake-core/src/projections.rs::phase3a_status` now derives
+`salient_interruption` from the viewer actor's own materialized
+`ordinary_life_episodes` evidence, limited to `sleep_interrupted` and
+`work_block_failed` terminal records and selecting the latest by simulation tick with
+event-id tie-break. The TUI remains presentation-only; it consumes the populated view
+model field through the existing render branch.
+
+Regression coverage:
+
+1. `view_models_embodied_phase3a_salient_interruption_is_viewer_scoped` proves the
+   bound actor sees the latest own interruption and not another actor's or older
+   terminal evidence.
+2. `renderer_prints_phase3a_salient_interruption` proves the embodied renderer emits
+   the populated `Interruption:` line.
+
+Verification:
+
+1. `cargo test -p tracewake-core view_models_embodied_phase3a_salient_interruption_is_viewer_scoped`
+2. `cargo test -p tracewake-tui renderer_prints_phase3a_salient_interruption`
+3. `cargo test -p tracewake-core phase3a_status`
+4. `cargo test -p tracewake-core --test hidden_truth_gates`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`

@@ -227,7 +227,8 @@ mod tests {
     use tracewake_core::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        EmbodiedViewModel, SemanticActionEntry, ViewMode, VisibleItem, VisibleItemSource,
+        EmbodiedViewModel, Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleItem,
+        VisibleItemSource,
     };
 
     fn context() -> KnowledgeContext {
@@ -320,5 +321,46 @@ mod tests {
 
         assert!(inventory_section.contains("- coin_stack_01 portable=true"));
         assert!(!items_section.contains("coin_stack_01"));
+    }
+
+    #[test]
+    fn renderer_prints_phase3a_salient_interruption() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: Some(Phase3AEmbodiedStatus {
+                need_summaries: Vec::new(),
+                intention_summary: None,
+                routine_summary: None,
+                salient_interruption: Some(
+                    "sleep_interrupted at tick 8: Sleep interrupted by hunger".to_string(),
+                ),
+            }),
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(rendered
+            .contains("Interruption: sleep_interrupted at tick 8: Sleep interrupted by hunger"));
     }
 }
