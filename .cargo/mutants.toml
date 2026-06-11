@@ -2,13 +2,12 @@
 #
 # The CI/manual command also passes explicit `-f` filters for the guarded files.
 # These exclusions keep ad hoc local `cargo mutants` runs inside the same
-# reviewed perimeter: actor cognition, scheduler, projections, and action
-# pipeline boundary code.
+# reviewed perimeter: actor cognition, scheduler, projections, action pipeline
+# boundary code, and duration action definitions.
 additional_cargo_args = ["--workspace", "--locked"]
 exclude_globs = [
   "crates/tracewake-content/**",
   "crates/tracewake-tui/**",
-  "crates/tracewake-core/src/actions/defs/**",
   "crates/tracewake-core/src/actions/mod.rs",
   "crates/tracewake-core/src/actions/proposal.rs",
   "crates/tracewake-core/src/actions/registry.rs",

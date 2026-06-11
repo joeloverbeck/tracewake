@@ -25,6 +25,8 @@ const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
+const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
+const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
     token: &'static str,
@@ -503,7 +505,7 @@ fn dependency_entries_from_manifest(manifest_path: &str, source: &str) -> Vec<De
 const CORE_FOUNDATION_RATIONALE: &str =
     "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
 const CORE_ACTION_RATIONALE: &str =
-    "core action validation/registry code is covered by targeted action and pipeline guards";
+    "core action validation/registry code is covered by targeted action, pipeline, and duration-definition mutation guards";
 const CORE_EPISTEMIC_RATIONALE: &str =
     "epistemic data model is covered by capability, provenance, and projection tests";
 const CONTENT_RATIONALE: &str =
@@ -715,6 +717,100 @@ fn is_guarded_layer_source(path: &str) -> bool {
     })
 }
 
+const MUTATION_PERIMETER_DURATION_DEFS: &[&str] = &[
+    "crates/tracewake-core/src/actions/defs/sleep.rs",
+    "crates/tracewake-core/src/actions/defs/work.rs",
+];
+
+fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+
+    if mutants_toml.contains("crates/tracewake-core/src/actions/defs/**") {
+        violations.push("mutants.toml excludes all action definitions".to_string());
+    }
+
+    let in_diff_filter_line = ci_yml
+        .lines()
+        .find(|line| line.contains("grep -E") && line.contains("actions/defs/"))
+        .unwrap_or_default();
+    let in_diff_defs_group = in_diff_filter_line
+        .split("actions/defs/(")
+        .nth(1)
+        .and_then(|tail| tail.split(")\\.rs").next())
+        .unwrap_or_default();
+
+    for required_path in MUTATION_PERIMETER_DURATION_DEFS {
+        let scheduled_filter = format!("-f '{required_path}'");
+        if !ci_yml.contains(&scheduled_filter) {
+            violations.push(format!(
+                "scheduled mutation baseline omits required filter {required_path}"
+            ));
+        }
+
+        let stem = required_path
+            .rsplit('/')
+            .next()
+            .and_then(|file_name| file_name.strip_suffix(".rs"))
+            .unwrap_or(required_path);
+        if !in_diff_defs_group.split('|').any(|entry| entry == stem) {
+            violations.push(format!(
+                "in-diff mutation guarded-path filter omits {required_path}"
+            ));
+        }
+
+        let Some(classification) = WORKSPACE_SOURCE_CLASSIFICATIONS
+            .iter()
+            .find(|entry| entry.path == *required_path)
+        else {
+            violations.push(format!(
+                "{required_path} missing from source classification table"
+            ));
+            continue;
+        };
+        match classification.class {
+            WorkspaceSourceClass::GuardedLayer => {}
+            WorkspaceSourceClass::Exempt { rationale } => {
+                if !rationale.contains("mutation") {
+                    violations.push(format!(
+                        "{required_path} classification rationale must name mutation coverage"
+                    ));
+                }
+            }
+        }
+    }
+
+    for line in ci_yml
+        .lines()
+        .filter(|line| line.contains("cargo mutants --in-diff"))
+    {
+        if line.contains("|| true") {
+            violations.push("in-diff cargo-mutants invocation swallows failures".to_string());
+        }
+    }
+    if !ci_yml.contains("mutants_status=$?") {
+        violations.push("in-diff cargo-mutants status is not captured".to_string());
+    }
+    if !ci_yml.contains("\"$mutants_status\" -ne 0")
+        || !ci_yml.contains("\"$mutants_status\" -ne 2")
+    {
+        violations.push(
+            "in-diff cargo-mutants status handling does not separate tool failure from misses"
+                .to_string(),
+        );
+    }
+    if !ci_yml.contains("[ ! -d mutants.out ]") {
+        violations.push("in-diff mutation job does not require output artifacts".to_string());
+    }
+    if !ci_yml.contains("github.event_name == 'pull_request' || github.event_name == 'push'") {
+        violations.push("mutation in-diff job does not run on guarded direct pushes".to_string());
+    }
+    if !ci_yml.contains("HEAD^..HEAD") {
+        violations.push("push mutation diff does not compare against HEAD^".to_string());
+    }
+
+    violations
+}
+
 fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
     for (path, source) in sources {
         assert!(
@@ -782,6 +878,48 @@ fn guarded_layer_source_census_matches_module_tree() {
     assert_eq!(
         actual, expected,
         "new guarded-layer files must be classified in the workspace guard census"
+    );
+}
+
+#[test]
+fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
+    let violations = mutation_perimeter_consistency_violations(MUTANTS_TOML, CI_YML);
+    assert!(
+        violations.is_empty(),
+        "mutation perimeter, CI filters, and action-source rationales diverged: {violations:#?}"
+    );
+
+    let excluded_defs = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/mod.rs\",",
+        "  \"crates/tracewake-core/src/actions/defs/**\",\n  \"crates/tracewake-core/src/actions/mod.rs\",",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&excluded_defs, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("excludes all action definitions")),
+        "synthetic broad action-def exclusion must fail the perimeter guard"
+    );
+
+    let swallowed_failure = CI_YML.replace(
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle",
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || true",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &swallowed_failure)
+            .iter()
+            .any(|violation| violation.contains("swallows failures")),
+        "synthetic swallowed cargo-mutants failure must fail the perimeter guard"
+    );
+
+    let missing_push = CI_YML.replace(
+        "github.event_name == 'pull_request' || github.event_name == 'push'",
+        "github.event_name == 'pull_request'",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_push)
+            .iter()
+            .any(|violation| violation.contains("direct pushes")),
+        "synthetic push-gap regression must fail the perimeter guard"
     );
 }
 

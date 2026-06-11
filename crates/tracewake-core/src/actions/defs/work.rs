@@ -641,6 +641,16 @@ mod tests {
         state
     }
 
+    fn closed_workplace_state() -> PhysicalState {
+        let mut state = state();
+        state
+            .workplaces
+            .get_mut(&workplace_id())
+            .unwrap()
+            .access_open = false;
+        state
+    }
+
     fn agent_state_with_needs(fatigue: i32, hunger: i32) -> AgentState {
         let mut agent_state = AgentState::default();
         let mut needs = BTreeMap::new();
@@ -703,6 +713,20 @@ mod tests {
     }
 
     #[test]
+    fn work_start_allows_needs_at_authored_thresholds() {
+        let events = build_work_start_events(
+            &state(),
+            &agent_state_with_needs(900, 900),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(events[0].event_type, EventKind::WorkBlockStarted);
+    }
+
+    #[test]
     fn work_completion_emits_output_marker_and_need_costs() {
         let start = build_work_start_events(
             &state(),
@@ -744,6 +768,17 @@ mod tests {
                     .payload
                     .iter()
                     .any(|field| field.key == "delta" && field.value == "32")
+        }));
+        assert!(events.iter().any(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "need_kind" && field.value == "hunger")
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "delta" && field.value == "16")
         }));
     }
 
@@ -837,6 +872,44 @@ mod tests {
                     .iter()
                     .any(|field| field.key == "delta" && field.value == "16")
         }));
+    }
+
+    #[test]
+    fn work_completion_fails_when_workplace_closes_even_if_actor_remains_present() {
+        let start = build_work_start_events(
+            &state(),
+            &agent_state_with_needs(100, 100),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap()
+        .remove(0);
+        let completion_key = duration_completion_ordering_key(
+            &actor_id(),
+            &ActionId::new("work_block").unwrap(),
+            SimTick::new(24),
+            0,
+        );
+        let events = build_work_completion_events(
+            &closed_workplace_state(),
+            &agent_state_with_needs(100, 100),
+            &EventLog::new(),
+            &start,
+            &completion_key,
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+            SimTick::new(24),
+        )
+        .unwrap();
+
+        assert_eq!(events[0].event_type, EventKind::WorkBlockFailed);
+        assert!(events[0]
+            .payload
+            .iter()
+            .any(|field| field.key == "reason" && field.value == "workplace_unusable"));
+        assert!(!events
+            .iter()
+            .any(|event| event.event_type == EventKind::WorkBlockCompleted));
     }
 
     #[test]

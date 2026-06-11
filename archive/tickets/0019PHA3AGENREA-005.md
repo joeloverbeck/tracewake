@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-005: Mutation perimeter expansion and CI gate semantics
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — CI/config only (`.cargo/mutants.toml`, `.github/workflows/ci.yml`, mutation baseline) plus a consistency guard in `anti_regression_guards.rs` and a conformance-index row; no production code
@@ -161,3 +161,36 @@ for the mutation-perimeter contract.
 1. `cargo mutants --list -f 'crates/tracewake-core/src/actions/defs/sleep.rs'`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-11.
+
+The mutation perimeter now includes the sleep/work duration action definitions:
+`.cargo/mutants.toml` no longer excludes `actions/defs/**`, and both the
+scheduled mutation baseline and in-diff guarded-path filter include
+`actions/defs/sleep.rs` and `actions/defs/work.rs`. The in-diff job now runs for
+guarded pull-request and direct-push changes, uses `HEAD^..HEAD` for push
+diffs, captures the cargo-mutants exit status, treats tool failures as failed
+gates, and requires output artifacts before accepting a no-miss result.
+
+Added `mutation_perimeter_matches_duration_action_rationale_and_ci_filters` to
+lock the mutants config, CI filters, failure semantics, push path, and source
+classification rationale together. Added the `0019 mutation-perimeter honesty`
+conformance row. During the reviewed duration-only mutation refresh, five
+surviving `work.rs` mutants surfaced; targeted boundary, elapsed-cost, and
+closed-workplace completion tests were added instead of accepting those misses.
+The follow-up focused mutation run reported `83 mutants tested in 4m: 66 caught,
+17 unviable`, with no missed duration-def mutants, so
+`.cargo/mutants-baseline-misses.txt` did not change.
+
+Verification:
+
+1. `cargo test -p tracewake-core actions::defs::work::tests`
+2. `cargo mutants --workspace -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle --jobs 4`
+3. `cargo test -p tracewake-core --test anti_regression_guards`
+4. `cargo mutants --list -f 'crates/tracewake-core/src/actions/defs/sleep.rs'`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`
