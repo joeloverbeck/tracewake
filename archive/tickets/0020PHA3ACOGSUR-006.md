@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs` exit derivation, `view_models.rs` as surfaced), `tracewake-tui` (`render.rs` arm reachability, `app.rs` as surfaced), dead-field sweep guard; `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` sweep row
-**Deps**: `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-063)
+**Deps**: `archive/specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-063)
 
 ## Problem
 

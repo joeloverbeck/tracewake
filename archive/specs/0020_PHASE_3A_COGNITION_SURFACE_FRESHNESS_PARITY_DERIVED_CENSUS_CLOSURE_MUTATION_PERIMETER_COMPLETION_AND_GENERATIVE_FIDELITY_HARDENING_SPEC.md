@@ -1,6 +1,6 @@
 # 0020 Phase 3A Cognition-Surface Freshness Parity, Derived-Census Closure, Mutation-Perimeter Completion, and Generative Fidelity Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `96bc387` (post-0019 closeout; all `0019PHA3AGENREA` tickets landed, merge PR #27).
@@ -790,3 +790,48 @@ recording, for the implementation commits:
   direction preserved.
 - [x] Scope stays within the Phase 3A ordinary-life surface and its lock/evidence
   layer.
+
+## Outcome
+
+Completed on 2026-06-11.
+
+Implementation and evidence landed through ticket commits
+`01cfcddbe9eb7f25e854247e54bf2e62dd0d3db0` through
+`cd4e7ceb2f78d4de861a75ee875466d74b233306`.
+
+Changed:
+
+- Closed `ORD-HARD-053`/`058` with shared actor-known supersession policy and parity
+  tests across no-human and embodied surfaces.
+- Closed `ORD-HARD-057` with remembered food-source planning policy and per-kind
+  actor-known freshness treatment.
+- Closed `ORD-HARD-054` with a derived apply-arm census and typed-column-closure
+  exemption ledger.
+- Closed `ORD-HARD-055`/`056` with eat/sleep/work mutation-perimeter coverage,
+  baseline governance, and `reports/0020_mutants_baseline_disposition.md`.
+- Closed `ORD-HARD-059`-`061` with terminal-targeted generative tamper checks,
+  continuity-reason floors, and predicate-derived seed-contributor accounting.
+- Closed `ORD-HARD-062` with transitive known-food helper census coverage.
+- Closed `ORD-HARD-063` with visible-exit blocker surfacing and a dead embodied-field
+  sweep.
+- Closed `ORD-HARD-064`/`065` with duration-completion window progress accounting and
+  routine eligibility by window start.
+- Added the scoped acceptance artifact
+  `reports/0020_ord_life_cert_scoped_acceptance.md`, including the first read-only
+  EMERGE-OBS baseline and the explicit non-certification boundary.
+
+Deviation:
+
+- The EMERGE-OBS ledger implementation is core-only over the `GENERATIVE_SEEDS`
+  no-human corpus. Content canonical no-human fixtures remain covered separately by
+  content golden fixture tests and the workspace gate because `tracewake-core` cannot
+  depend on `tracewake-content`.
+
+Verification:
+
+- `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+- `rg -n "EmergeObs|emerge_obs|emergence_ledger" crates/tracewake-core/src crates/tracewake-content/src crates/tracewake-tui/src` (no production call sites; exit 1 with no matches)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

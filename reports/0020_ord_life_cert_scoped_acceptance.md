@@ -7,7 +7,7 @@ Target implementation commits under review:
 `3de52d42f23a38307154e1a6689622ec52b275d0`
 
 Scope:
-`specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md`
+`archive/specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the Phase 3A cognition
 surface freshness, derived-census closure, mutation-perimeter completion, generative

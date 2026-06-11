@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `.cargo/mutants.toml`, `.cargo/mutants-baseline-misses.txt`, `.github/workflows/ci.yml`, perimeter guard in `anti_regression_guards.rs`; `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` rows; no production-code changes unless baseline triage warrants tests
-**Deps**: `archive/tickets/0020PHA3ACOGSUR-001.md`, `archive/tickets/0020PHA3ACOGSUR-002.md` (honest baseline refresh after the new tests exist, spec §8); `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-055, ORD-HARD-056)
+**Deps**: `archive/tickets/0020PHA3ACOGSUR-001.md`, `archive/tickets/0020PHA3ACOGSUR-002.md` (honest baseline refresh after the new tests exist, spec §8); `archive/specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-055, ORD-HARD-056)
 
 ## Problem
 

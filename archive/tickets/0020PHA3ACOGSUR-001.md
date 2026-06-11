@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/projection`, `agent/no_human_surface`, `agent/perception`); new freshness/parity gates; `docs/3-reference/01_DESIGN_RISK_REGISTER.md` Watch entries; embodied-context/golden repricing in `tracewake-content` as surfaced
-**Deps**: `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-053, ORD-HARD-057, ORD-HARD-058)
+**Deps**: `archive/specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-053, ORD-HARD-057, ORD-HARD-058)
 
 ## Problem
 
