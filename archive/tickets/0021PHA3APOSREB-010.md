@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-010: Two-sided embodied dead-surface sweep and surfacing work
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections`, `view_models`, sweep guard), `tracewake-tui` (`render`); conformance-index row
@@ -59,6 +59,49 @@ re-hardwiring `visible_exit_blocker_summary` to `None` would still pass. Plus th
    `endpoint_a/b`), that is a field removal — blast radius per field is its producer
    plus tests (verified small for all five members); the removal is recorded with
    its rationale, and the sweep then proves the field absent rather than dead.
+
+## Implementation Outcome (2026-06-11)
+
+1. Surfaced the current dead embodied members:
+   - `NotebookView.typed_leads` now renders in the notebook with contradiction,
+     belief, observation, source kind, source summary, confidence, detected tick,
+     staleness, how-wrong text, next actions, and summary. Legacy
+     `possible_leads` remains a fallback only when no typed leads exist.
+   - `EmbodiedViewModel.debug_available` is no longer hardwired true in core.
+     Core projections default it to false; the TUI boundary sets it true when it
+     attaches the notebook/debug-capable app surface, and render output displays
+     the availability boolean.
+   - `ActionAvailability::Disabled.debug_only_diagnostics` is deferred with a
+     cited rationale for production population, but the TUI renderer now consumes
+     it when present and the guard enrolls the enum payload.
+   - `VisibleDoor.endpoint_a`/`endpoint_b` now render as door endpoints.
+   - `VisibleItem.source` now renders for visible items and inventory items.
+2. Extended the embodied surface guard:
+   - The census now includes the previously skipped surface structs plus selected
+     scalar fields and the `ActionAvailability` enum payload.
+   - Missing/mismatched census names fail instead of silently continuing.
+   - Producer matching is scoped to the owning struct, with explicit cited entries
+     for TUI notebook attachment, TUI debug availability, and deferred debug-only
+     diagnostics.
+   - The guard now checks both producers and TUI render/app consumers, with
+     synthetics for hardwired defaults, unmatched census entries, enum payloads,
+     cross-struct producer aliases, and produced-but-unconsumed fields.
+3. Pinned the `visible_exit_blocker_summary` co-location assumption: blocker
+   summaries only consider doors admitted by the connected-door set from visible
+   locality.
+4. Updated the architecture conformance row from the old producer-only
+   Option/collection sweep to the two-sided embodied-field sweep.
+
+## Verification (2026-06-11)
+
+1. `cargo test -p tracewake-tui render`
+2. `cargo test -p tracewake-core --test anti_regression_guards embodied -- --nocapture`
+3. `cargo test -p tracewake-core projections::tests::visible_exit_blocker_summary`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`
+8. `git diff --check`
 
 ## Architecture Check
 

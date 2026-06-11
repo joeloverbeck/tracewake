@@ -501,7 +501,7 @@ pub fn build_embodied_view_model(
             context.provenance_entries().len()
         ),
         notebook: None,
-        debug_available: true,
+        debug_available: false,
     })
 }
 
@@ -1385,7 +1385,7 @@ mod tests {
             .iter()
             .any(|item| item.item_id == item_id("ledger_01")));
         assert_eq!(view.mode, ViewMode::Embodied);
-        assert!(view.debug_available);
+        assert!(!view.debug_available);
     }
 
     #[test]
@@ -2499,6 +2499,28 @@ mod tests {
         assert_eq!(
             blocker_summary_for(closed_non_blocking, edge.0, edge.1),
             None
+        );
+    }
+
+    #[test]
+    fn visible_exit_blocker_summary_uses_connected_door_set_as_colocation_gate() {
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+        let mut blocking = door_between("door_hidden_remote", "place_a", "place_b");
+        blocking.is_open = false;
+        blocking.is_locked = true;
+        state.doors.insert(blocking.door_id.clone(), blocking);
+
+        let connected = std::collections::BTreeSet::new();
+
+        assert_eq!(
+            visible_exit_blocker_summary(
+                &state,
+                &connected,
+                &place_id("place_a"),
+                &place_id("place_b")
+            ),
+            None,
+            "blocker summaries are limited to doors admitted by visible locality"
         );
     }
 }

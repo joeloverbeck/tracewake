@@ -1,4 +1,5 @@
 use tracewake_core::actions::report::ValidationReport;
+use tracewake_core::view_models::VisibleItemSource;
 use tracewake_core::view_models::{EmbodiedViewModel, NotebookView};
 
 pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
@@ -79,10 +80,12 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     lines.push("Doors:".to_string());
     for door in &view.visible_doors {
         lines.push(format!(
-            "- {} open={} locked={}",
+            "- {} open={} locked={} endpoints={}<->{}",
             door.door_id.as_str(),
             door.is_open,
-            door.is_locked
+            door.is_locked,
+            door.endpoint_a.as_str(),
+            door.endpoint_b.as_str()
         ));
     }
 
@@ -99,18 +102,20 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     lines.push("Items:".to_string());
     for item in &view.visible_items {
         lines.push(format!(
-            "- {} portable={}",
+            "- {} portable={} source={}",
             item.item_id.as_str(),
-            item.portable
+            item.portable,
+            visible_item_source_label(&item.source)
         ));
     }
 
     lines.push("Inventory:".to_string());
     for item in &view.carried_items {
         lines.push(format!(
-            "- {} portable={}",
+            "- {} portable={} source={}",
             item.item_id.as_str(),
-            item.portable
+            item.portable,
+            visible_item_source_label(&item.source)
         ));
     }
 
@@ -132,7 +137,15 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
                     .map(|reason| reason.stable_id())
                     .collect::<Vec<_>>()
                     .join(",");
-                format!(" disabled: {summary} reasons={reason_codes}")
+                let diagnostics = if action.availability.debug_only_diagnostics().is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " debug_diagnostics={}",
+                        action.availability.debug_only_diagnostics().join(",")
+                    )
+                };
+                format!(" disabled: {summary} reasons={reason_codes}{diagnostics}")
             })
             .unwrap_or_default();
         lines.push(format!(
@@ -143,8 +156,19 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             disabled
         ));
     }
+    lines.push(format!("Debug: available={}", view.debug_available));
 
     lines.join("\n")
+}
+
+fn visible_item_source_label(source: &VisibleItemSource) -> String {
+    match source {
+        VisibleItemSource::Place => "place".to_string(),
+        VisibleItemSource::Container(container_id) => {
+            format!("container:{}", container_id.as_str())
+        }
+        VisibleItemSource::Carried => "carried".to_string(),
+    }
 }
 
 pub fn render_notebook(view: &NotebookView) -> String {
@@ -197,11 +221,30 @@ pub fn render_notebook(view: &NotebookView) -> String {
     }
 
     lines.push("Leads:".to_string());
-    if view.possible_leads.is_empty() {
+    if view.typed_leads.is_empty() && view.possible_leads.is_empty() {
         lines.push("- none".to_string());
     }
-    for lead in &view.possible_leads {
-        lines.push(format!("- {lead}"));
+    for lead in &view.typed_leads {
+        lines.push(format!(
+            "- {} contradiction={} belief={} observation={} source_kind={} source={} confidence={} detected_tick={} staleness={} wrong_if={} next_actions={} :: {}",
+            lead.lead_id,
+            lead.contradiction_id,
+            lead.belief_id,
+            lead.observation_id,
+            lead.source_kind,
+            lead.source_summary,
+            lead.confidence_label,
+            lead.detected_tick,
+            lead.staleness_label,
+            lead.how_this_may_be_wrong,
+            lead.possible_next_actions.join(","),
+            lead.summary
+        ));
+    }
+    if view.typed_leads.is_empty() {
+        for lead in &view.possible_leads {
+            lines.push(format!("- {lead}"));
+        }
     }
 
     lines.join("\n")
@@ -223,11 +266,15 @@ pub fn render_rejection(report: &ValidationReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tracewake_core::actions::report::ReasonCode;
     use tracewake_core::epistemics::KnowledgeContext;
-    use tracewake_core::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
+    use tracewake_core::ids::{
+        ActionId, ActorId, DoorId, ItemId, PlaceId, SemanticActionId, ViewModelId,
+    };
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        EmbodiedViewModel, Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleExit,
+        ActionAvailability, EmbodiedViewModel, NotebookLeadEntry, NotebookView,
+        Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleDoor, VisibleExit,
         VisibleItem, VisibleItemSource,
     };
 
@@ -274,6 +321,135 @@ mod tests {
 
         assert!(rendered.contains("open.door.door_market_store"));
         assert!(rendered.contains("Market stall"));
+        assert!(rendered.contains("Debug: available=true"));
+    }
+
+    #[test]
+    fn renderer_prints_door_endpoints_and_item_sources() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: vec![VisibleDoor {
+                door_id: DoorId::new("door_market_store").unwrap(),
+                endpoint_a: PlaceId::new("market_stall").unwrap(),
+                endpoint_b: PlaceId::new("store_room").unwrap(),
+                is_open: false,
+                is_locked: true,
+            }],
+            visible_containers: Vec::new(),
+            visible_items: vec![VisibleItem {
+                item_id: ItemId::new("apple_01").unwrap(),
+                source: VisibleItemSource::Container("crate_01".parse().unwrap()),
+                portable: true,
+            }],
+            carried_items: vec![VisibleItem {
+                item_id: ItemId::new("coin_01").unwrap(),
+                source: VisibleItemSource::Carried,
+                portable: true,
+            }],
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(rendered.contains(
+            "- door_market_store open=false locked=true endpoints=market_stall<->store_room"
+        ));
+        assert!(rendered.contains("- apple_01 portable=true source=container:crate_01"));
+        assert!(rendered.contains("- coin_01 portable=true source=carried"));
+    }
+
+    #[test]
+    fn renderer_prints_debug_only_action_diagnostics_when_present() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: vec![SemanticActionEntry::with_availability(
+                SemanticActionId::new("open.door_market_store").unwrap(),
+                ActionId::new("open").unwrap(),
+                vec!["door_market_store".to_string()],
+                "open door_market_store",
+                ActionAvailability::disabled(
+                    vec![ReasonCode::DoorClosedBlocksMovement],
+                    "The door is closed.",
+                    Vec::new(),
+                    vec!["validator_fact=door_closed".to_string()],
+                ),
+            )],
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(rendered.contains("debug_diagnostics=validator_fact=door_closed"));
+    }
+
+    #[test]
+    fn render_notebook_prints_typed_lead_anatomy() {
+        let view = NotebookView {
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            source_bound_beliefs: Vec::new(),
+            recent_observations: Vec::new(),
+            known_contradictions: Vec::new(),
+            typed_leads: vec![NotebookLeadEntry {
+                lead_id: "lead_01".to_string(),
+                contradiction_id: "contradiction_01".to_string(),
+                belief_id: "belief_01".to_string(),
+                observation_id: "observation_01".to_string(),
+                source_kind: "observation".to_string(),
+                source_summary: "source_event=event_01".to_string(),
+                confidence_label: "700".to_string(),
+                detected_tick: 8,
+                staleness_label: "fresh".to_string(),
+                how_this_may_be_wrong: "the source may be stale".to_string(),
+                possible_next_actions: vec!["inspect place".to_string(), "ask actor".to_string()],
+                summary: "The belief and observation disagree.".to_string(),
+            }],
+            possible_leads: vec!["legacy summary".to_string()],
+        };
+
+        let rendered = render_notebook(&view);
+
+        assert!(rendered.contains("lead_01 contradiction=contradiction_01"));
+        assert!(rendered.contains("staleness=fresh"));
+        assert!(rendered.contains("wrong_if=the source may be stale"));
+        assert!(rendered.contains("next_actions=inspect place,ask actor"));
+        assert!(!rendered.contains("legacy summary"));
     }
 
     #[test]

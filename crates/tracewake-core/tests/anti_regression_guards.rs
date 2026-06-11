@@ -38,6 +38,7 @@ const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
+const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
 const MUTANTS_BASELINE_MISSES: &str = include_str!("../../../.cargo/mutants-baseline-misses.txt");
 const MUTANTS_BASELINE_LEDGER: &str =
@@ -113,14 +114,32 @@ struct EmbodiedSurfaceField {
 }
 
 const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
-    &[EmbodiedSurfaceFieldProducer {
-        struct_name: "EmbodiedViewModel",
-        field_name: "notebook",
-        source_path: "tracewake-tui/src/app.rs",
-        producer_snippet: "view.notebook = Some(build_notebook_view",
-        cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
-        rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
-    }];
+    &[
+        EmbodiedSurfaceFieldProducer {
+            struct_name: "EmbodiedViewModel",
+            field_name: "notebook",
+            source_path: "tracewake-tui/src/app.rs",
+            producer_snippet: "view.notebook = Some(build_notebook_view",
+            cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
+            rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
+        },
+        EmbodiedSurfaceFieldProducer {
+            struct_name: "EmbodiedViewModel",
+            field_name: "debug_available",
+            source_path: "tracewake-tui/src/app.rs",
+            producer_snippet: "view.debug_available = true;",
+            cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
+            rationale: "Core leaves debug availability false; the TUI boundary derives it from the presence of debug panel wiring.",
+        },
+        EmbodiedSurfaceFieldProducer {
+            struct_name: "ActionAvailability",
+            field_name: "debug_only_diagnostics",
+            source_path: "tracewake-core/src/view_models.rs",
+            producer_snippet: "debug_only_diagnostics: Vec<String>",
+            cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
+            rationale: "Current production action availability keeps actor-safe provenance populated and defers debug-only diagnostics until a concrete debug-only disabled site needs them.",
+        },
+    ];
 
 const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
     TypedColumnClosureExemption {
@@ -545,21 +564,11 @@ fn actor_known_context_constructor_violations(sources: &[(String, String)]) -> V
 
 fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField> {
     let mut fields = Vec::new();
-    for struct_name in [
-        "EmbodiedViewModel",
-        "Phase3AEmbodiedStatus",
-        "WhyNotView",
-        "NotebookView",
-        "NotebookBeliefEntry",
-        "NotebookLeadEntry",
-        "VisibleExit",
-        "SemanticActionEntry",
-        "ActionAvailability",
-    ] {
+    for struct_name in embodied_struct_census() {
         let marker = format!("pub struct {struct_name} {{");
-        let Some(start) = view_models_source.find(&marker) else {
-            continue;
-        };
+        let start = view_models_source
+            .find(&marker)
+            .unwrap_or_else(|| panic!("embodied surface census entry {struct_name} is a struct"));
         let body_start = start + marker.len();
         let body = view_models_source[body_start..]
             .lines()
@@ -574,7 +583,11 @@ fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField
             let Some((field_name, type_name)) = field.trim_end_matches(',').split_once(": ") else {
                 continue;
             };
-            if type_name.starts_with("Option<") || type_name.starts_with("Vec<") {
+            if type_name.starts_with("Option<")
+                || type_name.starts_with("Vec<")
+                || embodied_scalar_field_is_in_census(struct_name, field_name)
+                || *struct_name == "NotebookLeadEntry"
+            {
                 fields.push(EmbodiedSurfaceField {
                     struct_name: struct_name.to_string(),
                     field_name: field_name.to_string(),
@@ -583,32 +596,81 @@ fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField
             }
         }
     }
+    let action_availability_marker = "pub enum ActionAvailability {";
+    assert!(
+        view_models_source.contains(action_availability_marker),
+        "embodied surface census entry ActionAvailability is an enum"
+    );
+    fields.push(EmbodiedSurfaceField {
+        struct_name: "ActionAvailability".to_string(),
+        field_name: "debug_only_diagnostics".to_string(),
+        type_name: "Vec<String>".to_string(),
+    });
     fields.sort_by(|left, right| {
         (&left.struct_name, &left.field_name).cmp(&(&right.struct_name, &right.field_name))
     });
     fields
 }
 
+fn embodied_struct_census() -> &'static [&'static str] {
+    &[
+        "EmbodiedViewModel",
+        "Phase3AEmbodiedStatus",
+        "WhyNotView",
+        "NotebookView",
+        "NotebookBeliefEntry",
+        "NotebookObservationEntry",
+        "NotebookContradictionEntry",
+        "NotebookLeadEntry",
+        "VisibleExit",
+        "VisibleDoor",
+        "VisibleContainer",
+        "VisibleItem",
+        "SemanticActionEntry",
+    ]
+}
+
+fn embodied_scalar_field_is_in_census(struct_name: &str, field_name: &str) -> bool {
+    matches!(
+        (struct_name, field_name),
+        ("EmbodiedViewModel", "debug_available")
+            | ("VisibleDoor", "endpoint_a")
+            | ("VisibleDoor", "endpoint_b")
+            | ("VisibleItem", "source")
+    )
+}
+
 fn embodied_surface_dead_field_errors(
     view_models_source: &str,
     producer_sources: &[(&str, &str)],
+    consumer_sources: &[(&str, &str)],
 ) -> Vec<String> {
     let fields = embodied_surface_fields(view_models_source);
     let mut errors = Vec::new();
     for field in fields {
-        if embodied_field_has_registered_producer(&field, producer_sources) {
-            continue;
+        let has_producer = embodied_field_has_registered_producer(&field, producer_sources)
+            || producer_sources.iter().any(|(_, source)| {
+                source_has_non_default_struct_field_producer(
+                    source,
+                    &field.struct_name,
+                    &field.field_name,
+                )
+            });
+        if !has_producer {
+            errors.push(format!(
+                "{}.{} ({}) has no non-default embodied producer or cited external producer",
+                field.struct_name, field.field_name, field.type_name
+            ));
         }
-        if producer_sources
+        if !consumer_sources
             .iter()
-            .any(|(_, source)| source_has_non_default_field_producer(source, &field.field_name))
+            .any(|(_, source)| source_has_field_consumer(source, &field.field_name))
         {
-            continue;
+            errors.push(format!(
+                "{}.{} ({}) has no embodied render/app consumer or cited deferral",
+                field.struct_name, field.field_name, field.type_name
+            ));
         }
-        errors.push(format!(
-            "{}.{} ({}) has no non-default embodied producer or cited external producer",
-            field.struct_name, field.field_name, field.type_name
-        ));
     }
     errors
 }
@@ -628,29 +690,67 @@ fn embodied_field_has_registered_producer(
     })
 }
 
-fn source_has_non_default_field_producer(source: &str, field_name: &str) -> bool {
-    let explicit = format!("{field_name}:");
+fn source_has_non_default_struct_field_producer(
+    source: &str,
+    struct_name: &str,
+    field_name: &str,
+) -> bool {
+    let marker = format!("{struct_name} {{");
     let mut search_start = 0;
-    while let Some(relative_index) = source[search_start..].find(&explicit) {
-        let field_index = search_start + relative_index;
-        let line_start = source[..field_index]
-            .rfind('\n')
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        let line = &source[line_start..field_index];
-        if !line.trim_start().starts_with("pub ") {
-            let value_start = field_index + explicit.len();
-            let value = source[value_start..].trim_start();
-            if !(value.starts_with("None") || value.starts_with("Vec::new()")) {
-                return true;
-            }
+    while let Some(relative_index) = source[search_start..].find(&marker) {
+        let marker_index = search_start + relative_index;
+        let body = body_from_open_brace(&source[marker_index + struct_name.len()..]);
+        if struct_body_has_non_default_field(body, field_name) {
+            return true;
         }
-        search_start = field_index + explicit.len();
+        search_start = marker_index + marker.len();
     }
+    false
+}
 
-    let shorthand = format!("{field_name},");
-    source.lines().any(|line| line.trim() == shorthand)
+fn struct_body_has_non_default_field(body: &str, field_name: &str) -> bool {
+    let explicit = format!("{field_name}:");
+    body.lines().any(|line| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with(&explicit) {
+            return false;
+        }
+        let value = trimmed[explicit.len()..].trim();
+        !(value.starts_with("None")
+            || value.starts_with("Vec::new()")
+            || value.starts_with("false"))
+    }) || body
+        .lines()
+        .any(|line| line.trim() == format!("{field_name},"))
+}
+
+fn source_has_field_consumer(source: &str, field_name: &str) -> bool {
+    source.contains(&format!(".{field_name}"))
+        || source.contains(&format!("{field_name}()"))
         || source.contains(&format!("{field_name} = Some("))
+        || source.contains(&format!("{field_name} = true"))
+}
+
+fn body_from_open_brace(after_name: &str) -> &str {
+    let start = after_name
+        .find('{')
+        .expect("struct construction starts with opening brace");
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_name[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    &after_name[start..end.expect("struct construction body closes")]
 }
 
 fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
@@ -3317,13 +3417,19 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
     let projection = production(PROJECTIONS_RS);
     let view_models = production(VIEW_MODELS_RS);
     let tui_app = production(TUI_APP_RS);
+    let tui_render = production(TUI_RENDER_RS);
     let producer_sources = [
         ("tracewake-core/src/projections.rs", projection.as_str()),
         ("tracewake-core/src/view_models.rs", view_models.as_str()),
         ("tracewake-tui/src/app.rs", tui_app.as_str()),
     ];
+    let consumer_sources = [
+        ("tracewake-tui/src/render.rs", tui_render.as_str()),
+        ("tracewake-tui/src/app.rs", tui_app.as_str()),
+    ];
 
-    let errors = embodied_surface_dead_field_errors(&view_models, &producer_sources);
+    let errors =
+        embodied_surface_dead_field_errors(&view_models, &producer_sources, &consumer_sources);
     assert!(
         errors.is_empty(),
         "dead embodied surface field sweep found missing producers: {errors:#?}"
@@ -3334,6 +3440,19 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
             pub visible_exits: Vec<VisibleExit>,
             pub synthetic_dead_field: Option<String>,
         }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
     "#;
     let synthetic_projection = r#"
         fn build() -> EmbodiedViewModel {
@@ -3344,13 +3463,107 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
         }
     "#;
     let synthetic_sources = [("tracewake-core/src/projections.rs", synthetic_projection)];
-    let synthetic_errors =
-        embodied_surface_dead_field_errors(synthetic_view_models, &synthetic_sources);
+    let synthetic_consumers = [("tracewake-tui/src/render.rs", "view.visible_exits.len()")];
+    let synthetic_errors = embodied_surface_dead_field_errors(
+        synthetic_view_models,
+        &synthetic_sources,
+        &synthetic_consumers,
+    );
     assert!(
         synthetic_errors
             .iter()
             .any(|error| error.contains("synthetic_dead_field")),
         "synthetic hardwired default embodied field must fail the sweep"
+    );
+
+    let unmatched = std::panic::catch_unwind(|| {
+        embodied_surface_fields("pub enum ActionAvailability { Available }")
+    });
+    assert!(
+        unmatched.is_err(),
+        "unmatched listed embodied struct names must fail instead of being skipped"
+    );
+
+    let enum_view_models = r#"
+        pub struct EmbodiedViewModel {
+            pub visible_exits: Vec<VisibleExit>,
+        }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability {
+            Available,
+            Disabled { debug_only_diagnostics: Vec<String>, }
+        }
+    "#;
+    let enum_fields = embodied_surface_fields(enum_view_models);
+    assert!(
+        enum_fields.iter().any(|field| {
+            field.struct_name == "ActionAvailability"
+                && field.field_name == "debug_only_diagnostics"
+        }),
+        "enum fields must be enrolled in the embodied surface sweep"
+    );
+
+    let cross_struct_view_models = r#"
+        pub struct EmbodiedViewModel { pub visible_exits: Vec<VisibleExit>, }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
+    "#;
+    let cross_struct_sources = [(
+        "tracewake-core/src/projections.rs",
+        "OtherStruct { typed_leads: vec![lead] }",
+    )];
+    let cross_struct_consumers = [(
+        "tracewake-tui/src/render.rs",
+        "view.visible_exits.len(); status.salient_interruption.as_ref(); why.actor_visible_facts.len(); notebook.typed_leads.len(); belief.contradiction_ids.len(); observation.observation_id.len(); contradiction.contradiction_id.len(); lead.lead_id.len(); exit.blocker_summary.as_ref(); door.endpoint_a.as_str(); door.endpoint_b.as_str(); item.source.clone(); action.target_ids.len(); availability.debug_only_diagnostics()",
+    )];
+    let cross_struct_errors = embodied_surface_dead_field_errors(
+        cross_struct_view_models,
+        &cross_struct_sources,
+        &cross_struct_consumers,
+    );
+    assert!(
+        cross_struct_errors
+            .iter()
+            .any(|error| error.contains("NotebookView.typed_leads")),
+        "producer aliases from the wrong struct must not satisfy the scoped producer sweep"
+    );
+
+    let unconsumed_sources = [(
+        "tracewake-core/src/projections.rs",
+        "EmbodiedViewModel { visible_exits: collect_visible_exits() }",
+    )];
+    let unconsumed_errors = embodied_surface_dead_field_errors(
+        cross_struct_view_models,
+        &unconsumed_sources,
+        &[("tracewake-tui/src/render.rs", "")],
+    );
+    assert!(
+        unconsumed_errors
+            .iter()
+            .any(|error| error.contains("has no embodied render/app consumer")),
+        "produced-but-unconsumed fields must fail the two-sided sweep"
     );
 }
 
