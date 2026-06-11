@@ -82,6 +82,12 @@ For each ticket:
    - After `git mv`, stage the move with `git add -A tickets archive/tickets`
      or equivalent rename-aware staging of the relevant old and archive parent
      directories.
+     Do not pass the removed source file path to `git add` after `git mv`;
+     stage the archive destination plus `git add -u`, or use `git add -A` on
+     the relevant parent directories.
+     Run Git index-mutating commands serially; do not parallelize `git add`,
+     `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
+     appears, check for active Git processes, then retry serially.
 7. Sweep active specs, ledgers, docs, and ticket references for stale live
    ticket paths. Update references that should now point to `archive/tickets/`.
 8. Review the diff for unrelated changes.
@@ -134,6 +140,12 @@ cargo test --workspace
    After `git mv`, stage the move with rename-aware staging such as
    `git add -A specs archive/specs` or by staging the relevant old and archive
    parent directories, rather than only the now-removed live path.
+   Do not pass the removed source file path to `git add` after `git mv`;
+   stage the archive destination plus `git add -u`, or use `git add -A` on the
+   relevant parent directories.
+   Run Git index-mutating commands serially; do not parallelize `git add`,
+   `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
+   appears, check for active Git processes, then retry serially.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
    Use concrete sweeps for the exact spec filename, ticket prefix, live paths,
