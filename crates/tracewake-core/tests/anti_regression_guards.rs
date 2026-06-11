@@ -811,6 +811,166 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     violations
 }
 
+fn split_top_level_args(args: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut paren_depth = 0_i32;
+    let mut bracket_depth = 0_i32;
+    let mut brace_depth = 0_i32;
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for ch in args.chars() {
+        if in_string {
+            current.push(ch);
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                current.push(ch);
+            }
+            '(' => {
+                paren_depth += 1;
+                current.push(ch);
+            }
+            ')' => {
+                paren_depth -= 1;
+                current.push(ch);
+            }
+            '[' => {
+                bracket_depth += 1;
+                current.push(ch);
+            }
+            ']' => {
+                bracket_depth -= 1;
+                current.push(ch);
+            }
+            '{' => {
+                brace_depth += 1;
+                current.push(ch);
+            }
+            '}' => {
+                brace_depth -= 1;
+                current.push(ch);
+            }
+            ',' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                parts.push(current.trim().to_string());
+                current.clear();
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    if !current.trim().is_empty() {
+        parts.push(current.trim().to_string());
+    }
+    parts
+}
+
+fn call_argument_lists(source: &str, marker: &str) -> Vec<Vec<String>> {
+    let mut calls = Vec::new();
+    let mut search_from = 0;
+    while let Some(relative_start) = source[search_from..].find(marker) {
+        let marker_start = search_from + relative_start;
+        let Some(open_relative) = source[marker_start..].find('(') else {
+            break;
+        };
+        let open = marker_start + open_relative;
+        let mut depth = 0_i32;
+        let mut in_string = false;
+        let mut escaped = false;
+        for (relative_index, ch) in source[open..].char_indices() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+            match ch {
+                '"' => in_string = true,
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let close = open + relative_index;
+                        calls.push(split_top_level_args(&source[open + 1..close]));
+                        search_from = close + 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if search_from <= marker_start {
+            break;
+        }
+    }
+    calls
+}
+
+fn string_literal_value(expr: &str) -> Option<String> {
+    let trimmed = expr.trim();
+    trimmed
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .map(ToString::to_string)
+}
+
+fn string_literals_in_stable_id_loop_arrays(source: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut search_from = 0;
+    while let Some(relative_start) = source[search_from..].find("for stable_id in [") {
+        let start = search_from + relative_start;
+        let array_start = start + "for stable_id in [".len();
+        let Some(relative_end) = source[array_start..].find(']') else {
+            break;
+        };
+        let array = &source[array_start..array_start + relative_end];
+        for entry in split_top_level_args(array) {
+            if let Some(value) = string_literal_value(&entry) {
+                values.push(value);
+            }
+        }
+        search_from = array_start + relative_end + 1;
+    }
+    values
+}
+
+fn minted_no_human_surface_fact_ids(source: &str) -> std::collections::BTreeSet<String> {
+    let mut stable_ids = std::collections::BTreeSet::new();
+    for marker in [
+        "ActorKnownFact::observed_now",
+        "ActorKnownFact::remembered_belief",
+        "ActorKnownFact::routine_assignment",
+        "self.push_projection_fact",
+    ] {
+        for args in call_argument_lists(source, marker) {
+            let Some(stable_id_expr) = args.get(1) else {
+                continue;
+            };
+            if let Some(stable_id) = string_literal_value(stable_id_expr) {
+                stable_ids.insert(stable_id);
+            } else if stable_id_expr == "stable_id" {
+                stable_ids.extend(string_literals_in_stable_id_loop_arrays(source));
+            }
+        }
+    }
+    stable_ids
+}
+
 fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
     for (path, source) in sources {
         assert!(
@@ -2114,6 +2274,10 @@ fn guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms() {
     let surface = production(NO_HUMAN_SURFACE_RS);
     let transaction = production(TRANSACTION_RS);
     let witness_body = body_after_marker(&transaction, "fn witness_kind_allowed");
+    let census = NO_HUMAN_SURFACE_FACT_STABLE_IDS
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
 
     for stable_id in NO_HUMAN_SURFACE_FACT_STABLE_IDS {
         assert!(
@@ -2125,6 +2289,28 @@ fn guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms() {
             "fact stable id {stable_id} must have an explicit witness_kind_allowed arm"
         );
     }
+
+    let minted_ids = minted_no_human_surface_fact_ids(&surface);
+    let uncensused_ids = minted_ids
+        .iter()
+        .filter(|stable_id| !census.contains(stable_id.as_str()))
+        .collect::<Vec<_>>();
+    assert!(
+        uncensused_ids.is_empty(),
+        "no-human surface minted fact stable ids missing from census: {uncensused_ids:#?}"
+    );
+
+    let synthetic_surface = format!(
+        "{surface}\nself.facts.push(ActorKnownFact::remembered_belief(self.actor_id.clone(), \"synthetic_uncensused_fact\", \"value\", \"source\", self.decision_tick, source_event_ids));\n"
+    );
+    let synthetic_minted_ids = minted_no_human_surface_fact_ids(&synthetic_surface);
+    assert!(
+        synthetic_minted_ids.contains("synthetic_uncensused_fact")
+            && synthetic_minted_ids
+                .iter()
+                .any(|stable_id| !census.contains(stable_id.as_str())),
+        "synthetic unregistered no-human fact mint must fail the reverse census direction"
+    );
 
     assert!(
         witness_body.contains("_ => false"),

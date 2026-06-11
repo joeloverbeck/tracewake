@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-006: Bidirectional witness census
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` test guard only (`tests/anti_regression_guards.rs`)
@@ -103,3 +103,26 @@ existing forward-direction assertions as-is.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-11.
+
+`guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms` now enforces
+both census directions. The guard still requires every
+`NO_HUMAN_SURFACE_FACT_STABLE_IDS` entry to appear in the production no-human
+surface and in `witness_kind_allowed`, and it now extracts stable ids minted by
+`ActorKnownFact::observed_now`, `ActorKnownFact::remembered_belief`,
+`ActorKnownFact::routine_assignment`, and `push_projection_fact` call sites in
+production `no_human_surface.rs`. String-literal ids supplied through the local
+`for stable_id in [...]` loop are extracted too. A synthetic uncensused mint is
+checked inside the test to prove the reverse direction fails red.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test anti_regression_guards guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms -- --nocapture`
+2. `cargo fmt --all --check`
+3. `cargo test -p tracewake-core --test anti_regression_guards`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
