@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-007: Seed-knowledge helper allowlist census and partial-knowledge fixture
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (new canonical fixture + registration; allowlist census in tests); conformance-index row
@@ -141,3 +141,35 @@ Add the seed-knowledge helper-allowlist row to
 
 1. `cargo test -p tracewake-content --test fixtures_load`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-11.
+
+Added `known_food_source_blanket_helper_call_sites_are_allowlisted`, which scans
+`src/fixtures/*.rs` for `populate_known_food_sources_for_all_actors` call sites
+and requires the set to match the committed legacy allowlist. The test also
+injects a synthetic `synthetic_new_fixture_001.rs` call site into the census to
+prove new blanket-helper usage fails with the file named.
+
+Added `partial_food_source_knowledge_001`, a canonical fixture with two hungry
+actors sharing a physical food source but only one explicit `known_food_sources`
+edge. The fixture is registered in `fixtures::all()`, classified in the
+workspace source census, and covered by
+`partial_food_source_knowledge_seeds_only_authored_actor_edge`, which proves the
+edge-bearing actor receives the `household_food_source` starting belief and can
+plan an eat proposal through the rebuilt no-human actor-known surface, while
+the edge-less actor receives no belief and cannot target the food source. Added
+the conformance row for seed-knowledge helper containment.
+
+Verification:
+
+1. `cargo test -p tracewake-content --test fixtures_load known_food_source_blanket_helper_call_sites_are_allowlisted`
+2. `cargo test -p tracewake-content --test golden_fixtures_run partial_food_source_knowledge_seeds_only_authored_actor_edge -- --nocapture`
+3. `cargo test -p tracewake-content --test fixtures_load`
+4. `cargo test -p tracewake-content --test golden_fixtures_run`
+5. `cargo test -p tracewake-core --test anti_regression_guards workspace_source_classification_census_matches_production_tree`
+6. `cargo fmt --all --check`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`
+9. `cargo test --workspace`

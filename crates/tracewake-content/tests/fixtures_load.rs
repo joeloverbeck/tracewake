@@ -72,6 +72,103 @@ fn positive_fixture_constructor_ids_from_source() -> BTreeSet<String> {
     ids
 }
 
+const LEGACY_KNOWN_FOOD_SOURCE_HELPER_CALL_SITES: &[&str] = &[
+    "src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs",
+    "src/fixtures/container_item_move_001.rs",
+    "src/fixtures/debug_attach_001.rs",
+    "src/fixtures/door_access_001.rs",
+    "src/fixtures/embodied_exits_require_perceived_or_known_route_001.rs",
+    "src/fixtures/embodied_menu_lags_truth_change_without_perception_001.rs",
+    "src/fixtures/embodied_view_omits_raw_assignment_without_context_001.rs",
+    "src/fixtures/embodied_view_omits_unknown_sleep_affordance_001.rs",
+    "src/fixtures/embodied_view_omits_unobserved_food_at_open_place_001.rs",
+    "src/fixtures/embodied_workplace_availability_reflects_belief_not_truth_001.rs",
+    "src/fixtures/embodied_workplace_believed_open_truth_closed_commit_fails_001.rs",
+    "src/fixtures/expectation_contradiction_001.rs",
+    "src/fixtures/food_unavailable_replan_001.rs",
+    "src/fixtures/forbidden_provenance_input_fails_closed_001.rs",
+    "src/fixtures/hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001.rs",
+    "src/fixtures/knowledge_blocker_accuse_001.rs",
+    "src/fixtures/method_fallback_requires_new_trace_or_stuck_001.rs",
+    "src/fixtures/mod.rs",
+    "src/fixtures/no_hidden_truth_planning_001.rs",
+    "src/fixtures/no_human_advance_001.rs",
+    "src/fixtures/no_human_current_place_without_sleep_affordance_does_not_sleep_001.rs",
+    "src/fixtures/no_human_day_001.rs",
+    "src/fixtures/no_human_epistemic_check_001.rs",
+    "src/fixtures/no_human_known_workplace_requires_provenance_001.rs",
+    "src/fixtures/no_human_metrics_require_typed_responsible_layer_001.rs",
+    "src/fixtures/no_human_observation_facts_cite_log_events_001.rs",
+    "src/fixtures/no_human_sleep_knowledge_requires_observation_or_record_001.rs",
+    "src/fixtures/no_human_unseen_workplace_assignment_does_not_plan_work_001.rs",
+    "src/fixtures/no_human_workplace_knowledge_requires_notice_event_001.rs",
+    "src/fixtures/ordinary_workday_001.rs",
+    "src/fixtures/planner_trace_001.rs",
+    "src/fixtures/possession_does_not_reset_intention_001.rs",
+    "src/fixtures/possession_parity_001.rs",
+    "src/fixtures/replay_item_location_001.rs",
+    "src/fixtures/routine_blocked_diagnostic_001.rs",
+    "src/fixtures/routine_no_teleport_001.rs",
+    "src/fixtures/scheduler_cannot_rewrite_wait_reason_after_transaction_001.rs",
+    "src/fixtures/severe_safety_with_known_exit_produces_move_001.rs",
+    "src/fixtures/severe_safety_without_known_exit_waits_with_knowledge_blocker_001.rs",
+    "src/fixtures/sleep_eat_work_001.rs",
+    "src/fixtures/sleep_interrupted_by_severe_need_prorates_recovery_001.rs",
+    "src/fixtures/sleep_rejects_current_place_without_sleep_affordance_001.rs",
+    "src/fixtures/sleep_spanning_window_boundary_charges_each_tick_once_001.rs",
+    "src/fixtures/sound_uncertainty_001.rs",
+    "src/fixtures/stale_workplace_notice_superseded_by_newer_001.rs",
+    "src/fixtures/strongbox_001.rs",
+    "src/fixtures/view_filtering_001.rs",
+    "src/fixtures/view_model_local_actions_001.rs",
+    "src/fixtures/wait_then_window_passive_charges_each_tick_once_001.rs",
+    "src/fixtures/work_block_failed_then_sleep_succeeds_001.rs",
+    "src/fixtures/work_completion_fails_when_actor_displaced_001.rs",
+];
+
+#[allow(
+    clippy::disallowed_methods,
+    reason = "fixture helper census scans source constructors; this is test substrate, not simulation outcome code"
+)]
+fn known_food_source_helper_call_sites_from_source() -> BTreeSet<String> {
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/fixtures");
+    let mut call_sites = BTreeSet::new();
+    for entry in std::fs::read_dir(fixtures_dir).expect("fixtures directory is readable") {
+        let path = entry.expect("fixture directory entry is readable").path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path).expect("fixture source is readable");
+        if source.contains(".populate_known_food_sources_for_all_actors(") {
+            let file_name = path
+                .file_name()
+                .and_then(|file_name| file_name.to_str())
+                .expect("fixture source has file name");
+            call_sites.insert(format!("src/fixtures/{file_name}"));
+        }
+    }
+    call_sites
+}
+
+fn known_food_source_helper_census_errors(call_sites: &BTreeSet<String>) -> Vec<String> {
+    let allowed = LEGACY_KNOWN_FOOD_SOURCE_HELPER_CALL_SITES
+        .iter()
+        .map(|path| path.to_string())
+        .collect::<BTreeSet<_>>();
+    let mut errors = Vec::new();
+    for unexpected in call_sites.difference(&allowed) {
+        errors.push(format!(
+            "unallowlisted blanket known-food helper call site {unexpected}; new fixtures must author per-actor known_food_sources edges or join the allowlist with rationale"
+        ));
+    }
+    for missing in allowed.difference(call_sites) {
+        errors.push(format!(
+            "legacy known-food helper allowlist entry is stale: {missing}"
+        ));
+    }
+    errors
+}
+
 fn phase3a_fixture() -> FixtureSchema {
     FixtureSchema {
         fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
@@ -214,6 +311,26 @@ fn all_fixtures_load_deterministically_and_validate() {
             second.manifest.content_fingerprint
         );
     }
+}
+
+#[test]
+fn known_food_source_blanket_helper_call_sites_are_allowlisted() {
+    let call_sites = known_food_source_helper_call_sites_from_source();
+    let errors = known_food_source_helper_census_errors(&call_sites);
+    assert!(
+        errors.is_empty(),
+        "blanket food-source helper call-site census diverged: {errors:#?}"
+    );
+
+    let mut synthetic = call_sites.clone();
+    synthetic.insert("src/fixtures/synthetic_new_fixture_001.rs".to_string());
+    let synthetic_errors = known_food_source_helper_census_errors(&synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("synthetic_new_fixture_001.rs")),
+        "synthetic new blanket helper call site must fail with the file named"
+    );
 }
 
 #[test]
