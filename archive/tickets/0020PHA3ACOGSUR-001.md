@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-001: Cognition-surface supersession parity, remembered-food reclassification, and deterministic tie-break
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/projection`, `agent/no_human_surface`, `agent/perception`); new freshness/parity gates; `docs/3-reference/01_DESIGN_RISK_REGISTER.md` Watch entries; embodied-context/golden repricing in `tracewake-content` as surfaced
@@ -198,3 +198,35 @@ per-actor ledger diffs, every diff explained.
 1. `cargo test -p tracewake-core no_human_surface`
 2. `cargo test -p tracewake-core --test hidden_truth_gates`
 3. `cargo test --workspace` (full pipeline; golden repricing verified with explained ledger diffs)
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Hoisted workplace supersession into `EpistemicProjection::classified_actor_known_records_for_context`, with newest `source_tick` winning and higher `source_event_id` breaking equal-tick ties.
+- Removed the no-human `FoodSource` place-mismatch deletion so food observations from another place survive as remembered actor-known inputs.
+- Simplified `current_place_knowledge_context` to consume the shared superseded classifier output instead of maintaining its own workplace newest-wins map.
+- Added a projection policy table and structural tests covering all four `ActorKnownProjectionRecord` kinds.
+- Added no-human builder tests for stale/fresh workplace supersession, same-tick tie-break, remembered food, and `FindFood` input reachability.
+- Added embodied/no-human workplace parity coverage for the same-tick tie-break.
+- Added planner target selection preference for currently observed food over remembered set ordering, after the remembered-food change exposed a no-human golden where a stale remote empty source was chosen ahead of local visible food.
+- Added risk-register Watch entries for acceptance-evidence reachability overstatement and incomplete correction closure.
+
+Deviations from original plan:
+
+- No golden fixture files or checksum baselines needed repricing. The full workspace gate initially exposed a behavioral regression in autonomous food target choice; the implementation was corrected by preferring current observed actor-known food before falling back to remembered/set order.
+- The requested `hidden_truth_gates` parity lock landed as module-level projection/perception/no-human tests rather than in `crates/tracewake-core/tests/hidden_truth_gates.rs`, because those modules already own the private helper access needed for precise assertions.
+
+Verification results:
+
+- `cargo test -p tracewake-core no_human_surface` — passed.
+- `cargo test -p tracewake-core projection` — passed.
+- `cargo test -p tracewake-core perception` — passed.
+- `cargo test -p tracewake-core food_goal_prefers_currently_observed_source_over_remembered_set_order` — passed.
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_real_run_replays_metrics_and_trace_projection` — passed after the planner target-selection fix.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

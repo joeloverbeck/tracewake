@@ -368,11 +368,7 @@ fn planner_goal_for(
     actor_known_context: &ActorKnownPlanningContext,
 ) -> PlannerGoal {
     match selected_goal.goal_kind {
-        GoalKind::Eat | GoalKind::FindFood => actor_known_context
-            .known_food_sources()
-            .iter()
-            .next()
-            .cloned()
+        GoalKind::Eat | GoalKind::FindFood => actor_known_food_source_for_goal(actor_known_context)
             .map(PlannerGoal::EatKnownFood)
             .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_food".to_string())),
         GoalKind::GoToWork => actor_known_context
@@ -438,6 +434,19 @@ fn planner_goal_for(
         }
         GoalKind::LeaveUnsafePlace => PlannerGoal::LeaveUnsafePlace,
     }
+}
+
+fn actor_known_food_source_for_goal(context: &ActorKnownPlanningContext) -> Option<String> {
+    context
+        .actor_known_facts()
+        .iter()
+        .find(|fact| {
+            fact.stable_id() == "actor_knows_food_source"
+                && fact.semantic_kind() == "observed_now"
+                && fact.is_actor_known()
+        })
+        .map(|fact| fact.value().to_string())
+        .or_else(|| context.known_food_sources().iter().next().cloned())
 }
 
 fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
@@ -859,6 +868,47 @@ mod tests {
                 ),
             ],
         )
+    }
+
+    #[test]
+    fn food_goal_prefers_currently_observed_source_over_remembered_set_order() {
+        let home = place("home_tomas");
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from([
+                "food_empty_pantry_mara".to_string(),
+                "food_stew_home_tomas".to_string(),
+            ]),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![
+                ActorKnownFact::remembered_belief(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_empty_pantry_mara",
+                    "test:remembered_food",
+                    Some(SimTick::new(4)),
+                    test_source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew_home_tomas",
+                    "test:visible_food",
+                    Some(SimTick::new(9)),
+                    test_source(),
+                ),
+            ],
+        );
+
+        assert_eq!(
+            actor_known_food_source_for_goal(&context),
+            Some("food_stew_home_tomas".to_string())
+        );
     }
 
     fn context_with_forbidden_input() -> ActorKnownPlanningContext {

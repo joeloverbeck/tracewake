@@ -187,18 +187,12 @@ impl NoHumanActorKnownSurfaceBuilder {
             }
             ActorKnownProjectionRecord::FoodSource {
                 food_source_id,
-                place_id,
+                place_id: _,
                 believed_servings: _,
                 source,
                 source_event_id,
                 ..
             } => {
-                if place_id
-                    .as_ref()
-                    .is_some_and(|place_id| place_id != &self.current_place_id)
-                {
-                    return;
-                }
                 self.add_food_source_knowledge(
                     food_source_id,
                     source.source_label(),
@@ -509,6 +503,8 @@ fn has_active_intention(agent_state: &AgentState, actor_id: &ActorId) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent::htn::{resolve_condition, ConditionResolution};
+    use crate::agent::RoutineCondition;
     use crate::events::apply::apply_epistemic_event;
     use crate::events::log::EventLog;
     use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -580,13 +576,29 @@ mod tests {
         current_place_id: PlaceId,
         frame_event_id: Option<EventId>,
     ) -> SealedActorKnownSurface {
+        build_surface_at(
+            projection,
+            actor_id,
+            current_place_id,
+            SimTick::ZERO,
+            frame_event_id,
+        )
+    }
+
+    fn build_surface_at(
+        projection: &EpistemicProjection,
+        actor_id: ActorId,
+        current_place_id: PlaceId,
+        decision_tick: SimTick,
+        frame_event_id: Option<EventId>,
+    ) -> SealedActorKnownSurface {
         let agent_state = AgentState::default();
         NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
             projection,
             agent_state: &agent_state,
             actor_id,
             current_place_id,
-            decision_tick: SimTick::ZERO,
+            decision_tick,
             window_id: "morning",
             window_end_tick: SimTick::new(4),
             current_place_witness_event_id: frame_event_id.clone(),
@@ -670,6 +682,115 @@ mod tests {
             .source_event_ids()
             .iter()
             .any(|id| id.as_str() == event_id));
+    }
+
+    #[test]
+    fn workplace_notices_supersede_before_no_human_facts_are_minted() {
+        let actor_id = actor_id();
+        let workshop = place_id("workshop_tomas");
+        let old_event_id = "event.role_notice.actor_tomas.closed";
+        let new_event_id = "event.role_notice.actor_tomas.open";
+        let mut log = EventLog::new();
+        log.append(event(
+            old_event_id,
+            &actor_id,
+            EventKind::RoleAssignmentNoticeRecorded,
+            SimTick::new(4),
+            "role_assignment_notice",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("workplace_id", workplace_id().as_str()),
+                PayloadField::new("place_id", workshop.as_str()),
+                PayloadField::new("access_open", "false"),
+            ],
+        ))
+        .unwrap();
+        log.append(event(
+            new_event_id,
+            &actor_id,
+            EventKind::RoleAssignmentNoticeRecorded,
+            SimTick::new(9),
+            "role_assignment_notice",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("workplace_id", workplace_id().as_str()),
+                PayloadField::new("place_id", workshop.as_str()),
+                PayloadField::new("access_open", "true"),
+            ],
+        ))
+        .unwrap();
+        let projection = projection_from_log(&log);
+
+        let surface = build_surface_at(
+            &projection,
+            actor_id,
+            workshop,
+            SimTick::new(10),
+            Some(EventId::new(new_event_id).unwrap()),
+        );
+        let access_facts: Vec<_> = surface
+            .context()
+            .actor_known_facts()
+            .iter()
+            .filter(|fact| fact.stable_id() == "workplace_believed_accessible")
+            .collect();
+
+        assert_eq!(access_facts.len(), 1);
+        assert_eq!(
+            access_facts[0].value(),
+            format!("{}:true", workplace_id().as_str())
+        );
+        assert_eq!(access_facts[0].source_event_ids().len(), 1);
+        assert_eq!(access_facts[0].source_event_ids()[0].as_str(), new_event_id);
+    }
+
+    #[test]
+    fn same_tick_workplace_notice_tie_uses_source_event_id_on_no_human_surface() {
+        let actor_id = actor_id();
+        let workshop = place_id("workshop_tomas");
+        let lower_event_id = "event.role_notice.actor_tomas.same_tick.closed";
+        let higher_event_id = "event.role_notice.actor_tomas.same_tick.open";
+        let mut log = EventLog::new();
+        for (event_id, access_open) in [(lower_event_id, "false"), (higher_event_id, "true")] {
+            log.append(event(
+                event_id,
+                &actor_id,
+                EventKind::RoleAssignmentNoticeRecorded,
+                SimTick::new(9),
+                "role_assignment_notice",
+                vec![
+                    PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                    PayloadField::new("actor_id", actor_id.as_str()),
+                    PayloadField::new("workplace_id", workplace_id().as_str()),
+                    PayloadField::new("place_id", workshop.as_str()),
+                    PayloadField::new("access_open", access_open),
+                ],
+            ))
+            .unwrap();
+        }
+        let projection = projection_from_log(&log);
+
+        let surface = build_surface_at(
+            &projection,
+            actor_id,
+            workshop,
+            SimTick::new(10),
+            Some(EventId::new(higher_event_id).unwrap()),
+        );
+        let access_fact = surface
+            .context()
+            .actor_known_facts()
+            .iter()
+            .find(|fact| fact.stable_id() == "workplace_believed_accessible")
+            .expect("superseded workplace notice should mint one access fact");
+
+        assert_eq!(
+            access_fact.value(),
+            format!("{}:true", workplace_id().as_str())
+        );
+        assert_eq!(access_fact.source_event_ids()[0].as_str(), higher_event_id);
     }
 
     #[test]
@@ -869,5 +990,67 @@ mod tests {
         assert!(food_fact
             .proof_note()
             .contains("remembered_belief:evented_perception:visible_food_supply"));
+    }
+
+    #[test]
+    fn food_record_from_other_place_surfaces_as_remembered_find_food_input() {
+        let actor_id = actor_id();
+        let kitchen = place_id("kitchen");
+        let square = place_id("village_square");
+        let event_id = "event.visible_food.actor_tomas.kitchen";
+        let mut log = EventLog::new();
+        log.append(event(
+            event_id,
+            &actor_id,
+            EventKind::ObservationRecorded,
+            SimTick::new(4),
+            "record_observation",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("observer_actor_id", actor_id.as_str()),
+                PayloadField::new("observer_place_id", kitchen.as_str()),
+                PayloadField::new(
+                    "observation_id",
+                    "observation.visible_food.actor_tomas.kitchen",
+                ),
+                PayloadField::new("observed_tick", "4"),
+                PayloadField::new("source_event_id", event_id),
+                PayloadField::new("channel", "direct_sight"),
+                PayloadField::new("place_id", kitchen.as_str()),
+                PayloadField::new("confidence", "1000"),
+                PayloadField::new("perceived_kind", "visible_food_supply"),
+                PayloadField::new("subject_id", kitchen.as_str()),
+                PayloadField::new("target_id", "kitchen_stew"),
+            ],
+        ))
+        .unwrap();
+        let projection = projection_from_log(&log);
+
+        let surface = build_surface_at(
+            &projection,
+            actor_id,
+            square,
+            SimTick::new(9),
+            Some(EventId::new(event_id).unwrap()),
+        );
+        let context = surface.context();
+        let food_fact = context
+            .actor_known_facts()
+            .iter()
+            .find(|fact| fact.stable_id() == "actor_knows_food_source")
+            .expect("remembered food source should survive after actor moves");
+
+        assert!(context.known_food_sources().contains("kitchen_stew"));
+        assert_eq!(food_fact.semantic_kind(), "remembered_belief");
+        assert_eq!(food_fact.tick(), Some(SimTick::new(4)));
+        assert!(matches!(
+            resolve_condition(
+                &RoutineCondition::ActorKnowsFoodSource,
+                context,
+                context.actor_known_facts()
+            ),
+            ConditionResolution::Satisfied { .. }
+        ));
     }
 }

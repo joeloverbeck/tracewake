@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, derived censuses in `anti_regression_guards.rs`, event builders as surfaced if arms gate); `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` census row; golden repricing in `tracewake-content` if any payload is stamped (batched after `-001`)
-**Deps**: `tickets/0020PHA3ACOGSUR-001.md` (golden-churn batching per spec §8); `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-054)
+**Deps**: `archive/tickets/0020PHA3ACOGSUR-001.md` (golden-churn batching per spec §8); `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (ORD-HARD-054)
 
 ## Problem
 
