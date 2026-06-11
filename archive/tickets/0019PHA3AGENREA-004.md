@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-004: Generative tamper relation and per-family reachability floors
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test oracle only (`tests/generative_lock.rs`, `tests/support/generative.rs`)
@@ -140,3 +140,26 @@ record the concession for the named flag in the conformance row (coordinated wit
 
 1. `cargo test -p tracewake-core --test generative_lock`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-11.
+
+The generative oracle now requires every generated case to prove replay detection
+by perturbing copied event payloads until checksum/replay divergence is observed,
+while leaving the honest log used by the positive relations untouched. The old
+aggregate `terminal_kinds.len() >= 2` floor was replaced with explicit nonzero
+floors for sleep-success, sleep-interrupt, work-success, and work-fail terminals,
+and each reachability flag now requires at least two distinct contributing
+seeds. The bounded seed corpus was expanded with `0x18_00_00_21`,
+`0x18_00_00_23`, and `0x18_00_00_24`; no conformance-row single-seed concession
+was needed.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test generative_lock`
+2. `cargo test -p tracewake-core --test anti_regression_guards generative_lock_cannot_fabricate_duration_terminals`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
