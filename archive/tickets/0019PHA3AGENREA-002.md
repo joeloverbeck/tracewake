@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-002: Workplace freshness — separate supersession from place-gating
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/perception`, `epistemics/projection` as surfaced); embodied context-hash expectations as surfaced
@@ -151,3 +151,33 @@ supersession lock.
 
 1. `cargo test -p tracewake-core current_place_knowledge_context`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- `current_place_knowledge_context` now keeps route, food, and sleep projection
+  records behind the latest-current-place gate, while handling workplace
+  role-assignment records through a separate per-workplace newest-record path.
+- Remembered workplace notices are no longer silently dropped when their notice tick
+  differs from the latest current-place perception tick.
+- Added a non-coincident-tick regression test proving the classifier marks the
+  workplace record as `Remembered` / not latest-current-place while the embodied
+  actor-known context still surfaces the acquired workplace fact.
+
+Deviations from original plan:
+
+- No golden/context-hash expectation files changed. The existing fixture suite stayed
+  green with no expectation churn.
+
+Verification results:
+
+- `cargo test -p tracewake-core current_place_knowledge_context` — passed.
+- `cargo test -p tracewake-core --test hidden_truth_gates` — passed.
+- `cargo test -p tracewake-content --test fixtures_load stale_workplace_notice_superseded_by_newer_001` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

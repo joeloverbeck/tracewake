@@ -8,12 +8,13 @@ use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, ObservationId, PlaceId, ProcessId,
-    SleepAffordanceId,
+    SleepAffordanceId, WorkplaceId,
 };
 use crate::location::Location;
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
+use std::collections::BTreeMap;
 
 pub fn record_current_place_perception(
     log: &mut EventLog,
@@ -163,12 +164,11 @@ pub fn current_place_knowledge_context(
     };
     let filter_context =
         KnowledgeContext::embodied_at_frontier(actor_id.clone(), decision_tick, event_frontier);
+    let mut newest_workplace_by_id: BTreeMap<WorkplaceId, ActorKnownWorkplaceFact> =
+        BTreeMap::new();
     for classified in epistemic_projection
         .classified_actor_known_records_for_context(&filter_context, &actor.current_place_id)
     {
-        if !classified.is_latest_current_place_record() {
-            continue;
-        }
         let source_key = format!(
             "epistemic_projection:{}",
             classified.record().source_event_id().as_str()
@@ -179,6 +179,9 @@ pub fn current_place_knowledge_context(
                 to_place_id,
                 ..
             } => {
+                if !classified.is_latest_current_place_record() {
+                    continue;
+                }
                 routes.push(ActorKnownRouteFact::new(
                     from_place_id.clone(),
                     to_place_id.clone(),
@@ -190,6 +193,9 @@ pub fn current_place_knowledge_context(
                 believed_servings,
                 ..
             } => {
+                if !classified.is_latest_current_place_record() {
+                    continue;
+                }
                 let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
                     continue;
                 };
@@ -204,6 +210,9 @@ pub fn current_place_knowledge_context(
                 sleep_affordance_id,
                 ..
             } => {
+                if !classified.is_latest_current_place_record() {
+                    continue;
+                }
                 let Some(sleep_affordance_id) = sleep_affordance_id
                     .as_deref()
                     .and_then(|value| SleepAffordanceId::new(value).ok())
@@ -223,7 +232,7 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if place_id == &actor.current_place_id {
-                    workplaces.push(ActorKnownWorkplaceFact::new(
+                    let fact = ActorKnownWorkplaceFact::new(
                         workplace_id.clone(),
                         place_id.clone(),
                         *believed_access_open,
@@ -234,11 +243,18 @@ pub fn current_place_knowledge_context(
                             .clone()])
                         .expect("projection workplace records carry a source event"),
                         classified.source_tick(),
-                    ));
+                    );
+                    let replace = newest_workplace_by_id
+                        .get(workplace_id)
+                        .is_none_or(|previous| previous.acquired_tick() <= fact.acquired_tick());
+                    if replace {
+                        newest_workplace_by_id.insert(workplace_id.clone(), fact);
+                    }
                 }
             }
         }
     }
+    workplaces.extend(newest_workplace_by_id.into_values());
 
     KnowledgeContext::embodied_at_frontier_with_facts(
         actor_id.clone(),
@@ -386,7 +402,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use crate::epistemics::EpistemicProjection;
+    use crate::epistemics::{ActorKnownProjectionFreshness, EpistemicProjection};
     use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
     use crate::state::{
         ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, WorkplaceState,
@@ -687,6 +703,65 @@ mod tests {
         assert_eq!(
             workplace.source_event_ids().as_slice(),
             &[EventId::new("event_role_notice_new_open").unwrap()]
+        );
+    }
+
+    #[test]
+    fn current_place_knowledge_context_keeps_remembered_workplace_notice_after_newer_perception() {
+        let actor = actor_id("actor_tomas");
+        let state = state_with_current_place_workplace();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            WorkplaceId::new("workplace_tomas").unwrap(),
+            place_id("home_tomas"),
+            true,
+            EventId::new("event_role_notice_remembered_open").unwrap(),
+            SimTick::new(4),
+        );
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(9), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let filter_context =
+            KnowledgeContext::embodied_at_frontier(actor.clone(), SimTick::new(10), 8);
+        let classified = projection
+            .classified_actor_known_records_for_context(&filter_context, &place_id("home_tomas"));
+        assert!(classified.iter().any(|record| {
+            matches!(
+                record.record(),
+                ActorKnownProjectionRecord::Workplace { workplace_id, .. }
+                    if workplace_id.as_str() == "workplace_tomas"
+            ) && record.freshness() == ActorKnownProjectionFreshness::Remembered
+                && !record.is_latest_current_place_record()
+        }));
+
+        let context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(10),
+            &manifest_id,
+            8,
+        );
+
+        assert_eq!(context.actor_known_workplaces().len(), 1);
+        let workplace = &context.actor_known_workplaces()[0];
+        assert_eq!(workplace.workplace_id().as_str(), "workplace_tomas");
+        assert_eq!(workplace.place_id().as_str(), "home_tomas");
+        assert!(workplace.believed_access_open());
+        assert_eq!(workplace.acquired_tick(), SimTick::new(4));
+        assert_eq!(
+            workplace.source_event_ids().as_slice(),
+            &[EventId::new("event_role_notice_remembered_open").unwrap()]
         );
     }
 }
