@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-007: Scheduler boundary semantics: completion-window progress and the routine-window bound
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` (`scheduler.rs` window bookkeeping and `routine_window_family` bound); boundary fixture; no new events or schemas
@@ -132,3 +132,34 @@ sites encode it identically; add the two-execution test either way.
 
 1. `cargo test -p tracewake-core scheduler`
 2. `cargo test --workspace` (full pipeline)
+
+## Outcome
+
+Completed 2026-06-11. The ORD-HARD-064 boundary fixture reproduced the
+completion-only-window shape: a SleepNight routine starts in the first window,
+then the next window's only legitimate progress is the scheduled `SleepCompleted`
+terminal. The fix records duration completions returned by `append_due_completions`
+as deterministic `(actor, tick)` progress for the containing window, so the final
+stuck sweep no longer emits a spurious `WindowNoProgress` for that window.
+
+For ORD-HARD-065, `routine_window_family` now uses
+`execution.start_tick <= window.start_tick`, matching the sibling routine-step
+completion selection bound. The two-execution test also covers the stricter case:
+a mid-window-only routine is not eligible at `window.start_tick`; when an
+already-open routine is present, it is selected.
+
+Verification:
+
+1. `cargo test -p tracewake-core scheduler -- --nocapture`
+2. Grep proof: `rg -n "execution\\.start_tick <= window\\.(start_tick|end_tick)|routine_window_family\\(" crates/tracewake-core/src/scheduler.rs` shows both selection sites use `window.start_tick` and no `window.end_tick` eligibility bound remains.
+3. `cargo test -p tracewake-tui --test command_loop_session no_human_day_command_loop_renders_phase3a_behavior_rows -- --nocapture`
+4. `cargo test -p tracewake-tui --test tui_acceptance no_human -- --nocapture`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`
+
+TUI no-human debug metric assertions were updated from the old early-eligibility
+surface (`work_failed=2`, `need_crossings=1`) to the corrected run
+(`work_failed=1`, `need_crossings=2`). The rendered routine panel now shows
+`routine_exec_tomas_work` as `Completed`, matching the fixed duty eligibility.

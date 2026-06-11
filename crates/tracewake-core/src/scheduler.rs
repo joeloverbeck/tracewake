@@ -373,7 +373,7 @@ pub mod no_human {
                     elapsed_ticks,
                 );
                 last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
-                append_due_completions(
+                let completed_durations = append_due_completions(
                     state,
                     log,
                     agent_state,
@@ -384,6 +384,10 @@ pub mod no_human {
                     &mut pending_work_starts,
                     window.start_tick,
                 );
+                for (completed_actor_id, _) in completed_durations {
+                    progress_by_window_actor
+                        .insert((window.window_id.clone(), completed_actor_id), 1);
+                }
                 record_current_place_perception(
                     log,
                     state,
@@ -527,7 +531,7 @@ pub mod no_human {
             }
         }
 
-        append_due_completions(
+        let completed_durations = append_due_completions(
             state,
             log,
             agent_state,
@@ -538,6 +542,14 @@ pub mod no_human {
             &mut pending_work_starts,
             final_tick,
         );
+        for (completed_actor_id, completion_tick) in completed_durations {
+            for window in &config.windows {
+                if window.start_tick <= completion_tick && completion_tick <= window.end_tick {
+                    progress_by_window_actor
+                        .insert((window.window_id.clone(), completed_actor_id.clone()), 1);
+                }
+            }
+        }
 
         for window in &config.windows {
             for actor_id in &config.actor_ids {
@@ -728,7 +740,7 @@ pub mod no_human {
             .values()
             .filter(|execution| &execution.actor_id == actor_id)
             .filter(|execution| {
-                execution.start_tick <= window.end_tick
+                execution.start_tick <= window.start_tick
                     && execution
                         .deadline_tick
                         .is_none_or(|deadline| window.start_tick < deadline)
@@ -794,7 +806,7 @@ pub mod no_human {
         pending_sleep_starts: &mut Vec<EventEnvelope>,
         pending_work_starts: &mut Vec<EventEnvelope>,
         due_tick: SimTick,
-    ) {
+    ) -> Vec<(ActorId, SimTick)> {
         let mut due_completions = Vec::new();
         let mut retained_sleep_starts = Vec::new();
         for sleep_started in pending_sleep_starts.drain(..) {
@@ -821,8 +833,9 @@ pub mod no_human {
                 .cmp(&right.tick())
                 .then_with(|| left.event_id().cmp(right.event_id()))
         });
+        let mut completed_durations = Vec::new();
         for completion in due_completions {
-            append_scheduled_completion(
+            completed_durations.extend(append_scheduled_completion(
                 state,
                 log,
                 agent_state,
@@ -830,8 +843,9 @@ pub mod no_human {
                 scheduler,
                 content_manifest_id,
                 completion,
-            );
+            ));
         }
+        completed_durations
     }
 
     fn append_scheduled_completion(
@@ -842,11 +856,12 @@ pub mod no_human {
         scheduler: &mut DeterministicScheduler,
         content_manifest_id: &ContentManifestId,
         completion: PendingCompletion,
-    ) {
+    ) -> Vec<(ActorId, SimTick)> {
+        let mut completed_durations = Vec::new();
         match completion {
             PendingCompletion::Sleep(sleep_started) => {
                 let Some(completion_tick) = scheduled_completion_tick(&sleep_started) else {
-                    return;
+                    return completed_durations;
                 };
                 let actor_id = sleep_started
                     .actor_id
@@ -875,6 +890,9 @@ pub mod no_human {
                 for event in events {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
                     if is_duration_terminal(appended.event_type) {
+                        if let Some(actor_id) = appended.actor_id.clone() {
+                            completed_durations.push((actor_id, appended.sim_tick));
+                        }
                         append_routine_step_completed_after_duration_completion(
                             log,
                             agent_state,
@@ -887,7 +905,7 @@ pub mod no_human {
             }
             PendingCompletion::Work(work_started) => {
                 let Some(completion_tick) = scheduled_completion_tick(&work_started) else {
-                    return;
+                    return completed_durations;
                 };
                 let actor_id = work_started
                     .actor_id
@@ -916,6 +934,9 @@ pub mod no_human {
                 for event in events {
                     let appended = append_and_apply_agent_event(log, agent_state, event);
                     if is_duration_terminal(appended.event_type) {
+                        if let Some(actor_id) = appended.actor_id.clone() {
+                            completed_durations.push((actor_id, appended.sim_tick));
+                        }
                         append_routine_step_completed_after_duration_completion(
                             log,
                             agent_state,
@@ -927,6 +948,7 @@ pub mod no_human {
                 }
             }
         }
+        completed_durations
     }
 
     fn append_routine_step_completed_after_duration_completion(
@@ -2586,6 +2608,158 @@ pub mod no_human {
                 .events()
                 .iter()
                 .any(|event| event.event_type == EventKind::ActorWaited));
+        }
+
+        #[test]
+        fn no_human_day_counts_duration_completion_as_window_progress() {
+            let actor_id = actor_id();
+            let bedroom = PlaceId::new("bedroom").unwrap();
+            let sleep_affordance_id = SleepAffordanceId::new("bed_tomas").unwrap();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state
+                .places
+                .insert(bedroom.clone(), PlaceState::new(bedroom.clone(), "Bedroom"));
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), bedroom.clone()),
+            );
+            state.sleep_affordances.insert(
+                sleep_affordance_id.clone(),
+                SleepAffordanceState::new(sleep_affordance_id, bedroom, 4, 80, 1),
+            );
+            let mut agent_state = agent_state(&actor_id);
+            agent_state
+                .needs_by_actor
+                .get_mut(&actor_id)
+                .unwrap()
+                .insert(
+                    NeedKind::Fatigue,
+                    crate::agent::NeedState::initial(
+                        NeedKind::Fatigue,
+                        880,
+                        crate::agent::NeedChangeCause::FixtureInitial,
+                    ),
+                );
+            let execution_id = RoutineExecutionId::new("routine_exec_sleep_boundary").unwrap();
+            agent_state.routine_executions.insert(
+                execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    execution_id,
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_sleep_boundary").unwrap(),
+                    RoutineFamily::SleepNight,
+                    SimTick::ZERO,
+                    Some(SimTick::new(4)),
+                    Some(SimTick::new(8)),
+                    None,
+                    DecisionTraceId::new("trace_sleep_boundary").unwrap(),
+                ),
+            );
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase3a_sleep();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id],
+                    windows: vec![
+                        DayWindow {
+                            window_id: "sleep_start".to_string(),
+                            start_tick: SimTick::ZERO,
+                            end_tick: SimTick::new(4),
+                        },
+                        DayWindow {
+                            window_id: "recovery".to_string(),
+                            start_tick: SimTick::new(4),
+                            end_tick: SimTick::new(8),
+                        },
+                    ],
+                },
+            );
+
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::SleepStarted));
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::SleepCompleted));
+            assert!(!report.stuck_diagnostic_event_ids.iter().any(|event_id| {
+                event_id
+                    .as_str()
+                    .contains("window_no_progress.actor_tomas.recovery")
+            }));
+        }
+
+        #[test]
+        fn routine_window_family_excludes_not_yet_started_execution_at_window_start() {
+            let actor_id = actor_id();
+            let mut agent_state = agent_state(&actor_id);
+            let mid_window_execution_id =
+                RoutineExecutionId::new("routine_exec_mid_window").unwrap();
+            agent_state.routine_executions.insert(
+                mid_window_execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    mid_window_execution_id,
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_mid_window").unwrap(),
+                    RoutineFamily::EatMeal,
+                    SimTick::new(6),
+                    Some(SimTick::new(8)),
+                    Some(SimTick::new(12)),
+                    None,
+                    DecisionTraceId::new("trace_mid_window").unwrap(),
+                ),
+            );
+            let window = DayWindow {
+                window_id: "morning".to_string(),
+                start_tick: SimTick::new(4),
+                end_tick: SimTick::new(8),
+            };
+            let actor_known_state = ActorKnownPlanningContext::from_observed_parts(
+                actor_id.clone(),
+                PlaceId::new("kitchen").unwrap(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeSet::new(),
+                BTreeSet::new(),
+                BTreeMap::new(),
+                Vec::new(),
+            );
+
+            assert_eq!(
+                routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
+                None
+            );
+
+            let already_open_execution_id =
+                RoutineExecutionId::new("routine_exec_already_open").unwrap();
+            agent_state.routine_executions.insert(
+                already_open_execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    already_open_execution_id,
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_already_open").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::new(2),
+                    Some(SimTick::new(8)),
+                    Some(SimTick::new(12)),
+                    None,
+                    DecisionTraceId::new("trace_already_open").unwrap(),
+                ),
+            );
+
+            assert_eq!(
+                routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
+                Some(RoutineFamily::Wait)
+            );
         }
 
         #[test]

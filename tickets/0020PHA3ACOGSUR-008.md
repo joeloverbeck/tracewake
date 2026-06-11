@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — new acceptance report under `reports/`; new read-only emergence-ledger derivation (test/report code only, no kernel behavior); no schema or event changes
-**Deps**: `archive/tickets/0020PHA3ACOGSUR-003.md`, `archive/tickets/0020PHA3ACOGSUR-004.md`, `archive/tickets/0020PHA3ACOGSUR-005.md`, `archive/tickets/0020PHA3ACOGSUR-006.md`, `tickets/0020PHA3ACOGSUR-007.md` (leaf set — `-003` transitively covers `-001`/`-002`); `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (§7)
+**Deps**: `archive/tickets/0020PHA3ACOGSUR-003.md`, `archive/tickets/0020PHA3ACOGSUR-004.md`, `archive/tickets/0020PHA3ACOGSUR-005.md`, `archive/tickets/0020PHA3ACOGSUR-006.md`, `archive/tickets/0020PHA3ACOGSUR-007.md` (leaf set — `-003` transitively covers `-001`/`-002`); `specs/0020_PHASE_3A_COGNITION_SURFACE_FRESHNESS_PARITY_DERIVED_CENSUS_CLOSURE_MUTATION_PERIMETER_COMPLETION_AND_GENERATIVE_FIDELITY_HARDENING_SPEC.md` (§7)
 
 ## Problem
 
