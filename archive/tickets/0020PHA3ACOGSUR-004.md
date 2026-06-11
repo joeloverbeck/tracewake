@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-004: Generative-tier fidelity: terminal-targeted tamper, continuity floor, derived seed contributors
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test oracle (`tests/generative_lock.rs`, `tests/support/generative.rs`); `scheduler.rs` generative-advance entry only if the per-tick completion flush is chosen for ORD-HARD-060; no kernel behavior change
@@ -152,3 +152,49 @@ the hunger constants' Severe-band membership explicitly.
 1. `cargo test -p tracewake-core --test generative_lock`
 2. `cargo test -p tracewake-core --test anti_regression_guards generative` (fabricator ban stays green)
 3. `cargo test --workspace` (full pipeline)
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Added a terminal-targeted tamper pass in `generative_lock.rs`: for every
+  generated run that emits a duration terminal, the test selects a terminal event
+  and verifies each payload field individually poisons replay.
+- Added a synthetic no-terminal guard proving the terminal-targeted tamper helper
+  fails loudly when no duration terminal exists.
+- Added a continuity-reason floor counted from advance-emitted terminal events:
+  `actor_displaced` / access-closure class reasons are distinguished from
+  severe-need interruption.
+- Added predicate-derived contributor assertions for sleep interruption, work
+  failure, and continuity failure based on generated masks over `GENERATIVE_SEEDS`.
+- Added explicit Severe-band assertions for the hunger constants that drive the
+  sleep-interrupt and work-fail masks.
+- Extended the generator with a narrow `wait_work_displace` mask and one generated
+  move step through the shared movement pipeline so work completion can fail for
+  `actor_displaced`.
+
+ORD-HARD-060 choice:
+
+- Chosen option: author a displacement seed/mask rather than change
+  `advance_no_human` to per-tick completion flushing.
+- Rationale: current generated scheduled proposals already run through the shared
+  pipeline in requested-tick order before due completions are flushed; a generated
+  move after a work start changes physical truth before the work completion is
+  evaluated, reaching the continuity branch without changing scheduler semantics.
+
+Deviations from original plan:
+
+- No `scheduler.rs` change was needed. The continuity branch is reached by generator
+  support only, using the existing production movement action and event application.
+- No conformance row was added; the ticket and spec both identify none as owed here.
+
+Verification results:
+
+- `cargo test -p tracewake-core --test generative_lock -- --nocapture` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards generative` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
