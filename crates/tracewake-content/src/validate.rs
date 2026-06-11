@@ -2314,6 +2314,7 @@ mod tests {
         ActionId, ActorId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
         RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId, WorkplaceId,
     };
+    use tracewake_core::state::VisibilityDefault;
     use tracewake_core::time::SimTick;
 
     fn registry() -> ActionRegistry {
@@ -2347,11 +2348,13 @@ mod tests {
                     place_id: PlaceId::new("back_room").unwrap(),
                     display_label: "Back room".to_string(),
                     adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
+                    visibility_default: VisibilityDefault::Visible,
                 },
                 PlaceSchema {
                     place_id: PlaceId::new("shop_front").unwrap(),
                     display_label: "Shop front".to_string(),
                     adjacent_place_ids: vec![PlaceId::new("back_room").unwrap()],
+                    visibility_default: VisibilityDefault::Visible,
                 },
             ],
             doors: vec![DoorSchema {
@@ -2404,6 +2407,7 @@ mod tests {
             place_id: PlaceId::new("workshop").unwrap(),
             display_label: "Workshop".to_string(),
             adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
+            visibility_default: VisibilityDefault::Visible,
         });
         fixture.initial_needs.push(InitialNeedSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
@@ -2529,7 +2533,7 @@ mod tests {
 
     #[test]
     fn fixture_food_supply_negative_servings_rejected_001() {
-        let raw = b"fixture|phase3a_bad_servings_001\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|546f6d617320686f6d65|\nfood_supply|food_soup_pot|at:home_tomas|-1|180";
+        let raw = b"fixture|phase3a_bad_servings_001\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|546f6d617320686f6d65||visible\nfood_supply|food_soup_pot|at:home_tomas|-1|180";
 
         let errors = validate_fixture_bytes(raw, &registry()).unwrap_err();
 
@@ -2735,6 +2739,7 @@ mod tests {
             place_id: PlaceId::new("shop_front").unwrap(),
             display_label: "Duplicate".to_string(),
             adjacent_place_ids: Vec::new(),
+            visibility_default: VisibilityDefault::Visible,
         });
         fixture.affordances.push(ActionAffordanceSchema {
             action_id: ActionId::new("open").unwrap(),

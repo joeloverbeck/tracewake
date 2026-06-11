@@ -164,7 +164,7 @@ fn forbidden_content_phase3a_teleport_and_refill_shortcuts_are_blocking_errors()
 fn forbidden_content_routine_template_without_typed_family_is_blocking_error() {
     let step = encode("routine_step_v1|start_work_block|work_block.workplace_shop");
     let raw = format!(
-        "fixture|bad_fixture\nschema|schema_v1\nactor|actor_tomas|workshop\nplace|workshop|576f726b73686f70|\nroutine_template|routine_work_by_name||61737369676e65645f776f726b706c6163655f6b6e6f776e|61745f776f726b706c616365|{step}|1|2|0|616363657373|77616974|70686173653361|"
+        "fixture|bad_fixture\nschema|schema_v1\nactor|actor_tomas|workshop\nplace|workshop|576f726b73686f70||visible\nroutine_template|routine_work_by_name||61737369676e65645f776f726b706c6163655f6b6e6f776e|61745f776f726b706c616365|{step}|1|2|0|616363657373|77616974|70686173653361|"
     );
     let report = validate_fixture_bytes(raw.as_bytes(), &registry())
         .unwrap_err()

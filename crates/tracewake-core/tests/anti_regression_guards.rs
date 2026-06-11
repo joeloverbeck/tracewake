@@ -3383,6 +3383,46 @@ fn guard_014_no_human_metrics_do_not_scan_display_text() {
 }
 
 #[test]
+fn guard_014_perception_visibility_uses_typed_place_visibility() {
+    let perception = guarded_source("src/agent/perception.rs");
+    let violations = perception_visibility_prose_branch_violations(&perception);
+    assert!(
+        violations.is_empty(),
+        "perception visibility must read typed place visibility, not prose or id substrings: {violations:?}"
+    );
+
+    let synthetic = r#"
+        fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
+            let Some(place) = state.places().get(place_id) else {
+                return false;
+            };
+            !place.place_id.as_str().contains("hidden")
+                && !place.display_label.to_lowercase().contains("hidden")
+        }
+    "#;
+    let synthetic_violations = perception_visibility_prose_branch_violations(synthetic);
+    assert!(
+        synthetic_violations.len() >= 3,
+        "synthetic prose/id visibility branch must fail this guard"
+    );
+}
+
+fn perception_visibility_prose_branch_violations(source: &str) -> Vec<&'static str> {
+    let stripped = source_without_comments(source);
+    let visibility_body = body_after_marker(&stripped, "fn is_visible_exit_target");
+    [
+        "display_label",
+        ".to_lowercase()",
+        ".contains(\"hidden\")",
+        "place.place_id.as_str()",
+        "place_id.as_str().contains",
+    ]
+    .into_iter()
+    .filter(|needle| visibility_body.contains(needle))
+    .collect()
+}
+
+#[test]
 fn guard_014_sleep_validation_requires_modeled_affordance() {
     let sleep = production(SLEEP_RS);
     let projection = production(PROJECTIONS_RS);

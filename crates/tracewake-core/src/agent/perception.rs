@@ -299,8 +299,7 @@ fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
     let Some(place) = state.places().get(place_id) else {
         return false;
     };
-    !place.place_id.as_str().contains("hidden")
-        && !place.display_label.to_lowercase().contains("hidden")
+    place.visibility_default.is_visible()
 }
 
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
@@ -401,7 +400,8 @@ mod tests {
     use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
     use crate::state::AgentState;
     use crate::state::{
-        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, WorkplaceState,
+        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, VisibilityDefault,
+        WorkplaceState,
     };
 
     fn actor_id(value: &str) -> ActorId {
@@ -531,6 +531,65 @@ mod tests {
                     field.key == "source_event_id" && field.value == event.event_id.as_str()
                 })
         }));
+    }
+
+    #[test]
+    fn visible_exit_perception_follows_typed_visibility_not_id_or_label_prose() {
+        let actor = actor_id("actor_tomas");
+        let home = place_id("home_tomas");
+        let misleading_visible = place_id("hidden_annex");
+        let concealed_plain = place_id("quiet_annex");
+
+        let mut home_state = PlaceState::new(home.clone(), "Tomas home");
+        home_state
+            .adjacent_place_ids
+            .insert(misleading_visible.clone());
+        home_state
+            .adjacent_place_ids
+            .insert(concealed_plain.clone());
+        let mut visible_state = PlaceState::new(misleading_visible.clone(), "Hidden annex");
+        visible_state.visibility_default = VisibilityDefault::Visible;
+        let mut concealed_state = PlaceState::new(concealed_plain.clone(), "Quiet annex");
+        concealed_state.visibility_default = VisibilityDefault::Concealed;
+
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor.clone(), home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home, home_state);
+        places.insert(misleading_visible.clone(), visible_state);
+        places.insert(concealed_plain.clone(), concealed_state);
+        let state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        );
+
+        let visible_exit_targets =
+            current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id())
+                .into_iter()
+                .filter(|event| {
+                    event
+                        .payload
+                        .iter()
+                        .any(|field| field.key == "perceived_kind" && field.value == "visible_exit")
+                })
+                .filter_map(|event| {
+                    event
+                        .payload
+                        .iter()
+                        .find(|field| field.key == "target_id")
+                        .map(|field| field.value.clone())
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+
+        assert!(visible_exit_targets.contains(misleading_visible.as_str()));
+        assert!(!visible_exit_targets.contains(concealed_plain.as_str()));
     }
 
     #[test]

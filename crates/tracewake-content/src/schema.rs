@@ -17,7 +17,7 @@ use tracewake_core::ids::{
 use tracewake_core::location::Location;
 use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, DoorState, FoodSupplyState, ItemState, NeedModelState,
-    PhysicalState, PlaceState, SleepAffordanceState, WorkplaceState,
+    PhysicalState, PlaceState, SleepAffordanceState, VisibilityDefault, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -291,6 +291,7 @@ pub struct PlaceSchema {
     pub place_id: PlaceId,
     pub display_label: String,
     pub adjacent_place_ids: Vec<PlaceId>,
+    pub visibility_default: VisibilityDefault,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -565,6 +566,7 @@ impl FixtureSchema {
         for place in &self.places {
             let mut place_state =
                 PlaceState::new(place.place_id.clone(), place.display_label.clone());
+            place_state.visibility_default = place.visibility_default.clone();
             place_state
                 .adjacent_place_ids
                 .extend(place.adjacent_place_ids.iter().cloned());

@@ -11,6 +11,7 @@ use tracewake_core::ids::{
     PlaceId, RoutineTemplateId, SchemaVersion, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::state::VisibilityDefault;
 use tracewake_core::time::SimTick;
 
 use crate::schema::{
@@ -86,11 +87,12 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
     }
     for place in fixture.places {
         lines.push(format!(
-            "{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}",
             canonical_key_for_schema_field("places"),
             place.place_id.as_str(),
             encode(&place.display_label),
-            join(place.adjacent_place_ids.iter().map(|id| id.as_str()))
+            join(place.adjacent_place_ids.iter().map(|id| id.as_str())),
+            place.visibility_default.stable_id()
         ));
     }
     for door in fixture.doors {
@@ -321,10 +323,11 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                 actor_id: ActorId::new(*actor_id)?,
                 current_place_id: PlaceId::new(*place_id)?,
             }),
-            ["place", place_id, label, adjacent] => places.push(PlaceSchema {
+            ["place", place_id, label, adjacent, visibility_default] => places.push(PlaceSchema {
                 place_id: PlaceId::new(*place_id)?,
                 display_label: decode(label)?,
                 adjacent_place_ids: split_ids(adjacent, |part| PlaceId::new(part))?,
+                visibility_default: parse_visibility_default(visibility_default)?,
             }),
             ["door", door_id, endpoint_a, endpoint_b, is_open, is_locked] => {
                 doors.push(DoorSchema {
@@ -501,6 +504,16 @@ fn parse_fixture_scope(value: &str) -> Result<FixtureScope, SerializationError> 
         "phase3a_historical" => Ok(FixtureScope::Phase3AHistorical),
         _ => Err(SerializationError::BadLine(format!(
             "bad fixture scope {value}"
+        ))),
+    }
+}
+
+fn parse_visibility_default(value: &str) -> Result<VisibilityDefault, SerializationError> {
+    match value {
+        "visible" => Ok(VisibilityDefault::Visible),
+        "concealed" => Ok(VisibilityDefault::Concealed),
+        _ => Err(SerializationError::BadLine(format!(
+            "bad place visibility_default {value}"
         ))),
     }
 }
@@ -817,6 +830,7 @@ mod tests {
                 place_id: PlaceId::new("shop_front").unwrap(),
                 display_label: "Shop front".to_string(),
                 adjacent_place_ids: Vec::new(),
+                visibility_default: VisibilityDefault::Visible,
             }],
             doors: Vec::new(),
             containers: vec![ContainerSchema {

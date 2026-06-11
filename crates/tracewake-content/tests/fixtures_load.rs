@@ -27,6 +27,7 @@ use tracewake_core::ids::{
 use tracewake_core::location::Location;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
+use tracewake_core::state::VisibilityDefault;
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -237,11 +238,13 @@ fn phase3a_fixture() -> FixtureSchema {
                 place_id: PlaceId::new("workshop").unwrap(),
                 display_label: "Workshop".to_string(),
                 adjacent_place_ids: vec![PlaceId::new("home_tomas").unwrap()],
+                visibility_default: VisibilityDefault::Visible,
             },
             PlaceSchema {
                 place_id: PlaceId::new("home_tomas").unwrap(),
                 display_label: "Tomas home".to_string(),
                 adjacent_place_ids: vec![PlaceId::new("workshop").unwrap()],
+                visibility_default: VisibilityDefault::Visible,
             },
         ],
         doors: Vec::new(),
@@ -739,13 +742,24 @@ fn fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected() {
 
 #[test]
 fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
-    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|\nunknown_phase3a_section|actor_tomas|workshop";
+    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nunknown_phase3a_section|actor_tomas|workshop";
     let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
 
     assert!(report
         .errors
         .iter()
         .any(|error| error.code == "unknown_field"));
+}
+
+#[test]
+fn fixtures_load_place_visibility_default_is_required() {
+    let raw = b"fixture|missing_place_visibility\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|";
+    let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "bad_line" && error.message.contains("place|")));
 }
 
 #[test]

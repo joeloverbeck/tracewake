@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-007: Typed place concealment replacing display-label perception prose
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`state` place record, `agent/perception`), `tracewake-content` (place schema, loader, serialization, fixtures); guard_014 family extension; conformance-index row
@@ -160,3 +160,41 @@ in `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`.
 1. `cargo test -p tracewake-core perception`
 2. `cargo test -p tracewake-content --test fixtures_load`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome (2026-06-11)
+
+Implemented typed place visibility for perception:
+
+1. Extended core `VisibilityDefault` with `Visible` / `Concealed`, stable ids, and
+   a typed visibility predicate. `PlaceState` remains the authoritative carrier.
+2. Added required `visibility_default` authoring to `PlaceSchema`, canonical fixture
+   serialization/deserialization, fixture helpers, direct schema test literals, and
+   physical-state materialization. Recorded authoring-contract choice: the field is
+   required; missing place visibility rejects as bad fixture input rather than using
+   a registered default.
+3. Replaced `is_visible_exit_target` display-label and place-id substring checks
+   with `place.visibility_default.is_visible()`.
+4. Authored intended hidden workshop places as `Concealed`; all normal fixture places
+   are explicitly `Visible`.
+5. Added a misleading-label/id perception test proving a `hidden_*` / "Hidden ..."
+   place remains visible when typed visible, while a plain-label place is hidden when
+   typed concealed.
+6. Extended guard_014 with a perception source guard and synthetic failure for
+   display-label / id-substring visibility branching, and added the typed place
+   visibility row to the architecture conformance index.
+
+Golden result: canonical no-human and golden fixture suites stayed green under
+faithful authoring; no repricing was needed.
+
+Verification run and passing:
+
+1. `cargo test -p tracewake-content --test fixtures_load`
+2. `cargo test -p tracewake-core perception`
+3. `cargo test -p tracewake-core --test anti_regression_guards guard_014_perception_visibility_uses_typed_place_visibility`
+4. `cargo test -p tracewake-core --test spine_conformance`
+5. `cargo test -p tracewake-core --test doc_invariant_references`
+6. `cargo test -p tracewake-content`
+7. `cargo fmt --all --check`
+8. `cargo clippy --workspace --all-targets -- -D warnings`
+9. `cargo build --workspace --all-targets --locked`
+10. `cargo test --workspace`

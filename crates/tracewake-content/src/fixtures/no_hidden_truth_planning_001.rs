@@ -9,7 +9,7 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),
-            place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
+            concealed_place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
         ],
         doors: Vec::new(),
         containers: vec![container_schema(

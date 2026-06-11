@@ -67,6 +67,7 @@ use tracewake_core::ids::{
     PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::state::VisibilityDefault;
 use tracewake_core::time::SimTick;
 
 use crate::load::SourceFile;
@@ -245,7 +246,7 @@ fn hidden_truth_adversarial_fixture(
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),
-            place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
+            concealed_place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
         ],
         doors: Vec::new(),
         containers: vec![container_schema(
@@ -435,10 +436,38 @@ fn actor_schema(actor_id: &str, current_place_id: &str) -> ActorSchema {
 }
 
 fn place_schema(place_id: &str, display_label: &str, adjacent_place_ids: &[&str]) -> PlaceSchema {
+    place_schema_with_visibility(
+        place_id,
+        display_label,
+        adjacent_place_ids,
+        VisibilityDefault::Visible,
+    )
+}
+
+fn concealed_place_schema(
+    place_id: &str,
+    display_label: &str,
+    adjacent_place_ids: &[&str],
+) -> PlaceSchema {
+    place_schema_with_visibility(
+        place_id,
+        display_label,
+        adjacent_place_ids,
+        VisibilityDefault::Concealed,
+    )
+}
+
+fn place_schema_with_visibility(
+    place_id: &str,
+    display_label: &str,
+    adjacent_place_ids: &[&str],
+    visibility_default: VisibilityDefault,
+) -> PlaceSchema {
     PlaceSchema {
         place_id: place(place_id),
         display_label: display_label.to_string(),
         adjacent_place_ids: adjacent_place_ids.iter().map(|id| place(id)).collect(),
+        visibility_default,
     }
 }
 
