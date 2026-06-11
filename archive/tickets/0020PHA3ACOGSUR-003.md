@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-003: Mutation-perimeter completion and baseline governance
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `.cargo/mutants.toml`, `.cargo/mutants-baseline-misses.txt`, `.github/workflows/ci.yml`, perimeter guard in `anti_regression_guards.rs`; `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` rows; no production-code changes unless baseline triage warrants tests
@@ -160,3 +160,56 @@ mutation baseline" wording to reflect the count/ledger pin now that it exists.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo mutants -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle -j 2` (focused perimeter evidence run)
 3. `cargo test --workspace` (full pipeline)
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Added `actions/defs/eat.rs` to the scheduled cargo-mutants filter set and to
+  the in-diff guarded-path regex alongside `sleep.rs` and `work.rs`.
+- Widened `mutation_perimeter_matches_duration_action_rationale_and_ci_filters`
+  so it checks the full perimeter filter set, representative in-diff regex
+  canaries, action-definition rationale text, cargo-mutants failure semantics, and
+  the existing direct-push coverage.
+- Added synthetic guard cases proving removal of the scheduled `eat.rs` filter or
+  the in-diff `eat` regex arm fails.
+- Added mutation-baseline governance over `.cargo/mutants-baseline-misses.txt`:
+  the normalized accepted baseline is pinned at 143 entries with content hash
+  `bd1855a5ee82b428`, and every normalized entry must appear in
+  `reports/0020_mutants_baseline_disposition.md` with rationale text.
+- Refreshed the accepted miss baseline with the seven current-tree `eat.rs` misses
+  from the focused run and recorded them as future test debt in the ledger.
+- Added architecture conformance rows for the completed mutation perimeter and
+  governed mutation baseline, and corrected the older "pinned mutation baseline"
+  wording to "governed mutation baseline."
+
+Focused mutation evidence:
+
+- Command:
+  `cargo mutants -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle -j 2`.
+- Result: unmutated baseline passed; 107 mutants tested in 5 minutes; 7 missed,
+  76 caught, 24 unviable.
+- Miss disposition: all seven misses are `eat.rs` access/location-payload test debt
+  and are ledgered in `reports/0020_mutants_baseline_disposition.md`; no bulk
+  unreviewed refresh was made.
+
+Deviations from original plan:
+
+- The baseline governance uses a deterministic test-local FNV-1a content hash
+  instead of adding a hashing dependency to the zero-dependency core crate.
+- The per-entry triage is recorded as a reviewed disposition ledger with all current
+  accepted misses marked as justified baseline residence/future focused test debt;
+  no production-code changes were made to pay down that debt in this ticket.
+
+Verification results:
+
+- `cargo test -p tracewake-core --test anti_regression_guards mutation_baseline_misses_are_pinned_and_ledgered` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo mutants -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle -j 2` — completed with expected miss status; 7 missed, 76 caught, 24 unviable.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

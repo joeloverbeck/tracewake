@@ -109,7 +109,7 @@ jobs:
           else
             guarded_range="HEAD^..HEAD"
           fi
-          if git diff --name-only "$guarded_range" | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs|crates/tracewake-core/src/actions/defs/(sleep|work)\.rs)' >/dev/null; then
+          if git diff --name-only "$guarded_range" | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs|crates/tracewake-core/src/actions/defs/(eat|sleep|work)\.rs)' >/dev/null; then
             echo "run_mutants=true" >> "$GITHUB_OUTPUT"
             echo "guarded_range=$guarded_range" >> "$GITHUB_OUTPUT"
           else
@@ -185,6 +185,7 @@ jobs:
             -f 'crates/tracewake-core/src/scheduler*' \
             -f 'crates/tracewake-core/src/projections*' \
             -f 'crates/tracewake-core/src/actions/pipeline.rs' \
+            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \
             -f 'crates/tracewake-core/src/actions/defs/sleep.rs' \
             -f 'crates/tracewake-core/src/actions/defs/work.rs' \
             --no-shuffle

@@ -26,6 +26,9 @@ const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
+const MUTANTS_BASELINE_MISSES: &str = include_str!("../../../.cargo/mutants-baseline-misses.txt");
+const MUTANTS_BASELINE_LEDGER: &str =
+    include_str!("../../../reports/0020_mutants_baseline_disposition.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -567,7 +570,7 @@ fn dependency_entries_from_manifest(manifest_path: &str, source: &str) -> Vec<De
 const CORE_FOUNDATION_RATIONALE: &str =
     "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
 const CORE_ACTION_RATIONALE: &str =
-    "core action validation/registry code is covered by targeted action, pipeline, and duration-definition mutation guards";
+    "core action validation/registry code is covered by targeted action, pipeline, and guarded action-definition mutation guards";
 const CORE_EPISTEMIC_RATIONALE: &str =
     "epistemic data model is covered by capability, provenance, and projection tests";
 const CONTENT_RATIONALE: &str =
@@ -780,10 +783,28 @@ fn is_guarded_layer_source(path: &str) -> bool {
     })
 }
 
-const MUTATION_PERIMETER_DURATION_DEFS: &[&str] = &[
+const MUTATION_PERIMETER_REQUIRED_FILTERS: &[&str] = &[
+    "-f 'crates/tracewake-core/src/agent/**'",
+    "-f 'crates/tracewake-core/src/scheduler*'",
+    "-f 'crates/tracewake-core/src/projections*'",
+    "-f 'crates/tracewake-core/src/actions/pipeline.rs'",
+    "-f 'crates/tracewake-core/src/actions/defs/eat.rs'",
+    "-f 'crates/tracewake-core/src/actions/defs/sleep.rs'",
+    "-f 'crates/tracewake-core/src/actions/defs/work.rs'",
+];
+
+const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
+    "crates/tracewake-core/src/agent/transaction.rs",
+    "crates/tracewake-core/src/scheduler.rs",
+    "crates/tracewake-core/src/projections.rs",
+    "crates/tracewake-core/src/actions/pipeline.rs",
+    "crates/tracewake-core/src/actions/defs/eat.rs",
     "crates/tracewake-core/src/actions/defs/sleep.rs",
     "crates/tracewake-core/src/actions/defs/work.rs",
 ];
+
+const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 143;
+const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
 
 fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
     let mut violations = Vec::new();
@@ -802,20 +823,33 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         .and_then(|tail| tail.split(")\\.rs").next())
         .unwrap_or_default();
 
-    for required_path in MUTATION_PERIMETER_DURATION_DEFS {
-        let scheduled_filter = format!("-f '{required_path}'");
-        if !ci_yml.contains(&scheduled_filter) {
+    for scheduled_filter in MUTATION_PERIMETER_REQUIRED_FILTERS {
+        if !ci_yml.contains(scheduled_filter) {
             violations.push(format!(
-                "scheduled mutation baseline omits required filter {required_path}"
+                "scheduled mutation baseline omits required filter {scheduled_filter}"
             ));
         }
+    }
 
+    for required_path in MUTATION_PERIMETER_CANARY_PATHS {
         let stem = required_path
             .rsplit('/')
             .next()
             .and_then(|file_name| file_name.strip_suffix(".rs"))
             .unwrap_or(required_path);
-        if !in_diff_defs_group.split('|').any(|entry| entry == stem) {
+        let matches_in_diff_filter =
+            if required_path.starts_with("crates/tracewake-core/src/agent/") {
+                in_diff_filter_line.contains("crates/tracewake-core/src/agent/")
+            } else if *required_path == "crates/tracewake-core/src/scheduler.rs" {
+                in_diff_filter_line.contains("crates/tracewake-core/src/scheduler\\.rs")
+            } else if *required_path == "crates/tracewake-core/src/projections.rs" {
+                in_diff_filter_line.contains("crates/tracewake-core/src/projections\\.rs")
+            } else if *required_path == "crates/tracewake-core/src/actions/pipeline.rs" {
+                in_diff_filter_line.contains("crates/tracewake-core/src/actions/pipeline\\.rs")
+            } else {
+                in_diff_defs_group.split('|').any(|entry| entry == stem)
+            };
+        if !matches_in_diff_filter {
             violations.push(format!(
                 "in-diff mutation guarded-path filter omits {required_path}"
             ));
@@ -872,6 +906,98 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
 
     violations
+}
+
+fn normalized_mutant_misses(source: &str) -> std::collections::BTreeSet<String> {
+    source
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let mut parts = line.splitn(4, ':');
+            let Some(path) = parts.next() else {
+                return line.to_string();
+            };
+            let Some(_line_number) = parts.next() else {
+                return line.to_string();
+            };
+            let Some(_column_number) = parts.next() else {
+                return line.to_string();
+            };
+            let Some(rest) = parts.next() else {
+                return line.to_string();
+            };
+            format!("{path}: {}", rest.trim_start())
+        })
+        .collect()
+}
+
+fn canonical_lines_hash(lines: &std::collections::BTreeSet<String>) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+    for line in lines {
+        for byte in line.bytes().chain(std::iter::once(b'\n')) {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+    hash
+}
+
+fn ledgered_mutant_misses(ledger: &str) -> std::collections::BTreeSet<String> {
+    ledger
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            if !trimmed.starts_with("- `") {
+                return None;
+            }
+            trimmed
+                .split_once('`')
+                .and_then(|(_, tail)| tail.split_once('`'))
+                .map(|(entry, _)| entry.to_string())
+        })
+        .collect()
+}
+
+fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let normalized = normalized_mutant_misses(baseline);
+    let hash = canonical_lines_hash(&normalized);
+    if normalized.len() != MUTANTS_BASELINE_NORMALIZED_COUNT {
+        errors.push(format!(
+            "normalized mutation baseline count changed: expected {}, got {}",
+            MUTANTS_BASELINE_NORMALIZED_COUNT,
+            normalized.len()
+        ));
+    }
+    if hash != MUTANTS_BASELINE_NORMALIZED_FNV1A64 {
+        errors.push(format!(
+            "normalized mutation baseline hash changed: expected {MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x}, got {hash:016x}"
+        ));
+    }
+
+    let ledgered = ledgered_mutant_misses(ledger);
+    for miss in normalized.difference(&ledgered) {
+        errors.push(format!(
+            "mutation baseline miss lacks ledger disposition: {miss}"
+        ));
+    }
+    for miss in ledgered.difference(&normalized) {
+        errors.push(format!("mutation baseline ledger entry is stale: {miss}"));
+    }
+
+    for line in ledger
+        .lines()
+        .filter(|line| line.trim_start().starts_with("- `"))
+    {
+        if !line.contains(" — ") {
+            errors.push(format!(
+                "mutation baseline ledger entry lacks rationale: {line}"
+            ));
+        }
+    }
+
+    errors
 }
 
 fn split_top_level_args(args: &str) -> Vec<String> {
@@ -1143,6 +1269,55 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("direct pushes")),
         "synthetic push-gap regression must fail the perimeter guard"
+    );
+
+    let missing_eat_scheduled = CI_YML.replace(
+        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
+        "",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_eat_scheduled)
+            .iter()
+            .any(|violation| violation.contains("actions/defs/eat.rs")),
+        "synthetic scheduled-filter removal must fail for eat.rs"
+    );
+
+    let missing_eat_in_diff = CI_YML.replace(
+        "actions/defs/(eat|sleep|work)\\.rs",
+        "actions/defs/(sleep|work)\\.rs",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_eat_in_diff)
+            .iter()
+            .any(|violation| violation.contains("actions/defs/eat.rs")),
+        "synthetic in-diff regex removal must fail for eat.rs"
+    );
+}
+
+#[test]
+fn mutation_baseline_misses_are_pinned_and_ledgered() {
+    let errors =
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, MUTANTS_BASELINE_LEDGER);
+    assert!(
+        errors.is_empty(),
+        "mutation baseline count/hash/ledger governance failed: {errors:#?}"
+    );
+
+    let appended = format!(
+        "{MUTANTS_BASELINE_MISSES}\ncrates/tracewake-core/src/actions/defs/eat.rs:1:1: replace build_eat_events -> Vec<EventEnvelope> with vec![]\n"
+    );
+    let synthetic_errors = mutation_baseline_governance_errors(&appended, MUTANTS_BASELINE_LEDGER);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("count changed"))
+            && synthetic_errors
+                .iter()
+                .any(|error| error.contains("hash changed"))
+            && synthetic_errors
+                .iter()
+                .any(|error| error.contains("lacks ledger disposition")),
+        "synthetic unledgered baseline append must fail count, hash, and ledger checks"
     );
 }
 
