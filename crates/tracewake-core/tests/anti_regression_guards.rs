@@ -72,6 +72,68 @@ struct DependencyEntry {
     dependency: String,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct TypedColumnClosureExemption {
+    map_name: &'static str,
+    anchor: &'static str,
+    typed_columns: &'static [&'static str],
+    rationale: &'static str,
+}
+
+const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
+    TypedColumnClosureExemption {
+        map_name: "needs_by_actor",
+        anchor: "apply_need_delta",
+        typed_columns: &["actor_id", "need_kind", "delta", "cause_kind"],
+        rationale: "NeedDeltaApplied materializes typed need columns and does not retain arbitrary semantic payload fields.",
+    },
+    TypedColumnClosureExemption {
+        map_name: "need_tick_charges",
+        anchor: "assert_single_tick_delta_charge",
+        typed_columns: &["actor_id", "need_kind", "elapsed_ticks", "cause_kind"],
+        rationale: "Need tick charges derive from typed elapsed-tick accounting columns; no additional payload fields are materialized.",
+    },
+    TypedColumnClosureExemption {
+        map_name: "intentions",
+        anchor: "apply_intention_started",
+        typed_columns: &[
+            "intention_id",
+            "actor_id",
+            "candidate_goal_id",
+            "routine_template_id",
+            "current_step",
+            "durability_level",
+            "start_tick",
+            "decision_trace_id",
+        ],
+        rationale: "IntentionStarted builds the typed Intention record from closed columns rather than retaining event payload fields.",
+    },
+    TypedColumnClosureExemption {
+        map_name: "intentions",
+        anchor: "apply_intention_transition",
+        typed_columns: &["intention_id", "status", "reason", "progress_tick", "current_step"],
+        rationale: "Intention transition events update typed Intention lifecycle fields; unsupported free payload fields are not materialized.",
+    },
+    TypedColumnClosureExemption {
+        map_name: "active_intention_by_actor",
+        anchor: "apply_intention_started",
+        typed_columns: &["actor_id", "intention_id"],
+        rationale: "The active-intention index is a typed pointer derived from IntentionStarted columns.",
+    },
+    TypedColumnClosureExemption {
+        map_name: "routine_executions",
+        anchor: "apply_routine_step_transition",
+        typed_columns: &[
+            "routine_execution_id",
+            "action_id",
+            "progress_tick",
+            "reason",
+            "fallback_attempts",
+        ],
+        rationale: "Routine step transitions mutate typed RoutineExecution lifecycle columns and do not retain arbitrary semantic payload fields.",
+    },
+];
+
 const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
     BannedApiToken {
         token: "HashMap",
@@ -2814,28 +2876,192 @@ fn materialized_agent_payload_records_keep_payload_fields() {
 
 #[test]
 fn materialized_agent_apply_arms_require_payload_schema_version() {
-    let required_call = r#"require_payload_version(&payload, "payload_schema_version", "1")"#;
-    let materialized_maps = [
-        "need_threshold_crossings",
-        "ordinary_life_episodes",
-        "candidate_goal_evaluations",
-        "continue_routine_arbitrations",
-    ];
-    for map_name in materialized_maps {
-        let insert_token = format!("state.{map_name}.insert(");
-        let insert_index = EVENTS_APPLY_RS
-            .find(&insert_token)
-            .unwrap_or_else(|| panic!("{map_name} insert is present in apply.rs"));
-        let before_insert = &EVENTS_APPLY_RS[..insert_index];
-        let arm_start = before_insert
-            .rfind("EventKind::")
-            .unwrap_or_else(|| panic!("{map_name} insert has an EventKind arm"));
-        let arm = &EVENTS_APPLY_RS[arm_start..insert_index];
+    use tracewake_core::checksum::AGENT_STATE_CHECKSUM_COVERAGE;
+
+    let covered_maps = AGENT_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .map(|entry| entry.field_name)
+        .collect::<Vec<_>>();
+    let source = production(EVENTS_APPLY_RS);
+    let sites = agent_state_map_write_sites(&source, &covered_maps);
+    let errors = materialized_agent_apply_arm_version_errors(
+        &source,
+        &sites,
+        TYPED_COLUMN_CLOSURE_EXEMPTIONS,
+    );
+
+    assert_eq!(
+        sites
+            .iter()
+            .map(|site| site.map_name.as_str())
+            .collect::<std::collections::BTreeSet<_>>(),
+        covered_maps
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>(),
+        "derived apply-arm census must cover every checksum-covered AgentState map"
+    );
+    assert!(
+        errors.is_empty(),
+        "materialized AgentState map writes without version gate or typed-column exemption:\n{}",
+        errors.join("\n")
+    );
+
+    let synthetic_source = r#"
+        fn apply_synthetic(state: &mut AgentState) {
+            state.needs_by_actor.insert(actor_id, needs);
+        }
+    "#;
+    let synthetic_sites = agent_state_map_write_sites(synthetic_source, &["needs_by_actor"]);
+    let synthetic_errors =
+        materialized_agent_apply_arm_version_errors(synthetic_source, &synthetic_sites, &[]);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("needs_by_actor") && error.contains("apply_synthetic")),
+        "synthetic covered-map write without gate or exemption must fail the census"
+    );
+}
+
+#[test]
+fn typed_column_closure_exemptions_are_rationale_bearing_and_live() {
+    for exemption in TYPED_COLUMN_CLOSURE_EXEMPTIONS {
         assert!(
-            arm.contains(required_call),
-            "{map_name} materialization arm must require payload_schema_version"
+            !exemption.anchor.is_empty()
+                && !exemption.typed_columns.is_empty()
+                && !exemption.rationale.trim().is_empty(),
+            "{exemption:?} must name its arm/helper, typed columns, and rationale"
+        );
+        assert!(
+            EVENTS_APPLY_RS.contains(exemption.anchor),
+            "{} exemption anchor is present in apply.rs",
+            exemption.anchor
+        );
+        assert!(
+            tracewake_core::checksum::AGENT_STATE_CHECKSUM_COVERAGE
+                .iter()
+                .any(|entry| entry.field_name == exemption.map_name),
+            "{} exemption map is checksum-covered",
+            exemption.map_name
         );
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AgentStateMapWriteSite {
+    map_name: String,
+    anchor: String,
+    write_token: String,
+    index: usize,
+}
+
+fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<AgentStateMapWriteSite> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    let mut sites = Vec::new();
+    for map_name in covered_maps {
+        let map_token = format!("state.{map_name}.");
+        let mut search_start = 0;
+        while let Some(relative_index) = scan_source[search_start..].find(&map_token) {
+            let index = search_start + relative_index;
+            let after = &scan_source[index + map_token.len()..];
+            let Some(write_method) = ["insert(", "entry(", "get_mut("]
+                .into_iter()
+                .find(|method| after.starts_with(method))
+            else {
+                search_start = index + map_token.len();
+                continue;
+            };
+            sites.push(AgentStateMapWriteSite {
+                map_name: (*map_name).to_string(),
+                anchor: enclosing_apply_anchor(&scan_source, index),
+                write_token: format!("{map_token}{write_method}"),
+                index,
+            });
+            search_start = index + map_token.len();
+        }
+    }
+    sites.sort_by(|left, right| {
+        left.map_name
+            .cmp(&right.map_name)
+            .then(left.anchor.cmp(&right.anchor))
+            .then(left.index.cmp(&right.index))
+    });
+    sites.dedup_by(|left, right| {
+        left.map_name == right.map_name
+            && left.anchor == right.anchor
+            && left.write_token == right.write_token
+    });
+    sites
+}
+
+fn enclosing_apply_anchor(scan_source: &str, index: usize) -> String {
+    let prefix = &scan_source[..index];
+    let fn_start = prefix
+        .rfind(" fn ")
+        .or_else(|| prefix.rfind(" pub fn "))
+        .or_else(|| prefix.rfind("fn "))
+        .unwrap_or(0);
+    let fn_name_start = scan_source[fn_start..]
+        .find("fn ")
+        .map(|offset| fn_start + offset + "fn ".len())
+        .unwrap_or(fn_start);
+    let fn_name = scan_source[fn_name_start..]
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+        .next()
+        .unwrap_or("unknown");
+    if fn_name != "apply_agent_event" {
+        return fn_name.to_string();
+    }
+    prefix
+        .rfind("EventKind::")
+        .and_then(|event_start| {
+            prefix[event_start + "EventKind::".len()..]
+                .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                .next()
+                .map(|event| format!("EventKind::{event}"))
+        })
+        .unwrap_or_else(|| fn_name.to_string())
+}
+
+fn materialized_agent_apply_arm_version_errors(
+    source: &str,
+    sites: &[AgentStateMapWriteSite],
+    exemptions: &[TypedColumnClosureExemption],
+) -> Vec<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    sites
+        .iter()
+        .filter_map(|site| {
+            if apply_write_site_has_version_gate(&scan_source, site) {
+                return None;
+            }
+            if exemptions.iter().any(|exemption| {
+                exemption.map_name == site.map_name && exemption.anchor == site.anchor
+            }) {
+                return None;
+            }
+            Some(format!(
+                "{} at {} via {} lacks version gate or typed-column exemption",
+                site.map_name, site.anchor, site.write_token
+            ))
+        })
+        .collect()
+}
+
+fn apply_write_site_has_version_gate(scan_source: &str, site: &AgentStateMapWriteSite) -> bool {
+    let start = if site.anchor.starts_with("EventKind::") {
+        scan_source[..site.index]
+            .rfind(&site.anchor)
+            .unwrap_or(site.index)
+    } else {
+        scan_source[..site.index]
+            .rfind(&format!("fn {}", site.anchor))
+            .unwrap_or(site.index)
+    };
+    let segment = &scan_source[start..site.index];
+    segment.contains(r#"require_payload_version(&payload, "payload_schema_version", "1")"#)
+        || segment.contains(r#"require_payload_version(&payload, "trace_schema_version", "1")"#)
+        || segment
+            .contains(r#"require_payload_version(&payload, "diagnostic_schema_version", "1")"#)
 }
 
 #[test]

@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-002: Derived apply-arm payload-version census and per-arm dispositions
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, derived censuses in `anti_regression_guards.rs`, event builders as surfaced if arms gate); `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` census row; golden repricing in `tracewake-content` if any payload is stamped (batched after `-001`)
@@ -172,3 +172,59 @@ what the census derives and the exemption registry's role (no overstatement).
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-core --test event_schema_replay_gates`
 3. `cargo test --workspace` (full pipeline; repricing ledger explained if any arm gated)
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Replaced the literal apply-arm payload-version list with a structural census over
+  `events/apply.rs` writes into maps named by `AGENT_STATE_CHECKSUM_COVERAGE`.
+- Added `TYPED_COLUMN_CLOSURE_EXEMPTIONS` with arm, map, typed-column, and rationale
+  entries for checksum-covered writes that intentionally remain typed-column-only.
+- Added a synthetic regression source proving a covered-map write with neither a
+  supported schema-version gate nor an exemption fails the guard.
+- Added an exemption-registry honesty test so exemptions must stay live,
+  rationale-bearing, and attached to actual covered-map write sites.
+- Added the derived apply-arm census row to the architecture conformance index.
+
+Per-arm dispositions:
+
+- `need_threshold_crossings` — gated by `payload_schema_version`.
+- `ordinary_life_episodes` — gated by `payload_schema_version`.
+- `candidate_goal_evaluations` — gated by `payload_schema_version`.
+- `continue_routine_arbitrations` — gated by `payload_schema_version`.
+- `decision_traces` — gated by `trace_schema_version`.
+- `stuck_diagnostics` — gated by `diagnostic_schema_version`.
+- `needs_by_actor` — typed-column-closure exemption for `apply_need_delta`.
+- `need_tick_charges` — typed-column-closure exemption for
+  `assert_single_tick_delta_charge`.
+- `intentions` — typed-column-closure exemptions for
+  `apply_intention_started` and `apply_intention_transition`.
+- `active_intention_by_actor` — typed-column-closure exemption for
+  `apply_intention_started`.
+- `routine_executions` — typed-column-closure exemption for
+  `apply_routine_step_transition`.
+
+Deviations from original plan:
+
+- The ungated need, intention, active-intention, and routine-execution families were
+  recorded as typed-column-closure exemptions instead of being payload-stamped. That
+  means no event bytes changed, no golden/checksum repricing was needed, and no new
+  forged-version negative gates were added beyond the existing event-schema replay
+  gates for versioned arms.
+- `events/apply.rs`, event builders, scheduler/actions emitters, and fixture
+  goldens did not need code changes because the selected disposition was exemption
+  rather than new payload stamping.
+
+Verification results:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards materialized_agent_apply_arms_require_payload_schema_version` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards typed_column_closure_exemptions_are_rationale_bearing_and_live` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
