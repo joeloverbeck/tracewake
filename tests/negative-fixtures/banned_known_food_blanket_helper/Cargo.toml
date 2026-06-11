@@ -1,0 +1,9 @@
+[package]
+name = "banned_known_food_blanket_helper"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-content = { path = "../../../crates/tracewake-content" }
+
+[workspace]

@@ -33,6 +33,10 @@ pub fn stale_workplace_notice_superseded_by_newer_001() -> GoldenFixture {
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
     fixture.workplaces[0].role_notice_access_open = false;
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "legacy fixture blanket food-source seeding is pinned by fixtures_load census; new fixtures must author per-actor known_food_sources edges"
+    )]
     fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {

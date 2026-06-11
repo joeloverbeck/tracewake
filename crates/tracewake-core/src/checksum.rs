@@ -797,7 +797,7 @@ mod tests {
                 window_end_tick: SimTick::new(2),
                 outcome: DecisionOutcome::Continued,
                 candidate_goal_count: 1,
-                actor_known_context_hash: HolderKnownContextHash::from_canonical_lines(&[]),
+                actor_known_context_hash: Some(HolderKnownContextHash::from_canonical_lines(&[])),
                 actor_known_inputs: Vec::new(),
                 hidden_truth_audit_result: HiddenTruthAudit {
                     actor_known_only: true,

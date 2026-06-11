@@ -338,7 +338,7 @@ fn tamper_first_decision_trace_source_event(
                 .expect("decision trace records actor-known inputs");
             *first_input = replace_first_source_event(first_input, replacement_event_id);
             record.actor_known_context_hash =
-                compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash;
+                Some(compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash);
             trace_canonical.value = record.serialize_canonical();
             replaced = true;
         }

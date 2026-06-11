@@ -408,9 +408,13 @@ pub mod no_human {
                     &mut pending_work_starts,
                     window.start_tick,
                 );
-                for (completed_actor_id, _) in completed_durations {
-                    progress_by_window_actor
-                        .insert((window.window_id.clone(), completed_actor_id), 1);
+                for (completed_actor_id, completion_tick) in completed_durations {
+                    credit_completion(
+                        &mut progress_by_window_actor,
+                        std::slice::from_ref(window),
+                        &completed_actor_id,
+                        completion_tick,
+                    );
                 }
                 record_current_place_perception(
                     log,
@@ -567,12 +571,12 @@ pub mod no_human {
             final_tick,
         );
         for (completed_actor_id, completion_tick) in completed_durations {
-            for window in &config.windows {
-                if window.contains_tick(completion_tick) {
-                    progress_by_window_actor
-                        .insert((window.window_id.clone(), completed_actor_id.clone()), 1);
-                }
-            }
+            credit_completion(
+                &mut progress_by_window_actor,
+                &config.windows,
+                &completed_actor_id,
+                completion_tick,
+            );
         }
 
         for window in &config.windows {
@@ -759,27 +763,8 @@ pub mod no_human {
         window: &DayWindow,
         actor_known_state: &ActorKnownPlanningContext,
     ) -> Option<RoutineFamily> {
-        let family = agent_state
-            .routine_executions
-            .values()
-            .filter(|execution| &execution.actor_id == actor_id)
-            .filter(|execution| {
-                execution.start_tick <= window.start_tick
-                    && execution
-                        .deadline_tick
-                        .is_none_or(|deadline| window.start_tick < deadline)
-            })
-            .filter(|execution| {
-                !matches!(
-                    execution.step_status,
-                    crate::agent::RoutineStepStatus::Completed
-                        | crate::agent::RoutineStepStatus::Failed
-                        | crate::agent::RoutineStepStatus::Interrupted
-                        | crate::agent::RoutineStepStatus::Abandoned
-                )
-            })
-            .min_by(|left, right| left.start_tick.cmp(&right.start_tick))
-            .map(|execution| execution.family)?;
+        let family = eligible_routine_execution_for_actor(agent_state, actor_id, window)
+            .map(|(_, execution)| execution.family)?;
         if family == RoutineFamily::WorkBlock
             && !actor_known_state
                 .known_workplaces()
@@ -790,6 +775,37 @@ pub mod no_human {
         } else {
             Some(family)
         }
+    }
+
+    fn eligible_routine_execution_for_actor<'a>(
+        agent_state: &'a AgentState,
+        actor_id: &ActorId,
+        window: &DayWindow,
+    ) -> Option<(&'a RoutineExecutionId, &'a crate::agent::RoutineExecution)> {
+        agent_state
+            .routine_executions
+            .iter()
+            .filter(|(_, execution)| &execution.actor_id == actor_id)
+            .filter(|(_, execution)| {
+                execution.start_tick <= window.start_tick
+                    && execution
+                        .deadline_tick
+                        .is_none_or(|deadline| window.start_tick < deadline)
+            })
+            .filter(|(_, execution)| {
+                !matches!(
+                    execution.step_status,
+                    crate::agent::RoutineStepStatus::Completed
+                        | crate::agent::RoutineStepStatus::Failed
+                        | crate::agent::RoutineStepStatus::Interrupted
+                        | crate::agent::RoutineStepStatus::Abandoned
+                )
+            })
+            .min_by(|(_, left), (_, right)| {
+                left.start_tick
+                    .cmp(&right.start_tick)
+                    .then_with(|| left.execution_id.cmp(&right.execution_id))
+            })
     }
 
     fn active_intention_for_actor(
@@ -975,6 +991,20 @@ pub mod no_human {
             }
         }
         completed_durations
+    }
+
+    fn credit_completion(
+        progress_by_window_actor: &mut BTreeMap<(String, ActorId), usize>,
+        windows: &[DayWindow],
+        completed_actor_id: &ActorId,
+        completion_tick: SimTick,
+    ) {
+        for window in windows {
+            if window.contains_tick(completion_tick) {
+                progress_by_window_actor
+                    .insert((window.window_id.clone(), completed_actor_id.clone()), 1);
+            }
+        }
     }
 
     fn append_routine_step_completed_after_duration_completion(
@@ -1793,25 +1823,7 @@ pub mod no_human {
         actor_id: &ActorId,
         window: &DayWindow,
     ) -> Option<RoutineExecutionId> {
-        agent_state
-            .routine_executions
-            .iter()
-            .filter(|(_, execution)| &execution.actor_id == actor_id)
-            .filter(|(_, execution)| execution.start_tick <= window.start_tick)
-            .filter(|(_, execution)| {
-                !matches!(
-                    execution.step_status,
-                    crate::agent::RoutineStepStatus::Completed
-                        | crate::agent::RoutineStepStatus::Failed
-                        | crate::agent::RoutineStepStatus::Interrupted
-                        | crate::agent::RoutineStepStatus::Abandoned
-                )
-            })
-            .min_by(|(_, left), (_, right)| {
-                left.start_tick
-                    .cmp(&right.start_tick)
-                    .then_with(|| left.execution_id.cmp(&right.execution_id))
-            })
+        eligible_routine_execution_for_actor(agent_state, actor_id, window)
             .map(|(execution_id, _)| execution_id.clone())
     }
 
@@ -2754,6 +2766,106 @@ pub mod no_human {
                 ),
             );
 
+            assert_eq!(
+                routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
+                Some(RoutineFamily::Wait)
+            );
+        }
+
+        #[test]
+        fn completion_credit_uses_completion_tick_for_late_processed_duration() {
+            let actor_id = actor_id();
+            let windows = vec![
+                DayWindow {
+                    window_id: "early".to_string(),
+                    start_tick: SimTick::ZERO,
+                    end_tick: SimTick::new(4),
+                },
+                DayWindow {
+                    window_id: "middle".to_string(),
+                    start_tick: SimTick::new(5),
+                    end_tick: SimTick::new(8),
+                },
+                DayWindow {
+                    window_id: "late_sweep".to_string(),
+                    start_tick: SimTick::new(9),
+                    end_tick: SimTick::new(12),
+                },
+            ];
+            let mut progress_by_window_actor = BTreeMap::new();
+
+            credit_completion(
+                &mut progress_by_window_actor,
+                &windows,
+                &actor_id,
+                SimTick::new(6),
+            );
+
+            assert!(
+                progress_by_window_actor.contains_key(&("middle".to_string(), actor_id.clone()))
+            );
+            assert!(
+                !progress_by_window_actor.contains_key(&("early".to_string(), actor_id.clone()))
+            );
+            assert!(!progress_by_window_actor.contains_key(&("late_sweep".to_string(), actor_id)));
+        }
+
+        #[test]
+        fn routine_execution_selection_excludes_deadline_expired_execution() {
+            let actor_id = actor_id();
+            let mut agent_state = agent_state(&actor_id);
+            let expired_execution_id =
+                RoutineExecutionId::new("routine_exec_deadline_expired").unwrap();
+            agent_state.routine_executions.insert(
+                expired_execution_id,
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new("routine_exec_deadline_expired").unwrap(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_expired").unwrap(),
+                    RoutineFamily::EatMeal,
+                    SimTick::ZERO,
+                    Some(SimTick::new(2)),
+                    Some(SimTick::new(4)),
+                    None,
+                    DecisionTraceId::new("trace_expired").unwrap(),
+                ),
+            );
+            let live_execution_id = RoutineExecutionId::new("routine_exec_live").unwrap();
+            agent_state.routine_executions.insert(
+                live_execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    live_execution_id.clone(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_live").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::new(1),
+                    Some(SimTick::new(5)),
+                    Some(SimTick::new(9)),
+                    None,
+                    DecisionTraceId::new("trace_live").unwrap(),
+                ),
+            );
+            let window = DayWindow {
+                window_id: "deadline_check".to_string(),
+                start_tick: SimTick::new(4),
+                end_tick: SimTick::new(6),
+            };
+            let actor_known_state = ActorKnownPlanningContext::from_observed_parts(
+                actor_id.clone(),
+                PlaceId::new("kitchen").unwrap(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeSet::new(),
+                BTreeSet::new(),
+                BTreeMap::new(),
+                Vec::new(),
+            );
+
+            assert_eq!(
+                active_routine_execution_for_actor(&agent_state, &actor_id, &window),
+                Some(live_execution_id)
+            );
             assert_eq!(
                 routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
                 Some(RoutineFamily::Wait)

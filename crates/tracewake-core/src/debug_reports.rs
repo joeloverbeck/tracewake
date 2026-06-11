@@ -902,7 +902,7 @@ mod tests {
                 window_end_tick: SimTick::new(10),
                 outcome: crate::agent::DecisionOutcome::Failed,
                 candidate_goal_count: 2,
-                actor_known_context_hash: crate::checksum::HolderKnownContextHash::from_canonical_lines(&[]),
+                actor_known_context_hash: Some(crate::checksum::HolderKnownContextHash::from_canonical_lines(&[])),
                 actor_known_inputs: Vec::new(),
                 hidden_truth_audit_result: crate::agent::HiddenTruthAudit {
                     actor_known_only: true,

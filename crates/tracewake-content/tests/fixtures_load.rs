@@ -162,16 +162,37 @@ fn known_food_source_helper_call_sites_from_sources(
             call_sites.insert(path.clone());
         }
         for function_name in function_names_before_helper_calls(source, HELPER_CALL) {
-            helper_wrappers.insert(function_name);
+            if !function_name.ends_with("_001") {
+                helper_wrappers.insert(function_name);
+            }
         }
     }
+
+    loop {
+        let mut changed = false;
+        let current_wrappers = helper_wrappers.iter().cloned().collect::<Vec<_>>();
+        for (_, source) in sources {
+            for wrapper in &current_wrappers {
+                let wrapper_call = format!("{wrapper}(");
+                for function_name in function_names_before_helper_calls(source, &wrapper_call) {
+                    if !function_name.ends_with("_001") && helper_wrappers.insert(function_name) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
     for (path, source) in sources {
         for wrapper in &helper_wrappers {
-            if source_defines_function(source, wrapper) {
-                continue;
-            }
             let wrapper_call = format!("{wrapper}(");
-            if source.contains(&wrapper_call) {
+            if function_names_before_helper_calls(source, &wrapper_call)
+                .into_iter()
+                .any(|function_name| function_name.ends_with("_001"))
+            {
                 call_sites.insert(path.clone());
             }
         }
@@ -181,27 +202,27 @@ fn known_food_source_helper_call_sites_from_sources(
 
 fn function_names_before_helper_calls(source: &str, helper_call: &str) -> BTreeSet<String> {
     let mut function_names = BTreeSet::new();
-    let mut search_start = 0;
-    while let Some(relative_index) = source[search_start..].find(helper_call) {
-        let helper_index = search_start + relative_index;
-        if let Some(function_marker_index) = source[..helper_index].rfind("fn ") {
-            let name_start = function_marker_index + "fn ".len();
-            let name_end = source[name_start..]
-                .find('(')
-                .map(|offset| name_start + offset)
-                .expect("fixture function signature has parameter list");
-            let function_name = source[name_start..name_end].trim();
-            if !function_name.ends_with("_001") {
-                function_names.insert(function_name.to_string());
+    let mut current_function = None;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if let Some(signature) = trimmed
+            .strip_prefix("fn ")
+            .or_else(|| trimmed.strip_prefix("pub fn "))
+        {
+            let Some((name, _)) = signature.split_once('(') else {
+                current_function = None;
+                continue;
+            };
+            current_function = Some(name.trim().to_string());
+            continue;
+        }
+        if line.contains(helper_call) {
+            if let Some(function_name) = &current_function {
+                function_names.insert(function_name.clone());
             }
         }
-        search_start = helper_index + helper_call.len();
     }
     function_names
-}
-
-fn source_defines_function(source: &str, function_name: &str) -> bool {
-    source.contains(&format!("fn {function_name}("))
 }
 
 fn known_food_source_helper_census_errors(call_sites: &BTreeSet<String>) -> Vec<String> {
@@ -510,6 +531,10 @@ fn known_food_source_blanket_helper_call_sites_are_allowlisted() {
                 fixture.populate_known_food_sources_for_all_actors();
                 golden
             }
+
+            fn depth_two_helper() -> GoldenFixture {
+                hidden_truth_adversarial_fixture()
+            }
             "#
             .to_string(),
         ),
@@ -517,7 +542,7 @@ fn known_food_source_blanket_helper_call_sites_are_allowlisted() {
             "src/fixtures/synthetic_indirect_consumer_001.rs".to_string(),
             r#"
             pub fn synthetic_indirect_consumer_001() -> GoldenFixture {
-                hidden_truth_adversarial_fixture()
+                depth_two_helper()
             }
             "#
             .to_string(),

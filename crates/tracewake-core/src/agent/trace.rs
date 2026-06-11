@@ -209,6 +209,41 @@ impl TypedDiagnosticFields {
         }
     }
 
+    pub fn from_decision_outcome(outcome: DecisionOutcome, hidden_truth_referenced: bool) -> Self {
+        let (responsible_layer, blocker_code, remediation_hint) = match outcome {
+            DecisionOutcome::Failed => (
+                ResponsibleLayer::LocalPlanning,
+                BlockerCode::LocalPlanFailed,
+                "inspect failed decision trace outcome and rejected items",
+            ),
+            DecisionOutcome::Waited => (
+                ResponsibleLayer::MethodSelection,
+                BlockerCode::NoApplicableMethod,
+                "inspect waited decision trace outcome and fallback reason",
+            ),
+            DecisionOutcome::Replanned => (
+                ResponsibleLayer::IntentionLifecycle,
+                BlockerCode::NoApplicableCandidate,
+                "inspect replanned decision trace outcome and candidate rejection",
+            ),
+            DecisionOutcome::Continued | DecisionOutcome::Switched | DecisionOutcome::Completed => {
+                (
+                    ResponsibleLayer::CandidateGeneration,
+                    BlockerCode::None,
+                    "inspect decision trace outcome and selected candidate",
+                )
+            }
+        };
+        Self {
+            responsible_layer,
+            blocker_code,
+            input_source: "actor_known_context".to_string(),
+            actual_source: format!("decision_outcome:{}", outcome.stable_id()),
+            hidden_truth_referenced,
+            remediation_hint: remediation_hint.to_string(),
+        }
+    }
+
     pub fn stuck_default() -> Self {
         Self {
             responsible_layer: ResponsibleLayer::Scheduler,
@@ -235,7 +270,7 @@ pub struct DecisionTraceRecord {
     pub window_end_tick: SimTick,
     pub outcome: DecisionOutcome,
     pub candidate_goal_count: usize,
-    pub actor_known_context_hash: HolderKnownContextHash,
+    pub actor_known_context_hash: Option<HolderKnownContextHash>,
     pub actor_known_inputs: Vec<String>,
     pub hidden_truth_audit_result: HiddenTruthAudit,
     pub typed_diagnostic: TypedDiagnosticFields,
@@ -253,10 +288,11 @@ impl DecisionTraceRecord {
             window_end_tick: trace.window_end_tick,
             outcome: trace.outcome,
             candidate_goal_count: trace.candidate_goals_considered.len(),
-            actor_known_context_hash,
+            actor_known_context_hash: Some(actor_known_context_hash),
             actor_known_inputs,
             hidden_truth_audit_result: trace.hidden_truth_audit_result.clone(),
-            typed_diagnostic: TypedDiagnosticFields::decision_default(
+            typed_diagnostic: TypedDiagnosticFields::from_decision_outcome(
+                trace.outcome,
                 !trace.hidden_truth_audit_result.actor_known_only,
             ),
         }
@@ -271,7 +307,10 @@ impl DecisionTraceRecord {
             self.window_end_tick.value(),
             self.outcome.stable_id(),
             self.candidate_goal_count,
-            self.actor_known_context_hash.as_str(),
+            self.actor_known_context_hash
+                .as_ref()
+                .map(HolderKnownContextHash::as_str)
+                .unwrap_or("-"),
             encode_text_payload(&self.actor_known_inputs.join("\n")),
             encode_bool(self.hidden_truth_audit_result.actor_known_only),
             encode_text_payload(&self.hidden_truth_audit_result.notes),
@@ -306,18 +345,13 @@ impl DecisionTraceRecord {
                     return Err(DecisionTraceRecordParseError::InvalidContextHash);
                 }
                 (
-                    actor_known_context_hash,
+                    Some(actor_known_context_hash),
                     actor_known_inputs,
                     9,
                     (fields.len() == 17).then_some(11),
                 )
             } else {
-                (
-                    HolderKnownContextHash::from_canonical_lines(&[]),
-                    Vec::new(),
-                    7,
-                    (fields.len() == 15).then_some(9),
-                )
+                (None, Vec::new(), 7, (fields.len() == 15).then_some(9))
             };
         let actor_known_only =
             decode_bool(fields[audit_index]).ok_or(DecisionTraceRecordParseError::InvalidBool)?;
@@ -357,7 +391,11 @@ impl DecisionTraceRecord {
                     remediation_hint: decode_text_payload(fields[typed_index + 5])?,
                 }
             } else {
-                TypedDiagnosticFields::decision_default(!actor_known_only)
+                TypedDiagnosticFields::from_decision_outcome(
+                    DecisionOutcome::parse(fields[5])
+                        .ok_or(DecisionTraceRecordParseError::InvalidOutcome)?,
+                    !actor_known_only,
+                )
             },
         })
     }
@@ -1031,6 +1069,83 @@ mod tests {
         assert!(trace
             .serialize_canonical()
             .starts_with("decision_trace_v1|"));
+    }
+
+    #[test]
+    fn decision_trace_record_derives_typed_diagnostic_from_failed_outcome() {
+        let trace = DecisionTrace::new(
+            DecisionTraceId::new("trace_failed_outcome").unwrap(),
+            ActorId::new("actor_mara").unwrap(),
+            SimTick::new(10),
+            SimTick::new(11),
+            Vec::new(),
+            None,
+            Vec::new(),
+            None,
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+            vec![RejectedDecisionItem {
+                stable_ref: "eat.food_missing".to_string(),
+                reason: "validator rejected target".to_string(),
+            }],
+            vec!["fact:remembered_food".to_string()],
+            Some(action("eat.food_missing")),
+            Some("rejected: target absent".to_string()),
+            None,
+            HiddenTruthAudit {
+                actor_known_only: true,
+                notes: "failed through validator".to_string(),
+            },
+            DecisionOutcome::Failed,
+            "",
+        );
+
+        let record = DecisionTraceRecord::from_trace(&trace);
+
+        assert!(record.actor_known_context_hash.is_some());
+        assert_eq!(
+            record.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::LocalPlanning
+        );
+        assert_eq!(
+            record.typed_diagnostic.blocker_code,
+            BlockerCode::LocalPlanFailed
+        );
+        assert_eq!(
+            record.typed_diagnostic.actual_source,
+            "decision_outcome:failed"
+        );
+    }
+
+    #[test]
+    fn legacy_decision_trace_record_keeps_absent_context_hash_typed_absent() {
+        let legacy = format!(
+            "decision_trace_v1|{}|{}|10|11|failed|0|true|{}",
+            DecisionTraceId::new("trace_legacy_failed")
+                .unwrap()
+                .serialize_canonical(),
+            ActorId::new("actor_mara").unwrap().serialize_canonical(),
+            encode_text_payload("legacy without context hash")
+        );
+
+        let record = DecisionTraceRecord::deserialize_canonical(legacy.as_bytes()).unwrap();
+
+        assert_eq!(record.actor_known_context_hash, None);
+        assert!(record.actor_known_inputs.is_empty());
+        assert_eq!(
+            record.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::LocalPlanning
+        );
+        assert_eq!(
+            record.typed_diagnostic.blocker_code,
+            BlockerCode::LocalPlanFailed
+        );
+        assert_eq!(
+            record.typed_diagnostic.actual_source,
+            "decision_outcome:failed"
+        );
     }
 
     #[test]

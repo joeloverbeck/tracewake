@@ -811,7 +811,7 @@ fn replay_rebuild_checksum_matches_original_after_no_human_day() {
     );
     assert_eq!(
         payload_value(trace_event, "actual_source"),
-        Some("actor_decision_transaction")
+        Some("decision_outcome:continued")
     );
     assert_eq!(
         payload_value(trace_event, "hidden_truth_referenced"),

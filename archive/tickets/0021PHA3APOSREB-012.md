@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-012: Remainder closures — window-credit helper, typed trace diagnostics, eat reason partition, helper clippy lock, INV-087 decision record
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`scheduler`, `agent/trace`, `actions/defs/eat`), `tracewake-content` (census fixpoint, clippy allowlisting), `clippy.toml`; INV-087 decision record
@@ -198,3 +198,47 @@ doctrine touch.
 1. `cargo test -p tracewake-core scheduler`
 2. `cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo fmt --all --check && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Implementation Outcome (2026-06-11)
+
+Closed all five remainder items:
+
+1. Scheduler window completion credit now goes through one `credit_completion`
+   helper keyed by `DayWindow::contains_tick`; both routine-selection paths use
+   the same `eligible_routine_execution_for_actor` selector with the deadline
+   filter. The no-human TUI count changed from the old over-credited
+   `routine_events=8` to the shared-selector result `routine_events=5`.
+2. `DecisionTraceRecord.actor_known_context_hash` is `Option<HolderKnownContextHash>`:
+   current records carry `Some(hash)`, while retained legacy 9/15-field shapes
+   deserialize as absent instead of fabricating an empty hash. Decision trace typed
+   diagnostics are derived from the trace outcome, and replay enforces context hash
+   re-derivation only when a hash is present.
+3. `EatFailed.reason` no longer exposes whether food is carried by another actor
+   or by an absent carrier; actor-facing access failures use
+   `food source not reachable`, and the unobservable branch lives only in
+   `absence_ancestry`.
+4. The blanket known-food helper census now follows wrapper chains to fixpoint and
+   has a depth-2 synthetic. `clippy.toml` bans
+   `FixtureSchema::populate_known_food_sources_for_all_actors`; each legacy fixture
+   call carries a local `#[expect(clippy::disallowed_methods, reason = ...)]`, and
+   a new negative fixture proves the ban.
+5. INV-087 / ORD-HARD-095 is recorded as a deferred owner decision in
+   `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`. This ticket did
+   not amend `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`; a doctrine
+   clarification still requires explicit owner approval.
+
+## Verification (2026-06-11)
+
+Passed:
+
+1. `cargo test -p tracewake-core scheduler`
+2. `cargo test -p tracewake-core agent::trace`
+3. `cargo test -p tracewake-core actions::defs::eat`
+4. `cargo test -p tracewake-content --test fixtures_load`
+5. `cargo test -p tracewake-core --test negative_fixture_runner`
+6. `cargo test -p tracewake-tui --test command_loop_session`
+7. `cargo test -p tracewake-tui --test tui_acceptance`
+8. `cargo fmt --all --check`
+9. `cargo clippy --workspace --all-targets -- -D warnings`
+10. `cargo build --workspace --all-targets --locked`
+11. `cargo test --workspace`

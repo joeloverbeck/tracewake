@@ -18,6 +18,7 @@ disallowed-methods = [
   { path = "std::fs::read_to_string", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
   { path = "std::fs::File::open", reason = "Outcome-affecting code must use validated content inputs, not ad hoc filesystem reads." },
   { path = "std::fs::write", reason = "Outcome-affecting code must emit replayable events, not ad hoc filesystem writes." },
+  { path = "tracewake_content::schema::FixtureSchema::populate_known_food_sources_for_all_actors", reason = "Blanket food-source knowledge seeding is allowed only for legacy fixtures with a local expect rationale; new fixtures must author per-actor known_food_sources edges." },
   { path = "std::net::TcpStream::connect", reason = "Network timing and responses cannot influence deterministic replay." },
   { path = "std::net::UdpSocket::bind", reason = "Network timing and responses cannot influence deterministic replay." },
 ]

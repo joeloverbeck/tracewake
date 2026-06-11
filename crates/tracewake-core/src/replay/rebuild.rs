@@ -304,7 +304,10 @@ fn rebuild_decision_context_hash(
         .map(|input| input.render_for_trace())
         .collect::<Vec<_>>();
     let rebuilt_hash = compute_holder_known_context_hash(rebuilt_inputs.clone()).hash;
-    if rebuilt_hash != record.actor_known_context_hash {
+    let Some(recorded_hash) = record.actor_known_context_hash.as_ref() else {
+        return Ok(());
+    };
+    if rebuilt_hash != *recorded_hash {
         let recorded_inputs = record
             .actor_known_inputs
             .iter()
@@ -326,7 +329,7 @@ fn rebuild_decision_context_hash(
             trace_event,
             format!(
                 "decision_context_hash_mismatch:recorded={} rebuilt={} recorded_count={} rebuilt_count={} missing_rebuilt={} extra_rebuilt={}",
-                record.actor_known_context_hash.as_str(),
+                recorded_hash.as_str(),
                 rebuilt_hash.as_str(),
                 record.actor_known_inputs.len(),
                 rebuilt_inputs.len(),
