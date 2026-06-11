@@ -255,6 +255,14 @@ pub mod no_human {
         pub end_tick: SimTick,
     }
 
+    impl DayWindow {
+        /// True when `tick` falls within this window's inclusive
+        /// `[start_tick, end_tick]` range.
+        fn contains_tick(&self, tick: SimTick) -> bool {
+            self.start_tick <= tick && tick <= self.end_tick
+        }
+    }
+
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct NoHumanDayConfig {
         pub actor_ids: Vec<ActorId>,
@@ -544,7 +552,7 @@ pub mod no_human {
         );
         for (completed_actor_id, completion_tick) in completed_durations {
             for window in &config.windows {
-                if window.start_tick <= completion_tick && completion_tick <= window.end_tick {
+                if window.contains_tick(completion_tick) {
                     progress_by_window_actor
                         .insert((window.window_id.clone(), completed_actor_id.clone()), 1);
                 }
@@ -2396,6 +2404,30 @@ pub mod no_human {
             ActorBody, AgentState, FoodSupplyState, PlaceState, SleepAffordanceState,
             WorkplaceState,
         };
+
+        #[test]
+        fn day_window_contains_tick_uses_inclusive_bounds() {
+            let window = DayWindow {
+                window_id: "window_morning".to_string(),
+                start_tick: SimTick::new(10),
+                end_tick: SimTick::new(20),
+            };
+
+            // A tick strictly inside the window is attributed to it.
+            assert!(window.contains_tick(SimTick::new(15)));
+
+            // Both bounds are inclusive. These boundary ticks kill the
+            // `<= -> >` mutants on the start and end comparisons, which would
+            // otherwise drop a completion landing exactly on a window edge.
+            assert!(window.contains_tick(SimTick::new(10)));
+            assert!(window.contains_tick(SimTick::new(20)));
+
+            // Ticks just outside either bound are excluded. These kill the
+            // `&& -> ||` mutant, which would credit a window for a completion
+            // that satisfied only one bound.
+            assert!(!window.contains_tick(SimTick::new(9)));
+            assert!(!window.contains_tick(SimTick::new(21)));
+        }
 
         fn agent_state(actor_id: &ActorId) -> AgentState {
             let mut state = AgentState::default();
