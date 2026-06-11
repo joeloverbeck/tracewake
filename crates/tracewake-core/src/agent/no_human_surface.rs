@@ -67,6 +67,7 @@ pub struct NoHumanActorKnownSurfaceBuilder {
     actor_id: ActorId,
     current_place_id: PlaceId,
     decision_tick: Option<SimTick>,
+    current_place_witness_event_id: Option<EventId>,
     known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
     known_food_sources: BTreeSet<String>,
     known_sleep_places: BTreeSet<PlaceId>,
@@ -97,6 +98,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             actor_id,
             current_place_id,
             decision_tick,
+            current_place_witness_event_id: None,
             known_edges: BTreeMap::new(),
             known_food_sources: BTreeSet::new(),
             known_sleep_places: BTreeSet::new(),
@@ -111,6 +113,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             request.current_place_id,
             Some(request.decision_tick),
         );
+        builder.current_place_witness_event_id = request.current_place_witness_event_id.clone();
         builder.consume_projection_records(request.projection);
         builder.add_window_framing_facts(
             request.agent_state,
@@ -312,19 +315,24 @@ impl NoHumanActorKnownSurfaceBuilder {
             source_event_ids.clone(),
         ));
         if place_id == self.current_place_id {
-            for stable_id in [
-                "actor_at_workplace",
-                "assigned_workplace_known",
-                "at_workplace",
-            ] {
-                self.facts.push(ActorKnownFact::observed_now(
-                    self.actor_id.clone(),
-                    stable_id,
-                    place_id.as_str(),
-                    "evented_perception:actor_at_noticed_workplace",
-                    self.decision_tick,
-                    source_event_ids.clone(),
-                ));
+            if let Some(current_place_witness_event_id) = &self.current_place_witness_event_id {
+                let current_place_source_event_ids =
+                    SourceEventIds::checked(vec![current_place_witness_event_id.clone()])
+                        .expect("place witness id is non-empty");
+                for stable_id in [
+                    "actor_at_workplace",
+                    "assigned_workplace_known",
+                    "at_workplace",
+                ] {
+                    self.facts.push(ActorKnownFact::observed_now(
+                        self.actor_id.clone(),
+                        stable_id,
+                        place_id.as_str(),
+                        "evented_perception:actor_at_workplace",
+                        self.decision_tick,
+                        current_place_source_event_ids.clone(),
+                    ));
+                }
             }
         }
     }
@@ -662,6 +670,85 @@ mod tests {
             .source_event_ids()
             .iter()
             .any(|id| id.as_str() == event_id));
+    }
+
+    #[test]
+    fn workplace_presence_facts_cite_current_place_observation_not_role_notice() {
+        let actor_id = actor_id();
+        let workshop = place_id("workshop_tomas");
+        let notice_event_id = "event.role_notice.actor_tomas";
+        let observation_event_id = "event.observation.actor_tomas.workshop";
+        let mut log = EventLog::new();
+        log.append(event(
+            notice_event_id,
+            &actor_id,
+            EventKind::RoleAssignmentNoticeRecorded,
+            SimTick::ZERO,
+            "role_assignment_notice",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("workplace_id", workplace_id().as_str()),
+                PayloadField::new("place_id", workshop.as_str()),
+            ],
+        ))
+        .unwrap();
+        log.append(event(
+            observation_event_id,
+            &actor_id,
+            EventKind::ObservationRecorded,
+            SimTick::ZERO,
+            "record_observation",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("observer_actor_id", actor_id.as_str()),
+                PayloadField::new("observer_place_id", workshop.as_str()),
+                PayloadField::new("observation_id", "observation.actor_tomas.workshop"),
+                PayloadField::new("observed_tick", "0"),
+                PayloadField::new("source_event_id", observation_event_id),
+                PayloadField::new("channel", "direct_sight"),
+                PayloadField::new("place_id", workshop.as_str()),
+                PayloadField::new("confidence", "1000"),
+                PayloadField::new("perceived_kind", "current_place"),
+                PayloadField::new("subject_id", actor_id.as_str()),
+                PayloadField::new("target_id", workshop.as_str()),
+            ],
+        ))
+        .unwrap();
+        let projection = projection_from_log(&log);
+        let agent_state = AgentState::default();
+
+        let surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &projection,
+                agent_state: &agent_state,
+                actor_id,
+                current_place_id: workshop,
+                decision_tick: SimTick::ZERO,
+                window_id: "morning",
+                window_end_tick: SimTick::new(4),
+                current_place_witness_event_id: Some(EventId::new(observation_event_id).unwrap()),
+                needs_witness_event_id: None,
+                frame_event_id: Some(EventId::new(notice_event_id).unwrap()),
+            })
+            .build(&agent_state);
+
+        for stable_id in [
+            "actor_at_workplace",
+            "assigned_workplace_known",
+            "at_workplace",
+        ] {
+            let fact = surface
+                .context()
+                .actor_known_facts()
+                .iter()
+                .find(|fact| fact.stable_id() == stable_id)
+                .expect("same-place workplace fact should be minted from current-place witness");
+            assert_eq!(fact.semantic_kind(), "observed_now");
+            assert_eq!(fact.source_event_ids().len(), 1);
+            assert_eq!(fact.source_event_ids()[0].as_str(), observation_event_id);
+        }
     }
 
     #[test]

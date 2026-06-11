@@ -60,6 +60,7 @@ pub fn build_sleep_start_event(
     event.proposal_id = Some(proposal.proposal_id.clone());
     event.participants = vec![actor_id.to_string()];
     event.payload = vec![
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("duration_ticks", duration_ticks.to_string()),
         PayloadField::new(
@@ -316,6 +317,7 @@ fn build_sleep_end_events(
     lifecycle.proposal_id = sleep_started_event.proposal_id.clone();
     lifecycle.participants = vec![actor_id.to_string()];
     lifecycle.payload = vec![
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("elapsed_ticks", sleep_ticks.to_string()),
         PayloadField::new("reason", reason),
@@ -331,6 +333,7 @@ fn build_sleep_end_events(
         end_tick,
         "fatigue",
         fatigue_delta,
+        sleep_ticks,
     );
     fatigue.effects_summary = format!(
         "fatigue recovered by {} over {} sleep ticks",
@@ -344,6 +347,7 @@ fn build_sleep_end_events(
         end_tick,
         "hunger",
         hunger_delta,
+        sleep_ticks,
     );
     Ok(vec![lifecycle, fatigue, hunger])
 }
@@ -355,6 +359,7 @@ fn need_delta_event(
     tick: SimTick,
     need_kind: &str,
     delta: i32,
+    elapsed_ticks: u64,
 ) -> EventEnvelope {
     let actor_id = sleep_started_event
         .actor_id
@@ -382,6 +387,7 @@ fn need_delta_event(
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("need_kind", need_kind),
         PayloadField::new("delta", delta.to_string()),
+        PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
         PayloadField::new("cause_kind", "action_effect"),
         PayloadField::new("cause_action_id", "sleep"),
     ];

@@ -344,6 +344,7 @@ impl ActionAvailabilityProvenance {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ActionAvailabilityProvenanceKind {
     HolderKnownContext,
+    SourceEvent,
     ValidationReport,
     ValidatorFact,
 }
@@ -352,6 +353,7 @@ impl ActionAvailabilityProvenanceKind {
     pub const fn stable_id(self) -> &'static str {
         match self {
             Self::HolderKnownContext => "holder_known_context",
+            Self::SourceEvent => "source_event",
             Self::ValidationReport => "validation_report",
             Self::ValidatorFact => "validator_fact",
         }

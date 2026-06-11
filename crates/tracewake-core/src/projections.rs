@@ -9,8 +9,9 @@ use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, FoodSupplyId, HolderKnownContextId, ItemId,
-    PlaceId, ProposalId, SemanticActionId, SleepAffordanceId, ViewModelId, WorkplaceId,
+    ActionId, ActorId, ContentManifestId, ControllerId, EventId, FoodSupplyId,
+    HolderKnownContextId, ItemId, PlaceId, ProposalId, SemanticActionId, SleepAffordanceId,
+    ViewModelId, WorkplaceId,
 };
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -30,6 +31,7 @@ struct ActorKnownWorkplaceSurface {
     workplace_id: WorkplaceId,
     place_id: PlaceId,
     believed_access_open: bool,
+    source_event_ids: Vec<EventId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -132,6 +134,7 @@ fn actor_known_workplaces_for_context(
             workplace_id: fact.workplace_id().clone(),
             place_id: fact.place_id().clone(),
             believed_access_open: fact.believed_access_open(),
+            source_event_ids: fact.source_event_ids().as_slice().to_vec(),
         })
         .collect::<Vec<_>>();
     workplaces.sort();
@@ -721,24 +724,22 @@ fn phase3a_semantic_actions(
 
     for workplace in &source.actor_known_workplaces {
         let at_workplace = workplace.place_id == actor.current_place_id;
+        let provenance_refs = workplace_availability_provenance_refs(
+            &source.knowledge_context_id,
+            &workplace.source_event_ids,
+        );
         let availability = if !at_workplace {
             ActionAvailability::disabled(
                 vec![ReasonCode::ActorNotAtRequiredPlace],
                 "You are not at that workplace.",
-                vec![ActionAvailabilityProvenance::new(
-                    ActionAvailabilityProvenanceKind::HolderKnownContext,
-                    source.knowledge_context_id.as_str(),
-                )],
+                provenance_refs,
                 Vec::new(),
             )
         } else if !workplace.believed_access_open {
             ActionAvailability::disabled(
                 vec![ReasonCode::KnowledgePreconditionNotMet],
                 "You know that workplace access is closed.",
-                vec![ActionAvailabilityProvenance::new(
-                    ActionAvailabilityProvenanceKind::HolderKnownContext,
-                    source.knowledge_context_id.as_str(),
-                )],
+                provenance_refs,
                 Vec::new(),
             )
         } else {
@@ -781,6 +782,23 @@ fn phase3a_semantic_actions(
     }
 
     actions
+}
+
+fn workplace_availability_provenance_refs(
+    context_id: &HolderKnownContextId,
+    source_event_ids: &[EventId],
+) -> Vec<ActionAvailabilityProvenance> {
+    let mut refs = vec![ActionAvailabilityProvenance::new(
+        ActionAvailabilityProvenanceKind::HolderKnownContext,
+        context_id.as_str(),
+    )];
+    refs.extend(source_event_ids.iter().map(|event_id| {
+        ActionAvailabilityProvenance::new(
+            ActionAvailabilityProvenanceKind::SourceEvent,
+            event_id.as_str(),
+        )
+    }));
+    refs
 }
 
 pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
@@ -1819,6 +1837,12 @@ mod tests {
                 place_id("shop_front"),
                 true,
                 "routine_assignment_notice",
+                crate::agent::SourceEventIds::checked(vec![EventId::new(
+                    "event_role_notice_actor_tomas_workplace_tomas",
+                )
+                .unwrap()])
+                .unwrap(),
+                SimTick::new(0),
             )],
             vec![crate::epistemics::ActorKnownFoodSourceFact::new(
                 FoodSupplyId::new("food_soup_pot").unwrap(),

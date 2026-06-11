@@ -16,8 +16,8 @@ use tracewake_core::time::SimTick;
 use crate::schema::{
     canonical_key_for_schema_field, ActionAffordanceSchema, ActorSchema, ContainerSchema,
     DayWindowSchema, DoorSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
-    InitialBeliefSchema, InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema,
-    RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
+    InitialBeliefSchema, InitialNeedSchema, ItemSchema, KnownFoodSourceSchema, NeedModelSchema,
+    PlaceSchema, RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -194,6 +194,14 @@ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
             food.hunger_reduction_per_serving
         ));
     }
+    for edge in fixture.known_food_sources {
+        lines.push(format!(
+            "{}|{}|{}",
+            canonical_key_for_schema_field("known_food_sources"),
+            edge.actor_id.as_str(),
+            edge.food_supply_id.as_str()
+        ));
+    }
     for workplace in fixture.workplaces {
         lines.push(format!(
             "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
@@ -291,6 +299,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
     let mut homes = Vec::new();
     let mut sleep_places = Vec::new();
     let mut food_supplies = Vec::new();
+    let mut known_food_sources = Vec::new();
     let mut workplaces = Vec::new();
     let mut routine_templates = Vec::new();
     let mut routine_assignments = Vec::new();
@@ -389,6 +398,12 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
                     hunger_reduction_per_serving: parse_i32(hunger_reduction_per_serving)?,
                 })
             }
+            ["known_food_source", actor_id, food_supply_id] => {
+                known_food_sources.push(KnownFoodSourceSchema {
+                    actor_id: ActorId::new(*actor_id)?,
+                    food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+                })
+            }
             ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, role_notice_access_open, output_tag] => {
                 workplaces.push(WorkplaceSchema {
                     workplace_id: WorkplaceId::new(*workplace_id)?,
@@ -469,6 +484,7 @@ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationE
         homes,
         sleep_places,
         food_supplies,
+        known_food_sources,
         workplaces,
         routine_templates,
         routine_assignments,
@@ -822,6 +838,7 @@ mod tests {
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),
+            known_food_sources: Vec::new(),
             workplaces: Vec::new(),
             routine_templates: Vec::new(),
             routine_assignments: Vec::new(),

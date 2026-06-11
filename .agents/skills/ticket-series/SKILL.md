@@ -64,6 +64,9 @@ For each ticket:
    - Prefer `git mv` for tracked tickets.
    - Use plain `mv` only for untracked tickets.
    - Confirm the original `tickets/` path is gone.
+   - After `git mv`, stage the move with rename-aware staging such as
+     `git add -A tickets archive/tickets` or by staging the relevant old and
+     archive parent directories.
 7. Sweep active specs, ledgers, docs, and ticket references for stale live
    ticket paths. Update references that should now point to `archive/tickets/`.
 8. Review the diff for unrelated changes.
@@ -76,6 +79,12 @@ criteria must pass, or the ticket must be explicitly blocked with evidence.
 ## Final Spec Closeout
 
 After all tickets in the series are complete:
+
+Complete, archive, and commit the final ticket before spec archival when the
+final ticket is ordinary implementation work. If the final ticket is itself the
+capstone acceptance artifact or spec-closeout vehicle, it may be combined with
+the spec archive/truthing commit; record that choice and any resulting
+deviations in the ticket and spec outcomes.
 
 1. Re-read the reference spec and verify every acceptance item is either done,
    explicitly rejected, deferred, or not implemented.
@@ -95,9 +104,16 @@ cargo test --workspace
    If any required final gate is not run, or is run with different flags, record
    which gate was skipped or changed and why in both the spec `Outcome` and the
    final response.
+   If a required gate produces too much output to retain after compaction, first
+   run the exact required gate when possible. Then rerun a lower-output
+   equivalent only as supplemental confirmation, and record both the exact gate
+   and the supplemental command truthfully.
 3. Update the spec with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
 4. Archive the spec to `archive/specs/`, using `git mv` when tracked.
+   After `git mv`, stage the move with rename-aware staging such as
+   `git add -A specs archive/specs` or by staging the relevant old and archive
+   parent directories, rather than only the now-removed live path.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
    Use concrete sweeps for the exact spec filename, ticket prefix, live paths,
@@ -113,6 +129,11 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
    Check active reports and acceptance artifacts for recorded deferrals, live
    ticket paths, live spec paths, and target-commit claims that became stale
    after the last ticket or spec archive.
+   If the series commits verifier baselines or generated outputs, run the exact
+   comparison command that will be used later, inspect the generated file
+   format, and refresh the committed baseline when that file is the intended
+   truth source. Leave transient output directories untracked unless the
+   ticket/spec explicitly requires archiving them.
 6. Re-read updated ticket/spec outcomes and reports after the final verification
    run. Confirm the recorded commands, paths, statuses, and skipped/deviated
    checks match what actually happened. If a report originally recorded a
@@ -132,7 +153,10 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
    - the spec archive/truthing commit exists.
 9. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
-   checks, and required commits are done.
+   checks, and required commits are done. On a resumed `/goal` turn, re-run the
+   active-path, archive-path, reference, status, and final-commit audit against
+   the live checkout before marking complete; do not rely on a prior final
+   response alone.
 
 ## Reporting
 
@@ -142,7 +166,7 @@ Final responses must include:
 - Spec archived or reason it remains active.
 - Verification commands actually run.
 - Any checks not run and why.
-- Any unrelated pre-existing changes left untouched.
+- Any unrelated pre-existing changes left untouched, or explicitly `None`.
 
 ## Maintenance
 

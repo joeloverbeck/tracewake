@@ -92,8 +92,9 @@ pub fn load_fixture_package(
         .collect();
     manifest.actor_roster.sort();
     manifest.no_human_day_windows.sort();
+    let validation_token = accepted_world.validation_token;
     let canonical_world = accepted_world.physical_state;
-    let canonical_agent_state = fixture.to_agent_state();
+    let canonical_agent_state = fixture.to_agent_state(validation_token);
     let seed_event_log = seed_event_log(&fixture, manifest.manifest_id.clone());
     let epistemic_projection =
         seed_epistemic_projection(manifest.manifest_id.clone(), &seed_event_log)?;
@@ -198,18 +199,21 @@ fn seed_event_log(fixture: &FixtureSchema, manifest_id: ContentManifestId) -> Ev
         );
     }
 
-    for actor in &fixture.actors {
-        for food in &fixture.food_supplies {
-            append_starting_belief(
-                &mut log,
-                &mut sequence,
-                manifest_id.clone(),
-                actor.actor_id.clone(),
-                "household_food_source",
-                food.food_supply_id.as_str(),
-                serialize_location(&food.location),
-            );
-        }
+    for edge in &fixture.known_food_sources {
+        let food = fixture
+            .food_supplies
+            .iter()
+            .find(|food| food.food_supply_id == edge.food_supply_id)
+            .expect("known food source references are validated before seed log construction");
+        append_starting_belief(
+            &mut log,
+            &mut sequence,
+            manifest_id.clone(),
+            edge.actor_id.clone(),
+            "household_food_source",
+            food.food_supply_id.as_str(),
+            serialize_location(&food.location),
+        );
     }
 
     for workplace in &fixture.workplaces {
@@ -414,6 +418,7 @@ mod tests {
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),
+            known_food_sources: Vec::new(),
             workplaces: Vec::new(),
             routine_templates: Vec::new(),
             routine_assignments: Vec::new(),

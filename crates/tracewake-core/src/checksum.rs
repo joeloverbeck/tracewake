@@ -447,7 +447,7 @@ pub fn compute_agent_state_checksum(
 
     for (event_id, episode) in &state.ordinary_life_episodes {
         lines.push(format!(
-            "ordinary_life_episode|event={}|kind={}|actor={}|proposal={}|tick={}|summary={}",
+            "ordinary_life_episode|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}|summary={}",
             event_id.as_str(),
             episode.event_kind,
             episode
@@ -460,7 +460,9 @@ pub fn compute_agent_state_checksum(
                 .as_ref()
                 .map(crate::ids::ProposalId::as_str)
                 .unwrap_or("-"),
+            join_ids(episode.caused_event_ids.iter().map(|id| id.as_str())),
             episode.sim_tick.value(),
+            join_pairs(&episode.payload_fields),
             episode.summary
         ));
     }
@@ -967,6 +969,21 @@ mod tests {
                 .get_mut(&StuckDiagnosticId::new("stuck_breakfast").unwrap())
                 .unwrap()
                 .concrete_blocker = "closed pantry".to_string();
+        });
+        assert_agent_checksum_changes(|state| {
+            state.ordinary_life_episodes.insert(
+                EventId::new("event.sleep.started.test").unwrap(),
+                crate::state::OrdinaryLifeEpisodeRecord {
+                    event_id: EventId::new("event.sleep.started.test").unwrap(),
+                    event_kind: "sleep_started".to_string(),
+                    actor_id: Some(actor_id("actor_tomas")),
+                    proposal_id: None,
+                    caused_event_ids: vec![EventId::new("event.source.test").unwrap()],
+                    sim_tick: SimTick::new(3),
+                    payload_fields: vec![("duration_ticks".to_string(), "4".to_string())],
+                    summary: "sleep started".to_string(),
+                },
+            );
         });
         assert_agent_checksum_changes(|state| {
             state.candidate_goal_evaluations.insert(

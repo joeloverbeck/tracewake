@@ -20,6 +20,7 @@ pub fn wait_then_window_passive_charges_each_tick_once_001() -> GoldenFixture {
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: Vec::new(),
         routine_assignments: Vec::new(),
@@ -28,6 +29,7 @@ pub fn wait_then_window_passive_charges_each_tick_once_001() -> GoldenFixture {
             day_window_schema("actor_tomas", 4, 5),
         ],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

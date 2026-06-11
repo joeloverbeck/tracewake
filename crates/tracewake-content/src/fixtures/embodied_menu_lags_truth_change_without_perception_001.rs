@@ -25,11 +25,13 @@ pub fn embodied_menu_lags_truth_change_without_perception_001() -> GoldenFixture
             2,
             220,
         )],
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: Vec::new(),
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

@@ -6,7 +6,7 @@ use crate::ids::{ActorId, ContainerId, EventId, PlaceId, WorkplaceId};
 use crate::state::AgentState;
 use crate::time::SimTick;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceEventIds {
     ids: Vec<EventId>,
 }

@@ -33,6 +33,7 @@ pub fn sleep_eat_work_001() -> GoldenFixture {
             2,
             220,
         )],
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_tomas",
             "workshop_tomas",
@@ -67,6 +68,7 @@ pub fn sleep_eat_work_001() -> GoldenFixture {
         ],
         day_windows: vec![day_window_schema("actor_tomas", 0, 24)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

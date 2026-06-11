@@ -23,6 +23,7 @@ pub fn no_human_unseen_workplace_assignment_does_not_plan_work_001() -> GoldenFi
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_tomas",
             "workshop_tomas",
@@ -34,6 +35,7 @@ pub fn no_human_unseen_workplace_assignment_does_not_plan_work_001() -> GoldenFi
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

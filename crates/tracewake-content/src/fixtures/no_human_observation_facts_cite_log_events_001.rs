@@ -22,6 +22,7 @@ pub fn no_human_observation_facts_cite_log_events_001() -> GoldenFixture {
             2,
             240,
         )],
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: vec![routine_template_schema(
             "routine_bruno_eat",
@@ -37,6 +38,7 @@ pub fn no_human_observation_facts_cite_log_events_001() -> GoldenFixture {
         )],
         day_windows: vec![day_window_schema("actor_bruno", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

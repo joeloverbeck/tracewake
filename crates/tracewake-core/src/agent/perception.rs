@@ -166,12 +166,7 @@ pub fn current_place_knowledge_context(
     for classified in epistemic_projection
         .classified_actor_known_records_for_context(&filter_context, &actor.current_place_id)
     {
-        if !classified.is_latest_current_place_record()
-            && !matches!(
-                classified.record(),
-                ActorKnownProjectionRecord::Workplace { .. }
-            )
-        {
+        if !classified.is_latest_current_place_record() {
             continue;
         }
         let source_key = format!(
@@ -233,6 +228,12 @@ pub fn current_place_knowledge_context(
                         place_id.clone(),
                         *believed_access_open,
                         source_key,
+                        crate::agent::SourceEventIds::checked(vec![classified
+                            .record()
+                            .source_event_id()
+                            .clone()])
+                        .expect("projection workplace records carry a source event"),
+                        classified.source_tick(),
                     ));
                 }
             }
@@ -386,8 +387,10 @@ mod tests {
 
     use super::*;
     use crate::epistemics::EpistemicProjection;
-    use crate::ids::{FoodSupplyId, SleepAffordanceId};
-    use crate::state::{ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState};
+    use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
+    use crate::state::{
+        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, WorkplaceState,
+    };
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
@@ -440,6 +443,24 @@ mod tests {
             sleep_affordances,
             crate::state::NeedModelState::new(5, 3),
         )
+    }
+
+    fn state_with_current_place_workplace() -> PhysicalState {
+        let mut state = state_with_visible_current_place_surfaces();
+        let workplace_id = WorkplaceId::new("workplace_tomas").unwrap();
+        let mut workplace = WorkplaceState::new(
+            workplace_id.clone(),
+            place_id("home_tomas"),
+            4,
+            8,
+            4,
+            900,
+            900,
+            "repair_output",
+        );
+        workplace.assigned_actor_ids.insert(actor_id("actor_tomas"));
+        state.workplaces.insert(workplace_id, workplace);
+        state
     }
 
     fn state_without_visible_surfaces() -> PhysicalState {
@@ -615,5 +636,57 @@ mod tests {
             .actor_known_food_sources()
             .iter()
             .any(|fact| fact.food_supply_id().as_str() == "food_lunch_tomas"));
+    }
+
+    #[test]
+    fn current_place_knowledge_context_applies_freshness_to_workplace_notices() {
+        let actor = actor_id("actor_tomas");
+        let state = state_with_current_place_workplace();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            WorkplaceId::new("workplace_tomas").unwrap(),
+            place_id("home_tomas"),
+            false,
+            EventId::new("event_role_notice_old_closed").unwrap(),
+            SimTick::new(4),
+        );
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(7), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            WorkplaceId::new("workplace_tomas").unwrap(),
+            place_id("home_tomas"),
+            true,
+            EventId::new("event_role_notice_new_open").unwrap(),
+            SimTick::new(7),
+        );
+
+        let context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(8),
+            &manifest_id,
+            8,
+        );
+
+        assert_eq!(context.actor_known_workplaces().len(), 1);
+        let workplace = &context.actor_known_workplaces()[0];
+        assert!(workplace.believed_access_open());
+        assert_eq!(workplace.acquired_tick(), SimTick::new(7));
+        assert_eq!(
+            workplace.source_event_ids().as_slice(),
+            &[EventId::new("event_role_notice_new_open").unwrap()]
+        );
     }
 }

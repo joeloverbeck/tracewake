@@ -36,6 +36,7 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
             1,
             220,
         )],
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_hidden",
             "hidden_workshop",
@@ -57,6 +58,7 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
         )],
         day_windows: vec![day_window_schema("actor_mara", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

@@ -31,6 +31,7 @@ pub fn work_block_failed_then_sleep_succeeds_001() -> GoldenFixture {
             "sleep_place_street",
         )],
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_shop",
             "workshop",
@@ -42,6 +43,7 @@ pub fn work_block_failed_then_sleep_succeeds_001() -> GoldenFixture {
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

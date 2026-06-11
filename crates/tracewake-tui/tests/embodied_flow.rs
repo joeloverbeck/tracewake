@@ -3,6 +3,7 @@ use tracewake_core::actions::ReasonCode;
 use tracewake_core::actions::ReportStatus;
 use tracewake_core::events::EventKind;
 use tracewake_core::ids::{ActorId, SemanticActionId};
+use tracewake_core::view_models::ActionAvailabilityProvenanceKind;
 use tracewake_tui::app::TuiApp;
 
 #[test]
@@ -128,6 +129,15 @@ fn embodied_workplace_availability_reflects_belief_not_truth() {
         entry.availability.reason_codes(),
         &[ReasonCode::KnowledgePreconditionNotMet]
     );
+    assert!(entry
+        .availability
+        .provenance_refs()
+        .iter()
+        .any(|reference| {
+            reference.kind == ActionAvailabilityProvenanceKind::SourceEvent
+                && reference.reference
+                    == "event_seed_role_assignment_notice_actor_tomas_workplace_tomas"
+        }));
 }
 
 #[test]

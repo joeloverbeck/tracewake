@@ -66,6 +66,7 @@ pub fn no_human_day_001() -> GoldenFixture {
             food_supply_at_place("food_empty_pantry_mara", "home_mara", 0, 200),
             food_supply_at_place("food_stew_home_tomas", "home_tomas", 2, 240),
         ],
+        known_food_sources: Vec::new(),
         workplaces: vec![
             workplace_schema(
                 "workplace_anna_closed",
@@ -131,6 +132,7 @@ pub fn no_human_day_001() -> GoldenFixture {
             day_window_schema("actor_tomas", 0, 32),
         ],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

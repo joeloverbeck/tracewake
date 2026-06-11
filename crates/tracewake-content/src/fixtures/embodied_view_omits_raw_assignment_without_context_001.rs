@@ -20,6 +20,7 @@ pub fn embodied_view_omits_raw_assignment_without_context_001() -> GoldenFixture
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_tomas",
             "workshop_tomas",
@@ -31,6 +32,7 @@ pub fn embodied_view_omits_raw_assignment_without_context_001() -> GoldenFixture
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

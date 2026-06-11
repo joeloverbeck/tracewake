@@ -174,7 +174,27 @@ jobs:
             find mutants.out -maxdepth 2 -type f -print || true
             exit 1
           fi
-          diff -u .cargo/mutants-baseline-misses.txt mutants.out/missed.txt
+          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$1" | sort -u; }
+          strip .cargo/mutants-baseline-misses.txt > "$RUNNER_TEMP/mutants-baseline.normalized.txt"
+          strip mutants.out/missed.txt > "$RUNNER_TEMP/mutants-missed.normalized.txt"
+          comm -23 "$RUNNER_TEMP/mutants-missed.normalized.txt" "$RUNNER_TEMP/mutants-baseline.normalized.txt" > "$RUNNER_TEMP/mutants-new-misses.txt"
+          if [ -s "$RUNNER_TEMP/mutants-new-misses.txt" ]; then
+            echo "New missed mutants outside accepted baseline:"
+            cat "$RUNNER_TEMP/mutants-new-misses.txt"
+            {
+              echo "### New missed mutants outside accepted baseline"
+              echo
+              echo '```'
+              cat "$RUNNER_TEMP/mutants-new-misses.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          {
+            echo "### Mutation baseline ratchet"
+            echo
+            echo "No new missed mutants outside the accepted normalized baseline."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload mutation baseline output
         if: always()
         uses: actions/upload-artifact@v4

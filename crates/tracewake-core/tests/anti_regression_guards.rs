@@ -62,6 +62,13 @@ struct WorkspaceSourceClassification {
     class: WorkspaceSourceClass,
 }
 
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct DependencyEntry {
+    manifest_path: String,
+    section: String,
+    dependency: String,
+}
+
 const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
     BannedApiToken {
         token: "HashMap",
@@ -254,6 +261,28 @@ const LATER_PHASE_REGISTRATION_CALLS: &[&str] = &[
     "register_phase3a_continue_routine",
 ];
 
+const NO_HUMAN_SURFACE_FACT_STABLE_IDS: &[&str] = &[
+    "active_intention_present",
+    "actor_at_workplace",
+    "actor_belief_projection_limitation",
+    "actor_current_place_visible",
+    "actor_knows_food_source",
+    "actor_knows_sleep_affordance",
+    "actor_knows_sleep_place",
+    "actor_knows_workplace",
+    "agent_needs_present",
+    "assigned_workplace_known",
+    "at_workplace",
+    "food_source_believed_accessible",
+    "known_route_surface",
+    "modeled_wait_reason",
+    "next_step_available",
+    "reevaluation_window_known",
+    "sleep_place_believed_accessible",
+    "workplace_assignment_active",
+    "workplace_believed_accessible",
+];
+
 fn production(source: &str) -> String {
     let mut output = String::new();
     let lines = source.lines().collect::<Vec<_>>();
@@ -406,6 +435,70 @@ fn production_sources_from_roots(
     sources
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "anti-regression test scans Cargo manifests; this helper is not simulation outcome code"
+)]
+fn workspace_dependency_entries() -> std::collections::BTreeSet<DependencyEntry> {
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("tracewake-core is under workspace crates directory");
+    [
+        "Cargo.toml",
+        "crates/tracewake-core/Cargo.toml",
+        "crates/tracewake-content/Cargo.toml",
+        "crates/tracewake-tui/Cargo.toml",
+    ]
+    .into_iter()
+    .flat_map(|manifest_path| {
+        let source = std::fs::read_to_string(workspace_root.join(manifest_path))
+            .expect("Cargo manifest is readable");
+        dependency_entries_from_manifest(manifest_path, &source)
+    })
+    .collect()
+}
+
+fn dependency_entries_from_manifest(manifest_path: &str, source: &str) -> Vec<DependencyEntry> {
+    let mut section = None;
+    let mut entries = Vec::new();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            let section_name = trimmed.trim_matches(['[', ']']);
+            section = matches!(
+                section_name,
+                "dependencies"
+                    | "dev-dependencies"
+                    | "build-dependencies"
+                    | "workspace.dependencies"
+            )
+            .then_some(section_name.to_string());
+            continue;
+        }
+        let Some(current_section) = section.as_ref() else {
+            continue;
+        };
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let dependency = trimmed
+            .split_once('=')
+            .map_or(trimmed, |(name, _)| name)
+            .trim()
+            .trim_matches('"');
+        if dependency.is_empty() {
+            continue;
+        }
+        entries.push(DependencyEntry {
+            manifest_path: manifest_path.to_string(),
+            section: current_section.clone(),
+            dependency: dependency.to_string(),
+        });
+    }
+    entries
+}
+
 const CORE_FOUNDATION_RATIONALE: &str =
     "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
 const CORE_ACTION_RATIONALE: &str =
@@ -416,6 +509,24 @@ const CONTENT_RATIONALE: &str =
     "content crate fixture/schema/loader code is not the actor cognition or scheduler lock layer";
 const TUI_RATIONALE: &str =
     "tui crate is a boundary/presentation layer, not authoritative simulation outcome logic";
+
+const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
+    (
+        "crates/tracewake-content/Cargo.toml",
+        "dependencies",
+        "tracewake-core",
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dependencies",
+        "tracewake-content",
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dependencies",
+        "tracewake-core",
+    ),
+];
 
 const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -460,6 +571,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/routine_blocked_diagnostic_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/routine_no_teleport_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/scheduler_cannot_rewrite_wait_reason_after_transaction_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/seeded_food_source_unknown_to_all_actors_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/severe_safety_with_known_exit_produces_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/severe_safety_without_known_exit_waits_with_knowledge_blocker_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_eat_work_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -467,6 +579,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_rejects_current_place_without_sleep_affordance_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sleep_spanning_window_boundary_charges_each_tick_once_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/sound_uncertainty_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/stale_workplace_notice_superseded_by_newer_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/strongbox_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/view_filtering_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/view_model_local_actions_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -699,6 +812,35 @@ fn workspace_source_classification_census_matches_production_tree() {
             }
         }
     }
+}
+
+#[test]
+fn workspace_dependency_posture_matches_allowlist() {
+    let actual = workspace_dependency_entries();
+    let expected = WORKSPACE_DEPENDENCY_ALLOWLIST
+        .iter()
+        .map(|(manifest_path, section, dependency)| DependencyEntry {
+            manifest_path: (*manifest_path).to_string(),
+            section: (*section).to_string(),
+            dependency: (*dependency).to_string(),
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+
+    assert!(
+        actual
+            .iter()
+            .filter(
+                |entry| entry.manifest_path == "crates/tracewake-core/Cargo.toml"
+                    && entry.section == "dependencies"
+            )
+            .count()
+            == 0,
+        "tracewake-core must keep [dependencies] empty"
+    );
+    assert_eq!(
+        actual, expected,
+        "workspace dependency posture changed; review crate ownership before updating the allowlist"
+    );
 }
 
 #[test]
@@ -1829,6 +1971,33 @@ fn guard_018_actor_known_facts_require_source_event_witness() {
 }
 
 #[test]
+fn guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms() {
+    let surface = production(NO_HUMAN_SURFACE_RS);
+    let transaction = production(TRANSACTION_RS);
+    let witness_body = body_after_marker(&transaction, "fn witness_kind_allowed");
+
+    for stable_id in NO_HUMAN_SURFACE_FACT_STABLE_IDS {
+        assert!(
+            surface.contains(&format!("\"{stable_id}\"")),
+            "no-human surface fact stable id census contains stale entry {stable_id}"
+        );
+        assert!(
+            witness_body.contains(&format!("\"{stable_id}\"")),
+            "fact stable id {stable_id} must have an explicit witness_kind_allowed arm"
+        );
+    }
+
+    assert!(
+        witness_body.contains("_ => false"),
+        "witness_kind_allowed must fail closed for unlisted fact stable ids"
+    );
+    assert!(
+        !witness_body.contains("_ => true"),
+        "witness_kind_allowed must not contain a wildcard-true arm"
+    );
+}
+
+#[test]
 fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth() {
     let scheduler = guarded_source("src/scheduler.rs");
     let builder = guarded_source("src/agent/no_human_surface.rs");
@@ -2209,31 +2378,41 @@ fn guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_par
 
 #[test]
 fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state() {
+    use tracewake_core::checksum::{ChecksumStateKind, PHYSICAL_STATE_CHECKSUM_COVERAGE};
     use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
     use tracewake_core::events::EventKind;
 
+    const PAYLOAD_FREE_AGENT_MARKERS: &[EventKind] =
+        &[EventKind::NoHumanDayStarted, EventKind::NoHumanDayCompleted];
+
     let allowlist = AGENT_WORLD_NOOP_ALLOWLIST
         .iter()
-        .map(|kind| {
-            let citation = match kind {
-                EventKind::FoodConsumed => "dual_stream_physical_food_supply_checksum",
-                EventKind::NoHumanDayStarted | EventKind::NoHumanDayCompleted => {
-                    "payload_free_no_human_marker"
-                }
-                _ => "",
-            };
-            (kind.stable_id(), citation)
-        })
+        .map(|kind| kind.stable_id())
         .collect::<Vec<_>>();
 
     assert_eq!(
         allowlist,
         vec![
-            ("food_consumed", "dual_stream_physical_food_supply_checksum"),
-            ("no_human_day_started", "payload_free_no_human_marker"),
-            ("no_human_day_completed", "payload_free_no_human_marker"),
+            "food_consumed",
+            "no_human_day_started",
+            "no_human_day_completed"
         ]
     );
+    assert!(
+        PHYSICAL_STATE_CHECKSUM_COVERAGE.iter().any(|entry| {
+            entry.state_kind == ChecksumStateKind::Physical
+                && entry.field_name == "food_supplies"
+                && entry.field_family == "food_supply"
+        }) && CHECKSUM_RS.contains("\"food_supply|"),
+        "FoodConsumed allowlist entry must be covered by the physical food_supply checksum family"
+    );
+    for marker in PAYLOAD_FREE_AGENT_MARKERS {
+        assert!(
+            AGENT_WORLD_NOOP_ALLOWLIST.contains(marker),
+            "payload-free marker {} must be explicitly registered",
+            marker.stable_id()
+        );
+    }
     for materialized in [
         EventKind::NeedThresholdCrossed,
         EventKind::CandidateGoalsEvaluated,
@@ -2251,6 +2430,101 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
     ] {
         assert!(!AGENT_WORLD_NOOP_ALLOWLIST.contains(&materialized));
     }
+}
+
+#[test]
+fn materialized_agent_payload_records_keep_payload_fields() {
+    for struct_name in [
+        "OrdinaryLifeEpisodeRecord",
+        "CandidateGoalEvaluationRecord",
+        "ContinueRoutineArbitrationRecord",
+    ] {
+        let marker = format!("pub struct {struct_name} {{");
+        let body = STATE_RS
+            .split(&marker)
+            .nth(1)
+            .unwrap_or_else(|| panic!("{struct_name} declaration is present"))
+            .split("}\n")
+            .next()
+            .unwrap_or_else(|| panic!("{struct_name} body is present"));
+        assert!(
+            body.contains("pub payload_fields: Vec<(String, String)>"),
+            "{struct_name} must retain source event payload fields for replay/checksum evidence"
+        );
+    }
+    assert!(
+        CHECKSUM_RS.contains("ordinary_life_episode|")
+            && CHECKSUM_RS.contains("join_pairs(&episode.payload_fields)"),
+        "ordinary-life episode payload fields must enter the canonical agent checksum"
+    );
+}
+
+#[test]
+fn materialized_agent_apply_arms_require_payload_schema_version() {
+    let required_call = r#"require_payload_version(&payload, "payload_schema_version", "1")"#;
+    let episode_arm_tail = EVENTS_APPLY_RS
+        .split("EventKind::SleepStarted")
+        .nth(1)
+        .expect("ordinary-life episode materialization arm is present")
+        .split("EventKind::CandidateGoalsEvaluated")
+        .next()
+        .expect("ordinary-life episode arm is bounded by candidate-goal arm");
+    let episode_arm = format!("EventKind::SleepStarted{episode_arm_tail}");
+    for kind in [
+        "SleepStarted",
+        "SleepCompleted",
+        "SleepInterrupted",
+        "FoodServiceUsed",
+        "EatFailed",
+        "WorkBlockStarted",
+        "WorkBlockCompleted",
+        "WorkBlockFailed",
+    ] {
+        assert!(
+            episode_arm.contains(&format!("EventKind::{kind}")),
+            "ordinary-life episode arm must still include EventKind::{kind}"
+        );
+    }
+    assert!(
+        episode_arm.contains(required_call),
+        "ordinary-life episode materialization arm must require payload_schema_version"
+    );
+
+    let candidate_arm_tail = EVENTS_APPLY_RS
+        .split("EventKind::CandidateGoalsEvaluated")
+        .nth(1)
+        .expect("candidate-goal materialization arm is present")
+        .split("EventKind::ContinueRoutineProposed")
+        .next()
+        .expect("candidate-goal arm is bounded by continue-routine arm");
+    let candidate_arm = format!("EventKind::CandidateGoalsEvaluated{candidate_arm_tail}");
+    assert!(
+        candidate_arm.contains(required_call),
+        "candidate-goal materialization arm must require payload_schema_version"
+    );
+
+    let continue_arm_tail = EVENTS_APPLY_RS
+        .split("EventKind::ContinueRoutineProposed")
+        .nth(1)
+        .expect("continue-routine materialization arm is present")
+        .split("kind if AGENT_WORLD_NOOP_ALLOWLIST")
+        .next()
+        .expect("continue-routine arm is bounded by allowlist arm");
+    let continue_arm = format!("EventKind::ContinueRoutineProposed{continue_arm_tail}");
+    for kind in [
+        "ContinueRoutineProposed",
+        "ContinueRoutineAccepted",
+        "ContinueRoutineRejected",
+    ] {
+        assert!(
+            continue_arm.contains(&format!("EventKind::{kind}")),
+            "continue-routine arm must still include EventKind::{kind}"
+        );
+    }
+    assert!(
+        continue_arm.contains(required_call),
+        "continue-routine materialization arm must require payload_schema_version"
+    );
 }
 
 #[test]

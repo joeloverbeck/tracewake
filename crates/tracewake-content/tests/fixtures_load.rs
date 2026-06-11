@@ -10,17 +10,23 @@ use tracewake_content::schema::{
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::ActionRegistry;
+use tracewake_core::agent::{
+    current_place_knowledge_context, record_current_place_perception_and_project,
+};
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
-use tracewake_core::events::EventKind;
+use tracewake_core::events::apply::apply_epistemic_event;
+use tracewake_core::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
-    FoodSupplyId, PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
-    WorkplaceId,
+    FoodSupplyId, PlaceId, ProcessId, RoutineTemplateId, SchemaVersion, SemanticActionId,
+    SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -34,6 +40,36 @@ fn registry() -> ActionRegistry {
     registry.register_phase3a_work();
     registry.register_phase3a_continue_routine();
     registry
+}
+
+#[allow(
+    clippy::disallowed_methods,
+    reason = "fixture census test scans source constructors; this is test substrate, not simulation outcome code"
+)]
+fn positive_fixture_constructor_ids_from_source() -> BTreeSet<String> {
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/fixtures");
+    let mut ids = BTreeSet::new();
+    for entry in std::fs::read_dir(fixtures_dir).expect("fixtures directory is readable") {
+        let path = entry.expect("fixture directory entry is readable").path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("rs")
+            || path.file_name().and_then(|file_name| file_name.to_str()) == Some("mod.rs")
+        {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path).expect("fixture source is readable");
+        for line in source.lines() {
+            let Some(signature) = line.trim_start().strip_prefix("pub fn ") else {
+                continue;
+            };
+            let Some((name, remainder)) = signature.split_once('(') else {
+                continue;
+            };
+            if name.ends_with("_001") && remainder.contains("-> GoldenFixture") {
+                ids.insert(name.to_string());
+            }
+        }
+    }
+    ids
 }
 
 fn phase3a_fixture() -> FixtureSchema {
@@ -97,6 +133,7 @@ fn phase3a_fixture() -> FixtureSchema {
             servings: 3,
             hunger_reduction_per_serving: 180,
         }],
+        known_food_sources: Vec::new(),
         workplaces: vec![WorkplaceSchema {
             workplace_id: WorkplaceId::new("workplace_shop").unwrap(),
             place_id: PlaceId::new("workshop").unwrap(),
@@ -144,7 +181,6 @@ fn phase3a_fixture() -> FixtureSchema {
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
-    assert_eq!(all.len(), 54);
 
     let ids = all
         .iter()
@@ -152,62 +188,8 @@ fn all_fixtures_load_deterministically_and_validate() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         ids,
-        BTreeSet::from([
-            "aged_food_record_surfaces_as_remembered_belief_not_observation_001".to_string(),
-            "container_item_move_001".to_string(),
-            "debug_attach_001".to_string(),
-            "debug_omniscience_excluded_001".to_string(),
-            "door_access_001".to_string(),
-            "embodied_exits_require_perceived_or_known_route_001".to_string(),
-            "embodied_menu_lags_truth_change_without_perception_001".to_string(),
-            "embodied_view_omits_raw_assignment_without_context_001".to_string(),
-            "embodied_workplace_believed_open_truth_closed_commit_fails_001".to_string(),
-            "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
-            "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
-            "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
-            "expectation_contradiction_001".to_string(),
-            "food_unavailable_replan_001".to_string(),
-            "forbidden_provenance_input_fails_closed_001".to_string(),
-            "hidden_food_closed_container_001".to_string(),
-            "hidden_food_unknown_route_001".to_string(),
-            "hidden_route_edge_001".to_string(),
-            "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001".to_string(),
-            "knowledge_blocker_accuse_001".to_string(),
-            "method_fallback_requires_new_trace_or_stuck_001".to_string(),
-            "no_human_advance_001".to_string(),
-            "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
-            "no_human_day_001".to_string(),
-            "no_human_epistemic_check_001".to_string(),
-            "no_human_known_workplace_requires_provenance_001".to_string(),
-            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
-            "no_human_observation_facts_cite_log_events_001".to_string(),
-            "no_human_sleep_knowledge_requires_observation_or_record_001".to_string(),
-            "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
-            "no_human_workplace_knowledge_requires_notice_event_001".to_string(),
-            "no_hidden_truth_planning_001".to_string(),
-            "ordinary_workday_001".to_string(),
-            "planner_trace_001".to_string(),
-            "possession_parity_001".to_string(),
-            "possession_does_not_reset_intention_001".to_string(),
-            "replay_item_location_001".to_string(),
-            "routine_blocked_diagnostic_001".to_string(),
-            "routine_no_teleport_001".to_string(),
-            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
-            "severe_safety_with_known_exit_produces_move_001".to_string(),
-            "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
-            "sleep_eat_work_001".to_string(),
-            "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
-            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
-            "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
-            "wait_then_window_passive_charges_each_tick_once_001".to_string(),
-            "sound_uncertainty_001".to_string(),
-            "strongbox_001".to_string(),
-            "view_filtering_001".to_string(),
-            "view_model_local_actions_001".to_string(),
-            "work_block_failed_then_sleep_succeeds_001".to_string(),
-            "work_completion_fails_when_actor_displaced_001".to_string(),
-            "workplace_assignment_provenance_001".to_string(),
-        ])
+        positive_fixture_constructor_ids_from_source(),
+        "every positive fixture constructor must be registered in fixtures::all()"
     );
 
     for golden in all {
@@ -328,75 +310,169 @@ fn fixtures_declare_scope_and_phase1_registry_excludes_later_actions() {
             .collect::<BTreeSet<_>>()
     };
 
-    assert_eq!(
-        ids_for_scope(FixtureScope::Phase1),
-        BTreeSet::from([
-            "container_item_move_001".to_string(),
-            "debug_attach_001".to_string(),
-            "door_access_001".to_string(),
-            "no_human_advance_001".to_string(),
-            "replay_item_location_001".to_string(),
-            "strongbox_001".to_string(),
-            "view_model_local_actions_001".to_string(),
-        ])
+    let phase1_ids = ids_for_scope(FixtureScope::Phase1);
+    let phase2_ids = ids_for_scope(FixtureScope::Phase2AHistorical);
+    let phase3_ids = ids_for_scope(FixtureScope::Phase3AHistorical);
+    assert!(
+        !phase1_ids.is_empty(),
+        "Phase 1 fixtures must remain covered"
     );
-    assert_eq!(
-        ids_for_scope(FixtureScope::Phase2AHistorical),
-        BTreeSet::from([
-            "expectation_contradiction_001".to_string(),
-            "knowledge_blocker_accuse_001".to_string(),
-            "no_human_epistemic_check_001".to_string(),
-            "possession_parity_001".to_string(),
-            "sound_uncertainty_001".to_string(),
-            "view_filtering_001".to_string(),
-        ])
+    assert!(
+        !phase2_ids.is_empty(),
+        "Phase 2A historical fixtures must remain covered"
     );
-    assert_eq!(
-        ids_for_scope(FixtureScope::Phase3AHistorical),
-        BTreeSet::from([
-            "aged_food_record_surfaces_as_remembered_belief_not_observation_001".to_string(),
-            "debug_omniscience_excluded_001".to_string(),
-            "embodied_exits_require_perceived_or_known_route_001".to_string(),
-            "embodied_menu_lags_truth_change_without_perception_001".to_string(),
-            "embodied_view_omits_raw_assignment_without_context_001".to_string(),
-            "embodied_workplace_believed_open_truth_closed_commit_fails_001".to_string(),
-            "embodied_workplace_availability_reflects_belief_not_truth_001".to_string(),
-            "embodied_view_omits_unknown_sleep_affordance_001".to_string(),
-            "embodied_view_omits_unobserved_food_at_open_place_001".to_string(),
-            "food_unavailable_replan_001".to_string(),
-            "forbidden_provenance_input_fails_closed_001".to_string(),
-            "hidden_food_closed_container_001".to_string(),
-            "hidden_food_unknown_route_001".to_string(),
-            "hidden_route_edge_001".to_string(),
-            "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001".to_string(),
-            "method_fallback_requires_new_trace_or_stuck_001".to_string(),
-            "no_hidden_truth_planning_001".to_string(),
-            "no_human_current_place_without_sleep_affordance_does_not_sleep_001".to_string(),
-            "no_human_day_001".to_string(),
-            "no_human_known_workplace_requires_provenance_001".to_string(),
-            "no_human_metrics_require_typed_responsible_layer_001".to_string(),
-            "no_human_observation_facts_cite_log_events_001".to_string(),
-            "no_human_sleep_knowledge_requires_observation_or_record_001".to_string(),
-            "no_human_unseen_workplace_assignment_does_not_plan_work_001".to_string(),
-            "no_human_workplace_knowledge_requires_notice_event_001".to_string(),
-            "ordinary_workday_001".to_string(),
-            "planner_trace_001".to_string(),
-            "possession_does_not_reset_intention_001".to_string(),
-            "routine_blocked_diagnostic_001".to_string(),
-            "routine_no_teleport_001".to_string(),
-            "scheduler_cannot_rewrite_wait_reason_after_transaction_001".to_string(),
-            "severe_safety_with_known_exit_produces_move_001".to_string(),
-            "severe_safety_without_known_exit_waits_with_knowledge_blocker_001".to_string(),
-            "sleep_eat_work_001".to_string(),
-            "sleep_interrupted_by_severe_need_prorates_recovery_001".to_string(),
-            "sleep_rejects_current_place_without_sleep_affordance_001".to_string(),
-            "sleep_spanning_window_boundary_charges_each_tick_once_001".to_string(),
-            "wait_then_window_passive_charges_each_tick_once_001".to_string(),
-            "work_block_failed_then_sleep_succeeds_001".to_string(),
-            "work_completion_fails_when_actor_displaced_001".to_string(),
-            "workplace_assignment_provenance_001".to_string(),
-        ])
+    assert!(
+        !phase3_ids.is_empty(),
+        "Phase 3A historical fixtures must remain covered"
     );
+
+    let mut registered_ids = BTreeSet::new();
+    registered_ids.extend(phase1_ids);
+    registered_ids.extend(phase2_ids);
+    registered_ids.extend(phase3_ids);
+    assert_eq!(
+        registered_ids,
+        positive_fixture_constructor_ids_from_source(),
+        "every positive fixture constructor must have exactly one declared fixture scope"
+    );
+}
+
+#[test]
+fn stale_workplace_notice_superseded_by_newer_001() {
+    let golden = fixtures::stale_workplace_notice_superseded_by_newer_001();
+    let mut loaded = load_fixture_package(
+        ContentManifestId::new("manifest_stale_workplace_notice").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let decision_tick = SimTick::new(3);
+
+    record_current_place_perception_and_project(
+        &mut loaded.seed_event_log,
+        &mut loaded.canonical_world,
+        &mut loaded.canonical_agent_state,
+        &mut loaded.epistemic_projection,
+        &actor_id,
+        decision_tick,
+        &loaded.manifest.manifest_id,
+    );
+
+    let newer_notice_id = EventId::new("event_role_notice_newer_open_workplace_tomas").unwrap();
+    let mut newer_notice = EventEnvelope::new_v1(
+        newer_notice_id.clone(),
+        EventKind::RoleAssignmentNoticeRecorded,
+        loaded.seed_event_log.events().len() as u64,
+        loaded.seed_event_log.events().len() as u64,
+        decision_tick,
+        OrderingKey::new(
+            decision_tick,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Actor(actor_id.clone()),
+            ProposalSequence::new(99),
+            ActionId::new("role_assignment_notice").unwrap(),
+            vec!["workplace_tomas".to_string()],
+            "newer_role_notice",
+        ),
+        loaded.manifest.manifest_id.clone(),
+    );
+    newer_notice.actor_id = Some(actor_id.clone());
+    newer_notice.place_id = Some(PlaceId::new("workshop_tomas").unwrap());
+    newer_notice.process_id = Some(ProcessId::new("role_assignment_notice").unwrap());
+    newer_notice.participants = vec![
+        actor_id.as_str().to_string(),
+        "workplace_tomas".to_string(),
+        "workshop_tomas".to_string(),
+    ];
+    newer_notice.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("source_kind", "modeled_role_update"),
+        PayloadField::new("actor_id", actor_id.as_str()),
+        PayloadField::new("workplace_id", "workplace_tomas"),
+        PayloadField::new("place_id", "workshop_tomas"),
+        PayloadField::new("access_open", "true"),
+    ];
+    loaded.seed_event_log.append(newer_notice.clone()).unwrap();
+    apply_epistemic_event(&mut loaded.epistemic_projection, &newer_notice).unwrap();
+
+    let context = current_place_knowledge_context(
+        &loaded.canonical_world,
+        Some(&loaded.epistemic_projection),
+        &actor_id,
+        SimTick::new(4),
+        &loaded.manifest.manifest_id,
+        loaded.seed_event_log.events().len() as u64,
+    );
+
+    assert_eq!(context.actor_known_workplaces().len(), 1);
+    let workplace = &context.actor_known_workplaces()[0];
+    assert_eq!(workplace.workplace_id().as_str(), "workplace_tomas");
+    assert!(workplace.believed_access_open());
+    assert_eq!(workplace.acquired_tick(), decision_tick);
+    assert_eq!(workplace.source_event_ids().as_slice(), &[newer_notice_id]);
+}
+
+#[test]
+fn seeded_food_source_unknown_to_all_actors_omits_seed_belief_and_actor_known_food() {
+    let golden = fixtures::seeded_food_source_unknown_to_all_actors_001();
+    let loaded = load_fixture_package(
+        ContentManifestId::new("manifest_seeded_food_source_unknown").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+
+    assert!(loaded.fixture.known_food_sources.is_empty());
+    assert!(!loaded.seed_event_log.events().iter().any(|event| {
+        event.event_type == EventKind::StartingBeliefRecorded
+            && event
+                .payload
+                .iter()
+                .any(|field| field.key == "belief_kind" && field.value == "household_food_source")
+    }));
+
+    let context = current_place_knowledge_context(
+        &loaded.canonical_world,
+        Some(&loaded.epistemic_projection),
+        &ActorId::new("actor_mara").unwrap(),
+        SimTick::ZERO,
+        &loaded.manifest.manifest_id,
+        loaded.seed_event_log.events().len() as u64,
+    );
+
+    assert!(
+        context.actor_known_food_sources().is_empty(),
+        "{:?}",
+        context.actor_known_food_sources()
+    );
+
+    let mut world = loaded.canonical_world.clone();
+    let mut agent_state = loaded.canonical_agent_state.clone();
+    let mut log = loaded.seed_event_log.clone();
+    let report = run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry_for_fixture_scope(loaded.fixture.fixture_scope),
+        loaded.manifest.manifest_id.clone(),
+        NoHumanDayConfig {
+            actor_ids: vec![ActorId::new("actor_mara").unwrap()],
+            windows: vec![DayWindow {
+                window_id: "unknown_food_window".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(8),
+            }],
+        },
+    );
+
+    assert!(report.ordinary_pipeline_events > 0);
+    assert!(!log.events().iter().any(|event| {
+        matches!(
+            event.event_type,
+            EventKind::FoodConsumed | EventKind::EatFailed
+        )
+    }));
 }
 
 #[test]

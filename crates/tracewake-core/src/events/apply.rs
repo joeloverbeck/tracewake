@@ -449,6 +449,7 @@ fn apply_agent_event_with_capability(
         | EventKind::WorkBlockStarted
         | EventKind::WorkBlockCompleted
         | EventKind::WorkBlockFailed => {
+            require_payload_version(&payload, "payload_schema_version", "1")?;
             reject_duplicate_duration_terminal(state, event)?;
             state.ordinary_life_episodes.insert(
                 event.event_id.clone(),
@@ -466,12 +467,14 @@ fn apply_agent_event_with_capability(
                         })
                         .collect(),
                     sim_tick: event.sim_tick,
+                    payload_fields: payload_fields(event),
                     summary: event.effects_summary.clone(),
                 },
             );
             Ok(ApplyOutcome::Applied)
         }
         EventKind::CandidateGoalsEvaluated => {
+            require_payload_version(&payload, "payload_schema_version", "1")?;
             state.candidate_goal_evaluations.insert(
                 event.event_id.clone(),
                 crate::state::CandidateGoalEvaluationRecord {
@@ -490,6 +493,7 @@ fn apply_agent_event_with_capability(
         EventKind::ContinueRoutineProposed
         | EventKind::ContinueRoutineAccepted
         | EventKind::ContinueRoutineRejected => {
+            require_payload_version(&payload, "payload_schema_version", "1")?;
             state.continue_routine_arbitrations.insert(
                 event.event_id.clone(),
                 crate::state::ContinueRoutineArbitrationRecord {
@@ -2016,6 +2020,30 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "duplicate need tick charge")]
+    fn single_tick_delta_charge_rejects_overlapping_action_effect_duration() {
+        let mut state = agent_state();
+        let mut event = caused_agent_event(
+            EventKind::NeedDeltaApplied,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("delta", "40"),
+                PayloadField::new("elapsed_ticks", "2"),
+                PayloadField::new("cause_kind", "action_effect"),
+                PayloadField::new("cause_action_id", "sleep"),
+            ],
+        );
+        event.sim_tick = SimTick::new(5);
+
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+        let _ = apply_agent_event(&mut state, &event);
+    }
+
+    #[test]
     fn agent_intention_transition_event_records_status_and_reason() {
         let mut state = agent_state();
         let event = caused_agent_event(
@@ -2174,6 +2202,10 @@ mod tests {
         sleep.actor_id = Some(actor_id("actor_tomas"));
         sleep.proposal_id = Some(crate::ids::ProposalId::new("proposal_sleep").unwrap());
         sleep.sim_tick = SimTick::new(8);
+        sleep.payload = vec![
+            PayloadField::new("payload_schema_version", "1"),
+            PayloadField::new("sleep_place_id", "home_tomas"),
+        ];
         sleep.effects_summary = "sleep episode started".to_string();
 
         assert_eq!(
@@ -2195,6 +2227,13 @@ mod tests {
             state.ordinary_life_episodes[&sleep.event_id].event_kind,
             "sleep_started"
         );
+        assert_eq!(
+            state.ordinary_life_episodes[&sleep.event_id].payload_fields,
+            vec![
+                ("payload_schema_version".to_string(), "1".to_string()),
+                ("sleep_place_id".to_string(), "home_tomas".to_string())
+            ]
+        );
     }
 
     #[test]
@@ -2203,16 +2242,19 @@ mod tests {
         let mut start = caused_agent_event(EventKind::WorkBlockStarted, Vec::new());
         start.event_id = EventId::new("event.work.started.actor_tomas").unwrap();
         start.actor_id = Some(actor_id("actor_tomas"));
+        start.payload = vec![PayloadField::new("payload_schema_version", "1")];
 
         let mut completed = caused_agent_event(EventKind::WorkBlockCompleted, Vec::new());
         completed.event_id = EventId::new("event.work.completed.actor_tomas").unwrap();
         completed.actor_id = Some(actor_id("actor_tomas"));
         completed.causes = vec![EventCause::Event(start.event_id.clone())];
+        completed.payload = vec![PayloadField::new("payload_schema_version", "1")];
 
         let mut failed = caused_agent_event(EventKind::WorkBlockFailed, Vec::new());
         failed.event_id = EventId::new("event.work.failed.actor_tomas").unwrap();
         failed.actor_id = Some(actor_id("actor_tomas"));
         failed.causes = vec![EventCause::Event(start.event_id.clone())];
+        failed.payload = vec![PayloadField::new("payload_schema_version", "1")];
 
         assert_eq!(
             apply_agent_event(&mut state, &start),

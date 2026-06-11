@@ -572,8 +572,25 @@ fn provenance_witness_mismatch_diagnostic(
 
 fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
     match stable_id {
-        "actor_current_place_visible" => *event_kind == EventKind::ObservationRecorded,
+        "actor_at_workplace"
+        | "actor_current_place_visible"
+        | "assigned_workplace_known"
+        | "at_workplace"
+        | "known_route_surface" => *event_kind == EventKind::ObservationRecorded,
         "agent_needs_present" => *event_kind == EventKind::NeedDeltaApplied,
+        "actor_knows_food_source" | "food_source_believed_accessible" => matches!(
+            event_kind,
+            EventKind::ObservationRecorded | EventKind::StartingBeliefRecorded
+        ),
+        "actor_knows_sleep_affordance"
+        | "actor_knows_sleep_place"
+        | "sleep_place_believed_accessible" => matches!(
+            event_kind,
+            EventKind::ObservationRecorded | EventKind::StartingBeliefRecorded
+        ),
+        "actor_knows_workplace"
+        | "workplace_assignment_active"
+        | "workplace_believed_accessible" => *event_kind == EventKind::RoleAssignmentNoticeRecorded,
         "actor_belief_projection_limitation"
         | "modeled_wait_reason"
         | "reevaluation_window_known" => matches!(
@@ -588,7 +605,7 @@ fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
                 | EventKind::NoHumanDayStarted
                 | EventKind::NoHumanAdvanceStarted
         ),
-        _ => true,
+        _ => false,
     }
 }
 
@@ -1194,6 +1211,108 @@ mod tests {
         assert!(diagnostic
             .debug_only_details
             .contains("actor_current_place_visible"));
+    }
+
+    #[test]
+    fn provenance_witness_notice_only_workplace_presence_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let workshop = place("workshop_tomas");
+        let notice_event_id = EventId::new("event.role_notice.actor_tomas").unwrap();
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            workshop.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "actor_at_workplace",
+                workshop.as_str(),
+                "evented_perception:actor_at_workplace",
+                Some(SimTick::new(4)),
+                SourceEventIds::checked(vec![notice_event_id.clone()]).unwrap(),
+            )],
+        );
+        let source_event_ids = BTreeSet::from([notice_event_id.clone()]);
+        let source_event_kinds =
+            BTreeMap::from([(notice_event_id, EventKind::RoleAssignmentNoticeRecorded)]);
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(4),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: Some(&source_event_ids),
+            source_event_kinds: Some(&source_event_kinds),
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected provenance witness mismatch stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance witness mismatch");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceWitnessMismatch
+        );
+        assert!(diagnostic.debug_only_details.contains("actor_at_workplace"));
+    }
+
+    #[test]
+    fn provenance_witness_unlisted_stable_id_fails_closed_before_proposal() {
+        let agent_state = agent_state_with_hunger(900);
+        let home = place("home_tomas");
+        let observation_event_id = EventId::new("event.observation.actor_tomas").unwrap();
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "future_unregistered_fact",
+                home.as_str(),
+                "evented_perception:future_fact",
+                Some(SimTick::new(4)),
+                SourceEventIds::checked(vec![observation_event_id.clone()]).unwrap(),
+            )],
+        );
+        let source_event_ids = BTreeSet::from([observation_event_id.clone()]);
+        let source_event_kinds =
+            BTreeMap::from([(observation_event_id, EventKind::ObservationRecorded)]);
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(4),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: Some(&source_event_ids),
+            source_event_kinds: Some(&source_event_kinds),
+            routine_window_family: None,
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
+            panic!("expected provenance witness mismatch stuck diagnostic");
+        };
+
+        assert_eq!(diagnostic.concrete_blocker, "provenance witness mismatch");
+        assert_eq!(
+            diagnostic.typed_diagnostic.blocker_code,
+            BlockerCode::ProvenanceWitnessMismatch
+        );
+        assert!(diagnostic
+            .debug_only_details
+            .contains("future_unregistered_fact"));
     }
 
     #[test]

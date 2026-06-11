@@ -17,11 +17,13 @@ pub fn embodied_view_omits_unknown_sleep_affordance_001() -> GoldenFixture {
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: Vec::new(),
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_tomas", 0, 4)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

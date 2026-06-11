@@ -19,11 +19,13 @@ pub fn hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001()
         homes: vec![home_schema("actor_mara", "home_mara")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: Vec::new(),
         routine_assignments: Vec::new(),
         day_windows: vec![day_window_schema("actor_mara", 0, 4)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

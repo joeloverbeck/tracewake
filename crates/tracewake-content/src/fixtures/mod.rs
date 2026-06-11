@@ -39,6 +39,7 @@ mod replay_item_location_001;
 mod routine_blocked_diagnostic_001;
 mod routine_no_teleport_001;
 mod scheduler_cannot_rewrite_wait_reason_after_transaction_001;
+mod seeded_food_source_unknown_to_all_actors_001;
 mod severe_safety_with_known_exit_produces_move_001;
 mod severe_safety_without_known_exit_waits_with_knowledge_blocker_001;
 mod sleep_eat_work_001;
@@ -46,6 +47,7 @@ mod sleep_interrupted_by_severe_need_prorates_recovery_001;
 mod sleep_rejects_current_place_without_sleep_affordance_001;
 mod sleep_spanning_window_boundary_charges_each_tick_once_001;
 mod sound_uncertainty_001;
+mod stale_workplace_notice_superseded_by_newer_001;
 mod strongbox_001;
 mod view_filtering_001;
 mod view_model_local_actions_001;
@@ -116,6 +118,7 @@ pub use replay_item_location_001::replay_item_location_001;
 pub use routine_blocked_diagnostic_001::routine_blocked_diagnostic_001;
 pub use routine_no_teleport_001::routine_no_teleport_001;
 pub use scheduler_cannot_rewrite_wait_reason_after_transaction_001::scheduler_cannot_rewrite_wait_reason_after_transaction_001;
+pub use seeded_food_source_unknown_to_all_actors_001::seeded_food_source_unknown_to_all_actors_001;
 pub use severe_safety_with_known_exit_produces_move_001::severe_safety_with_known_exit_produces_move_001;
 pub use severe_safety_without_known_exit_waits_with_knowledge_blocker_001::severe_safety_without_known_exit_waits_with_knowledge_blocker_001;
 pub use sleep_eat_work_001::sleep_eat_work_001;
@@ -123,6 +126,7 @@ pub use sleep_interrupted_by_severe_need_prorates_recovery_001::sleep_interrupte
 pub use sleep_rejects_current_place_without_sleep_affordance_001::sleep_rejects_current_place_without_sleep_affordance_001;
 pub use sleep_spanning_window_boundary_charges_each_tick_once_001::sleep_spanning_window_boundary_charges_each_tick_once_001;
 pub use sound_uncertainty_001::sound_uncertainty_001;
+pub use stale_workplace_notice_superseded_by_newer_001::stale_workplace_notice_superseded_by_newer_001;
 pub use strongbox_001::strongbox_001;
 pub use view_filtering_001::view_filtering_001;
 pub use view_model_local_actions_001::view_model_local_actions_001;
@@ -173,6 +177,7 @@ pub fn all() -> Vec<GoldenFixture> {
         embodied_menu_lags_truth_change_without_perception_001(),
         embodied_workplace_availability_reflects_belief_not_truth_001(),
         embodied_workplace_believed_open_truth_closed_commit_fails_001(),
+        stale_workplace_notice_superseded_by_newer_001(),
         embodied_view_omits_unobserved_food_at_open_place_001(),
         embodied_view_omits_unknown_sleep_affordance_001(),
         embodied_exits_require_perceived_or_known_route_001(),
@@ -218,6 +223,7 @@ pub fn all() -> Vec<GoldenFixture> {
         aged_food_record_surfaces_as_remembered_belief_not_observation_001(),
         severe_safety_with_known_exit_produces_move_001(),
         severe_safety_without_known_exit_waits_with_knowledge_blocker_001(),
+        seeded_food_source_unknown_to_all_actors_001(),
         no_human_day_001(),
     ]
 }
@@ -263,6 +269,7 @@ fn hidden_truth_adversarial_fixture(
             1,
             220,
         )],
+        known_food_sources: Vec::new(),
         workplaces: vec![workplace_schema(
             "workplace_hidden",
             "hidden_workshop",
@@ -284,6 +291,7 @@ fn hidden_truth_adversarial_fixture(
         )],
         day_windows: vec![day_window_schema("actor_mara", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,

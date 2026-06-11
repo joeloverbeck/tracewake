@@ -20,6 +20,7 @@ pub fn sleep_spanning_window_boundary_charges_each_tick_once_001() -> GoldenFixt
         homes: vec![home_schema("actor_elena", "home_elena")],
         sleep_places: vec![sleep_place_schema("actor_elena", "home_elena", "bed_elena")],
         food_supplies: Vec::new(),
+        known_food_sources: Vec::new(),
         workplaces: Vec::new(),
         routine_templates: vec![routine_template_schema(
             "routine_elena_boundary_sleep",
@@ -35,6 +36,7 @@ pub fn sleep_spanning_window_boundary_charges_each_tick_once_001() -> GoldenFixt
         )],
         day_windows: vec![day_window_schema("actor_elena", 0, 8)],
     };
+    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,
