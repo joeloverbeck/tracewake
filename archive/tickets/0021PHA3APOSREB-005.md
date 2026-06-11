@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-005: Behavioral per-kind policy dispatch and sleep-accessibility parity
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`epistemics/projection`, `agent/no_human_surface`, `agent/perception`); conformance-index row; possible embodied-context/golden repricing in `tracewake-content` as surfaced
@@ -172,3 +172,31 @@ the parity assertion; conformance row for behavioral policy dispatch in
 1. `cargo test -p tracewake-core projection`
 2. `cargo test -p tracewake-core no_human`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- Replaced the decorative actor-known projection policy enum use with a per-kind policy table that declares classification, embodied inclusion scope, and accessibility-fact scope for all four record kinds (`Route`, `FoodSource`, `SleepPlace`, `Workplace`).
+- Routed `classified_actor_known_records_for_context`, `NoHumanActorKnownSurfaceBuilder`, and `current_place_knowledge_context` through `ActorKnownProjectionRecord::policy()`.
+- Removed the unused `CurrentPlaceLatestOnly` variant; the embodied latest-current-place behavior is now represented by the declared `ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly` axis.
+- Applied the recorded sleep-accessibility choice: sleep places now mirror food-source accessibility from any remembered place on the no-human actor-known surface, and `actor_knows_sleep_place` uses projection freshness instead of being hardcoded as remembered.
+- Added table-driven policy tests, no-human sleep reachability coverage, embodied/no-human declared-scope coverage, a source guard proving production `policy()` callers, and a conformance row in `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`.
+- Updated the content replay tamper test to mutate decision-trace source evidence directly, keeping the test aligned with the now-broader remembered sleep-place facts.
+
+Deviations from original plan:
+
+- No content golden/context-hash baseline repricing was needed. The only content test change was a tamper-helper correction after the widened sleep fact surface made the old sleep-place-value mutation no longer prove the intended source-evidence mismatch.
+
+Verification:
+
+- `cargo test -p tracewake-core projection` — passed.
+- `cargo test -p tracewake-core no_human` — passed.
+- `cargo test -p tracewake-core current_place_knowledge_context` — passed.
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_decision_context_hash_gate_fails_when_source_evidence_tampered` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

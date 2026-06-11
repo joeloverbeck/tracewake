@@ -19,7 +19,8 @@ use tracewake_core::agent::{
     RoutineFamily, RoutineStep, RoutineTemplate, SourceEventIds,
 };
 use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
@@ -314,32 +315,56 @@ fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
         .collect()
 }
 
-fn tamper_sleep_place_starting_belief(
+fn tamper_first_decision_trace_source_event(
     log: &EventLog,
-    actor_id: &str,
-    replacement_place_id: &str,
+    replacement_event_id: &str,
 ) -> EventLog {
     let mut tampered = EventLog::new();
     let mut replaced = false;
     for event in log.events() {
         let mut event = event.clone();
-        if !replaced
-            && event.event_type == EventKind::StartingBeliefRecorded
-            && payload(&event, "actor_id") == Some(actor_id)
-            && payload(&event, "belief_kind") == Some("sleep_place")
-        {
-            let value = event
+        if !replaced && event.event_type == EventKind::DecisionTraceRecorded {
+            let trace_canonical = event
                 .payload
                 .iter_mut()
-                .find(|field| field.key == "value")
-                .expect("sleep_place starting belief carries value");
-            value.value = replacement_place_id.to_string();
+                .find(|field| field.key == "trace_canonical")
+                .expect("decision trace event carries trace_canonical");
+            let mut record =
+                DecisionTraceRecord::deserialize_canonical(trace_canonical.value.as_bytes())
+                    .expect("decision trace canonical parses before tamper");
+            let first_input = record
+                .actor_known_inputs
+                .first_mut()
+                .expect("decision trace records actor-known inputs");
+            *first_input = replace_first_source_event(first_input, replacement_event_id);
+            record.actor_known_context_hash =
+                compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash;
+            trace_canonical.value = record.serialize_canonical();
             replaced = true;
         }
         tampered.append(event).unwrap();
     }
-    assert!(replaced, "fixture contains sleep_place starting belief");
+    assert!(replaced, "fixture contains decision trace event");
     tampered
+}
+
+fn replace_first_source_event(input: &str, replacement_event_id: &str) -> String {
+    let mut parts = input
+        .split('|')
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    for part in &mut parts {
+        let Some(source_events) = part.strip_prefix("source_events=") else {
+            continue;
+        };
+        let suffix = source_events
+            .split_once(',')
+            .map(|(_, rest)| format!(",{rest}"))
+            .unwrap_or_default();
+        *part = format!("source_events={replacement_event_id}{suffix}");
+        return parts.join("|");
+    }
+    panic!("actor-known input records source_events");
 }
 
 fn tamper_first_continue_routine_kind(log: &EventLog, replacement_kind: EventKind) -> EventLog {
@@ -2395,7 +2420,8 @@ fn no_human_decision_context_hash_gate_fails_when_source_evidence_tampered() {
     let context = checksum_context("no_human_day_001", &log);
     let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
     let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
-    let tampered = tamper_sleep_place_starting_belief(&log, "actor_elena", "home_mara");
+    let tampered =
+        tamper_first_decision_trace_source_event(&log, "event.tampered.actor_known_source");
     let replay = run_replay(
         &initial_state,
         &initial_agent_state,
@@ -2408,9 +2434,14 @@ fn no_human_decision_context_hash_gate_fails_when_source_evidence_tampered() {
 
     assert!(!replay.matches_expected);
     assert!(!replay.decision_context_hash_failures.is_empty());
-    assert!(replay.decision_context_hash_failures[0]
-        .issue
-        .contains("decision_context_hash_mismatch"));
+    assert!(
+        replay
+            .decision_context_hash_failures
+            .iter()
+            .any(|failure| failure.issue.contains("decision_context_hash_mismatch")),
+        "{:?}",
+        replay.decision_context_hash_failures
+    );
 }
 
 #[test]

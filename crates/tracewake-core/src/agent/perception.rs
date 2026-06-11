@@ -170,13 +170,17 @@ pub fn current_place_knowledge_context(
             "epistemic_projection:{}",
             classified.record().source_event_id().as_str()
         );
+        let included_by_policy = classified.record().policy().includes_in_embodied_context(
+            classified.is_current_place_record(),
+            classified.is_latest_current_place_record(),
+        );
         match classified.record() {
             ActorKnownProjectionRecord::Route {
                 from_place_id,
                 to_place_id,
                 ..
             } => {
-                if !classified.is_latest_current_place_record() {
+                if !included_by_policy {
                     continue;
                 }
                 routes.push(ActorKnownRouteFact::new(
@@ -190,7 +194,7 @@ pub fn current_place_knowledge_context(
                 believed_servings,
                 ..
             } => {
-                if !classified.is_latest_current_place_record() {
+                if !included_by_policy {
                     continue;
                 }
                 let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
@@ -207,7 +211,7 @@ pub fn current_place_knowledge_context(
                 sleep_affordance_id,
                 ..
             } => {
-                if !classified.is_latest_current_place_record() {
+                if !included_by_policy {
                     continue;
                 }
                 let Some(sleep_affordance_id) = sleep_affordance_id
@@ -228,7 +232,7 @@ pub fn current_place_knowledge_context(
                 believed_access_open,
                 ..
             } => {
-                if place_id == &actor.current_place_id {
+                if included_by_policy {
                     workplaces.push(ActorKnownWorkplaceFact::new(
                         workplace_id.clone(),
                         place_id.clone(),
@@ -716,6 +720,77 @@ mod tests {
             .actor_known_sleep_affordances()
             .iter()
             .any(|fact| fact.sleep_affordance_id().as_str() == "cot_tomas"));
+    }
+
+    #[test]
+    fn embodied_context_filters_reclassified_records_by_declared_scope_but_no_human_keeps_memory() {
+        let actor = actor_id("actor_tomas");
+        let mut state = state_with_visible_current_place_surfaces();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let workshop = place_id("workshop_tomas");
+        state
+            .actors
+            .get_mut(&actor)
+            .expect("test actor exists")
+            .current_place_id = workshop.clone();
+
+        let filter_context =
+            KnowledgeContext::embodied_at_frontier(actor.clone(), SimTick::new(9), 4);
+        let classified =
+            projection.classified_actor_known_records_for_context(&filter_context, &workshop);
+        let sleep_record = classified
+            .iter()
+            .find(|record| {
+                matches!(
+                    record.record(),
+                    ActorKnownProjectionRecord::SleepPlace { sleep_affordance_id, .. }
+                        if sleep_affordance_id.as_deref() == Some("bed_tomas")
+                )
+            })
+            .expect("shared classifier keeps remembered sleep place");
+        assert!(
+            !sleep_record.record().policy().includes_in_embodied_context(
+                sleep_record.is_current_place_record(),
+                sleep_record.is_latest_current_place_record(),
+            )
+        );
+
+        let agent_state = AgentState::default();
+        let no_human_surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &projection,
+                agent_state: &agent_state,
+                actor_id: actor.clone(),
+                current_place_id: workshop.clone(),
+                decision_tick: SimTick::new(9),
+                window_id: "morning",
+                window_end_tick: SimTick::new(12),
+                current_place_witness_event_id: None,
+                needs_witness_event_id: None,
+                frame_event_id: Some(EventId::new("event_frame").unwrap()),
+            })
+            .build(&agent_state);
+        assert!(no_human_surface
+            .context()
+            .known_sleep_places()
+            .contains(&place_id("home_tomas")));
+
+        let embodied_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(9),
+            &manifest_id,
+            4,
+        );
+        assert!(embodied_context.actor_known_sleep_affordances().is_empty());
     }
 
     #[test]

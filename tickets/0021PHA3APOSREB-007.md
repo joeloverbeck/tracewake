@@ -120,8 +120,8 @@ in `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`.
 
 ## Out of Scope
 
-- Policy-table dispatch in the same file (ticket 0021PHA3APOSREB-005) — coordinate
-  the `perception.rs` mechanical merge.
+- Policy-table dispatch in the same file (`archive/tickets/0021PHA3APOSREB-005.md`) —
+  coordinate the `perception.rs` mechanical merge.
 - Other prose-as-state sites (none found by the audit beyond this gate; the
   content-crate substring-keyed *validation* gate is `ORD-HARD-098b`, ticket
   0021PHA3APOSREB-009).

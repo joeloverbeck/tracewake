@@ -17,6 +17,7 @@ const CHECKSUM_RS: &str = include_str!("../src/checksum.rs");
 const EVENTS_MOD_RS: &str = include_str!("../src/events/mod.rs");
 const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
+const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const TIME_RS: &str = include_str!("../src/time.rs");
@@ -3342,6 +3343,26 @@ fn guard_014_sleep_validation_requires_modeled_affordance() {
         builder.contains("actor_knows_sleep_affordance"),
         "no-human cognition must derive sleep affordance ids as actor-known facts"
     );
+}
+
+#[test]
+fn guard_0021_actor_known_projection_policy_table_has_production_callers() {
+    fn policy_caller_count(source: &str) -> usize {
+        production(source).matches(".policy()").count()
+    }
+
+    assert!(
+        policy_caller_count(EPISTEMIC_PROJECTION_RS) >= 1,
+        "ActorKnownProjectionRecord::policy() must drive production classification instead of remaining decorative"
+    );
+    let synthetic_zero_caller =
+        EPISTEMIC_PROJECTION_RS.replace(".policy()", ".decorative_policy()");
+    assert_eq!(
+        policy_caller_count(&synthetic_zero_caller),
+        0,
+        "policy caller guard must fail closed when production call sites disappear"
+    );
+    assert_absent(EPISTEMIC_PROJECTION_RS, "CurrentPlaceLatestOnly");
 }
 
 #[test]

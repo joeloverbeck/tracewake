@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::agent::{ActorKnownFact, ActorKnownPlanningContext, SourceEventIds};
 use crate::epistemics::{
-    ActorKnownProjectionFreshness, ActorKnownProjectionRecord, EpistemicProjection,
-    KnowledgeContext,
+    ActorKnownProjectionAccessibilityScope, ActorKnownProjectionFreshness,
+    ActorKnownProjectionRecord, EpistemicProjection, KnowledgeContext,
 };
 use crate::ids::{ActorId, EventId, PlaceId, WorkplaceId};
 use crate::state::AgentState;
@@ -88,6 +88,13 @@ pub struct NoHumanActorKnownSurfaceRequest<'a> {
     pub frame_event_id: Option<EventId>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ProjectionFactPolicy {
+    freshness: ActorKnownProjectionFreshness,
+    source_tick: SimTick,
+    accessibility_scope: ActorKnownProjectionAccessibilityScope,
+}
+
 impl NoHumanActorKnownSurfaceBuilder {
     pub fn new(
         actor_id: ActorId,
@@ -163,6 +170,12 @@ impl NoHumanActorKnownSurfaceBuilder {
         freshness: ActorKnownProjectionFreshness,
         source_tick: SimTick,
     ) {
+        let policy = record.policy();
+        let fact_policy = ProjectionFactPolicy {
+            freshness,
+            source_tick,
+            accessibility_scope: policy.accessibility_scope(),
+        };
         match record {
             ActorKnownProjectionRecord::Route {
                 from_place_id,
@@ -197,8 +210,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                     food_source_id,
                     source.source_label(),
                     vec![source_event_id.clone()],
-                    freshness,
-                    source_tick,
+                    fact_policy,
                 );
             }
             ActorKnownProjectionRecord::SleepPlace {
@@ -213,8 +225,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                     sleep_affordance_id.as_deref(),
                     source.source_label(),
                     vec![source_event_id.clone()],
-                    freshness,
-                    source_tick,
+                    fact_policy,
                 );
             }
             ActorKnownProjectionRecord::Workplace {
@@ -336,29 +347,30 @@ impl NoHumanActorKnownSurfaceBuilder {
         food_source: &str,
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
-        freshness: ActorKnownProjectionFreshness,
-        source_tick: SimTick,
+        policy: ProjectionFactPolicy,
     ) {
         let source_event_ids =
             SourceEventIds::checked(source_event_ids).expect("food source ids are non-empty");
         let source = source.into();
         self.known_food_sources.insert(food_source.to_string());
         self.push_projection_fact(
-            freshness,
+            policy.freshness,
             "actor_knows_food_source",
             food_source,
             source.clone(),
-            source_tick,
+            policy.source_tick,
             source_event_ids.clone(),
         );
-        self.push_projection_fact(
-            freshness,
-            "food_source_believed_accessible",
-            food_source,
-            source,
-            source_tick,
-            source_event_ids,
-        );
+        if policy.accessibility_scope == ActorKnownProjectionAccessibilityScope::FromAnyPlace {
+            self.push_projection_fact(
+                policy.freshness,
+                "food_source_believed_accessible",
+                food_source,
+                source,
+                policy.source_tick,
+                source_event_ids,
+            );
+        }
     }
 
     fn add_sleep_place_knowledge(
@@ -367,8 +379,7 @@ impl NoHumanActorKnownSurfaceBuilder {
         sleep_affordance_id: Option<&str>,
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
-        freshness: ActorKnownProjectionFreshness,
-        source_tick: SimTick,
+        policy: ProjectionFactPolicy,
     ) {
         let source_event_ids =
             SourceEventIds::checked(source_event_ids).expect("sleep source ids are non-empty");
@@ -376,29 +387,29 @@ impl NoHumanActorKnownSurfaceBuilder {
         self.known_sleep_places.insert(place_id.clone());
         if let Some(sleep_affordance_id) = sleep_affordance_id {
             self.push_projection_fact(
-                freshness,
+                policy.freshness,
                 "actor_knows_sleep_affordance",
                 sleep_affordance_id,
                 source.clone(),
-                source_tick,
+                policy.source_tick,
                 source_event_ids.clone(),
             );
         }
-        self.facts.push(ActorKnownFact::remembered_belief(
-            self.actor_id.clone(),
+        self.push_projection_fact(
+            policy.freshness,
             "actor_knows_sleep_place",
             place_id.as_str(),
             source.clone(),
-            Some(source_tick),
+            policy.source_tick,
             source_event_ids.clone(),
-        ));
-        if place_id == self.current_place_id {
+        );
+        if policy.accessibility_scope == ActorKnownProjectionAccessibilityScope::FromAnyPlace {
             self.push_projection_fact(
-                freshness,
+                policy.freshness,
                 "sleep_place_believed_accessible",
                 place_id.as_str(),
                 source,
-                source_tick,
+                policy.source_tick,
                 source_event_ids,
             );
         }
@@ -504,11 +515,14 @@ fn has_active_intention(agent_state: &AgentState, actor_id: &ActorId) -> bool {
 mod tests {
     use super::*;
     use crate::agent::htn::{resolve_condition, ConditionResolution};
-    use crate::agent::RoutineCondition;
+    use crate::agent::{
+        plan_local_actions, LocalPlanRequest, PlannerGoal, RoutineCondition, RoutineStep,
+        DEFAULT_PLANNER_BUDGET,
+    };
     use crate::events::apply::apply_epistemic_event;
     use crate::events::log::EventLog;
     use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
-    use crate::ids::{ActionId, ContentManifestId};
+    use crate::ids::{ActionId, ContentManifestId, SemanticActionId};
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 
     fn actor_id() -> ActorId {
@@ -1052,5 +1066,111 @@ mod tests {
             ),
             ConditionResolution::Satisfied { .. }
         ));
+    }
+
+    #[test]
+    fn sleep_record_from_other_place_surfaces_as_remembered_reachable_sleep_input() {
+        let actor_id = actor_id();
+        let kitchen = place_id("kitchen");
+        let square = place_id("village_square");
+        let sleep_event_id = "event.visible_sleep.actor_tomas.kitchen";
+        let route_event_id = "event.visible_exit.actor_tomas.square_to_kitchen";
+        let mut log = EventLog::new();
+        log.append(event(
+            sleep_event_id,
+            &actor_id,
+            EventKind::ObservationRecorded,
+            SimTick::new(4),
+            "record_observation",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("observer_actor_id", actor_id.as_str()),
+                PayloadField::new("observer_place_id", kitchen.as_str()),
+                PayloadField::new(
+                    "observation_id",
+                    "observation.visible_sleep.actor_tomas.kitchen",
+                ),
+                PayloadField::new("observed_tick", "4"),
+                PayloadField::new("source_event_id", sleep_event_id),
+                PayloadField::new("channel", "direct_sight"),
+                PayloadField::new("place_id", kitchen.as_str()),
+                PayloadField::new("confidence", "1000"),
+                PayloadField::new("perceived_kind", "visible_sleep_affordance"),
+                PayloadField::new("subject_id", kitchen.as_str()),
+                PayloadField::new("target_id", "bed_tomas"),
+            ],
+        ))
+        .unwrap();
+        log.append(event(
+            route_event_id,
+            &actor_id,
+            EventKind::ObservationRecorded,
+            SimTick::new(5),
+            "record_observation",
+            vec![
+                PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+                PayloadField::new("actor_id", actor_id.as_str()),
+                PayloadField::new("observer_actor_id", actor_id.as_str()),
+                PayloadField::new("observer_place_id", square.as_str()),
+                PayloadField::new(
+                    "observation_id",
+                    "observation.visible_exit.actor_tomas.square_to_kitchen",
+                ),
+                PayloadField::new("observed_tick", "5"),
+                PayloadField::new("source_event_id", route_event_id),
+                PayloadField::new("channel", "direct_sight"),
+                PayloadField::new("place_id", square.as_str()),
+                PayloadField::new("confidence", "1000"),
+                PayloadField::new("perceived_kind", "visible_exit"),
+                PayloadField::new("subject_id", square.as_str()),
+                PayloadField::new("target_id", kitchen.as_str()),
+            ],
+        ))
+        .unwrap();
+        let projection = projection_from_log(&log);
+
+        let surface = build_surface_at(
+            &projection,
+            actor_id,
+            square,
+            SimTick::new(9),
+            Some(EventId::new(route_event_id).unwrap()),
+        );
+        let context = surface.context();
+        let sleep_fact = context
+            .actor_known_facts()
+            .iter()
+            .find(|fact| fact.stable_id() == "actor_knows_sleep_place")
+            .expect("remembered sleep place should survive after actor moves");
+
+        assert!(context.known_sleep_places().contains(&kitchen));
+        assert_eq!(sleep_fact.semantic_kind(), "remembered_belief");
+        assert_eq!(sleep_fact.tick(), Some(SimTick::new(4)));
+        for condition in [
+            RoutineCondition::ActorKnowsSleepPlace,
+            RoutineCondition::SleepPlaceBelievedAccessible,
+        ] {
+            assert!(matches!(
+                resolve_condition(&condition, context, context.actor_known_facts()),
+                ConditionResolution::Satisfied { .. }
+            ));
+        }
+
+        let plan = plan_local_actions(
+            context,
+            &LocalPlanRequest {
+                routine_step: RoutineStep::MoveTowardPlace {
+                    action_id: SemanticActionId::new("move_toward_place").unwrap(),
+                },
+                goal: PlannerGoal::ReachPlace(kitchen),
+                budget: DEFAULT_PLANNER_BUDGET,
+                actor_known_facts: context.actor_known_facts().to_vec(),
+            },
+        )
+        .expect("remembered sleep place and current route should plan movement toward bed");
+
+        assert_eq!(plan.proposals[0].action_id.as_str(), "move");
+        assert_eq!(plan.proposals[0].target_ids, ["kitchen".to_string()]);
     }
 }
