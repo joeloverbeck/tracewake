@@ -2042,6 +2042,8 @@ pub mod no_human {
         );
 
         let mut ordinary_pipeline_events = 0;
+        let mut pending_sleep_starts = Vec::new();
+        let mut pending_work_starts = Vec::new();
         let mut sorted = scheduled_proposals
             .into_iter()
             .map(|proposal| {
@@ -2071,12 +2073,38 @@ pub mod no_human {
                 ordering_key,
             };
             let result = run_pipeline(&mut context, &proposal);
+            pending_sleep_starts.extend(
+                result
+                    .appended_events
+                    .iter()
+                    .filter(|event| event.event_type == EventKind::SleepStarted)
+                    .cloned(),
+            );
+            pending_work_starts.extend(
+                result
+                    .appended_events
+                    .iter()
+                    .filter(|event| event.event_type == EventKind::WorkBlockStarted)
+                    .cloned(),
+            );
             ordinary_pipeline_events += no_human_progress_event_count(&result.appended_events);
         }
 
         for _ in 0..tick_count {
             scheduler.advance_one_tick();
         }
+        let due_tick = scheduler.current_tick;
+        append_due_completions(
+            physical_state,
+            log,
+            agent_state,
+            &process_id,
+            &mut scheduler,
+            &content_manifest_id,
+            &mut pending_sleep_starts,
+            &mut pending_work_starts,
+            due_tick,
+        );
 
         let completed = append_marker(
             log,

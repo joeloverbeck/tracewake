@@ -4,22 +4,16 @@ use std::collections::BTreeSet;
 
 use support::generative::{
     actor_id, content_manifest_id, generate_case, initial_agent_state, initial_world,
-    no_human_state_mut, registry, scheduled_proposals, windows, GeneratedActionKind,
-    GENERATIVE_SEEDS,
+    no_human_state_mut, registry, scheduled_proposals, windows, GENERATIVE_SEEDS,
 };
-use tracewake_core::actions::defs::sleep::build_sleep_completion_events;
-use tracewake_core::actions::defs::work::build_work_completion_events;
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
-use tracewake_core::events::apply::{apply_agent_event, apply_event};
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
-use tracewake_core::ids::{ActionId, ContentVersion, FixtureId, ProcessId};
+use tracewake_core::events::{EventKind, EventStream};
+use tracewake_core::ids::{ContentVersion, FixtureId};
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::scheduler::{
-    no_human::advance_no_human, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
-};
+use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::time::SimTick;
 
 #[derive(Default)]
@@ -177,12 +171,6 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         "seed={}",
         case.seed
     );
-    append_generated_duration_terminals(
-        &mut world,
-        &mut agent_state,
-        &mut log,
-        content_manifest_id(case.seed),
-    );
     GeneratedRun {
         initial_world,
         initial_agent_state,
@@ -191,91 +179,6 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         log,
         final_tick: report.final_tick,
     }
-}
-
-fn append_generated_duration_terminals(
-    world: &mut tracewake_core::state::PhysicalState,
-    agent_state: &mut tracewake_core::state::AgentState,
-    log: &mut EventLog,
-    content_manifest_id: tracewake_core::ids::ContentManifestId,
-) {
-    let started_events = log
-        .events()
-        .iter()
-        .filter(|event| {
-            matches!(
-                event.event_type,
-                EventKind::SleepStarted | EventKind::WorkBlockStarted
-            )
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    let process_id = ProcessId::new("generated_duration_completion").unwrap();
-    for (index, started) in started_events.iter().enumerate() {
-        let Some(completion_tick) = payload_value(started, "expected_completion_tick")
-            .and_then(|value| value.parse::<u64>().ok())
-            .map(SimTick::new)
-        else {
-            continue;
-        };
-        let (action_id, target_label) = match started.event_type {
-            EventKind::SleepStarted => ("sleep_completed", GeneratedActionKind::Sleep.stable_id()),
-            EventKind::WorkBlockStarted => (
-                "work_block_completed",
-                GeneratedActionKind::Work.stable_id(),
-            ),
-            _ => continue,
-        };
-        let ordering_key = OrderingKey::new(
-            completion_tick,
-            SchedulePhase::NoHumanProcess,
-            SchedulerSourceId::Process(process_id.clone()),
-            ProposalSequence::new(index as u64),
-            ActionId::new(action_id).unwrap(),
-            vec![started.event_id.as_str().to_string()],
-            format!(
-                "generated_duration_terminal:{target_label}:{}",
-                started.event_id.as_str()
-            ),
-        );
-        let events = match started.event_type {
-            EventKind::SleepStarted => build_sleep_completion_events(
-                world,
-                agent_state,
-                log,
-                started,
-                &ordering_key,
-                &content_manifest_id,
-                completion_tick,
-            )
-            .expect("generated sleep completion builds"),
-            EventKind::WorkBlockStarted => build_work_completion_events(
-                world,
-                agent_state,
-                log,
-                started,
-                &ordering_key,
-                &content_manifest_id,
-                completion_tick,
-            )
-            .expect("generated work completion builds"),
-            _ => Vec::new(),
-        };
-        for event in events {
-            append_and_apply_generated_event(world, agent_state, log, event);
-        }
-    }
-}
-
-fn append_and_apply_generated_event(
-    world: &mut tracewake_core::state::PhysicalState,
-    agent_state: &mut tracewake_core::state::AgentState,
-    log: &mut EventLog,
-    event: EventEnvelope,
-) {
-    log.append(event.clone()).unwrap();
-    apply_event(world, &event).unwrap();
-    apply_agent_event(agent_state, &event).unwrap();
 }
 
 fn checksum_context(seed: u64, log: &EventLog, tick: SimTick) -> ChecksumContext {

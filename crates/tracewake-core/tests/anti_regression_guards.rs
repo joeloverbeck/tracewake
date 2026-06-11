@@ -22,6 +22,7 @@ const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 
@@ -2509,6 +2510,18 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
             arm.contains(required_call),
             "{map_name} materialization arm must require payload_schema_version"
         );
+    }
+}
+
+#[test]
+fn generative_lock_cannot_fabricate_duration_terminals() {
+    for forbidden in [
+        "build_sleep_completion_events",
+        "build_work_completion_events",
+        "append_generated_duration_terminals",
+        "generated_duration_completion",
+    ] {
+        assert_absent(GENERATIVE_LOCK_RS, forbidden);
     }
 }
 

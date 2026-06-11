@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-003: Generative reachability honesty and evidence-document corrections
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` test oracle (`tests/generative_lock.rs`, `tests/support/generative.rs`, scheduler entry as surfaced); source guard in `anti_regression_guards.rs`; conformance-index row rewrite; dated correction in the 0018 acceptance report
@@ -175,3 +175,38 @@ and that interruption coverage was single-seed.
 1. `cargo test -p tracewake-core --test generative_lock`
 2. `grep -n "2026 correction (spec 0019)" reports/0018_ord_life_cert_scoped_acceptance.md`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- `advance_no_human` now collects scheduled sleep/work starts from the proposal
+  pipeline and processes due completions through the shared `append_due_completions`
+  path before the advance-completed marker.
+- `generative_lock.rs` no longer imports or calls the sleep/work completion builders
+  directly and no longer appends generated duration terminals after the advance.
+- Added `generative_lock_cannot_fabricate_duration_terminals` to fail if the old
+  fabricator symbols or direct completion-builder calls return to the generative
+  oracle.
+- Rewrote the conformance row as the `0019-corrected generative reachability
+  contract`, and added `## 2026 correction (spec 0019)` to the 0018 acceptance report
+  documenting the old evidence overstatement.
+
+Deviations from original plan:
+
+- No generator seed/window changes were needed. After the advance path reused the
+  shared due-completion machinery, the existing generated corpus reached duration
+  terminals and interruption through advance-emitted events.
+
+Verification results:
+
+- `cargo test -p tracewake-core --test generative_lock` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `rg -n "2026 correction \(spec 0019\)|test-side|advance_no_human|generative_lock_cannot_fabricate_duration_terminals|0019-corrected generative reachability" reports/0018_ord_life_cert_scoped_acceptance.md docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` — found the corrected row and report section.
+- `rg -n "build_sleep_completion_events|build_work_completion_events|append_generated_duration_terminals|generated_duration_completion" crates/tracewake-core/tests/generative_lock.rs` — returned no matches, proving the direct builder/fabricator symbols are absent from the oracle.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
