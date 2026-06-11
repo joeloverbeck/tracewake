@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-006: Exit-blocker surfacing and the dead-embodied-field sweep
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs` exit derivation, `view_models.rs` as surfaced), `tracewake-tui` (`render.rs` arm reachability, `app.rs` as surfaced), dead-field sweep guard; `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` sweep row
@@ -151,3 +151,28 @@ what the sweep derives and the deferral-registry semantics.
 1. `cargo test -p tracewake-core projections`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo test --workspace` (full pipeline incl. TUI acceptance)
+
+## Outcome
+
+Completed 2026-06-11. Re-checked `docs/2-execution/03*` and
+`docs/2-execution/12*` for an exit-blocker deferral cite; none was present, so the
+implementation branch was taken rather than deleting the field/render arm.
+
+`build_embodied_view_model` now derives `VisibleExit.blocker_summary` for
+actor-known exits only when a currently visible connected door on that route is
+closed and/or locked. The negative case covers a known route whose closed locked
+door is not currently perceived; it remains `None`.
+
+The TUI renderer has a direct reachability test for the existing `blocked:` line.
+The dead-embodied-field sweep derives `Option`/collection fields from
+`view_models.rs`, scans production producers, requires cited external producer
+entries when population is outside core projection construction, and fails on a
+synthetic hardwired-default field. The conformance index records the sweep and
+the external-producer registry semantics.
+
+Verification:
+
+1. `cargo test -p tracewake-core projections -- --nocapture`
+2. `cargo test -p tracewake-tui render -- --nocapture`
+3. `cargo test -p tracewake-core --test anti_regression_guards embodied_view_option_and_collection_fields_have_reachable_producers -- --nocapture`
+4. `cargo test -p tracewake-core --test anti_regression_guards`

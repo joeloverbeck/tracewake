@@ -227,8 +227,8 @@ mod tests {
     use tracewake_core::ids::{ActionId, ActorId, ItemId, PlaceId, SemanticActionId, ViewModelId};
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        EmbodiedViewModel, Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleItem,
-        VisibleItemSource,
+        EmbodiedViewModel, Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleExit,
+        VisibleItem, VisibleItemSource,
     };
 
     fn context() -> KnowledgeContext {
@@ -274,6 +274,44 @@ mod tests {
 
         assert!(rendered.contains("open.door.door_market_store"));
         assert!(rendered.contains("Market stall"));
+    }
+
+    #[test]
+    fn renderer_prints_visible_exit_blocker_summary() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: vec![VisibleExit {
+                destination_place_id: PlaceId::new("store_room").unwrap(),
+                blocker_summary: Some("door door_market_store is closed and locked".to_string()),
+            }],
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(
+            rendered.contains("- store_room blocked: door door_market_store is closed and locked")
+        );
     }
 
     #[test]

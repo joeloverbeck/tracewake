@@ -16,7 +16,7 @@ use crate::ids::{
 use crate::location::{visible_locality, Location};
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::AgentState;
-use crate::state::{ActorBody, PhysicalState};
+use crate::state::{ActorBody, DoorState, PhysicalState};
 use crate::time::SimTick;
 use crate::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
@@ -367,8 +367,13 @@ pub fn build_embodied_view_model(
         .iter()
         .cloned()
         .map(|destination_place_id| VisibleExit {
+            blocker_summary: visible_exit_blocker_summary(
+                state,
+                &visible.connected_doors,
+                &actor.current_place_id,
+                &destination_place_id,
+            ),
             destination_place_id,
-            blocker_summary: None,
         })
         .collect::<Vec<_>>();
     visible_exits.sort();
@@ -842,6 +847,37 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
     }
 }
 
+fn visible_exit_blocker_summary(
+    state: &PhysicalState,
+    connected_doors: &std::collections::BTreeSet<crate::ids::DoorId>,
+    from_place_id: &PlaceId,
+    destination_place_id: &PlaceId,
+) -> Option<String> {
+    connected_doors
+        .iter()
+        .filter_map(|door_id| state.doors.get(door_id))
+        .find(|door| door_connects_edge(door, from_place_id, destination_place_id))
+        .and_then(|door| {
+            if door.is_locked && !door.is_open {
+                Some(format!(
+                    "door {} is closed and locked",
+                    door.door_id.as_str()
+                ))
+            } else if door.is_locked {
+                Some(format!("door {} is locked", door.door_id.as_str()))
+            } else if !door.is_open && door.blocks_movement_when_closed {
+                Some(format!("door {} is closed", door.door_id.as_str()))
+            } else {
+                None
+            }
+        })
+}
+
+fn door_connects_edge(door: &DoorState, from_place_id: &PlaceId, to_place_id: &PlaceId) -> bool {
+    (&door.endpoint_a == from_place_id && &door.endpoint_b == to_place_id)
+        || (&door.endpoint_b == from_place_id && &door.endpoint_a == to_place_id)
+}
+
 #[derive(Clone)]
 struct SemanticActionPreflightContext<'a> {
     state: &'a PhysicalState,
@@ -1245,6 +1281,13 @@ mod tests {
     }
 
     fn view_for(state: &PhysicalState) -> EmbodiedViewModel {
+        view_for_known_route(state, place_id("back_room"))
+    }
+
+    fn view_for_known_route(
+        state: &PhysicalState,
+        destination_place_id: PlaceId,
+    ) -> EmbodiedViewModel {
         let context = KnowledgeContext::embodied_at_frontier_with_facts(
             actor_id("actor_tomas"),
             SimTick::new(1),
@@ -1254,7 +1297,7 @@ mod tests {
             Vec::new(),
             vec![crate::epistemics::ActorKnownRouteFact::new(
                 place_id("shop_front"),
-                place_id("back_room"),
+                destination_place_id,
                 "visible_exit",
             )],
         );
@@ -1434,6 +1477,51 @@ mod tests {
             .semantic_actions
             .iter()
             .any(|entry| entry.semantic_action_id.as_str() == "move.to.back_room"));
+    }
+
+    #[test]
+    fn embodied_exit_surfaces_perceived_closed_locked_door_blocker() {
+        let mut state = state();
+        let door = state
+            .doors
+            .get_mut(&DoorId::new("door_shop_back").unwrap())
+            .unwrap();
+        door.is_open = false;
+        door.is_locked = true;
+
+        let view = view_for(&state);
+
+        assert_eq!(view.visible_exits.len(), 1);
+        assert_eq!(
+            view.visible_exits[0].blocker_summary.as_deref(),
+            Some("door door_shop_back is closed and locked")
+        );
+    }
+
+    #[test]
+    fn embodied_exit_omits_unperceived_door_blocker_on_known_route() {
+        let mut state = state();
+        state.places.insert(
+            place_id("remote_room"),
+            PlaceState::new(place_id("remote_room"), "Remote room"),
+        );
+        let mut remote_door = DoorState::new(
+            DoorId::new("door_back_remote").unwrap(),
+            place_id("back_room"),
+            place_id("remote_room"),
+        );
+        remote_door.is_open = false;
+        remote_door.is_locked = true;
+        state.doors.insert(remote_door.door_id.clone(), remote_door);
+
+        let view = view_for_known_route(&state, place_id("remote_room"));
+
+        assert_eq!(view.visible_exits.len(), 1);
+        assert_eq!(
+            view.visible_exits[0].destination_place_id,
+            place_id("remote_room")
+        );
+        assert_eq!(view.visible_exits[0].blocker_summary, None);
     }
 
     #[test]
