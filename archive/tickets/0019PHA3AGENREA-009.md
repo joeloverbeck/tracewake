@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-009: 0019 scoped acceptance artifact
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — evidence document only (`reports/`)
@@ -128,3 +128,38 @@ and observed output is recorded as a deviation, never papered over.
 3. A narrower per-item command is correct where named (e.g. `cargo mutants --list -f …`
    for the perimeter proof) because each evidence item is scoped to one gate; the
    workspace run is the closing full-pipeline check.
+
+## Outcome
+
+Completed 2026-06-11.
+
+Created `reports/0019_ord_life_cert_scoped_acceptance.md` with the required
+implementation commit table, nine numbered §7 evidence sections, a deviations section,
+and an explicit non-certification boundary. The report records current-tree command
+evidence for the generative corpus, mutation perimeter, workplace freshness,
+payload-version/census locks, need-ledger/checksum repricing, partial-knowledge fixture,
+embodied interruption surfacing, conformance correction, and 0018 report correction.
+
+Verification:
+
+1. `for i in 1 2 3 4 5 6 7 8 9; do grep -q "^## .*$i\\." reports/0019_ord_life_cert_scoped_acceptance.md || echo "MISSING item $i"; done`
+2. `grep -qi "not full-project certification" reports/0019_ord_life_cert_scoped_acceptance.md`
+3. `cargo test -p tracewake-core --test generative_lock -- --nocapture`
+4. `cargo test -p tracewake-core --test anti_regression_guards generative_lock_cannot_fabricate_duration_terminals -- --nocapture`
+5. `cargo mutants --list -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs'`
+6. `cargo mutants --workspace -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle --jobs 4`
+7. `cargo test -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters -- --nocapture`
+8. `cargo test -p tracewake-core --test hidden_truth_gates workplace_requires_assignment_or_observation_provenance -- --nocapture`
+9. `cargo test -p tracewake-core --test event_schema_replay_gates forged_threshold_payload_schema_version_rejected_for_materialized_agent_replay_001 -- --nocapture`
+10. `cargo test -p tracewake-core --test anti_regression_guards materialized_agent_payload_records_keep_payload_fields -- --nocapture`
+11. `cargo test -p tracewake-core --test anti_regression_guards materialized_agent_apply_arms_require_payload_schema_version -- --nocapture`
+12. `cargo test -p tracewake-core --test anti_regression_guards guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms -- --nocapture`
+13. `cargo test -p tracewake-content --test golden_fixtures_run no_human_need_ledger_has_no_duplicate_regime_charges -- --nocapture`
+14. `cargo test -p tracewake-content --test fixtures_load known_food_source_blanket_helper_call_sites_are_allowlisted -- --nocapture`
+15. `cargo test -p tracewake-content --test golden_fixtures_run partial_food_source_knowledge_seeds_only_authored_actor_edge -- --nocapture`
+16. `cargo test -p tracewake-core view_models_embodied_phase3a_salient_interruption_is_viewer_scoped`
+17. `cargo test -p tracewake-tui renderer_prints_phase3a_salient_interruption`
+18. `cargo fmt --all --check`
+19. `cargo clippy --workspace --all-targets -- -D warnings`
+20. `cargo build --workspace --all-targets --locked`
+21. `cargo test --workspace`
