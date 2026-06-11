@@ -17,7 +17,7 @@ When the triage requires deep per-surface review of code or docs (an alignment a
 - **Prompt for adversarial verification** — when prior specs claim fixes on the audited surface, instruct agents to verify the claims in code, not trust them ("a passing test is only as good as what it asserts").
 - **Fix the evidence format** — grep-stable named symbols (no line numbers), severity from the lineage's existing vocabulary, a why-existing-guards-miss-it line, and a fix-plus-lock sketch per finding.
 - **Request a verified-holding list** alongside findings so confirmations are recorded and not re-litigated.
-- **Cap per-agent output** (~900 words) and state that the final message is synthesis data, not user prose.
+- **Cap per-agent output** (~900 words) and state that the final message is synthesis data, not user prose; instruct agents to begin the final message **directly with the findings header** — no run-log preamble (text before the header is discarded). Agents otherwise prepend exploration narration that buries the synthesis and burns the output budget.
 
 The SKILL.md verification rules then apply to what comes back: blocker/high and load-bearing findings are independently verified before the triage; lower-severity findings are spot-verified (or marked agent-reported) before they're embedded in a persisted deliverable. The per-finding outcome is recorded in the triage close's verification ledger (§Closing structure).
 
@@ -74,7 +74,7 @@ Close every triage recommendation with:
 
 1. **Verification ledger** — when findings came from delegated agents: per finding, `operator-verified` (you checked a cited symbol yourself) or `agent-reported` (carried on agent evidence alone — tag it as such where it lands in the persisted deliverable so the implementation stage knows to re-verify). Compact forms are fine (e.g. one line listing the `agent-reported` keys, with everything else declared operator-verified); the requirement is that every finding's status is derivable, so unverified findings cannot hide silently in a large fan-out. Omit when no subagents were used.
 2. **Deliverable-shape recommendation** — one spec / N tickets / mixed batch / in-place edits, per §Deliverable classification.
-3. **Named assumptions** — remaining gaps in the format `(N) X — assuming Y`.
+3. **Named assumptions** — remaining gaps in the format `(N) X — assuming Y`. When every remaining gap is already recorded in the persisted deliverable's Risks / Open Questions section, a one-line pointer (`remaining gaps recorded in <deliverable> §Risks`) satisfies this slot — the slot is never silently omitted.
 
 For a multi-deliverable triage (≥2 specs or ≥3 tickets), make the finding→deliverable mapping explicit in the recommendation (either inline `R3 — <summary> → SPEC-002`, or a `deliverable → findings` map) so the user can see which accepted finding lands where at approval time.
 

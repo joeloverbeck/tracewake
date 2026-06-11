@@ -107,6 +107,9 @@ pub const GENERATIVE_SEEDS: &[u64] = &[
     0x18_00_00_13,
     0x18_00_00_14,
     0x18_00_00_15,
+    0x18_00_00_21,
+    0x18_00_00_23,
+    0x18_00_00_24,
     0x18_00_00_29,
     0x18_00_00_57,
 ];
@@ -288,6 +291,8 @@ pub fn initial_agent_state(seed: u64) -> AgentState {
     let mask = mask_for_seed(seed);
     let hunger = if mask.interrupt_sleep {
         930
+    } else if mask.work && !mask.eat && !mask.sleep {
+        820
     } else {
         rng.range(100, 500) as i32
     };

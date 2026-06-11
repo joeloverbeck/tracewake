@@ -1506,6 +1506,113 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
 }
 
 #[test]
+fn partial_food_source_knowledge_seeds_only_authored_actor_edge() {
+    let golden = fixtures::partial_food_source_knowledge_001();
+    let (state, agent_state, _manifest_id, log) = load_with_log(golden);
+    let mara: ActorId = "actor_mara".parse().unwrap();
+    let tomas: ActorId = "actor_tomas".parse().unwrap();
+
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::StartingBeliefRecorded
+            && payload(event, "actor_id") == Some("actor_mara")
+            && payload(event, "belief_kind") == Some("household_food_source")
+            && payload(event, "subject_id") == Some("food_shared_pantry")
+    }));
+    assert!(!log.events().iter().any(|event| {
+        event.event_type == EventKind::StartingBeliefRecorded
+            && payload(event, "actor_id") == Some("actor_tomas")
+            && payload(event, "belief_kind") == Some("household_food_source")
+            && payload(event, "subject_id") == Some("food_shared_pantry")
+    }));
+
+    let rebuild = rebuild_projection(
+        &state,
+        &AgentState::default(),
+        &log,
+        &checksum_context("partial_food_source_knowledge_001", &log),
+        Some(&state),
+    );
+    assert!(rebuild.invariant_violations.is_empty());
+    let epistemic_projection = rebuild.final_epistemic_projection;
+
+    let mara_surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &epistemic_projection,
+            agent_state: &agent_state,
+            actor_id: mara,
+            current_place_id: "home_mara".parse().unwrap(),
+            decision_tick: SimTick::new(1),
+            window_id: "partial_food_mara",
+            window_end_tick: SimTick::new(8),
+            current_place_witness_event_id: None,
+            needs_witness_event_id: None,
+            frame_event_id: None,
+        })
+        .build(&agent_state);
+    let tomas_surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &epistemic_projection,
+            agent_state: &agent_state,
+            actor_id: tomas,
+            current_place_id: "home_mara".parse().unwrap(),
+            decision_tick: SimTick::new(1),
+            window_id: "partial_food_tomas",
+            window_end_tick: SimTick::new(8),
+            current_place_witness_event_id: None,
+            needs_witness_event_id: None,
+            frame_event_id: None,
+        })
+        .build(&agent_state);
+    let mara_known = mara_surface.context();
+    let tomas_known = tomas_surface.context();
+
+    assert!(mara_known
+        .known_food_sources()
+        .contains("food_shared_pantry"));
+    assert!(!tomas_known
+        .known_food_sources()
+        .contains("food_shared_pantry"));
+
+    let mara_plan = plan_local_actions(
+        mara_known,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_shared_pantry".to_string()),
+            budget: 1,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .unwrap();
+    assert_eq!(mara_plan.proposals[0].action_id.as_str(), "eat");
+    assert_eq!(
+        mara_plan.proposals[0].target_ids,
+        vec!["food_shared_pantry"]
+    );
+
+    let tomas_plan_failure = plan_local_actions(
+        tomas_known,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_shared_pantry".to_string()),
+            budget: 1,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(tomas_plan_failure.reason, "food source is not actor-known");
+    assert!(
+        tomas_plan_failure
+            .trace
+            .hidden_truth_audit_result
+            .actor_known_only
+    );
+}
+
+#[test]
 fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let golden = fixtures::no_human_day_001();
     let expected_roster = [

@@ -392,6 +392,7 @@ fn apply_agent_event_with_capability(
             Ok(ApplyOutcome::Applied)
         }
         EventKind::NeedThresholdCrossed => {
+            require_payload_version(&payload, "payload_schema_version", "1")?;
             let actor_id = ActorId::new(required(&payload, "actor_id")?).map_err(|_| {
                 ApplyError::BadPayload {
                     key: "actor_id",
@@ -437,6 +438,7 @@ fn apply_agent_event_with_capability(
                     to_value,
                     from_band: required(&payload, "from_band")?.to_string(),
                     to_band: required(&payload, "to_band")?.to_string(),
+                    payload_fields: payload_fields(event),
                 },
             );
             Ok(ApplyOutcome::Applied)
@@ -2185,6 +2187,7 @@ mod tests {
         let mut threshold = caused_agent_event(
             EventKind::NeedThresholdCrossed,
             vec![
+                PayloadField::new("payload_schema_version", "1"),
                 PayloadField::new("actor_id", "actor_tomas"),
                 PayloadField::new("need_kind", "hunger"),
                 PayloadField::new("from_value", "249"),
@@ -2222,6 +2225,9 @@ mod tests {
             state.need_threshold_crossings[&threshold.event_id].to_band,
             "rising"
         );
+        assert!(state.need_threshold_crossings[&threshold.event_id]
+            .payload_fields
+            .contains(&("payload_schema_version".to_string(), "1".to_string())));
         assert_eq!(state.ordinary_life_episodes.len(), 1);
         assert_eq!(
             state.ordinary_life_episodes[&sleep.event_id].event_kind,

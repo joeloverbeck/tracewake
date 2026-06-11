@@ -122,6 +122,23 @@ prefix replay, and single need charge per actor/tick/kind.
 Marker relations: appending the terminal no-human marker leaves both physical
 and agent checksums unchanged for every generated case.
 
+## 2026 correction (spec 0019)
+
+Spec 0019 corrected this section's reachability claim. The 0018 generative test
+reported duration-terminal and interruption reachability from the final generated log,
+but those terminal events were appended after `advance_no_human` by the test-side
+`append_generated_duration_terminals` helper. That helper called the sleep/work
+completion builders directly, so the old counters proved builder output and replay
+stability after a post-hoc append; they did not prove scheduler-path terminal
+reachability through the advance entry under test.
+
+The corrected 0019 lock removes that helper from `generative_lock.rs`, has
+`advance_no_human` process due completions through the shared scheduler completion
+path, and adds a source guard banning direct completion-builder calls from the
+generative oracle. Interruption coverage in the 0018-era report should therefore be
+read as overstated evidence, not as proof that the old generated advance path emitted
+interruption terminals itself.
+
 ## 5. Seed-Knowledge Fixture Proof
 
 Command: `cargo test -p tracewake-content seeded_food_source_unknown`.

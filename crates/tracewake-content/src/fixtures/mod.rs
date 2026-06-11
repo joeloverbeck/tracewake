@@ -31,6 +31,7 @@ mod no_human_sleep_knowledge_requires_observation_or_record_001;
 mod no_human_unseen_workplace_assignment_does_not_plan_work_001;
 mod no_human_workplace_knowledge_requires_notice_event_001;
 mod ordinary_workday_001;
+mod partial_food_source_knowledge_001;
 mod planner_trace_001;
 mod possession_does_not_reset_intention_001;
 mod possession_parity_001;
@@ -110,6 +111,7 @@ pub use no_human_sleep_knowledge_requires_observation_or_record_001::no_human_sl
 pub use no_human_unseen_workplace_assignment_does_not_plan_work_001::no_human_unseen_workplace_assignment_does_not_plan_work_001;
 pub use no_human_workplace_knowledge_requires_notice_event_001::no_human_workplace_knowledge_requires_notice_event_001;
 pub use ordinary_workday_001::ordinary_workday_001;
+pub use partial_food_source_knowledge_001::partial_food_source_knowledge_001;
 pub use planner_trace_001::planner_trace_001;
 pub use possession_does_not_reset_intention_001::possession_does_not_reset_intention_001;
 pub use possession_parity_001::possession_parity_001;
@@ -224,6 +226,7 @@ pub fn all() -> Vec<GoldenFixture> {
         severe_safety_with_known_exit_produces_move_001(),
         severe_safety_without_known_exit_waits_with_knowledge_blocker_001(),
         seeded_food_source_unknown_to_all_actors_001(),
+        partial_food_source_knowledge_001(),
         no_human_day_001(),
     ]
 }

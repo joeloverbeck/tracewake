@@ -162,6 +162,7 @@ pub struct NeedThresholdCrossingRecord {
     pub to_value: u16,
     pub from_band: String,
     pub to_band: String,
+    pub payload_fields: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -434,20 +434,21 @@ pub fn compute_agent_state_checksum(
 
     for (event_id, crossing) in &state.need_threshold_crossings {
         lines.push(format!(
-            "need_threshold_crossing|event={}|actor={}|need={}|from_value={}|to_value={}|from_band={}|to_band={}",
+            "need_threshold_crossing|event={}|actor={}|need={}|from_value={}|to_value={}|from_band={}|to_band={}|payload={}",
             event_id.as_str(),
             crossing.actor_id.as_str(),
             crossing.need_kind.stable_id(),
             crossing.from_value,
             crossing.to_value,
             crossing.from_band,
-            crossing.to_band
+            crossing.to_band,
+            join_pairs(&crossing.payload_fields)
         ));
     }
 
     for (event_id, episode) in &state.ordinary_life_episodes {
         lines.push(format!(
-            "ordinary_life_episode|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}|summary={}",
+            "ordinary_life_episode|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}",
             event_id.as_str(),
             episode.event_kind,
             episode
@@ -462,14 +463,13 @@ pub fn compute_agent_state_checksum(
                 .unwrap_or("-"),
             join_ids(episode.caused_event_ids.iter().map(|id| id.as_str())),
             episode.sim_tick.value(),
-            join_pairs(&episode.payload_fields),
-            episode.summary
+            join_pairs(&episode.payload_fields)
         ));
     }
 
     for (event_id, evaluation) in &state.candidate_goal_evaluations {
         lines.push(format!(
-            "candidate_goal_evaluation|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}|summary={}",
+            "candidate_goal_evaluation|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}",
             event_id.as_str(),
             evaluation.event_kind,
             evaluation
@@ -484,14 +484,13 @@ pub fn compute_agent_state_checksum(
                 .unwrap_or("-"),
             join_ids(evaluation.caused_event_ids.iter().map(|id| id.as_str())),
             evaluation.sim_tick.value(),
-            join_pairs(&evaluation.payload_fields),
-            evaluation.summary
+            join_pairs(&evaluation.payload_fields)
         ));
     }
 
     for (event_id, arbitration) in &state.continue_routine_arbitrations {
         lines.push(format!(
-            "continue_routine_arbitration|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}|summary={}",
+            "continue_routine_arbitration|event={}|kind={}|actor={}|proposal={}|causes={}|tick={}|payload={}",
             event_id.as_str(),
             arbitration.event_kind,
             arbitration
@@ -506,8 +505,7 @@ pub fn compute_agent_state_checksum(
                 .unwrap_or("-"),
             join_ids(arbitration.caused_event_ids.iter().map(|id| id.as_str())),
             arbitration.sim_tick.value(),
-            join_pairs(&arbitration.payload_fields),
-            arbitration.summary
+            join_pairs(&arbitration.payload_fields)
         ));
     }
 
@@ -1031,6 +1029,79 @@ mod tests {
         assert_ne!(binding_a.controller_id, binding_b.controller_id);
         assert_ne!(debug_panel_a, debug_panel_b);
         assert_eq!(checksum_a, checksum_b);
+    }
+
+    #[test]
+    fn materialized_agent_summary_prose_is_excluded() {
+        let mut state = response_agent_state();
+        state.ordinary_life_episodes.insert(
+            EventId::new("event.sleep.started.summary.exclusion").unwrap(),
+            crate::state::OrdinaryLifeEpisodeRecord {
+                event_id: EventId::new("event.sleep.started.summary.exclusion").unwrap(),
+                event_kind: "sleep_started".to_string(),
+                actor_id: Some(actor_id("actor_tomas")),
+                proposal_id: None,
+                caused_event_ids: vec![EventId::new("event.source.summary.exclusion").unwrap()],
+                sim_tick: SimTick::new(3),
+                payload_fields: vec![("duration_ticks".to_string(), "4".to_string())],
+                summary: "sleep started".to_string(),
+            },
+        );
+        state.candidate_goal_evaluations.insert(
+            EventId::new("event.candidate.summary.exclusion").unwrap(),
+            crate::state::CandidateGoalEvaluationRecord {
+                event_id: EventId::new("event.candidate.summary.exclusion").unwrap(),
+                event_kind: "candidate_goals_evaluated".to_string(),
+                actor_id: Some(actor_id("actor_tomas")),
+                proposal_id: None,
+                caused_event_ids: vec![EventId::new("event.source.summary.exclusion").unwrap()],
+                sim_tick: SimTick::new(3),
+                payload_fields: vec![("candidate_goal_count".to_string(), "2".to_string())],
+                summary: "candidate goals evaluated".to_string(),
+            },
+        );
+        state.continue_routine_arbitrations.insert(
+            EventId::new("event.continue.summary.exclusion").unwrap(),
+            crate::state::ContinueRoutineArbitrationRecord {
+                event_id: EventId::new("event.continue.summary.exclusion").unwrap(),
+                event_kind: "continue_routine_rejected".to_string(),
+                actor_id: Some(actor_id("actor_tomas")),
+                proposal_id: None,
+                caused_event_ids: vec![EventId::new("event.source.summary.exclusion").unwrap()],
+                sim_tick: SimTick::new(3),
+                payload_fields: vec![("reason".to_string(), "blocked".to_string())],
+                summary: "continue routine rejected".to_string(),
+            },
+        );
+        let before = compute_agent_state_checksum(&state, &context());
+
+        state
+            .ordinary_life_episodes
+            .get_mut(&EventId::new("event.sleep.started.summary.exclusion").unwrap())
+            .unwrap()
+            .summary = "different display prose".to_string();
+        state
+            .candidate_goal_evaluations
+            .get_mut(&EventId::new("event.candidate.summary.exclusion").unwrap())
+            .unwrap()
+            .summary = "different candidate prose".to_string();
+        state
+            .continue_routine_arbitrations
+            .get_mut(&EventId::new("event.continue.summary.exclusion").unwrap())
+            .unwrap()
+            .summary = "different arbitration prose".to_string();
+        let after = compute_agent_state_checksum(&state, &context());
+
+        assert_eq!(before.checksum, after.checksum);
+        assert_eq!(before.canonical_input, after.canonical_input);
+        assert!(
+            before
+                .canonical_input
+                .iter()
+                .all(|line| !line.contains("|summary=")),
+            "{:?}",
+            before.canonical_input
+        );
     }
 
     #[test]

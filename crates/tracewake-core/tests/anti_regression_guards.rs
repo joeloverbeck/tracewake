@@ -22,8 +22,11 @@ const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
+const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
+const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
     token: &'static str,
@@ -502,7 +505,7 @@ fn dependency_entries_from_manifest(manifest_path: &str, source: &str) -> Vec<De
 const CORE_FOUNDATION_RATIONALE: &str =
     "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
 const CORE_ACTION_RATIONALE: &str =
-    "core action validation/registry code is covered by targeted action and pipeline guards";
+    "core action validation/registry code is covered by targeted action, pipeline, and duration-definition mutation guards";
 const CORE_EPISTEMIC_RATIONALE: &str =
     "epistemic data model is covered by capability, provenance, and projection tests";
 const CONTENT_RATIONALE: &str =
@@ -563,6 +566,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_unseen_workplace_assignment_does_not_plan_work_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/no_human_workplace_knowledge_requires_notice_event_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/ordinary_workday_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/partial_food_source_knowledge_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/planner_trace_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/possession_does_not_reset_intention_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/possession_parity_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -714,6 +718,260 @@ fn is_guarded_layer_source(path: &str) -> bool {
     })
 }
 
+const MUTATION_PERIMETER_DURATION_DEFS: &[&str] = &[
+    "crates/tracewake-core/src/actions/defs/sleep.rs",
+    "crates/tracewake-core/src/actions/defs/work.rs",
+];
+
+fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
+    let mut violations = Vec::new();
+
+    if mutants_toml.contains("crates/tracewake-core/src/actions/defs/**") {
+        violations.push("mutants.toml excludes all action definitions".to_string());
+    }
+
+    let in_diff_filter_line = ci_yml
+        .lines()
+        .find(|line| line.contains("grep -E") && line.contains("actions/defs/"))
+        .unwrap_or_default();
+    let in_diff_defs_group = in_diff_filter_line
+        .split("actions/defs/(")
+        .nth(1)
+        .and_then(|tail| tail.split(")\\.rs").next())
+        .unwrap_or_default();
+
+    for required_path in MUTATION_PERIMETER_DURATION_DEFS {
+        let scheduled_filter = format!("-f '{required_path}'");
+        if !ci_yml.contains(&scheduled_filter) {
+            violations.push(format!(
+                "scheduled mutation baseline omits required filter {required_path}"
+            ));
+        }
+
+        let stem = required_path
+            .rsplit('/')
+            .next()
+            .and_then(|file_name| file_name.strip_suffix(".rs"))
+            .unwrap_or(required_path);
+        if !in_diff_defs_group.split('|').any(|entry| entry == stem) {
+            violations.push(format!(
+                "in-diff mutation guarded-path filter omits {required_path}"
+            ));
+        }
+
+        let Some(classification) = WORKSPACE_SOURCE_CLASSIFICATIONS
+            .iter()
+            .find(|entry| entry.path == *required_path)
+        else {
+            violations.push(format!(
+                "{required_path} missing from source classification table"
+            ));
+            continue;
+        };
+        match classification.class {
+            WorkspaceSourceClass::GuardedLayer => {}
+            WorkspaceSourceClass::Exempt { rationale } => {
+                if !rationale.contains("mutation") {
+                    violations.push(format!(
+                        "{required_path} classification rationale must name mutation coverage"
+                    ));
+                }
+            }
+        }
+    }
+
+    for line in ci_yml
+        .lines()
+        .filter(|line| line.contains("cargo mutants --in-diff"))
+    {
+        if line.contains("|| true") {
+            violations.push("in-diff cargo-mutants invocation swallows failures".to_string());
+        }
+    }
+    if !ci_yml.contains("mutants_status=$?") {
+        violations.push("in-diff cargo-mutants status is not captured".to_string());
+    }
+    if !ci_yml.contains("\"$mutants_status\" -ne 0")
+        || !ci_yml.contains("\"$mutants_status\" -ne 2")
+    {
+        violations.push(
+            "in-diff cargo-mutants status handling does not separate tool failure from misses"
+                .to_string(),
+        );
+    }
+    if !ci_yml.contains("[ ! -d mutants.out ]") {
+        violations.push("in-diff mutation job does not require output artifacts".to_string());
+    }
+    if !ci_yml.contains("github.event_name == 'pull_request' || github.event_name == 'push'") {
+        violations.push("mutation in-diff job does not run on guarded direct pushes".to_string());
+    }
+    if !ci_yml.contains("HEAD^..HEAD") {
+        violations.push("push mutation diff does not compare against HEAD^".to_string());
+    }
+
+    violations
+}
+
+fn split_top_level_args(args: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut paren_depth = 0_i32;
+    let mut bracket_depth = 0_i32;
+    let mut brace_depth = 0_i32;
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for ch in args.chars() {
+        if in_string {
+            current.push(ch);
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                current.push(ch);
+            }
+            '(' => {
+                paren_depth += 1;
+                current.push(ch);
+            }
+            ')' => {
+                paren_depth -= 1;
+                current.push(ch);
+            }
+            '[' => {
+                bracket_depth += 1;
+                current.push(ch);
+            }
+            ']' => {
+                bracket_depth -= 1;
+                current.push(ch);
+            }
+            '{' => {
+                brace_depth += 1;
+                current.push(ch);
+            }
+            '}' => {
+                brace_depth -= 1;
+                current.push(ch);
+            }
+            ',' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                parts.push(current.trim().to_string());
+                current.clear();
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    if !current.trim().is_empty() {
+        parts.push(current.trim().to_string());
+    }
+    parts
+}
+
+fn call_argument_lists(source: &str, marker: &str) -> Vec<Vec<String>> {
+    let mut calls = Vec::new();
+    let mut search_from = 0;
+    while let Some(relative_start) = source[search_from..].find(marker) {
+        let marker_start = search_from + relative_start;
+        let Some(open_relative) = source[marker_start..].find('(') else {
+            break;
+        };
+        let open = marker_start + open_relative;
+        let mut depth = 0_i32;
+        let mut in_string = false;
+        let mut escaped = false;
+        for (relative_index, ch) in source[open..].char_indices() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+            match ch {
+                '"' => in_string = true,
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let close = open + relative_index;
+                        calls.push(split_top_level_args(&source[open + 1..close]));
+                        search_from = close + 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if search_from <= marker_start {
+            break;
+        }
+    }
+    calls
+}
+
+fn string_literal_value(expr: &str) -> Option<String> {
+    let trimmed = expr.trim();
+    trimmed
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .map(ToString::to_string)
+}
+
+fn string_literals_in_stable_id_loop_arrays(source: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut search_from = 0;
+    while let Some(relative_start) = source[search_from..].find("for stable_id in [") {
+        let start = search_from + relative_start;
+        let array_start = start + "for stable_id in [".len();
+        let Some(relative_end) = source[array_start..].find(']') else {
+            break;
+        };
+        let array = &source[array_start..array_start + relative_end];
+        for entry in split_top_level_args(array) {
+            if let Some(value) = string_literal_value(&entry) {
+                values.push(value);
+            }
+        }
+        search_from = array_start + relative_end + 1;
+    }
+    values
+}
+
+fn minted_no_human_surface_fact_ids(source: &str) -> std::collections::BTreeSet<String> {
+    let mut stable_ids = std::collections::BTreeSet::new();
+    for marker in [
+        "ActorKnownFact::observed_now",
+        "ActorKnownFact::remembered_belief",
+        "ActorKnownFact::routine_assignment",
+        "self.push_projection_fact",
+    ] {
+        for args in call_argument_lists(source, marker) {
+            let Some(stable_id_expr) = args.get(1) else {
+                continue;
+            };
+            if let Some(stable_id) = string_literal_value(stable_id_expr) {
+                stable_ids.insert(stable_id);
+            } else if stable_id_expr == "stable_id" {
+                stable_ids.extend(string_literals_in_stable_id_loop_arrays(source));
+            }
+        }
+    }
+    stable_ids
+}
+
 fn assert_absent_from_sources(sources: &[(String, String)], needle: &str) {
     for (path, source) in sources {
         assert!(
@@ -781,6 +1039,48 @@ fn guarded_layer_source_census_matches_module_tree() {
     assert_eq!(
         actual, expected,
         "new guarded-layer files must be classified in the workspace guard census"
+    );
+}
+
+#[test]
+fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
+    let violations = mutation_perimeter_consistency_violations(MUTANTS_TOML, CI_YML);
+    assert!(
+        violations.is_empty(),
+        "mutation perimeter, CI filters, and action-source rationales diverged: {violations:#?}"
+    );
+
+    let excluded_defs = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/mod.rs\",",
+        "  \"crates/tracewake-core/src/actions/defs/**\",\n  \"crates/tracewake-core/src/actions/mod.rs\",",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&excluded_defs, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("excludes all action definitions")),
+        "synthetic broad action-def exclusion must fail the perimeter guard"
+    );
+
+    let swallowed_failure = CI_YML.replace(
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle",
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || true",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &swallowed_failure)
+            .iter()
+            .any(|violation| violation.contains("swallows failures")),
+        "synthetic swallowed cargo-mutants failure must fail the perimeter guard"
+    );
+
+    let missing_push = CI_YML.replace(
+        "github.event_name == 'pull_request' || github.event_name == 'push'",
+        "github.event_name == 'pull_request'",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_push)
+            .iter()
+            .any(|violation| violation.contains("direct pushes")),
+        "synthetic push-gap regression must fail the perimeter guard"
     );
 }
 
@@ -1975,6 +2275,10 @@ fn guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms() {
     let surface = production(NO_HUMAN_SURFACE_RS);
     let transaction = production(TRANSACTION_RS);
     let witness_body = body_after_marker(&transaction, "fn witness_kind_allowed");
+    let census = NO_HUMAN_SURFACE_FACT_STABLE_IDS
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
 
     for stable_id in NO_HUMAN_SURFACE_FACT_STABLE_IDS {
         assert!(
@@ -1986,6 +2290,28 @@ fn guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms() {
             "fact stable id {stable_id} must have an explicit witness_kind_allowed arm"
         );
     }
+
+    let minted_ids = minted_no_human_surface_fact_ids(&surface);
+    let uncensused_ids = minted_ids
+        .iter()
+        .filter(|stable_id| !census.contains(stable_id.as_str()))
+        .collect::<Vec<_>>();
+    assert!(
+        uncensused_ids.is_empty(),
+        "no-human surface minted fact stable ids missing from census: {uncensused_ids:#?}"
+    );
+
+    let synthetic_surface = format!(
+        "{surface}\nself.facts.push(ActorKnownFact::remembered_belief(self.actor_id.clone(), \"synthetic_uncensused_fact\", \"value\", \"source\", self.decision_tick, source_event_ids));\n"
+    );
+    let synthetic_minted_ids = minted_no_human_surface_fact_ids(&synthetic_surface);
+    assert!(
+        synthetic_minted_ids.contains("synthetic_uncensused_fact")
+            && synthetic_minted_ids
+                .iter()
+                .any(|stable_id| !census.contains(stable_id.as_str())),
+        "synthetic unregistered no-human fact mint must fail the reverse census direction"
+    );
 
     assert!(
         witness_body.contains("_ => false"),
@@ -2434,11 +2760,33 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
 
 #[test]
 fn materialized_agent_payload_records_keep_payload_fields() {
-    for struct_name in [
-        "OrdinaryLifeEpisodeRecord",
-        "CandidateGoalEvaluationRecord",
-        "ContinueRoutineArbitrationRecord",
-    ] {
+    let mut struct_names = Vec::new();
+    for line in STATE_RS.lines() {
+        if !line.contains("BTreeMap<crate::ids::EventId,") {
+            continue;
+        }
+        let Some((_, tail)) = line.split_once("BTreeMap<crate::ids::EventId,") else {
+            continue;
+        };
+        let Some(struct_name) = tail.split('>').next() else {
+            continue;
+        };
+        struct_names.push(struct_name.trim());
+    }
+    struct_names.sort_unstable();
+    struct_names.dedup();
+    assert_eq!(
+        struct_names,
+        vec![
+            "CandidateGoalEvaluationRecord",
+            "ContinueRoutineArbitrationRecord",
+            "NeedThresholdCrossingRecord",
+            "OrdinaryLifeEpisodeRecord",
+        ],
+        "materialized AgentState event records must be derived from state.rs maps"
+    );
+
+    for struct_name in struct_names {
         let marker = format!("pub struct {struct_name} {{");
         let body = STATE_RS
             .split(&marker)
@@ -2457,74 +2805,49 @@ fn materialized_agent_payload_records_keep_payload_fields() {
             && CHECKSUM_RS.contains("join_pairs(&episode.payload_fields)"),
         "ordinary-life episode payload fields must enter the canonical agent checksum"
     );
+    assert!(
+        CHECKSUM_RS.contains("need_threshold_crossing|")
+            && CHECKSUM_RS.contains("join_pairs(&crossing.payload_fields)"),
+        "need-threshold payload fields must enter the canonical agent checksum"
+    );
 }
 
 #[test]
 fn materialized_agent_apply_arms_require_payload_schema_version() {
     let required_call = r#"require_payload_version(&payload, "payload_schema_version", "1")"#;
-    let episode_arm_tail = EVENTS_APPLY_RS
-        .split("EventKind::SleepStarted")
-        .nth(1)
-        .expect("ordinary-life episode materialization arm is present")
-        .split("EventKind::CandidateGoalsEvaluated")
-        .next()
-        .expect("ordinary-life episode arm is bounded by candidate-goal arm");
-    let episode_arm = format!("EventKind::SleepStarted{episode_arm_tail}");
-    for kind in [
-        "SleepStarted",
-        "SleepCompleted",
-        "SleepInterrupted",
-        "FoodServiceUsed",
-        "EatFailed",
-        "WorkBlockStarted",
-        "WorkBlockCompleted",
-        "WorkBlockFailed",
-    ] {
+    let materialized_maps = [
+        "need_threshold_crossings",
+        "ordinary_life_episodes",
+        "candidate_goal_evaluations",
+        "continue_routine_arbitrations",
+    ];
+    for map_name in materialized_maps {
+        let insert_token = format!("state.{map_name}.insert(");
+        let insert_index = EVENTS_APPLY_RS
+            .find(&insert_token)
+            .unwrap_or_else(|| panic!("{map_name} insert is present in apply.rs"));
+        let before_insert = &EVENTS_APPLY_RS[..insert_index];
+        let arm_start = before_insert
+            .rfind("EventKind::")
+            .unwrap_or_else(|| panic!("{map_name} insert has an EventKind arm"));
+        let arm = &EVENTS_APPLY_RS[arm_start..insert_index];
         assert!(
-            episode_arm.contains(&format!("EventKind::{kind}")),
-            "ordinary-life episode arm must still include EventKind::{kind}"
+            arm.contains(required_call),
+            "{map_name} materialization arm must require payload_schema_version"
         );
     }
-    assert!(
-        episode_arm.contains(required_call),
-        "ordinary-life episode materialization arm must require payload_schema_version"
-    );
+}
 
-    let candidate_arm_tail = EVENTS_APPLY_RS
-        .split("EventKind::CandidateGoalsEvaluated")
-        .nth(1)
-        .expect("candidate-goal materialization arm is present")
-        .split("EventKind::ContinueRoutineProposed")
-        .next()
-        .expect("candidate-goal arm is bounded by continue-routine arm");
-    let candidate_arm = format!("EventKind::CandidateGoalsEvaluated{candidate_arm_tail}");
-    assert!(
-        candidate_arm.contains(required_call),
-        "candidate-goal materialization arm must require payload_schema_version"
-    );
-
-    let continue_arm_tail = EVENTS_APPLY_RS
-        .split("EventKind::ContinueRoutineProposed")
-        .nth(1)
-        .expect("continue-routine materialization arm is present")
-        .split("kind if AGENT_WORLD_NOOP_ALLOWLIST")
-        .next()
-        .expect("continue-routine arm is bounded by allowlist arm");
-    let continue_arm = format!("EventKind::ContinueRoutineProposed{continue_arm_tail}");
-    for kind in [
-        "ContinueRoutineProposed",
-        "ContinueRoutineAccepted",
-        "ContinueRoutineRejected",
+#[test]
+fn generative_lock_cannot_fabricate_duration_terminals() {
+    for forbidden in [
+        "build_sleep_completion_events",
+        "build_work_completion_events",
+        "append_generated_duration_terminals",
+        "generated_duration_completion",
     ] {
-        assert!(
-            continue_arm.contains(&format!("EventKind::{kind}")),
-            "continue-routine arm must still include EventKind::{kind}"
-        );
+        assert_absent(GENERATIVE_LOCK_RS, forbidden);
     }
-    assert!(
-        continue_arm.contains(required_call),
-        "continue-routine materialization arm must require payload_schema_version"
-    );
 }
 
 #[test]

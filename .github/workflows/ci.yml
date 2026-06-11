@@ -96,7 +96,7 @@ jobs:
   mutants-in-diff:
     name: mutation in-diff (lock layer)
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -104,8 +104,14 @@ jobs:
       - name: Check guarded-layer diff
         id: guarded_diff
         run: |
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs)' >/dev/null; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            guarded_range="origin/${{ github.base_ref }}...HEAD"
+          else
+            guarded_range="HEAD^..HEAD"
+          fi
+          if git diff --name-only "$guarded_range" | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs|crates/tracewake-core/src/actions/defs/(sleep|work)\.rs)' >/dev/null; then
             echo "run_mutants=true" >> "$GITHUB_OUTPUT"
+            echo "guarded_range=$guarded_range" >> "$GITHUB_OUTPUT"
           else
             echo "run_mutants=false" >> "$GITHUB_OUTPUT"
           fi
@@ -125,13 +131,26 @@ jobs:
       - name: Run guarded-layer mutants in diff
         if: steps.guarded_diff.outputs.run_mutants == 'true'
         run: |
-          git diff origin/${{ github.base_ref }}...HEAD > "$RUNNER_TEMP/pr.diff"
+          git diff "${{ steps.guarded_diff.outputs.guarded_range }}" > "$RUNNER_TEMP/guarded.diff"
           # cargo-mutants exits 2 on any miss; apply the same ratchet as the
           # scheduled job, but match on file+mutation+function (drop line:col)
           # so accepted baseline misses aren't re-flagged when lines shift.
-          cargo mutants --in-diff "$RUNNER_TEMP/pr.diff" --no-shuffle || true
+          set +e
+          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle
+          mutants_status=$?
+          set -e
+          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ]; then
+            echo "cargo-mutants failed with status $mutants_status; this is a tool/run failure, not a passing mutation gate."
+            find mutants.out -maxdepth 2 -type f -print || true
+            exit "$mutants_status"
+          fi
+          if [ ! -d mutants.out ] || ! find mutants.out -type f -print -quit | grep -q .; then
+            echo "cargo-mutants produced no output artifacts for a guarded diff."
+            exit 1
+          fi
           if [ ! -f mutants.out/missed.txt ]; then
-            echo "No missed.txt produced — all in-diff mutants caught."; exit 0
+            echo "No missed.txt produced and cargo-mutants exited 0; all in-diff mutants were caught."
+            exit 0
           fi
           strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$1" | sort -u; }
           new_misses="$(comm -23 <(strip mutants.out/missed.txt) <(strip .cargo/mutants-baseline-misses.txt))"
@@ -166,6 +185,8 @@ jobs:
             -f 'crates/tracewake-core/src/scheduler*' \
             -f 'crates/tracewake-core/src/projections*' \
             -f 'crates/tracewake-core/src/actions/pipeline.rs' \
+            -f 'crates/tracewake-core/src/actions/defs/sleep.rs' \
+            -f 'crates/tracewake-core/src/actions/defs/work.rs' \
             --no-shuffle
       - name: Check missed-mutant baseline
         run: |
