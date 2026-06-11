@@ -91,7 +91,12 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
     assert!(notebook.source_bound_beliefs.is_empty());
     assert!(!view.holder_known_context_source_summary.contains("debug"));
     for actor_surface in [rendered_view.as_str(), rendered_notebook.as_str()] {
-        assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
+        let without_marked_context = actor_surface
+            .lines()
+            .filter(|line| !line.starts_with("Knowledge context: DEBUG NON-DIEGETIC"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(!without_marked_context.contains("DEBUG NON-DIEGETIC"));
         assert!(!actor_surface.contains("food_hidden_pantry"));
         assert!(!actor_surface.contains("debug_omniscience"));
     }
@@ -423,7 +428,12 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
     assert!(mara_notebook.typed_leads.is_empty());
     assert!(mara_notebook.source_bound_beliefs.is_empty());
     for actor_surface in [mara_rendered_view.as_str(), mara_rendered_notebook.as_str()] {
-        assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
+        let without_marked_context = actor_surface
+            .lines()
+            .filter(|line| !line.starts_with("Knowledge context: DEBUG NON-DIEGETIC"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(!without_marked_context.contains("DEBUG NON-DIEGETIC"));
         assert!(!actor_surface.contains("belief_tomas"));
     }
     assert!(mara_view
@@ -445,6 +455,58 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
         debug_surfaces_checked: vec!["debug_item_location"],
         expected_result: "rebind_changes_controller_only",
         contamination_failure_mode: "actor_a_notebook_and_debug_truth_absent_from_actor_b_context",
+    };
+    artifact.assert_complete();
+}
+
+#[test]
+fn adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not() {
+    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let blocked_action = SemanticActionId::new("check.container.strongbox_tomas").unwrap();
+    let rejected = app.submit_semantic_action(&blocked_action).unwrap();
+    let tomas_view = app.current_view().unwrap();
+
+    assert_eq!(rejected.report.status, ReportStatus::Rejected);
+    assert!(tomas_view.last_rejection_summary.is_some());
+    assert!(tomas_view.last_rejection_why_not.is_some());
+
+    app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
+    let mara_view = app.current_view().unwrap();
+    let mara_rendered_view = app.render_current_view().unwrap();
+
+    assert_eq!(mara_view.viewer_actor_id.as_str(), "actor_mara");
+    assert_eq!(mara_view.last_rejection_summary, None);
+    assert_eq!(mara_view.last_rejection_why_not, None);
+    assert!(!mara_rendered_view.contains("Why-not:"));
+    assert!(!mara_rendered_view.contains("Why-not facts:"));
+
+    let artifact = AdversarialReviewArtifact {
+        responsible_layer: "tui_input_binding",
+        scenario_id: "expectation_contradiction_001",
+        actor_id: mara_view.viewer_actor_id.as_str().to_string(),
+        controller_id: Some("controller_human"),
+        context_id: mara_view.holder_known_context_id.as_str().to_string(),
+        context_hash: mara_view.holder_known_context_hash.as_str().to_string(),
+        semantic_id: Some(blocked_action.to_string()),
+        typed_reason_codes: rejected
+            .report
+            .reason_codes
+            .iter()
+            .map(|reason| reason.stable_id().to_string())
+            .collect(),
+        provenance_refs: rejected
+            .report
+            .actor_visible_facts
+            .iter()
+            .map(tracewake_core::actions::CheckedFact::render_pair)
+            .collect(),
+        debug_capability_present: mara_view.debug_available,
+        actor_surfaces_checked: vec!["embodied_view.last_rejection", "rendered_why_not"],
+        debug_surfaces_checked: vec!["debug_action_rejection"],
+        expected_result: "rebind_after_rejection_clears_previous_actor_why_not",
+        contamination_failure_mode: "actor_a_rejection_absent_from_actor_b_context",
     };
     artifact.assert_complete();
 }

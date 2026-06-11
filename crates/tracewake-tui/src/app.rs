@@ -150,6 +150,7 @@ impl TuiApp {
             &self.content_manifest_id,
         );
         self.bound_actor_id = Some(actor_id);
+        self.last_rejection = None;
         Ok(())
     }
 

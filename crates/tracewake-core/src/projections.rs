@@ -343,6 +343,8 @@ pub fn build_embodied_view_model(
     last_rejection: Option<&ValidationReport>,
 ) -> Result<EmbodiedViewModel, ProjectionError> {
     let viewer_actor_id = context.viewer_actor_id();
+    let viewer_rejection =
+        last_rejection.filter(|report| report.actor_id.as_ref() == Some(viewer_actor_id));
     let sim_tick = context.current_tick();
     let state = source.state;
     let agent_state = source.agent_state;
@@ -488,8 +490,8 @@ pub fn build_embodied_view_model(
         local_actors,
         semantic_actions,
         phase3a_status: agent_state.map(|agent_state| phase3a_status(agent_state, viewer_actor_id)),
-        last_rejection_summary: last_rejection.map(|report| report.actor_visible_summary.clone()),
-        last_rejection_why_not: last_rejection.map(WhyNotView::from),
+        last_rejection_summary: viewer_rejection.map(|report| report.actor_visible_summary.clone()),
+        last_rejection_why_not: viewer_rejection.map(WhyNotView::from),
         holder_known_context_id: context.holder_known_context_id().clone(),
         holder_known_context_hash: context.holder_known_context_hash().clone(),
         holder_known_context_frontier: context.event_frontier(),
@@ -1079,7 +1081,7 @@ fn with_validator_availability(
                 report.validation_report_id.as_str(),
             ),
         ];
-        provenance_refs.extend(report.checked_facts.iter().map(|fact| {
+        provenance_refs.extend(report.actor_visible_facts.iter().map(|fact| {
             ActionAvailabilityProvenance::new(
                 ActionAvailabilityProvenanceKind::ValidatorFact,
                 fact.render_pair(),
@@ -1648,6 +1650,113 @@ mod tests {
         assert_eq!(
             entry.availability.actor_safe_summary(),
             Some("The door is closed.")
+        );
+    }
+
+    #[test]
+    fn rejection_report_must_match_viewer_before_embodied_projection_renders_it() {
+        use crate::actions::pipeline::PipelineStage;
+        use crate::actions::{ReasonCode, ReportStatus};
+        use crate::ids::{ProposalId, ValidationReportId};
+
+        let state = state();
+        let context = KnowledgeContext::embodied_at_frontier_with_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![crate::epistemics::ActorKnownRouteFact::new(
+                place_id("shop_front"),
+                place_id("back_room"),
+                "visible_exit",
+            )],
+        );
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+        let mismatched_report = ValidationReport {
+            validation_report_id: ValidationReportId::new("validation_report_wrong_actor").unwrap(),
+            proposal_id: ProposalId::new("proposal_wrong_actor").unwrap(),
+            actor_id: Some(actor_id("actor_mara")),
+            action_id: ActionId::new("move").unwrap(),
+            target_ids: vec!["back_room".to_string()],
+            status: ReportStatus::Rejected,
+            failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
+            reason_codes: vec![ReasonCode::DoorClosedBlocksMovement],
+            checked_facts: Vec::new(),
+            actor_visible_facts: Vec::new(),
+            debug_only_facts: Vec::new(),
+            actor_visible_summary: "The door is closed.".to_string(),
+            debug_summary: "wrong actor report".to_string(),
+            would_mutate: false,
+            event_ids: Vec::new(),
+            checksum_before: None,
+            checksum_after: None,
+        };
+        let matching_report = ValidationReport {
+            actor_id: Some(actor_id("actor_tomas")),
+            validation_report_id: ValidationReportId::new("validation_report_right_actor").unwrap(),
+            proposal_id: ProposalId::new("proposal_right_actor").unwrap(),
+            ..mismatched_report.clone()
+        };
+
+        let mismatched_view = build_embodied_view_model(
+            &context,
+            &source,
+            &registry(),
+            &content_manifest_id(),
+            Some(&mismatched_report),
+        )
+        .unwrap();
+        let matching_view = build_embodied_view_model(
+            &context,
+            &source,
+            &registry(),
+            &content_manifest_id(),
+            Some(&matching_report),
+        )
+        .unwrap();
+
+        assert_eq!(mismatched_view.last_rejection_summary, None);
+        assert_eq!(mismatched_view.last_rejection_why_not, None);
+        assert_eq!(
+            matching_view.last_rejection_summary.as_deref(),
+            Some("The door is closed.")
+        );
+        assert!(matching_view.last_rejection_why_not.is_some());
+    }
+
+    #[test]
+    fn disabled_embodied_availability_provenance_uses_actor_visible_facts_only() {
+        let mut state = state();
+        state
+            .doors
+            .get_mut(&DoorId::new("door_shop_back").unwrap())
+            .unwrap()
+            .is_open = false;
+
+        let view = view_for(&state);
+        let entry = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "move.to.back_room")
+            .unwrap();
+        let rendered_refs = entry
+            .availability
+            .provenance_refs()
+            .iter()
+            .map(|reference| reference.reference.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(
+            !rendered_refs.is_empty(),
+            "disabled availability must carry provenance"
+        );
+        assert!(
+            !rendered_refs
+                .iter()
+                .any(|reference| reference.contains("holder_known_context_hash")),
+            "debug-only validator facts must not become embodied availability provenance"
         );
     }
 

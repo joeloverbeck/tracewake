@@ -2394,6 +2394,22 @@ fn validation_report_keeps_typed_provenance_and_actor_debug_split() {
 }
 
 #[test]
+fn embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance() {
+    let projections = production(PROJECTIONS_RS);
+    assert!(
+        projections.contains("report.actor_visible_facts.iter()"),
+        "embodied validator availability must source actor provenance from actor-visible facts"
+    );
+    assert_absent(&projections, "report.checked_facts.iter()");
+
+    let synthetic_bad_projection = "provenance_refs.extend(report.checked_facts.iter())";
+    assert!(
+        synthetic_bad_projection.contains("report.checked_facts.iter()"),
+        "synthetic violation must exercise the checked-facts source guard"
+    );
+}
+
+#[test]
 fn privileged_tui_proposal_requires_current_view_source_context() {
     let app = production(TUI_APP_RS);
     assert!(

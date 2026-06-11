@@ -31,7 +31,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         lines.push(format!("Why-not: {summary}"));
     }
     lines.push(format!(
-        "Knowledge context: id={} hash={} tick={} frontier={} sources={}",
+        "Knowledge context: DEBUG NON-DIEGETIC id={} hash={} tick={} frontier={} sources={}",
         view.holder_known_context_id.as_str(),
         view.holder_known_context_hash.as_str(),
         view.sim_tick.value(),
@@ -400,5 +400,39 @@ mod tests {
 
         assert!(rendered
             .contains("Interruption: sleep_interrupted at tick 8: Sleep interrupted by hunger"));
+    }
+
+    #[test]
+    fn renderer_marks_knowledge_context_frontier_non_diegetic() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(rendered.contains("Knowledge context: DEBUG NON-DIEGETIC"));
+        assert!(rendered.contains("frontier=0"));
     }
 }

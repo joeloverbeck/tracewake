@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-001: Possession-rebind rejection hygiene, embodied provenance partition, and frontier marking
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (`app`, `render`), `tracewake-core` (`projections`, anti-regression guard); `docs/3-reference/01_DESIGN_RISK_REGISTER.md` Watch entry; conformance-index row
@@ -179,3 +179,31 @@ possession rebind-rejection gate conformance row to
 1. `cargo test -p tracewake-tui --test adversarial_gates`
 2. `cargo test -p tracewake-core projections`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- `TuiApp::bind_actor` now clears `last_rejection`, so host-side why-not state cannot survive a possession rebind.
+- `build_embodied_view_model` now renders rejection summaries/why-not details only when the `ValidationReport.actor_id` matches the current viewer.
+- Embodied action availability provenance now extends from `report.actor_visible_facts`, not the unfiltered `report.checked_facts`; a source guard bans production `projections.rs` reads from `report.checked_facts.iter()`.
+- The embodied "Knowledge context" render line now marks the global frontier as `DEBUG NON-DIEGETIC`, and existing leakage tests were narrowed to allow only that explicitly marked line.
+- Added the 0021 possession-rebind conformance row and the `R-29 — Guard Vacuity / Decorative Locks` risk-register watch entry.
+
+Deviations from original plan:
+
+- The frontier-marking branch was chosen instead of deriving a viewer-scoped frontier.
+- The core provenance test proves non-empty disabled-action provenance plus absence of the debug-only context-hash fact, while the source guard proves the exact actor-visible field source. The live disabled-action provenance shape does not expose a stable actor-visible fact string beyond the guardable source path.
+
+Verification results:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-tui --test adversarial_gates` — passed.
+- `cargo test -p tracewake-core projections` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards checked_facts -- --nocapture` — passed.
+- `cargo test -p tracewake-tui render` — initially exposed stale render expectations; after test updates, the relevant render and TUI acceptance coverage passed.
+- `cargo test -p tracewake-tui --test embodied_flow` — passed.
+- `cargo test -p tracewake-tui --test tui_acceptance` — passed.
+- `cargo test --workspace` — passed.

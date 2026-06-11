@@ -343,6 +343,16 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Retirement criteria:** Retire only for a specific defect family after the shared rule and family-level guard exist; the general risk remains Watch for hardening passes.
 - **Status / review cadence:** Watch. Review during ticket reassessment, implementation closeout, and spec acceptance.
 
+### R-29 — Guard Vacuity / Decorative Locks
+
+- **Why it matters:** A lock can assert the presence, count, hash, or hand-maintained shape of an artifact while never proving the forbidden behavior would fail. Green checks then create confidence without enforcement.
+- **Symptoms:** A guard checks only that a table, list, baseline, policy row, hash, or ledger entry exists; a source scan has no synthetic negative; a policy table has no behavioral caller; a mutation or census ratchet cannot fire in the actual CI path.
+- **Mitigation / guardrails:** Every new lock must include a synthetic negative or live behavior case proving it fails when the protected behavior regresses. Prefer derived membership and path-under-test execution over hand-maintained artifact assertions.
+- **Evidence to watch:** Source guards, mutation baselines, policy tables, ledger parity checks, conformance rows, and acceptance reports whose assertions are only presence, shape, or count checks.
+- **Escalation trigger:** Any new or modified guard has no behavioral negative, no synthetic failing case, and no explanation for why a negative cannot be built.
+- **Retirement criteria:** Do not retire globally. A specific guard family may retire only after its negative cases and path-under-test evidence are durable.
+- **Status / review cadence:** Watch. Review during lock-layer, mutation, census, conformance-row, and acceptance-artifact work.
+
 ## Maintenance rule
 
 Add a risk only when a recurring relapse mode needs compact memory across coding, spec writing, fixture authoring, schema review, prompt construction, and gate review. Retire a risk only with named evidence that would catch its return. Do not use this register to define new doctrine, redefine gate semantics, certify code, or create implementation work.
