@@ -119,7 +119,7 @@ Update the `0020 derived apply-arm payload census` conformance row
   `ORD-HARD-085` (ticket 0021PHA3APOSREB-006).
 - The world-applier fail-open catch-all (`ORD-HARD-079` — ticket
   0021PHA3APOSREB-008).
-- Mutation perimeter/baseline guards (ticket 0021PHA3APOSREB-004).
+- Mutation perimeter/baseline guards (`archive/tickets/0021PHA3APOSREB-004.md`).
 
 ## Acceptance Criteria
 

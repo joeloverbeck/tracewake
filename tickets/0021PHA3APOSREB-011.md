@@ -119,7 +119,7 @@ constants.
 
 - Production `run_no_human_day` window semantics (`ORD-HARD-088` — ticket
   0021PHA3APOSREB-012) — coordinate the `scheduler.rs` mechanical merge.
-- Mutation perimeter/baseline (ticket 0021PHA3APOSREB-004).
+- Mutation perimeter/baseline (`archive/tickets/0021PHA3APOSREB-004.md`).
 - New generative masks beyond the access-closure resolution.
 
 ## Acceptance Criteria

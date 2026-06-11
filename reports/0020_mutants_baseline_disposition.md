@@ -8,9 +8,11 @@ The guard normalizes file+mutation+function by stripping line and column numbers
 matching CI ratchet semantics. Every entry below is a justified baseline residence
 for this ticket, not evidence that the behavior is proven.
 
-Disposition key: `justified-baseline` means the mutant remains accepted for the
-current lock-layer baseline and warrants a future focused test-debt ticket before it
-can be removed.
+Disposition keys are closed by `mutation_baseline_misses_are_pinned_and_ledgered`:
+`justified-baseline` means the mutant remains accepted for the current lock-layer
+baseline with a rationale specific enough to survive the repetition bound;
+`warrants-test:<ticket-id>` is reserved for entries already assigned to a real
+follow-up ticket before they can be removed.
 
 - `crates/tracewake-core/src/actions/pipeline.rs: replace && with || in is_body_exclusive_start` — justified-baseline: guarded action-pipeline decision logic warrants a future focused assertion before removing from the accepted baseline.
 - `crates/tracewake-core/src/actions/pipeline.rs: replace == with != in decide_proposal` — justified-baseline: guarded action-pipeline decision logic warrants a future focused assertion before removing from the accepted baseline.

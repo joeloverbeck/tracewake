@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-004: Mutation-CI family — live scheduled ratchet, exclusion-channel guard, honest rationale split, real baseline triage, concurrency exemption
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `.github/workflows/ci.yml`, `.cargo/mutants.toml` (if perimeter widens), `.cargo/mutants-baseline-misses.txt`, `tracewake-core` test oracle (perimeter/baseline guards), baseline disposition ledger, conformance-index mutation rows
@@ -192,3 +192,41 @@ disposition-tag governance) in
 1. `cargo test -p tracewake-core --test anti_regression_guards mutation -- --nocapture`
 2. `cargo mutants --workspace -f 'crates/tracewake-core/src/actions/defs/eat.rs' --no-shuffle -j 2` (focused evidence run; full set per the scheduled job's filters)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+- Revived the scheduled mutation baseline ratchet by capturing `cargo mutants`
+  status, treating status 0/2 as ratchet input, failing other statuses as tool
+  errors, and running the baseline check after accepted misses.
+- Exempted `schedule` and `workflow_dispatch` mutation runs from concurrency
+  cancellation.
+- Hardened the mutation perimeter guard against perimeter-covering
+  `exclude_globs`, comment decoys, narrowed in-diff regexes, missing status
+  capture, `|| true`, false mutation rationales, and missing scheduled baseline
+  checks.
+- Split action-source rationales into a true mutation-perimeter rationale for
+  pipeline/eat/sleep/work and a non-perimeter rationale for the other action
+  files. Recorded choice: `continue_routine.rs`, `takeplace.rs`, and `wait.rs`
+  remain outside the current mutation perimeter with non-mutation rationales; no
+  baseline refresh was needed.
+- Hardened baseline-ledger governance with closed tags, `warrants-test`
+  ticket-existence checks, and exact-rationale repetition bounds.
+- Updated the mutation conformance rows and ledger header to match the enforced
+  contract.
+
+Focused scheduled-shape evidence: `cargo mutants --workspace -f
+'crates/tracewake-core/src/actions/defs/eat.rs' --no-shuffle -j 2` completed
+with 24 mutants tested: 7 missed, 10 caught, 7 unviable. Comparing
+`mutants.out/missed.txt` against `.cargo/mutants-baseline-misses.txt` after
+normalizing line/column positions produced no new misses.
+
+## Verification
+
+- `cargo test -p tracewake-core --test anti_regression_guards mutation -- --nocapture`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/actions/defs/eat.rs' --no-shuffle -j 2` (exit 2; accepted baseline misses only)
+- `comm -23 <(sed -E 's/:[0-9]+:[0-9]+:/:/' mutants.out/missed.txt | sort -u) <(sed -E 's/:[0-9]+:[0-9]+:/:/' .cargo/mutants-baseline-misses.txt | sort -u)` (no output)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
