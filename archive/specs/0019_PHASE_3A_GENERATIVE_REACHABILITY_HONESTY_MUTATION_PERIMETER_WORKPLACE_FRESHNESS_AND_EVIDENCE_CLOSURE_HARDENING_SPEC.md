@@ -1,6 +1,6 @@
 # 0019 Phase 3A Generative Reachability Honesty, Mutation Perimeter, Workplace Freshness, and Evidence Closure Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `5af8660` (post-0018 closeout; all `0018PHA3APROWIT` tickets landed, merge PR #26).
@@ -672,3 +672,31 @@ recording, for the implementation commits:
 - [x] No doctrine amendment; no compatibility shims; no new dependencies; crate direction
   preserved.
 - [x] Scope stays within the Phase 3A ordinary-life surface and its lock/evidence layer.
+
+## Outcome
+
+Completed 2026-06-11.
+
+Implemented through tickets `0019PHA3AGENREA-001` through `0019PHA3AGENREA-009` and
+archived under `archive/tickets/`. The completed work closed payload-version and
+checksum coverage gaps, separated workplace freshness from place-gating, corrected the
+generative reachability contract and 0018 evidence overstatement, added terminal-family
+floors and payload-tamper locks, expanded the sleep/work mutation perimeter with loud CI
+failure semantics, made the no-human witness census bidirectional, constrained blanket
+seed-knowledge helpers with a partial-knowledge fixture, surfaced embodied
+interruptions from viewer-owned episode evidence, and added the scoped acceptance
+artifact at `reports/0019_ord_life_cert_scoped_acceptance.md`.
+
+Deviations from plan: none requiring downgrade. The `0019PHA3AGENREA-008` deferral
+re-check found no active embodied-interruption deferral cite, so the implementation
+branch landed. The focused mutation run over `sleep.rs` and `work.rs` produced no missed
+mutants (`83 mutants tested in 3m: 66 caught, 17 unviable`), so no baseline refresh was
+needed for that focused perimeter.
+
+Verification included the per-ticket targeted commands recorded in the archived ticket
+outcomes and the capstone report. Final gates run for the completed implementation:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace`

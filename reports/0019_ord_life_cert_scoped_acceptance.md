@@ -6,7 +6,7 @@ Target implementation commit under review:
 `b8eb874e46d7b51f7b6a73873c3932fc0f42ba5c`
 
 Scope:
-`specs/0019_PHASE_3A_GENERATIVE_REACHABILITY_HONESTY_MUTATION_PERIMETER_WORKPLACE_FRESHNESS_AND_EVIDENCE_CLOSURE_HARDENING_SPEC.md`
+`archive/specs/0019_PHASE_3A_GENERATIVE_REACHABILITY_HONESTY_MUTATION_PERIMETER_WORKPLACE_FRESHNESS_AND_EVIDENCE_CLOSURE_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the Phase 3A
 generative reachability honesty, mutation perimeter, workplace freshness, evidence
