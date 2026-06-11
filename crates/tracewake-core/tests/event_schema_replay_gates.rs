@@ -172,24 +172,53 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
-fn threshold_crossed_event() -> EventEnvelope {
-    let mut event = caused_event(
-        "event_need_threshold_forged_payload_schema",
-        EventKind::NeedThresholdCrossed,
+fn assert_forged_agent_payload_version_rejected(
+    event_kind: EventKind,
+    schema_key: &'static str,
+    event_id: &str,
+) {
+    let initial_world = world_state();
+    let initial_agent_state = agent_state();
+    let mut forged_live = caused_event(
+        event_id,
+        event_kind,
         0,
         vec![EventCause::Process("process_no_human_day".parse().unwrap())],
     );
-    event.payload = vec![
-        PayloadField::new("payload_schema_version", "1"),
-        PayloadField::new("actor_id", actor_id().as_str()),
-        PayloadField::new("need_kind", "hunger"),
-        PayloadField::new("from_value", "799"),
-        PayloadField::new("to_value", "800"),
-        PayloadField::new("from_band", "moderate"),
-        PayloadField::new("to_band", "severe"),
-        PayloadField::new("candidate_goal_reevaluation", "true"),
-    ];
-    event
+    forged_live.payload = vec![PayloadField::new(schema_key, "2")];
+
+    let mut live_agent = initial_agent_state.clone();
+    assert!(
+        matches!(
+            apply_agent_event(&mut live_agent, &forged_live),
+            Err(ApplyError::BadPayload { key, value }) if key == schema_key && value == "2"
+        ),
+        "{event_kind:?} must reject forged {schema_key}"
+    );
+
+    let mut replay_log = EventLog::new();
+    append_to_log(&mut replay_log, forged_live);
+    let context = checksum_context(event_id, &replay_log);
+    let replay = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &replay_log,
+        &context,
+        Some(&initial_world),
+        None,
+        None,
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(
+        replay.agent_application_errors.iter().any(|failure| {
+            failure.issue.contains("BadPayload")
+                && failure.issue.contains(schema_key)
+                && failure.issue.contains("\"2\"")
+        }),
+        "{:?}",
+        replay.agent_application_errors
+    );
 }
 
 #[test]
@@ -270,105 +299,44 @@ fn duplicate_duration_terminal_poisons_rebuild_001() {
 }
 
 #[test]
-fn forged_payload_schema_version_rejected_for_materialized_agent_replay_001() {
-    let initial_world = world_state();
-    let initial_agent_state = agent_state();
-    let mut log = EventLog::new();
-    let forged = append_to_log(
-        &mut log,
-        caused_event(
-            "event_work_started_forged_payload_schema",
-            EventKind::WorkBlockStarted,
-            0,
-            vec![EventCause::Process("process_no_human_day".parse().unwrap())],
-        ),
-    );
-    let mut forged_live = forged.clone();
-    forged_live.payload = vec![PayloadField::new("payload_schema_version", "2")];
-
-    let mut live_agent = initial_agent_state.clone();
-    assert!(matches!(
-        apply_agent_event(&mut live_agent, &forged_live),
-        Err(ApplyError::BadPayload {
-            key: "payload_schema_version",
-            value
-        }) if value == "2"
-    ));
-
-    let mut replay_log = EventLog::new();
-    append_to_log(&mut replay_log, forged_live);
-    let context = checksum_context(
-        "forged_payload_schema_version_rejected_for_materialized_agent_replay_001",
-        &replay_log,
-    );
-    let replay = run_replay(
-        &initial_world,
-        &initial_agent_state,
-        &replay_log,
-        &context,
-        Some(&initial_world),
-        None,
-        None,
-    );
-
-    assert!(!replay.matches_expected);
-    assert!(
-        replay.agent_application_errors.iter().any(|failure| {
-            failure.issue.contains("BadPayload")
-                && failure.issue.contains("payload_schema_version")
-                && failure.issue.contains("\"2\"")
-        }),
-        "{:?}",
-        replay.agent_application_errors
-    );
+fn forged_payload_schema_version_rejected_for_every_materialized_agent_kind_001() {
+    for (index, event_kind) in [
+        EventKind::NeedThresholdCrossed,
+        EventKind::SleepStarted,
+        EventKind::SleepCompleted,
+        EventKind::SleepInterrupted,
+        EventKind::FoodServiceUsed,
+        EventKind::EatFailed,
+        EventKind::WorkBlockStarted,
+        EventKind::WorkBlockCompleted,
+        EventKind::WorkBlockFailed,
+        EventKind::CandidateGoalsEvaluated,
+        EventKind::ContinueRoutineProposed,
+        EventKind::ContinueRoutineAccepted,
+        EventKind::ContinueRoutineRejected,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_forged_agent_payload_version_rejected(
+            event_kind,
+            "payload_schema_version",
+            &format!("event_forged_payload_schema_{index}"),
+        );
+    }
 }
 
 #[test]
-fn forged_threshold_payload_schema_version_rejected_for_materialized_agent_replay_001() {
-    let initial_world = world_state();
-    let initial_agent_state = agent_state();
-    let mut forged_live = threshold_crossed_event();
-    forged_live
-        .payload
-        .retain(|field| field.key != "payload_schema_version");
-    forged_live
-        .payload
-        .insert(0, PayloadField::new("payload_schema_version", "2"));
-
-    let mut live_agent = initial_agent_state.clone();
-    assert!(matches!(
-        apply_agent_event(&mut live_agent, &forged_live),
-        Err(ApplyError::BadPayload {
-            key: "payload_schema_version",
-            value
-        }) if value == "2"
-    ));
-
-    let mut replay_log = EventLog::new();
-    append_to_log(&mut replay_log, forged_live);
-    let context = checksum_context(
-        "forged_threshold_payload_schema_version_rejected_for_materialized_agent_replay_001",
-        &replay_log,
+fn forged_trace_and_diagnostic_schema_versions_are_rejected_for_materialized_agent_replay_001() {
+    assert_forged_agent_payload_version_rejected(
+        EventKind::DecisionTraceRecorded,
+        "trace_schema_version",
+        "event_forged_trace_schema",
     );
-    let replay = run_replay(
-        &initial_world,
-        &initial_agent_state,
-        &replay_log,
-        &context,
-        Some(&initial_world),
-        None,
-        None,
-    );
-
-    assert!(!replay.matches_expected);
-    assert!(
-        replay.agent_application_errors.iter().any(|failure| {
-            failure.issue.contains("BadPayload")
-                && failure.issue.contains("payload_schema_version")
-                && failure.issue.contains("\"2\"")
-        }),
-        "{:?}",
-        replay.agent_application_errors
+    assert_forged_agent_payload_version_rejected(
+        EventKind::StuckDiagnosticRecorded,
+        "diagnostic_schema_version",
+        "event_forged_diagnostic_schema",
     );
 }
 

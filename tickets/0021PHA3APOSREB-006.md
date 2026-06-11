@@ -132,7 +132,7 @@ log-sourced `.expect` sites (work.rs ×4, scheduler.rs ×2) to typed errors.
 
 - The world-applier catch-all and derived guard lists (ticket 0021PHA3APOSREB-008) —
   coordinate the `events/apply.rs` mechanical merge.
-- Census mechanics (ticket 0021PHA3APOSREB-003).
+- Census mechanics (`archive/tickets/0021PHA3APOSREB-003.md`).
 - Window credit attribution (`ORD-HARD-088` — ticket 0021PHA3APOSREB-012) —
   coordinate the `scheduler.rs` merge.
 

@@ -130,7 +130,7 @@ Add `sleep_affordances`/`need_model` to `diff_physical_state` and
 
 - The reject-loudly payload posture inside apply arms (ticket 0021PHA3APOSREB-006) —
   coordinate the `events/apply.rs` mechanical merge.
-- Census anchoring (ticket 0021PHA3APOSREB-003).
+- Census anchoring (`archive/tickets/0021PHA3APOSREB-003.md`).
 - New event kinds or schema fields — this ticket populates existing structures.
 
 ## Acceptance Criteria

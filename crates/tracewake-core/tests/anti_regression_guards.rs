@@ -1,5 +1,7 @@
 mod support;
 
+use std::collections::BTreeSet;
+
 use support::{AgentSeed, PhysicalSeed};
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
@@ -115,7 +117,13 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
     TypedColumnClosureExemption {
         map_name: "needs_by_actor",
         anchor: "apply_need_delta",
-        typed_columns: &["actor_id", "need_kind", "delta", "cause_kind"],
+        typed_columns: &[
+            "actor_id",
+            "need_kind",
+            "delta",
+            "cause_kind",
+            "cause_action_id",
+        ],
         rationale: "NeedDeltaApplied materializes typed need columns and does not retain arbitrary semantic payload fields.",
     },
     TypedColumnClosureExemption {
@@ -130,12 +138,17 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
         typed_columns: &[
             "intention_id",
             "actor_id",
+            "status",
+            "source",
             "candidate_goal_id",
+            "selected_goal_id",
+            "selected_routine_method",
             "routine_template_id",
             "current_step",
             "durability_level",
             "start_tick",
             "decision_trace_id",
+            "trace_id",
         ],
         rationale: "IntentionStarted builds the typed Intention record from closed columns rather than retaining event payload fields.",
     },
@@ -148,7 +161,21 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
     TypedColumnClosureExemption {
         map_name: "active_intention_by_actor",
         anchor: "apply_intention_started",
-        typed_columns: &["actor_id", "intention_id"],
+        typed_columns: &[
+            "intention_id",
+            "actor_id",
+            "status",
+            "source",
+            "candidate_goal_id",
+            "selected_goal_id",
+            "selected_routine_method",
+            "routine_template_id",
+            "current_step",
+            "durability_level",
+            "start_tick",
+            "decision_trace_id",
+            "trace_id",
+        ],
         rationale: "The active-intention index is a typed pointer derived from IntentionStarted columns.",
     },
     TypedColumnClosureExemption {
@@ -3329,6 +3356,7 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
         .collect::<Vec<_>>();
     let source = production(EVENTS_APPLY_RS);
     let sites = agent_state_map_write_sites(&source, &covered_maps);
+    let rebound_errors = agent_state_map_rebound_errors(&source, &covered_maps);
     let errors = materialized_agent_apply_arm_version_errors(
         &source,
         &sites,
@@ -3350,6 +3378,11 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
         "materialized AgentState map writes without version gate or typed-column exemption:\n{}",
         errors.join("\n")
     );
+    assert!(
+        rebound_errors.is_empty(),
+        "covered AgentState maps must not be rebound through &mut state.<map> aliases:\n{}",
+        rebound_errors.join("\n")
+    );
 
     let synthetic_source = r#"
         fn apply_synthetic(state: &mut AgentState) {
@@ -3364,6 +3397,85 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
             .iter()
             .any(|error| error.contains("needs_by_actor") && error.contains("apply_synthetic")),
         "synthetic covered-map write without gate or exemption must fail the census"
+    );
+
+    let two_arm_inline_source = r#"
+        fn apply_agent_event_with_capability(state: &mut AgentState, event: &EventEnvelope) {
+            let payload = payload_map(&event.payload);
+            match event.event_type {
+                EventKind::DecisionTraceRecorded => {
+                    require_payload_version(&payload, "trace_schema_version", "1")?;
+                    state.decision_traces.insert(trace_id, record);
+                }
+                EventKind::StuckDiagnosticRecorded => {
+                    state.stuck_diagnostics.insert(diagnostic_id, record);
+                }
+                _ => {}
+            }
+        }
+    "#;
+    let two_arm_sites = agent_state_map_write_sites(
+        two_arm_inline_source,
+        &["decision_traces", "stuck_diagnostics"],
+    );
+    let two_arm_errors =
+        materialized_agent_apply_arm_version_errors(two_arm_inline_source, &two_arm_sites, &[]);
+    assert!(
+        two_arm_errors
+            .iter()
+            .any(|error| error.contains("stuck_diagnostics")
+                && error.contains("EventKind::StuckDiagnosticRecorded")),
+        "synthetic second inline arm without its own gate must fail per-arm anchoring"
+    );
+
+    let retain_source = r#"
+        fn apply_synthetic(state: &mut AgentState) {
+            state.needs_by_actor.retain(|_, _| true);
+        }
+    "#;
+    let retain_sites = agent_state_map_write_sites(retain_source, &["needs_by_actor"]);
+    let retain_errors =
+        materialized_agent_apply_arm_version_errors(retain_source, &retain_sites, &[]);
+    assert!(
+        retain_errors
+            .iter()
+            .any(|error| error.contains("needs_by_actor") && error.contains("retain")),
+        "synthetic retain-shaped covered-map write must fail the inverted write scan"
+    );
+
+    let rebound_source = r#"
+        fn apply_synthetic(state: &mut AgentState) {
+            let needs = &mut state.needs_by_actor;
+            needs.insert(actor_id, values);
+        }
+    "#;
+    let rebound_errors = agent_state_map_rebound_errors(rebound_source, &["needs_by_actor"]);
+    assert!(
+        rebound_errors
+            .iter()
+            .any(|error| error.contains("needs_by_actor")),
+        "synthetic &mut state.<map> rebound must fail the source guard"
+    );
+
+    let payload_fields_source = r#"
+        fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
+            state.ordinary_life_episodes.insert(event.event_id.clone(), OrdinaryLifeEpisodeRecord {
+                payload_fields: payload_fields(event),
+            });
+        }
+    "#;
+    let payload_fields_sites =
+        agent_state_map_write_sites(payload_fields_source, &["ordinary_life_episodes"]);
+    let payload_fields_errors = materialized_agent_apply_arm_version_errors(
+        payload_fields_source,
+        &payload_fields_sites,
+        &[],
+    );
+    assert!(
+        payload_fields_errors
+            .iter()
+            .any(|error| error.contains("payload_fields")),
+        "synthetic payload_fields retention outside a gated materialized arm must fail"
     );
 }
 
@@ -3389,6 +3501,50 @@ fn typed_column_closure_exemptions_are_rationale_bearing_and_live() {
             exemption.map_name
         );
     }
+    let errors =
+        typed_column_closure_exemption_errors(EVENTS_APPLY_RS, TYPED_COLUMN_CLOSURE_EXEMPTIONS);
+    assert!(
+        errors.is_empty(),
+        "typed-column exemptions must list every consumed payload key and avoid raw payload retention:\n{}",
+        errors.join("\n")
+    );
+
+    let synthetic_source = r#"
+        fn apply_synthetic(state: &mut AgentState, payload: &BTreeMap<&str, &str>) {
+            let value = required(payload, "unlisted_key")?;
+            state.intentions.insert(intention_id, value);
+        }
+    "#;
+    let synthetic_exemptions = [TypedColumnClosureExemption {
+        map_name: "intentions",
+        anchor: "apply_synthetic",
+        typed_columns: &["intention_id"],
+        rationale: "synthetic exemption with an omitted consumed key",
+    }];
+    let synthetic_errors =
+        typed_column_closure_exemption_errors(synthetic_source, &synthetic_exemptions);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("unlisted_key")),
+        "synthetic exemption consuming an unlisted payload key must fail"
+    );
+
+    let synthetic_payload_fields_source = r#"
+        fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
+            state.intentions.insert(intention_id, intention_with(payload_fields(event)));
+        }
+    "#;
+    let synthetic_payload_fields_errors = typed_column_closure_exemption_errors(
+        synthetic_payload_fields_source,
+        &synthetic_exemptions,
+    );
+    assert!(
+        synthetic_payload_fields_errors
+            .iter()
+            .any(|error| error.contains("payload_fields")),
+        "synthetic exempted helper retaining payload_fields must fail"
+    );
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -3399,6 +3555,16 @@ struct AgentStateMapWriteSite {
     index: usize,
 }
 
+const AGENT_STATE_MAP_READ_METHODS: &[&str] = &[
+    "contains_key",
+    "get",
+    "is_empty",
+    "iter",
+    "keys",
+    "len",
+    "values",
+];
+
 fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<AgentStateMapWriteSite> {
     let scan_source = normalized_source(source).replace(" .", ".");
     let mut sites = Vec::new();
@@ -3408,17 +3574,18 @@ fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<Agent
         while let Some(relative_index) = scan_source[search_start..].find(&map_token) {
             let index = search_start + relative_index;
             let after = &scan_source[index + map_token.len()..];
-            let Some(write_method) = ["insert(", "entry(", "get_mut("]
-                .into_iter()
-                .find(|method| after.starts_with(method))
-            else {
+            let method_name = after
+                .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                .next()
+                .unwrap_or("");
+            if method_name.is_empty() || AGENT_STATE_MAP_READ_METHODS.contains(&method_name) {
                 search_start = index + map_token.len();
                 continue;
-            };
+            }
             sites.push(AgentStateMapWriteSite {
                 map_name: (*map_name).to_string(),
                 anchor: enclosing_apply_anchor(&scan_source, index),
-                write_token: format!("{map_token}{write_method}"),
+                write_token: format!("{map_token}{method_name}("),
                 index,
             });
             search_start = index + map_token.len();
@@ -3438,6 +3605,19 @@ fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<Agent
     sites
 }
 
+fn agent_state_map_rebound_errors(source: &str, covered_maps: &[&str]) -> Vec<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    covered_maps
+        .iter()
+        .filter_map(|map_name| {
+            let token = format!("&mut state.{map_name}");
+            scan_source
+                .contains(&token)
+                .then(|| format!("{map_name} is rebound through {token}"))
+        })
+        .collect()
+}
+
 fn enclosing_apply_anchor(scan_source: &str, index: usize) -> String {
     let prefix = &scan_source[..index];
     let fn_start = prefix
@@ -3453,7 +3633,7 @@ fn enclosing_apply_anchor(scan_source: &str, index: usize) -> String {
         .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
         .next()
         .unwrap_or("unknown");
-    if fn_name != "apply_agent_event" {
+    if !fn_name.starts_with("apply_agent_event") {
         return fn_name.to_string();
     }
     prefix
@@ -3473,7 +3653,7 @@ fn materialized_agent_apply_arm_version_errors(
     exemptions: &[TypedColumnClosureExemption],
 ) -> Vec<String> {
     let scan_source = normalized_source(source).replace(" .", ".");
-    sites
+    let mut errors = sites
         .iter()
         .filter_map(|site| {
             if apply_write_site_has_version_gate(&scan_source, site) {
@@ -3489,7 +3669,12 @@ fn materialized_agent_apply_arm_version_errors(
                 site.map_name, site.anchor, site.write_token
             ))
         })
-        .collect()
+        .collect::<Vec<_>>();
+    errors.extend(payload_fields_outside_gated_materialized_sites(
+        &scan_source,
+        sites,
+    ));
+    errors
 }
 
 fn apply_write_site_has_version_gate(scan_source: &str, site: &AgentStateMapWriteSite) -> bool {
@@ -3507,6 +3692,158 @@ fn apply_write_site_has_version_gate(scan_source: &str, site: &AgentStateMapWrit
         || segment.contains(r#"require_payload_version(&payload, "trace_schema_version", "1")"#)
         || segment
             .contains(r#"require_payload_version(&payload, "diagnostic_schema_version", "1")"#)
+}
+
+fn payload_fields_outside_gated_materialized_sites(
+    scan_source: &str,
+    sites: &[AgentStateMapWriteSite],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut search_start = 0;
+    while let Some(relative_index) = scan_source[search_start..].find("payload_fields(") {
+        let index = search_start + relative_index;
+        let anchor = enclosing_apply_anchor(scan_source, index);
+        if anchor == "payload_fields" {
+            search_start = index + "payload_fields(".len();
+            continue;
+        }
+        let anchored_site = sites
+            .iter()
+            .filter(|site| site.index <= index && site.anchor == anchor)
+            .max_by_key(|site| site.index);
+        if !anchored_site.is_some_and(|site| apply_write_site_has_version_gate(scan_source, site)) {
+            errors.push(format!(
+                "payload_fields at byte {index} is outside a gated materialized write site"
+            ));
+        }
+        search_start = index + "payload_fields(".len();
+    }
+    errors
+}
+
+fn consumed_payload_keys_for_anchor(source: &str, anchor: &str) -> BTreeSet<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    let mut visited = BTreeSet::new();
+    consumed_payload_keys_for_function(&scan_source, anchor, &mut visited)
+}
+
+fn consumed_payload_keys_for_function(
+    scan_source: &str,
+    function_name: &str,
+    visited: &mut BTreeSet<String>,
+) -> BTreeSet<String> {
+    if !visited.insert(function_name.to_string()) {
+        return BTreeSet::new();
+    }
+    let Some(body) = function_body(scan_source, function_name) else {
+        return BTreeSet::new();
+    };
+    let mut keys = literal_payload_keys(body);
+    for callee in payload_helper_calls(body) {
+        if matches!(
+            callee.as_str(),
+            "required" | "expect_bool" | "parse_i32" | "parse_u8" | "parse_u64_agent"
+        ) {
+            continue;
+        }
+        keys.extend(consumed_payload_keys_for_function(
+            scan_source,
+            &callee,
+            visited,
+        ));
+    }
+    keys
+}
+
+fn function_body<'a>(scan_source: &'a str, function_name: &str) -> Option<&'a str> {
+    let marker = format!("fn {function_name}");
+    let after_marker = scan_source.split(&marker).nth(1)?;
+    let start = after_marker.find('{')?;
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_marker[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    end.map(|end| &after_marker[start..end])
+}
+
+fn literal_payload_keys(body: &str) -> BTreeSet<String> {
+    let mut keys = BTreeSet::new();
+    for marker in [
+        r#"required(payload, ""#,
+        r#"required(&payload, ""#,
+        r#"payload.get(""#,
+        r#"payload, ""#,
+    ] {
+        let mut search_start = 0;
+        while let Some(relative_index) = body[search_start..].find(marker) {
+            let value_start = search_start + relative_index + marker.len();
+            if let Some(value_end) = body[value_start..].find('"') {
+                keys.insert(body[value_start..value_start + value_end].to_string());
+            }
+            search_start = value_start;
+        }
+    }
+    keys
+}
+
+fn payload_helper_calls(body: &str) -> BTreeSet<String> {
+    let mut calls = BTreeSet::new();
+    let mut search_start = 0;
+    while let Some(relative_index) = body[search_start..].find("(payload") {
+        let open_index = search_start + relative_index;
+        let prefix = body[..open_index].trim_end();
+        let name_start = prefix
+            .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        let name = &prefix[name_start..];
+        if !name.is_empty() {
+            calls.insert(name.to_string());
+        }
+        search_start = open_index + "(payload".len();
+    }
+    calls
+}
+
+fn typed_column_closure_exemption_errors(
+    source: &str,
+    exemptions: &[TypedColumnClosureExemption],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for exemption in exemptions {
+        let consumed_keys = consumed_payload_keys_for_anchor(source, exemption.anchor);
+        for key in &consumed_keys {
+            if !exemption.typed_columns.contains(&key.as_str()) {
+                errors.push(format!(
+                    "{} exemption for {} consumes unlisted payload key {key}",
+                    exemption.anchor, exemption.map_name
+                ));
+            }
+        }
+        if function_body(
+            &normalized_source(source).replace(" .", "."),
+            exemption.anchor,
+        )
+        .is_some_and(|body| body.contains("payload_fields("))
+        {
+            errors.push(format!(
+                "{} exemption for {} retains raw payload_fields",
+                exemption.anchor, exemption.map_name
+            ));
+        }
+    }
+    errors
 }
 
 #[test]

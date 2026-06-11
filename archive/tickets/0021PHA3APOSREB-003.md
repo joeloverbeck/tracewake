@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-003: Per-arm census anchoring, inverted write-shape scan, and exemption-key derivation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test oracle (`tests/anti_regression_guards.rs`); conformance-index row update
@@ -157,3 +157,33 @@ Update the `0020 derived apply-arm payload census` conformance row
 1. `cargo test -p tracewake-core --test anti_regression_guards materialized_agent_apply_arms_require_payload_schema_version -- --nocapture`
 2. `cargo test -p tracewake-core --test event_schema_replay_gates`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+- Fixed inline apply-arm anchoring so `apply_agent_event*` write sites anchor to
+  the nearest preceding `EventKind::` arm instead of the function body.
+- Replaced the covered-map write scan with a fail-closed non-read method scan,
+  plus guards for `&mut state.<map>` rebinding and raw `payload_fields(` outside
+  gated materialized writes.
+- Added derived exemption-key checks for `TYPED_COLUMN_CLOSURE_EXEMPTIONS` and
+  corrected the exemption key lists for need deltas and intention starts.
+- Added synthetic failures for ungated second inline arms, `retain` writes,
+  rebound aliases, raw payload retention, and unlisted consumed payload keys.
+- Extended event-schema replay gates across all payload-gated materialized agent
+  event kinds, plus trace and diagnostic schema gates.
+- Updated the `0020 derived apply-arm payload census` architecture conformance
+  row to describe the stricter lock.
+
+No production apply/replay behavior changed; this ticket strengthened the source
+oracle and behavioral coverage around existing gated/exempted arms.
+
+## Verification
+
+- `cargo test -p tracewake-core --test anti_regression_guards materialized_agent_apply_arms_require_payload_schema_version -- --nocapture`
+- `cargo test -p tracewake-core --test anti_regression_guards typed_column_closure_exemptions_are_rationale_bearing_and_live -- --nocapture`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core --test event_schema_replay_gates`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -148,8 +148,8 @@ disposition-tag governance) in
 
 ## Out of Scope
 
-- Census mechanics (ticket 0021PHA3APOSREB-003) — same guard file, different guard
-  functions; coordinate the mechanical merge.
+- Census mechanics (`archive/tickets/0021PHA3APOSREB-003.md`) — same guard file,
+  different guard functions; coordinate the mechanical merge.
 - Writing the surfaced test-debt *tests* themselves where they exceed this ticket's
   reviewable size — those land via the authored follow-up tickets.
 - Generative-tier locks (ticket 0021PHA3APOSREB-011).
