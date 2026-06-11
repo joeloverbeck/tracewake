@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-008: Capstone — 0020 scoped acceptance artifact and the first EMERGE-OBS ledger baseline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — new acceptance report under `reports/`; new read-only emergence-ledger derivation (test/report code only, no kernel behavior); no schema or event changes
@@ -139,3 +139,30 @@ entry, not `FIRST-PROOF-CERT`).
 2. `cargo test --workspace` (full pipeline at the capstone commit)
 3. Targeted re-runs of each sibling ticket's named acceptance tests while composing
    the report (evidence quoted from actual runs, not memory)
+
+## Outcome
+
+Completed on 2026-06-11.
+
+Changed:
+
+- Added `crates/tracewake-core/tests/emergence_ledger.rs`, a read-only EMERGE-OBS
+  derivation over the 12 `GENERATIVE_SEEDS` no-human runs. The test derives per-row
+  and corpus-total counters from `EventKind` and typed payload fields, proves
+  re-derivation identity, and proves byte identity after canonical event-log
+  serialization/deserialization.
+- Added `reports/0020_ord_life_cert_scoped_acceptance.md`, matching the 0019 scoped
+  acceptance-artifact shape and recording all spec §7 items 1-11, including the
+  first EMERGE-OBS baseline and explicit non-certification statement.
+- Recorded the core/content boundary honestly in the report: the ledger is core-only
+  over the generated no-human corpus; content canonical no-human fixtures remain
+  covered separately by content golden fixture tests and the workspace gate.
+
+Verification:
+
+- `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+- `rg -n "EmergeObs|emerge_obs|emergence_ledger" crates/tracewake-core/src crates/tracewake-content/src crates/tracewake-tui/src` (no production call sites; exit 1 with no matches)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
