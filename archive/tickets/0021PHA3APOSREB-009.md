@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-009: Content-crate integrity — duplicate-assignment rejection, contract-prose reconciliation, canonical-encoding hygiene
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`schema`, `validate`, `serialization`, five wrapper fixtures, fixture tests)
@@ -65,6 +65,59 @@ today).
    shape change). The recorded choice and its additive-vs-breaking consequence land
    in this ticket's closure note; if the flag is chosen, its consumers are updated
    in this same ticket (local atomic unit).
+
+## Implementation Outcome (2026-06-11)
+
+1. Added validation-time rejection for the authored collisions that previously
+   collapsed silently:
+   - Duplicate `(actor_id, routine family)` routine assignments now emit
+     `duplicate_actor_routine_family`.
+   - Actors whose IDs collapse to the same routine-assignment suffix, such as
+     `actor_mara` and `mara`, now emit `ambiguous_actor_assignment_suffix`; if they
+     would derive the same intention/execution suffix, validation also emits
+     `routine_assignment_id_collision`.
+   - Same-actor routine assignments with the same `start_tick` now emit
+     `ambiguous_active_routine_assignment`.
+2. Recorded and implemented the no-schema active-intention rule: valid fixtures may
+   author sequential routine assignments for one actor, and the loader derives the
+   active fixture intention from the earliest authored assignment `start_tick`.
+   Equal-start ties are rejected before `to_agent_state`. The loader now asserts
+   validated uniqueness for generated intention/execution IDs and no longer uses
+   `entry().or_insert` or the missing-template `continue` path.
+3. Reconciled the five hidden-truth fixture contracts:
+   - `hidden_food_closed_container_001` keeps the load-bearing
+     `actor_mara -> food_hidden_pantry` known-food edge and now names it
+     truthfully while distinguishing usable target selection from authored
+     knowledge.
+   - `hidden_food_unknown_route_001`, `hidden_route_edge_001`,
+     `debug_omniscience_excluded_001`, and
+     `workplace_assignment_provenance_001` dropped the unrelated
+     `with_actor_mara_known_hidden_food` wrapper and their setup text now states
+     the absence or irrelevance of that edge.
+   - Added a fixture-aware contract metadata check that rejects contract prose that
+     denies an authored `known_food_sources` seed or omits the seeded actor/food
+     IDs.
+4. Replaced content canonical `SourceRef::Cause` debug formatting with stable
+   `event:`, `proposal:`, `validation_report:`, and `process:` IDs matching event
+   envelope cause IDs. The source kind is still rejected for initial belief seeds
+   by current validation policy; the test pins the latent canonical bytes and
+   grep-proves no content canonical path uses `{cause:?}`.
+5. Replaced substring matching for the no-sleep validation escape hatch with a
+   closed typed diagnostic check. The fixture diagnostic now uses exact
+   `no_sleep_affordance`, and a negative test proves prose-appended variants do
+   not satisfy the gate.
+
+## Verification (2026-06-11)
+
+1. `cargo test -p tracewake-content --test fixtures_load`
+2. `cargo test -p tracewake-content`
+3. `rg -n "format!\\(\\\"\\{cause:\\?\\}\\\"|\\{cause:\\?\\}" crates/tracewake-content/src`
+   returned no matches.
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`
+8. `git diff --check`
 
 ## Architecture Check
 

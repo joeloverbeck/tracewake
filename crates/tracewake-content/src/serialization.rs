@@ -5,7 +5,7 @@ use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineSt
 use tracewake_core::epistemics::{
     Channel, Confidence, PrivacyScope, Proposition, SourceRef, Stance,
 };
-use tracewake_core::events::InitialBeliefSourceKind;
+use tracewake_core::events::{EventCause, InitialBeliefSourceKind};
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, DoorId, EventId, FixtureId, FoodSupplyId, ItemId,
     PlaceId, RoutineTemplateId, SchemaVersion, SleepAffordanceId, WorkplaceId,
@@ -665,7 +665,16 @@ fn source_id(source: &SourceRef) -> String {
     match source {
         SourceRef::Event(event_id) => event_id.as_str().to_string(),
         SourceRef::Action(action_id) => action_id.as_str().to_string(),
-        SourceRef::Cause(cause) => format!("{cause:?}"),
+        SourceRef::Cause(cause) => stable_event_cause_id(cause),
+    }
+}
+
+fn stable_event_cause_id(cause: &EventCause) -> String {
+    match cause {
+        EventCause::Event(id) => format!("event:{}", id.as_str()),
+        EventCause::Proposal(id) => format!("proposal:{}", id.as_str()),
+        EventCause::ValidationReport(id) => format!("validation_report:{}", id.as_str()),
+        EventCause::Process(id) => format!("process:{}", id.as_str()),
     }
 }
 

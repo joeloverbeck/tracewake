@@ -712,6 +712,8 @@ impl FixtureSchema {
         let mut needs_by_actor: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
         let mut intentions = BTreeMap::new();
         let mut active_intention_by_actor = BTreeMap::new();
+        let mut active_intention_candidates: BTreeMap<ActorId, (SimTick, IntentionId)> =
+            BTreeMap::new();
         let mut routine_executions = BTreeMap::new();
         for need in &self.initial_needs {
             needs_by_actor
@@ -735,18 +737,12 @@ impl FixtureSchema {
             }
         }
         for assignment in &self.routine_assignments {
-            let Some(template) = self
+            let template = self
                 .routine_templates
                 .iter()
                 .find(|template| template.template_id == assignment.template_id)
-            else {
-                continue;
-            };
-            let actor_suffix = assignment
-                .actor_id
-                .as_str()
-                .strip_prefix("actor_")
-                .unwrap_or(assignment.actor_id.as_str());
+                .expect("validated routine assignment references existing template");
+            let actor_suffix = routine_assignment_actor_suffix(&assignment.actor_id);
             let family_suffix = routine_family_assignment_suffix(template.family);
             let intention_id =
                 IntentionId::new(format!("intention_{actor_suffix}_{family_suffix}")).unwrap();
@@ -773,25 +769,41 @@ impl FixtureSchema {
                 assignment.start_tick,
                 trace_id.clone(),
             );
-            active_intention_by_actor
+            active_intention_candidates
                 .entry(assignment.actor_id.clone())
-                .or_insert_with(|| intention_id.clone());
-            intentions.entry(intention_id).or_insert(intention);
-            routine_executions
-                .entry(routine_execution_id.clone())
-                .or_insert_with(|| {
-                    RoutineExecution::new(
-                        routine_execution_id,
-                        assignment.actor_id.clone(),
-                        template.template_id.clone(),
-                        template.family,
-                        assignment.start_tick,
-                        Some(assignment.start_tick.next()),
-                        Some(assignment.end_tick),
-                        template.reservable_resource.clone(),
-                        trace_id,
+                .and_modify(|(start_tick, active_intention_id)| {
+                    if assignment.start_tick < *start_tick {
+                        *start_tick = assignment.start_tick;
+                        *active_intention_id = intention_id.clone();
+                    }
+                })
+                .or_insert((assignment.start_tick, intention_id.clone()));
+            assert!(
+                intentions.insert(intention_id, intention).is_none(),
+                "validated routine assignments produce unique intention IDs"
+            );
+            assert!(
+                routine_executions
+                    .insert(
+                        routine_execution_id.clone(),
+                        RoutineExecution::new(
+                            routine_execution_id,
+                            assignment.actor_id.clone(),
+                            template.template_id.clone(),
+                            template.family,
+                            assignment.start_tick,
+                            Some(assignment.start_tick.next()),
+                            Some(assignment.end_tick),
+                            template.reservable_resource.clone(),
+                            trace_id,
+                        ),
                     )
-                });
+                    .is_none(),
+                "validated routine assignments produce unique routine execution IDs"
+            );
+        }
+        for (actor_id, (_start_tick, intention_id)) in active_intention_candidates {
+            active_intention_by_actor.insert(actor_id, intention_id);
         }
         AgentState::from_seed_parts(
             needs_by_actor,
@@ -804,7 +816,14 @@ impl FixtureSchema {
     }
 }
 
-fn routine_family_assignment_suffix(family: RoutineFamily) -> &'static str {
+pub(crate) fn routine_assignment_actor_suffix(actor_id: &ActorId) -> &str {
+    actor_id
+        .as_str()
+        .strip_prefix("actor_")
+        .unwrap_or(actor_id.as_str())
+}
+
+pub(crate) fn routine_family_assignment_suffix(family: RoutineFamily) -> &'static str {
     match family {
         RoutineFamily::MorningWake => "wake",
         RoutineFamily::EatMeal => "eat",

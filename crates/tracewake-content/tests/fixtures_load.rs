@@ -1,6 +1,9 @@
 use std::collections::BTreeSet;
 
-use tracewake_content::fixtures::{self, validate_fixture_contract_metadata};
+use tracewake_content::fixtures::{
+    self, validate_fixture_contract_metadata, validate_golden_fixture_contract_metadata,
+    FixtureContract,
+};
 use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope};
 use tracewake_content::schema::{
     ActorSchema, DayWindowSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
@@ -17,7 +20,7 @@ use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineSt
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::events::apply::apply_epistemic_event;
-use tracewake_core::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
@@ -325,6 +328,120 @@ fn phase3a_fixture() -> FixtureSchema {
             end_tick: SimTick::new(100),
         }],
     }
+}
+
+#[test]
+fn fixture_validation_rejects_duplicate_routine_assignment_family() {
+    let mut fixture = phase3a_fixture();
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("actor_tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+        start_tick: SimTick::new(21),
+        end_tick: SimTick::new(30),
+    });
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "duplicate_actor_routine_family"));
+}
+
+#[test]
+fn fixture_validation_rejects_ambiguous_actor_assignment_suffix_collision() {
+    let mut fixture = phase3a_fixture();
+    fixture.actors.push(ActorSchema {
+        actor_id: ActorId::new("tomas").unwrap(),
+        current_place_id: PlaceId::new("home_tomas").unwrap(),
+    });
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+        start_tick: SimTick::new(21),
+        end_tick: SimTick::new(30),
+    });
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "ambiguous_actor_assignment_suffix"));
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "routine_assignment_id_collision"));
+}
+
+#[test]
+fn fixture_validation_rejects_tied_active_intention_derivation() {
+    let mut fixture = phase3a_fixture();
+    fixture.routine_templates.push(RoutineTemplateSchema {
+        template_id: RoutineTemplateId::new("routine_sleep_shift").unwrap(),
+        family: RoutineFamily::SleepNight,
+        applicability_conditions: Vec::new(),
+        preconditions: Vec::new(),
+        steps: vec![RoutineStep::StartScheduledSleep {
+            action_id: SemanticActionId::new("sleep.bed_tomas").unwrap(),
+        }],
+        min_duration_ticks: 4,
+        max_duration_ticks: 6,
+        interruption_points: vec![0],
+        failure_modes: vec!["sleep_place_blocked".to_string()],
+        fallback_rules: vec!["wait".to_string()],
+        debug_labels: vec!["phase3a_schema_sample".to_string()],
+        reservable_resource: Some("body".to_string()),
+    });
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("actor_tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_sleep_shift").unwrap(),
+        start_tick: SimTick::new(10),
+        end_tick: SimTick::new(30),
+    });
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "ambiguous_active_routine_assignment"));
+}
+
+#[test]
+fn source_ref_cause_uses_stable_typed_canonical_encoding() {
+    let mut fixture = phase3a_fixture();
+    fixture.initial_beliefs.push(InitialBeliefSchema {
+        belief_id: BeliefId::new("belief_cause_source_probe").unwrap(),
+        holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+        proposition: Proposition::ItemLocatedAtPlace {
+            item_id: "coin_stack_01".parse().unwrap(),
+            place_id: "home_tomas".parse().unwrap(),
+        },
+        stance: tracewake_core::epistemics::Stance::BelievesTrue,
+        confidence: Confidence::new(900).unwrap(),
+        source_kind: tracewake_core::events::InitialBeliefSourceKind::AuthoredPrehistory,
+        source: SourceRef::Cause(EventCause::Process(
+            ProcessId::new("process_fixture_cause").unwrap(),
+        )),
+        channel: None,
+        acquired_tick: SimTick::ZERO,
+        last_verified_tick: None,
+        privacy_scope: tracewake_core::epistemics::PrivacyScope::ActorPrivate(
+            ActorId::new("actor_tomas").unwrap(),
+        ),
+        schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+    });
+    fixture.canonicalize();
+
+    let bytes = serialize_fixture(&fixture);
+    let rendered = String::from_utf8(bytes).unwrap();
+
+    assert!(rendered.contains("process:process_fixture_cause"));
+    assert!(!rendered.contains("Process("));
 }
 
 #[test]
@@ -908,6 +1025,64 @@ fn every_fixture_declares_contract_actions_reports_and_assertions() {
         assert!(!golden.contract.expected_events_or_reports.is_empty());
         assert!(!golden.contract.acceptance_assertions.is_empty());
     }
+}
+
+#[test]
+fn hidden_truth_fixture_contracts_match_authored_known_food_edges() {
+    for golden in [
+        fixtures::hidden_food_closed_container_001(),
+        fixtures::hidden_food_unknown_route_001(),
+        fixtures::hidden_route_edge_001(),
+        fixtures::debug_omniscience_excluded_001(),
+        fixtures::workplace_assignment_provenance_001(),
+    ] {
+        assert_eq!(
+            validate_golden_fixture_contract_metadata(&golden),
+            Vec::new(),
+            "{} contract should match authored known_food_sources",
+            golden.contract.fixture_id
+        );
+    }
+
+    assert_eq!(
+        fixtures::hidden_food_closed_container_001()
+            .fixture
+            .known_food_sources
+            .len(),
+        1,
+        "closed-container fixture keeps the load-bearing known-food edge"
+    );
+    for golden in [
+        fixtures::hidden_food_unknown_route_001(),
+        fixtures::hidden_route_edge_001(),
+        fixtures::debug_omniscience_excluded_001(),
+        fixtures::workplace_assignment_provenance_001(),
+    ] {
+        assert!(
+            golden.fixture.known_food_sources.is_empty(),
+            "{} should not carry unrelated known-food seed edges",
+            golden.contract.fixture_id
+        );
+    }
+}
+
+#[test]
+fn known_food_contract_denial_is_rejected() {
+    let mut golden = fixtures::hidden_food_closed_container_001();
+    golden.contract = FixtureContract {
+        fixture_id: "hidden_food_closed_container_001",
+        purpose: "synthetic denial",
+        setup: vec!["no observation or belief reveals the hidden food"],
+        allowed_actions: vec!["synthetic"],
+        expected_events_or_reports: vec!["synthetic"],
+        acceptance_assertions: vec!["synthetic"],
+    };
+
+    let violations = validate_golden_fixture_contract_metadata(&golden);
+
+    assert!(violations
+        .iter()
+        .any(|violation| violation.code == "known_food_contract_denial"));
 }
 
 #[test]
