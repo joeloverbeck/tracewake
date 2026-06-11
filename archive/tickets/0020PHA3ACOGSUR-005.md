@@ -1,6 +1,6 @@
 # 0020PHA3ACOGSUR-005: Transitive food-omniscience helper containment
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-content` (`src/fixtures/mod.rs`, the five wrapper-consumer fixture files, `tests/fixtures_load.rs` census); no core changes
@@ -142,3 +142,24 @@ Extend the census guard with an injection case proving a new indirect consumer
 
 1. `cargo test -p tracewake-content --test fixtures_load`
 2. `cargo test --workspace` (full pipeline; checksum equivalence proven)
+
+## Outcome
+
+Completed 2026-06-11. Implemented the primary path: removed the blanket
+`populate_known_food_sources_for_all_actors` call from
+`hidden_truth_adversarial_fixture`, then authored the equivalent explicit
+`actor_mara` -> `food_hidden_pantry` edge at the five single-actor consumers via
+a narrow fixture helper. No fallback transitive allowlist path was needed.
+
+The fixture census now builds its call-site view from all fixture source files,
+detects non-fixture wrapper functions that call the blanket helper, and includes a
+synthetic indirect-consumer regression proving a new fixture delegating through
+such a wrapper is named by the guard.
+
+Verification:
+
+1. `cargo test -p tracewake-content --test fixtures_load known_food_source_blanket_helper_call_sites_are_allowlisted -- --nocapture`
+2. `cargo test -p tracewake-content --test fixtures_load`
+3. `cargo fmt --all --check`
+4. `cargo test -p tracewake-content --test golden_fixtures_run`
+5. Grep proof: `rg -n "populate_known_food_sources_for_all_actors|hidden_truth_adversarial_fixture\\(" crates/tracewake-content/src/fixtures/mod.rs crates/tracewake-content/src/fixtures/hidden_food_closed_container_001.rs crates/tracewake-content/src/fixtures/hidden_food_unknown_route_001.rs crates/tracewake-content/src/fixtures/hidden_route_edge_001.rs crates/tracewake-content/src/fixtures/debug_omniscience_excluded_001.rs crates/tracewake-content/src/fixtures/workplace_assignment_provenance_001.rs` shows the shared wrapper definition and five explicit consumers, with no blanket-helper call in `mod.rs`.

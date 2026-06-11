@@ -1,7 +1,7 @@
 use crate::fixtures::*;
 
 pub fn workplace_assignment_provenance_001() -> GoldenFixture {
-    hidden_truth_adversarial_fixture(
+    with_actor_mara_known_hidden_food(hidden_truth_adversarial_fixture(
         "workplace_assignment_provenance_001",
         "Prove workplace planning requires assignment or observation provenance, not physical workplace presence alone.",
         vec![
@@ -13,5 +13,5 @@ pub fn workplace_assignment_provenance_001() -> GoldenFixture {
             "physical workplace presence alone is insufficient",
             "routine-assignment provenance is accepted when explicitly modeled",
         ],
-    )
+    ))
 }

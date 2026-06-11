@@ -73,8 +73,8 @@ use crate::load::SourceFile;
 use crate::schema::{
     ActionAffordanceSchema, ActorSchema, ContainerSchema, DayWindowSchema, DoorSchema,
     FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema, InitialBeliefSchema,
-    InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema, RoutineAssignmentSchema,
-    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
+    InitialNeedSchema, ItemSchema, KnownFoodSourceSchema, NeedModelSchema, PlaceSchema,
+    RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
 };
 use crate::serialization::serialize_fixture;
 
@@ -294,7 +294,6 @@ fn hidden_truth_adversarial_fixture(
         )],
         day_windows: vec![day_window_schema("actor_mara", 0, 8)],
     };
-    fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {
         fixture,
@@ -315,6 +314,18 @@ fn hidden_truth_adversarial_fixture(
             acceptance_assertions,
         },
     }
+}
+
+fn with_actor_mara_known_hidden_food(mut golden: GoldenFixture) -> GoldenFixture {
+    golden
+        .fixture
+        .known_food_sources
+        .push(KnownFoodSourceSchema {
+            actor_id: actor("actor_mara"),
+            food_supply_id: FoodSupplyId::new("food_hidden_pantry").unwrap(),
+        });
+    golden.fixture.canonicalize();
+    golden
 }
 
 pub fn validate_fixture_contract_metadata(

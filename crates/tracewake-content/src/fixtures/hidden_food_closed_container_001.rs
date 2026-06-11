@@ -1,7 +1,7 @@
 use crate::fixtures::*;
 
 pub fn hidden_food_closed_container_001() -> GoldenFixture {
-    hidden_truth_adversarial_fixture(
+    with_actor_mara_known_hidden_food(hidden_truth_adversarial_fixture(
         "hidden_food_closed_container_001",
         "Prove food inside a closed opaque container at the actor's place is not actor-known planner input.",
         vec![
@@ -13,5 +13,5 @@ pub fn hidden_food_closed_container_001() -> GoldenFixture {
             "known food sources exclude closed-container physical truth",
             "selected proposal cannot target food_hidden_pantry without provenance",
         ],
-    )
+    ))
 }
