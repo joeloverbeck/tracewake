@@ -911,6 +911,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/inspect.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/movement.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/need_events.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/openclose.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/sleep.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_MUTATION_PERIMETER_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/takeplace.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
@@ -2980,6 +2981,72 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
     ] {
         assert_absent_from_sources(&scheduler_sources, forbidden);
     }
+}
+
+#[test]
+fn guard_006_duration_need_deltas_route_through_shared_emitter() {
+    let violations = direct_duration_need_delta_construction_violations(&core_production_sources());
+    assert!(
+        violations.is_empty(),
+        "wait/sleep/work/window need deltas must be constructed by need_events.rs: {violations:?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
+        r#"
+        fn build_synthetic_delta() -> EventEnvelope {
+            EventEnvelope::new_caused_v1(
+                event_id,
+                EventKind::NeedDeltaApplied,
+                0,
+                0,
+                tick,
+                ordering_key,
+                content_manifest_id,
+                causes,
+            )
+        }
+        "#
+        .to_string(),
+    )];
+    let synthetic_violations =
+        direct_duration_need_delta_construction_violations(&synthetic_sources);
+    assert!(
+        !synthetic_violations.is_empty(),
+        "synthetic direct NeedDeltaApplied construction must fail this guard"
+    );
+}
+
+fn direct_duration_need_delta_construction_violations(sources: &[(String, String)]) -> Vec<String> {
+    const GUARDED_PATHS: &[&str] = &[
+        "crates/tracewake-core/src/actions/defs/wait.rs",
+        "crates/tracewake-core/src/actions/defs/sleep.rs",
+        "crates/tracewake-core/src/actions/defs/work.rs",
+        "crates/tracewake-core/src/scheduler.rs",
+    ];
+    sources
+        .iter()
+        .filter(|(path, _)| GUARDED_PATHS.contains(&path.as_str()))
+        .flat_map(|(path, source)| {
+            let normalized = normalized_source(source);
+            let mut violations = Vec::new();
+            let mut search_start = 0;
+            while let Some(relative_index) =
+                normalized[search_start..].find("EventKind::NeedDeltaApplied")
+            {
+                let index = search_start + relative_index;
+                let context_start = index.saturating_sub(300);
+                let context = &normalized[context_start..index];
+                if context.contains("EventEnvelope::new")
+                    || context.contains("EventEnvelope :: new")
+                {
+                    violations.push(format!("{path}: direct NeedDeltaApplied construction"));
+                }
+                search_start = index + "EventKind::NeedDeltaApplied".len();
+            }
+            violations
+        })
+        .collect()
 }
 
 #[test]

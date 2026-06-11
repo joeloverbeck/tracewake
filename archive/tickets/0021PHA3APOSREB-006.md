@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-006: Reject-loudly kernel posture — completion crossing events, authoritative intention validation, typed apply errors
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, `actions/defs/{sleep,work,wait,continue_routine}`, `scheduler` completion paths, shared crossing emitter); golden repricing in `tracewake-content` as surfaced
@@ -177,3 +177,48 @@ log-sourced `.expect` sites (work.rs ×4, scheduler.rs ×2) to typed errors.
 1. `cargo test -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test -p tracewake-core need`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome (2026-06-11)
+
+Implemented the reject-loudly posture changes:
+
+1. Added a shared need delta + threshold emitter and routed wait, sleep completion
+   and interruption, work completion and failure, scheduler window passive deltas,
+   and the standalone passive need-delta helper through it. The emitter records
+   `NeedThresholdCrossed` for both increasing and decreasing band crossings, and the
+   source guard now rejects direct duration-path `NeedDeltaApplied` construction
+   outside the shared route.
+2. Changed continue-routine validation to consult authoritative `AgentState`
+   intention state and reject absent, mismatched, or terminal active intentions
+   instead of trusting proposer-supplied `intention_status`.
+3. Converted corrupt-history handling to typed errors: duplicate tick charges and
+   malformed `elapsed_ticks` now return `ApplyError`; missing
+   `RoleAssignmentNoticeRecorded.access_open`,
+   `IntentionContinued.current_step`, and
+   `RoutineStepTransition.progress_tick` are required and reject live/replay
+   application instead of silently defaulting.
+4. Removed log-sourced panics from work and scheduled completion paths by returning
+   typed errors or failed completion reports when payloads are missing or malformed.
+5. Repriced affected goldens once. The TUI no-human-day metric changed from
+   `need_crossings=2` to `need_crossings=4`, and the stale self-reported
+   continue-routine fixture now observes the generic `ActionRejected` path after
+   authoritative validation.
+
+Verification run and passing:
+
+1. `cargo test -p tracewake-core continue_routine`
+2. `cargo test -p tracewake-core work`
+3. `cargo test -p tracewake-core sleep`
+4. `cargo test -p tracewake-core wait`
+5. `cargo test -p tracewake-core need_events`
+6. `cargo test -p tracewake-core --test event_schema_replay_gates`
+7. `cargo test -p tracewake-core --test anti_regression_guards guard_006_duration_need_deltas_route_through_shared_emitter`
+8. `cargo test -p tracewake-core scheduler::no_human::tests`
+9. `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_fixture_has_roster_activity_and_metrics_envelope`
+10. `cargo test -p tracewake-core --test acceptance_gates integrated_no_human_day_capstone_emerges_from_one_autonomous_run`
+11. `cargo test -p tracewake-core --test no_human_capstone`
+12. `cargo test -p tracewake-tui --test tui_acceptance tui_runs_no_human_day_and_inspects_real_post_run_panels`
+13. `cargo fmt --all --check`
+14. `cargo clippy --workspace --all-targets -- -D warnings`
+15. `cargo build --workspace --all-targets --locked`
+16. `cargo test --workspace`

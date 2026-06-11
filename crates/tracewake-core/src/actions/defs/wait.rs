@@ -1,8 +1,11 @@
+use crate::actions::defs::need_events::{
+    build_need_delta_and_threshold_events, NeedDeltaEventSpec,
+};
 use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::{Proposal, ProposalOrigin};
 use crate::actions::report::{CheckedFact, ReasonCode};
-use crate::agent::{NeedBand, NeedKind, NeedState};
+use crate::agent::{NeedKind, NeedState};
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContentManifestId, EventId};
 use crate::scheduler::OrderingKey;
@@ -103,16 +106,30 @@ pub fn build_wait_events(
             )
         })?;
     let deltas = passive_awake_need_deltas(state.need_model(), tick_count);
-    let threshold_events = build_threshold_events(
+    let hunger_events = build_wait_need_events(
         agent_state,
         proposal,
         ordering_key,
         content_manifest_id,
         &actor_id,
         tick_count,
-        deltas,
+        NeedKind::Hunger,
+        deltas.hunger_delta,
     );
-    let reevaluate = !threshold_events.is_empty();
+    let fatigue_events = build_wait_need_events(
+        agent_state,
+        proposal,
+        ordering_key,
+        content_manifest_id,
+        &actor_id,
+        tick_count,
+        NeedKind::Fatigue,
+        deltas.fatigue_delta,
+    );
+    let reevaluate = hunger_events
+        .iter()
+        .chain(fatigue_events.iter())
+        .any(|event| event.event_type == EventKind::NeedThresholdCrossed);
 
     let mut event = EventEnvelope::new_v1(
         EventId::new(format!(
@@ -141,25 +158,8 @@ pub fn build_wait_events(
     event.effects_summary = format!("actor waited deterministic ticks: {reason}");
 
     let mut events = vec![event];
-    events.push(build_need_delta_event(
-        proposal,
-        ordering_key,
-        content_manifest_id,
-        &actor_id,
-        tick_count,
-        NeedKind::Hunger,
-        deltas.hunger_delta,
-    ));
-    events.push(build_need_delta_event(
-        proposal,
-        ordering_key,
-        content_manifest_id,
-        &actor_id,
-        tick_count,
-        NeedKind::Fatigue,
-        deltas.fatigue_delta,
-    ));
-    events.extend(threshold_events);
+    events.extend(hunger_events);
+    events.extend(fatigue_events);
     Ok(events)
 }
 
@@ -170,7 +170,9 @@ fn is_autonomous_wait(proposal: &Proposal) -> bool {
     )
 }
 
-fn build_need_delta_event(
+#[allow(clippy::too_many_arguments)]
+fn build_wait_need_events(
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -178,75 +180,51 @@ fn build_need_delta_event(
     tick_count: u64,
     need_kind: NeedKind,
     delta: i32,
-) -> EventEnvelope {
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new(format!(
-            "event.need_delta.{}.{}.{}",
-            need_kind.stable_id(),
-            actor_id.as_str(),
-            proposal.proposal_id.as_str()
-        ))
-        .unwrap(),
-        EventKind::NeedDeltaApplied,
-        0,
-        0,
-        proposal.requested_tick.advance_by(tick_count),
-        ordering_key.clone(),
-        content_manifest_id.clone(),
-        vec![EventCause::Proposal(proposal.proposal_id.clone())],
-    )
-    .unwrap();
-    event.actor_id = Some(actor_id.clone());
-    event.proposal_id = Some(proposal.proposal_id.clone());
-    event.participants = vec![actor_id.to_string()];
-    event.payload = vec![
-        PayloadField::new("actor_id", actor_id.as_str()),
-        PayloadField::new("need_kind", need_kind.stable_id()),
-        PayloadField::new("delta", delta.to_string()),
-        PayloadField::new("elapsed_ticks", tick_count.to_string()),
-        PayloadField::new("cause_kind", "tick_delta"),
-    ];
-    event.effects_summary = format!(
-        "{} rose by {} over {} wait ticks",
-        need_kind.stable_id(),
-        delta,
-        tick_count
-    );
-    event
-}
-
-fn build_threshold_events(
-    agent_state: &AgentState,
-    proposal: &Proposal,
-    ordering_key: &OrderingKey,
-    content_manifest_id: &ContentManifestId,
-    actor_id: &crate::ids::ActorId,
-    tick_count: u64,
-    deltas: crate::time::PassiveNeedDeltas,
 ) -> Vec<EventEnvelope> {
-    [
-        (NeedKind::Hunger, deltas.hunger_delta),
-        (NeedKind::Fatigue, deltas.fatigue_delta),
-    ]
-    .into_iter()
-    .filter_map(|(need_kind, delta)| {
-        let current = need_value(agent_state, actor_id, need_kind)?;
-        let next = current.saturating_add(delta.max(0) as u16).min(1000);
-        let crossing = NeedState::threshold_crossing(current, next)?;
-        Some(build_threshold_event(
-            proposal,
-            ordering_key,
-            content_manifest_id,
-            actor_id,
-            tick_count,
+    let current = need_value(agent_state, actor_id, need_kind);
+    build_need_delta_and_threshold_events(
+        NeedDeltaEventSpec {
+            event_id: EventId::new(format!(
+                "event.need_delta.{}.{}.{}",
+                need_kind.stable_id(),
+                actor_id.as_str(),
+                proposal.proposal_id.as_str()
+            ))
+            .unwrap(),
+            threshold_event_id: EventId::new(format!(
+                "event.need_threshold.{}.{}.{}",
+                need_kind.stable_id(),
+                actor_id.as_str(),
+                proposal.proposal_id.as_str()
+            ))
+            .unwrap(),
+            tick: proposal.requested_tick.advance_by(tick_count),
+            ordering_key: ordering_key.clone(),
+            content_manifest_id: content_manifest_id.clone(),
+            causes: vec![EventCause::Proposal(proposal.proposal_id.clone())],
+            actor_id: actor_id.clone(),
+            proposal_id: Some(proposal.proposal_id.clone()),
+            process_id: None,
+            participants: vec![actor_id.to_string()],
             need_kind,
-            current,
-            next,
-            crossing.from,
-            crossing.to,
-        ))
-    })
-    .collect()
+            delta,
+            elapsed_ticks: tick_count,
+            cause_kind: "tick_delta".to_string(),
+            cause_action_id: None,
+            extra_payload: Vec::new(),
+            delta_effects_summary: format!(
+                "{} rose by {} over {} wait ticks",
+                need_kind.stable_id(),
+                delta,
+                tick_count
+            ),
+            threshold_effects_summary: format!(
+                "{} crossed threshold during wait",
+                need_kind.stable_id()
+            ),
+        },
+        current,
+    )
 }
 
 fn need_value(
@@ -259,58 +237,6 @@ fn need_value(
         .get(actor_id)
         .and_then(|needs| needs.get(&need_kind))
         .map(NeedState::value)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn build_threshold_event(
-    proposal: &Proposal,
-    ordering_key: &OrderingKey,
-    content_manifest_id: &ContentManifestId,
-    actor_id: &crate::ids::ActorId,
-    tick_count: u64,
-    need_kind: NeedKind,
-    from_value: u16,
-    to_value: u16,
-    from_band: NeedBand,
-    to_band: NeedBand,
-) -> EventEnvelope {
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new(format!(
-            "event.need_threshold.{}.{}.{}",
-            need_kind.stable_id(),
-            actor_id.as_str(),
-            proposal.proposal_id.as_str()
-        ))
-        .unwrap(),
-        EventKind::NeedThresholdCrossed,
-        0,
-        0,
-        proposal.requested_tick.advance_by(tick_count),
-        ordering_key.clone(),
-        content_manifest_id.clone(),
-        vec![EventCause::Proposal(proposal.proposal_id.clone())],
-    )
-    .unwrap();
-    event.actor_id = Some(actor_id.clone());
-    event.proposal_id = Some(proposal.proposal_id.clone());
-    event.participants = vec![actor_id.to_string()];
-    event.payload = vec![
-        PayloadField::new("payload_schema_version", "1"),
-        PayloadField::new("actor_id", actor_id.as_str()),
-        PayloadField::new("need_kind", need_kind.stable_id()),
-        PayloadField::new("from_value", from_value.to_string()),
-        PayloadField::new("to_value", to_value.to_string()),
-        PayloadField::new("from_band", from_band.stable_id()),
-        PayloadField::new("to_band", to_band.stable_id()),
-        PayloadField::new("candidate_goal_reevaluation", "true"),
-    ];
-    event.effects_summary = format!(
-        "{} crossed {} to {} during wait",
-        need_kind.stable_id(),
-        from_band.stable_id(),
-        to_band.stable_id()
-    );
-    event
 }
 
 #[cfg(test)]

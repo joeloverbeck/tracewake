@@ -673,6 +673,7 @@ mod tests {
                 PayloadField::new("actor_id", actor_id.as_str()),
                 PayloadField::new("workplace_id", workplace_id().as_str()),
                 PayloadField::new("place_id", workshop.as_str()),
+                PayloadField::new("access_open", "true"),
             ],
         ))
         .unwrap();
@@ -825,6 +826,7 @@ mod tests {
                 PayloadField::new("actor_id", actor_id.as_str()),
                 PayloadField::new("workplace_id", workplace_id().as_str()),
                 PayloadField::new("place_id", workshop.as_str()),
+                PayloadField::new("access_open", "true"),
             ],
         ))
         .unwrap();

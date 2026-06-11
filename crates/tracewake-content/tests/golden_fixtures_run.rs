@@ -1938,7 +1938,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     assert!(has_event(&log, EventKind::ActorMoved));
     assert!(has_event(&log, EventKind::WorkBlockCompleted));
     assert!(has_event(&log, EventKind::WorkBlockFailed));
-    assert!(has_event(&log, EventKind::ContinueRoutineProposed));
+    assert!(has_event(&log, EventKind::ActionRejected));
     assert!(has_event(&log, EventKind::NeedThresholdCrossed));
 
     let blocked = log

@@ -8,8 +8,8 @@ use tracewake_core::actions::{
     ProposalOrigin, ProposalSource, ProposalSourceContext, ReasonCode, ReportStatus,
 };
 use tracewake_core::agent::{
-    current_place_knowledge_context, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
-    RoutineFamily,
+    current_place_knowledge_context, Intention, IntentionSource, NeedChangeCause, NeedKind,
+    NeedState, RoutineExecution, RoutineFamily,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
@@ -20,10 +20,10 @@ use tracewake_core::events::{
     EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
 };
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, ControllerId,
-    DecisionTraceId, EventId, FixtureId, FoodSupplyId, ItemId, PlaceId, ProposalId,
-    RoutineExecutionId, RoutineTemplateId, SemanticActionId, SleepAffordanceId, ViewModelId,
-    WorkplaceId,
+    ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
+    ControllerId, DecisionTraceId, EventId, FixtureId, FoodSupplyId, IntentionId, ItemId, PlaceId,
+    ProposalId, RoutineExecutionId, RoutineTemplateId, SemanticActionId, SleepAffordanceId,
+    ViewModelId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -117,6 +117,27 @@ fn agent_state() -> AgentState {
         .collect(),
     );
     state.build()
+}
+
+fn agent_state_with_active_intention() -> AgentState {
+    let base = agent_state();
+    let mut seed = AgentSeed::from_state(&base);
+    let intention_id = IntentionId::new("intention_workday").unwrap();
+    let intention = Intention::adopt(
+        intention_id.clone(),
+        actor_id(),
+        IntentionSource::FixtureRoutineAssignment,
+        CandidateGoalId::new("goal_workday").unwrap(),
+        Some(RoutineTemplateId::new("routine_workday").unwrap()),
+        Some("move".to_string()),
+        5,
+        SimTick::new(1),
+        DecisionTraceId::new("trace_workday").unwrap(),
+    );
+    seed.active_intention_by_actor_mut()
+        .insert(actor_id(), intention_id.clone());
+    seed.intentions_mut().insert(intention_id, intention);
+    seed.build()
 }
 
 fn phase3a_registry() -> ActionRegistry {
@@ -402,6 +423,7 @@ fn capstone_seed_log(content_manifest_id: &ContentManifestId) -> EventLog {
             PayloadField::new("actor_id", actor_id.as_str()),
             PayloadField::new("workplace_id", workplace_id.as_str()),
             PayloadField::new("place_id", place_id),
+            PayloadField::new("access_open", "true"),
         ];
         log.append(event).unwrap();
     }
@@ -1194,7 +1216,7 @@ fn continue_routine_marker_alone_is_not_behavioral_progress() {
     let mut registry = registry();
     registry.register_phase3a_continue_routine();
     let mut state = state(true, true);
-    let mut agent_state = agent_state();
+    let mut agent_state = agent_state_with_active_intention();
     let mut log = EventLog::new();
     let mut proposal = Proposal::new(
         ProposalId::new("proposal_continue_marker_only").unwrap(),

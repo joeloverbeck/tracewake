@@ -127,6 +127,14 @@ impl AgentSeed {
         &mut self.routine_executions
     }
 
+    pub fn intentions_mut(&mut self) -> &mut BTreeMap<IntentionId, Intention> {
+        &mut self.intentions
+    }
+
+    pub fn active_intention_by_actor_mut(&mut self) -> &mut BTreeMap<ActorId, IntentionId> {
+        &mut self.active_intention_by_actor
+    }
+
     pub fn build(self) -> AgentState {
         AgentState::from_seed_parts(
             self.needs_by_actor,

@@ -4,14 +4,21 @@ use std::collections::BTreeSet;
 
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::{BlockerCode, NeedChangeCause, NeedKind, NeedState, ResponsibleLayer};
+use tracewake_core::agent::{
+    BlockerCode, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
+    ResponsibleLayer, RoutineExecution, RoutineFamily,
+};
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
-use tracewake_core::events::apply::{apply_agent_event, ApplyError};
+use tracewake_core::epistemics::EpistemicProjection;
+use tracewake_core::events::apply::{
+    apply_agent_event, apply_epistemic_event, ApplyError, EpistemicApplyError,
+};
 use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream, PayloadField};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId, ItemId,
-    PlaceId, SchemaVersion,
+    ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
+    DecisionTraceId, EventId, FixtureId, IntentionId, ItemId, PlaceId, RoutineExecutionId,
+    RoutineTemplateId, SchemaVersion, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -142,6 +149,45 @@ fn agent_state() -> AgentState {
     seed.build()
 }
 
+fn agent_state_with_active_intention_and_routine() -> AgentState {
+    let base = agent_state();
+    let mut seed = AgentSeed::from_state(&base);
+    let intention_id = IntentionId::new("intention_breakfast").unwrap();
+    let routine_execution_id = RoutineExecutionId::new("routine_exec_breakfast").unwrap();
+    let routine_template_id = RoutineTemplateId::new("routine_eat_meal").unwrap();
+    seed.active_intention_by_actor_mut()
+        .insert(actor_id(), intention_id.clone());
+    seed.intentions_mut().insert(
+        intention_id.clone(),
+        Intention::adopt(
+            intention_id,
+            actor_id(),
+            IntentionSource::CandidateGoalSelection,
+            CandidateGoalId::new("goal_breakfast").unwrap(),
+            Some(routine_template_id.clone()),
+            Some("check_known_container".to_string()),
+            5,
+            SimTick::ZERO,
+            DecisionTraceId::new("trace_breakfast").unwrap(),
+        ),
+    );
+    seed.routine_executions_mut().insert(
+        routine_execution_id.clone(),
+        RoutineExecution::new(
+            routine_execution_id,
+            actor_id(),
+            routine_template_id,
+            RoutineFamily::EatMeal,
+            SimTick::ZERO,
+            Some(SimTick::new(1)),
+            Some(SimTick::new(5)),
+            None,
+            DecisionTraceId::new("trace_breakfast").unwrap(),
+        ),
+    );
+    seed.build()
+}
+
 fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
     ChecksumContext {
         fixture_id: FixtureId::new(fixture_id).unwrap(),
@@ -162,6 +208,52 @@ fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
 
 fn append_to_log(log: &mut EventLog, event: EventEnvelope) -> EventEnvelope {
     log.append(event).unwrap()
+}
+
+fn assert_rebuild_agent_error(
+    fixture_id: &str,
+    initial_agent_state: &AgentState,
+    log: &EventLog,
+    expected_issue: &str,
+) {
+    let initial_world = world_state();
+    let context = checksum_context(fixture_id, log);
+    let replay = rebuild_projection(
+        &initial_world,
+        initial_agent_state,
+        log,
+        &context,
+        Some(&initial_world),
+    );
+    assert!(
+        replay
+            .agent_application_errors
+            .iter()
+            .any(|failure| failure.issue.contains(expected_issue)),
+        "{:?}",
+        replay.agent_application_errors
+    );
+}
+
+fn assert_rebuild_epistemic_error(log: &EventLog, expected_issue: &str) {
+    let initial_world = world_state();
+    let initial_agent_state = agent_state();
+    let context = checksum_context("epistemic_corrupt_history_rejects", log);
+    let replay = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        log,
+        &context,
+        Some(&initial_world),
+    );
+    assert!(
+        replay
+            .epistemic_application_errors
+            .iter()
+            .any(|failure| failure.contains(expected_issue)),
+        "{:?}",
+        replay.epistemic_application_errors
+    );
 }
 
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
@@ -234,6 +326,177 @@ fn unsupported_event_schema_append_rejected() {
         ))
     );
     assert!(log.events().is_empty());
+}
+
+#[test]
+fn duplicate_need_tick_charge_rejects_live_and_replay_001() {
+    let initial_agent_state = agent_state();
+    let mut live_agent = initial_agent_state.clone();
+    let mut first = caused_event(
+        "event_need_delta_duplicate_first",
+        EventKind::NeedDeltaApplied,
+        0,
+        vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+    );
+    first.sim_tick = SimTick::new(5);
+    first.payload = vec![
+        PayloadField::new("actor_id", actor_id().as_str()),
+        PayloadField::new("need_kind", "hunger"),
+        PayloadField::new("delta", "10"),
+        PayloadField::new("elapsed_ticks", "2"),
+        PayloadField::new("cause_kind", "action_effect"),
+        PayloadField::new("cause_action_id", "wait"),
+    ];
+    let mut duplicate = first.clone();
+    duplicate.event_id = EventId::new("event_need_delta_duplicate_second").unwrap();
+
+    assert_eq!(
+        apply_agent_event(&mut live_agent, &first),
+        Ok(tracewake_core::events::apply::ApplyOutcome::Applied)
+    );
+    assert!(matches!(
+        apply_agent_event(&mut live_agent, &duplicate),
+        Err(ApplyError::DuplicateNeedTickCharge {
+            need_kind: NeedKind::Hunger,
+            tick: 4,
+            ..
+        })
+    ));
+
+    let mut log = EventLog::new();
+    append_to_log(&mut log, first);
+    append_to_log(&mut log, duplicate);
+    assert_rebuild_agent_error(
+        "duplicate_need_tick_charge_rejects_live_and_replay_001",
+        &initial_agent_state,
+        &log,
+        "DuplicateNeedTickCharge",
+    );
+}
+
+#[test]
+fn malformed_elapsed_ticks_rejects_live_and_replay_001() {
+    let initial_agent_state = agent_state();
+    let mut forged = caused_event(
+        "event_need_delta_malformed_elapsed_ticks",
+        EventKind::NeedDeltaApplied,
+        0,
+        vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+    );
+    forged.payload = vec![
+        PayloadField::new("actor_id", actor_id().as_str()),
+        PayloadField::new("need_kind", "hunger"),
+        PayloadField::new("delta", "10"),
+        PayloadField::new("elapsed_ticks", "two"),
+        PayloadField::new("cause_kind", "action_effect"),
+        PayloadField::new("cause_action_id", "wait"),
+    ];
+
+    let mut live_agent = initial_agent_state.clone();
+    assert_eq!(
+        apply_agent_event(&mut live_agent, &forged),
+        Err(ApplyError::MalformedElapsedTicks("two".to_string()))
+    );
+
+    let mut log = EventLog::new();
+    append_to_log(&mut log, forged);
+    assert_rebuild_agent_error(
+        "malformed_elapsed_ticks_rejects_live_and_replay_001",
+        &initial_agent_state,
+        &log,
+        "MalformedElapsedTicks",
+    );
+}
+
+#[test]
+fn missing_intention_continued_current_step_rejects_live_and_replay_001() {
+    let initial_agent_state = agent_state_with_active_intention_and_routine();
+    let mut forged = caused_event(
+        "event_intention_continued_missing_current_step",
+        EventKind::IntentionContinued,
+        0,
+        vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+    );
+    forged.payload = vec![
+        PayloadField::new("intention_id", "intention_breakfast"),
+        PayloadField::new("status", "active"),
+        PayloadField::new("reason", "continue routine"),
+        PayloadField::new("progress_tick", "3"),
+    ];
+
+    let mut live_agent = initial_agent_state.clone();
+    assert_eq!(
+        apply_agent_event(&mut live_agent, &forged),
+        Err(ApplyError::MissingPayload("current_step"))
+    );
+
+    let mut log = EventLog::new();
+    append_to_log(&mut log, forged);
+    assert_rebuild_agent_error(
+        "missing_intention_continued_current_step_rejects_live_and_replay_001",
+        &initial_agent_state,
+        &log,
+        "MissingPayload(\"current_step\")",
+    );
+}
+
+#[test]
+fn missing_routine_step_progress_tick_rejects_live_and_replay_001() {
+    let initial_agent_state = agent_state_with_active_intention_and_routine();
+    let mut forged = caused_event(
+        "event_routine_step_started_missing_progress_tick",
+        EventKind::RoutineStepStarted,
+        0,
+        vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+    );
+    forged.payload = vec![
+        PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+        PayloadField::new("action_id", "check_container.pantry"),
+    ];
+
+    let mut live_agent = initial_agent_state.clone();
+    assert_eq!(
+        apply_agent_event(&mut live_agent, &forged),
+        Err(ApplyError::MissingPayload("progress_tick"))
+    );
+
+    let mut log = EventLog::new();
+    append_to_log(&mut log, forged);
+    assert_rebuild_agent_error(
+        "missing_routine_step_progress_tick_rejects_live_and_replay_001",
+        &initial_agent_state,
+        &log,
+        "MissingPayload(\"progress_tick\")",
+    );
+}
+
+#[test]
+fn missing_role_assignment_access_open_rejects_live_and_replay_001() {
+    let mut forged = caused_event(
+        "event_role_notice_missing_access_open",
+        EventKind::RoleAssignmentNoticeRecorded,
+        0,
+        vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+    );
+    forged.payload = vec![
+        PayloadField::new("schema_version", "event_schema_v1"),
+        PayloadField::new("actor_id", actor_id().as_str()),
+        PayloadField::new(
+            "workplace_id",
+            WorkplaceId::new("workshop_tomas").unwrap().as_str(),
+        ),
+        PayloadField::new("place_id", PlaceId::new("shop_front").unwrap().as_str()),
+    ];
+
+    let mut projection = EpistemicProjection::new(manifest_id());
+    assert_eq!(
+        apply_epistemic_event(&mut projection, &forged),
+        Err(EpistemicApplyError::MissingPayload("access_open"))
+    );
+
+    let mut log = EventLog::new();
+    append_to_log(&mut log, forged);
+    assert_rebuild_epistemic_error(&log, "MissingPayload(\"access_open\")");
 }
 
 #[test]

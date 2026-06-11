@@ -546,6 +546,7 @@ fn capstone_seed_log(content_manifest_id: &ContentManifestId) -> EventLog {
             PayloadField::new("actor_id", actor_id.as_str()),
             PayloadField::new("workplace_id", workplace_id.as_str()),
             PayloadField::new("place_id", place_id),
+            PayloadField::new("access_open", "true"),
         ];
         log.append(event).unwrap();
     }

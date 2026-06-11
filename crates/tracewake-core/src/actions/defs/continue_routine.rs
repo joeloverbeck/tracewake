@@ -2,13 +2,15 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
+use crate::agent::IntentionStatus;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
-use crate::ids::{ActionId, ContentManifestId, EventId, IntentionId, RoutineExecutionId};
+use crate::ids::{ActionId, ActorId, ContentManifestId, EventId, IntentionId, RoutineExecutionId};
 use crate::scheduler::OrderingKey;
-use crate::state::PhysicalState;
+use crate::state::{AgentState, PhysicalState};
 
 pub fn build_continue_routine_event(
     state: &PhysicalState,
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -19,21 +21,7 @@ pub fn build_continue_routine_event(
     }
 
     let intention_id = parse_intention_id(proposal)?;
-    let status = proposal
-        .parameters
-        .get("intention_status")
-        .map(String::as_str)
-        .unwrap_or("active");
-    if matches!(status, "completed" | "failed" | "abandoned" | "interrupted") {
-        return Err(reject(
-            PipelineStage::ReservationConflictCheck,
-            ReasonCode::IntentionTerminal,
-            "intention_status",
-            status,
-            "That routine is no longer active.",
-            "continue_routine was requested for a terminal intention",
-        ));
-    }
+    validate_authoritative_intention(agent_state, &actor_id, &intention_id)?;
 
     let next_action_id = parse_next_action_id(proposal)?;
     let routine_execution_id = proposal
@@ -94,6 +82,54 @@ pub fn build_continue_routine_event(
         "continue routine marker only; behavioral progress requires next ordinary action"
             .to_string();
     Ok(event)
+}
+
+fn validate_authoritative_intention(
+    agent_state: &AgentState,
+    actor_id: &ActorId,
+    intention_id: &IntentionId,
+) -> Result<(), ActionRejection> {
+    let Some(active_intention_id) = agent_state.active_intention_by_actor.get(actor_id) else {
+        return Err(reject(
+            PipelineStage::TargetBinding,
+            ReasonCode::NoCurrentIntention,
+            "active_intention_id",
+            "",
+            "There is no active routine to continue.",
+            "continue_routine actor has no authoritative active intention",
+        ));
+    };
+    if active_intention_id != intention_id {
+        return Err(reject(
+            PipelineStage::TargetBinding,
+            ReasonCode::NoCurrentIntention,
+            "active_intention_id",
+            intention_id.as_str(),
+            "There is no active routine to continue.",
+            "continue_routine proposal did not match authoritative active intention",
+        ));
+    }
+    let Some(intention) = agent_state.intentions.get(intention_id) else {
+        return Err(reject(
+            PipelineStage::TargetBinding,
+            ReasonCode::NoCurrentIntention,
+            "active_intention_id",
+            intention_id.as_str(),
+            "There is no active routine to continue.",
+            "continue_routine authoritative intention record was missing",
+        ));
+    };
+    if intention.status != IntentionStatus::Active {
+        return Err(reject(
+            PipelineStage::ReservationConflictCheck,
+            ReasonCode::IntentionTerminal,
+            "authoritative_intention_status",
+            intention.status.stable_id(),
+            "That routine is no longer active.",
+            "continue_routine was requested for a terminal intention",
+        ));
+    }
+    Ok(())
 }
 
 fn parse_intention_id(proposal: &Proposal) -> Result<IntentionId, ActionRejection> {
@@ -176,11 +212,14 @@ mod tests {
     use crate::actions::proposal::{ProposalOrigin, ProposalSource, ProposalSourceContext};
     use crate::actions::registry::ActionRegistry;
     use crate::actions::report::ReportStatus;
-    use crate::agent::current_place_knowledge_context;
+    use crate::agent::{current_place_knowledge_context, Intention, IntentionSource};
     use crate::controller::ControllerBindings;
     use crate::events::log::EventLog;
     use crate::events::EventKind;
-    use crate::ids::{ActorId, ControllerId, PlaceId, ProposalId, SemanticActionId, ViewModelId};
+    use crate::ids::{
+        ActorId, CandidateGoalId, ControllerId, DecisionTraceId, PlaceId, ProposalId,
+        RoutineTemplateId, SemanticActionId, ViewModelId,
+    };
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
     use crate::state::{ActorBody, ControllerMode, PlaceState};
     use crate::time::SimTick;
@@ -221,6 +260,32 @@ mod tests {
             .parameters
             .insert("next_action_id".to_string(), "work_block".to_string());
         proposal
+    }
+
+    fn agent_state_with_intention(status: IntentionStatus) -> AgentState {
+        let mut agent_state = AgentState::default();
+        let intention_id = IntentionId::new("intention_workday").unwrap();
+        let mut intention = Intention::adopt(
+            intention_id.clone(),
+            actor_id(),
+            IntentionSource::FixtureRoutineAssignment,
+            CandidateGoalId::new("goal_workday").unwrap(),
+            Some(RoutineTemplateId::new("routine_workday").unwrap()),
+            Some("work_block".to_string()),
+            5,
+            SimTick::new(1),
+            DecisionTraceId::new("trace_workday").unwrap(),
+        );
+        intention.status = status;
+        agent_state
+            .active_intention_by_actor
+            .insert(actor_id(), intention_id.clone());
+        agent_state.intentions.insert(intention_id, intention);
+        agent_state
+    }
+
+    fn agent_state() -> AgentState {
+        agent_state_with_intention(IntentionStatus::Active)
     }
 
     fn attach_tui_source(proposal: &mut Proposal, state: &PhysicalState) {
@@ -266,6 +331,7 @@ mod tests {
         proposal.parameters.remove("active_intention_id");
         let rejection = build_continue_routine_event(
             &state(),
+            &agent_state(),
             &proposal,
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -277,12 +343,10 @@ mod tests {
 
     #[test]
     fn continue_terminal_intention_rejects_with_summary_reason() {
-        let mut proposal = proposal(ProposalOrigin::Test);
-        proposal
-            .parameters
-            .insert("intention_status".to_string(), "completed".to_string());
+        let proposal = proposal(ProposalOrigin::Test);
         let rejection = build_continue_routine_event(
             &state(),
+            &agent_state_with_intention(IntentionStatus::Completed),
             &proposal,
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -296,6 +360,7 @@ mod tests {
     fn continue_produces_next_action_without_mutating_intention() {
         let event = build_continue_routine_event(
             &state(),
+            &agent_state(),
             &proposal(ProposalOrigin::Test),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -321,6 +386,7 @@ mod tests {
     fn human_and_scheduler_continue_produce_same_next_action() {
         let human = build_continue_routine_event(
             &state(),
+            &agent_state(),
             &proposal(ProposalOrigin::Human),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -328,6 +394,7 @@ mod tests {
         .unwrap();
         let scheduler = build_continue_routine_event(
             &state(),
+            &agent_state(),
             &proposal(ProposalOrigin::Scheduler),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -373,7 +440,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
-                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                agent_state: Box::leak(Box::new(agent_state())),
                 log: &mut log,
                 controller_bindings: bindings.as_ref(),
                 epistemic_projection: None,
@@ -431,7 +498,7 @@ mod tests {
             &mut PipelineContext {
                 registry: &registry,
                 state: &mut state,
-                agent_state: Box::leak(Box::new(crate::state::AgentState::default())),
+                agent_state: Box::leak(Box::new(agent_state())),
                 log: &mut log,
                 controller_bindings: None,
                 epistemic_projection: None,

@@ -651,6 +651,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
             }
             ActionEffect::ContinueRoutine => build_continue_routine_event(
                 context.state,
+                context.agent_state,
                 proposal,
                 context.ordering_key,
                 context.content_manifest_id,
