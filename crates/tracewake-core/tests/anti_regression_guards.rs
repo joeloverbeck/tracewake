@@ -36,6 +36,7 @@ const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
 const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
+const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
@@ -4467,14 +4468,70 @@ fn typed_column_closure_exemption_errors(
 
 #[test]
 fn generative_lock_cannot_fabricate_duration_terminals() {
-    for forbidden in [
+    let sources = [
+        ("generative_lock.rs", GENERATIVE_LOCK_RS),
+        ("support/generative.rs", SUPPORT_GENERATIVE_RS),
+    ];
+    let errors = generative_duration_terminal_fabricator_errors(&sources);
+    assert!(
+        errors.is_empty(),
+        "generative duration-terminal fabricator ban failed: {errors:#?}"
+    );
+
+    let support_fabricator = [(
+        "support/generative.rs",
+        "fn helper() { EventEnvelope::new_v1(id, EventKind::WorkBlockFailed, 0, 0, tick, key, manifest); }",
+    )];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&support_fabricator)
+            .iter()
+            .any(|error| error.contains("support/generative.rs")),
+        "support-file terminal fabricator synthetic must fail"
+    );
+
+    let direct_envelope = [(
+        "generative_lock.rs",
+        "fn helper() { EventEnvelope::new_caused_v1(id, EventKind::SleepCompleted, 0, 0, tick, key, manifest, causes); }",
+    )];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&direct_envelope)
+            .iter()
+            .any(|error| error.contains("directly constructs")),
+        "direct terminal envelope construction synthetic must fail"
+    );
+}
+
+fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> Vec<String> {
+    let banned_helpers = [
         "build_sleep_completion_events",
         "build_work_completion_events",
         "append_generated_duration_terminals",
         "generated_duration_completion",
-    ] {
-        assert_absent(GENERATIVE_LOCK_RS, forbidden);
+    ];
+    let terminal_kinds = [
+        "EventKind::SleepCompleted",
+        "EventKind::SleepInterrupted",
+        "EventKind::WorkBlockCompleted",
+        "EventKind::WorkBlockFailed",
+    ];
+    let mut errors = Vec::new();
+    for (path, source) in sources {
+        for forbidden in banned_helpers {
+            if source.contains(forbidden) {
+                errors.push(format!(
+                    "{path} contains banned fabricator helper {forbidden}"
+                ));
+            }
+        }
+        if source.contains("EventEnvelope::new")
+            && terminal_kinds.iter().any(|kind| source.contains(kind))
+        {
+            errors.push(format!(
+                "{path} directly constructs a duration-terminal EventEnvelope"
+            ));
+        }
     }
+    errors
 }
 
 #[test]

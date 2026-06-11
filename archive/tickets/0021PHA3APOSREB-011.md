@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-011: Generative tier — two-file fabricator ban, production-parity flushing, tamper-coverage locks
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test oracle (`tests/generative_lock.rs`, `tests/support/generative.rs`, fabricator-ban guard) and `scheduler` generative-advance entry
@@ -56,6 +56,44 @@ Severe-band assertions would wrap a negative constant.
    semantics change (`run_no_human_day` untouched; `advance_no_human` is the
    test-tier entry — confirm at implementation it has no production caller, else
    the parity change is itself production-affecting and escalates per spec §9).
+
+## Implementation Outcome (2026-06-11)
+
+1. Changed `advance_no_human` to flush scheduled duration completions as scheduler
+   time advances, before each later proposal and then tick-by-tick to the final
+   tick. `run_no_human_day` was not changed; current callers of `advance_no_human`
+   are tests/generative gates and scheduler tests.
+2. Rescheduled the displacement generator so the Move starts strictly inside the
+   Work block (`work.start_tick + 1`), and added an oracle assertion that the move
+   event tick precedes the scheduled work completion tick for displacement seeds.
+3. Re-derived continuity to the corpus-produced reason set. The accepted
+   continuity reason is now `actor_displaced`; the unproduced
+   `sleep_affordance_closed` and `workplace_unusable` alternatives were removed
+   rather than adding a new closure mask.
+4. Widened the fabricator ban to scan both `tests/generative_lock.rs` and
+   `tests/support/generative.rs`, reject old helper names, and reject direct
+   `EventEnvelope::new*` construction paired with duration-terminal event kinds.
+   Synthetic support-file and direct-construction violations are pinned.
+5. Replaced first-terminal tamper coverage with per-terminal tampering across the
+   corpus and asserted coverage for all four terminal kinds:
+   `sleep_completed`, `sleep_interrupted`, `work_block_completed`, and
+   `work_block_failed`.
+6. Replaced the tautological contributor synthetic assertion with an honest
+   non-empty predicate plus exact one-contributor removal check. Severe-band
+   constants are range-asserted before `u16` conversion.
+7. `emergence_ledger` remained green under the flush change; no ledger rows needed
+   repricing.
+
+## Verification (2026-06-11)
+
+1. `cargo test -p tracewake-core --test generative_lock -- --nocapture`
+2. `cargo test -p tracewake-core --test anti_regression_guards generative -- --nocapture`
+3. `cargo test -p tracewake-core --test emergence_ledger`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`
+8. `git diff --check`
 
 ## Architecture Check
 

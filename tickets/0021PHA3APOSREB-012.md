@@ -154,7 +154,7 @@ doctrine touch.
 
 ## Out of Scope
 
-- Generative advance flushing (ticket 0021PHA3APOSREB-011) and completion crossing
+- Generative advance flushing (archive/tickets/0021PHA3APOSREB-011.md) and completion crossing
   events (ticket 0021PHA3APOSREB-006) — coordinate the `scheduler.rs` mechanical
   merges.
 - Any doctrine amendment text — option (ii), if chosen, is a separately-approved

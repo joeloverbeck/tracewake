@@ -2041,6 +2041,21 @@ pub mod no_human {
         sorted.sort_by(|left, right| left.0.cmp(&right.0));
 
         for (ordering_key, proposal) in sorted {
+            while scheduler.current_tick < proposal.requested_tick {
+                scheduler.advance_one_tick();
+                let due_tick = scheduler.current_tick;
+                append_due_completions(
+                    physical_state,
+                    log,
+                    agent_state,
+                    &process_id,
+                    &mut scheduler,
+                    &content_manifest_id,
+                    &mut pending_sleep_starts,
+                    &mut pending_work_starts,
+                    due_tick,
+                );
+            }
             let mut context = PipelineContext {
                 registry,
                 state: physical_state,
@@ -2069,21 +2084,22 @@ pub mod no_human {
             ordinary_pipeline_events += no_human_progress_event_count(&result.appended_events);
         }
 
-        for _ in 0..tick_count {
+        let final_tick = start_tick.advance_by(tick_count);
+        while scheduler.current_tick < final_tick {
             scheduler.advance_one_tick();
+            let due_tick = scheduler.current_tick;
+            append_due_completions(
+                physical_state,
+                log,
+                agent_state,
+                &process_id,
+                &mut scheduler,
+                &content_manifest_id,
+                &mut pending_sleep_starts,
+                &mut pending_work_starts,
+                due_tick,
+            );
         }
-        let due_tick = scheduler.current_tick;
-        append_due_completions(
-            physical_state,
-            log,
-            agent_state,
-            &process_id,
-            &mut scheduler,
-            &content_manifest_id,
-            &mut pending_sleep_starts,
-            &mut pending_work_starts,
-            due_tick,
-        );
 
         let completed = append_marker(
             log,
