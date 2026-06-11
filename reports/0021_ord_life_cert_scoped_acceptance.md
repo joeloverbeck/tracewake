@@ -236,8 +236,9 @@ claim that later, unrelated changes are covered by this report.
 ## Deviations From Plan
 
 No production or test-logic changes were made for this capstone. The only artifact
-created by this ticket is this report, and the only repository state changes still
-pending are ticket archival/bookkeeping.
+created by this ticket is this report. Ticket archival landed in commit `a466d13`,
+and final spec archival/truthing landed in commit `4c348b1`; no 0021 ticket or spec
+archive bookkeeping remains pending.
 
 ## Finished-Tree Gate Record
 
