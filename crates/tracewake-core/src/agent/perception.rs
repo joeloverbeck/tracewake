@@ -655,6 +655,78 @@ mod tests {
     }
 
     #[test]
+    fn current_place_knowledge_context_uses_latest_projection_window_for_sleep_affordances() {
+        let actor = actor_id("actor_tomas");
+        let mut state = state_with_visible_current_place_surfaces();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let stale_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(5),
+            &manifest_id,
+            3,
+        );
+        assert!(stale_context
+            .actor_known_sleep_affordances()
+            .iter()
+            .any(|fact| fact.sleep_affordance_id().as_str() == "bed_tomas"));
+
+        state.sleep_affordances.clear();
+        let replacement_sleep_id = SleepAffordanceId::new("cot_tomas").unwrap();
+        state.sleep_affordances.insert(
+            replacement_sleep_id.clone(),
+            SleepAffordanceState::new(replacement_sleep_id, place_id("home_tomas"), 4, 20, 2),
+        );
+
+        let stale_after_truth_change = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(6),
+            &manifest_id,
+            3,
+        );
+        assert!(stale_after_truth_change
+            .actor_known_sleep_affordances()
+            .iter()
+            .any(|fact| fact.sleep_affordance_id().as_str() == "bed_tomas"));
+        assert!(!stale_after_truth_change
+            .actor_known_sleep_affordances()
+            .iter()
+            .any(|fact| fact.sleep_affordance_id().as_str() == "cot_tomas"));
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(7), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let refreshed_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(8),
+            &manifest_id,
+            6,
+        );
+        assert!(!refreshed_context
+            .actor_known_sleep_affordances()
+            .iter()
+            .any(|fact| fact.sleep_affordance_id().as_str() == "bed_tomas"));
+        assert!(refreshed_context
+            .actor_known_sleep_affordances()
+            .iter()
+            .any(|fact| fact.sleep_affordance_id().as_str() == "cot_tomas"));
+    }
+
+    #[test]
     fn current_place_knowledge_context_applies_freshness_to_workplace_notices() {
         let actor = actor_id("actor_tomas");
         let state = state_with_current_place_workplace();
