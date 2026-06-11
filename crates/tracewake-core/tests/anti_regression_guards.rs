@@ -2434,11 +2434,33 @@ fn agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_stat
 
 #[test]
 fn materialized_agent_payload_records_keep_payload_fields() {
-    for struct_name in [
-        "OrdinaryLifeEpisodeRecord",
-        "CandidateGoalEvaluationRecord",
-        "ContinueRoutineArbitrationRecord",
-    ] {
+    let mut struct_names = Vec::new();
+    for line in STATE_RS.lines() {
+        if !line.contains("BTreeMap<crate::ids::EventId,") {
+            continue;
+        }
+        let Some((_, tail)) = line.split_once("BTreeMap<crate::ids::EventId,") else {
+            continue;
+        };
+        let Some(struct_name) = tail.split('>').next() else {
+            continue;
+        };
+        struct_names.push(struct_name.trim());
+    }
+    struct_names.sort_unstable();
+    struct_names.dedup();
+    assert_eq!(
+        struct_names,
+        vec![
+            "CandidateGoalEvaluationRecord",
+            "ContinueRoutineArbitrationRecord",
+            "NeedThresholdCrossingRecord",
+            "OrdinaryLifeEpisodeRecord",
+        ],
+        "materialized AgentState event records must be derived from state.rs maps"
+    );
+
+    for struct_name in struct_names {
         let marker = format!("pub struct {struct_name} {{");
         let body = STATE_RS
             .split(&marker)
@@ -2457,74 +2479,37 @@ fn materialized_agent_payload_records_keep_payload_fields() {
             && CHECKSUM_RS.contains("join_pairs(&episode.payload_fields)"),
         "ordinary-life episode payload fields must enter the canonical agent checksum"
     );
+    assert!(
+        CHECKSUM_RS.contains("need_threshold_crossing|")
+            && CHECKSUM_RS.contains("join_pairs(&crossing.payload_fields)"),
+        "need-threshold payload fields must enter the canonical agent checksum"
+    );
 }
 
 #[test]
 fn materialized_agent_apply_arms_require_payload_schema_version() {
     let required_call = r#"require_payload_version(&payload, "payload_schema_version", "1")"#;
-    let episode_arm_tail = EVENTS_APPLY_RS
-        .split("EventKind::SleepStarted")
-        .nth(1)
-        .expect("ordinary-life episode materialization arm is present")
-        .split("EventKind::CandidateGoalsEvaluated")
-        .next()
-        .expect("ordinary-life episode arm is bounded by candidate-goal arm");
-    let episode_arm = format!("EventKind::SleepStarted{episode_arm_tail}");
-    for kind in [
-        "SleepStarted",
-        "SleepCompleted",
-        "SleepInterrupted",
-        "FoodServiceUsed",
-        "EatFailed",
-        "WorkBlockStarted",
-        "WorkBlockCompleted",
-        "WorkBlockFailed",
-    ] {
+    let materialized_maps = [
+        "need_threshold_crossings",
+        "ordinary_life_episodes",
+        "candidate_goal_evaluations",
+        "continue_routine_arbitrations",
+    ];
+    for map_name in materialized_maps {
+        let insert_token = format!("state.{map_name}.insert(");
+        let insert_index = EVENTS_APPLY_RS
+            .find(&insert_token)
+            .unwrap_or_else(|| panic!("{map_name} insert is present in apply.rs"));
+        let before_insert = &EVENTS_APPLY_RS[..insert_index];
+        let arm_start = before_insert
+            .rfind("EventKind::")
+            .unwrap_or_else(|| panic!("{map_name} insert has an EventKind arm"));
+        let arm = &EVENTS_APPLY_RS[arm_start..insert_index];
         assert!(
-            episode_arm.contains(&format!("EventKind::{kind}")),
-            "ordinary-life episode arm must still include EventKind::{kind}"
+            arm.contains(required_call),
+            "{map_name} materialization arm must require payload_schema_version"
         );
     }
-    assert!(
-        episode_arm.contains(required_call),
-        "ordinary-life episode materialization arm must require payload_schema_version"
-    );
-
-    let candidate_arm_tail = EVENTS_APPLY_RS
-        .split("EventKind::CandidateGoalsEvaluated")
-        .nth(1)
-        .expect("candidate-goal materialization arm is present")
-        .split("EventKind::ContinueRoutineProposed")
-        .next()
-        .expect("candidate-goal arm is bounded by continue-routine arm");
-    let candidate_arm = format!("EventKind::CandidateGoalsEvaluated{candidate_arm_tail}");
-    assert!(
-        candidate_arm.contains(required_call),
-        "candidate-goal materialization arm must require payload_schema_version"
-    );
-
-    let continue_arm_tail = EVENTS_APPLY_RS
-        .split("EventKind::ContinueRoutineProposed")
-        .nth(1)
-        .expect("continue-routine materialization arm is present")
-        .split("kind if AGENT_WORLD_NOOP_ALLOWLIST")
-        .next()
-        .expect("continue-routine arm is bounded by allowlist arm");
-    let continue_arm = format!("EventKind::ContinueRoutineProposed{continue_arm_tail}");
-    for kind in [
-        "ContinueRoutineProposed",
-        "ContinueRoutineAccepted",
-        "ContinueRoutineRejected",
-    ] {
-        assert!(
-            continue_arm.contains(&format!("EventKind::{kind}")),
-            "continue-routine arm must still include EventKind::{kind}"
-        );
-    }
-    assert!(
-        continue_arm.contains(required_call),
-        "continue-routine materialization arm must require payload_schema_version"
-    );
 }
 
 #[test]

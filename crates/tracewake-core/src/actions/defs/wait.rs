@@ -295,6 +295,7 @@ fn build_threshold_event(
     event.proposal_id = Some(proposal.proposal_id.clone());
     event.participants = vec![actor_id.to_string()];
     event.payload = vec![
+        PayloadField::new("payload_schema_version", "1"),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("need_kind", need_kind.stable_id()),
         PayloadField::new("from_value", from_value.to_string()),

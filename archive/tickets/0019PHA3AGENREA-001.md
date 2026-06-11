@@ -1,6 +1,6 @@
 # 0019PHA3AGENREA-001: Payload-version closure and prose-free agent checksums
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`events/apply`, `checksum`, `scheduler` threshold emitter, `state` as surfaced); derived censuses in `anti_regression_guards.rs`; one batched golden-checksum repricing in `tracewake-content`
@@ -200,3 +200,40 @@ recorded in ticket `-009`).
 1. `cargo test -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-11
+
+What changed:
+
+- `NeedThresholdCrossed` payloads now carry and require
+  `payload_schema_version="1"` on both no-human scheduler and wait-action emitters,
+  and the materialized record retains source payload fields as checksum/replay
+  evidence.
+- The materialized-agent censuses now derive the record set from `AgentState` event
+  maps and the version-gate check from the apply arms that insert into those maps,
+  instead of hand-listing only the older record families.
+- Agent checksum lines no longer include display `summary` prose for ordinary-life
+  episodes, candidate-goal evaluations, or continue-routine arbitrations; the display
+  fields remain on records for rendering.
+- Added forged threshold payload-version replay coverage and a checksum unit test
+  proving summary prose changes do not affect canonical agent identity.
+
+Deviations from original plan:
+
+- No fixture expectation files required regeneration. `cargo test -p tracewake-content
+  --test golden_fixtures_run` stayed green after the checksum-format change, so there
+  was no committed golden churn or separate per-actor diff file for this ticket.
+
+Verification results:
+
+- `cargo test -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test -p tracewake-core materialized_agent_summary_prose_is_excluded` —
+  passed.
+- `cargo test -p tracewake-content --test golden_fixtures_run` — passed.
+- `cargo fmt --all --check` — passed after formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

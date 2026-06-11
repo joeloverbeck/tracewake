@@ -172,6 +172,26 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
+fn threshold_crossed_event() -> EventEnvelope {
+    let mut event = caused_event(
+        "event_need_threshold_forged_payload_schema",
+        EventKind::NeedThresholdCrossed,
+        0,
+        vec![EventCause::Process("process_no_human_day".parse().unwrap())],
+    );
+    event.payload = vec![
+        PayloadField::new("payload_schema_version", "1"),
+        PayloadField::new("actor_id", actor_id().as_str()),
+        PayloadField::new("need_kind", "hunger"),
+        PayloadField::new("from_value", "799"),
+        PayloadField::new("to_value", "800"),
+        PayloadField::new("from_band", "moderate"),
+        PayloadField::new("to_band", "severe"),
+        PayloadField::new("candidate_goal_reevaluation", "true"),
+    ];
+    event
+}
+
 #[test]
 fn unsupported_event_schema_append_rejected() {
     let mut log = EventLog::new();
@@ -279,6 +299,55 @@ fn forged_payload_schema_version_rejected_for_materialized_agent_replay_001() {
     append_to_log(&mut replay_log, forged_live);
     let context = checksum_context(
         "forged_payload_schema_version_rejected_for_materialized_agent_replay_001",
+        &replay_log,
+    );
+    let replay = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &replay_log,
+        &context,
+        Some(&initial_world),
+        None,
+        None,
+    );
+
+    assert!(!replay.matches_expected);
+    assert!(
+        replay.agent_application_errors.iter().any(|failure| {
+            failure.issue.contains("BadPayload")
+                && failure.issue.contains("payload_schema_version")
+                && failure.issue.contains("\"2\"")
+        }),
+        "{:?}",
+        replay.agent_application_errors
+    );
+}
+
+#[test]
+fn forged_threshold_payload_schema_version_rejected_for_materialized_agent_replay_001() {
+    let initial_world = world_state();
+    let initial_agent_state = agent_state();
+    let mut forged_live = threshold_crossed_event();
+    forged_live
+        .payload
+        .retain(|field| field.key != "payload_schema_version");
+    forged_live
+        .payload
+        .insert(0, PayloadField::new("payload_schema_version", "2"));
+
+    let mut live_agent = initial_agent_state.clone();
+    assert!(matches!(
+        apply_agent_event(&mut live_agent, &forged_live),
+        Err(ApplyError::BadPayload {
+            key: "payload_schema_version",
+            value
+        }) if value == "2"
+    ));
+
+    let mut replay_log = EventLog::new();
+    append_to_log(&mut replay_log, forged_live);
+    let context = checksum_context(
+        "forged_threshold_payload_schema_version_rejected_for_materialized_agent_replay_001",
         &replay_log,
     );
     let replay = run_replay(

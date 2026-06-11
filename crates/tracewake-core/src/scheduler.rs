@@ -1507,6 +1507,7 @@ pub mod no_human {
         event.participants = vec![actor_id.to_string()];
         let severe_need_interrupts = has_active_intention && matches!(to_band, NeedBand::Severe);
         event.payload = vec![
+            PayloadField::new("payload_schema_version", "1"),
             PayloadField::new("actor_id", actor_id.as_str()),
             PayloadField::new("need_kind", need_kind.stable_id()),
             PayloadField::new("from_value", from_value.to_string()),
