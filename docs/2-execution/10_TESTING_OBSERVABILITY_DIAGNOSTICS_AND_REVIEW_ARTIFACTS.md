@@ -90,9 +90,65 @@ Debug and review artifacts must expose enough structure to audit without becomin
 - replay rebuild and divergence reports;
 - view-model filtering reports;
 - no-human metrics;
+- emergence-evidence ledger (`EMERGE-OBS`, defined below);
 - possession binding reports.
 
 Debug output must be structurally separated from actor-visible output.
+
+## Emergence-evidence ledger `EMERGE-OBS`
+
+`EMERGE-OBS` is an observation obligation, not a certification gate. It blocks
+nothing and passes/fails nothing. It exists so the emergence axis — whether
+ordinary causal life actually produces incidents, wrong beliefs, and recoveries
+worth investigating — accumulates measured data instead of remaining the only
+foundational goal with none. It operationalizes INV-040 and INV-098 under the
+artifact authority of
+`docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`.
+It amends no doctrine.
+
+Definition:
+
+- Substrate: the canonical seeded no-human corpus — the canonical no-human day
+  fixtures plus the generative seed set. The substrate is deterministic, so the
+  ledger is replay-stable and diffable across versions; an emergence regression
+  is visible as a ledger diff without anything gating on it.
+- Counters, per seeded day, derived only from typed materialized records and
+  debug-side projections (never from display strings):
+  - expectation contradictions discovered;
+  - replans / fallback selections taken;
+  - interruptions (sleep, work, intention);
+  - intention switches with recorded causes;
+  - stuck diagnostics by blocker category;
+  - beliefs diverged from truth (debug-only truth/belief comparison,
+    INV-107-quarantined);
+  - diverged beliefs later corrected through modeled channels;
+  - distinct event kinds reached.
+- Output: a ledger section — per-seed rows plus corpus totals — in every
+  subsequent phase or scoped acceptance artifact whose verification exercises
+  the canonical no-human corpus.
+- Replay discipline: ledger values must be byte-identical after log
+  serialization and replay, matching the no-human metrics rule in
+  `docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md`.
+  Stuck/failure outcomes are counted per the no-human metrics constraint in
+  `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`.
+
+Quarantine (hard rules):
+
+- The ledger is an observer-only projection. It must never become a simulation
+  input, scheduler input, content-selection input, or difficulty/pacing input.
+  A ledger that feeds back into the world is a boredom detector and violates
+  INV-060 and INV-087.
+- Ledger counters are not pass/fail thresholds. No CI gate, test, or
+  certification artifact may fail on a ledger value without a future spec that
+  justifies the specific threshold against INV-060 (no manufactured drama) and
+  records it as a deliberate decision.
+- The sanctioned future escalation is a zero-floor ratchet only: once baselines
+  exist across phases, a spec may assert that canonical-corpus counters do not
+  silently collapse to zero (a dead-world regression guard). Demanding more
+  drama than baseline is never a valid ratchet direction.
+
+`DIAG-CERT` interaction: none. `EMERGE-OBS` produces evidence; it certifies
+nothing and blocks nothing.
 
 ## Property and random testing
 

@@ -8,7 +8,7 @@ Historical implementation has landed through archived specs `0005` through `0008
 
 ## Authority boundary
 
-This document owns execution-layer reading order, replacement status, gate vocabulary, and the rule that execution planning cannot weaken foundation or architecture.
+This document owns execution-layer reading order, replacement status, gate and observation-obligation vocabulary, and the rule that execution planning cannot weaken foundation or architecture.
 
 This document does not certify code, create tickets, decompose work, or override foundation or architecture.
 
@@ -80,6 +80,16 @@ A document that cannot answer these questions is not ready to govern implementat
 | `REPLAY` | Deterministic event log, projection rebuild, random-stream, and save/replay behavior are proven. |
 | `FIXTURE` | Golden fixtures prove success paths and forbidden shortcuts. |
 | `DIAG` | Failure diagnostics identify responsible layer and do not leak hidden truth to embodied holders. |
+
+## Canonical observation obligations
+
+Observation obligations are required-to-produce evidence artifacts. They are
+not certification gates: they block nothing and pass/fail nothing, and they
+must never appear in the phase ladder as gates.
+
+| Code | Meaning |
+|---|---|
+| `EMERGE-OBS` | Emergence-evidence ledger over the canonical seeded no-human corpus, produced with every subsequent acceptance artifact that exercises that corpus; defined in `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`. Observer-only; never a simulation input; never a pass/fail threshold without a dedicated future spec. |
 
 ## Maintenance rule
 

@@ -97,7 +97,7 @@ The architecture layer translates foundation doctrine into subsystem contracts. 
 
 The execution layer defines gate order and proof obligations. It does not certify existing code by describing it; it defines what a future audit or implementation spec must prove.
 
-- `00_EXECUTION_INDEX_AND_AUTHORITY.md` — execution map, retirement rule, universal authority posture, and canonical gate names.
+- `00_EXECUTION_INDEX_AND_AUTHORITY.md` — execution map, retirement rule, universal authority posture, canonical gate names, and canonical observation obligations.
 - `01_POST_0008_BASELINE_ARCHIVED_SPEC_STATUS_AND_CODE_AUDIT_BOUNDARY.md` — status of archived specs, current code boundary, and certification posture.
 - `02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` — first proof identity, current baseline status, and acceptance contract.
 - `03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md` — gate order, phase sequencing, and the rule that Phase 4 is blocked until certification gates pass.
