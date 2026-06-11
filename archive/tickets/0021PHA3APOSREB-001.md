@@ -132,7 +132,7 @@ possession rebind-rejection gate conformance row to
 ## Out of Scope
 
 - The fabricating planning-context builders and hidden-truth gate rebuild
-  (`ORD-HARD-068` — ticket 0021PHA3APOSREB-002).
+  (`ORD-HARD-068` — `archive/tickets/0021PHA3APOSREB-002.md`).
 - The dead-surface sweep extension and `typed_leads`/`debug_available` surfacing
   (`ORD-HARD-083` — ticket 0021PHA3APOSREB-010).
 - The INV-087 bind-time-perception decision (`ORD-HARD-095` — ticket

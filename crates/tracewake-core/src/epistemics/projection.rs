@@ -284,12 +284,6 @@ impl EpistemicProjection {
         self.observations_by_id.get(observation_id)
     }
 
-    pub(crate) fn belief_count_for_actor(&self, actor_id: &ActorId) -> usize {
-        self.beliefs_by_holder
-            .get(actor_id)
-            .map_or(0, BTreeSet::len)
-    }
-
     pub fn has_belief(&self, belief_id: &BeliefId) -> bool {
         self.beliefs_by_id.contains_key(belief_id)
     }

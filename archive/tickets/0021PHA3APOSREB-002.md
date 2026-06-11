@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-002: Demote fabricating planning-context builders and rebuild hidden-truth gates on real event logs
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`agent/actor_known`, `agent/mod`, `agent/planner` tests, `tests/hidden_truth_gates`, anti-regression guards); conformance-index row
@@ -61,6 +61,14 @@ Enforcement reading).
    tui, docs, specs clean). Note: an integration test under `tests/` cannot see
    `#[cfg(test)]` items — if the rebuilt gates still need a context-construction
    helper, it lives in the test tree (`tests/support/`), not as a core export.
+
+### Closure Reassessment (2026-06-11)
+
+Implementation discovered one additional non-production consumer missed by the
+assumption reassessment: `crates/tracewake-content/tests/golden_fixtures_run.rs`
+also used the retired planning-context builders. That integration test surface was
+converted to the projection-backed no-human actor-known builder rather than kept on
+the deleted helper API.
 
 ## Architecture Check
 
@@ -170,3 +178,40 @@ Add the harness-provenance fidelity conformance row to
 1. `cargo test -p tracewake-core --test hidden_truth_gates`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+- Removed `VisibleLocalPlanningState`, `observe_visible_local`,
+  `build_actor_known_planning_state`, and
+  `build_actor_known_planning_state_with_projection_limitation` from the public
+  actor-known/planner surface.
+- Rebuilt `hidden_truth_gates.rs` contexts from a real `EventLog` plus
+  `apply_epistemic_event`; every asserted actor-known source event is checked
+  against the test log.
+- Converted content integration tests that used the retired helper API to
+  `NoHumanActorKnownSurfaceBuilder::from_projection`.
+- Added source guards for the retired fabricated event id, the hidden-truth gate
+  construction path, and production `ActorKnownPlanningContext` producer sites,
+  each with a synthetic failure case.
+- Added the 0021 harness-provenance fidelity row to the architecture conformance
+  table.
+- Removed the now-dead `EpistemicProjection::belief_count_for_actor` helper.
+
+Gate disposition: no hidden-truth gate assertion needed a product-behavior
+change after the rebuild. The failing intermediate state was a harness payload
+schema issue (`direct_perception` was not a valid channel id), fixed by using the
+production `direct_sight` channel id.
+
+## Verification
+
+- `cargo test -p tracewake-core --test hidden_truth_gates`
+- `cargo test -p tracewake-content --test golden_fixtures_run planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`
+- `cargo test -p tracewake-content --test golden_fixtures_run severe_safety_without_known_exit_is_local_knowledge_blocker`
+- `cargo test -p tracewake-content --test golden_fixtures_run no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`
+- `cargo test -p tracewake-core --test anti_regression_guards guard_0021`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

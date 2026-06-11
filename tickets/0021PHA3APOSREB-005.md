@@ -127,7 +127,7 @@ the parity assertion; conformance row for behavioral policy dispatch in
 
 ## Out of Scope
 
-- The fabricating planning-context builders (ticket 0021PHA3APOSREB-002).
+- The fabricating planning-context builders (`archive/tickets/0021PHA3APOSREB-002.md`).
 - The typed place-concealment attribute in perception (ticket 0021PHA3APOSREB-007) —
   coordinate the `perception.rs` mechanical merge.
 - Embodied dead-surface sweep (ticket 0021PHA3APOSREB-010).

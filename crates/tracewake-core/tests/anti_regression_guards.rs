@@ -24,6 +24,7 @@ const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
 const VIEW_MODELS_RS: &str = include_str!("../src/view_models.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
+const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
@@ -428,8 +429,82 @@ fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
     );
 }
 
+fn source_without_comments(source: &str) -> String {
+    source
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim_start();
+            !(trimmed.starts_with("//") || trimmed.starts_with("///"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn normalized_source(source: &str) -> String {
     source.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn fabricated_planning_event_id_violations(sources: &[(String, String)]) -> Vec<String> {
+    sources
+        .iter()
+        .filter(|(_, source)| source.contains("event_visible_local_planning_state"))
+        .map(|(path, _)| path.clone())
+        .collect()
+}
+
+fn hidden_truth_harness_provenance_violations(source: &str) -> Vec<String> {
+    let banned_builders = [
+        "build_actor_known_planning_state",
+        "build_actor_known_planning_state_with_projection_limitation",
+        "observe_visible_local",
+        "event_visible_local_planning_state",
+    ];
+    let mut violations = Vec::new();
+    for banned in banned_builders {
+        if source.contains(banned) {
+            violations.push(format!(
+                "hidden_truth_gates.rs uses fabricated builder {banned}"
+            ));
+        }
+    }
+    if !source.contains("apply_epistemic_event") {
+        violations.push(
+            "hidden_truth_gates.rs must build gate contexts by applying epistemic events"
+                .to_string(),
+        );
+    }
+    violations
+}
+
+fn actor_known_context_constructor_violations(sources: &[(String, String)]) -> Vec<String> {
+    let allowed_constructor_sites = [
+        "crates/tracewake-core/src/agent/actor_known.rs",
+        "crates/tracewake-core/src/agent/no_human_surface.rs",
+    ];
+    let banned_public_builders = [
+        "pub fn build_actor_known_planning_state",
+        "pub fn build_actor_known_planning_state_with_projection_limitation",
+        "pub fn observe_visible_local",
+    ];
+    let mut violations = Vec::new();
+
+    for (path, source) in sources {
+        let uncommented = source_without_comments(&production(source));
+        for banned in banned_public_builders {
+            if uncommented.contains(banned) {
+                violations.push(format!("{path} exposes retired context producer {banned}"));
+            }
+        }
+        if !allowed_constructor_sites.contains(&path.as_str())
+            && uncommented.contains("ActorKnownPlanningContext::from_observed_parts(")
+        {
+            violations.push(format!(
+                "{path} constructs ActorKnownPlanningContext outside the builder/classifier surface"
+            ));
+        }
+    }
+
+    violations
 }
 
 fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField> {
@@ -3803,6 +3878,69 @@ fn guard_001_actor_known_context_has_no_public_arbitrary_constructor() {
     assert!(
         actor_known.contains("pub(crate) fn from_observed_parts"),
         "observed-parts constructor must stay crate-private"
+    );
+}
+
+#[test]
+fn guard_0021_actor_known_context_producers_are_projection_backed() {
+    let sources = core_production_sources();
+    let violations = actor_known_context_constructor_violations(&sources);
+    assert!(
+        violations.is_empty(),
+        "actor-known planning context producers must stay inside the no-human builder/classifier path: {violations:?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/agent/synthetic.rs".to_string(),
+        "pub fn build_actor_known_planning_state() -> ActorKnownPlanningContext { ActorKnownPlanningContext::from_observed_parts(todo!(), todo!(), todo!(), todo!(), todo!(), todo!(), todo!(), todo!(), todo!()) }".to_string(),
+    )];
+    let synthetic_violations = actor_known_context_constructor_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations.iter().any(|violation| {
+            violation.contains("retired context producer")
+                || violation.contains("outside the builder/classifier surface")
+        }),
+        "synthetic context producer must fail the source guard"
+    );
+}
+
+#[test]
+fn guard_0021_hidden_truth_gates_use_event_log_provenance() {
+    let violations = hidden_truth_harness_provenance_violations(HIDDEN_TRUTH_GATES_RS);
+    assert!(
+        violations.is_empty(),
+        "hidden-truth gates must use real applied epistemic events: {violations:?}"
+    );
+
+    let synthetic = "fn context() { let _ = build_actor_known_planning_state(); }";
+    let synthetic_violations = hidden_truth_harness_provenance_violations(synthetic);
+    assert!(
+        synthetic_violations.iter().any(|violation| {
+            violation.contains("build_actor_known_planning_state")
+                || violation.contains("applying epistemic events")
+        }),
+        "synthetic fabricated hidden-truth harness must fail the source guard"
+    );
+}
+
+#[test]
+fn guard_0021_fabricated_visible_local_event_id_is_retired() {
+    let violations = fabricated_planning_event_id_violations(&production_sources());
+    assert!(
+        violations.is_empty(),
+        "fabricated visible-local planning provenance id must not appear in production source: {violations:?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/agent/synthetic.rs".to_string(),
+        "let _ = EventId::new(\"event_visible_local_planning_state\");".to_string(),
+    )];
+    let synthetic_violations = fabricated_planning_event_id_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations
+            .iter()
+            .any(|path| path.ends_with("synthetic.rs")),
+        "synthetic fabricated event id must fail the source guard"
     );
 }
 
