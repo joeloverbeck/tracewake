@@ -206,6 +206,7 @@ impl EventKind {
             stream: self.stream(),
             schema_version: EventSchemaVersion::V1,
             physical_mutating: self.physical_mutating(),
+            cause_required: self.cause_required(),
             replay_handling: EventReplayHandling::for_stream(self.stream()),
         }
     }
@@ -422,6 +423,10 @@ pub const fn is_duration_terminal(kind: EventKind) -> bool {
 
 impl EventKind {
     pub const fn requires_cause(self) -> bool {
+        self.metadata().cause_required
+    }
+
+    const fn cause_required(self) -> bool {
         matches!(
             self,
             EventKind::ActorMoved
@@ -477,6 +482,7 @@ pub struct EventKindMetadata {
     pub stream: EventStream,
     pub schema_version: EventSchemaVersion,
     pub physical_mutating: bool,
+    pub cause_required: bool,
     pub replay_handling: EventReplayHandling,
 }
 

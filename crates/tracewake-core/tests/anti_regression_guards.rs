@@ -110,6 +110,12 @@ struct EmbodiedSurfaceFieldProducer {
     rationale: &'static str,
 }
 
+struct PanicAllowlistEntry {
+    path: &'static str,
+    token: &'static str,
+    rationale: &'static str,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct EmbodiedSurfaceField {
     struct_name: String,
@@ -237,6 +243,54 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
             "fallback_attempts",
         ],
         rationale: "Routine step transitions mutate typed RoutineExecution lifecycle columns and do not retain arbitrary semantic payload fields.",
+    },
+];
+
+const PANIC_ALLOWLIST: &[PanicAllowlistEntry] = &[
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"actor checked\")",
+        rationale: "Payload location was matched against actor ownership before removing from the actor inventory.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"item location checked\")",
+        rationale: "The item location variant was matched immediately before mutating its containing collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"place checked\")",
+        rationale: "The place existence check returned earlier with ApplyError before mutating the place collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"container checked\")",
+        rationale: "The container existence check returned earlier with ApplyError before mutating the container collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/work.rs",
+        token: ".expect(\"actor checked\")",
+        rationale: "The work event builder validates actor presence before constructing actor-scoped event payloads.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"agent event is appendable\")",
+        rationale: "Internal scheduler agent events are constructed with the current schema before append; log-derived failures use the typed try path.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"agent event applies to live state\")",
+        rationale: "Internal lifecycle events are generated from live agent state; completion and stuck-diagnostic log-derived paths use typed error collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"no-human marker is versioned\")",
+        rationale: "No-human process markers are static current-schema diagnostic events.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"stuck diagnostic is versioned\")",
+        rationale: "Stuck diagnostic events are constructed with the current schema before typed agent application.",
     },
 ];
 
@@ -1212,7 +1266,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 35;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 38;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1239,9 +1293,28 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "physical_mutating_event_kinds_have_explicit_world_apply_arms",
         negative_id: "synthetic_missing_arm_catch_all",
-        routing: MetaLockRouting::TicketOwnedDebt {
-            ticket: "0022PHA3ABASTRI-008",
-        },
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "agent_stream_event_kinds_have_explicit_agent_apply_arms",
+        negative_id: "synthetic_missing_agent_stream_apply_arm",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "action_emitted_event_kinds_have_cause_disposition",
+        negative_id: "synthetic_action_emitted_kind_without_cause_required",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data",
+        negative_id: "synthetic_log_derived_expect",
+        routing: MetaLockRouting::SharedScan,
         witness_count: 1,
         witness_min: 1,
     },
@@ -4755,6 +4828,77 @@ fn guard_015_ordinary_life_tuning_comes_from_authored_state() {
 }
 
 #[test]
+fn scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data() {
+    let sources = [
+        (
+            "crates/tracewake-core/src/scheduler.rs",
+            production(SCHEDULER_RS),
+        ),
+        (
+            "crates/tracewake-core/src/events/apply.rs",
+            production(EVENTS_APPLY_RS),
+        ),
+        (
+            "crates/tracewake-core/src/actions/defs/sleep.rs",
+            production(SLEEP_RS),
+        ),
+        (
+            "crates/tracewake-core/src/actions/defs/work.rs",
+            production(WORK_RS),
+        ),
+    ];
+    let violations = log_derived_panic_violations(&sources);
+    assert!(
+        violations.is_empty(),
+        "unallowlisted panic on apply/completion/scheduler path: {violations:?}"
+    );
+
+    let synthetic_sources = [(
+        "crates/tracewake-core/src/scheduler.rs",
+        r#"
+        fn actor_has_open_body_exclusive_duration(log: &EventLog) -> bool {
+            open_body_exclusive_starts(log).expect("duplicate duration terminals are rejected before no-human scheduling");
+            apply_agent_event(agent_state, &event).expect("routine stuck diagnostic event applies to live agent state");
+            true
+        }
+        "#.to_string(),
+    )];
+    let synthetic_violations = log_derived_panic_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations.len() == 2,
+        "synthetic log-derived expects must fail the panic guard"
+    );
+    assert!(
+        PANIC_ALLOWLIST
+            .iter()
+            .all(|entry| !entry.rationale.trim().is_empty()),
+        "panic allowlist entries must carry rationales"
+    );
+}
+
+fn log_derived_panic_violations(sources: &[(&str, String)]) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (path, source) in sources {
+        for line in source.lines() {
+            let trimmed = line.trim();
+            if !(trimmed.contains(".expect(") || trimmed.contains("assert!(")) {
+                continue;
+            }
+            if !panic_allowlist_covers(path, trimmed) {
+                violations.push(format!("{path}: {trimmed}"));
+            }
+        }
+    }
+    violations
+}
+
+fn panic_allowlist_covers(path: &str, line: &str) -> bool {
+    PANIC_ALLOWLIST.iter().any(|entry| {
+        entry.path == path && line.contains(entry.token) && !entry.rationale.trim().is_empty()
+    })
+}
+
+#[test]
 fn guard_006_scheduler_has_no_routine_family_to_primitive_dispatch() {
     let scheduler = production(SCHEDULER_RS);
     for forbidden in [
@@ -5691,6 +5835,7 @@ fn event_kind_metadata_is_total() {
         assert_eq!(metadata.stream, kind.stream());
         assert_eq!(metadata.schema_version, EventSchemaVersion::V1);
         assert_eq!(metadata.physical_mutating, kind.physical_mutating());
+        assert_eq!(metadata.cause_required, kind.requires_cause());
         assert_eq!(
             metadata.replay_handling,
             EventReplayHandling::for_stream(metadata.stream)
@@ -5711,17 +5856,11 @@ fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
     use tracewake_core::events::EventKind;
 
     let apply_body = body_after_marker(EVENTS_APPLY_RS, "fn apply_event_with_capability");
-    for kind in EventKind::all()
-        .iter()
-        .copied()
-        .filter(|kind| kind.metadata().physical_mutating)
-    {
-        let arm = format!("EventKind::{kind:?}");
-        assert!(
-            apply_body.contains(&arm),
-            "physical-mutating event kind lacks explicit world apply arm: {kind:?}"
-        );
-    }
+    let missing = missing_world_apply_arms(apply_body);
+    assert!(
+        missing.is_empty(),
+        "physical-mutating event kinds lack explicit world apply arms: {missing:?}"
+    );
     assert_absent(apply_body, "_ => Ok(ApplyOutcome::NonWorldNoOp)");
 
     let synthetic_apply = r#"
@@ -5732,10 +5871,37 @@ fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
             }
         }
     "#;
+    let synthetic_missing = missing_world_apply_arms(synthetic_apply);
     assert!(
-        !synthetic_apply.contains("EventKind::FoodConsumed")
+        synthetic_missing.contains(&EventKind::FoodConsumed)
             && synthetic_apply.contains("_ => Ok(ApplyOutcome::NonWorldNoOp)"),
         "synthetic missing-arm catch-all must fail the totality guard"
+    );
+}
+
+#[test]
+fn agent_stream_event_kinds_have_explicit_agent_apply_arms() {
+    use tracewake_core::events::EventKind;
+
+    let apply_body = body_after_marker(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability");
+    let missing = missing_agent_apply_arms(apply_body);
+    assert!(
+        missing.is_empty(),
+        "agent-stream event kinds lack explicit agent apply arms or no-op allowlist entries: {missing:?}"
+    );
+
+    let synthetic_apply = r#"
+        fn apply_agent_event_with_capability(event: &EventEnvelope) -> Result<ApplyOutcome, ApplyError> {
+            match event.event_type {
+                EventKind::NoHumanDayStarted => Ok(ApplyOutcome::WorldNoOp),
+                _ => Err(ApplyError::NonAgentEvent),
+            }
+        }
+    "#;
+    let synthetic_missing = missing_agent_apply_arms(synthetic_apply);
+    assert!(
+        synthetic_missing.contains(&EventKind::NeedDeltaApplied),
+        "synthetic missing agent-stream apply arm must fail the totality guard"
     );
 }
 
@@ -5743,42 +5909,81 @@ fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
 fn action_emitted_event_kinds_have_cause_disposition() {
     use tracewake_core::events::EventKind;
 
-    let required = [
-        EventKind::ActorMoved,
-        EventKind::ActorWaited,
-        EventKind::BeliefUpdated,
-        EventKind::ContainerChecked,
-        EventKind::ContainerClosed,
-        EventKind::ContainerOpened,
-        EventKind::DoorClosed,
-        EventKind::DoorOpened,
-        EventKind::ItemPlacedInContainer,
-        EventKind::ItemPlacedInPlace,
-        EventKind::ItemRemovedFromContainer,
-        EventKind::ItemTakenFromPlace,
-        EventKind::ObservationRecorded,
+    let action_sources = [
+        ("movement.rs", MOVEMENT_RS),
+        ("wait.rs", WAIT_RS),
+        ("openclose.rs", OPENCLOSE_RS),
+        ("checkcontainer.rs", CHECKCONTAINER_RS),
+        ("takeplace.rs", TAKEPLACE_RS),
+        ("perception.rs", PERCEPTION_RS),
+        ("eat.rs", EAT_RS),
+        ("sleep.rs", SLEEP_RS),
+        ("work.rs", WORK_RS),
     ];
-
-    for kind in required {
-        assert!(
-            kind.requires_cause(),
-            "action-emitted kind lacks required-cause disposition: {kind:?}"
-        );
-    }
-
-    for source in [
-        MOVEMENT_RS,
-        WAIT_RS,
-        OPENCLOSE_RS,
-        CHECKCONTAINER_RS,
-        TAKEPLACE_RS,
-        PERCEPTION_RS,
-    ] {
+    for (_, source) in action_sources {
         assert!(
             source.contains("EventEnvelope::new_caused_v1"),
             "action-emitted source must construct caused envelopes"
         );
     }
+    let violations = action_emitted_kind_cause_disposition_violations(&action_sources);
+    assert!(
+        violations.is_empty(),
+        "action-emitted kinds lack required-cause metadata: {violations:?}"
+    );
+
+    let synthetic_sources = [(
+        "synthetic_action.rs",
+        "EventEnvelope::new_caused_v1(event_id, EventKind::ReplayProjectionRebuilt, 0, 0, tick, key, manifest, causes)",
+    )];
+    let synthetic_violations = action_emitted_kind_cause_disposition_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations
+            .iter()
+            .any(|violation| violation
+                .contains(&format!("{:?}", EventKind::ReplayProjectionRebuilt))),
+        "synthetic action-emitted kind without cause-required metadata must fail"
+    );
+}
+
+fn missing_world_apply_arms(source: &str) -> Vec<tracewake_core::events::EventKind> {
+    tracewake_core::events::EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.metadata().physical_mutating)
+        .filter(|kind| !source.contains(&format!("EventKind::{kind:?}")))
+        .collect()
+}
+
+fn missing_agent_apply_arms(source: &str) -> Vec<tracewake_core::events::EventKind> {
+    use tracewake_core::events::{apply::AGENT_WORLD_NOOP_ALLOWLIST, EventKind, EventStream};
+
+    EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.metadata().stream == EventStream::Agent)
+        .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
+        .filter(|kind| !source.contains(&format!("EventKind::{kind:?}")))
+        .collect()
+}
+
+fn action_emitted_kind_cause_disposition_violations(sources: &[(&str, &str)]) -> Vec<String> {
+    tracewake_core::events::EventKind::all()
+        .iter()
+        .copied()
+        .flat_map(|kind| {
+            let arm = format!("EventKind::{kind:?}");
+            sources
+                .iter()
+                .filter(move |(_, source)| {
+                    source.contains("EventEnvelope::new_caused_v1") && source.contains(&arm)
+                })
+                .filter(move |_| !kind.metadata().cause_required)
+                .map(move |(path, _)| {
+                    format!("{path}: action-emitted kind lacks required-cause metadata: {kind:?}")
+                })
+        })
+        .collect()
 }
 
 #[test]

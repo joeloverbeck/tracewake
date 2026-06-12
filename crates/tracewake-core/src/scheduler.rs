@@ -235,7 +235,7 @@ pub mod no_human {
         TypedDiagnosticFields,
     };
     use crate::epistemics::EpistemicProjection;
-    use crate::events::apply::{apply_agent_event, apply_epistemic_event};
+    use crate::events::apply::{apply_agent_event, apply_epistemic_event, ApplyError};
     use crate::events::is_duration_terminal;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
@@ -294,6 +294,34 @@ pub mod no_human {
         pub marker_event_ids: Vec<EventId>,
         pub ordinary_pipeline_events: usize,
         pub stuck_diagnostic_event_ids: Vec<EventId>,
+        pub scheduler_errors: Vec<NoHumanSchedulerError>,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub enum NoHumanSchedulerError {
+        DuplicateDurationTerminal {
+            start_event_id: EventId,
+            first_terminal_event_id: EventId,
+            duplicate_terminal_event_id: EventId,
+        },
+        CompletionBuild {
+            start_event_id: EventId,
+            error: ApplyError,
+        },
+        AgentApply {
+            event_id: EventId,
+            error: ApplyError,
+        },
+    }
+
+    impl From<crate::need_accounting::DuplicateDurationTerminal> for NoHumanSchedulerError {
+        fn from(error: crate::need_accounting::DuplicateDurationTerminal) -> Self {
+            Self::DuplicateDurationTerminal {
+                start_event_id: error.start_event_id,
+                first_terminal_event_id: error.first_terminal_event_id,
+                duplicate_terminal_event_id: error.duplicate_terminal_event_id,
+            }
+        }
     }
 
     pub fn default_day_windows(start_tick: SimTick) -> Vec<DayWindow> {
@@ -362,6 +390,7 @@ pub mod no_human {
         let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
         let mut duration_skip_by_window_actor: BTreeSet<(String, ActorId)> = BTreeSet::new();
         let mut stuck_diagnostic_event_ids = Vec::new();
+        let mut scheduler_errors = Vec::new();
         let mut pending_sleep_starts = Vec::new();
         let mut pending_work_starts = Vec::new();
         let mut last_decision_tick_by_actor = config
@@ -373,6 +402,14 @@ pub mod no_human {
         for window in &config.windows {
             for actor_id in &config.actor_ids {
                 if !state.actors.contains_key(actor_id) {
+                    continue;
+                }
+                if let Err(error) = crate::need_accounting::open_body_exclusive_starts(
+                    log,
+                    actor_id,
+                    window.start_tick,
+                ) {
+                    scheduler_errors.push(error.into());
                     continue;
                 }
                 let previous_decision_tick = last_decision_tick_by_actor
@@ -407,6 +444,7 @@ pub mod no_human {
                     &mut pending_sleep_starts,
                     &mut pending_work_starts,
                     window.start_tick,
+                    &mut scheduler_errors,
                 );
                 for (completed_actor_id, completion_tick) in completed_durations {
                     credit_completion(
@@ -423,7 +461,18 @@ pub mod no_human {
                     window.start_tick,
                     &content_manifest_id,
                 );
-                if actor_has_open_body_exclusive_duration(log, actor_id, window.start_tick) {
+                let has_open_duration = match actor_has_open_body_exclusive_duration(
+                    log,
+                    actor_id,
+                    window.start_tick,
+                ) {
+                    Ok(has_open_duration) => has_open_duration,
+                    Err(error) => {
+                        scheduler_errors.push(error.into());
+                        true
+                    }
+                };
+                if has_open_duration {
                     duration_skip_by_window_actor
                         .insert((window.window_id.clone(), actor_id.clone()));
                     append_routine_stuck_diagnostics(
@@ -434,6 +483,7 @@ pub mod no_human {
                         window,
                         &content_manifest_id,
                         &mut stuck_diagnostic_event_ids,
+                        &mut scheduler_errors,
                     );
                     continue;
                 }
@@ -445,6 +495,7 @@ pub mod no_human {
                     window,
                     &content_manifest_id,
                     &mut stuck_diagnostic_event_ids,
+                    &mut scheduler_errors,
                 );
                 let Some(agent_proposal) = build_agent_proposal(
                     state,
@@ -555,6 +606,7 @@ pub mod no_human {
                     window,
                     &content_manifest_id,
                     &mut stuck_diagnostic_event_ids,
+                    &mut scheduler_errors,
                 );
             }
         }
@@ -569,6 +621,7 @@ pub mod no_human {
             &mut pending_sleep_starts,
             &mut pending_work_starts,
             final_tick,
+            &mut scheduler_errors,
         );
         for (completed_actor_id, completion_tick) in completed_durations {
             credit_completion(
@@ -601,9 +654,13 @@ pub mod no_human {
                         StuckDiagnosticKind::WindowNoProgress,
                         None,
                     );
-                    apply_agent_event(agent_state, &event)
-                        .expect("stuck diagnostic event applies to live agent state");
-                    stuck_diagnostic_event_ids.push(event.event_id);
+                    match apply_agent_event(agent_state, &event) {
+                        Ok(_) => stuck_diagnostic_event_ids.push(event.event_id),
+                        Err(error) => scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+                            event_id: event.event_id,
+                            error,
+                        }),
+                    }
                 }
             }
         }
@@ -630,6 +687,7 @@ pub mod no_human {
             marker_event_ids: vec![started.event_id, completed.event_id],
             ordinary_pipeline_events,
             stuck_diagnostic_event_ids,
+            scheduler_errors,
         }
     }
 
@@ -846,6 +904,7 @@ pub mod no_human {
         pending_sleep_starts: &mut Vec<EventEnvelope>,
         pending_work_starts: &mut Vec<EventEnvelope>,
         due_tick: SimTick,
+        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
     ) -> Vec<(ActorId, SimTick)> {
         let mut due_completions = Vec::new();
         let mut retained_sleep_starts = Vec::new();
@@ -883,11 +942,13 @@ pub mod no_human {
                 scheduler,
                 content_manifest_id,
                 completion,
+                scheduler_errors,
             ));
         }
         completed_durations
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn append_scheduled_completion(
         state: &PhysicalState,
         log: &mut EventLog,
@@ -896,6 +957,7 @@ pub mod no_human {
         scheduler: &mut DeterministicScheduler,
         content_manifest_id: &ContentManifestId,
         completion: PendingCompletion,
+        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
     ) -> Vec<(ActorId, SimTick)> {
         let mut completed_durations = Vec::new();
         match completion {
@@ -917,7 +979,7 @@ pub mod no_human {
                     vec![actor_id],
                     format!("sleep_completed:{}", sleep_started.event_id.as_str()),
                 );
-                let Ok(events) = build_sleep_completion_events(
+                let events = match build_sleep_completion_events(
                     state,
                     agent_state,
                     log,
@@ -925,11 +987,22 @@ pub mod no_human {
                     &ordering_key,
                     content_manifest_id,
                     completion_tick,
-                ) else {
-                    return completed_durations;
+                ) {
+                    Ok(events) => events,
+                    Err(error) => {
+                        scheduler_errors.push(NoHumanSchedulerError::CompletionBuild {
+                            start_event_id: sleep_started.event_id,
+                            error,
+                        });
+                        return completed_durations;
+                    }
                 };
                 for event in events {
-                    let appended = append_and_apply_agent_event(log, agent_state, event);
+                    let Ok(appended) =
+                        try_append_and_apply_agent_event(log, agent_state, event, scheduler_errors)
+                    else {
+                        continue;
+                    };
                     if is_duration_terminal(appended.event_type) {
                         if let Some(actor_id) = appended.actor_id.clone() {
                             completed_durations.push((actor_id, appended.sim_tick));
@@ -962,7 +1035,7 @@ pub mod no_human {
                     vec![actor_id],
                     format!("work_completed:{}", work_started.event_id.as_str()),
                 );
-                let Ok(events) = build_work_completion_events(
+                let events = match build_work_completion_events(
                     state,
                     agent_state,
                     log,
@@ -970,11 +1043,22 @@ pub mod no_human {
                     &ordering_key,
                     content_manifest_id,
                     completion_tick,
-                ) else {
-                    return completed_durations;
+                ) {
+                    Ok(events) => events,
+                    Err(error) => {
+                        scheduler_errors.push(NoHumanSchedulerError::CompletionBuild {
+                            start_event_id: work_started.event_id,
+                            error,
+                        });
+                        return completed_durations;
+                    }
                 };
                 for event in events {
-                    let appended = append_and_apply_agent_event(log, agent_state, event);
+                    let Ok(appended) =
+                        try_append_and_apply_agent_event(log, agent_state, event, scheduler_errors)
+                    else {
+                        continue;
+                    };
                     if is_duration_terminal(appended.event_type) {
                         if let Some(actor_id) = appended.actor_id.clone() {
                             completed_durations.push((actor_id, appended.sim_tick));
@@ -1133,20 +1217,22 @@ pub mod no_human {
         log: &EventLog,
         actor_id: &ActorId,
         tick: SimTick,
-    ) -> bool {
-        crate::need_accounting::open_body_exclusive_starts(log, actor_id, tick)
-            .expect("duplicate duration terminals are rejected before no-human scheduling")
-            .iter()
-            .any(|event_id| {
-                log.events().iter().any(|event| {
-                    &event.event_id == event_id
-                        && payload_value(event, "body_exclusive") == Some("true")
-                        && scheduled_completion_tick(event)
-                            .is_some_and(|completion| completion > tick)
-                })
-            })
+    ) -> Result<bool, crate::need_accounting::DuplicateDurationTerminal> {
+        Ok(
+            crate::need_accounting::open_body_exclusive_starts(log, actor_id, tick)?
+                .iter()
+                .any(|event_id| {
+                    log.events().iter().any(|event| {
+                        &event.event_id == event_id
+                            && payload_value(event, "body_exclusive") == Some("true")
+                            && scheduled_completion_tick(event)
+                                .is_some_and(|completion| completion > tick)
+                    })
+                }),
+        )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn append_routine_stuck_diagnostics(
         log: &mut EventLog,
         agent_state: &mut AgentState,
@@ -1155,6 +1241,7 @@ pub mod no_human {
         window: &DayWindow,
         content_manifest_id: &ContentManifestId,
         stuck_diagnostic_event_ids: &mut Vec<EventId>,
+        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
     ) {
         let diagnostics = routine_stuck_diagnostic_kinds(agent_state, actor_id, window);
         for (kind, execution_id) in diagnostics {
@@ -1167,9 +1254,13 @@ pub mod no_human {
                 kind,
                 Some(execution_id),
             );
-            apply_agent_event(agent_state, &event)
-                .expect("routine stuck diagnostic event applies to live agent state");
-            stuck_diagnostic_event_ids.push(event.event_id);
+            match apply_agent_event(agent_state, &event) {
+                Ok(_) => stuck_diagnostic_event_ids.push(event.event_id),
+                Err(error) => scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+                    event_id: event.event_id,
+                    error,
+                }),
+            }
         }
     }
 
@@ -1528,6 +1619,36 @@ pub mod no_human {
         let appended = log.append(event).expect("agent event is appendable");
         apply_agent_event(agent_state, &appended).expect("agent event applies to live state");
         appended
+    }
+
+    fn try_append_and_apply_agent_event(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        event: EventEnvelope,
+        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
+    ) -> Result<EventEnvelope, ()> {
+        let event_id = event.event_id.clone();
+        let appended = match log.append(event) {
+            Ok(appended) => appended,
+            Err(error) => {
+                scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+                    event_id,
+                    error: ApplyError::BadPayload {
+                        key: "event_log_append",
+                        value: format!("{error:?}"),
+                    },
+                });
+                return Err(());
+            }
+        };
+        if let Err(error) = apply_agent_event(agent_state, &appended) {
+            scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+                event_id: appended.event_id.clone(),
+                error,
+            });
+            return Err(());
+        }
+        Ok(appended)
     }
 
     fn latest_action_tick_delta_tick(
@@ -2035,6 +2156,7 @@ pub mod no_human {
         let mut ordinary_pipeline_events = 0;
         let mut pending_sleep_starts = Vec::new();
         let mut pending_work_starts = Vec::new();
+        let mut scheduler_errors = Vec::new();
         let mut sorted = scheduled_proposals
             .into_iter()
             .map(|proposal| {
@@ -2066,6 +2188,7 @@ pub mod no_human {
                     &mut pending_sleep_starts,
                     &mut pending_work_starts,
                     due_tick,
+                    &mut scheduler_errors,
                 );
             }
             let mut context = PipelineContext {
@@ -2110,6 +2233,7 @@ pub mod no_human {
                 &mut pending_sleep_starts,
                 &mut pending_work_starts,
                 due_tick,
+                &mut scheduler_errors,
             );
         }
 
@@ -2370,8 +2494,7 @@ pub mod no_human {
         use super::*;
         use crate::actions::proposal::{Proposal, ProposalOrigin};
         use crate::agent::{Intention, IntentionSource};
-        use crate::events::apply::apply_agent_event;
-        use crate::events::apply::apply_event;
+        use crate::events::apply::{apply_agent_event, apply_event, ApplyError};
         use crate::events::{EventCause, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
@@ -2791,6 +2914,145 @@ pub mod no_human {
                 .events()
                 .iter()
                 .any(|event| event.event_type == EventKind::ActorWaited));
+        }
+
+        #[test]
+        fn no_human_day_reports_duplicate_duration_terminal_without_panic() {
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state.actors.insert(
+                actor_id(),
+                ActorBody::new(actor_id(), crate::ids::PlaceId::new("bedroom").unwrap()),
+            );
+            let mut agent_state = agent_state(&actor_id());
+            let mut log = EventLog::new();
+            let sleep_started = open_sleep_start_event();
+            let start_event_id = sleep_started.event_id.clone();
+            log.append(sleep_started).unwrap();
+            log.append(duration_terminal_event(
+                "event.sleep_completed.first",
+                &start_event_id,
+            ))
+            .unwrap();
+            log.append(duration_terminal_event(
+                "event.sleep_interrupted.duplicate",
+                &start_event_id,
+            ))
+            .unwrap();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+
+            let report = run_no_human_day(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                NoHumanDayConfig {
+                    actor_ids: vec![actor_id()],
+                    windows: vec![DayWindow {
+                        window_id: "corrupt_history".to_string(),
+                        start_tick: SimTick::new(4),
+                        end_tick: SimTick::new(8),
+                    }],
+                },
+            );
+
+            assert!(matches!(
+                report.scheduler_errors.as_slice(),
+                [NoHumanSchedulerError::DuplicateDurationTerminal {
+                    start_event_id: reported_start,
+                    ..
+                }] if reported_start == &start_event_id
+            ));
+        }
+
+        #[test]
+        fn scheduler_completion_reports_malformed_start_without_panic() {
+            let state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            let mut agent_state = agent_state(&actor_id());
+            let mut log = EventLog::new();
+            let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+            let process_id = ProcessId::new("no_human_day").unwrap();
+            let malformed_start = open_sleep_start_event();
+            let start_event_id = malformed_start.event_id.clone();
+            let mut scheduler_errors = Vec::new();
+
+            let completed = append_scheduled_completion(
+                &state,
+                &mut log,
+                &mut agent_state,
+                &process_id,
+                &mut scheduler,
+                &content_manifest_id(),
+                PendingCompletion::Sleep(malformed_start),
+                &mut scheduler_errors,
+            );
+
+            assert!(completed.is_empty());
+            assert!(matches!(
+                scheduler_errors.as_slice(),
+                [NoHumanSchedulerError::CompletionBuild {
+                    start_event_id: reported_start,
+                    error: ApplyError::MissingPayload(_),
+                }] if reported_start == &start_event_id
+            ));
+        }
+
+        fn open_sleep_start_event() -> EventEnvelope {
+            let mut sleep_started = EventEnvelope::new_caused_v1(
+                EventId::new("event.sleep_started.proposal_sleep_open").unwrap(),
+                EventKind::SleepStarted,
+                0,
+                0,
+                SimTick::ZERO,
+                OrderingKey::new(
+                    SimTick::ZERO,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id()),
+                    ProposalSequence::new(0),
+                    ActionId::new("sleep").unwrap(),
+                    vec!["actor_tomas".to_string()],
+                    "sleep_open",
+                ),
+                content_manifest_id(),
+                vec![EventCause::Proposal(
+                    ProposalId::new("proposal_sleep_open").unwrap(),
+                )],
+            )
+            .unwrap();
+            sleep_started.actor_id = Some(actor_id());
+            sleep_started.proposal_id = Some(ProposalId::new("proposal_sleep_open").unwrap());
+            sleep_started.payload = vec![
+                PayloadField::new("actor_id", actor_id().as_str()),
+                PayloadField::new("expected_completion_tick", "2"),
+                PayloadField::new("body_exclusive", "true"),
+            ];
+            sleep_started
+        }
+
+        fn duration_terminal_event(event_id: &str, start_event_id: &EventId) -> EventEnvelope {
+            let mut event = EventEnvelope::new_caused_v1(
+                EventId::new(event_id).unwrap(),
+                EventKind::SleepCompleted,
+                0,
+                0,
+                SimTick::new(2),
+                OrderingKey::new(
+                    SimTick::new(2),
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id()),
+                    ProposalSequence::new(0),
+                    ActionId::new("sleep_completed").unwrap(),
+                    vec!["actor_tomas".to_string()],
+                    event_id,
+                ),
+                content_manifest_id(),
+                vec![EventCause::Event(start_event_id.clone())],
+            )
+            .unwrap();
+            event.actor_id = Some(actor_id());
+            event.payload = vec![PayloadField::new("payload_schema_version", "1")];
+            event
         }
 
         #[test]

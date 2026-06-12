@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-008: Scheduler reject-loudly closure, derived cause-set, and apply totality
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — scheduler error paths (`scheduler.rs`), event metadata (`events/envelope.rs`), apply totality (`events/apply.rs`), test-oracle guards
@@ -164,3 +164,38 @@ allowlisted no-op); synthetic negatives on both streams.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-core scheduler`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-12.
+
+No-human scheduler log-derived failures now report typed `NoHumanSchedulerError`
+values instead of panicking on duplicate duration terminals, malformed scheduled
+completion inputs, or agent-apply failures on scheduler diagnostics/completions.
+`NoHumanDayReport` carries those errors while preserving the existing non-fallible
+runner API for accepted histories. Duplicate duration terminal checks also run before
+passive need classification, so corrupt duration logs do not reach the older
+tick-regime panic path.
+
+`EventKindMetadata` now carries `cause_required`, and `EventKind::requires_cause()`
+derives from metadata. The action-emitted cause guard scans action sources for emitted
+`EventKind::*` references and validates their metadata, with a synthetic uncovered
+kind proving the guard fails.
+
+Apply totality guards are now scanner-backed: the world mutating apply-arm check uses
+a reusable missing-arm scanner, and a new agent-stream analogue checks all agent
+stream kinds against explicit `apply_agent_event_with_capability` arms or the
+documented no-op allowlist. The `ORD-HARD-113` meta-lock debt entry was retired to
+`SharedScan`, and the new agent, cause, and panic guards are registered in the
+meta-lock census.
+
+Verification:
+
+1. `cargo test -p tracewake-core scheduler --no-fail-fast`
+2. `grep -n 'expect("duplicate duration terminals' crates/tracewake-core/src/scheduler.rs`
+   returned zero matches and exit 1.
+3. `cargo test -p tracewake-core --test anti_regression_guards`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

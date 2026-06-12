@@ -91,7 +91,9 @@ enumerated by stable name) to its synthetic negative and the shared code path bo
 route through. Census fails on: a lock with no negative, a negative not routed through
 the production scan function, or an unregistered lock matching the naming convention.
 Known artifact-shaped synthetics are registered as named debt entries carrying their
-owning ticket (`0022PHA3ABASTRI-008`/`-009`) until re-routed.
+owning ticket until re-routed. `0022PHA3ABASTRI-008` later re-routed the apply-arm
+totality debt through the shared scan; `0022PHA3ABASTRI-009` remains ticket-owned
+until its guard is re-routed.
 
 ### 2. Nonzero-witness rule
 
@@ -170,7 +172,8 @@ Completed on 2026-06-12.
   `meta_lock_registry_census` entry.
 - Registered known artifact-shaped negatives as ticket-owned debt for
   `0022PHA3ABASTRI-008` and `0022PHA3ABASTRI-009`, without re-routing them in this
-  ticket.
+  ticket. `0022PHA3ABASTRI-008` later re-routed its apply-arm totality debt through
+  the shared scan; `0022PHA3ABASTRI-009` remains ticket-owned.
 - Extended mutation-baseline governance so the current normalized count/hash
   (`143`, `bd1855a5ee82b428`) must be recorded in the disposition ledger's baseline
   change log; added synthetics for append, shrink, and unrecorded floor movement.
