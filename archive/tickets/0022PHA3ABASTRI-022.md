@@ -73,7 +73,9 @@ Add focused tests that kill the `trace.rs` baseline mutants assigned in the ledg
 1. `cargo test -p tracewake-core`
 2. `cargo mutants -f crates/tracewake-core/src/agent/trace.rs --no-shuffle`
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 Implemented focused trace vocabulary and canonical deserialization tests covering
 decision outcomes, responsible layers, blocker codes, stuck resulting statuses,

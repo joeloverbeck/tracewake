@@ -79,7 +79,9 @@ mutants.
 3. `cargo mutants -f crates/tracewake-core/src/projections.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/agent/perception.rs --no-shuffle`
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 Implemented focused transaction, projection, and perception tests for the final
 baseline rows. Transaction coverage now proves actor-specific active-intention

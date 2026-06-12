@@ -163,7 +163,7 @@ cheap, since it upgrades the contract rather than downgrading the comment).
 
 ## Outcome
 
-Completed on 2026-06-12.
+Completed: 2026-06-12
 
 - Re-armed `hidden_truth_gates.rs::context` so `known_edges` and
   `known_food_sources` are consumed through real `ObservationRecorded` events applied

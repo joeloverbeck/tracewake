@@ -167,7 +167,7 @@ allowlisted no-op); synthetic negatives on both streams.
 
 ## Outcome
 
-Completed on 2026-06-12.
+Completed: 2026-06-12
 
 No-human scheduler log-derived failures now report typed `NoHumanSchedulerError`
 values instead of panicking on duplicate duration terminals, malformed scheduled

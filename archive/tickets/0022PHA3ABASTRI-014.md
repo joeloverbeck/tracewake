@@ -133,7 +133,9 @@ this artifact, so the guard machine-checks it (and fires on a missing anchor).
 2. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 
-## Completion Outcome (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 Implemented. Added `reports/0022_ord_life_cert_scoped_acceptance.md` with the
 implementation commit manifest, one report section per spec section 7 item 1-15,

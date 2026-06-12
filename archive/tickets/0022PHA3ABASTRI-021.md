@@ -77,7 +77,9 @@ Add focused tests that kill the assigned no-human, planner, and scheduler mutant
 3. `cargo mutants -f crates/tracewake-core/src/agent/planner.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/scheduler.rs --no-shuffle`
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 Implemented focused tests for the no-human active-intention surface, planner
 sleep/work preconditions, exact scheduler witness lookups, pending completion

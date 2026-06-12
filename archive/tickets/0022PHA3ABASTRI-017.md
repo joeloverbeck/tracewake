@@ -61,7 +61,9 @@ ledger.
 1. Context facts remain actor-known and provenance-derived.
 2. Baseline entries are removed only after the focused tests kill them.
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 - Added focused actor-known tests for derived container surfaces, deterministic
   fact sorting, and structured gap detection that requires exact stable id,

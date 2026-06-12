@@ -117,7 +117,9 @@ census, nonzero-witness rule, two-sided ratchets (`-004`).
    implementation notes).
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 
-## Completion Outcome (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 Implemented. Updated the architecture conformance index with 0022 rows for
 scheduled-ratchet concurrency isolation, behavioral policy-table dispatch,

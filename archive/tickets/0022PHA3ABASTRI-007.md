@@ -159,7 +159,7 @@ EMERGE-OBS inputs are measured later by `-014`), in one batch, from real runs.
 
 ## Outcome
 
-Completed on 2026-06-12.
+Completed: 2026-06-12
 
 Eat hunger deltas now route through `need_events::build_need_delta_and_threshold_events`
 with the current actor hunger from `AgentState`, so eating emits the existing

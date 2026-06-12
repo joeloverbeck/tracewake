@@ -78,7 +78,9 @@ Add focused tests that kill the assigned HTN, intention, methods, and routine mu
 4. `cargo mutants -f crates/tracewake-core/src/agent/methods.rs --no-shuffle`
 5. `cargo mutants -f crates/tracewake-core/src/agent/routine.rs --no-shuffle`
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 - Added focused HTN condition-resolution tests for modeled food-search facts,
   search-surface availability, and known-route edge vs modeled-fact surfaces.

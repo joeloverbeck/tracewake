@@ -164,7 +164,7 @@ improvement, with the recorded value updated through the same delta convention.
 
 ## Outcome
 
-Completed on 2026-06-12.
+Completed: 2026-06-12
 
 - Added a registry-backed meta-lock census in
   `crates/tracewake-core/tests/anti_regression_guards.rs` with stable lock IDs,

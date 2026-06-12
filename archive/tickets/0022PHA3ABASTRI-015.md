@@ -63,7 +63,9 @@ assigned in the ledger.
 1. Player and no-human action validation remain equivalent.
 2. Baseline entries are removed only after the focused tests kill them.
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 - Added focused action-pipeline tests for body-exclusive detection, actor-enabled
   lookup, inactive scope rejection, controller binding, source-context staleness,

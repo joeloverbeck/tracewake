@@ -60,7 +60,9 @@ Add focused tests that kill the `eat.rs` baseline mutants assigned in the ledger
 1. Food access remains modeled through state and custody, not prose.
 2. Baseline entries are removed only after the focused tests kill them.
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 - Added focused eat tests for remote-place rejection, self-carried food success,
   other-carrier rejection, open local container success, open remote container

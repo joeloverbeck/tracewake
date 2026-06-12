@@ -174,7 +174,9 @@ engine-side bound (both bounds behavior-derived).
 2. `cargo test -p tracewake-core --test generative_lock && cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 
-## Completion Outcome (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 Implemented. `RoutineStep::FailWithTypedDiagnostic` now carries a closed
 `RoutineDiagnosticKind` registry, canonical serialization emits only the stable

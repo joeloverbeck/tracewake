@@ -168,7 +168,7 @@ Register the parametric test + synthetic negative with the `-004` bijection cens
 
 ## Outcome
 
-Completed on 2026-06-12.
+Completed: 2026-06-12
 
 - Replaced the self-echo policy dispatch test with
   `actor_known_projection_policy_table_drives_record_behavior`.

@@ -76,7 +76,9 @@ Add focused tests that kill the assigned candidate, decision, and generation mut
 3. `cargo mutants -f crates/tracewake-core/src/agent/decision.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/agent/generation.rs --no-shuffle`
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 - Added focused candidate stable-id coverage for every `GoalKind` and
   `CandidateGoalSource` variant.

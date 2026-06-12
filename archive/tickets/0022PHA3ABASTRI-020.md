@@ -69,7 +69,9 @@ Add focused tests that kill the `need.rs` baseline mutants assigned in the ledge
 1. `cargo test -p tracewake-core`
 2. `cargo mutants -f crates/tracewake-core/src/agent/need.rs --no-shuffle`
 
-## Completion Notes (2026-06-12)
+## Outcome
+
+Completed: 2026-06-12
 
 - Added focused need vocabulary parser coverage for every `NeedKind`,
   `NeedBand`, and `ThresholdDirection` stable id.
