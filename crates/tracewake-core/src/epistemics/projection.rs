@@ -1435,12 +1435,19 @@ fn source_summary(source: &SourceRef) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent::{
+        current_place_knowledge_context, NoHumanActorKnownSurfaceBuilder,
+        NoHumanActorKnownSurfaceRequest,
+    };
     use crate::epistemics::belief::{Belief, HolderKind, Stance};
     use crate::epistemics::knowledge_context::KnowledgeContext;
-    use crate::epistemics::observation::{Confidence, SourceRef};
+    use crate::epistemics::observation::{
+        Channel, Confidence, Observation, ObservationSubject, ObservationTarget, SourceRef,
+    };
     use crate::epistemics::proposition::Proposition;
-    use crate::ids::{ContainerId, DoorId, EventId, ItemId};
+    use crate::ids::{ContainerId, DoorId, EventId, ItemId, ObservationId};
     use crate::location::Location;
+    use crate::state::{ActorBody, AgentState, NeedModelState, PhysicalState};
     use crate::time::SimTick;
 
     fn actor_id(value: &str) -> ActorId {
@@ -1522,58 +1529,50 @@ mod tests {
 
     #[test]
     fn actor_known_projection_policy_table_drives_record_behavior() {
-        let actor = actor_id("actor_tomas");
         let current_place = place_id("home_tomas");
-        let context = KnowledgeContext::embodied(actor.clone(), SimTick::new(4));
-        let mut projection = EpistemicProjection::new(manifest_id());
-        projection.actor_known_records_by_actor.insert(
-            actor.clone(),
-            policy_behavior_records(actor).into_iter().collect(),
+        let policies = actor_known_projection_policy_kinds();
+
+        let mismatches = policy_surface_mismatches(&policies, &current_place);
+
+        assert!(
+            mismatches.is_empty(),
+            "policy table rows must drive emitted no-human and embodied surface behavior: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn actor_known_projection_policy_table_detects_synthetic_row_mutations() {
+        let current_place = place_id("home_tomas");
+        let mut policies = actor_known_projection_policy_kinds();
+
+        policies.get_mut("food_source").unwrap().accessibility_scope =
+            ActorKnownProjectionAccessibilityScope::None;
+        assert!(
+            policy_surface_mismatches(&policies, &current_place)
+                .iter()
+                .any(|mismatch| mismatch.contains("food_source accessibility")),
+            "accessibility-scope mutation must be caught by emitted no-human facts"
         );
 
-        let classified =
-            projection.classified_actor_known_records_for_context(&context, &current_place);
-        let by_kind = classified
-            .iter()
-            .map(|classified| (classified.record().kind(), *classified))
-            .collect::<BTreeMap<_, _>>();
+        let mut policies = actor_known_projection_policy_kinds();
+        policies.get_mut("workplace").unwrap().classification =
+            ActorKnownProjectionPolicy::ReclassifyWhenStale;
+        assert!(
+            policy_surface_mismatches(&policies, &current_place)
+                .iter()
+                .any(|mismatch| mismatch.contains("workplace classification")),
+            "classification mutation must be caught by superseded workplace surface output"
+        );
 
-        let policies = actor_known_projection_policy_kinds();
-        for (kind, policy) in policies {
-            let classified = by_kind
-                .get(kind)
-                .unwrap_or_else(|| panic!("classified records omit policy kind {kind}"));
-            assert_eq!(
-                classified.record().policy().classification(),
-                policy.classification(),
-                "{kind} dispatches to a policy classification different from the table"
-            );
-            assert_eq!(
-                classified.record().policy().embodied_scope(),
-                policy.embodied_scope(),
-                "{kind} dispatches to an embodied scope different from the table"
-            );
-            assert_eq!(
-                classified.record().policy().accessibility_scope(),
-                policy.accessibility_scope(),
-                "{kind} dispatches to an accessibility scope different from the table"
-            );
-            assert_eq!(
-                policy.includes_in_embodied_context(
-                    classified.is_current_place_record(),
-                    classified.is_latest_current_place_record()
-                ),
-                kind == "workplace",
-                "{kind} embodied inclusion must be behaviorally tied to the declared scope"
-            );
-            if policy.classification() == ActorKnownProjectionPolicy::ReclassifyWhenStale {
-                assert_eq!(
-                    classified.freshness(),
-                    ActorKnownProjectionFreshness::Remembered,
-                    "{kind} should classify a direct non-observation-backed record as remembered"
-                );
-            }
-        }
+        let mut policies = actor_known_projection_policy_kinds();
+        policies.get_mut("workplace").unwrap().embodied_scope =
+            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly;
+        assert!(
+            stale_workplace_embodied_scope_mismatches(&policies)
+                .iter()
+                .any(|mismatch| mismatch.contains("workplace embodied")),
+            "embodied-scope mutation must be caught by stale current-place workplace behavior"
+        );
     }
 
     #[test]
@@ -1714,6 +1713,255 @@ mod tests {
                 source_tick: SimTick::new(4),
             },
         ]
+    }
+
+    fn policy_surface_mismatches(
+        policies: &BTreeMap<&'static str, ActorKnownProjectionKindPolicy>,
+        current_place: &PlaceId,
+    ) -> Vec<String> {
+        let actor = actor_id("actor_tomas");
+        let projection = policy_behavior_projection(actor.clone());
+        let embodied_context =
+            policy_behavior_embodied_context(&projection, actor.clone(), current_place.clone());
+        let no_human_fact_values =
+            policy_behavior_no_human_fact_values(&projection, actor, current_place.clone());
+        let mut mismatches = Vec::new();
+
+        for (kind, policy) in policies {
+            let expected_embodied = expected_embodied_presence(kind, *policy, current_place);
+            let actual_embodied = embodied_surface_contains(&embodied_context, kind);
+            if actual_embodied != expected_embodied {
+                mismatches.push(format!(
+                    "{kind} embodied expected {expected_embodied} observed {actual_embodied}"
+                ));
+            }
+
+            if let Some(access_fact_id) = accessibility_fact_id(kind) {
+                let expected_accessibility = policy.accessibility_scope()
+                    == ActorKnownProjectionAccessibilityScope::FromAnyPlace;
+                let actual_accessibility = no_human_fact_values.contains_key(access_fact_id);
+                if actual_accessibility != expected_accessibility {
+                    mismatches.push(format!(
+                        "{kind} accessibility expected {expected_accessibility} observed {actual_accessibility}"
+                    ));
+                }
+            }
+        }
+
+        let expected_workplace_values = match policies
+            .get("workplace")
+            .expect("policy table has workplace")
+            .classification()
+        {
+            ActorKnownProjectionPolicy::SupersedeNewestBySubject => {
+                vec!["workplace_tomas:true".to_string()]
+            }
+            ActorKnownProjectionPolicy::ReclassifyWhenStale => vec![
+                "workplace_tomas:false".to_string(),
+                "workplace_tomas:true".to_string(),
+            ],
+        };
+        let actual_workplace_values = no_human_fact_values
+            .get("workplace_believed_accessible")
+            .cloned()
+            .unwrap_or_default();
+        if actual_workplace_values != expected_workplace_values {
+            mismatches.push(format!(
+                "workplace classification expected values {expected_workplace_values:?} observed {actual_workplace_values:?}"
+            ));
+        }
+
+        mismatches
+    }
+
+    fn policy_behavior_projection(actor: ActorId) -> EpistemicProjection {
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_observation(Observation::new(
+            ObservationId::new("observation_current_place_tick_4").unwrap(),
+            actor.clone(),
+            Channel::DirectSight,
+            SimTick::new(4),
+            place_id("home_tomas"),
+            ObservationSubject::Place(place_id("home_tomas")),
+            ObservationTarget::Place(place_id("home_tomas")),
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(event_id("event_current_place_tick_4")),
+        ));
+        let mut records = policy_behavior_records(actor);
+        records.push(ActorKnownProjectionRecord::Workplace {
+            actor_id: actor_id("actor_tomas"),
+            workplace_id: workplace_id("workplace_tomas"),
+            place_id: place_id("home_tomas"),
+            believed_access_open: false,
+            source: ActorKnownProjectionSource::RoleAssignmentNotice,
+            source_event_id: event_id("event_role_notice_old_closed"),
+            source_tick: SimTick::new(3),
+        });
+        projection
+            .actor_known_records_by_actor
+            .entry(actor_id("actor_tomas"))
+            .or_default()
+            .extend(records);
+        projection
+    }
+
+    fn policy_behavior_embodied_context(
+        projection: &EpistemicProjection,
+        actor: ActorId,
+        current_place: PlaceId,
+    ) -> KnowledgeContext {
+        let mut state = PhysicalState::empty(NeedModelState::new(5, 3));
+        state
+            .actors
+            .insert(actor.clone(), ActorBody::new(actor.clone(), current_place));
+        current_place_knowledge_context(
+            &state,
+            Some(projection),
+            &actor,
+            SimTick::new(4),
+            &manifest_id(),
+            8,
+        )
+    }
+
+    fn policy_behavior_no_human_fact_values(
+        projection: &EpistemicProjection,
+        actor: ActorId,
+        current_place: PlaceId,
+    ) -> BTreeMap<String, Vec<String>> {
+        let surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection,
+                agent_state: &AgentState::default(),
+                actor_id: actor,
+                current_place_id: current_place,
+                decision_tick: SimTick::new(4),
+                window_id: "policy_surface_window",
+                window_end_tick: SimTick::new(5),
+                current_place_witness_event_id: Some(event_id("event_current_place_witness")),
+                needs_witness_event_id: None,
+                frame_event_id: Some(event_id("event_policy_frame")),
+            })
+            .build(&AgentState::default());
+        let mut values = BTreeMap::<String, Vec<String>>::new();
+        for fact in surface.context().actor_known_facts() {
+            values
+                .entry(fact.stable_id().to_string())
+                .or_default()
+                .push(fact.value().to_string());
+        }
+        for fact_values in values.values_mut() {
+            fact_values.sort();
+            fact_values.dedup();
+        }
+        values
+    }
+
+    fn stale_workplace_embodied_scope_mismatches(
+        policies: &BTreeMap<&'static str, ActorKnownProjectionKindPolicy>,
+    ) -> Vec<String> {
+        let actor = actor_id("actor_tomas");
+        let current_place = place_id("home_tomas");
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_observation(Observation::new(
+            ObservationId::new("observation_current_place_tick_4").unwrap(),
+            actor.clone(),
+            Channel::DirectSight,
+            SimTick::new(4),
+            current_place.clone(),
+            ObservationSubject::Place(current_place.clone()),
+            ObservationTarget::Place(current_place.clone()),
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(event_id("event_current_place_tick_4")),
+        ));
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            workplace_id("workplace_tomas"),
+            current_place.clone(),
+            true,
+            event_id("event_role_notice_stale"),
+            SimTick::new(3),
+        );
+        let embodied_context =
+            policy_behavior_embodied_context(&projection, actor, current_place.clone());
+        let expected_embodied = policies
+            .get("workplace")
+            .expect("policy table has workplace")
+            .includes_in_embodied_context(true, false);
+        let actual_embodied = embodied_surface_contains(&embodied_context, "workplace");
+        if actual_embodied == expected_embodied {
+            Vec::new()
+        } else {
+            vec![format!(
+                "workplace embodied expected {expected_embodied} observed {actual_embodied}"
+            )]
+        }
+    }
+
+    fn expected_embodied_presence(
+        kind: &str,
+        policy: ActorKnownProjectionKindPolicy,
+        current_place: &PlaceId,
+    ) -> bool {
+        let current_place_record = relevant_place_for_kind(kind) == Some(current_place.clone());
+        let latest_current_place_record =
+            current_place_record && current_place.as_str() == "home_tomas";
+        policy.includes_in_embodied_context(current_place_record, latest_current_place_record)
+    }
+
+    fn relevant_place_for_kind(kind: &str) -> Option<PlaceId> {
+        match kind {
+            "route" | "food_source" | "local_actor" | "local_container" | "local_door"
+            | "local_item" | "sleep_place" | "workplace" => Some(place_id("home_tomas")),
+            _ => None,
+        }
+    }
+
+    fn embodied_surface_contains(context: &KnowledgeContext, kind: &str) -> bool {
+        match kind {
+            "route" => context
+                .actor_known_routes()
+                .iter()
+                .any(|fact| fact.from_place_id().as_str() == "home_tomas"),
+            "food_source" => context
+                .actor_known_food_sources()
+                .iter()
+                .any(|fact| fact.food_supply_id().as_str() == "food_stew"),
+            "local_actor" => context
+                .actor_known_local_actors()
+                .iter()
+                .any(|fact| fact.actor_id().as_str() == "actor_mara"),
+            "local_container" => context
+                .actor_known_containers()
+                .iter()
+                .any(|fact| fact.container_id().as_str() == "strongbox_tomas"),
+            "local_door" => context
+                .actor_known_doors()
+                .iter()
+                .any(|fact| fact.door_id().as_str() == "door_home_market"),
+            "local_item" => context
+                .actor_known_items()
+                .iter()
+                .any(|fact| fact.item_id().as_str() == "coin_stack_01"),
+            "sleep_place" => context
+                .actor_known_sleep_affordances()
+                .iter()
+                .any(|fact| fact.sleep_affordance_id().as_str() == "bed_tomas"),
+            "workplace" => context
+                .actor_known_workplaces()
+                .iter()
+                .any(|fact| fact.workplace_id().as_str() == "workplace_tomas"),
+            other => panic!("unhandled policy behavior kind {other}"),
+        }
+    }
+
+    fn accessibility_fact_id(kind: &str) -> Option<&'static str> {
+        match kind {
+            "food_source" => Some("food_source_believed_accessible"),
+            "sleep_place" => Some("sleep_place_believed_accessible"),
+            "workplace" => Some("workplace_believed_accessible"),
+            _ => None,
+        }
     }
 
     #[test]

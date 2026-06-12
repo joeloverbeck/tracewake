@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-007: Policy-table surface-driven behavioral lock
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — epistemics test suite (`epistemics/projection.rs` tests, `anti_regression_guards.rs` enrollment)
@@ -136,3 +136,7 @@ Add the mutation negative (one row's declared scope flipped ⇒ surface output c
 
 1. `cargo test -p tracewake-core`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
