@@ -39,6 +39,7 @@ const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
+const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const CONTENT_FIXTURE_HIDDEN_FOOD_CLOSED_CONTAINER_RS: &str =
     include_str!("../../tracewake-content/src/fixtures/hidden_food_closed_container_001.rs");
@@ -7902,6 +7903,7 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
     let sources = [
         ("generative_lock.rs", GENERATIVE_LOCK_RS),
         ("support/generative.rs", SUPPORT_GENERATIVE_RS),
+        ("support/mod.rs", SUPPORT_MOD_RS),
     ];
     let errors = generative_duration_terminal_fabricator_errors(&sources);
     assert!(
@@ -7945,6 +7947,20 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
         "synthetic support EventEnvelope struct literal must fail the support fabricator ban"
     );
 
+    let support_alias_fabricator = [
+        ("support/mod.rs", "pub type Env = EventEnvelope;"),
+        (
+            "support/generative.rs",
+            "fn helper() { let _event = Env::default(); }",
+        ),
+    ];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&support_alias_fabricator)
+            .iter()
+            .any(|error| error.contains("support/mod.rs") && error.contains("EventEnvelope")),
+        "synthetic support/mod.rs EventEnvelope alias must fail the support fabricator ban"
+    );
+
     let direct_envelope = [(
         "generative_lock.rs",
         "fn helper() { EventEnvelope::new_caused_v1(id, EventKind::SleepCompleted, 0, 0, tick, key, manifest, causes); }",
@@ -7972,7 +7988,7 @@ fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> V
     ];
     let mut errors = Vec::new();
     for (path, source) in sources {
-        if *path == "support/generative.rs" && source.contains("EventEnvelope") {
+        if path.starts_with("support/") && source.contains("EventEnvelope") {
             errors.push(format!(
                 "{path} constructs EventEnvelope directly; support generators must use engine-emitted events"
             ));

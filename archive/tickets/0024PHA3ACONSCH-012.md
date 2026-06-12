@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-012: Oracle closures — Mara log-discrimination, per-action positive census, envelope-ban widening
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` tests (`golden_fixtures_run.rs`), `tracewake-tui` tests (`tui_acceptance.rs`), `tracewake-core` test guards (`anti_regression_guards.rs`).
@@ -141,3 +141,24 @@ mod.rs-alias synthetic.
 
 1. `cargo test -p tracewake-content --test golden_fixtures_run && cargo test -p tracewake-tui --test tui_acceptance && cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+- Added a tampered-log synthetic that injects a no-human `FoodConsumed` for
+  `actor_mara` and proves the canonical Mara recovery check catches the
+  consumed-food arm, not just unsupported resolution tokens.
+- Extended the TUI positive artifact suite with accepted positives for `eat`,
+  `work_block`, `wait`, and `continue_routine`, then added a registry-derived
+  ordinary-action census plus a sleep-positive-removal synthetic.
+- Widened the generative support `EventEnvelope` ban to all `tests/support/*`
+  sources and added a `support/mod.rs` alias synthetic.
+
+Proof:
+
+1. `cargo test -p tracewake-content --test golden_fixtures_run && cargo test -p tracewake-tui --test tui_acceptance && cargo test -p tracewake-core --test anti_regression_guards`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`

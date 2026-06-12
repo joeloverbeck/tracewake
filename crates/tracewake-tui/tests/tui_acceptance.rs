@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
+
 use tracewake_content::fixtures;
-use tracewake_core::actions::ReportStatus;
+use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope, ReportStatus};
 use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
 use tracewake_tui::app::TuiApp;
 use tracewake_tui::input::semantic_id_for_selection;
@@ -15,6 +17,7 @@ struct PositiveProofArtifact {
     scenario_id: &'static str,
     actor_id: String,
     context_id: String,
+    action_id: Option<&'static str>,
     semantic_id: Option<String>,
     report_status: Option<ReportStatus>,
     event_ids: Vec<String>,
@@ -136,6 +139,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "view_model_local_actions_001",
         actor_id: view.viewer_actor_id.as_str().to_string(),
         context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("open"),
         semantic_id: Some(semantic_id.as_str().to_string()),
         report_status: Some(accepted.report.status),
         event_ids: accepted
@@ -170,6 +174,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "sleep_eat_work_001",
         actor_id: view.viewer_actor_id.as_str().to_string(),
         context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("sleep"),
         semantic_id: Some(sleep_action.as_str().to_string()),
         report_status: Some(slept.report.status),
         event_ids: slept
@@ -183,6 +188,133 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         debug_capability_present: view.debug_available,
         surfaces_checked: vec!["embodied_view", "sleep_semantic_action", "event_ids"],
         checksum_result: "accepted_sleep_started_event",
+    });
+
+    let mut eat = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    eat.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let view = eat.current_view().unwrap();
+    let eat_action = semantic_action_for_action_id(&eat, "eat");
+    let eaten = eat.submit_semantic_action(&eat_action).unwrap();
+    assert_eq!(eaten.report.status, ReportStatus::Accepted);
+    assert!(!eaten.report.event_ids.is_empty());
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "no_human_day_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("eat"),
+        semantic_id: Some(eat_action.as_str().to_string()),
+        report_status: Some(eaten.report.status),
+        event_ids: eaten
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_source_summary.clone()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["embodied_view", "eat_semantic_action", "event_ids"],
+        checksum_result: "accepted_food_consumed_event",
+    });
+
+    let mut work = TuiApp::from_golden(
+        fixtures::embodied_workplace_believed_open_truth_closed_commit_fails_001(),
+    )
+    .unwrap();
+    work.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let view = work.current_view().unwrap();
+    let work_action = semantic_action_for_action_id(&work, "work_block");
+    let worked = work.submit_semantic_action(&work_action).unwrap();
+    assert_eq!(worked.report.status, ReportStatus::Accepted);
+    assert!(!worked.report.event_ids.is_empty());
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "embodied_workplace_believed_open_truth_closed_commit_fails_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("work_block"),
+        semantic_id: Some(work_action.as_str().to_string()),
+        report_status: Some(worked.report.status),
+        event_ids: worked
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_source_summary.clone()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["embodied_view", "work_semantic_action", "event_ids"],
+        checksum_result: "accepted_work_block_failure_event",
+    });
+
+    let mut wait = TuiApp::load_default().unwrap();
+    wait.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let view = wait.current_view().unwrap();
+    let wait_action = semantic_action_for_action_id(&wait, "wait");
+    let waited = wait.submit_semantic_action(&wait_action).unwrap();
+    assert_eq!(waited.report.status, ReportStatus::Accepted);
+    assert!(!waited.report.event_ids.is_empty());
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "strongbox_tomas_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("wait"),
+        semantic_id: Some(wait_action.as_str().to_string()),
+        report_status: Some(waited.report.status),
+        event_ids: waited
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_source_summary.clone()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["embodied_view", "wait_semantic_action", "event_ids"],
+        checksum_result: "accepted_wait_event",
+    });
+
+    let mut continuation =
+        TuiApp::from_golden(fixtures::possession_does_not_reset_intention_001()).unwrap();
+    continuation
+        .bind_actor(ActorId::new("actor_mara").unwrap())
+        .unwrap();
+    let view = continuation.current_view().unwrap();
+    let continue_action = semantic_action_for_action_id(&continuation, "continue_routine");
+    let continued = continuation
+        .submit_semantic_action(&continue_action)
+        .unwrap();
+    assert_eq!(continued.report.status, ReportStatus::Accepted);
+    assert!(!continued.report.event_ids.is_empty());
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "possession_does_not_reset_intention_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("continue_routine"),
+        semantic_id: Some(continue_action.as_str().to_string()),
+        report_status: Some(continued.report.status),
+        event_ids: continued
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_source_summary.clone()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec![
+            "embodied_view",
+            "continue_routine_semantic_action",
+            "event_ids",
+        ],
+        checksum_result: "accepted_continue_routine_event",
     });
 
     let mut why_not = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
@@ -203,6 +335,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "door_access_001",
         actor_id: view.viewer_actor_id.as_str().to_string(),
         context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("move"),
         semantic_id: Some("move.to.back_room".to_string()),
         report_status: Some(rejected.report.status),
         event_ids: rejected
@@ -248,6 +381,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "expectation_contradiction_001",
         actor_id: notebook_view.viewer_actor_id.as_str().to_string(),
         context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("check_container"),
         semantic_id: Some("check.container.strongbox_tomas".to_string()),
         report_status: Some(checked.report.status),
         event_ids: checked
@@ -287,6 +421,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "debug_omniscience_excluded_001",
         actor_id: view.viewer_actor_id.as_str().to_string(),
         context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: None,
         semantic_id: None,
         report_status: None,
         event_ids: Vec::new(),
@@ -317,6 +452,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "possession_parity_001",
         actor_id: view.viewer_actor_id.as_str().to_string(),
         context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("take"),
         semantic_id: view
             .semantic_actions
             .first()
@@ -343,6 +479,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         scenario_id: "replay_item_location_001",
         actor_id: "actor_sena".to_string(),
         context_id: "hkc.actor_sena.0.1".to_string(),
+        action_id: None,
         semantic_id: None,
         report_status: None,
         event_ids: Vec::new(),
@@ -358,7 +495,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "byte_identical_sections",
     });
 
-    assert_eq!(artifacts.len(), 7);
+    assert_eq!(artifacts.len(), 11);
     for artifact in &artifacts {
         artifact.assert_review_fields();
     }
@@ -380,6 +517,26 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     assert!(artifacts
         .iter()
         .any(|artifact| artifact.semantic_id.is_some()));
+    let submitted_positive_action_ids = artifacts
+        .iter()
+        .filter(|artifact| {
+            artifact.report_status == Some(ReportStatus::Accepted) && !artifact.event_ids.is_empty()
+        })
+        .filter_map(|artifact| artifact.action_id.map(str::to_string))
+        .collect::<BTreeSet<_>>();
+    let census_errors = ordinary_action_positive_census_errors(&submitted_positive_action_ids);
+    assert!(
+        census_errors.is_empty(),
+        "ordinary action submitted-positive census failed: {census_errors:#?}"
+    );
+    let mut sleep_removed = submitted_positive_action_ids.clone();
+    sleep_removed.remove("sleep");
+    assert!(
+        ordinary_action_positive_census_errors(&sleep_removed)
+            .iter()
+            .any(|error| error.contains("sleep")),
+        "synthetic sleep-positive removal must fail the ordinary action census"
+    );
 }
 
 #[test]
@@ -649,6 +806,36 @@ fn semantic_action_for_action_id(app: &TuiApp, action_id: &str) -> SemanticActio
         .find(|action| action.action_id.as_str() == action_id)
         .map(|action| action.semantic_action_id.clone())
         .expect("current view surfaces requested action")
+}
+
+fn ordinary_action_positive_census_errors(submitted_action_ids: &BTreeSet<String>) -> Vec<String> {
+    let mut registry = ActionRegistry::new_with_active_scopes([
+        ActionScope::Phase1,
+        ActionScope::Phase3AHistorical,
+    ]);
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+    registry.register_phase3a_eat();
+    registry.register_phase3a_work();
+    registry.register_phase3a_continue_routine();
+    registry
+        .definitions()
+        .filter(|definition| {
+            matches!(
+                definition.effect,
+                ActionEffect::Wait
+                    | ActionEffect::Sleep
+                    | ActionEffect::Eat
+                    | ActionEffect::Work
+                    | ActionEffect::ContinueRoutine
+            )
+        })
+        .filter_map(|definition| {
+            let action_id = definition.action_id.as_str();
+            (!submitted_action_ids.contains(action_id))
+                .then(|| format!("ordinary action {action_id} lacks a submitted positive"))
+        })
+        .collect()
 }
 
 fn phase3a_possess_continue_debug_transcript() -> String {

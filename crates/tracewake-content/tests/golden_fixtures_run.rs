@@ -1806,6 +1806,33 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
             .any(|error| error.contains("unsupported canonical_mara_recovery_resolution")),
         "synthetic canonical_mara_recovery_resolution flip must fail behavior binding"
     );
+    let mut tampered_log = log.clone();
+    let mut injected_mara_consumption = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::FoodConsumed)
+        .expect("canonical day includes a no-human consumed-food event to clone")
+        .clone();
+    injected_mara_consumption.event_id =
+        EventId::new("event_synthetic_mara_autonomous_food_consumed").unwrap();
+    injected_mara_consumption.actor_id = Some(ActorId::new("actor_mara").unwrap());
+    injected_mara_consumption.participants = vec!["actor_mara".to_string()];
+    injected_mara_consumption.ordering_key = OrderingKey::new(
+        injected_mara_consumption.sim_tick,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(ActorId::new("actor_mara").unwrap()),
+        ProposalSequence::new(999),
+        "eat".parse().unwrap(),
+        vec!["food_stew_home_tomas".to_string()],
+        "synthetic_mara_autonomous_food_consumed".to_string(),
+    );
+    tampered_log.append(injected_mara_consumption).unwrap();
+    assert!(
+        mara_recovery_resolution_errors(&canonical_mara_resolution, &tampered_log)
+            .iter()
+            .any(|error| error.contains("fail-only Mara recovery consumed food")),
+        "synthetic_mara_autonomous_food_consumed_fails_resolution must fail the consumed-food arm"
+    );
 
     // Payload-shape coverage below is intentionally hand-driven; runner-only
     // canonical evidence is asserted above before these manual proposals.
