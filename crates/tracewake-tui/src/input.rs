@@ -22,6 +22,7 @@ pub enum OperatorProofCommand {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DebugCommand {
+    Overlay,
     EventLog,
     ControllerBindings,
     ItemLocation(ItemId),
@@ -104,6 +105,7 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
 fn parse_debug_command(input: &str) -> Result<DebugCommand, InputError> {
     let trimmed = input.trim();
     match trimmed {
+        "overlay" => Ok(DebugCommand::Overlay),
         "log" => Ok(DebugCommand::EventLog),
         "bindings" => Ok(DebugCommand::ControllerBindings),
         "rejection" => Ok(DebugCommand::Rejection),
@@ -255,6 +257,10 @@ mod tests {
 
     #[test]
     fn parser_recognizes_debug_commands() {
+        assert_eq!(
+            parse_command("debug overlay").unwrap(),
+            UiCommand::Debug(DebugCommand::Overlay)
+        );
         assert_eq!(
             parse_command("debug log").unwrap(),
             UiCommand::Debug(DebugCommand::EventLog)

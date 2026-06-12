@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-006: Debug overlay production wiring and derived debug-token negative
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — TUI debug command/panel (`app.rs`, `render.rs`), derived debug-token constant, render guards
@@ -148,3 +148,7 @@ negative auto-extends.
 
 1. `cargo test -p tracewake-tui`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12

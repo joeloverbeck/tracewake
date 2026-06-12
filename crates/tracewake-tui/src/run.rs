@@ -116,6 +116,10 @@ fn render_debug<W: Write>(
     writer: &mut W,
 ) -> std::io::Result<()> {
     match debug_command {
+        DebugCommand::Overlay => match app_result(app.render_debug_embodied_overlay())? {
+            Some(rendered) => writeln!(writer, "{rendered}"),
+            None => writeln!(writer, "Error: debug overlay unavailable"),
+        },
         DebugCommand::EventLog => writeln!(writer, "{}", app.render_debug_event_log_panel()),
         DebugCommand::ControllerBindings => {
             writeln!(writer, "{}", app.render_debug_controller_binding_panel())
@@ -196,7 +200,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, run no-human-day, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug actor <actor_id>, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, run no-human-day, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug actor <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -210,7 +214,7 @@ mod tests {
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let script =
-            b"view\nnotebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug rejection\nwait\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nbogus\nquit\n";
+            b"view\nnotebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug rejection\nwait\ndebug overlay\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nbogus\nquit\n";
         let mut output = Vec::new();
 
         run_command_loop(&mut app, &script[..], &mut output).unwrap();
@@ -222,6 +226,7 @@ mod tests {
         assert!(rendered.contains("Why-not:"));
         assert!(rendered.contains("Notebook: actor_tomas"));
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Action Rejection"));
+        assert!(rendered.contains("DEBUG NON-DIEGETIC: Embodied Overlay"));
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Event Log"));
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Epistemics"));
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Beliefs"));
