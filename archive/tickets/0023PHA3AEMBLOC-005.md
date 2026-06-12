@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-005: Embodied truth-access compile-time quarantine and INV-093 locks
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `EmbodiedProjectionSource` shape (`projections.rs`), consumers (`controller.rs`, TUI `app.rs`, `hidden_truth_gates.rs`), INV-093 regression tests
@@ -151,3 +151,7 @@ Add a structural guard asserting `EmbodiedProjectionSource` declares no
 
 1. `cargo test -p tracewake-core`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12

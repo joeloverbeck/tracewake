@@ -390,9 +390,15 @@ mod tests {
         registry.register_phase1_inspect_wait();
         let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::ZERO);
         let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
-        let before =
-            build_embodied_view_model(&context, &source, &registry, &content_manifest_id(), None)
-                .unwrap();
+        let before = build_embodied_view_model(
+            &context,
+            &source,
+            &state,
+            &registry,
+            &content_manifest_id(),
+            None,
+        )
+        .unwrap();
         let mut bindings = ControllerBindings::new();
         let mut log = EventLog::new();
         bindings.attach(
@@ -403,9 +409,15 @@ mod tests {
             &mut log,
             content_manifest_id(),
         );
-        let after =
-            build_embodied_view_model(&context, &source, &registry, &content_manifest_id(), None)
-                .unwrap();
+        let after = build_embodied_view_model(
+            &context,
+            &source,
+            &state,
+            &registry,
+            &content_manifest_id(),
+            None,
+        )
+        .unwrap();
 
         assert_eq!(before.semantic_actions, after.semantic_actions);
     }

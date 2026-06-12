@@ -168,6 +168,7 @@ impl TuiApp {
         let mut view = build_embodied_view_model(
             &context,
             &source,
+            &self.state,
             &self.registry,
             &self.content_manifest_id,
             self.last_rejection.as_ref(),

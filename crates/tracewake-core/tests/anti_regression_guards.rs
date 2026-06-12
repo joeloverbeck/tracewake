@@ -1436,6 +1436,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "guard_014_embodied_projection_source_has_no_physical_state_field",
+        negative_id: "synthetic_embodied_projection_source_physical_state_field",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability",
         negative_id: "synthetic_literal_true_action_availability",
         routing: MetaLockRouting::BehaviorAssertion,
@@ -5095,6 +5101,48 @@ fn guard_014_embodied_projection_workplaces_are_context_backed() {
     assert_absent_from_sources(
         &projection_sources,
         "actor_known_workplaces_for_context(state",
+    );
+}
+
+#[test]
+fn guard_014_embodied_projection_source_has_no_physical_state_field() {
+    fn source_shape_errors(source: &str) -> Vec<String> {
+        let source_struct = source
+            .split("pub struct EmbodiedProjectionSource<'a> {")
+            .nth(1)
+            .and_then(|tail| tail.split("\n}").next())
+            .unwrap_or("");
+        let view_builder = body_after_marker(source, "pub fn build_embodied_view_model");
+        let mut errors = Vec::new();
+        let has_state_field = source_struct
+            .lines()
+            .any(|line| line.trim_start().starts_with("state:"));
+        if source_struct.contains("PhysicalState") || has_state_field {
+            errors.push("EmbodiedProjectionSource must not carry PhysicalState".to_string());
+        }
+        if view_builder.contains("source.state") || view_builder.contains("visible_locality") {
+            errors.push(
+                "build_embodied_view_model must not read source.state or visible_locality"
+                    .to_string(),
+            );
+        }
+        errors
+    }
+
+    let projection = guarded_source("src/projections.rs");
+    let errors = source_shape_errors(&projection);
+    assert!(errors.is_empty(), "{errors:?}");
+
+    let synthetic = projection.replace(
+        "pub struct EmbodiedProjectionSource<'a> {\n    agent_state: Option<&'a AgentState>,",
+        "pub struct EmbodiedProjectionSource<'a> {\n    state: &'a PhysicalState,\n    agent_state: Option<&'a AgentState>,",
+    );
+    let synthetic_errors = source_shape_errors(&synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("PhysicalState")),
+        "synthetic_embodied_projection_source_physical_state_field did not trigger: {synthetic_errors:?}"
     );
 }
 

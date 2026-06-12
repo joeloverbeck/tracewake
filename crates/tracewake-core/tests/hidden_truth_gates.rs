@@ -725,6 +725,7 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
     let view = build_embodied_view_model(
         &knowledge_context,
         &projection_source,
+        &world,
         &registry(),
         &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
         None,
@@ -979,6 +980,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     let before_view = build_embodied_view_model(
         &knowledge_context,
         &projection_source,
+        &world,
         &registry(),
         &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
         None,
@@ -1004,6 +1006,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     let after_view = build_embodied_view_model(
         &knowledge_context,
         &after_projection_source,
+        &world,
         &registry(),
         &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
         None,
