@@ -220,6 +220,53 @@ fn has_no_human_event_for_actor(log: &EventLog, kind: EventKind, actor_id: &str)
     })
 }
 
+fn canonical_mara_recovery_resolution(golden: &GoldenFixture) -> Option<&str> {
+    golden
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .find_map(|entry| entry.strip_prefix("canonical_mara_recovery_resolution="))
+}
+
+fn mara_recovery_resolution_errors(resolution: &str, log: &EventLog) -> Vec<String> {
+    let mut errors = Vec::new();
+    match resolution {
+        "fail_only_empty_food_source" => {
+            if !has_no_human_event_for_actor(log, EventKind::EatFailed, "actor_mara") {
+                errors.push("fail-only Mara recovery lacks no-human EatFailed".to_string());
+            }
+            if has_no_human_event_for_actor(log, EventKind::FoodConsumed, "actor_mara") {
+                errors.push("fail-only Mara recovery consumed food".to_string());
+            }
+            if log.events().iter().any(|event| {
+                event.event_type == EventKind::ActorMoved
+                    && event.ordering_key.phase == SchedulePhase::NoHumanProcess
+                    && event
+                        .actor_id
+                        .as_ref()
+                        .is_some_and(|actor_id| actor_id.as_str() == "actor_mara")
+                    && payload(event, "to_place_id") == Some("home_tomas")
+            }) {
+                errors.push("fail-only Mara recovery moved toward Tomas food".to_string());
+            }
+            if log.events().iter().any(|event| {
+                event.ordering_key.phase == SchedulePhase::NoHumanProcess
+                    && event
+                        .actor_id
+                        .as_ref()
+                        .is_some_and(|actor_id| actor_id.as_str() == "actor_mara")
+                    && payload(event, "food_supply_id") == Some("food_stew_home_tomas")
+            }) {
+                errors.push("fail-only Mara recovery targeted Tomas food".to_string());
+            }
+        }
+        other => errors.push(format!(
+            "unsupported canonical_mara_recovery_resolution token {other}"
+        )),
+    }
+    errors
+}
+
 fn payload<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
     event
         .payload
@@ -1672,6 +1719,9 @@ fn partial_food_source_knowledge_seeds_only_authored_actor_edge() {
 #[test]
 fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     let golden = fixtures::no_human_day_001();
+    let canonical_mara_resolution = canonical_mara_recovery_resolution(&golden)
+        .expect("no_human_day_001 records canonical_mara_recovery_resolution")
+        .to_string();
     let expected_roster = [
         "actor_anna".parse().unwrap(),
         "actor_elena".parse().unwrap(),
@@ -1730,6 +1780,32 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         EventKind::EatFailed,
         "actor_mara"
     ));
+    let canonical_mara_errors = mara_recovery_resolution_errors(&canonical_mara_resolution, &log);
+    assert!(
+        canonical_mara_errors.is_empty(),
+        "canonical Mara recovery intent diverged from runner behavior: {canonical_mara_errors:#?}"
+    );
+    let mut flipped = fixtures::no_human_day_001();
+    flipped.contract.expected_events_or_reports = flipped
+        .contract
+        .expected_events_or_reports
+        .iter()
+        .map(|entry| {
+            if entry.starts_with("canonical_mara_recovery_resolution=") {
+                "canonical_mara_recovery_resolution=consume_tomas_food"
+            } else {
+                *entry
+            }
+        })
+        .collect();
+    let flipped_resolution = canonical_mara_recovery_resolution(&flipped)
+        .expect("synthetic flip keeps canonical resolution token");
+    assert!(
+        mara_recovery_resolution_errors(flipped_resolution, &log)
+            .iter()
+            .any(|error| error.contains("unsupported canonical_mara_recovery_resolution")),
+        "synthetic canonical_mara_recovery_resolution flip must fail behavior binding"
+    );
 
     // Payload-shape coverage below is intentionally hand-driven; runner-only
     // canonical evidence is asserted above before these manual proposals.
