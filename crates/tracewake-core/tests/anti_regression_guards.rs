@@ -1,6 +1,6 @@
 mod support;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use support::{AgentSeed, PhysicalSeed};
 
@@ -6504,17 +6504,65 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
             .any(|violation| violation.contains("place_id.ends_with")),
         "synthetic_bare_id_ends_with must fail without an as_str() call"
     );
+
+    let renamed_parameter_helper_synthetic = r#"
+        fn label_blocks_visibility(candidate: &str) -> bool {
+            candidate.to_ascii_lowercase().contains("hidden")
+        }
+
+        fn is_visible_exit_target(place: &PlaceState) -> bool {
+            !label_blocks_visibility(place.display_label.as_str())
+        }
+    "#;
+    let renamed_parameter_helper_violations =
+        perception_visibility_prose_branch_violations(renamed_parameter_helper_synthetic);
+    assert!(
+        renamed_parameter_helper_violations
+            .iter()
+            .any(|violation| violation.contains("label_blocks_visibility(place.display_label")),
+        "synthetic renamed-parameter display-label helper laundering must fail"
+    );
+
+    let payload_value_relay_synthetic = r#"
+        fn current_place_perception_events(place: &PlaceState) -> Vec<EventEnvelope> {
+            let label_payload = PayloadField::string("place_label", place.display_label.clone());
+            let label_value = label_payload.value.as_str();
+            if label_value.contains("hidden") {
+                return Vec::new();
+            }
+            vec![]
+        }
+    "#;
+    let payload_value_relay_violations =
+        perception_visibility_prose_branch_violations(payload_value_relay_synthetic);
+    assert!(
+        payload_value_relay_violations
+            .iter()
+            .any(|violation| violation.contains("label_value.contains")),
+        "synthetic payload-value relay branch must fail after the typed payload sink"
+    );
 }
 
 fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
     let stripped = source_without_comments(source);
+    let sensitive_params = perception_sensitive_helper_params(&stripped);
     let mut violations = Vec::new();
     let mut current_fn = "module";
+    let mut tainted_bindings_by_fn = BTreeMap::<String, BTreeSet<String>>::new();
     for line in stripped.lines().map(str::trim) {
         if let Some(function_name) = function_name_from_line(line) {
             current_fn = function_name;
         }
-        if line.is_empty() || perception_line_is_typed_label_payload_write(line) {
+        let current_taints = tainted_bindings_by_fn
+            .entry(current_fn.to_string())
+            .or_default();
+        if let Some(alias) = perception_tainted_let_alias(line, current_taints) {
+            current_taints.insert(alias);
+        }
+        if line.is_empty() {
+            continue;
+        }
+        if perception_line_is_typed_label_payload_write(line) {
             continue;
         }
         let branches_on_display_label = line.contains("display_label");
@@ -6522,7 +6570,19 @@ fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
         let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
             || line.contains(".to_lowercase()")
             || line.contains(".to_ascii_lowercase()");
-        if branches_on_display_label || branches_on_id_substring || branches_on_hidden_prose {
+        let branches_on_tainted_binding =
+            branches_on_hidden_prose && line_mentions_any_binding(line, current_taints);
+        let launders_into_sensitive_helper = line_calls_sensitive_helper_with_tainted_argument(
+            line,
+            current_taints,
+            &sensitive_params,
+        );
+        if branches_on_display_label
+            || branches_on_id_substring
+            || branches_on_hidden_prose
+            || branches_on_tainted_binding
+            || launders_into_sensitive_helper
+        {
             violations.push(format!("{current_fn}: {line}"));
         }
     }
@@ -6543,6 +6603,113 @@ fn branches_on_identity_substring(line: &str) -> bool {
                     || line.contains(".id")
                     || line.contains("Id"))
         })
+}
+
+fn perception_tainted_let_alias(line: &str, tainted_bindings: &BTreeSet<String>) -> Option<String> {
+    let let_index = line.find("let ")?;
+    let rest = &line[let_index + "let ".len()..];
+    let (left, right) = rest.split_once('=')?;
+    let alias = let_binding_name(left)?;
+    let rhs = right.trim_end_matches(';');
+    (rhs_contains_perception_identity_source(rhs)
+        || line_mentions_any_binding(rhs, tainted_bindings))
+    .then_some(alias)
+}
+
+fn rhs_contains_perception_identity_source(rhs: &str) -> bool {
+    rhs.contains("display_label")
+        || rhs.contains(".place_id")
+        || rhs.contains(".actor_id")
+        || rhs.contains(".container_id")
+        || rhs.contains(".item_id")
+        || rhs.contains(".food_supply_id")
+        || rhs.contains(".workplace_id")
+        || rhs.contains("_id.as_str()")
+}
+
+fn line_mentions_any_binding(line: &str, bindings: &BTreeSet<String>) -> bool {
+    bindings.iter().any(|binding| token_appears(line, binding))
+}
+
+fn token_appears(line: &str, token: &str) -> bool {
+    let bytes = line.as_bytes();
+    let token_bytes = token.as_bytes();
+    if token_bytes.is_empty() {
+        return false;
+    }
+    let mut offset = 0;
+    while let Some(found) = line[offset..].find(token) {
+        let start = offset + found;
+        let end = start + token_bytes.len();
+        let before = start
+            .checked_sub(1)
+            .and_then(|index| bytes.get(index))
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+        let after = bytes
+            .get(end)
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+        if !before && !after {
+            return true;
+        }
+        offset = end;
+    }
+    false
+}
+
+fn perception_sensitive_helper_params(source: &str) -> BTreeMap<String, BTreeSet<String>> {
+    let mut sensitive = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut current_fn = "module";
+    let mut current_params = BTreeSet::<String>::new();
+    for line in source.lines().map(str::trim) {
+        if let Some(function_name) = function_name_from_line(line) {
+            current_fn = function_name;
+            current_params = function_param_names_from_line(line);
+        }
+        let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
+            || line.contains(".to_lowercase()")
+            || line.contains(".to_ascii_lowercase()");
+        if branches_on_hidden_prose {
+            for param in &current_params {
+                if token_appears(line, param) {
+                    sensitive
+                        .entry(current_fn.to_string())
+                        .or_default()
+                        .insert(param.clone());
+                }
+            }
+        }
+    }
+    sensitive
+}
+
+fn line_calls_sensitive_helper_with_tainted_argument(
+    line: &str,
+    tainted_bindings: &BTreeSet<String>,
+    sensitive_params: &BTreeMap<String, BTreeSet<String>>,
+) -> bool {
+    sensitive_params.keys().any(|function_name| {
+        let call_start = format!("{function_name}(");
+        let Some(start) = line.find(&call_start) else {
+            return false;
+        };
+        let args = &line[start + call_start.len()..];
+        rhs_contains_perception_identity_source(args)
+            || line_mentions_any_binding(args, tainted_bindings)
+    })
+}
+
+fn function_param_names_from_line(line: &str) -> BTreeSet<String> {
+    let Some(open) = line.find('(') else {
+        return BTreeSet::new();
+    };
+    let Some(close) = line[open + 1..].find(')') else {
+        return BTreeSet::new();
+    };
+    line[open + 1..open + 1 + close]
+        .split(',')
+        .filter_map(|param| param.split_once(':').map(|(name, _)| name.trim()))
+        .filter_map(let_binding_name)
+        .collect()
 }
 
 fn function_name_from_line(line: &str) -> Option<&str> {

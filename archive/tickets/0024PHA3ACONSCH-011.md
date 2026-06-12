@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-011: Closed-world context discrimination and perception-scan binding provenance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` tests (`hidden_truth_gates.rs`, `anti_regression_guards.rs`); no production crate code.
@@ -140,3 +140,27 @@ payload-value-relay shape — both must fail the repaired scan.
 
 1. `cargo test -p tracewake-core --test hidden_truth_gates --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+- Replaced literal-specific hidden counterpart assertions with closed-world subset
+  checks over every actor-known food source, route, and workplace returned by
+  `context()`.
+- Removed the vacuous `synthetic_context_leak` self-assert and added projection
+  leak synthetics that fail when unseeded food or route knowledge reaches the
+  context.
+- Strengthened the perception visibility source guard to track display-label/id
+  derived bindings through local aliases, typed payload relays, and helper calls;
+  added kill-set synthetics for renamed-parameter helper laundering and payload
+  value relay branching.
+
+Proof:
+
+1. `cargo test -p tracewake-core --test hidden_truth_gates --test anti_regression_guards`
+2. `rg -n "synthetic_context_leak" crates/tracewake-core/tests` returned no matches
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`

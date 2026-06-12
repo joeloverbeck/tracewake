@@ -288,8 +288,9 @@ fn context(
     known_food_sources: BTreeSet<String>,
     known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
 ) -> tracewake_core::agent::ActorKnownPlanningState {
-    let requested_edges = known_edges.clone();
-    let requested_food_sources = known_food_sources.clone();
+    let mut seeded_edges = BTreeMap::<PlaceId, BTreeSet<PlaceId>>::new();
+    let mut seeded_food_sources = BTreeSet::<String>::new();
+    let mut seeded_workplaces = BTreeMap::<WorkplaceId, PlaceId>::new();
     let mut log = EventLog::new();
     let mut projection = EpistemicProjection::new(content_manifest_id());
     let frame_event_id = append_epistemic_event(
@@ -303,6 +304,7 @@ fn context(
             &mut projection,
             food_observation_event(&food_source_id, SimTick::new(index as u64 + 1)),
         );
+        seeded_food_sources.insert(food_source_id);
     }
     let mut route_index = 0_u64;
     for (from_place_id, to_place_ids) in known_edges {
@@ -313,6 +315,10 @@ fn context(
                 &mut projection,
                 route_observation_event(&from_place_id, &to_place_id, SimTick::new(route_index)),
             );
+            seeded_edges
+                .entry(from_place_id.clone())
+                .or_default()
+                .insert(to_place_id);
         }
     }
     for (workplace_id, workplace_place_id) in known_workplaces {
@@ -321,6 +327,7 @@ fn context(
             &mut projection,
             role_notice_event(&workplace_id, &workplace_place_id, SimTick::new(1)),
         );
+        seeded_workplaces.insert(workplace_id, workplace_place_id);
     }
     let agent_state = agent_state(880);
     let surface =
@@ -354,48 +361,76 @@ fn context(
     }
     assert_context_excludes_unseeded_hidden_counterparts(
         surface.context(),
-        &requested_edges,
-        &requested_food_sources,
+        &seeded_edges,
+        &seeded_food_sources,
+        &seeded_workplaces,
     );
     surface.into_context()
 }
 
 fn assert_context_excludes_unseeded_hidden_counterparts(
     context: &tracewake_core::agent::ActorKnownPlanningState,
-    requested_edges: &BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-    requested_food_sources: &BTreeSet<String>,
+    seeded_edges: &BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+    seeded_food_sources: &BTreeSet<String>,
+    seeded_workplaces: &BTreeMap<WorkplaceId, PlaceId>,
 ) {
-    if requested_food_sources.contains("food_visible_table") {
+    for food_source_id in context.known_food_sources() {
         assert!(
-            context.known_food_sources().contains("food_visible_table"),
-            "visible adversarial food source must remain actor-known"
+            seeded_food_sources.contains(food_source_id),
+            "unseeded food source {} leaked into context()",
+            food_source_id
         );
+    }
+    for food_source_id in seeded_food_sources {
         assert!(
-            !context.known_food_sources().contains("food_hidden_pantry"),
-            "hidden adversarial food source leaked into context()"
+            context.known_food_sources().contains(food_source_id),
+            "seeded food source {} is absent from context()",
+            food_source_id
         );
     }
 
-    let known_route_from = place_id("home_mara");
-    let known_route_to = place_id("known_market");
-    let hidden_route_to = place_id("hidden_workshop");
-    if requested_edges
-        .get(&known_route_from)
-        .is_some_and(|edges| edges.contains(&known_route_to))
-    {
-        assert!(
-            context
-                .known_edges()
-                .get(&known_route_from)
-                .is_some_and(|edges| edges.contains(&known_route_to)),
-            "visible adversarial route must remain actor-known"
+    for (from_place_id, to_place_ids) in context.known_edges() {
+        for to_place_id in to_place_ids {
+            assert!(
+                seeded_edges
+                    .get(from_place_id)
+                    .is_some_and(|seeded_to| seeded_to.contains(to_place_id)),
+                "unseeded route {}->{} leaked into context()",
+                from_place_id.as_str(),
+                to_place_id.as_str()
+            );
+        }
+    }
+    for (from_place_id, to_place_ids) in seeded_edges {
+        for to_place_id in to_place_ids {
+            assert!(
+                context
+                    .known_edges()
+                    .get(from_place_id)
+                    .is_some_and(|context_to| context_to.contains(to_place_id)),
+                "seeded route {}->{} is absent from context()",
+                from_place_id.as_str(),
+                to_place_id.as_str()
+            );
+        }
+    }
+
+    for (workplace_id, place_id) in context.known_workplaces() {
+        assert_eq!(
+            seeded_workplaces.get(workplace_id),
+            Some(place_id),
+            "unseeded workplace {}@{} leaked into context()",
+            workplace_id.as_str(),
+            place_id.as_str()
         );
-        assert!(
-            !context
-                .known_edges()
-                .get(&known_route_from)
-                .is_some_and(|edges| edges.contains(&hidden_route_to)),
-            "hidden adversarial route leaked into context()"
+    }
+    for (workplace_id, place_id) in seeded_workplaces {
+        assert_eq!(
+            context.known_workplaces().get(workplace_id),
+            Some(place_id),
+            "seeded workplace {}@{} is absent from context()",
+            workplace_id.as_str(),
+            place_id.as_str()
         );
     }
 }
@@ -647,12 +682,6 @@ fn epistemic_context_projection_and_records_remain_sealed() {
             "pub observed_proposition:",
             "pub schema_version:",
         ],
-    );
-
-    let synthetic_context_leak = "pub viewer_actor_id: ActorId";
-    assert!(
-        synthetic_context_leak.contains("pub viewer_actor_id"),
-        "source guard self-coverage must include context public-field leaks"
     );
 }
 
@@ -935,13 +964,38 @@ fn hidden_route_edge_absent_from_actor_context_blocks_route_plan() {
 #[test]
 fn context_rejects_hidden_counterpart_injection() {
     let synthetic_context_hidden_food_injection = std::panic::catch_unwind(|| {
-        context(
-            BTreeMap::new(),
-            BTreeSet::from([
-                "food_visible_table".to_string(),
-                "food_hidden_pantry".to_string(),
-            ]),
-            BTreeMap::new(),
+        let mut log = EventLog::new();
+        let mut projection = EpistemicProjection::new(content_manifest_id());
+        let frame_event_id = append_epistemic_event(
+            &mut log,
+            &mut projection,
+            observation_event("event_hidden_truth_gate_frame", SimTick::ZERO),
+        );
+        append_epistemic_event(
+            &mut log,
+            &mut projection,
+            food_observation_event("food_hidden_pantry", SimTick::new(1)),
+        );
+        let agent_state = agent_state(880);
+        let surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &projection,
+                agent_state: &agent_state,
+                actor_id: actor_id(),
+                current_place_id: place_id("home_mara"),
+                decision_tick: SimTick::ZERO,
+                window_id: "hidden_truth_gate",
+                window_end_tick: SimTick::new(4),
+                current_place_witness_event_id: Some(frame_event_id.clone()),
+                needs_witness_event_id: Some(frame_event_id.clone()),
+                frame_event_id: Some(frame_event_id),
+            })
+            .build(&agent_state);
+        assert_context_excludes_unseeded_hidden_counterparts(
+            surface.context(),
+            &BTreeMap::new(),
+            &BTreeSet::new(),
+            &BTreeMap::new(),
         );
     });
     assert!(
@@ -950,13 +1004,42 @@ fn context_rejects_hidden_counterpart_injection() {
     );
 
     let synthetic_context_hidden_route_injection = std::panic::catch_unwind(|| {
-        context(
-            BTreeMap::from([(
-                place_id("home_mara"),
-                BTreeSet::from([place_id("known_market"), place_id("hidden_workshop")]),
-            )]),
-            BTreeSet::new(),
-            BTreeMap::new(),
+        let mut log = EventLog::new();
+        let mut projection = EpistemicProjection::new(content_manifest_id());
+        let frame_event_id = append_epistemic_event(
+            &mut log,
+            &mut projection,
+            observation_event("event_hidden_truth_gate_frame", SimTick::ZERO),
+        );
+        append_epistemic_event(
+            &mut log,
+            &mut projection,
+            route_observation_event(
+                &place_id("home_mara"),
+                &place_id("hidden_workshop"),
+                SimTick::new(1),
+            ),
+        );
+        let agent_state = agent_state(880);
+        let surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &projection,
+                agent_state: &agent_state,
+                actor_id: actor_id(),
+                current_place_id: place_id("home_mara"),
+                decision_tick: SimTick::ZERO,
+                window_id: "hidden_truth_gate",
+                window_end_tick: SimTick::new(4),
+                current_place_witness_event_id: Some(frame_event_id.clone()),
+                needs_witness_event_id: Some(frame_event_id.clone()),
+                frame_event_id: Some(frame_event_id),
+            })
+            .build(&agent_state);
+        assert_context_excludes_unseeded_hidden_counterparts(
+            surface.context(),
+            &BTreeMap::new(),
+            &BTreeSet::new(),
+            &BTreeMap::new(),
         );
     });
     assert!(
