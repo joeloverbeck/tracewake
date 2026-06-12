@@ -44,6 +44,8 @@ const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
 const MUTANTS_BASELINE_MISSES: &str = include_str!("../../../.cargo/mutants-baseline-misses.txt");
 const MUTANTS_BASELINE_LEDGER: &str =
     include_str!("../../../reports/0020_mutants_baseline_disposition.md");
+const ACCEPTANCE_0021_REPORT: &str =
+    include_str!("../../../reports/0021_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -1556,6 +1558,113 @@ fn mutation_ledger_rationale_suffix(rationale: &str) -> String {
     rationale.trim().to_string()
 }
 
+#[derive(Clone, Copy)]
+struct AcceptanceChecklistAnchor {
+    item: u8,
+    anchors: &'static [&'static str],
+}
+
+const ACCEPTANCE_0021_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Rebind-After-Rejection", "ORD-HARD-066"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Spec §7 item 2 scheduled mutation job record",
+            "ORD-HARD-102",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &[
+            "Hidden-Truth Gate Rebuild And Visibility Demotion",
+            "ORD-HARD-068",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Per-Arm Census", "ORD-HARD-069"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &["Mutation Perimeter And Rationale Split", "ORD-HARD-072"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["Baseline Triage", "ORD-HARD-099"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &["Policy Dispatch And Sleep Accessibility", "ORD-HARD-074"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Shared Crossing Emitter And Corrupt-History Rejection",
+            "ORD-HARD-076",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &["Typed Place Concealment", "ORD-HARD-078"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &["Event/State Perimeter", "ORD-HARD-079"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &["Content Integrity And Contract Prose", "ORD-HARD-081"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &["Embodied Provenance And Dead-Surface Sweep", "ORD-HARD-082"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &["Generative Tier Deltas", "ORD-HARD-084"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &["Low-Group Closures And Deferrals", "ORD-HARD-095"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 15,
+        anchors: &["Risk Register And Conformance Index", "R-29"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 16,
+        anchors: &["EMERGE-OBS Refresh", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 17,
+        anchors: &[
+            "Explicit Non-Certification Boundary",
+            "not full-project certification",
+        ],
+    },
+];
+
+fn acceptance_checklist_anchor_errors(
+    report: &str,
+    anchors: &[AcceptanceChecklistAnchor],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for row in anchors {
+        for anchor in row.anchors {
+            if !report.contains(anchor) {
+                errors.push(format!(
+                    "acceptance artifact checklist item {} lacks anchor {anchor}",
+                    row.item
+                ));
+            }
+        }
+    }
+    errors
+}
+
 fn split_top_level_args(args: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();
@@ -1975,6 +2084,31 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
             .iter()
             .any(|error| error.contains("missing ticket")),
         "synthetic warrants-test tag with missing ticket must fail governance"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0021_REPORT,
+        ACCEPTANCE_0021_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0021 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0021_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic missing acceptance artifact anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0021_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic missing acceptance checklist anchor must fail through the real checker"
     );
 }
 

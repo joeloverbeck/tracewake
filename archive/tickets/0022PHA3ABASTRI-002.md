@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-002: 0021 acceptance-report corrections and §7-checklist parity guard
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — evidence document (`reports/0021_ord_life_cert_scoped_acceptance.md`), test-oracle guard (`anti_regression_guards.rs`)
@@ -127,3 +127,37 @@ negative: a checklist row whose anchor is absent must fail.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `grep -n "R-29\|Deviations" reports/0021_ord_life_cert_scoped_acceptance.md`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+What changed:
+
+- Corrected `reports/0021_ord_life_cert_scoped_acceptance.md` by retitling §2 to
+  `Hidden-Truth Provenance Guard Outputs`, adding an explicit pending record for
+  the 0021 spec §7 item 2 scheduled mutation job evidence, recording the
+  `ORD-HARD-099` baseline-triage deviation and later 0022 correction, and quoting
+  the R-29 risk-register addition in §15.
+- Added a `Spec §7 Evidence Map` to the report so all 17 acceptance-artifact items
+  have explicit anchors.
+- Added `acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors` in
+  `crates/tracewake-core/tests/anti_regression_guards.rs`, with a synthetic missing
+  anchor that fails through the same checker.
+
+Deviations from original plan:
+
+- The scheduled mutation job's first live-ratchet run remains recorded as pending for
+  the 0021 artifact because no such run evidence exists in the repository.
+
+Verification results:
+
+- `grep -n "R-29\\|Deviations\\|Spec §7 item 2\\|Scheduled Ratchet And Guard Outputs\\|Hidden-Truth Provenance Guard Outputs" reports/0021_ord_life_cert_scoped_acceptance.md`
+  found the R-29 quote, deviations section, §7 item 2 pending record, and corrected
+  §2 title.
+- `cargo test -p tracewake-core --test anti_regression_guards acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors` passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` passed.
+- `cargo fmt --all --check` passed after applying `cargo fmt --all`.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
