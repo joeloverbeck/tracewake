@@ -1320,6 +1320,18 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 0,
     },
     MetaLockRegistryEntry {
+        lock_id: "mutation_perimeter_logical_line_swallow_scan",
+        negative_id: "synthetic_multiline_mutants_swallow_suffix",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "mutation_baseline_non_empty_entries_require_ledger_dispositions",
+        negative_id: "synthetic_unledgered_non_empty_mutation_baseline",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "generative_lock_two_sided_floor_ratchets",
         negative_id: "synthetic_unrecorded_generative_floor_raise",
         routing: MetaLockRouting::SharedScan,
@@ -1849,6 +1861,30 @@ fn non_comment_lines(source: &str) -> Vec<&str> {
         .collect()
 }
 
+fn logical_shell_lines(source: &str) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for line in non_comment_lines(source) {
+        let trimmed_end = line.trim_end();
+        let continued = trimmed_end.ends_with('\\');
+        let segment = trimmed_end.trim_end_matches('\\').trim_end();
+        if current.is_empty() {
+            current.push_str(segment.trim_start());
+        } else {
+            current.push(' ');
+            current.push_str(segment.trim_start());
+        }
+        if !continued {
+            lines.push(current);
+            current = String::new();
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
 fn simple_glob_matches(pattern: &str, path: &str) -> bool {
     if pattern == path {
         return true;
@@ -2363,7 +2399,7 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         WORKSPACE_SOURCE_CLASSIFICATIONS,
     ));
 
-    for line in non_comment_lines(ci_yml)
+    for line in logical_shell_lines(ci_yml)
         .into_iter()
         .filter(|line| line.contains("cargo mutants"))
     {
@@ -2568,6 +2604,10 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
     }
 
     let ledgered = ledgered_mutant_misses(ledger);
+    if !normalized.is_empty() && !normalized.is_subset(&ledgered) {
+        errors
+            .push("non-empty mutation baseline lacks ledgered per-entry dispositions".to_string());
+    }
     for miss in normalized.difference(&ledgered) {
         errors.push(format!(
             "mutation baseline miss lacks ledger disposition: {miss}"
@@ -3221,6 +3261,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic swallowed cargo-mutants failure must fail the perimeter guard"
     );
 
+    let multiline_swallowed_failure = CI_YML.replace(
+        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
+        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\ || echo ok\n",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &multiline_swallowed_failure)
+            .iter()
+            .any(|violation| violation.contains("shell suffix")),
+        "synthetic_multiline_mutants_swallow_suffix must fail the logical-line perimeter guard"
+    );
+
     let comment_only_capture = CI_YML.replace(
         "          mutants_status=$?\n          set -e\n",
         "          # mutants_status=$?\n          set -e\n",
@@ -3359,8 +3410,24 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
                 .any(|error| error.contains("lacks ledger disposition"))
             && synthetic_errors
                 .iter()
+                .any(|error| error.contains("non-empty mutation baseline"))
+            && synthetic_errors
+                .iter()
                 .any(|error| error.contains("recorded baseline change log")),
         "synthetic unledgered baseline append must fail count, hash, ledger, and change-log checks"
+    );
+
+    let synthetic_unledgered_non_empty_mutation_baseline =
+        "synthetic/unledgered.rs:1:1: replace embodied_lock() -> bool with false";
+    assert!(
+        mutation_baseline_governance_errors(
+            synthetic_unledgered_non_empty_mutation_baseline,
+            MUTANTS_BASELINE_LEDGER
+        )
+        .iter()
+        .any(|error| error
+            .contains("non-empty mutation baseline lacks ledgered per-entry dispositions")),
+        "synthetic_unledgered_non_empty_mutation_baseline must fail per-entry baseline governance"
     );
 
     if !MUTANTS_BASELINE_MISSES.trim().is_empty() {
