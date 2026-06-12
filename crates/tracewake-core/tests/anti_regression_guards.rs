@@ -1272,8 +1272,8 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/work.rs",
 ];
 
-const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 16;
-const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xe099_eb55_c874_48c7;
+const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 0;
+const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xcbf2_9ce4_8422_2325;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
 const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
@@ -1303,7 +1303,7 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         negative_id: "synthetic_unrecorded_mutation_baseline_shrink",
         routing: MetaLockRouting::SharedScan,
         witness_count: MUTANTS_BASELINE_NORMALIZED_COUNT,
-        witness_min: 1,
+        witness_min: 0,
     },
     MetaLockRegistryEntry {
         lock_id: "generative_lock_two_sided_floor_ratchets",
@@ -1884,7 +1884,9 @@ fn meta_lock_registry_errors(
                 }
             }
         }
-        if entry.witness_min == 0 {
+        if entry.witness_min == 0
+            && entry.lock_id != "mutation_baseline_misses_are_pinned_and_ledgered"
+        {
             errors.push(format!(
                 "meta-lock {} has a zero witness minimum",
                 entry.lock_id
@@ -2977,28 +2979,35 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         "synthetic unledgered baseline append must fail count, hash, ledger, and change-log checks"
     );
 
-    let shrink = MUTANTS_BASELINE_MISSES
-        .lines()
-        .skip(1)
-        .collect::<Vec<_>>()
-        .join("\n");
-    let shrink_errors = mutation_baseline_governance_errors(&shrink, MUTANTS_BASELINE_LEDGER);
-    assert!(
-        shrink_errors
-            .iter()
-            .any(|error| error.contains("count changed"))
-            && shrink_errors
+    if !MUTANTS_BASELINE_MISSES.trim().is_empty() {
+        let shrink = MUTANTS_BASELINE_MISSES
+            .lines()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let shrink_errors = mutation_baseline_governance_errors(&shrink, MUTANTS_BASELINE_LEDGER);
+        assert!(
+            shrink_errors
                 .iter()
-                .any(|error| error.contains("hash changed"))
-            && shrink_errors
-                .iter()
-                .any(|error| error.contains("recorded baseline change log")),
-        "synthetic unrecorded baseline shrink must fail count, hash, and change-log checks"
-    );
+                .any(|error| error.contains("count changed"))
+                && shrink_errors
+                    .iter()
+                    .any(|error| error.contains("hash changed"))
+                && shrink_errors
+                    .iter()
+                    .any(|error| error.contains("recorded baseline change log")),
+            "synthetic unrecorded baseline shrink must fail count, hash, and change-log checks"
+        );
+    } else {
+        assert!(
+            MUTANTS_BASELINE_MISSES.trim().is_empty(),
+            "zero pinned mutation baseline must have no accepted misses"
+        );
+    }
 
     let unrecorded_floor_raise_ledger = MUTANTS_BASELINE_LEDGER.replace(
-        "baseline-delta: normalized-count=16 fnv1a64=e099eb55c87448c7",
-        "baseline-delta: normalized-count=17 fnv1a64=e099eb55c87448c7",
+        "baseline-delta: normalized-count=0 fnv1a64=cbf29ce484222325",
+        "baseline-delta: normalized-count=1 fnv1a64=cbf29ce484222325",
     );
     assert!(
         mutation_baseline_governance_errors(
@@ -3030,27 +3039,29 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         "synthetic bulk-accepted ledger rationale suffix must fail governance"
     );
 
-    let deferred_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "warrants-test:0022PHA3ABASTRI-023:",
-        "justified-baseline: this warrants a future focused assertion",
-        1,
+    let deferred_ledger = format!(
+        "{MUTANTS_BASELINE_LEDGER}\n- `synthetic/path.rs: replace x -> y` — justified-baseline: this warrants a future focused assertion"
     );
     assert!(
-        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &deferred_ledger)
-            .iter()
-            .any(|error| error.contains("deferred test debt")),
+        mutation_baseline_governance_errors(
+            "synthetic/path.rs:1:1: replace x -> y",
+            &deferred_ledger
+        )
+        .iter()
+        .any(|error| error.contains("deferred test debt")),
         "synthetic justified-baseline deferral language must fail governance"
     );
 
-    let bad_tag_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "warrants-test:0022PHA3ABASTRI-023:",
-        "warrants-test:0022PHA3ABASTRI-999:",
-        1,
+    let bad_tag_ledger = format!(
+        "{MUTANTS_BASELINE_LEDGER}\n- `synthetic/path.rs: replace x -> y` — warrants-test:0022PHA3ABASTRI-999: synthetic missing ticket"
     );
     assert!(
-        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &bad_tag_ledger)
-            .iter()
-            .any(|error| error.contains("missing ticket")),
+        mutation_baseline_governance_errors(
+            "synthetic/path.rs:1:1: replace x -> y",
+            &bad_tag_ledger
+        )
+        .iter()
+        .any(|error| error.contains("missing ticket")),
         "synthetic warrants-test tag with missing ticket must fail governance"
     );
 }

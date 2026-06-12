@@ -593,6 +593,12 @@ mod tests {
 
         assert!(visible_exit_targets.contains(misleading_visible.as_str()));
         assert!(!visible_exit_targets.contains(concealed_plain.as_str()));
+        assert!(is_visible_exit_target(&state, &misleading_visible));
+        assert!(!is_visible_exit_target(&state, &concealed_plain));
+        assert!(!is_visible_exit_target(
+            &state,
+            &place_id("missing_visible_named_place")
+        ));
     }
 
     #[test]

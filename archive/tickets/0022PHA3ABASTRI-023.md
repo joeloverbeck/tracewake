@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-023: Mutation baseline focused tests for transaction, projection, and perception surfaces
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — focused transaction/projection/perception tests in `tracewake-core`
@@ -78,3 +78,33 @@ mutants.
 2. `cargo mutants -f crates/tracewake-core/src/agent/transaction.rs --no-shuffle`
 3. `cargo mutants -f crates/tracewake-core/src/projections.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/agent/perception.rs --no-shuffle`
+
+## Completion Notes (2026-06-12)
+
+Implemented focused transaction, projection, and perception tests for the final
+baseline rows. Transaction coverage now proves actor-specific active-intention
+lookup, no-human/need witness compatibility, stuck-diagnostic blocker mapping, and
+a fail-closed method-selection retry guard. Projection coverage now proves known
+sleep affordance projection, disabled empty-food semantic actions, typed planner
+failure metrics, replay-failure event filtering, player-conditioned scans, and
+semantic-action proposal parameter branches. Perception coverage now directly proves
+typed visible-exit filtering.
+
+Retired the final mutation baseline rows. The normalized baseline is now
+`normalized-count=0 fnv1a64=cbf29ce484222325`.
+
+Verification:
+
+1. `cargo test -p tracewake-core --lib agent::transaction::tests`
+2. `cargo test -p tracewake-core --lib projections::tests`
+3. `cargo test -p tracewake-core --lib agent::perception::tests`
+4. `cargo mutants -f crates/tracewake-core/src/agent/transaction.rs --no-shuffle` — `70 mutants tested in 4m: 56 caught, 14 unviable`
+5. `cargo mutants -f crates/tracewake-core/src/projections.rs --no-shuffle` — `106 mutants tested in 6m: 85 caught, 21 unviable`
+6. `cargo mutants -f crates/tracewake-core/src/agent/perception.rs --no-shuffle` — `21 mutants tested in 2m: 16 caught, 5 unviable`
+7. `cargo test -p tracewake-core --test anti_regression_guards mutation_baseline_misses_are_pinned_and_ledgered`
+8. `cargo test -p tracewake-core --test anti_regression_guards`
+9. `cargo test -p tracewake-core`
+10. `cargo fmt --all --check`
+11. `cargo clippy --workspace --all-targets -- -D warnings`
+12. `cargo build --workspace --all-targets --locked`
+13. `cargo test --workspace`
