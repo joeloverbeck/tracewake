@@ -1024,6 +1024,8 @@ baseline-triage integrity, mutation-CI parity, meta-lock, hidden-truth,
 policy-lock, eat-crossing, scheduler reject-loudly, embodied debug-render,
 census-widening, runner-only no-human proof, diagnostic/generative, conformance,
 acceptance-artifact, and focused mutation-test findings recorded by this spec.
+The final archive truthing commit `57383f4` normalized completed ticket outcomes
+to the repository archival format.
 
 The final artifact is `reports/0022_ord_life_cert_scoped_acceptance.md`; it records
 the implementation commit manifest, the §7 evidence map, the 0021 evidence
