@@ -14,6 +14,7 @@ use tracewake_core::state::PhysicalState;
 use crate::schema::{
     content_field_by_canonical_key, routine_assignment_actor_suffix,
     routine_family_assignment_suffix, ActionAffordanceSchema, FixtureSchema, FixtureScope,
+    FIXTURE_SCHEMA_V1,
 };
 pub use crate::schema::{content_field_registry, ValidationPhase};
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
@@ -159,6 +160,7 @@ fn validate_fixture_errors(
     registry: &ActionRegistry,
 ) -> Vec<ContentValidationError> {
     let mut errors = Vec::new();
+    validate_schema_version(fixture, &mut errors);
     validate_ids(fixture, &mut errors);
     validate_references(fixture, &mut errors);
     validate_locations(fixture, &mut errors);
@@ -176,6 +178,20 @@ fn validate_fixture_errors(
     validate_fixture_contract(fixture, &mut errors);
     validate_serialization_roundtrip(fixture, &mut errors);
     errors
+}
+
+fn validate_schema_version(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    if fixture.schema_version.as_str() != FIXTURE_SCHEMA_V1 {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::ParseSchema,
+            "fixture.schema_version",
+            "unsupported_fixture_schema_version",
+            format!(
+                "unsupported fixture schema version {}",
+                fixture.schema_version.as_str()
+            ),
+        ));
+    }
 }
 
 fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
@@ -1115,6 +1131,7 @@ struct NumericFieldRegistration {
 enum ContentNegativePolicy {
     Numeric(NumericFieldPolicy),
     StringScan(StringScanPolicy),
+    FixtureSchemaVersion,
 }
 
 #[cfg(test)]
@@ -1196,6 +1213,12 @@ const NUMERIC_FIELD_REGISTRY: &[NumericFieldRegistration] = &[
 
 #[cfg(test)]
 const CONTENT_NEGATIVE_PROOFS: &[ContentNegativeProof] = &[
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::FixtureSchemaVersion,
+        proving_test: "fixture_schema_version_unsupported_rejected_001",
+        rejection_code: "unsupported_fixture_schema_version",
+        rejection_path: "fixture.schema_version",
+    },
     ContentNegativeProof {
         policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::PressureNonnegative),
         proving_test: "negative_need_tuning_direction_is_rejected",
@@ -2568,6 +2591,47 @@ mod tests {
     }
 
     #[test]
+    fn fixture_schema_v1_golden_bytes_load_001() {
+        const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible";
+
+        let world = validate_fixture_bytes(GOLDEN_SCHEMA_V1_BYTES, &registry()).unwrap();
+
+        assert_eq!(world.fixture.schema_version.as_str(), FIXTURE_SCHEMA_V1);
+        assert!(world
+            .physical_state
+            .places()
+            .contains_key(&PlaceId::new("shop_front").unwrap()));
+    }
+
+    #[test]
+    fn fixture_schema_version_unsupported_rejected_001() {
+        let mut fixture = fixture();
+        fixture.schema_version = SchemaVersion::new("schema_v999").unwrap();
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+        assert!(report.errors.iter().any(|error| {
+            error.phase == ValidationPhase::ParseSchema
+                && error.code == "unsupported_fixture_schema_version"
+                && error.path == "fixture.schema_version"
+        }));
+
+        let bytes = serialize_fixture(&fixture);
+        let bytes_report = validate_fixture_bytes(&bytes, &registry())
+            .unwrap_err()
+            .report;
+
+        assert_eq!(
+            bytes_report
+                .errors
+                .iter()
+                .find(|error| error.code == "unsupported_fixture_schema_version")
+                .map(|error| (error.phase, error.path.as_str())),
+            Some((ValidationPhase::ParseSchema, "fixture.schema_version"))
+        );
+    }
+
+    #[test]
     fn negative_need_tuning_direction_is_rejected() {
         let mut fixture = fixture();
         fixture.need_model.awake_hunger_delta_per_tick = -50;
@@ -2702,6 +2766,7 @@ mod tests {
             .filter_map(|proof| match proof.policy {
                 ContentNegativePolicy::Numeric(policy) => Some(policy),
                 ContentNegativePolicy::StringScan(_) => None,
+                ContentNegativePolicy::FixtureSchemaVersion => None,
             })
             .collect::<BTreeSet<_>>();
         let actual_string_policies = CONTENT_NEGATIVE_PROOFS
@@ -2709,6 +2774,7 @@ mod tests {
             .filter_map(|proof| match proof.policy {
                 ContentNegativePolicy::Numeric(_) => None,
                 ContentNegativePolicy::StringScan(policy) => Some(policy),
+                ContentNegativePolicy::FixtureSchemaVersion => None,
             })
             .collect::<BTreeSet<_>>();
 
@@ -2735,6 +2801,12 @@ mod tests {
         assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
             proof.proving_test == "fixture_output_tag_script_marker_rejected_001"
                 && proof.policy == ContentNegativePolicy::StringScan(StringScanPolicy::Union)
+        }));
+        assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
+            proof.proving_test == "fixture_schema_version_unsupported_rejected_001"
+                && proof.policy == ContentNegativePolicy::FixtureSchemaVersion
+                && proof.rejection_code == "unsupported_fixture_schema_version"
+                && proof.rejection_path == "fixture.schema_version"
         }));
     }
 

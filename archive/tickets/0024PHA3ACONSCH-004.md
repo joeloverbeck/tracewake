@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-004: Fixture schema-version gate on the production load path
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`validate.rs`, `load.rs`, `schema.rs`) plus content tests.
@@ -143,3 +143,32 @@ census row so the rejection path cannot be deleted silently.
 
 1. `cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Added the package-level fixture schema-version gate:
+
+1. `FIXTURE_SCHEMA_V1` now names the supported top-level fixture schema version.
+2. `validate_fixture_errors` now calls `validate_schema_version`, which rejects any
+   other `fixture.schema_version` at `ParseSchema` with
+   `unsupported_fixture_schema_version`.
+3. The content negative-proof census includes the schema-version rejection so
+   deleting the gate fails `content_negative_registry_covers_validation_policy_variants_and_tests`.
+4. `validate_fixture_bytes` and `load_fixture_package` both reject
+   `schema|schema_v999`; `load_fixture_package` cannot reach manifest construction
+   with the unsupported version because it already routes through validation before
+   building `ContentManifest`.
+5. Inline `schema_v1` golden bytes validate and load, while all committed fixtures
+   still load through the existing deterministic fixture sweep.
+
+Verification:
+
+1. `cargo test -p tracewake-content` passed.
+2. `cargo fmt --all --check` passed.
+3. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+4. `cargo build --workspace --all-targets --locked` passed.
+5. `cargo test --workspace` passed.
+
+No migration/upcast machinery was added, and no schema shape changed.

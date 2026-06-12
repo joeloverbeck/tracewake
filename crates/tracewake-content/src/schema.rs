@@ -23,6 +23,8 @@ use tracewake_core::time::SimTick;
 
 use crate::validate::FixtureValidationToken;
 
+pub const FIXTURE_SCHEMA_V1: &str = "schema_v1";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ValidationPhase {
     ParseSchema = 1,
