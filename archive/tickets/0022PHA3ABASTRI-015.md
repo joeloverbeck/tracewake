@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-015: Mutation baseline focused tests for action pipeline decisions
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — focused action-pipeline regression tests in `tracewake-core`
@@ -62,6 +62,25 @@ assigned in the ledger.
 
 1. Player and no-human action validation remain equivalent.
 2. Baseline entries are removed only after the focused tests kill them.
+
+## Completion Notes (2026-06-12)
+
+- Added focused action-pipeline tests for body-exclusive detection, actor-enabled
+  lookup, inactive scope rejection, controller binding, source-context staleness,
+  source-context semantic matching, and inert query-only knowledge slots.
+- Added a public anti-regression source-context guard for raw action-id semantic
+  prefixes such as `inspect_place.shop_front`.
+- Removed the seven assigned raw `actions/pipeline.rs` mutation baseline misses;
+  the normalized baseline is now 137 entries with
+  `fnv1a64=977cce46b241e47b`.
+- Verification:
+  - `cargo test -p tracewake-core`
+  - `cargo mutants -f crates/tracewake-core/src/actions/pipeline.rs --no-shuffle`
+    (`68 mutants tested in 3m: 49 caught, 19 unviable`)
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`
 
 ## Test Plan
 

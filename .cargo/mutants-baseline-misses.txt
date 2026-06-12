@@ -39,13 +39,6 @@ crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosti
 crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with "xyzzy"
 crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""
 crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with "xyzzy"
-crates/tracewake-core/src/actions/pipeline.rs:424:7: replace && with || in is_body_exclusive_start
-crates/tracewake-core/src/actions/pipeline.rs:427:52: replace && with || in is_body_exclusive_start
-crates/tracewake-core/src/actions/pipeline.rs:460:28: replace match guard actor.enabled with true in decide_proposal
-crates/tracewake-core/src/actions/pipeline.rs:491:47: replace == with != in decide_proposal
-crates/tracewake-core/src/actions/pipeline.rs:725:5: replace controller_binding_check -> Option<PipelineDecision> with None
-crates/tracewake-core/src/actions/pipeline.rs:875:9: replace || with && in source_context_check
-crates/tracewake-core/src/actions/pipeline.rs:958:27: replace || with && in semantic_action_matches_action
 crates/tracewake-core/src/agent/actor_known.rs:356:9: replace ActorKnownPlanningContext::known_containers_by_place -> &BTreeMap<PlaceId, BTreeSet<ContainerId>> with Box::leak(Box::new(BTreeMap::new()))
 crates/tracewake-core/src/agent/actor_known.rs:380:9: replace ActorKnownPlanningContext::sort_facts with ()
 crates/tracewake-core/src/agent/actor_known.rs:411:9: replace ActorKnownPlanningContext::structured_fact_gaps -> Vec<String> with vec![]

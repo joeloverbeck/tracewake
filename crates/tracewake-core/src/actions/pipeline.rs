@@ -1506,6 +1506,13 @@ mod tests {
         facts.iter().any(|fact| fact.stable_key() == stable_key)
     }
 
+    fn fact_value<'a>(facts: &'a [CheckedFact], stable_key: &str) -> Option<&'a str> {
+        facts
+            .iter()
+            .find(|fact| fact.stable_key() == stable_key)
+            .map(CheckedFact::value)
+    }
+
     #[test]
     fn human_source_context_missing_rejects_before_action_lookup() {
         let registry = ActionRegistry::new();
@@ -1662,6 +1669,338 @@ mod tests {
         assert!(has_fact(&report.debug_only_facts, "semantic_action_id"));
         assert!(!has_fact(&report.actor_visible_facts, "source_kind"));
         assert!(!has_fact(&report.actor_visible_facts, "semantic_action_id"));
+    }
+
+    #[test]
+    fn human_source_context_matches_exact_and_dotted_semantic_actions() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
+        registry.register(ActionDefinition::query_only(
+            action_id("inspect_place"),
+            ActionScope::Phase1,
+        ));
+        let state = state();
+        let bindings = human_bindings();
+
+        let mut exact = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut exact, "look", 0);
+        exact
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let exact_report = human_validation_report(&registry, &state, &exact, &bindings, 0);
+        assert_eq!(exact_report.status, ReportStatus::Accepted);
+
+        let mut exact_prefix = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut exact_prefix, "look.around", 0);
+        exact_prefix
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let exact_prefix_report =
+            human_validation_report(&registry, &state, &exact_prefix, &bindings, 0);
+        assert_eq!(exact_prefix_report.status, ReportStatus::Accepted);
+
+        let mut dotted = Proposal::new(
+            ProposalId::new("proposal_inspect_place").unwrap(),
+            ProposalOrigin::Human,
+            Some(actor_id("actor_tomas")),
+            action_id("inspect_place"),
+            SimTick::ZERO,
+        );
+        attach_tui_source(&mut dotted, "inspect.place.shop_front", 0);
+        dotted
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let dotted_report = human_validation_report(&registry, &state, &dotted, &bindings, 0);
+        assert_eq!(dotted_report.status, ReportStatus::Accepted);
+
+        let mut mismatched = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut mismatched, "look.hidden", 0);
+        mismatched.action_id = action_id("inspect_place");
+        mismatched
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let mismatch_report = human_validation_report(&registry, &state, &mismatched, &bindings, 0);
+        assert_eq!(mismatch_report.status, ReportStatus::Rejected);
+        assert_eq!(
+            mismatch_report.reason_codes,
+            vec![ReasonCode::ProposalSourceForged]
+        );
+    }
+
+    #[test]
+    fn semantic_action_match_accepts_exact_and_prefix_forms() {
+        assert!(semantic_action_matches_action(
+            &SemanticActionId::new("look").unwrap(),
+            &action_id("look")
+        ));
+        assert!(semantic_action_matches_action(
+            &SemanticActionId::new("look.around").unwrap(),
+            &action_id("look")
+        ));
+        assert!(semantic_action_matches_action(
+            &SemanticActionId::new("inspect_place.shop_front").unwrap(),
+            &action_id("inspect_place")
+        ));
+        assert!(semantic_action_matches_action(
+            &SemanticActionId::new("inspect.place.shop_front").unwrap(),
+            &action_id("inspect_place")
+        ));
+        assert!(!semantic_action_matches_action(
+            &SemanticActionId::new("look.hidden").unwrap(),
+            &action_id("inspect_place")
+        ));
+    }
+
+    #[test]
+    fn query_only_look_keeps_knowledge_slot_inert() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
+        let report = validate_proposal(
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state(),
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+                current_event_frontier: 0,
+            },
+            &proposal(ProposalOrigin::Test),
+        );
+
+        assert_eq!(report.status, ReportStatus::Accepted);
+        assert_eq!(
+            fact_value(&report.checked_facts, "knowledge_perception_slot"),
+            Some("inert")
+        );
+    }
+
+    #[test]
+    fn human_source_context_rejects_each_stale_tick_side() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
+        let state = state();
+        let bindings = human_bindings();
+
+        let mut requested_tick_mismatch = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut requested_tick_mismatch, "look", 0);
+        requested_tick_mismatch.requested_tick = SimTick::new(1);
+        requested_tick_mismatch
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let requested_report =
+            human_validation_report(&registry, &state, &requested_tick_mismatch, &bindings, 0);
+        assert_eq!(requested_report.status, ReportStatus::Rejected);
+        assert_eq!(
+            requested_report.reason_codes,
+            vec![ReasonCode::ProposalSourceStale]
+        );
+
+        let mut ordering_tick_mismatch = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut ordering_tick_mismatch, "look", 0);
+        ordering_tick_mismatch.requested_tick = SimTick::new(1);
+        if let Some(ProposalSource::TuiSemanticAction(source)) =
+            ordering_tick_mismatch.source.as_mut()
+        {
+            source.context_tick = SimTick::new(1);
+        }
+        ordering_tick_mismatch
+            .parameters
+            .insert("controller_id".to_string(), "controller_human".to_string());
+        let zero_ordering_key = ordering_key();
+        let ordering_report = validate_proposal(
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: Some(&bindings),
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &zero_ordering_key,
+                current_event_frontier: 0,
+            },
+            &ordering_tick_mismatch,
+        );
+        assert_eq!(ordering_report.status, ReportStatus::Rejected);
+        assert_eq!(
+            ordering_report.reason_codes,
+            vec![ReasonCode::ProposalSourceStale]
+        );
+    }
+
+    #[test]
+    fn human_controller_binding_is_required_before_other_validation() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
+        let state = state();
+        let bindings = human_bindings();
+        let mut proposal = proposal(ProposalOrigin::Human);
+        attach_tui_source(&mut proposal, "look", 0);
+
+        let report = human_validation_report(&registry, &state, &proposal, &bindings, 0);
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(
+            report.failed_stage,
+            Some(PipelineStage::ControllerBindingCheck)
+        );
+        assert_eq!(report.reason_codes, vec![ReasonCode::ControllerUnbound]);
+    }
+
+    #[test]
+    fn disabled_actor_rejects_before_query_acceptance() {
+        let mut registry = ActionRegistry::new();
+        registry.register(ActionDefinition::query_only(
+            action_id("look"),
+            ActionScope::Phase1,
+        ));
+        let mut state = state();
+        state
+            .actors
+            .get_mut(&actor_id("actor_tomas"))
+            .unwrap()
+            .enabled = false;
+        let report = validate_proposal(
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+                current_event_frontier: 0,
+            },
+            &proposal(ProposalOrigin::Test),
+        );
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(report.failed_stage, Some(PipelineStage::ActorLookup));
+        assert_eq!(report.reason_codes, vec![ReasonCode::ActorNotFound]);
+    }
+
+    #[test]
+    fn inactive_action_scope_rejects_registered_action() {
+        let mut registry = ActionRegistry::new_with_active_scopes([ActionScope::Phase1]);
+        registry.register(ActionDefinition::query_only(
+            action_id("truthful_accuse_probe"),
+            ActionScope::Phase2AHistorical,
+        ));
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_inactive_scope").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            action_id("truthful_accuse_probe"),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push("actor_mara".to_string());
+        let state = state();
+
+        let report = validate_proposal(
+            ProposalValidationContext {
+                registry: &registry,
+                state: &state,
+                agent_state: &AgentState::default(),
+                controller_bindings: None,
+                epistemic_projection: None,
+                content_manifest_id: &content_manifest_id(),
+                ordering_key: &ordering_key(),
+                current_event_frontier: 0,
+            },
+            &proposal,
+        );
+
+        assert_eq!(report.status, ReportStatus::Rejected);
+        assert_eq!(
+            report.failed_stage,
+            Some(PipelineStage::PhaseBoundaryValidation)
+        );
+        assert_eq!(
+            report.reason_codes,
+            vec![ReasonCode::PhaseUnsupportedAction]
+        );
+    }
+
+    #[test]
+    fn body_exclusive_start_requires_kind_and_payload_flag() {
+        let mut work = EventEnvelope::new_v1(
+            EventId::new("event_work_started").unwrap(),
+            EventKind::WorkBlockStarted,
+            0,
+            0,
+            SimTick::ZERO,
+            ordering_key(),
+            content_manifest_id(),
+        );
+        work.payload
+            .push(PayloadField::new("body_exclusive", "true"));
+        assert!(is_body_exclusive_start(&work));
+
+        let missing_flag = EventEnvelope::new_v1(
+            EventId::new("event_work_started_missing_flag").unwrap(),
+            EventKind::WorkBlockStarted,
+            0,
+            0,
+            SimTick::ZERO,
+            ordering_key(),
+            content_manifest_id(),
+        );
+        assert!(!is_body_exclusive_start(&missing_flag));
+
+        let mut false_flag = EventEnvelope::new_v1(
+            EventId::new("event_work_started_false_flag").unwrap(),
+            EventKind::WorkBlockStarted,
+            0,
+            0,
+            SimTick::ZERO,
+            ordering_key(),
+            content_manifest_id(),
+        );
+        false_flag
+            .payload
+            .push(PayloadField::new("body_exclusive", "false"));
+        assert!(!is_body_exclusive_start(&false_flag));
+
+        let mut wrong_key = EventEnvelope::new_v1(
+            EventId::new("event_work_started_wrong_key").unwrap(),
+            EventKind::WorkBlockStarted,
+            0,
+            0,
+            SimTick::ZERO,
+            ordering_key(),
+            content_manifest_id(),
+        );
+        wrong_key
+            .payload
+            .push(PayloadField::new("not_body_exclusive", "true"));
+        assert!(!is_body_exclusive_start(&wrong_key));
+
+        let mut wrong_kind = EventEnvelope::new_v1(
+            EventId::new("event_actor_moved_body_flag").unwrap(),
+            EventKind::ActorMoved,
+            0,
+            0,
+            SimTick::ZERO,
+            ordering_key(),
+            content_manifest_id(),
+        );
+        wrong_kind
+            .payload
+            .push(PayloadField::new("body_exclusive", "true"));
+        assert!(!is_body_exclusive_start(&wrong_kind));
     }
 
     #[test]

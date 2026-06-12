@@ -19,13 +19,8 @@ assigned to a real follow-up ticket before they can be removed.
 ## Baseline Change Log
 
 - 0022PHA3ABASTRI-004 — baseline-delta: normalized-count=143 fnv1a64=bd1855a5ee82b428; ratchet encoding only, with no accepted-entry growth or retirement.
+- 0022PHA3ABASTRI-015 — baseline-delta: normalized-count=137 fnv1a64=977cce46b241e47b; retired seven `actions/pipeline.rs` focused-test entries after `cargo mutants -f crates/tracewake-core/src/actions/pipeline.rs --no-shuffle` caught all viable mutants.
 
-- `crates/tracewake-core/src/actions/pipeline.rs: replace && with || in is_body_exclusive_start` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace && with || in is_body_exclusive_start`.
-- `crates/tracewake-core/src/actions/pipeline.rs: replace == with != in decide_proposal` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace == with != in decide_proposal`.
-- `crates/tracewake-core/src/actions/pipeline.rs: replace controller_binding_check -> Option<PipelineDecision> with None` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace controller_binding_check -> Option<PipelineDecision> with None`.
-- `crates/tracewake-core/src/actions/pipeline.rs: replace match guard actor.enabled with true in decide_proposal` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace match guard actor.enabled with true in decide_proposal`.
-- `crates/tracewake-core/src/actions/pipeline.rs: replace || with && in semantic_action_matches_action` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace || with && in semantic_action_matches_action`.
-- `crates/tracewake-core/src/actions/pipeline.rs: replace || with && in source_context_check` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace || with && in source_context_check`.
 - `crates/tracewake-core/src/actions/defs/eat.rs: replace match guard place_id == actor_place_id with true in access_failure` — warrants-test:0022PHA3ABASTRI-016: Focused mutation coverage remains assigned for `replace match guard place_id == actor_place_id with true in access_failure`.
 - `crates/tracewake-core/src/actions/defs/eat.rs: replace match guard carrier_id == actor_id with true in access_failure` — warrants-test:0022PHA3ABASTRI-016: Focused mutation coverage remains assigned for `replace match guard carrier_id == actor_id with true in access_failure`.
 - `crates/tracewake-core/src/actions/defs/eat.rs: replace match guard carrier_id == actor_id with false in access_failure` — warrants-test:0022PHA3ABASTRI-016: Focused mutation coverage remains assigned for `replace match guard carrier_id == actor_id with false in access_failure`.

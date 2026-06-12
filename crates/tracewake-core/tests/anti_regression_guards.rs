@@ -1272,8 +1272,8 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/work.rs",
 ];
 
-const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 143;
-const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
+const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 137;
+const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0x977c_ce46_b241_e47b;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
 const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
@@ -2997,8 +2997,8 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     );
 
     let unrecorded_floor_raise_ledger = MUTANTS_BASELINE_LEDGER.replace(
-        "baseline-delta: normalized-count=143 fnv1a64=bd1855a5ee82b428",
-        "baseline-delta: normalized-count=144 fnv1a64=bd1855a5ee82b428",
+        "baseline-delta: normalized-count=137 fnv1a64=977cce46b241e47b",
+        "baseline-delta: normalized-count=138 fnv1a64=977cce46b241e47b",
     );
     assert!(
         mutation_baseline_governance_errors(
@@ -3031,7 +3031,7 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     );
 
     let deferred_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "warrants-test:0022PHA3ABASTRI-015:",
+        "warrants-test:0022PHA3ABASTRI-016:",
         "justified-baseline: this warrants a future focused assertion",
         1,
     );
@@ -3043,7 +3043,7 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     );
 
     let bad_tag_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "warrants-test:0022PHA3ABASTRI-015:",
+        "warrants-test:0022PHA3ABASTRI-016:",
         "warrants-test:0022PHA3ABASTRI-999:",
         1,
     );
@@ -3490,6 +3490,10 @@ fn human_source_report(
         ActionId::new("look").unwrap(),
         ActionScope::Phase1,
     ));
+    registry.register(ActionDefinition::query_only(
+        ActionId::new("inspect_place").unwrap(),
+        ActionScope::Phase1,
+    ));
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
     let mut bindings = ControllerBindings::new();
     let mut binding_log = EventLog::new();
@@ -3888,6 +3892,24 @@ fn forged_or_stale_source_context_rejected_by_reason_code() {
             "{case_id}"
         );
     }
+
+    let mut raw_action_prefix = source_bound_human_proposal(
+        "proposal_raw_action_prefix",
+        &actor_id,
+        "inspect_place",
+        "inspect_place.shop_front",
+        SimTick::ZERO,
+        0,
+    );
+    raw_action_prefix
+        .parameters
+        .insert("controller_id".to_string(), "controller_human".to_string());
+    let report = human_source_report(&raw_action_prefix, 0);
+    assert_eq!(report.status, ReportStatus::Accepted);
+    assert!(
+        report.reason_codes.is_empty(),
+        "raw action-id semantic prefixes must validate before dotted aliases are considered"
+    );
 
     let mut actor_mismatch = source_bound_human_proposal(
         "proposal_actor_mismatch",
