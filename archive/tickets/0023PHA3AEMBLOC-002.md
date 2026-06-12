@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-002: Chained baseline change-log ratchet and 0022 report correction
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — test-oracle guards (`anti_regression_guards.rs`), `reports/0020_mutants_baseline_disposition.md` change-log format, `reports/0022_ord_life_cert_scoped_acceptance.md`
@@ -133,3 +133,33 @@ remaining … are ledgered" claim. Extend the acceptance-checklist guard to asse
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented the chained mutation-baseline evidence check and corrected the stale
+0022 acceptance-report baseline narrative.
+
+- Rewrote `reports/0020_mutants_baseline_disposition.md` baseline-delta entries to
+  carry `from-count`/`from-fnv1a64` -> `to-count`/`to-fnv1a64` links ending at the
+  pinned zero baseline.
+- Replaced the destination-only change-log check in
+  `crates/tracewake-core/tests/anti_regression_guards.rs` with a parsed chain walk
+  whose head must match the pinned count/hash and whose adjacent links must connect.
+- Added a missing-predecessor synthetic and updated the floor-raise synthetic for
+  the new chained format.
+- Corrected `reports/0022_ord_life_cert_scoped_acceptance.md` §1 to state that the
+  baseline was retired 143 -> 0 through `0022PHA3ABASTRI-015` through `-023`.
+- Extended the 0022 acceptance-artifact guard to reject the old "All 143 remaining"
+  narrative and require the pinned `normalized-count 0` claim.
+
+Deviations: none.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed
+- `cargo fmt --all --check` — passed after applying `cargo fmt --all`
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed

@@ -148,6 +148,14 @@ struct MetaLockCensusExemption {
     rationale: &'static str,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct MutationBaselineDelta {
+    from_count: usize,
+    from_hash: u64,
+    to_count: usize,
+    to_hash: u64,
+}
+
 const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
     &[
         EmbodiedSurfaceFieldProducer {
@@ -2443,14 +2451,52 @@ fn ledgered_mutant_misses(ledger: &str) -> std::collections::BTreeSet<String> {
         .collect()
 }
 
-fn mutation_baseline_change_log_records(ledger: &str, count: usize, hash: u64) -> bool {
-    let count_marker = format!("normalized-count={count}");
-    let hash_marker = format!("fnv1a64={hash:016x}");
-    ledger.lines().any(|line| {
-        line.contains("baseline-delta:")
-            && line.contains(&count_marker)
-            && line.contains(&hash_marker)
+fn parse_mutation_baseline_delta(line: &str) -> Option<MutationBaselineDelta> {
+    let (_, tail) = line.split_once("baseline-delta:")?;
+    let mut from_count = None;
+    let mut from_hash = None;
+    let mut to_count = None;
+    let mut to_hash = None;
+
+    for token in tail
+        .split(|ch: char| ch.is_whitespace() || matches!(ch, ',' | ';'))
+        .filter(|token| !token.is_empty() && *token != "->")
+    {
+        let Some((key, value)) = token.split_once('=') else {
+            continue;
+        };
+        match key {
+            "from-count" => from_count = value.parse::<usize>().ok(),
+            "from-fnv1a64" => from_hash = u64::from_str_radix(value, 16).ok(),
+            "to-count" => to_count = value.parse::<usize>().ok(),
+            "to-fnv1a64" => to_hash = u64::from_str_radix(value, 16).ok(),
+            _ => {}
+        }
+    }
+
+    Some(MutationBaselineDelta {
+        from_count: from_count?,
+        from_hash: from_hash?,
+        to_count: to_count?,
+        to_hash: to_hash?,
     })
+}
+
+fn mutation_baseline_change_log_records(ledger: &str, count: usize, hash: u64) -> bool {
+    let deltas = ledger
+        .lines()
+        .filter(|line| line.contains("baseline-delta:"))
+        .filter_map(parse_mutation_baseline_delta)
+        .collect::<Vec<_>>();
+    let Some(head) = deltas.last() else {
+        return false;
+    };
+    if head.to_count != count || head.to_hash != hash {
+        return false;
+    }
+    deltas
+        .windows(2)
+        .all(|pair| pair[0].to_count == pair[1].from_count && pair[0].to_hash == pair[1].from_hash)
 }
 
 fn ticket_exists(ticket_id: &str) -> bool {
@@ -2823,6 +2869,20 @@ fn acceptance_checklist_anchor_errors(
                 ));
             }
         }
+    }
+    errors
+}
+
+fn acceptance_0022_baseline_narrative_errors(report: &str, count: usize) -> Vec<String> {
+    let mut errors = Vec::new();
+    if report.contains("All 143 remaining normalized baseline entries are ledgered") {
+        errors.push("0022 report keeps stale All 143 remaining baseline prose".to_string());
+    }
+    let expected = format!("normalized-count {count}");
+    if !report.contains(&expected) {
+        errors.push(format!(
+            "0022 report baseline narrative does not name pinned {expected}"
+        ));
     }
     errors
 }
@@ -3297,8 +3357,8 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     }
 
     let unrecorded_floor_raise_ledger = MUTANTS_BASELINE_LEDGER.replace(
-        "baseline-delta: normalized-count=0 fnv1a64=cbf29ce484222325",
-        "baseline-delta: normalized-count=1 fnv1a64=cbf29ce484222325",
+        "to-count=0 to-fnv1a64=cbf29ce484222325",
+        "to-count=1 to-fnv1a64=cbf29ce484222325",
     );
     assert!(
         mutation_baseline_governance_errors(
@@ -3308,6 +3368,17 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         .iter()
         .any(|error| error.contains("recorded baseline change log")),
         "synthetic unrecorded baseline floor raise must fail change-log governance"
+    );
+
+    let missing_predecessor_ledger = MUTANTS_BASELINE_LEDGER.replace(
+        "from-count=137 from-fnv1a64=977cce46b241e47b -> to-count=130",
+        "from-count=138 from-fnv1a64=977cce46b241e47b -> to-count=130",
+    );
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &missing_predecessor_ledger)
+            .iter()
+            .any(|error| error.contains("recorded baseline change log")),
+        "synthetic missing-predecessor shrink must fail change-log governance"
     );
 
     let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
@@ -3463,10 +3534,14 @@ fn acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors() {
 
 #[test]
 fn acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors() {
-    let errors = acceptance_checklist_anchor_errors(
+    let mut errors = acceptance_checklist_anchor_errors(
         ACCEPTANCE_0022_REPORT,
         ACCEPTANCE_0022_CHECKLIST_ANCHORS,
     );
+    errors.extend(acceptance_0022_baseline_narrative_errors(
+        ACCEPTANCE_0022_REPORT,
+        MUTANTS_BASELINE_NORMALIZED_COUNT,
+    ));
     assert!(
         errors.is_empty(),
         "0022 acceptance artifact checklist anchors are missing: {errors:#?}"
@@ -3483,6 +3558,20 @@ fn acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors() {
             .iter()
             .any(|error| error.contains("item 99")),
         "synthetic missing 0022 acceptance checklist anchor must fail through the real checker"
+    );
+
+    let stale_baseline_report = ACCEPTANCE_0022_REPORT.replace(
+        "remaining normalized baseline was retired from 143 to 0 through focused follow-up",
+        "All 143 remaining normalized baseline entries are ledgered with closed disposition tags. No entry was retired by focused tests in this slice; instead, test debt was filed to the follow-up",
+    );
+    assert!(
+        acceptance_0022_baseline_narrative_errors(
+            &stale_baseline_report,
+            MUTANTS_BASELINE_NORMALIZED_COUNT
+        )
+        .iter()
+        .any(|error| error.contains("All 143 remaining")),
+        "synthetic stale baseline narrative must fail the 0022 acceptance artifact guard"
     );
 }
 
