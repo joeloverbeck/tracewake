@@ -86,7 +86,8 @@ Completed: YYYY-MM-DD
    Before committing, verify the archived ticket mechanically, for example:
 
 ```sh
-rg -n '^## Outcome|^Completed: ' archive/tickets/<ticket-id>.md
+rg --files-without-match '^## Outcome' archive/tickets/<ticket-id>.md
+rg --files-without-match '^Completed: ' archive/tickets/<ticket-id>.md
 ```
 
 6. Archive the ticket:
@@ -232,6 +233,9 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    response alone.
 
 ## Reporting
+
+For active `/goal` runs, call the goal completion tool after the final audit and
+before the final response; do not rely on a prose closeout alone.
 
 Final responses must include:
 

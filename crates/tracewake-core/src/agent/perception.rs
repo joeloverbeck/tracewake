@@ -586,11 +586,11 @@ mod tests {
     use super::*;
     use crate::agent::{NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest};
     use crate::epistemics::{ActorKnownProjectionFreshness, EpistemicProjection};
-    use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
+    use crate::ids::{ContainerId, FoodSupplyId, ItemId, SleepAffordanceId, WorkplaceId};
     use crate::state::AgentState;
     use crate::state::{
-        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, VisibilityDefault,
-        WorkplaceState,
+        ActorBody, ContainerState, FoodSupplyState, ItemState, PlaceState, SleepAffordanceState,
+        VisibilityDefault, WorkplaceState,
     };
 
     fn actor_id(value: &str) -> ActorId {
@@ -720,6 +720,133 @@ mod tests {
                     field.key == "source_event_id" && field.value == event.event_id.as_str()
                 })
         }));
+    }
+
+    fn item_id(value: &str) -> ItemId {
+        ItemId::new(value).unwrap()
+    }
+
+    fn container_id(value: &str) -> ContainerId {
+        ContainerId::new(value).unwrap()
+    }
+
+    fn visible_item_events(state: &PhysicalState, actor: &ActorId) -> Vec<EventEnvelope> {
+        current_place_perception_events(state, actor, SimTick::new(4), &manifest_id())
+            .into_iter()
+            .filter(|event| payload_value(event, "perceived_kind") == Some("visible_item"))
+            .collect()
+    }
+
+    #[test]
+    fn visible_item_perception_follows_current_place_match_not_id_prose() {
+        let actor = actor_id("actor_tomas");
+        let home = place_id("home_tomas");
+        let elsewhere = place_id("workshop_tomas");
+
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor.clone(), home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home.clone(), PlaceState::new(home.clone(), "Tomas home"));
+        places.insert(
+            elsewhere.clone(),
+            PlaceState::new(elsewhere.clone(), "Workshop"),
+        );
+
+        let here = item_id("item_here");
+        let there = item_id("item_elsewhere");
+        let mut items = BTreeMap::new();
+        items.insert(
+            here.clone(),
+            ItemState::new(here.clone(), Location::AtPlace(home.clone())),
+        );
+        items.insert(
+            there.clone(),
+            ItemState::new(there.clone(), Location::AtPlace(elsewhere)),
+        );
+
+        let state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            items,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        );
+
+        let events = visible_item_events(&state, &actor);
+
+        // The item co-located with the actor is perceived and keyed as a place source.
+        let here_event = events
+            .iter()
+            .find(|event| payload_value(event, "target_id") == Some(here.as_str()))
+            .expect("item at the actor's current place is perceived");
+        assert_eq!(payload_value(here_event, "item_source_kind"), Some("place"));
+        assert_eq!(
+            payload_value(here_event, "item_source_place_id"),
+            Some(home.as_str())
+        );
+        // An item at a different place is not perceived from here.
+        assert!(events
+            .iter()
+            .all(|event| payload_value(event, "target_id") != Some(there.as_str())));
+    }
+
+    #[test]
+    fn visible_item_perception_reveals_open_container_without_closed_visibility() {
+        let actor = actor_id("actor_tomas");
+        let home = place_id("home_tomas");
+
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor.clone(), home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home.clone(), PlaceState::new(home.clone(), "Tomas home"));
+
+        let chest_id = container_id("chest_tomas");
+        let stored = item_id("item_in_chest");
+        let mut chest = ContainerState::fixed_at_place(chest_id.clone(), home);
+        // Open, but contents are *not* visible while closed: visibility must hinge
+        // on the container being open, not on both conditions holding.
+        chest.is_open = true;
+        chest.contents_visible_when_closed = false;
+        chest.contents.insert(stored.clone());
+        let mut containers = BTreeMap::new();
+        containers.insert(chest_id.clone(), chest);
+
+        let mut items = BTreeMap::new();
+        items.insert(
+            stored.clone(),
+            ItemState::new(stored.clone(), Location::InContainer(chest_id.clone())),
+        );
+
+        let state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            containers,
+            items,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        );
+
+        let events = visible_item_events(&state, &actor);
+
+        let stored_event = events
+            .iter()
+            .find(|event| payload_value(event, "target_id") == Some(stored.as_str()))
+            .expect("item in an open container at the current place is perceived");
+        assert_eq!(
+            payload_value(stored_event, "item_source_kind"),
+            Some("container")
+        );
+        assert_eq!(
+            payload_value(stored_event, "item_source_container_id"),
+            Some(chest_id.as_str())
+        );
     }
 
     #[test]
