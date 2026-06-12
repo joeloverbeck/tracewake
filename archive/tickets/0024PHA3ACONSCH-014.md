@@ -136,6 +136,8 @@ firing missing-anchor synthetic, enrolled under the live-witness rule.
 
 Completed: 2026-06-12
 
+Outcome amended: 2026-06-12
+
 - Added `reports/0024_ord_life_cert_scoped_acceptance.md` with all fourteen
   spec §7 anchors, the `emerge_obs_v1` derivation, honest mutation-run status,
   and the explicit non-certification statement.
@@ -144,6 +146,9 @@ Completed: 2026-06-12
   cognition-priority decision.
 - Added the 0024 acceptance-artifact parity guard and registered it in
   `META_LOCK_REGISTRY` with the firing missing-anchor synthetic.
+- The ticket-local spec-archive deferral was resolved by the final series
+  closeout: the reference spec moved to `archive/specs/` and the spec ledger now
+  records the 0024 archived-history row.
 
 Proof:
 

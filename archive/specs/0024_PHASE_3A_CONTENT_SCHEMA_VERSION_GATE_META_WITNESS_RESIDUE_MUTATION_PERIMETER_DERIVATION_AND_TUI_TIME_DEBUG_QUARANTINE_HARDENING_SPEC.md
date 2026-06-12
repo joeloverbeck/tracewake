@@ -1,6 +1,6 @@
 # 0024 Phase 3A Content Schema-Version Gate, Meta-Witness Residue, Mutation-Perimeter Derivation, and TUI Time/Debug Quarantine Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `4d62f61` (merge PR #31: all `0023PHA3AEMBLOC` tickets landed; acceptance artifact `reports/0023_ord_life_cert_scoped_acceptance.md`; post-capstone commit `a18c06b` "Fixed CI." verified test-only — two discriminating perception tests added to `crates/tracewake-core/src/agent/perception.rs`). All four gates (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`) measured green at this baseline before the audit, and re-measured at reassessment on the same tree with per-gate unmasked sentinels — fmt, clippy, build, and test each reporting an individual OK.
@@ -1074,3 +1074,37 @@ recording, for the implementation commits:
 - [x] Scope stays within the Phase 3A ordinary-life surface, its content-loader and
   TUI input boundaries (first-ever sweeps, prescribed by 0023 §9), and its
   lock/evidence layer.
+
+## Outcome
+
+Completed: 2026-06-12
+
+- Implemented and archived the full `0024PHA3ACONSCH-*` ticket series, closing
+  `ORD-HARD-140` through `ORD-HARD-165` across fixture schema-version gating,
+  meta-lock live witnesses, embodied truth-access quarantine, derived apply
+  perimeter coverage, content-loader validation, TUI debug quarantine,
+  projection-policy locks, oracle closures, and 0005 coherence pins.
+- Added `reports/0024_ord_life_cert_scoped_acceptance.md`, including all fourteen
+  §7 evidence anchors, the `emerge_obs_v1` derivation, the honest pending
+  mutation-run status, and the explicit non-certification statement.
+- Added conformance-index rows for the 0024 schema-version gate, meta-witness
+  completion, embodied truth-access removal, derived apply perimeter, and the
+  recorded `ORD-HARD-161` cognition-priority decision.
+- Added the 0024 acceptance-artifact parity guard and registered it in the
+  meta-lock registry with a firing missing-anchor synthetic.
+
+Deviations:
+
+- The scheduled mutation run remains pending in the local evidence surface, as
+  permitted by §7 item 13. No mutation result is claimed.
+- This closeout does not certify `ORD-LIFE-CERT`, full-project readiness, Phase 4
+  entry, or `FIRST-PROOF-CERT`.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+2. `cargo test -p tracewake-core --test anti_regression_guards --test emergence_ledger`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
