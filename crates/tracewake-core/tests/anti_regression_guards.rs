@@ -49,6 +49,8 @@ const MUTANTS_BASELINE_LEDGER: &str =
     include_str!("../../../reports/0020_mutants_baseline_disposition.md");
 const ACCEPTANCE_0021_REPORT: &str =
     include_str!("../../../reports/0021_ord_life_cert_scoped_acceptance.md");
+const ACCEPTANCE_0022_REPORT: &str =
+    include_str!("../../../reports/0022_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -2422,6 +2424,98 @@ const ACCEPTANCE_0021_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
     },
 ];
 
+const ACCEPTANCE_0022_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Real Baseline Triage", "ORD-HARD-099"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Concurrency And Fail-Closed Mutation Config",
+            "ORD-HARD-100",
+            "ORD-HARD-101",
+            "ORD-HARD-102",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &["Embodied Render Split", "ORD-HARD-103", "ORD-HARD-104"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Planner-Gate Adversarial Restoration", "ORD-HARD-105"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &["Policy Behavioral Table", "ORD-HARD-106", "ORD-HARD-115"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["Eat Crossing Proof", "ORD-HARD-107"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &["Scheduler Typed Errors", "ORD-HARD-108"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Census And Totality Guard Widening",
+            "ORD-HARD-109",
+            "ORD-HARD-110",
+            "ORD-HARD-112",
+            "ORD-HARD-113",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &[
+            "Runner-Only Canonical-Day Proof",
+            "ORD-HARD-111",
+            "ORD-HARD-120",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &[
+            "Content And Generative Hygiene",
+            "ORD-HARD-116",
+            "ORD-HARD-117",
+            "ORD-HARD-118",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &["Meta-Lock Tier", "bijection census", "nonzero-witness"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &[
+            "0021 Report Corrections And Checklist Parity",
+            "ORD-HARD-119",
+            "acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &["Risk Register And Conformance Index Diffs", "R-29"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &["EMERGE-OBS Refresh", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 15,
+        anchors: &[
+            "Explicit Non-Certification Statement",
+            "not full-project certification",
+            "not Phase 4 entry",
+            "not `FIRST-PROOF-CERT`",
+        ],
+    },
+];
+
 fn acceptance_checklist_anchor_errors(
     report: &str,
     anchors: &[AcceptanceChecklistAnchor],
@@ -3060,6 +3154,31 @@ fn acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors() {
             .iter()
             .any(|error| error.contains("item 99")),
         "synthetic missing acceptance checklist anchor must fail through the real checker"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0022_REPORT,
+        ACCEPTANCE_0022_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0022 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0022_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic missing 0022 acceptance artifact anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0022_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic missing 0022 acceptance checklist anchor must fail through the real checker"
     );
 }
 

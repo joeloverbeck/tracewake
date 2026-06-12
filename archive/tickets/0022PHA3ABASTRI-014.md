@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-014: 0022 scoped acceptance artifact
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — evidence report (`reports/0022_ord_life_cert_scoped_acceptance.md`, new), §7-checklist registration (`anti_regression_guards.rs`)
@@ -132,3 +132,26 @@ this artifact, so the guard machine-checks it (and fires on a missing anchor).
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Completion Outcome (2026-06-12)
+
+Implemented. Added `reports/0022_ord_life_cert_scoped_acceptance.md` with the
+implementation commit manifest, one report section per spec section 7 item 1-15,
+explicit deviations/pending items, the refreshed `emerge_obs_v1` table, and the
+non-certification boundary. The report records the scheduled-run result as pending
+rather than overclaiming, records that no mutation baseline entries were retired in
+tickets 001-014, and names tickets 015-023 as the focused follow-up debt.
+
+Registered the 0022 acceptance artifact in the existing checklist parity guard with
+`ACCEPTANCE_0022_REPORT`, `ACCEPTANCE_0022_CHECKLIST_ANCHORS`, and
+`acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors`. The guard
+uses the same real missing-anchor synthetic pattern as the 0021 artifact check.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test anti_regression_guards`
+2. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
