@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-016: Mutation baseline focused tests for eat access and payloads
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — focused `eat.rs` tests in `tracewake-core`
@@ -59,6 +59,24 @@ Add focused tests that kill the `eat.rs` baseline mutants assigned in the ledger
 
 1. Food access remains modeled through state and custody, not prose.
 2. Baseline entries are removed only after the focused tests kill them.
+
+## Completion Notes (2026-06-12)
+
+- Added focused eat tests for remote-place rejection, self-carried food success,
+  other-carrier rejection, open local container success, open remote container
+  rejection, and consumed-food location payloads for place/container/actor
+  locations.
+- Removed the seven assigned raw `actions/defs/eat.rs` mutation baseline misses;
+  the normalized baseline is now 130 entries with
+  `fnv1a64=8285ca57bc708d55`.
+- Verification:
+  - `cargo test -p tracewake-core`
+  - `cargo mutants -f crates/tracewake-core/src/actions/defs/eat.rs --no-shuffle`
+    (`24 mutants tested in 88s: 16 caught, 8 unviable`)
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`
 
 ## Test Plan
 

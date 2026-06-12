@@ -413,6 +413,17 @@ mod tests {
             .map(|field| field.value.as_str())
     }
 
+    fn eat_events(state: &PhysicalState) -> Vec<EventEnvelope> {
+        build_eat_events(
+            state,
+            &agent_state(450),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap()
+    }
+
     #[test]
     fn eat_consumes_one_serving_and_emits_non_crossing_hunger_delta() {
         let mut state = state(2);
@@ -434,6 +445,15 @@ mod tests {
             .any(|field| field.key == "delta" && field.value == "-120"));
         apply_event(&mut state, &events[0]).unwrap();
         assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
+    fn eat_records_location_payload_for_place_food() {
+        let state = state(2);
+        let events = eat_events(&state);
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(payload_value(&events[0], "location"), Some("place:kitchen"));
     }
 
     #[test]
@@ -478,6 +498,32 @@ mod tests {
     }
 
     #[test]
+    fn eat_food_at_other_place_fails_access_without_consumption() {
+        let mut state = state(1);
+        let remote_place_id = PlaceId::new("pantry_room").unwrap();
+        state.places.insert(
+            remote_place_id.clone(),
+            PlaceState::new(remote_place_id.clone(), "Pantry room"),
+        );
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::AtPlace(remote_place_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, EventKind::EatFailed);
+        assert_eq!(payload_value(&events[0], "blocker_kind"), Some("access"));
+        assert_eq!(
+            payload_value(&events[0], "absence_ancestry"),
+            Some("food source not at actor place")
+        );
+        assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
     fn eat_in_closed_container_fails_with_access_blocker() {
         let mut state = state(1);
         let container_id = ContainerId::new("pantry").unwrap();
@@ -504,6 +550,104 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "blocker_kind" && field.value == "access"));
+        assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
+    fn eat_in_open_local_container_consumes_and_records_container_payload() {
+        let mut state = state(2);
+        let container_id = ContainerId::new("pantry").unwrap();
+        let mut container = ContainerState::fixed_at_place(container_id.clone(), place_id());
+        container.is_open = true;
+        state.containers.insert(container_id.clone(), container);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::InContainer(container_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(
+            payload_value(&events[0], "location"),
+            Some("container:pantry")
+        );
+        assert_eq!(payload_value(&events[0], "servings_after"), Some("1"));
+    }
+
+    #[test]
+    fn eat_in_open_remote_container_fails_access_without_consumption() {
+        let mut state = state(1);
+        let remote_place_id = PlaceId::new("pantry_room").unwrap();
+        state.places.insert(
+            remote_place_id.clone(),
+            PlaceState::new(remote_place_id.clone(), "Pantry room"),
+        );
+        let container_id = ContainerId::new("remote_pantry").unwrap();
+        let mut container = ContainerState::fixed_at_place(container_id.clone(), remote_place_id);
+        container.is_open = true;
+        state.containers.insert(container_id.clone(), container);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::InContainer(container_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, EventKind::EatFailed);
+        assert_eq!(payload_value(&events[0], "blocker_kind"), Some("access"));
+        assert_eq!(
+            payload_value(&events[0], "absence_ancestry"),
+            Some("food source container not reachable")
+        );
+        assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
+    fn eat_self_carried_food_consumes_and_records_actor_payload() {
+        let mut state = state(2);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::CarriedBy(actor_id());
+
+        let events = eat_events(&state);
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(
+            payload_value(&events[0], "location"),
+            Some("actor:actor_tomas")
+        );
+        assert_eq!(payload_value(&events[0], "servings_after"), Some("1"));
+    }
+
+    #[test]
+    fn eat_food_carried_by_other_actor_fails_access_with_debug_ancestry() {
+        let mut state = state(1);
+        let carrier_id = ActorId::new("actor_mara").unwrap();
+        state.actors.insert(
+            carrier_id.clone(),
+            ActorBody::new(carrier_id.clone(), place_id()),
+        );
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::CarriedBy(carrier_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, EventKind::EatFailed);
+        assert_eq!(payload_value(&events[0], "blocker_kind"), Some("access"));
+        assert_eq!(
+            payload_value(&events[0], "absence_ancestry"),
+            Some("food source carried by another actor")
+        );
         assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
     }
 
