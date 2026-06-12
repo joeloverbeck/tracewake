@@ -3,7 +3,7 @@
 **Status**: PROPOSED
 
 **Target repository:** `joeloverbeck/tracewake`
-**Target baseline:** local branch `implemented-0021pha3aposreb` at `ad39160` (post-0021 closeout; all `0021PHA3APOSREB` tickets landed; acceptance artifact `reports/0021_ord_life_cert_scoped_acceptance.md` truthed at `78c0973`).
+**Target baseline:** local `main` at `9ce820f` (merge PR #29: post-0021 closeout with all `0021PHA3APOSREB` tickets landed — including the post-audit `-014` mutation-gate closure — and the acceptance artifact `reports/0021_ord_life_cert_scoped_acceptance.md` truthed at `78c0973`). The audit ran at pre-merge `ad39160`; every finding was re-verified at `9ce820f` — the `-014` delta is test-only (four mutation-killing inline tests in `scheduler.rs`, `agent/no_human_surface.rs`, and `actions/defs/wait.rs`; no production, ledger, or baseline-file changes) and refutes no finding.
 **Gate posture:** scoped evidence toward `ORD-LIFE-CERT`; does not certify `ORD-LIFE-CERT`, full project, Phase 4, or later-proof readiness.
 **Artifact type:** hardening / anti-contamination spec; replaces nothing; amends no doctrine.
 
@@ -26,18 +26,22 @@ deliberately. The audit was conducted as a nine-slice delegated review (possessi
 seam, harness provenance, census/state perimeter, mutation CI, policy/supersession,
 kernel event posture, perception/content, generative tier, evidence honesty) plus a
 0005 feature-contract conformance slice and an external lock-design research pass.
-Every high finding and twelve of thirteen medium findings were independently
-operator-verified at their load-bearing cited symbols during the audit; the
-per-finding **Verification:** lines record which low findings are carried on
-delegated evidence and owe re-verification at implementation time.
+Every high and medium finding was independently operator-verified at its
+load-bearing cited symbols during the audit; a reassessment pass at the post-merge
+baseline `9ce820f` then operator-verified the nine delegated low findings at source
+(eight confirmed; one evidence sub-claim refuted and reshaped — `ORD-HARD-120`), so
+all twenty-two findings are operator-verified and no re-verification step is owed at
+implementation time.
 
 The root patterns this pass:
 
 1. **The unperformed correction in completed costume.** The highest-severity finding
    (`ORD-HARD-099`) is that 0021's required baseline triage — the second time the
    lineage has required it — did not happen: the ticket commit reworded the ledger
-   header, changed zero entries, retired zero baseline misses, filed zero follow-up
-   tickets, and the acceptance report's "Baseline Triage" section describes guard
+   header, changed zero entries, retired zero baseline misses, filed none of the
+   promised baseline test-debt tickets (the post-audit `-014` ticket closed new
+   in-diff mutants, not the ledger triage), and the acceptance report's "Baseline
+   Triage" section describes guard
    *capabilities* in place of the absent work. This breaks the evidence-document
    honesty streak at two passes and violates 0021 §8's own constraint that an unmet
    finding "is recorded as refuted in the acceptance artifact, not silently dropped."
@@ -87,7 +91,7 @@ Two notes that distinguish this pass from its predecessors:
 - Canonical no-human-day evidence provenance
   (`crates/tracewake-content/tests/golden_fixtures_run.rs`, fixture
   `no_human_day_001`).
-- Content/generative hygiene remainder (`crates/tracewake-core/src/routine.rs`
+- Content/generative hygiene remainder (`crates/tracewake-core/src/agent/routine.rs`
   typed-diagnostic vocabulary, `tests/support/generative.rs`,
   `tests/generative_lock.rs`).
 - Meta-lock machinery for the R-29 pattern (lock↔negative bijection, nonzero-witness
@@ -724,11 +728,13 @@ hand-driven payload-shape proof.
 ### Low findings
 
 Each low finding retains the full remediation obligation; the compact format lists
-evidence → correction → lock inline. Verification status is per finding; those marked
-agent-reported owe a re-verification at their cited symbols at implementation time.
+evidence → correction → lock inline. All nine were operator-verified at their cited
+symbols during the reassessment pass at `9ce820f`; `ORD-HARD-120`'s evidence was
+reshaped there (one sub-claim refuted, the core gap confirmed).
 
 **ORD-HARD-112 — The required-cause set is a hand-maintained census, not derived
-from kind metadata** (`events` / low; INV-010 lock durability; agent-reported).
+from kind metadata** (`events` / low; INV-010 lock durability; operator-verified at
+reassessment).
 `EventKind::requires_cause` is a literal `matches!` list and
 `action_emitted_event_kinds_have_cause_disposition` checks a hardcoded array without
 asserting coverage of every action-emitting kind — a new kind defaults to
@@ -737,7 +743,7 @@ no-cause-required and passes. Correction: derive the required set from
 synthetic new action-emitted kind without a cause disposition must fail.
 
 **ORD-HARD-113 — Apply-totality lock asymmetry and an artifact-shaped synthetic**
-(`events`/`test_oracle` / low; agent-reported). (a) The world-side totality guard's
+(`events`/`test_oracle` / low; operator-verified at reassessment). (a) The world-side totality guard's
 synthetic negative asserts substrings of a hardcoded string literal instead of
 routing the synthetic body through the guard's own scan — tautological. (b) No
 agent-stream analogue exists: a new agent-stream kind without an apply arm routes to
@@ -748,7 +754,7 @@ synthetic bodies; add the agent-stream totality guard derived from
 through the production scan path.
 
 **ORD-HARD-114 — The actor-known constructor guard enforces less than its stated
-contract** (`test_oracle` / low; agent-reported). The guard scans three retired
+contract** (`test_oracle` / low; operator-verified at reassessment). The guard scans three retired
 builder names plus the literal `from_observed_parts(`; the *real* lock is
 `from_observed_parts`'s `pub(crate)` visibility. A guard whose comment claims "no pub
 producer outside the pair" but enforces a literal list invites false confidence.
@@ -757,7 +763,7 @@ scan for `-> ActorKnownPlanningContext` in `pub fn` signatures. Lock: synthetic 
 re-wrapper case if the broader contract is kept.
 
 **ORD-HARD-115 — `SupersedeNewestBySubject` silently drops non-Workplace records**
-(`holder_known_context` / low; agent-reported). `includes_classified_record`'s
+(`holder_known_context` / low; operator-verified at reassessment). `includes_classified_record`'s
 supersede arm `let …Workplace{..} = record else { return false }` — a future kind
 declared supersede-by-subject in the table is dropped entirely rather than
 superseded, the exact kind-added-without-behavior trap `ORD-HARD-074` targeted.
@@ -766,7 +772,7 @@ in-code that only Workplace may carry the policy. Lock: folds into the
 `ORD-HARD-106` parametric table-driven test.
 
 **ORD-HARD-116 — Content typed-diagnostic and visibility hygiene group**
-(`content_seeding` / low; agent-reported). (a)
+(`content_seeding` / low; operator-verified at reassessment). (a)
 `RoutineStep::FailWithTypedDiagnostic { diagnostic: String }` accepts any free text
 at load; the no-sleep gate exact-matches two spellings (`"no_sleep_affordance" |
 "NoSleepAffordance"`) — better than the substring check `ORD-HARD-098` replaced, but
@@ -779,7 +785,7 @@ convenience or remove the `Default` path for visibility. Lock: load-rejection
 negative for an unregistered diagnostic kind.
 
 **ORD-HARD-117 — Generative-tier minor lock shapes** (`test_oracle` / low;
-agent-reported). (a) The fabricator ban is token co-occurrence
+operator-verified at reassessment). (a) The fabricator ban is token co-occurrence
 (`EventEnvelope::new` + terminal-kind token), dormant on the real corpus; make
 "support/generative.rs constructs zero `EventEnvelope`" an explicit asserted
 invariant rather than incidental. (b) `assert_in_block_displacement_ordering`
@@ -790,27 +796,34 @@ Correction: read the scheduled completion from the emitted event pair. Lock:
 engine-sourced both-bounds assertion.
 
 **ORD-HARD-118 — `mutants.toml` comment overclaims local/CI perimeter parity**
-(CI / low; agent-reported). `exclude_globs` omits the non-perimeter defs
-(takeplace/wait/continue_routine/movement/etc.), so ad-hoc local runs mutate files
-outside the reviewed perimeter while the file's comment claims parity
-(`ORD-HARD-072` honesty class). Correction: derive the exclusion set from the
-classification table or correct the comment. Lock: a parity check between the
-exemption classification and `exclude_globs`.
+(CI / low; operator-verified at reassessment). `exclude_globs` omits the
+non-perimeter defs (takeplace/wait/continue_routine/movement/etc.), so ad-hoc local
+runs mutate files outside the reviewed perimeter while the file's comment claims
+parity (`ORD-HARD-072` honesty class). Live corroboration: the post-audit `-014`
+in-diff run mutated non-perimeter `wait.rs` precisely because the defs are not
+excluded; `archive/tickets/0021PHA3APOSREB-014.md` records the leak and explicitly
+defers the perimeter correction to this finding. Correction: derive the exclusion
+set from the classification table or correct the comment. Lock: a parity check
+between the exemption classification and `exclude_globs`.
 
 **ORD-HARD-119 — Report §15 omits the R-29 risk-register addition that §7 item 15
-required quoting** (evidence honesty / low; agent-reported). The report quotes four
+required quoting** (evidence honesty / low; operator-verified at reassessment). The report quotes four
 of nine conformance-row actions and never mentions R-29 — the §6 headline
 deliverable (which itself landed correctly). Correction: amend §15 (or supersede in
 the 0022 artifact). Lock: the `ORD-HARD-102` checklist guard covers this class.
 
 **ORD-HARD-120 — The recommended recovery variant is never proven on the canonical
-fixture** (content fixtures / low; agent-reported). 0005 §12's recommended success
-variant (Mara replans to reachable food and recovers) exists only in the capstone's
-hand-built world (`capstone_world_and_agents` seeds `actor_bruno` +
-`food_stew_home_bruno`); on `no_human_day_001` Mara can only fail. Correction:
-author a Mara-reachable food source in the canonical fixture and assert an
-autonomous recovery, or record the fail-only canonical intent explicitly. Lock: the
-autonomous-recovery assertion or the recorded intent.
+fixture** (content fixtures / low; operator-verified at reassessment — evidence
+reshaped). 0005 §12's recommended success variant (Mara replans to reachable food
+and recovers) is proven only in the capstone's hand-built world
+(`capstone_world_and_agents` seeds `actor_bruno` + `food_stew_home_bruno`). On
+`no_human_day_001` recovery is dynamically *reachable* — the fixture's legacy
+`populate_known_food_sources_for_all_actors()` call (allowlisted via `#[expect]`)
+makes `food_stew_home_tomas` Mara-known — but no test asserts an autonomous Mara
+recovery on the canonical day (the roster test's `FoodConsumed` assertion fires only
+after manual injection, `ORD-HARD-111`). Correction: assert an autonomous Mara
+recovery on the canonical day, or record the fail-only canonical intent explicitly.
+Lock: the autonomous-recovery assertion or the recorded intent.
 
 ## 5. Anti-contamination lock layer (consolidated)
 
@@ -914,9 +927,7 @@ recording, for the implementation commits:
 13. The risk-register and conformance-index diffs, quoted (§6).
 14. An updated `EMERGE-OBS` ledger derivation over the corrected surface
     (measurement only, no thresholds).
-15. Re-verification cites for the nine agent-reported low findings
-    (`ORD-HARD-112`–`118` as marked, `119`, `120`) at their named symbols.
-16. Explicit non-certification statement: scoped evidence toward `ORD-LIFE-CERT`;
+15. Explicit non-certification statement: scoped evidence toward `ORD-LIFE-CERT`;
     not full-project certification, not Phase 4 entry, not `FIRST-PROOF-CERT`.
 
 ## 8. Implementation constraints
@@ -926,11 +937,12 @@ recording, for the implementation commits:
 - Crate direction preserved: core depends on nothing at runtime; content on core;
   tui on core + content. No new dependencies, dev or production (the §5 meta-locks
   are hand-rolled in the existing integration-test style).
-- Findings `ORD-HARD-099`–`111` are operator-verified at their load-bearing symbols;
-  findings marked agent-reported (`112`–`120` per their Verification lines) must be
-  re-verified at source before their tickets are implemented; a finding whose
-  premise fails at implementation time is recorded as refuted in the acceptance
-  artifact, not silently dropped.
+- All findings (`ORD-HARD-099`–`120`) are operator-verified at their load-bearing
+  symbols — `099`–`111` during the audit at `ad39160`, `112`–`120` at the
+  reassessment pass at `9ce820f` (zero refuted; `120`'s evidence reshaped) — so no
+  re-verification step is owed; a finding whose premise nonetheless fails at
+  implementation time is recorded as refuted in the acceptance artifact, not
+  silently dropped.
 - Recommended ticket ordering:
   1. `ORD-HARD-099` + `102` + `119` (triage integrity + evidence corrections — the
      pass's reason for existing; do it first and honestly).
@@ -988,9 +1000,9 @@ recording, for the implementation commits:
   lock-durability / evidence-honesty) and names responsible layers from the execution
   diagnostic vocabulary.
 - [x] Every finding cites local sources by named symbol (grep-stable; line numbers
-  deliberately omitted); operator-verified findings were independently confirmed at
-  their load-bearing symbols; agent-reported findings are marked and owe
-  implementation-time re-verification (§8).
+  deliberately omitted); every finding was independently operator-verified at its
+  load-bearing symbols (the audit pass at `ad39160` plus the reassessment pass at
+  `9ce820f`; zero refuted, one evidence sub-claim reshaped — `ORD-HARD-120`).
 - [x] Every finding includes a structural lock that fails the build or test suite on
   regression; the §5.1 meta-tier addresses the lock-vacuity class generically.
 - [x] Verified-holding items from 0014–0021 are recorded to prevent re-litigation;
