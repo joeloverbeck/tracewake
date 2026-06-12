@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-003: Risk-register extensions — presence-check fallback, self-satisfying citation, type-convention census watch
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — docs only (`docs/3-reference/01_DESIGN_RISK_REGISTER.md`).
@@ -109,3 +109,24 @@ outside the convention; enumerate the three instances this pass closed.
 
 1. `grep -n "presence-check fallback\|self-satisfying citation\|type-convention census" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Extended `docs/3-reference/01_DESIGN_RISK_REGISTER.md` with the required R-28
+Watch note and R-29 symptom bullets:
+
+```text
+340:- **Watch:** A type-convention census can look derived while remaining hand-maintained for everything outside its convention: examples include `String`-typed field scans, single-file `include_str!` perimeters, and hand-picked token subsets of a public API (`ORD-HARD-144`/`151`/`157`).
+351:- **presence-check fallback:** An enumerated witness repair can still become decorative when its default arm degrades to lock-name or negative-name presence instead of measured scan execution (`ORD-HARD-141`).
+352:- **self-satisfying citation:** A content witness can be unfalsifiable when it cites the definition site of the field or artifact it claims to prove, rather than an independent write, consume, or behavior path (`ORD-HARD-142`).
+```
+
+Verification:
+
+1. `grep -n "presence-check fallback\|self-satisfying citation\|type-convention census" docs/3-reference/01_DESIGN_RISK_REGISTER.md` matched the required three rows.
+2. `cargo test --workspace` passed.
+
+No code, doctrine, conformance-index rows, or quarantine/staging records were
+changed by this docs-only ticket.
