@@ -12,7 +12,7 @@ use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, EventStream};
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{ContentVersion, FixtureId};
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
@@ -471,23 +471,41 @@ fn assert_in_block_displacement_ordering(
     if !case.mask.displace_during_work {
         return;
     }
-    let work = case
-        .sequence
+    let work_started = log
+        .events()
         .iter()
-        .find(|step| step.kind == support::generative::GeneratedActionKind::Work)
-        .expect("displacement mask schedules work");
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
+        .expect("displacement mask emits work start");
+    let work_terminal =
+        log.events()
+            .iter()
+            .find(|event| {
+                matches!(
+                    event.event_type,
+                    EventKind::WorkBlockCompleted | EventKind::WorkBlockFailed
+                ) && event.causes.iter().any(
+                    |cause| matches!(cause, EventCause::Event(id) if id == &work_started.event_id),
+                )
+            })
+            .expect("displacement mask emits work terminal caused by work start");
     let movement = log
         .events()
         .iter()
         .find(|event| event.event_type == EventKind::ActorMoved)
         .expect("displacement mask emits movement");
-    let scheduled_completion_tick = work.start_tick.advance_by(work.duration_ticks);
     assert!(
-        movement.sim_tick < scheduled_completion_tick,
-        "seed={} displacement move tick {} must precede scheduled work completion tick {}",
+        movement.sim_tick > work_started.sim_tick,
+        "seed={} displacement move tick {} must follow emitted work start tick {}",
         case.seed,
         movement.sim_tick.value(),
-        scheduled_completion_tick.value()
+        work_started.sim_tick.value()
+    );
+    assert!(
+        movement.sim_tick < work_terminal.sim_tick,
+        "seed={} displacement move tick {} must precede emitted work terminal tick {}",
+        case.seed,
+        movement.sim_tick.value(),
+        work_terminal.sim_tick.value()
     );
 }
 

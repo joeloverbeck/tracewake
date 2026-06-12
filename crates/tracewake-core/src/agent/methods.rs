@@ -138,7 +138,7 @@ pub fn all_steps_are_proposals(template: &RoutineTemplate) -> bool {
     template.steps.iter().all(|step| match step.proposed() {
         RoutineStepProposal::Action(action_id) => !action_id.as_str().is_empty(),
         RoutineStepProposal::Wait(reason) => !reason.is_empty(),
-        RoutineStepProposal::Diagnostic(diagnostic) => !diagnostic.is_empty(),
+        RoutineStepProposal::Diagnostic(diagnostic) => !diagnostic.stable_id().is_empty(),
     })
 }
 

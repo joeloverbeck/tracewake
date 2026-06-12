@@ -52,7 +52,7 @@ pub enum RoutineStep {
     WaitUntil { reason: String },
     ContinueCurrentStep { action_id: SemanticActionId },
     FallbackToFindFood { action_id: SemanticActionId },
-    FailWithTypedDiagnostic { diagnostic: String },
+    FailWithTypedDiagnostic { diagnostic: RoutineDiagnosticKind },
 }
 
 impl RoutineStep {
@@ -115,7 +115,7 @@ impl RoutineStep {
                 encode_action_step("fallback_to_find_food", action_id)
             }
             RoutineStep::FailWithTypedDiagnostic { diagnostic } => {
-                encode_text_step("fail_with_typed_diagnostic", diagnostic)
+                encode_text_step("fail_with_typed_diagnostic", diagnostic.stable_id())
             }
         }
     }
@@ -175,7 +175,8 @@ impl RoutineStep {
                 action_id: action()?,
             }),
             "fail_with_typed_diagnostic" => Ok(Self::FailWithTypedDiagnostic {
-                diagnostic: text()?,
+                diagnostic: RoutineDiagnosticKind::parse(text()?.as_str())
+                    .map_err(|_| RoutineStepParseError::InvalidDiagnosticKind)?,
             }),
             _ => Err(RoutineStepParseError::InvalidStepKind),
         }
@@ -186,8 +187,31 @@ impl RoutineStep {
 pub enum RoutineStepProposal<'a> {
     Action(&'a SemanticActionId),
     Wait(&'a str),
-    Diagnostic(&'a str),
+    Diagnostic(&'a RoutineDiagnosticKind),
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RoutineDiagnosticKind {
+    NoSleepAffordance,
+}
+
+impl RoutineDiagnosticKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::NoSleepAffordance => "no_sleep_affordance",
+        }
+    }
+
+    pub fn parse(value: &str) -> Result<Self, RoutineDiagnosticKindParseError> {
+        match value {
+            "no_sleep_affordance" => Ok(Self::NoSleepAffordance),
+            _ => Err(RoutineDiagnosticKindParseError),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RoutineDiagnosticKindParseError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RoutineCondition {
@@ -467,6 +491,7 @@ pub enum RoutineStepParseError {
     InvalidUtf8,
     InvalidShape,
     InvalidStepKind,
+    InvalidDiagnosticKind,
     InvalidTextPayload,
     InvalidSemanticActionId(crate::ids::IdError),
 }
@@ -479,6 +504,9 @@ impl fmt::Display for RoutineStepParseError {
             }
             RoutineStepParseError::InvalidShape => write!(f, "invalid routine step shape"),
             RoutineStepParseError::InvalidStepKind => write!(f, "invalid routine step kind"),
+            RoutineStepParseError::InvalidDiagnosticKind => {
+                write!(f, "invalid routine diagnostic kind")
+            }
             RoutineStepParseError::InvalidTextPayload => write!(f, "invalid routine step text"),
             RoutineStepParseError::InvalidSemanticActionId(err) => {
                 write!(f, "invalid routine step action ID: {err}")
@@ -671,7 +699,7 @@ mod tests {
                 action_id: action("find_food.public_market"),
             },
             RoutineStep::FailWithTypedDiagnostic {
-                diagnostic: "resource:known food absent".to_string(),
+                diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
             },
         ];
 
@@ -684,7 +712,9 @@ mod tests {
             match round_tripped.proposed() {
                 RoutineStepProposal::Action(action_id) => assert!(!action_id.as_str().is_empty()),
                 RoutineStepProposal::Wait(reason) => assert!(!reason.is_empty()),
-                RoutineStepProposal::Diagnostic(diagnostic) => assert!(!diagnostic.is_empty()),
+                RoutineStepProposal::Diagnostic(diagnostic) => {
+                    assert_eq!(diagnostic.stable_id(), "no_sleep_affordance")
+                }
             }
         }
     }

@@ -23,7 +23,7 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
             "routine_elena_sleep",
             RoutineFamily::SleepNight,
             vec![RoutineStep::FailWithTypedDiagnostic {
-                diagnostic: "no_sleep_affordance".to_string(),
+                diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
             }],
             &["sleep_place_blocked"],
         )],

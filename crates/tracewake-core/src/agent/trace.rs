@@ -987,6 +987,7 @@ mod tests {
         ApplicabilityResult, CandidateGoalSource, GoalKind, GoalPriority,
     };
     use crate::agent::need::{NeedChangeCause, NeedState};
+    use crate::agent::routine::RoutineDiagnosticKind;
 
     fn action(value: &str) -> SemanticActionId {
         SemanticActionId::new(value).unwrap()
@@ -1162,7 +1163,7 @@ mod tests {
                 Some(RoutineTemplateId::new("routine_find_food").unwrap()),
                 Some(RoutineExecutionId::new("routine_exec_find_food").unwrap()),
                 Some(RoutineStep::FailWithTypedDiagnostic {
-                    diagnostic: "resource:known food absent".to_string(),
+                    diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
                 }),
                 Some(action("find_food.public_market")),
                 category,

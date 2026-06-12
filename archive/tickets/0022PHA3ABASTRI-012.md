@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-012: Content typed-diagnostic and generative lock-shape hygiene
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Medium
 **Engine Changes**: Yes — routine diagnostic vocabulary (`agent/routine.rs`), content validation (`validate.rs`), state doc-comment (`state.rs`), generative locks (`generative_lock.rs`, `tests/support/generative.rs`)
@@ -173,3 +173,37 @@ engine-side bound (both bounds behavior-derived).
 1. `cargo test -p tracewake-content`
 2. `cargo test -p tracewake-core --test generative_lock && cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Completion Outcome (2026-06-12)
+
+Implemented. `RoutineStep::FailWithTypedDiagnostic` now carries a closed
+`RoutineDiagnosticKind` registry, canonical serialization emits only the stable
+snake-case id, and deserialization fails closed with
+`RoutineStepParseError::InvalidDiagnosticKind` for unknown diagnostic ids. Content
+validation dispatches on the enum instead of free text, the no-sleep fixture uses
+the typed diagnostic, and the camel-case routine diagnostic spelling is no longer
+accepted.
+
+Documented `PlaceState::new` and `VisibilityDefault` as in-code fixture/test
+assembly conveniences, not authored-content fallbacks. Authored fixture visibility
+still goes through the fail-closed loader column.
+
+Updated the generative displacement lock to derive both start and terminal bounds
+from engine-emitted events, and registered a meta-lock plus synthetic guard for
+support-file `EventEnvelope` construction. The support-generator direct-envelope
+case now fails explicitly instead of depending on terminal-token co-occurrence.
+
+Acceptance nuance: the literal `NoSleepAffordance` identifier still exists as an
+unrelated action rejection `ReasonCode`; the routine diagnostic spelling was removed
+from fixture parsing and validation.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test generative_lock`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo test -p tracewake-content`
+4. `cargo test -p tracewake-core --test hidden_truth_gates`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`

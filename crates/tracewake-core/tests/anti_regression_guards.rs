@@ -1286,7 +1286,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 42;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 43;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1308,6 +1308,13 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         negative_id: "synthetic_unrecorded_generative_floor_raise",
         routing: MetaLockRouting::SharedScan,
         witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "generative_support_constructs_zero_event_envelopes",
+        negative_id: "synthetic_support_event_envelope_construction",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
@@ -5953,8 +5960,9 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
     assert!(
         generative_duration_terminal_fabricator_errors(&support_fabricator)
             .iter()
-            .any(|error| error.contains("support/generative.rs")),
-        "support-file terminal fabricator synthetic must fail"
+            .any(|error| error.contains("support/generative.rs")
+                && error.contains("EventEnvelope")),
+        "support-file EventEnvelope construction synthetic must fail"
     );
 
     let direct_envelope = [(
@@ -5984,6 +5992,11 @@ fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> V
     ];
     let mut errors = Vec::new();
     for (path, source) in sources {
+        if *path == "support/generative.rs" && source.contains("EventEnvelope::new") {
+            errors.push(format!(
+                "{path} constructs EventEnvelope directly; support generators must use engine-emitted events"
+            ));
+        }
         for forbidden in banned_helpers {
             if source.contains(forbidden) {
                 errors.push(format!(
