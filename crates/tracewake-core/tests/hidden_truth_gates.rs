@@ -21,9 +21,14 @@ use tracewake_core::ids::{
     FoodSupplyId, ItemId, PlaceId, ProcessId, WorkplaceId,
 };
 use tracewake_core::location::Location;
-use tracewake_core::projections::{build_embodied_view_model, EmbodiedProjectionSource};
+use tracewake_core::projections::{
+    build_embodied_view_model, EmbodiedPreflightSource, EmbodiedProjectionSource,
+    EmbodiedTruthSnapshot,
+};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
-use tracewake_core::state::{ActorBody, AgentState, ContainerState, FoodSupplyState, PlaceState};
+use tracewake_core::state::{
+    ActorBody, AgentState, ContainerState, FoodSupplyState, PhysicalState, PlaceState,
+};
 use tracewake_core::time::SimTick;
 
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
@@ -110,6 +115,25 @@ fn registry() -> ActionRegistry {
 
 fn content_manifest_id() -> ContentManifestId {
     ContentManifestId::new("hidden_truth_gate_manifest").unwrap()
+}
+
+fn embodied_view(
+    knowledge_context: &KnowledgeContext,
+    world: &PhysicalState,
+) -> tracewake_core::view_models::EmbodiedViewModel {
+    let snapshot = EmbodiedTruthSnapshot::from_physical_state(knowledge_context, world);
+    let projection_source =
+        EmbodiedProjectionSource::from_sealed_context(knowledge_context, snapshot, None);
+    let registry = registry();
+    let content_manifest_id = content_manifest_id();
+    let preflight_source = EmbodiedPreflightSource::new(world, &registry, &content_manifest_id);
+    build_embodied_view_model(
+        knowledge_context,
+        &projection_source,
+        &preflight_source,
+        None,
+    )
+    .unwrap()
 }
 
 fn helper_process_id(value: &str) -> ProcessId {
@@ -758,17 +782,7 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
         Vec::new(),
         Vec::new(),
     );
-    let projection_source =
-        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
-    let view = build_embodied_view_model(
-        &knowledge_context,
-        &projection_source,
-        &world,
-        &registry(),
-        &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
-        None,
-    )
-    .unwrap();
+    let view = embodied_view(&knowledge_context, &world);
 
     assert!(view
         .semantic_actions
@@ -1032,17 +1046,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     );
     let world = world.build();
     let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
-    let projection_source =
-        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
-    let before_view = build_embodied_view_model(
-        &knowledge_context,
-        &projection_source,
-        &world,
-        &registry(),
-        &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
-        None,
-    )
-    .unwrap();
+    let before_view = embodied_view(&knowledge_context, &world);
 
     let debug_report = item_location_report(
         &world,
@@ -1058,17 +1062,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     assert!(debug_report.debug_only());
     assert!(format!("{debug_report:?}").contains("food_hidden_pantry"));
 
-    let after_projection_source =
-        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, &world, None);
-    let after_view = build_embodied_view_model(
-        &knowledge_context,
-        &after_projection_source,
-        &world,
-        &registry(),
-        &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
-        None,
-    )
-    .unwrap();
+    let after_view = embodied_view(&knowledge_context, &world);
 
     assert_eq!(
         after_view.holder_known_context_hash,
@@ -1085,4 +1079,44 @@ fn debug_truth_never_enters_holder_known_context_hash() {
         .target_ids
         .iter()
         .any(|target| target == "food_hidden_pantry")));
+}
+
+#[test]
+fn embodied_place_label_is_captured_before_truth_preflight() {
+    let mut seed = PhysicalSeed::default();
+    seed.places_mut().insert(
+        place_id("home_mara"),
+        PlaceState::new(place_id("home_mara"), "Mara home"),
+    );
+    seed.actors_mut().insert(
+        actor_id(),
+        ActorBody::new(actor_id(), place_id("home_mara")),
+    );
+    let original_world = seed.build();
+    let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let snapshot = EmbodiedTruthSnapshot::from_physical_state(&knowledge_context, &original_world);
+    let projection_source =
+        EmbodiedProjectionSource::from_sealed_context(&knowledge_context, snapshot, None);
+
+    let mut mutated_seed = PhysicalSeed::from_state(&original_world);
+    mutated_seed.places_mut().insert(
+        place_id("home_mara"),
+        PlaceState::new(place_id("home_mara"), "Mutated truth label"),
+    );
+    let mutated_world = mutated_seed.build();
+    let registry = registry();
+    let content_manifest_id = content_manifest_id();
+    let preflight_source =
+        EmbodiedPreflightSource::new(&mutated_world, &registry, &content_manifest_id);
+
+    let view = build_embodied_view_model(
+        &knowledge_context,
+        &projection_source,
+        &preflight_source,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(view.place_label, "Mara home");
+    assert_ne!(view.place_label, "Mutated truth label");
 }

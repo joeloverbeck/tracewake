@@ -25,7 +25,8 @@ use tracewake_core::ids::{
 };
 use tracewake_core::projections::{
     build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
-    proposal_from_current_view_semantic_action, EmbodiedProjectionSource, ProjectionError,
+    proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
+    EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -160,20 +161,17 @@ impl TuiApp {
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
         let context = self.current_view_context(actor_id);
+        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &self.state);
         let source = EmbodiedProjectionSource::from_sealed_context(
             &context,
-            &self.state,
+            snapshot,
             Some(&self.agent_state),
         );
-        let mut view = build_embodied_view_model(
-            &context,
-            &source,
-            &self.state,
-            &self.registry,
-            &self.content_manifest_id,
-            self.last_rejection.as_ref(),
-        )
-        .map_err(AppError::from)?;
+        let preflight =
+            EmbodiedPreflightSource::new(&self.state, &self.registry, &self.content_manifest_id);
+        let mut view =
+            build_embodied_view_model(&context, &source, &preflight, self.last_rejection.as_ref())
+                .map_err(AppError::from)?;
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
         view.debug_available = self.debug_available_for(actor_id);
         Ok(view)

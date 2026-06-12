@@ -191,7 +191,10 @@ mod tests {
     use crate::ids::{
         ActionId, ContentVersion, FixtureId, PlaceId, ProposalId, SemanticActionId, ViewModelId,
     };
-    use crate::projections::{build_embodied_view_model, EmbodiedProjectionSource};
+    use crate::projections::{
+        build_embodied_view_model, EmbodiedPreflightSource, EmbodiedProjectionSource,
+        EmbodiedTruthSnapshot,
+    };
     use crate::state::{ActorBody, PhysicalState, PlaceState};
 
     fn actor_id(value: &str) -> ActorId {
@@ -389,16 +392,11 @@ mod tests {
         let mut registry = ActionRegistry::new();
         registry.register_phase1_inspect_wait();
         let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::ZERO);
-        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
-        let before = build_embodied_view_model(
-            &context,
-            &source,
-            &state,
-            &registry,
-            &content_manifest_id(),
-            None,
-        )
-        .unwrap();
+        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &state);
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, snapshot, None);
+        let manifest_id = content_manifest_id();
+        let preflight = EmbodiedPreflightSource::new(&state, &registry, &manifest_id);
+        let before = build_embodied_view_model(&context, &source, &preflight, None).unwrap();
         let mut bindings = ControllerBindings::new();
         let mut log = EventLog::new();
         bindings.attach(
@@ -409,15 +407,7 @@ mod tests {
             &mut log,
             content_manifest_id(),
         );
-        let after = build_embodied_view_model(
-            &context,
-            &source,
-            &state,
-            &registry,
-            &content_manifest_id(),
-            None,
-        )
-        .unwrap();
+        let after = build_embodied_view_model(&context, &source, &preflight, None).unwrap();
 
         assert_eq!(before.semantic_actions, after.semantic_actions);
     }

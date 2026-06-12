@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-007: Embodied truth-access compile-time completion
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` (`projections.rs`, `controller.rs`), `tracewake-tui` (`app.rs`), core tests (`hidden_truth_gates.rs`, `anti_regression_guards.rs`).
@@ -164,3 +164,29 @@ view renders the recorded label.
 
 1. `cargo test -p tracewake-core --test hidden_truth_gates --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented the embodied truth-access compile-time lock by moving physical-state
+reads for place label and carried-item attributes into an `EmbodiedTruthSnapshot`
+constructed before view generation. `EmbodiedProjectionSource::from_sealed_context`
+now consumes that snapshot, while `build_embodied_view_model` no longer accepts
+`&PhysicalState`, `ActionRegistry`, or `ContentManifestId` directly. Truth-backed
+semantic-action validation remains available only through `EmbodiedPreflightSource`.
+
+Updated core, controller, TUI, and test call sites to use the snapshot/preflight
+boundary. Widened `guard_014` to reject `PhysicalState`/bare `state.items` style
+builder regressions and added a live synthetic proving that the new guard fires.
+Added `embodied_place_label_is_captured_before_truth_preflight` to prove a
+post-snapshot truth label change does not alter the embodied view label.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test hidden_truth_gates --test anti_regression_guards` passed.
+2. `cargo test -p tracewake-core` passed.
+3. `cargo fmt --all --check` passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+5. `cargo build --workspace --all-targets --locked` passed.
+6. `cargo test --workspace` passed.

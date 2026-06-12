@@ -5911,6 +5911,7 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             .nth(1)
             .and_then(|tail| tail.split("\n}").next())
             .unwrap_or("");
+        let sealed_source_builder = body_after_marker(source, "pub fn from_sealed_context");
         let view_builder = body_after_marker(source, "pub fn build_embodied_view_model");
         let mut errors = Vec::new();
         let has_state_field = source_struct
@@ -5923,6 +5924,16 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             errors.push(
                 "build_embodied_view_model must not read source.state or visible_locality"
                     .to_string(),
+            );
+        }
+        if sealed_source_builder.contains("&PhysicalState")
+            || view_builder.contains("&PhysicalState")
+            || view_builder.contains("state.items")
+            || view_builder.contains("state.places")
+            || view_builder.contains("state.actors")
+        {
+            errors.push(
+                "embodied projection builders must not read raw PhysicalState truth".to_string(),
             );
         }
         errors
@@ -5942,6 +5953,18 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             .iter()
             .any(|error| error.contains("PhysicalState")),
         "synthetic_embodied_projection_source_physical_state_field did not trigger: {synthetic_errors:?}"
+    );
+
+    let synthetic_builder_read = projection.replace(
+        "let carried_items = source.carried_items.clone();",
+        "let _synthetic_items = state.items.values().count();\n    let carried_items = source.carried_items.clone();",
+    );
+    let synthetic_builder_errors = source_shape_errors(&synthetic_builder_read);
+    assert!(
+        synthetic_builder_errors
+            .iter()
+            .any(|error| error.contains("raw PhysicalState truth")),
+        "synthetic_embodied_view_builder_state_items_read did not trigger: {synthetic_builder_errors:?}"
     );
 }
 
