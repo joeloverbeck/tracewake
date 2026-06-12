@@ -175,6 +175,7 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
             "actor_id",
             "need_kind",
             "delta",
+            "elapsed_ticks",
             "cause_kind",
             "cause_action_id",
         ],
@@ -1283,7 +1284,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 39;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 41;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1426,6 +1427,20 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         negative_id: "synthetic_prose_visibility_branch",
         routing: MetaLockRouting::SharedScan,
         witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_perception_visibility_other_emission_paths",
+        negative_id: "synthetic_prose_branch_in_other_emission_path",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "typed_column_closure_oblique_payload_helper_calls",
+        negative_id: "synthetic_oblique_payload_helper_call",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
@@ -4780,24 +4795,95 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
     "#;
     let synthetic_violations = perception_visibility_prose_branch_violations(synthetic);
     assert!(
-        synthetic_violations.len() >= 3,
+        synthetic_violations
+            .iter()
+            .any(|violation| violation.contains("place.place_id.as_str().contains")),
+        "synthetic id-substring visibility branch must fail this guard"
+    );
+    assert!(
+        synthetic_violations
+            .iter()
+            .any(|violation| violation.contains("display_label")),
         "synthetic prose/id visibility branch must fail this guard"
+    );
+
+    let other_emission_path_synthetic = r#"
+        fn current_place_perception_events(
+            state: &PhysicalState,
+            actor_id: &ActorId,
+            decision_tick: SimTick,
+            content_manifest_id: &ContentManifestId,
+        ) -> Vec<EventEnvelope> {
+            let Some(place) = state.places().get(&current_place_id) else {
+                return Vec::new();
+            };
+            let label_payload = PayloadField::string("place_label", place.display_label.clone());
+            if place.display_label.to_lowercase().contains("hidden") {
+                return Vec::new();
+            }
+            observation_event(actor_id, decision_tick, 0, content_manifest_id, label_payload)
+        }
+    "#;
+    let other_emission_path_violations =
+        perception_visibility_prose_branch_violations(other_emission_path_synthetic);
+    assert!(
+        other_emission_path_violations
+            .iter()
+            .any(
+                |violation| violation.contains("current_place_perception_events")
+                    && violation.contains("display_label")
+            ),
+        "synthetic prose branch outside is_visible_exit_target must fail this guard"
     );
 }
 
-fn perception_visibility_prose_branch_violations(source: &str) -> Vec<&'static str> {
+fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
     let stripped = source_without_comments(source);
-    let visibility_body = body_after_marker(&stripped, "fn is_visible_exit_target");
-    [
-        "display_label",
-        ".to_lowercase()",
-        ".contains(\"hidden\")",
-        "place.place_id.as_str()",
-        "place_id.as_str().contains",
-    ]
-    .into_iter()
-    .filter(|needle| visibility_body.contains(needle))
-    .collect()
+    let mut violations = Vec::new();
+    let mut current_fn = "module";
+    for line in stripped.lines().map(str::trim) {
+        if let Some(function_name) = function_name_from_line(line) {
+            current_fn = function_name;
+        }
+        if line.is_empty() || perception_line_is_typed_label_payload_write(line) {
+            continue;
+        }
+        let branches_on_display_label =
+            line.contains("display_label") && source_line_is_branch_shape(line);
+        let branches_on_id_substring =
+            line.contains(".as_str().contains") || line.contains(".as_str().starts_with");
+        let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
+            || line.contains(".to_lowercase()")
+            || line.contains(".to_ascii_lowercase()");
+        if branches_on_display_label || branches_on_id_substring || branches_on_hidden_prose {
+            violations.push(format!("{current_fn}: {line}"));
+        }
+    }
+    violations
+}
+
+fn perception_line_is_typed_label_payload_write(line: &str) -> bool {
+    line.contains("PayloadField") && line.contains("display_label")
+}
+
+fn source_line_is_branch_shape(line: &str) -> bool {
+    line.starts_with("if ")
+        || line.starts_with("else if ")
+        || line.starts_with("while ")
+        || line.starts_with("match ")
+        || line.starts_with("&&")
+        || line.starts_with("||")
+        || line.contains(".filter(")
+        || line.contains("&&")
+        || line.contains("||")
+}
+
+fn function_name_from_line(line: &str) -> Option<&str> {
+    let rest = line
+        .strip_prefix("fn ")
+        .or_else(|| line.strip_prefix("pub fn "))?;
+    let name_end = rest.find('(')?;
+    Some(rest[..name_end].trim())
 }
 
 #[test]
@@ -5389,6 +5475,29 @@ fn typed_column_closure_exemptions_are_rationale_bearing_and_live() {
         "synthetic exemption consuming an unlisted payload key must fail"
     );
 
+    let synthetic_oblique_helper_source = r#"
+        fn apply_synthetic(state: &mut AgentState, payload: &BTreeMap<&str, &str>) {
+            consume_oblique_payload_key(state, &payload);
+        }
+        fn consume_oblique_payload_key(
+            state: &mut AgentState,
+            payload: &BTreeMap<&str, &str>,
+        ) {
+            let value = required(payload, "oblique_unlisted_key")?;
+            state.intentions.insert(intention_id, value);
+        }
+    "#;
+    let synthetic_oblique_helper_errors = typed_column_closure_exemption_errors(
+        synthetic_oblique_helper_source,
+        &synthetic_exemptions,
+    );
+    assert!(
+        synthetic_oblique_helper_errors
+            .iter()
+            .any(|error| error.contains("oblique_unlisted_key")),
+        "synthetic oblique helper call receiving &payload must fail"
+    );
+
     let synthetic_payload_fields_source = r#"
         fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
             state.intentions.insert(intention_id, intention_with(payload_fields(event)));
@@ -5659,20 +5768,73 @@ fn literal_payload_keys(body: &str) -> BTreeSet<String> {
 fn payload_helper_calls(body: &str) -> BTreeSet<String> {
     let mut calls = BTreeSet::new();
     let mut search_start = 0;
-    while let Some(relative_index) = body[search_start..].find("(payload") {
+    while let Some(relative_index) = body[search_start..].find('(') {
         let open_index = search_start + relative_index;
         let prefix = body[..open_index].trim_end();
-        let name_start = prefix
-            .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        let name = &prefix[name_start..];
-        if !name.is_empty() {
-            calls.insert(name.to_string());
+        if let Some(name) = call_name_before_open_paren(prefix) {
+            let close_index =
+                matching_close_delimiter(body, open_index, b'(', b')').unwrap_or(open_index);
+            let args = &body[open_index + 1..close_index];
+            if call_arguments_include_payload_binding(args) {
+                calls.insert(name.to_string());
+            }
+            search_start = close_index + 1;
+        } else {
+            search_start = open_index + 1;
         }
-        search_start = open_index + "(payload".len();
     }
     calls
+}
+
+fn call_name_before_open_paren(prefix: &str) -> Option<&str> {
+    let name_start = prefix
+        .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+        .map(|index| index + 1)
+        .unwrap_or(0);
+    let name = &prefix[name_start..];
+    if name.is_empty()
+        || matches!(
+            name,
+            "if" | "while" | "for" | "match" | "return" | "Some" | "Ok" | "Err"
+        )
+    {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+fn call_arguments_include_payload_binding(args: &str) -> bool {
+    split_top_level_args(args).into_iter().any(|arg| {
+        let normalized = arg
+            .trim()
+            .trim_start_matches('&')
+            .trim_start_matches('*')
+            .trim();
+        normalized == "payload"
+            || normalized.starts_with("payload.")
+            || normalized.starts_with("payload)")
+    })
+}
+
+fn matching_close_delimiter(source: &str, open_index: usize, open: u8, close: u8) -> Option<usize> {
+    let mut depth = 0_i32;
+    let mut in_string = false;
+    let bytes = source.as_bytes();
+    for index in open_index..bytes.len() {
+        match bytes[index] {
+            b'"' if index == 0 || bytes[index - 1] != b'\\' => in_string = !in_string,
+            byte if !in_string && byte == open => depth += 1,
+            byte if !in_string && byte == close => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn typed_column_closure_exemption_errors(

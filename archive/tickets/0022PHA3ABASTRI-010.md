@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-010: Census consumed-key call-shape fix and perception scan widening
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — test-oracle guards only (`anti_regression_guards.rs`)
@@ -133,3 +133,29 @@ nonzero-witness minimums.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+The consumed-payload-key derivation now scans call argument lists and recurses into
+helpers that receive `payload` or `&payload` at any argument position. A synthetic
+oblique helper call consuming `oblique_unlisted_key` proves the widened resolver
+fails closed. The real attribution changed additively: `apply_need_delta` now lists
+the helper-consumed `elapsed_ticks` key in its `needs_by_actor` exemption.
+
+The perception prose-branch guard now scans the whole production perception module
+instead of only `is_visible_exit_target`, while allowing typed label payload writes.
+A synthetic branch in `current_place_perception_events` proves other emission paths
+are covered. Both new synthetics are registered in the meta-lock census.
+
+Deviation: no production source changes were required; this was a test-oracle guard
+hardening only.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test anti_regression_guards`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`
