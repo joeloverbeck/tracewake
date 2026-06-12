@@ -326,10 +326,10 @@ pub mod no_human {
 
     pub fn default_day_windows(start_tick: SimTick) -> Vec<DayWindow> {
         [
-            ("pre_dawn", 0, 4),
-            ("morning", 4, 10),
-            ("work_window", 10, 18),
-            ("evening", 18, 24),
+            ("pre_dawn", 0, 3),
+            ("morning", 4, 9),
+            ("work_window", 10, 17),
+            ("evening", 18, 23),
             ("night", 24, 32),
         ]
         .into_iter()
@@ -2544,6 +2544,44 @@ pub mod no_human {
             // that satisfied only one bound.
             assert!(!window.contains_tick(SimTick::new(9)));
             assert!(!window.contains_tick(SimTick::new(21)));
+        }
+
+        #[test]
+        fn default_day_windows_are_disjoint_and_cover() {
+            let windows = default_day_windows(SimTick::ZERO);
+
+            assert_eq!(
+                windows
+                    .iter()
+                    .map(|window| {
+                        (
+                            window.window_id.as_str(),
+                            window.start_tick.value(),
+                            window.end_tick.value(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                vec![
+                    ("pre_dawn", 0, 3),
+                    ("morning", 4, 9),
+                    ("work_window", 10, 17),
+                    ("evening", 18, 23),
+                    ("night", 24, 32),
+                ]
+            );
+
+            for tick in 0..=32 {
+                let containing_windows = windows
+                    .iter()
+                    .filter(|window| window.contains_tick(SimTick::new(tick)))
+                    .map(|window| window.window_id.as_str())
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    containing_windows.len(),
+                    1,
+                    "tick {tick} must belong to exactly one default day window: {containing_windows:?}"
+                );
+            }
         }
 
         fn threshold_payload<'a>(event: &'a EventEnvelope, key: &str) -> &'a str {

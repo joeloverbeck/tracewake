@@ -4,14 +4,14 @@ use tracewake_content::fixtures::{
     self, validate_fixture_contract_metadata, validate_golden_fixture_contract_metadata,
     FixtureContract,
 };
-use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope};
+use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope, LoadError};
 use tracewake_content::schema::{
     ActorSchema, DayWindowSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
     InitialBeliefSchema, InitialNeedSchema, NeedModelSchema, PlaceSchema, RoutineAssignmentSchema,
-    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
+    RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema, FIXTURE_SCHEMA_V1,
 };
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
-use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
+use tracewake_content::validate::{validate_fixture, validate_fixture_bytes, ValidationPhase};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     current_place_knowledge_context, record_current_place_perception_and_project,
@@ -247,7 +247,7 @@ fn known_food_source_helper_census_errors(call_sites: &BTreeSet<String>) -> Vec<
 fn phase3a_fixture() -> FixtureSchema {
     FixtureSchema {
         fixture_id: FixtureId::new("phase3a_schema_001").unwrap(),
-        schema_version: SchemaVersion::new("schema_v1").unwrap(),
+        schema_version: SchemaVersion::new(FIXTURE_SCHEMA_V1).unwrap(),
         fixture_scope: FixtureScope::Phase3AHistorical,
         need_model: NeedModelSchema {
             awake_hunger_delta_per_tick: 5,
@@ -286,6 +286,11 @@ fn phase3a_fixture() -> FixtureSchema {
                 actor_id: ActorId::new("actor_tomas").unwrap(),
                 kind: NeedKind::Hunger,
                 value: 350,
+            },
+            InitialNeedSchema {
+                actor_id: ActorId::new("actor_tomas").unwrap(),
+                kind: NeedKind::Safety,
+                value: 100,
             },
         ],
         homes: vec![HomeSchema {
@@ -501,6 +506,29 @@ fn all_fixtures_load_deterministically_and_validate() {
             first.manifest.content_fingerprint,
             second.manifest.content_fingerprint
         );
+    }
+}
+
+#[test]
+fn all_fixtures_author_explicit_need_seeds_for_every_actor() {
+    for golden in fixtures::all() {
+        let seeded = golden
+            .fixture
+            .initial_needs
+            .iter()
+            .map(|need| (need.actor_id.clone(), need.kind))
+            .collect::<BTreeSet<_>>();
+        for actor in &golden.fixture.actors {
+            for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+                assert!(
+                    seeded.contains(&(actor.actor_id.clone(), kind)),
+                    "fixture {} missing {:?} seed for {}",
+                    golden.fixture.fixture_id.as_str(),
+                    kind,
+                    actor.actor_id.as_str()
+                );
+            }
+        }
     }
 }
 
@@ -891,6 +919,105 @@ fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
         .errors
         .iter()
         .any(|error| error.code == "unknown_field"));
+}
+
+#[test]
+fn fixtures_load_raw_line_prose_born_fact_rejected_001() {
+    let raw = b"fixture|load_prose_born_fact_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nnotes|the culprit is actor_mara";
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_load_prose_born_fact").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/load_prose_born_fact.twf".to_string(),
+            bytes: raw.to_vec(),
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("prose-born raw line must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "prose_born_fact"
+    }));
+}
+
+#[test]
+fn fixtures_load_forbidden_top_level_key_rejected_001() {
+    let raw = b"fixture|load_forbidden_key_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nappear_at|actor_tomas|workshop";
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_load_forbidden_key").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/load_forbidden_key.twf".to_string(),
+            bytes: raw.to_vec(),
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("forbidden top-level raw key must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.code == "forbidden_form"
+            && error.path.contains("appear_at")
+    }));
+}
+
+#[test]
+fn fixtures_load_unsupported_schema_version_rejected_001() {
+    let mut fixture = phase3a_fixture();
+    fixture.schema_version = SchemaVersion::new("schema_v999").unwrap();
+    let bytes = serialize_fixture(&fixture);
+
+    let validation_report = validate_fixture_bytes(&bytes, &registry())
+        .unwrap_err()
+        .report;
+    assert!(validation_report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::ParseSchema
+            && error.code == "unsupported_fixture_schema_version"
+            && error.path == "fixture.schema_version"
+    }));
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_bad_schema_version").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/bad_schema_version.twf".to_string(),
+            bytes,
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("unsupported fixture schema version must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::ParseSchema
+            && error.code == "unsupported_fixture_schema_version"
+            && error.path == "fixture.schema_version"
+    }));
+}
+
+#[test]
+fn fixtures_load_schema_v1_golden_bytes_load() {
+    const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_load_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+
+    let loaded = load_fixture_package(
+        ContentManifestId::new("manifest_schema_v1_golden_load").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/schema_v1_golden_load.twf".to_string(),
+            bytes: GOLDEN_SCHEMA_V1_BYTES.to_vec(),
+        }],
+    )
+    .unwrap();
+
+    assert_eq!(loaded.fixture.schema_version.as_str(), FIXTURE_SCHEMA_V1);
+    assert_eq!(loaded.manifest.schema_version.as_str(), FIXTURE_SCHEMA_V1);
 }
 
 #[test]

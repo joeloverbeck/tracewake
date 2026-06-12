@@ -1,6 +1,6 @@
 mod support;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use support::{AgentSeed, PhysicalSeed};
 
@@ -39,7 +39,12 @@ const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
+const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CONTENT_FIXTURE_HIDDEN_FOOD_CLOSED_CONTAINER_RS: &str =
+    include_str!("../../tracewake-content/src/fixtures/hidden_food_closed_container_001.rs");
+const CONTENT_FIXTURE_HIDDEN_ROUTE_EDGE_RS: &str =
+    include_str!("../../tracewake-content/src/fixtures/hidden_route_edge_001.rs");
 const CONTENT_GOLDEN_FIXTURES_RUN_RS: &str =
     include_str!("../../tracewake-content/tests/golden_fixtures_run.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
@@ -54,6 +59,8 @@ const ACCEPTANCE_0022_REPORT: &str =
     include_str!("../../../reports/0022_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0023_REPORT: &str =
     include_str!("../../../reports/0023_ord_life_cert_scoped_acceptance.md");
+const ACCEPTANCE_0024_REPORT: &str =
+    include_str!("../../../reports/0024_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -123,6 +130,11 @@ struct PanicAllowlistEntry {
     rationale: &'static str,
 }
 
+struct ApplyMutatorAllowlistEntry {
+    path: &'static str,
+    rationale: &'static str,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct EmbodiedSurfaceField {
     struct_name: String,
@@ -180,10 +192,10 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
         EmbodiedSurfaceFieldProducer {
             struct_name: "ActionAvailability",
             field_name: "debug_only_diagnostics",
-            source_path: "tracewake-core/src/view_models.rs",
-            producer_snippet: "",
+            source_path: "tracewake-tui/src/render.rs",
+            producer_snippet: "availability.debug_only_diagnostics()",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
-            rationale: "Current production action availability keeps actor-safe provenance populated and defers debug-only diagnostics until a concrete debug-only disabled site needs them.",
+            rationale: "Current production action availability keeps actor-safe provenance populated; the TUI render boundary consumes debug-only diagnostics through the accessor, proving the field is not orphaned at its definition site.",
         },
     ];
 
@@ -514,6 +526,25 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
         snippet: "append_and_apply_agent_event",
         rationale: "agent-stream routine, need, trace, and diagnostic records are replayable scheduler diagnostics, not physical primitive dispatch",
         responsible_layer: "core/scheduler",
+    },
+];
+
+const APPLY_MUTATOR_ALLOWLIST: &[ApplyMutatorAllowlistEntry] = &[
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        rationale: "defines the authoritative apply surface and may dispatch between world, agent, and epistemic event streams",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/replay/rebuild.rs",
+        rationale: "rebuilds canonical state from committed event logs during replay",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/pipeline.rs",
+        rationale: "applies already accepted action events and performs cloned-state dry-run validation",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        rationale: "applies scheduler-owned agent diagnostics and replay checks for no-human event streams",
     },
 ];
 
@@ -916,12 +947,19 @@ fn embodied_field_has_registered_producer(
             && producer_sources.iter().any(|(path, source)| {
                 *path == entry.source_path
                     && if entry.producer_snippet.is_empty() {
-                        source.contains(entry.field_name)
+                        source_has_deferral_write_or_consume_site(source, entry.field_name)
                     } else {
                         source.contains(entry.producer_snippet)
                     }
             })
     })
+}
+
+fn source_has_deferral_write_or_consume_site(source: &str, field_name: &str) -> bool {
+    source.contains(&format!(".{field_name}()"))
+        || source.contains(&format!("{field_name}()"))
+        || source.contains(&format!("{field_name} = Some("))
+        || source.contains(&format!("{field_name} = true"))
 }
 
 fn source_has_non_default_struct_field_producer(
@@ -1065,6 +1103,102 @@ fn core_production_sources() -> Vec<(String, String)> {
         .into_iter()
         .filter(|(path, _)| path.starts_with("crates/tracewake-core/src/"))
         .collect()
+}
+
+fn apply_mutator_tokens_from(apply_source: &str) -> BTreeSet<String> {
+    production(apply_source)
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            let after_pub_fn = trimmed.strip_prefix("pub fn ")?;
+            let name = after_pub_fn.split_once('(')?.0.trim();
+            name.starts_with("apply_").then(|| format!("{name}("))
+        })
+        .collect()
+}
+
+fn apply_mutator_allowed_path(path: &str) -> bool {
+    APPLY_MUTATOR_ALLOWLIST
+        .iter()
+        .any(|entry| entry.path == path && !entry.rationale.trim().is_empty())
+}
+
+fn apply_mutator_perimeter_errors(
+    apply_source: &str,
+    sources: &[(String, String)],
+    scanned_tokens: &BTreeSet<String>,
+) -> Vec<String> {
+    let public_tokens = apply_mutator_tokens_from(apply_source);
+    let mut errors = Vec::new();
+
+    for token in public_tokens.difference(scanned_tokens) {
+        errors.push(format!(
+            "public apply mutator {token} is absent from the mutation perimeter scan"
+        ));
+    }
+    for token in scanned_tokens.difference(&public_tokens) {
+        errors.push(format!(
+            "mutation perimeter scan lists non-public apply mutator {token}"
+        ));
+    }
+    for entry in APPLY_MUTATOR_ALLOWLIST {
+        if entry.rationale.trim().is_empty() {
+            errors.push(format!(
+                "apply mutator allowlist entry {} lacks rationale",
+                entry.path
+            ));
+        }
+    }
+
+    for (path, source) in sources {
+        let present_tokens = scanned_tokens
+            .iter()
+            .filter(|token| source.contains(token.as_str()))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !present_tokens.is_empty() && !apply_mutator_allowed_path(path) {
+            errors.push(format!(
+                "{} contains direct apply mutator call(s): {}",
+                path,
+                present_tokens.join(", ")
+            ));
+        }
+    }
+
+    let allowlist_paths = APPLY_MUTATOR_ALLOWLIST
+        .iter()
+        .map(|entry| entry.path)
+        .collect::<BTreeSet<_>>();
+    let live_paths = sources
+        .iter()
+        .map(|(path, _)| path.as_str())
+        .filter(|path| allowlist_paths.contains(path))
+        .collect::<BTreeSet<_>>();
+    for missing_path in allowlist_paths.difference(&live_paths) {
+        errors.push(format!(
+            "apply mutator allowlist path {} is not a core production source",
+            missing_path
+        ));
+    }
+
+    errors
+}
+
+fn apply_mutator_live_witness_count(sources: &[(String, String)]) -> usize {
+    let scanned_tokens = apply_mutator_tokens_from(EVENTS_APPLY_RS);
+    APPLY_MUTATOR_ALLOWLIST
+        .iter()
+        .filter(|entry| {
+            sources
+                .iter()
+                .find(|(path, _)| path == entry.path)
+                .is_some_and(|(_, source)| {
+                    scanned_tokens
+                        .iter()
+                        .any(|token| source.contains(token.as_str()))
+                })
+        })
+        .count()
 }
 
 #[allow(
@@ -1403,6 +1537,8 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
 
 const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 0;
 const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xcbf2_9ce4_8422_2325;
+const MUTANTS_BASELINE_GENESIS_COUNT: usize = 143;
+const MUTANTS_BASELINE_GENESIS_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
 const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
@@ -1475,6 +1611,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors",
+        negative_id: "synthetic_0024_missing_acceptance_anchor",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "generative_support_bans_bare_event_envelope_token",
         negative_id: "synthetic_support_event_envelope_default",
         routing: MetaLockRouting::SharedScan,
@@ -1534,7 +1676,7 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         lock_id: "no_direct_apply_event_outside_event_replay_or_pipeline",
         negative_id: "synthetic_direct_apply_event_call",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_min: 1,
+        witness_min: 4,
     },
     MetaLockRegistryEntry {
         lock_id: "event_apply_remains_only_post_seed_mutation_path",
@@ -1904,7 +2046,7 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     },
     MetaLockCensusExemption {
         test_name: "mutation_perimeter_matches_duration_action_rationale_and_ci_filters",
-        rationale: "Mutation perimeter governance test covered separately by mutation-CI meta-lock entries.",
+        rationale: "Mutation perimeter governance test covered separately by lock_id mutation_perimeter_logical_line_swallow_scan and sibling mutation-CI meta-lock entries.",
     },
     MetaLockCensusExemption {
         test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
@@ -1980,7 +2122,7 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     },
     MetaLockCensusExemption {
         test_name: "generative_lock_cannot_fabricate_duration_terminals",
-        rationale: "Generative harness behavior proof represented by support/generative guard entries.",
+        rationale: "Generative harness behavior proof represented by lock_id generative_support_bans_bare_event_envelope_token and sibling support/generative guard entries.",
     },
 ];
 
@@ -2190,6 +2332,47 @@ fn meta_lock_census_exemption_rationale(test_name: &str) -> Option<&'static str>
         .map(|entry| entry.rationale)
 }
 
+fn meta_lock_census_exemption_errors(
+    test_name: &str,
+    rationale: &str,
+    lock_ids: &BTreeSet<&str>,
+    anti_regression_source: &str,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    if rationale.trim().is_empty() {
+        errors.push(format!("exemption {test_name} has empty rationale"));
+    }
+    let body = function_body_if_present(anti_regression_source, &format!("fn {test_name}"))
+        .unwrap_or_default();
+    if !test_body_has_structural_scan_shape(body) {
+        return errors;
+    }
+    if rationale.contains("Historical acceptance-artifact anchor audit") {
+        return errors;
+    }
+    let Some(covering_lock_id) = rationale
+        .split("lock_id ")
+        .nth(1)
+        .and_then(|tail| tail.split_whitespace().next())
+        .map(|token| token.trim_matches(|ch: char| ch == '.' || ch == ',' || ch == '`'))
+    else {
+        errors.push(format!(
+            "scan-shaped exemption {test_name} lacks covering lock_id"
+        ));
+        return errors;
+    };
+    if !lock_ids.contains(covering_lock_id) {
+        errors.push(format!(
+            "scan-shaped exemption {test_name} names missing covering lock_id {covering_lock_id}"
+        ));
+    }
+    errors
+}
+
+fn test_body_has_structural_scan_shape(body: &str) -> bool {
+    body.contains("_errors(") || body.contains("_violations(")
+}
+
 fn function_body_if_present<'a>(source: &'a str, marker: &str) -> Option<&'a str> {
     source
         .split(marker)
@@ -2217,54 +2400,93 @@ fn meta_lock_live_witness_count(
     entry: &MetaLockRegistryEntry,
     anti_regression_source: &str,
 ) -> usize {
-    match entry.lock_id {
-        "meta_lock_registry_census" => anti_regression_test_names(anti_regression_source).len(),
-        "mutation_baseline_misses_are_pinned_and_ledgered" => {
-            normalized_mutant_misses(MUTANTS_BASELINE_MISSES).len()
-        }
-        "generative_lock_two_sided_floor_ratchets" => RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
+    if entry.lock_id == "event_apply_remains_only_post_seed_mutation_path" {
+        return usize::from(
+            anti_regression_source
+                .contains("no_direct_apply_event_outside_event_replay_or_pipeline();"),
+        ) + usize::from(
+            anti_regression_source
+                .contains("accepted_action_appends_before_authoritative_apply();"),
+        );
+    }
+    if entry.lock_id == "no_direct_apply_event_outside_event_replay_or_pipeline" {
+        return apply_mutator_live_witness_count(&core_production_sources());
+    }
+    if entry.lock_id == "guard_014_embodied_projection_source_has_no_physical_state_field" {
+        return usize::from(anti_regression_source.contains("synthetic_dead_field"))
+            + usize::from(anti_regression_source.contains("PhysicalState"));
+    }
+    if entry.lock_id == "typed_column_closure_payload_alias_helper_calls" {
+        return usize::from(anti_regression_source.contains("synthetic_payload_alias_source"));
+    }
+    if entry.lock_id == "typed_column_closure_exemptions_are_rationale_bearing_and_live" {
+        return usize::from(anti_regression_source.contains("synthetic_payload_fields_source"))
+            + usize::from(anti_regression_source.contains("synthetic_oblique_helper_source"));
+    }
+    if entry.lock_id == "materialized_agent_payload_records_keep_payload_fields" {
+        return usize::from(STATE_RS.contains("pub payload_fields: Vec<(String, String)>"))
+            + EVENTS_APPLY_RS
+                .matches("payload_fields: payload_fields(event)")
+                .count();
+    }
+    if matches!(entry.routing, MetaLockRouting::BehaviorAssertion) {
+        return behavior_assertion_live_witness_count(entry, anti_regression_source);
+    }
+    if let MetaLockRouting::TicketOwnedDebt { .. } = entry.routing {
+        return ticket_owned_debt_live_witness_count(entry, anti_regression_source);
+    }
+    if entry.lock_id == "meta_lock_registry_census" {
+        return anti_regression_test_names(anti_regression_source).len();
+    }
+    if entry.lock_id == "mutation_baseline_misses_are_pinned_and_ledgered" {
+        return normalized_mutant_misses(MUTANTS_BASELINE_MISSES).len();
+    }
+    if entry.lock_id == "generative_lock_two_sided_floor_ratchets" {
+        return RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
             .iter()
             .filter(|(_, count)| *count > 0)
-            .count(),
-        "physical_mutating_event_kinds_have_explicit_world_apply_arms" => {
-            if !anti_regression_source
-                .contains("body_after_marker(EVENTS_APPLY_RS, \"fn apply_event_with_capability\")")
-            {
-                return 0;
-            }
-            let Some(apply_body) =
-                function_body_if_present(EVENTS_APPLY_RS, "fn apply_event_with_capability")
-            else {
-                return 0;
-            };
-            tracewake_core::events::EventKind::all()
-                .iter()
-                .filter(|kind| kind.metadata().physical_mutating)
-                .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
-                .count()
+            .count();
+    }
+    if entry.lock_id == "physical_mutating_event_kinds_have_explicit_world_apply_arms" {
+        if !anti_regression_source
+            .contains("body_after_marker(EVENTS_APPLY_RS, \"fn apply_event_with_capability\")")
+        {
+            return 0;
         }
-        "agent_stream_event_kinds_have_explicit_agent_apply_arms" => {
-            use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
-            use tracewake_core::events::{EventKind, EventStream};
+        let Some(apply_body) =
+            function_body_if_present(EVENTS_APPLY_RS, "fn apply_event_with_capability")
+        else {
+            return 0;
+        };
+        return tracewake_core::events::EventKind::all()
+            .iter()
+            .filter(|kind| kind.metadata().physical_mutating)
+            .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
+            .count();
+    }
+    if entry.lock_id == "agent_stream_event_kinds_have_explicit_agent_apply_arms" {
+        use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
+        use tracewake_core::events::{EventKind, EventStream};
 
-            if !anti_regression_source.contains(
-                "body_after_marker(EVENTS_APPLY_RS, \"fn apply_agent_event_with_capability\")",
-            ) {
-                return 0;
-            }
-            let Some(apply_body) =
-                function_body_if_present(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability")
-            else {
-                return 0;
-            };
-            EventKind::all()
-                .iter()
-                .filter(|kind| kind.metadata().stream == EventStream::Agent)
-                .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
-                .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
-                .count()
+        if !anti_regression_source.contains(
+            "body_after_marker(EVENTS_APPLY_RS, \"fn apply_agent_event_with_capability\")",
+        ) {
+            return 0;
         }
-        "action_emitted_event_kinds_have_cause_disposition" => [
+        let Some(apply_body) =
+            function_body_if_present(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability")
+        else {
+            return 0;
+        };
+        return EventKind::all()
+            .iter()
+            .filter(|kind| kind.metadata().stream == EventStream::Agent)
+            .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
+            .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
+            .count();
+    }
+    if entry.lock_id == "action_emitted_event_kinds_have_cause_disposition" {
+        return [
             MOVEMENT_RS,
             WAIT_RS,
             OPENCLOSE_RS,
@@ -2277,8 +2499,10 @@ fn meta_lock_live_witness_count(
         ]
         .iter()
         .filter(|source| source.contains("EventEnvelope::new_caused_v1"))
-        .count(),
-        "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data" => [
+        .count();
+    }
+    if entry.lock_id == "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data" {
+        return [
             production(SCHEDULER_RS),
             production(EVENTS_APPLY_RS),
             production(SLEEP_RS),
@@ -2286,61 +2510,290 @@ fn meta_lock_live_witness_count(
         ]
         .iter()
         .filter(|source| source.contains(".expect(") || source.contains("assert!("))
-        .count(),
-        "embodied_view_option_and_collection_fields_have_reachable_producers" => {
-            embodied_surface_fields(&production(VIEW_MODELS_RS)).len()
-        }
-        "guard_014_perception_visibility_uses_typed_place_visibility" => PERCEPTION_RS
+        .count();
+    }
+    if entry.lock_id == "embodied_view_option_and_collection_fields_have_reachable_producers" {
+        return embodied_surface_fields(&production(VIEW_MODELS_RS)).len();
+    }
+    if entry.lock_id == "guard_014_perception_visibility_uses_typed_place_visibility" {
+        return PERCEPTION_RS
             .lines()
             .filter(|line| line.contains("visibility_default"))
-            .count(),
-        "guard_014_perception_visibility_other_emission_paths" => [
-            "current_place_perception_events",
-            "observation_event",
-            "is_visible_exit_target",
-        ]
-        .iter()
-        .filter(|marker| PERCEPTION_RS.contains(*marker))
-        .count(),
-        "typed_column_closure_oblique_payload_helper_calls" => TYPED_COLUMN_CLOSURE_EXEMPTIONS
-            .iter()
-            .filter(|entry| !entry.rationale.trim().is_empty())
-            .count(),
-        "guard_011_no_human_day_runner_only_evidence" => CONTENT_GOLDEN_FIXTURES_RUN_RS
-            .lines()
-            .filter(|line| line.contains("run_no_human_day"))
-            .count(),
-        "guard_0021_actor_known_context_producers_are_projection_backed" => {
-            ACTOR_KNOWN_RS.matches("from_observed_parts").count()
-        }
-        "guard_0021_hidden_truth_gates_use_event_log_provenance" => function_body_if_present(
+            .count();
+    }
+    if entry.lock_id == "guard_014_perception_visibility_other_emission_paths" {
+        return perception_visibility_other_emission_inspected_site_count(PERCEPTION_RS);
+    }
+    if entry.lock_id == "typed_column_closure_oblique_payload_helper_calls" {
+        return typed_column_closure_oblique_inspected_site_count(
+            EVENTS_APPLY_RS,
+            TYPED_COLUMN_CLOSURE_EXEMPTIONS,
+        );
+    }
+    if entry.lock_id == "guard_011_no_human_day_runner_only_evidence" {
+        return no_human_day_runner_only_inspected_site_count(CONTENT_GOLDEN_FIXTURES_RUN_RS);
+    }
+    if entry.lock_id == "guard_0021_actor_known_context_producers_are_projection_backed" {
+        return ACTOR_KNOWN_RS.matches("from_observed_parts").count();
+    }
+    if entry.lock_id == "guard_0021_hidden_truth_gates_use_event_log_provenance" {
+        return function_body_if_present(
             anti_regression_source,
             "fn guard_0021_hidden_truth_gates_use_event_log_provenance",
         )
         .map_or(0, |body| {
             usize::from(body.contains("hidden_truth_harness_provenance_violations"))
-        }),
-        "guard_0021_fabricated_visible_local_event_id_is_retired" => function_body_if_present(
+        });
+    }
+    if entry.lock_id == "guard_0021_fabricated_visible_local_event_id_is_retired" {
+        return function_body_if_present(
             anti_regression_source,
             "fn guard_0021_fabricated_visible_local_event_id_is_retired",
         )
         .map_or(0, |body| {
             usize::from(body.contains("fabricated_planning_event_id_violations"))
-        }),
-        "guard_008_phase1_loader_does_not_register_later_phase_actions" => {
-            usize::from(CONTENT_LOAD_RS.contains("FixtureScope::Phase1"))
-        }
-        "guard_008_phase1_loader_source_guard_has_mutation_self_coverage" => {
-            usize::from(anti_regression_source.contains(entry.negative_id))
-        }
-        _ => {
-            let test_names = anti_regression_test_names(anti_regression_source);
-            usize::from(
-                test_names.contains(entry.lock_id)
-                    || anti_regression_source.contains(entry.negative_id),
-            )
-        }
+        });
     }
+    if entry.lock_id == "guard_008_phase1_loader_does_not_register_later_phase_actions" {
+        return usize::from(CONTENT_LOAD_RS.contains("FixtureScope::Phase1"));
+    }
+    if entry.lock_id == "guard_008_phase1_loader_source_guard_has_mutation_self_coverage" {
+        return phase1_loader_later_phase_registration_violations(&CONTENT_LOAD_RS.replace(
+            "FixtureScope::Phase1 => {}",
+            "FixtureScope::Phase1 => { registry.register_phase2a_epistemics(); }",
+        ))
+        .len();
+    }
+    if entry.lock_id == "mutation_perimeter_logical_line_swallow_scan" {
+        return logical_shell_lines(CI_YML)
+            .into_iter()
+            .filter(|line| line.contains("cargo mutants"))
+            .count();
+    }
+    if entry.lock_id == "mutation_baseline_non_empty_entries_require_ledger_dispositions" {
+        return mutation_baseline_governance_errors(
+            "synthetic/path.rs:1:1: replace x -> y",
+            MUTANTS_BASELINE_LEDGER,
+        )
+        .len();
+    }
+    if entry.lock_id == "hidden_truth_context_discrimination_witness" {
+        return hidden_truth_context_discrimination_witness_count();
+    }
+    if entry.lock_id == "log_derived_panic_guard_scans_unwrap" {
+        return log_derived_panic_violations(&[(
+            "synthetic.rs",
+            "fn f() { value.unwrap(); }".to_string(),
+        )])
+        .len();
+    }
+    if entry.lock_id == "generative_support_constructs_zero_event_envelopes"
+        || entry.lock_id == "generative_support_bans_bare_event_envelope_token"
+    {
+        return generative_duration_terminal_fabricator_errors(&[(
+            "support/generative.rs",
+            "fn helper() { let _event = EventEnvelope::default(); }",
+        )])
+        .len();
+    }
+    if entry.lock_id == "event_kind_cause_required_exhaustive_match" {
+        return usize::from(
+            body_after_marker(EVENTS_ENVELOPE_RS, "const fn cause_required").contains("match self"),
+        );
+    }
+    if entry.lock_id == "guard_014_perception_visibility_detects_display_label_binding_laundering" {
+        return perception_visibility_prose_branch_violations(
+            "fn is_visible_exit_target(place: &PlaceState) { let visible = place.display_label != \"Hidden\"; }",
+        )
+        .len();
+    }
+    if entry.lock_id == "guard_014_perception_visibility_detects_bare_display_label_substrings" {
+        return perception_visibility_prose_branch_violations(
+            "fn is_visible_exit_target(place: &PlaceState) { place.display_label.starts_with(\"hid\"); }",
+        )
+        .len();
+    }
+    if entry.lock_id == "typed_column_closure_payload_receiver_helper_calls"
+        || entry.lock_id == "typed_column_closure_payload_alias_helper_calls"
+    {
+        return typed_column_payload_helper_inspected_site_count(entry.lock_id);
+    }
+    if entry.lock_id == "hidden_food_closed_container_is_not_actor_known_food_source" {
+        return usize::from(
+            CONTENT_FIXTURE_HIDDEN_FOOD_CLOSED_CONTAINER_RS
+                .contains("hidden_food_closed_container"),
+        );
+    }
+    if entry.lock_id == "hidden_route_edge_absent_from_actor_context_blocks_route_plan" {
+        return usize::from(CONTENT_FIXTURE_HIDDEN_ROUTE_EDGE_RS.contains("hidden_route_edge"));
+    }
+    if entry.lock_id == "planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context" {
+        return function_body_if_present(
+            HIDDEN_TRUTH_GATES_RS,
+            "fn planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context",
+        )
+        .map_or(0, |body| {
+            body.matches("planner_hidden_truth_fixture_witness_errors")
+                .count()
+        });
+    }
+    if entry.lock_id == "actor_known_projection_policy_table_drives_record_behavior" {
+        return function_body_if_present(
+            EPISTEMIC_PROJECTION_RS,
+            "fn actor_known_projection_policy_table_drives_record_behavior",
+        )
+        .map_or(0, |body| body.matches("assert!").count());
+    }
+    if entry.lock_id == "workplace_current_place_scope_drops_other_place_from_embodied_context" {
+        return function_body_if_present(
+            EPISTEMIC_PROJECTION_RS,
+            "fn workplace_current_place_scope_drops_other_place_from_embodied_context",
+        )
+        .map_or(0, |body| body.matches("assert!").count());
+    }
+    if entry.lock_id == "supersede_newest_by_subject_requires_subject_extractor" {
+        return function_body_if_present(
+            EPISTEMIC_PROJECTION_RS,
+            "fn supersede_newest_by_subject_requires_subject_extractor",
+        )
+        .map_or(0, |body| body.matches("assert!").count());
+    }
+    shared_scan_function_witness_count(entry, anti_regression_source)
+}
+
+fn behavior_assertion_live_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id)).map_or(
+        0,
+        |body| {
+            let assertion_count = body.matches("assert!").count()
+                + body.matches("assert_eq!").count()
+                + body.matches("assert_ne!").count()
+                + body.matches("assert_absent(").count()
+                + body.matches("assert_absent_from_sources(").count();
+            usize::from(assertion_count > 0)
+        },
+    )
+}
+
+fn ticket_owned_debt_live_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id))
+        .map_or(0, |body| {
+            usize::from(body.contains(entry.negative_id) || body.contains("assert!"))
+        })
+}
+
+fn shared_scan_function_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id)).map_or(
+        0,
+        |body| {
+            body.matches("assert!").count()
+                + body.matches("assert_eq!").count()
+                + body.matches("assert_ne!").count()
+                + body.matches("assert_absent(").count()
+                + body.matches("assert_absent_from_sources(").count()
+                + body.matches("_errors(").count()
+                + body.matches("_violations(").count()
+        },
+    )
+}
+
+fn typed_column_closure_oblique_inspected_site_count(
+    source: &str,
+    exemptions: &[TypedColumnClosureExemption],
+) -> usize {
+    exemptions
+        .iter()
+        .filter(|exemption| !payload_helper_calls_for_anchor(source, exemption.anchor).is_empty())
+        .count()
+}
+
+fn payload_helper_calls_for_anchor(source: &str, anchor: &str) -> BTreeSet<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    let Some(body) = function_body(&scan_source, anchor) else {
+        return BTreeSet::new();
+    };
+    let payload_bindings = payload_binding_aliases(body);
+    payload_helper_calls(body, &payload_bindings)
+}
+
+fn typed_column_payload_helper_inspected_site_count(lock_id: &str) -> usize {
+    if lock_id == "typed_column_closure_payload_alias_helper_calls" {
+        return function_body_if_present(
+            ANTI_REGRESSION_GUARDS_RS,
+            "fn typed_column_closure_exemptions_are_rationale_bearing_and_live",
+        )
+        .map_or(0, |body| {
+            body.matches("synthetic_payload_alias_source").count()
+        });
+    }
+    let source = normalized_source(EVENTS_APPLY_RS).replace(" .", ".");
+    let mut count = 0;
+    for exemption in TYPED_COLUMN_CLOSURE_EXEMPTIONS {
+        let Some(body) = function_body(&source, exemption.anchor) else {
+            continue;
+        };
+        let payload_bindings = payload_binding_aliases(body);
+        let helper_calls = payload_helper_calls(body, &payload_bindings);
+        count += helper_calls
+            .iter()
+            .filter(|call| match lock_id {
+                "typed_column_closure_payload_receiver_helper_calls" => {
+                    body.contains(&format!(".{call}("))
+                }
+                "typed_column_closure_payload_alias_helper_calls" => {
+                    body.contains(&format!("let {call} = &payload"))
+                        || body.contains(&format!("let {call} = payload"))
+                }
+                _ => false,
+            })
+            .count();
+    }
+    count
+}
+
+fn hidden_truth_context_discrimination_witness_count() -> usize {
+    function_body_if_present(
+        HIDDEN_TRUTH_GATES_RS,
+        "fn context_rejects_hidden_counterpart_injection",
+    )
+    .map_or(0, |body| {
+        body.matches("synthetic_context_hidden_food_injection")
+            .count()
+            + body
+                .matches("synthetic_context_hidden_route_injection")
+                .count()
+    })
+}
+
+fn no_human_day_runner_only_inspected_site_count(source: &str) -> usize {
+    source
+        .lines()
+        .filter(|line| {
+            line.contains("has_no_human_event_for_actor")
+                || line.contains("EventKind::EatFailed")
+                || line.contains("\"actor_mara\"")
+        })
+        .count()
+}
+
+fn perception_visibility_other_emission_inspected_site_count(source: &str) -> usize {
+    [
+        "fn current_place_perception_events",
+        "fn observation_event",
+        "fn is_visible_exit_target",
+    ]
+    .iter()
+    .filter(|marker| function_body_if_present(source, marker).is_some())
+    .count()
 }
 
 fn meta_lock_registry_errors(
@@ -2417,7 +2870,12 @@ fn meta_lock_registry_errors(
             continue;
         }
         match meta_lock_census_exemption_rationale(&test_name) {
-            Some(rationale) if !rationale.trim().is_empty() => {}
+            Some(rationale) => errors.extend(meta_lock_census_exemption_errors(
+                &test_name,
+                rationale,
+                &lock_ids,
+                anti_regression_source,
+            )),
             _ => {
                 errors.push(format!(
                     "anti-regression test {test_name} is missing from meta-lock registry or rationale-bearing exemption"
@@ -2700,6 +3158,17 @@ fn mutation_baseline_change_log_records(ledger: &str, count: usize, hash: u64) -
         .filter(|line| line.contains("baseline-delta:"))
         .filter_map(parse_mutation_baseline_delta)
         .collect::<Vec<_>>();
+    let Some(genesis) = deltas.first() else {
+        return false;
+    };
+    if genesis.from_count != MUTANTS_BASELINE_GENESIS_COUNT
+        || genesis.from_hash != MUTANTS_BASELINE_GENESIS_FNV1A64
+    {
+        return false;
+    }
+    if deltas.len() < 2 {
+        return false;
+    }
     let Some(head) = deltas.last() else {
         return false;
     };
@@ -3158,6 +3627,103 @@ const ACCEPTANCE_0023_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
             "EMERGE-OBS Derivation And Scheduled Run Status",
             "scheduled mutation still pending",
         ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &[
+            "Explicit Non-Certification Statement",
+            "not full-project certification",
+            "not Phase 4 entry",
+            "not `FIRST-PROOF-CERT`",
+        ],
+    },
+];
+
+const ACCEPTANCE_0024_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Fixture Schema-Version Gate", "ORD-HARD-140"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Meta-Witness Completion",
+            "ORD-HARD-141",
+            "ORD-HARD-142",
+            "ORD-HARD-145",
+            "ORD-HARD-146",
+            "ORD-HARD-155",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &["Truth-Access Removal", "ORD-HARD-143", "ORD-HARD-154"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Derived Apply Perimeter", "ORD-HARD-144"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &[
+            "Content Loader Closures",
+            "ORD-HARD-150",
+            "ORD-HARD-151",
+            "ORD-HARD-164",
+            "ORD-HARD-165",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["TUI Debug Quarantine", "ORD-HARD-152", "ORD-HARD-153"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &[
+            "Policy And Projection Closures",
+            "ORD-HARD-147",
+            "ORD-HARD-156",
+            "ORD-HARD-148",
+            "ORD-HARD-149",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Oracle Closures",
+            "ORD-HARD-157",
+            "ORD-HARD-158",
+            "ORD-HARD-159",
+            "ORD-HARD-160",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &[
+            "0005 Coherence Decisions",
+            "ORD-HARD-161",
+            "ORD-HARD-162",
+            "ORD-HARD-163",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &["Premise-Held Confirmations", "ORD-HARD-140", "ORD-HARD-165"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &[
+            "Documentation Diffs",
+            "docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &["EMERGE-OBS Derivation", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &["Mutation Run Status", "scheduled mutation still pending"],
     },
     AcceptanceChecklistAnchor {
         item: 14,
@@ -3723,6 +4289,28 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         "synthetic missing-predecessor shrink must fail change-log governance"
     );
 
+    let fabricated_single_link = format!(
+        "- synthetic — baseline-delta: from-count={MUTANTS_BASELINE_NORMALIZED_COUNT} from-fnv1a64={MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x} -> to-count={MUTANTS_BASELINE_NORMALIZED_COUNT} to-fnv1a64={MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x}; fabricated head-only ledger."
+    );
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &fabricated_single_link)
+            .iter()
+            .any(|error| error.contains("recorded baseline change log")),
+        "synthetic fabricated single-link ledger must fail the genesis anchor"
+    );
+
+    let shortened_chain = MUTANTS_BASELINE_LEDGER
+        .lines()
+        .filter(|line| !line.contains("0022PHA3ABASTRI-015"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &shortened_chain)
+            .iter()
+            .any(|error| error.contains("recorded baseline change log")),
+        "synthetic shortened baseline chain must fail adjacency"
+    );
+
     let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
         .map(|index| {
             format!(
@@ -3799,6 +4387,22 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
         "synthetic non-routed negative must fail the meta-lock census"
     );
 
+    let scan_shaped_exemption_source = format!(
+        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn synthetic_scan_shaped_exemption() {{ let _ = synthetic_errors(); }}\n"
+    );
+    let scan_shaped_exemptions = BTreeSet::from(["synthetic_scan_shaped_exemption"]);
+    assert!(
+        meta_lock_census_exemption_errors(
+            "synthetic_scan_shaped_exemption",
+            "synthetic rationale without covering lock",
+            &scan_shaped_exemptions,
+            &scan_shaped_exemption_source,
+        )
+        .iter()
+        .any(|error| error.contains("covering lock_id")),
+        "synthetic scan-shaped exemption without covering lock_id must fail"
+    );
+
     let anchorless_source = ANTI_REGRESSION_GUARDS_RS.replace(
         "fn apply_event_with_capability",
         "fn stale_apply_event_with_capability",
@@ -3808,6 +4412,72 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
             .iter()
             .any(|error| error.contains("below minimum")),
         "synthetic anchor-miss scan must fail the live nonzero-witness rule"
+    );
+
+    let formerly_presence_fallback_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "checksum_coverage_is_total_for_authoritative_state")
+        .unwrap();
+    assert!(
+        meta_lock_live_witness_count(formerly_presence_fallback_entry, "")
+            < formerly_presence_fallback_entry.witness_min,
+        "formerly default-routed scan must fail when its measured witness body is absent"
+    );
+    let live_witness_body =
+        function_body_if_present(ANTI_REGRESSION_GUARDS_RS, "fn meta_lock_live_witness_count")
+            .unwrap();
+    assert!(
+        !live_witness_body.contains("test_names.contains(entry.lock_id)")
+            && !live_witness_body.contains("anti_regression_source.contains(entry.negative_id)"),
+        "meta-lock live witnesses must not use registry/test-name presence as a fallback"
+    );
+
+    let oblique_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "typed_column_closure_oblique_payload_helper_calls")
+        .unwrap();
+    let oblique_without_inspected_site = EVENTS_APPLY_RS.replace("payload", "typed_payload");
+    assert!(
+        typed_column_closure_oblique_inspected_site_count(
+            &oblique_without_inspected_site,
+            TYPED_COLUMN_CLOSURE_EXEMPTIONS,
+        ) < oblique_entry.witness_min,
+        "synthetic oblique helper site removal must fail the repaired live witness"
+    );
+
+    let runner_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "guard_011_no_human_day_runner_only_evidence")
+        .unwrap();
+    let runner_without_inspected_sites = CONTENT_GOLDEN_FIXTURES_RUN_RS
+        .replace("has_no_human_event_for_actor", "has_event_for_actor")
+        .replace("EventKind::EatFailed", "EventKind::EatStarted")
+        .replace("\"actor_mara\"", "\"actor_tomas\"");
+    assert!(
+        no_human_day_runner_only_inspected_site_count(&runner_without_inspected_sites)
+            < runner_entry.witness_min,
+        "synthetic runner-only inspected-site removal must fail the repaired live witness"
+    );
+
+    let other_emission_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "guard_014_perception_visibility_other_emission_paths")
+        .unwrap();
+    let perception_without_other_emission_sites = PERCEPTION_RS
+        .replace(
+            "fn current_place_perception_events",
+            "fn stale_current_place_perception_events",
+        )
+        .replace("fn observation_event", "fn stale_observation_event")
+        .replace(
+            "fn is_visible_exit_target",
+            "fn stale_is_visible_exit_target",
+        );
+    assert!(
+        perception_visibility_other_emission_inspected_site_count(
+            &perception_without_other_emission_sites
+        ) < other_emission_entry.witness_min,
+        "synthetic perception inspected-site removal must fail the repaired live witness"
     );
 
     let unregistered_guard_source = format!(
@@ -3939,6 +4609,31 @@ fn acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors() {
             .iter()
             .any(|error| error.contains("item 99")),
         "synthetic_0023_missing_acceptance_anchor must fail through the real checker"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0024_REPORT,
+        ACCEPTANCE_0024_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0024 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0024_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic_0024_missing_acceptance_anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0024_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic_0024_missing_acceptance_anchor must fail through the real checker"
     );
 }
 
@@ -4937,30 +5632,77 @@ fn privileged_tui_proposal_requires_current_view_source_context() {
 
 #[test]
 fn no_direct_apply_event_outside_event_replay_or_pipeline() {
-    // Smoke-only source scan: compile-fail fixtures and capability privacy are
-    // the primary enforcement layer; this catches obvious new direct calls.
-    let allowed_paths = [
-        "crates/tracewake-core/src/events/apply.rs",
-        "crates/tracewake-core/src/replay/rebuild.rs",
-        "crates/tracewake-core/src/actions/pipeline.rs",
-    ];
-    let mut violations = Vec::new();
-    for (path, source) in core_production_sources() {
-        let contains_direct_apply =
-            source.contains("apply_event(") || source.contains("apply_event_stream(");
-        if contains_direct_apply && !allowed_paths.iter().any(|allowed| *allowed == path) {
-            violations.push(path);
-        }
-    }
-
+    let sources = core_production_sources();
+    let scanned_tokens = apply_mutator_tokens_from(EVENTS_APPLY_RS);
+    let errors = apply_mutator_perimeter_errors(EVENTS_APPLY_RS, &sources, &scanned_tokens);
     assert!(
-        violations.is_empty(),
-        "direct apply_event/apply_event_stream call outside event/replay/pipeline production code:\n{}",
-        violations.join("\n")
+        errors.is_empty(),
+        "direct apply mutator call outside allowlisted production seams:\n{}",
+        errors.join("\n")
+    );
+    assert_eq!(
+        scanned_tokens,
+        BTreeSet::from([
+            "apply_agent_event(".to_string(),
+            "apply_epistemic_event(".to_string(),
+            "apply_event(".to_string(),
+            "apply_event_stream(".to_string(),
+        ]),
+        "apply mutator scan must be derived from every public apply.rs mutator"
     );
     assert!(
         production(include_str!("../src/actions/pipeline.rs")).contains("let mut dry_run = context.state.clone();"),
         "pipeline dry-run validation must apply constructed events to cloned, non-authoritative state"
+    );
+
+    let mut injected_sources = sources.clone();
+    injected_sources.push((
+        "crates/tracewake-core/src/view_models.rs".to_string(),
+        "fn leaking_view_model() { apply_agent_event(agent_state, &event).unwrap(); }".to_string(),
+    ));
+    let injection_errors =
+        apply_mutator_perimeter_errors(EVENTS_APPLY_RS, &injected_sources, &scanned_tokens);
+    assert!(
+        injection_errors
+            .iter()
+            .any(|error| error.contains("view_models.rs") && error.contains("apply_agent_event(")),
+        "synthetic_direct_apply_agent_event_call did not trigger: {injection_errors:?}"
+    );
+
+    let divergent_apply_source =
+        format!("{EVENTS_APPLY_RS}\npub fn apply_story_event(_state: &mut (), _event: &()) {{}}\n");
+    let parity_errors =
+        apply_mutator_perimeter_errors(&divergent_apply_source, &sources, &scanned_tokens);
+    assert!(
+        parity_errors
+            .iter()
+            .any(|error| error.contains("apply_story_event(")),
+        "synthetic_unscanned_public_apply_mutator did not trigger: {parity_errors:?}"
+    );
+
+    assert_eq!(
+        apply_mutator_live_witness_count(&sources),
+        APPLY_MUTATOR_ALLOWLIST.len(),
+        "each apply mutator allowlist seam must have a live apply call witness"
+    );
+    let dropped_scheduler_sources = sources
+        .iter()
+        .map(|(path, source)| {
+            if path == "crates/tracewake-core/src/scheduler.rs" {
+                let mut retired_source = source.clone();
+                for token in &scanned_tokens {
+                    retired_source = retired_source.replace(token, "retired_apply_mutator(");
+                }
+                (path.clone(), retired_source)
+            } else {
+                (path.clone(), source.clone())
+            }
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        apply_mutator_live_witness_count(&dropped_scheduler_sources)
+            < APPLY_MUTATOR_ALLOWLIST.len(),
+        "synthetic_apply_mutator_witness_drop did not reduce the per-seam witness count"
     );
 }
 
@@ -5470,6 +6212,7 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             .nth(1)
             .and_then(|tail| tail.split("\n}").next())
             .unwrap_or("");
+        let sealed_source_builder = body_after_marker(source, "pub fn from_sealed_context");
         let view_builder = body_after_marker(source, "pub fn build_embodied_view_model");
         let mut errors = Vec::new();
         let has_state_field = source_struct
@@ -5482,6 +6225,16 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             errors.push(
                 "build_embodied_view_model must not read source.state or visible_locality"
                     .to_string(),
+            );
+        }
+        if sealed_source_builder.contains("&PhysicalState")
+            || view_builder.contains("&PhysicalState")
+            || view_builder.contains("state.items")
+            || view_builder.contains("state.places")
+            || view_builder.contains("state.actors")
+        {
+            errors.push(
+                "embodied projection builders must not read raw PhysicalState truth".to_string(),
             );
         }
         errors
@@ -5501,6 +6254,18 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             .iter()
             .any(|error| error.contains("PhysicalState")),
         "synthetic_embodied_projection_source_physical_state_field did not trigger: {synthetic_errors:?}"
+    );
+
+    let synthetic_builder_read = projection.replace(
+        "let carried_items = source.carried_items.clone();",
+        "let _synthetic_items = state.items.values().count();\n    let carried_items = source.carried_items.clone();",
+    );
+    let synthetic_builder_errors = source_shape_errors(&synthetic_builder_read);
+    assert!(
+        synthetic_builder_errors
+            .iter()
+            .any(|error| error.contains("raw PhysicalState truth")),
+        "synthetic_embodied_view_builder_state_items_read did not trigger: {synthetic_builder_errors:?}"
     );
 }
 
@@ -5870,17 +6635,65 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
             .any(|violation| violation.contains("place_id.ends_with")),
         "synthetic_bare_id_ends_with must fail without an as_str() call"
     );
+
+    let renamed_parameter_helper_synthetic = r#"
+        fn label_blocks_visibility(candidate: &str) -> bool {
+            candidate.to_ascii_lowercase().contains("hidden")
+        }
+
+        fn is_visible_exit_target(place: &PlaceState) -> bool {
+            !label_blocks_visibility(place.display_label.as_str())
+        }
+    "#;
+    let renamed_parameter_helper_violations =
+        perception_visibility_prose_branch_violations(renamed_parameter_helper_synthetic);
+    assert!(
+        renamed_parameter_helper_violations
+            .iter()
+            .any(|violation| violation.contains("label_blocks_visibility(place.display_label")),
+        "synthetic renamed-parameter display-label helper laundering must fail"
+    );
+
+    let payload_value_relay_synthetic = r#"
+        fn current_place_perception_events(place: &PlaceState) -> Vec<EventEnvelope> {
+            let label_payload = PayloadField::string("place_label", place.display_label.clone());
+            let label_value = label_payload.value.as_str();
+            if label_value.contains("hidden") {
+                return Vec::new();
+            }
+            vec![]
+        }
+    "#;
+    let payload_value_relay_violations =
+        perception_visibility_prose_branch_violations(payload_value_relay_synthetic);
+    assert!(
+        payload_value_relay_violations
+            .iter()
+            .any(|violation| violation.contains("label_value.contains")),
+        "synthetic payload-value relay branch must fail after the typed payload sink"
+    );
 }
 
 fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
     let stripped = source_without_comments(source);
+    let sensitive_params = perception_sensitive_helper_params(&stripped);
     let mut violations = Vec::new();
     let mut current_fn = "module";
+    let mut tainted_bindings_by_fn = BTreeMap::<String, BTreeSet<String>>::new();
     for line in stripped.lines().map(str::trim) {
         if let Some(function_name) = function_name_from_line(line) {
             current_fn = function_name;
         }
-        if line.is_empty() || perception_line_is_typed_label_payload_write(line) {
+        let current_taints = tainted_bindings_by_fn
+            .entry(current_fn.to_string())
+            .or_default();
+        if let Some(alias) = perception_tainted_let_alias(line, current_taints) {
+            current_taints.insert(alias);
+        }
+        if line.is_empty() {
+            continue;
+        }
+        if perception_line_is_typed_label_payload_write(line) {
             continue;
         }
         let branches_on_display_label = line.contains("display_label");
@@ -5888,7 +6701,19 @@ fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
         let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
             || line.contains(".to_lowercase()")
             || line.contains(".to_ascii_lowercase()");
-        if branches_on_display_label || branches_on_id_substring || branches_on_hidden_prose {
+        let branches_on_tainted_binding =
+            branches_on_hidden_prose && line_mentions_any_binding(line, current_taints);
+        let launders_into_sensitive_helper = line_calls_sensitive_helper_with_tainted_argument(
+            line,
+            current_taints,
+            &sensitive_params,
+        );
+        if branches_on_display_label
+            || branches_on_id_substring
+            || branches_on_hidden_prose
+            || branches_on_tainted_binding
+            || launders_into_sensitive_helper
+        {
             violations.push(format!("{current_fn}: {line}"));
         }
     }
@@ -5909,6 +6734,113 @@ fn branches_on_identity_substring(line: &str) -> bool {
                     || line.contains(".id")
                     || line.contains("Id"))
         })
+}
+
+fn perception_tainted_let_alias(line: &str, tainted_bindings: &BTreeSet<String>) -> Option<String> {
+    let let_index = line.find("let ")?;
+    let rest = &line[let_index + "let ".len()..];
+    let (left, right) = rest.split_once('=')?;
+    let alias = let_binding_name(left)?;
+    let rhs = right.trim_end_matches(';');
+    (rhs_contains_perception_identity_source(rhs)
+        || line_mentions_any_binding(rhs, tainted_bindings))
+    .then_some(alias)
+}
+
+fn rhs_contains_perception_identity_source(rhs: &str) -> bool {
+    rhs.contains("display_label")
+        || rhs.contains(".place_id")
+        || rhs.contains(".actor_id")
+        || rhs.contains(".container_id")
+        || rhs.contains(".item_id")
+        || rhs.contains(".food_supply_id")
+        || rhs.contains(".workplace_id")
+        || rhs.contains("_id.as_str()")
+}
+
+fn line_mentions_any_binding(line: &str, bindings: &BTreeSet<String>) -> bool {
+    bindings.iter().any(|binding| token_appears(line, binding))
+}
+
+fn token_appears(line: &str, token: &str) -> bool {
+    let bytes = line.as_bytes();
+    let token_bytes = token.as_bytes();
+    if token_bytes.is_empty() {
+        return false;
+    }
+    let mut offset = 0;
+    while let Some(found) = line[offset..].find(token) {
+        let start = offset + found;
+        let end = start + token_bytes.len();
+        let before = start
+            .checked_sub(1)
+            .and_then(|index| bytes.get(index))
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+        let after = bytes
+            .get(end)
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+        if !before && !after {
+            return true;
+        }
+        offset = end;
+    }
+    false
+}
+
+fn perception_sensitive_helper_params(source: &str) -> BTreeMap<String, BTreeSet<String>> {
+    let mut sensitive = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut current_fn = "module";
+    let mut current_params = BTreeSet::<String>::new();
+    for line in source.lines().map(str::trim) {
+        if let Some(function_name) = function_name_from_line(line) {
+            current_fn = function_name;
+            current_params = function_param_names_from_line(line);
+        }
+        let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
+            || line.contains(".to_lowercase()")
+            || line.contains(".to_ascii_lowercase()");
+        if branches_on_hidden_prose {
+            for param in &current_params {
+                if token_appears(line, param) {
+                    sensitive
+                        .entry(current_fn.to_string())
+                        .or_default()
+                        .insert(param.clone());
+                }
+            }
+        }
+    }
+    sensitive
+}
+
+fn line_calls_sensitive_helper_with_tainted_argument(
+    line: &str,
+    tainted_bindings: &BTreeSet<String>,
+    sensitive_params: &BTreeMap<String, BTreeSet<String>>,
+) -> bool {
+    sensitive_params.keys().any(|function_name| {
+        let call_start = format!("{function_name}(");
+        let Some(start) = line.find(&call_start) else {
+            return false;
+        };
+        let args = &line[start + call_start.len()..];
+        rhs_contains_perception_identity_source(args)
+            || line_mentions_any_binding(args, tainted_bindings)
+    })
+}
+
+fn function_param_names_from_line(line: &str) -> BTreeSet<String> {
+    let Some(open) = line.find('(') else {
+        return BTreeSet::new();
+    };
+    let Some(close) = line[open + 1..].find(')') else {
+        return BTreeSet::new();
+    };
+    line[open + 1..open + 1 + close]
+        .split(',')
+        .filter_map(|param| param.split_once(':').map(|(name, _)| name.trim()))
+        .filter_map(let_binding_name)
+        .collect()
 }
 
 fn function_name_from_line(line: &str) -> Option<&str> {
@@ -7101,6 +8033,7 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
     let sources = [
         ("generative_lock.rs", GENERATIVE_LOCK_RS),
         ("support/generative.rs", SUPPORT_GENERATIVE_RS),
+        ("support/mod.rs", SUPPORT_MOD_RS),
     ];
     let errors = generative_duration_terminal_fabricator_errors(&sources);
     assert!(
@@ -7144,6 +8077,20 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
         "synthetic support EventEnvelope struct literal must fail the support fabricator ban"
     );
 
+    let support_alias_fabricator = [
+        ("support/mod.rs", "pub type Env = EventEnvelope;"),
+        (
+            "support/generative.rs",
+            "fn helper() { let _event = Env::default(); }",
+        ),
+    ];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&support_alias_fabricator)
+            .iter()
+            .any(|error| error.contains("support/mod.rs") && error.contains("EventEnvelope")),
+        "synthetic support/mod.rs EventEnvelope alias must fail the support fabricator ban"
+    );
+
     let direct_envelope = [(
         "generative_lock.rs",
         "fn helper() { EventEnvelope::new_caused_v1(id, EventKind::SleepCompleted, 0, 0, tick, key, manifest, causes); }",
@@ -7171,7 +8118,7 @@ fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> V
     ];
     let mut errors = Vec::new();
     for (path, source) in sources {
-        if *path == "support/generative.rs" && source.contains("EventEnvelope") {
+        if path.starts_with("support/") && source.contains("EventEnvelope") {
             errors.push(format!(
                 "{path} constructs EventEnvelope directly; support generators must use engine-emitted events"
             ));

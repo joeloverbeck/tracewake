@@ -13,7 +13,11 @@ pub fn embodied_view_omits_unobserved_food_at_open_place_001() -> GoldenFixture 
         items: Vec::new(),
         affordances: Vec::new(),
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_tomas", NeedKind::Hunger, 850)],
+        initial_needs: vec![
+            initial_need("actor_tomas", NeedKind::Hunger, 850),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_tomas", "shop_front")],
         sleep_places: Vec::new(),
         food_supplies: vec![food_supply_at_place(

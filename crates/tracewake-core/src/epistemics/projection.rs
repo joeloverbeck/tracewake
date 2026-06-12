@@ -1555,6 +1555,16 @@ mod tests {
         );
 
         let mut policies = actor_known_projection_policy_kinds();
+        policies.get_mut("workplace").unwrap().accessibility_scope =
+            ActorKnownProjectionAccessibilityScope::None;
+        assert!(
+            policy_surface_mismatches(&policies, &current_place)
+                .iter()
+                .any(|mismatch| mismatch.contains("workplace accessibility")),
+            "workplace accessibility-scope mutation must be caught by emitted no-human facts"
+        );
+
+        let mut policies = actor_known_projection_policy_kinds();
         policies.get_mut("workplace").unwrap().classification =
             ActorKnownProjectionPolicy::ReclassifyWhenStale;
         assert!(
@@ -1721,6 +1731,7 @@ mod tests {
     ) -> Vec<String> {
         let actor = actor_id("actor_tomas");
         let projection = policy_behavior_projection(actor.clone());
+        let filter_context = KnowledgeContext::embodied(actor.clone(), SimTick::new(4));
         let embodied_context =
             policy_behavior_embodied_context(&projection, actor.clone(), current_place.clone());
         let no_human_fact_values =
@@ -1728,7 +1739,13 @@ mod tests {
         let mut mismatches = Vec::new();
 
         for (kind, policy) in policies {
-            let expected_embodied = expected_embodied_presence(kind, *policy, current_place);
+            let expected_embodied = expected_embodied_presence(
+                kind,
+                *policy,
+                &projection,
+                &filter_context,
+                current_place,
+            );
             let actual_embodied = embodied_surface_contains(&embodied_context, kind);
             if actual_embodied != expected_embodied {
                 mismatches.push(format!(
@@ -1901,20 +1918,20 @@ mod tests {
     fn expected_embodied_presence(
         kind: &str,
         policy: ActorKnownProjectionKindPolicy,
+        projection: &EpistemicProjection,
+        context: &KnowledgeContext,
         current_place: &PlaceId,
     ) -> bool {
-        let current_place_record = relevant_place_for_kind(kind) == Some(current_place.clone());
-        let latest_current_place_record =
-            current_place_record && current_place.as_str() == "home_tomas";
-        policy.includes_in_embodied_context(current_place_record, latest_current_place_record)
-    }
-
-    fn relevant_place_for_kind(kind: &str) -> Option<PlaceId> {
-        match kind {
-            "route" | "food_source" | "local_actor" | "local_container" | "local_door"
-            | "local_item" | "sleep_place" | "workplace" => Some(place_id("home_tomas")),
-            _ => None,
-        }
+        projection
+            .classified_actor_known_records_for_context(context, current_place)
+            .iter()
+            .find(|classified| classified.record().kind() == kind)
+            .is_some_and(|classified| {
+                policy.includes_in_embodied_context(
+                    classified.is_current_place_record(),
+                    classified.is_latest_current_place_record(),
+                )
+            })
     }
 
     fn embodied_surface_contains(context: &KnowledgeContext, kind: &str) -> bool {

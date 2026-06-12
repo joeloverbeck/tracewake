@@ -13,8 +13,8 @@ use tracewake_core::time::SimTick;
 
 use crate::manifest::ContentManifest;
 use crate::schema::{FixtureSchema, FixtureScope, WorkplaceSchema};
-use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
-use crate::validate::{validate_fixture, ContentValidationFailure};
+use crate::serialization::{serialize_fixture, SerializationError};
+use crate::validate::{validate_fixture_bytes, ContentValidationFailure};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LoadError {
@@ -60,10 +60,9 @@ pub fn load_fixture_package(
     let primary = files
         .first()
         .ok_or(SerializationError::MissingField("source_file"))?;
-    let mut fixture = deserialize_fixture(&primary.bytes)?;
-    fixture.canonicalize();
-    let registry = registry_for_fixture_scope(fixture.fixture_scope);
-    let accepted_world = validate_fixture(&fixture, &registry)?;
+    let registry = registry_for_primary_bytes(&primary.bytes);
+    let accepted_world = validate_fixture_bytes(&primary.bytes, &registry)?;
+    let fixture = accepted_world.fixture;
     let canonical_bytes = serialize_fixture(&fixture);
     let mut manifest = ContentManifest::new(
         manifest_id,
@@ -105,6 +104,30 @@ pub fn load_fixture_package(
         canonical_agent_state,
         epistemic_projection,
         seed_event_log,
+    })
+}
+
+fn registry_for_primary_bytes(bytes: &[u8]) -> tracewake_core::actions::ActionRegistry {
+    let scope = std::str::from_utf8(bytes)
+        .ok()
+        .and_then(fixture_scope_from_raw_lines)
+        .unwrap_or(FixtureScope::Phase3AHistorical);
+    registry_for_fixture_scope(scope)
+}
+
+fn fixture_scope_from_raw_lines(text: &str) -> Option<FixtureScope> {
+    text.lines().find_map(|line| {
+        let mut parts = line.split('|');
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some("fixture_scope"), Some("phase1"), None) => Some(FixtureScope::Phase1),
+            (Some("fixture_scope"), Some("phase2a_historical"), None) => {
+                Some(FixtureScope::Phase2AHistorical)
+            }
+            (Some("fixture_scope"), Some("phase3a_historical"), None) => {
+                Some(FixtureScope::Phase3AHistorical)
+            }
+            _ => None,
+        }
     })
 }
 
@@ -373,10 +396,11 @@ pub fn registry_for_fixture_scope(scope: FixtureScope) -> tracewake_core::action
 mod tests {
     use super::*;
     use crate::schema::{
-        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, ItemSchema, NeedModelSchema,
-        PlaceSchema,
+        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, InitialNeedSchema, ItemSchema,
+        NeedModelSchema, PlaceSchema,
     };
     use crate::serialization::serialize_fixture;
+    use tracewake_core::agent::NeedKind;
     use tracewake_core::ids::{ActorId, ContainerId, FixtureId, ItemId, PlaceId, SchemaVersion};
     use tracewake_core::location::Location;
     use tracewake_core::state::VisibilityDefault;
@@ -416,7 +440,23 @@ mod tests {
             }],
             affordances: Vec::new(),
             initial_beliefs: Vec::new(),
-            initial_needs: Vec::new(),
+            initial_needs: vec![
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Hunger,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Fatigue,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Safety,
+                    value: 100,
+                },
+            ],
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),

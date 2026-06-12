@@ -16,6 +16,7 @@ pub fn wait_then_window_passive_charges_each_tick_once_001() -> GoldenFixture {
         initial_needs: vec![
             initial_need("actor_tomas", NeedKind::Hunger, 100),
             initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
         ],
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),

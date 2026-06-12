@@ -27,7 +27,11 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
             affordance("work_block", "workplace_hidden"),
         ],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_mara", NeedKind::Hunger, 880)],
+        initial_needs: vec![
+            initial_need("actor_mara", NeedKind::Hunger, 880),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+            initial_need("actor_mara", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_mara", "home_mara")],
         sleep_places: Vec::new(),
         food_supplies: vec![food_supply_in_container(

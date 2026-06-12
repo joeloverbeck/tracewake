@@ -337,6 +337,40 @@ mod tests {
     }
 
     #[test]
+    fn goal_priority_selection_rank_snapshot_pins_decided_order() {
+        let priorities = [
+            GoalPriority::SevereSafety,
+            GoalPriority::SevereHunger,
+            GoalPriority::SevereFatigue,
+            GoalPriority::UrgentHungerOrFatigue,
+            GoalPriority::RoutineWindowDuty,
+            GoalPriority::ActiveIntentionContinuation,
+            GoalPriority::ReturnHomeOrSleepWindow,
+            GoalPriority::IdleWithReason,
+            GoalPriority::MildNeedPressure,
+        ];
+
+        assert_eq!(
+            priorities
+                .iter()
+                .map(|priority| (priority.stable_id(), priority.selection_rank()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("severe_safety", 0),
+                ("severe_hunger", 1),
+                ("severe_fatigue", 2),
+                ("urgent_hunger_or_fatigue", 3),
+                ("routine_window_duty", 4),
+                ("active_intention_continuation", 5),
+                ("return_home_or_sleep_window", 6),
+                ("idle_with_reason", 7),
+                ("mild_need_pressure", 8),
+            ],
+            "Phase 3A records the foundation-defensible order: severe needs first, urgent need/routine before active continuation, active continuation before mild pressure"
+        );
+    }
+
+    #[test]
     fn active_intention_continuation_outranks_mild_need_pressure() {
         let mut candidates = [
             candidate(

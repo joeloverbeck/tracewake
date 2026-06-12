@@ -5,10 +5,7 @@ use tracewake_core::ids::SemanticActionId;
 use tracewake_core::view_models::EmbodiedViewModel;
 
 use crate::app::{AppError, TuiApp};
-use crate::input::{
-    parse_command, semantic_id_for_selection, DebugCommand, InputError, OperatorProofCommand,
-    UiCommand,
-};
+use crate::input::{parse_command, semantic_id_for_selection, DebugCommand, InputError, UiCommand};
 use crate::render::render_notebook;
 
 const PROMPT: &str = "tracewake>";
@@ -67,11 +64,6 @@ fn dispatch_command<W: Write>(
             };
             submit_and_render(app, &semantic_action_id, writer)
         }
-        UiCommand::OperatorProof(OperatorProofCommand::RunNoHumanDay) => {
-            app.run_no_human_day();
-            writeln!(writer, "{}", app.render_debug_no_human_day_panel())?;
-            writeln!(writer, "{}", app_result(app.render_current_view())?)
-        }
         UiCommand::Debug(debug_command) => render_debug(app, debug_command, writer),
         UiCommand::Quit => Ok(()),
     }
@@ -111,15 +103,19 @@ fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticAction
 }
 
 fn render_debug<W: Write>(
-    app: &TuiApp,
+    app: &mut TuiApp,
     debug_command: DebugCommand,
     writer: &mut W,
 ) -> std::io::Result<()> {
+    if !app.debug_available() {
+        return writeln!(writer, "Error: debug unavailable");
+    }
     match debug_command {
-        DebugCommand::Overlay => match app_result(app.render_debug_embodied_overlay())? {
-            Some(rendered) => writeln!(writer, "{rendered}"),
-            None => writeln!(writer, "Error: debug overlay unavailable"),
-        },
+        DebugCommand::Overlay => {
+            let rendered = app_result(app.render_debug_embodied_overlay())?
+                .expect("debug availability gate permits overlay rendering");
+            writeln!(writer, "{rendered}")
+        }
         DebugCommand::EventLog => writeln!(writer, "{}", app.render_debug_event_log_panel()),
         DebugCommand::ControllerBindings => {
             writeln!(writer, "{}", app.render_debug_controller_binding_panel())
@@ -167,6 +163,11 @@ fn render_debug<W: Write>(
         }
         DebugCommand::Stuck => writeln!(writer, "{}", app.render_debug_stuck_panel()),
         DebugCommand::NoHumanDay => writeln!(writer, "{}", app.render_debug_no_human_day_panel()),
+        DebugCommand::RunNoHumanDay => {
+            app.run_no_human_day();
+            writeln!(writer, "{}", app.render_debug_no_human_day_panel())?;
+            writeln!(writer, "{}", app_result(app.render_current_view())?)
+        }
         DebugCommand::Actor(actor_id) => {
             writeln!(writer, "{}", app.render_debug_actor_panel(&actor_id))
         }
@@ -200,7 +201,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, run no-human-day, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug actor <actor_id>, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug run no-human-day, debug actor <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -233,6 +234,25 @@ mod tests {
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Observations"));
         assert!(rendered.contains("Error: unknown command: bogus"));
         assert!(rendered.contains(PROMPT));
+    }
+
+    #[test]
+    fn debug_commands_refuse_without_debug_availability() {
+        let mut app = TuiApp::load_default().unwrap();
+        let before_events = app.event_count();
+        let mut output = Vec::new();
+
+        render_debug(
+            &mut app,
+            DebugCommand::Beliefs(ActorId::new("actor_tomas").unwrap()),
+            &mut output,
+        )
+        .unwrap();
+        render_debug(&mut app, DebugCommand::RunNoHumanDay, &mut output).unwrap();
+
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered.matches("Error: debug unavailable").count(), 2);
+        assert_eq!(app.event_count(), before_events);
     }
 
     #[test]
@@ -274,7 +294,6 @@ mod tests {
             "<n>",
             "wait",
             "w",
-            "run no-human-day",
             "debug log",
             "debug bindings",
             "debug item <item_id>",
@@ -289,6 +308,7 @@ mod tests {
             "debug planner <actor_id>",
             "debug stuck",
             "debug no-human-day",
+            "debug run no-human-day",
             "debug actor <actor_id>",
             "quit",
             "q",

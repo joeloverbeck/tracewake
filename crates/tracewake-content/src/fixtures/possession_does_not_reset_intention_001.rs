@@ -16,6 +16,7 @@ pub fn possession_does_not_reset_intention_001() -> GoldenFixture {
         initial_needs: vec![
             initial_need("actor_mara", NeedKind::Hunger, 320),
             initial_need("actor_mara", NeedKind::Fatigue, 280),
+            initial_need("actor_mara", NeedKind::Safety, 100),
         ],
         homes: vec![home_schema("actor_mara", "workshop_mara")],
         sleep_places: Vec::new(),

@@ -19,7 +19,11 @@ pub fn no_human_known_workplace_requires_provenance_001() -> GoldenFixture {
             affordance("work_block", "workplace_tomas"),
         ],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_tomas", NeedKind::Hunger, 220)],
+        initial_needs: vec![
+            initial_need("actor_tomas", NeedKind::Hunger, 220),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

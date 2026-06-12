@@ -13,7 +13,11 @@ pub fn sleep_rejects_current_place_without_sleep_affordance_001() -> GoldenFixtu
         items: Vec::new(),
         affordances: vec![affordance("sleep", "home_elena")],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_elena", NeedKind::Fatigue, 880)],
+        initial_needs: vec![
+            initial_need("actor_elena", NeedKind::Fatigue, 880),
+            initial_need("actor_elena", NeedKind::Hunger, 100),
+            initial_need("actor_elena", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_elena", "home_elena")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

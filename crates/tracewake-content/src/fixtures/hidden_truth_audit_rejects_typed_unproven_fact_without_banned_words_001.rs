@@ -15,7 +15,11 @@ pub fn hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001()
         items: Vec::new(),
         affordances: Vec::new(),
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_mara", NeedKind::Hunger, 850)],
+        initial_needs: vec![
+            initial_need("actor_mara", NeedKind::Hunger, 850),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+            initial_need("actor_mara", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_mara", "home_mara")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

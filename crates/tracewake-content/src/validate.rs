@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope};
-use tracewake_core::agent::need::NEED_MAX;
+use tracewake_core::agent::need::{NeedKind, NEED_MAX};
 use tracewake_core::agent::routine::RoutineDiagnosticKind;
 use tracewake_core::agent::{RoutineFamily, RoutineStepProposal};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
@@ -14,6 +14,7 @@ use tracewake_core::state::PhysicalState;
 use crate::schema::{
     content_field_by_canonical_key, routine_assignment_actor_suffix,
     routine_family_assignment_suffix, ActionAffordanceSchema, FixtureSchema, FixtureScope,
+    FIXTURE_SCHEMA_V1,
 };
 pub use crate::schema::{content_field_registry, ValidationPhase};
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
@@ -159,6 +160,7 @@ fn validate_fixture_errors(
     registry: &ActionRegistry,
 ) -> Vec<ContentValidationError> {
     let mut errors = Vec::new();
+    validate_schema_version(fixture, &mut errors);
     validate_ids(fixture, &mut errors);
     validate_references(fixture, &mut errors);
     validate_locations(fixture, &mut errors);
@@ -170,12 +172,27 @@ fn validate_fixture_errors(
     validate_semantic_ids(fixture, &mut errors);
     validate_no_player(fixture, &mut errors);
     validate_no_script(fixture, &mut errors);
+    validate_id_shortcut_markers(fixture, &mut errors);
     validate_phase3a_no_shortcuts(fixture, &mut errors);
     validate_epistemic_seeds(fixture, registry, &mut errors);
     validate_determinism(fixture, &mut errors);
     validate_fixture_contract(fixture, &mut errors);
     validate_serialization_roundtrip(fixture, &mut errors);
     errors
+}
+
+fn validate_schema_version(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    if fixture.schema_version.as_str() != FIXTURE_SCHEMA_V1 {
+        errors.push(ContentValidationError::new(
+            ValidationPhase::ParseSchema,
+            "fixture.schema_version",
+            "unsupported_fixture_schema_version",
+            format!(
+                "unsupported fixture schema version {}",
+                fixture.schema_version.as_str()
+            ),
+        ));
+    }
 }
 
 fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
@@ -1012,6 +1029,31 @@ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationErr
     for (index, need) in fixture.initial_needs.iter().enumerate() {
         validate_need_band_u16(need.value, format!("initial_needs[{index}].value"), errors);
     }
+    let seeded_needs = fixture
+        .initial_needs
+        .iter()
+        .map(|need| (need.actor_id.clone(), need.kind))
+        .collect::<BTreeSet<_>>();
+    for actor in &fixture.actors {
+        for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+            if !seeded_needs.contains(&(actor.actor_id.clone(), kind)) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!(
+                        "initial_needs.{}.{}",
+                        actor.actor_id.as_str(),
+                        kind.stable_id()
+                    ),
+                    "missing_actor_need_seed",
+                    format!(
+                        "actor {} must author an initial {} need seed",
+                        actor.actor_id.as_str(),
+                        kind.stable_id()
+                    ),
+                ));
+            }
+        }
+    }
     for (index, door) in fixture.doors.iter().enumerate() {
         if door.is_locked && door.is_open {
             errors.push(ContentValidationError::new(
@@ -1115,6 +1157,7 @@ struct NumericFieldRegistration {
 enum ContentNegativePolicy {
     Numeric(NumericFieldPolicy),
     StringScan(StringScanPolicy),
+    FixtureSchemaVersion,
 }
 
 #[cfg(test)]
@@ -1196,6 +1239,12 @@ const NUMERIC_FIELD_REGISTRY: &[NumericFieldRegistration] = &[
 
 #[cfg(test)]
 const CONTENT_NEGATIVE_PROOFS: &[ContentNegativeProof] = &[
+    ContentNegativeProof {
+        policy: ContentNegativePolicy::FixtureSchemaVersion,
+        proving_test: "fixture_schema_version_unsupported_rejected_001",
+        rejection_code: "unsupported_fixture_schema_version",
+        rejection_path: "fixture.schema_version",
+    },
     ContentNegativeProof {
         policy: ContentNegativePolicy::Numeric(NumericFieldPolicy::PressureNonnegative),
         proving_test: "negative_need_tuning_direction_is_rejected",
@@ -1853,6 +1902,14 @@ struct StringFieldScanRegistration {
     rationale: &'static str,
 }
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct IdFieldScanRegistration {
+    field: &'static str,
+    policy: StringScanPolicy,
+    rationale: &'static str,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum StringScanPolicy {
     Union,
@@ -1896,6 +1953,392 @@ const SCANNED_STRING_FIELDS: &[StringFieldScanRegistration] = &[
         rationale: "reservable-resource text participates in routine policy",
     },
 ];
+
+#[cfg(test)]
+const SCANNED_ID_FIELDS: &[IdFieldScanRegistration] = &[
+    IdFieldScanRegistration {
+        field: "FixtureSchema.fixture_id",
+        policy: StringScanPolicy::Union,
+        rationale: "fixture identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ActorSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "actor identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ActorSchema.current_place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "actor placement references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "PlaceSchema.place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "place identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "PlaceSchema.adjacent_place_ids",
+        policy: StringScanPolicy::Union,
+        rationale: "topology references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "DoorSchema.door_id",
+        policy: StringScanPolicy::Union,
+        rationale: "door identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "DoorSchema.endpoint_a",
+        policy: StringScanPolicy::Union,
+        rationale: "door endpoint references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "DoorSchema.endpoint_b",
+        policy: StringScanPolicy::Union,
+        rationale: "door endpoint references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ContainerSchema.container_id",
+        policy: StringScanPolicy::Union,
+        rationale: "container identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ContainerSchema.place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "container placement references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ContainerSchema.contents",
+        policy: StringScanPolicy::Union,
+        rationale: "container contents references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ItemSchema.item_id",
+        policy: StringScanPolicy::Union,
+        rationale: "item identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "ActionAffordanceSchema.action_id",
+        policy: StringScanPolicy::Union,
+        rationale: "action identities are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "InitialBeliefSchema.belief_id",
+        policy: StringScanPolicy::Union,
+        rationale: "belief identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "InitialBeliefSchema.holder_actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "belief holder references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "InitialNeedSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "need actor references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "HomeSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "home actor references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "HomeSchema.place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "home place references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "SleepPlaceSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "sleep-place actor references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "SleepPlaceSchema.place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "sleep-place location references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "SleepPlaceSchema.sleep_place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "sleep affordance identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "FoodSupplySchema.food_supply_id",
+        policy: StringScanPolicy::Union,
+        rationale: "food supply identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "KnownFoodSourceSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "known-food actor references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "KnownFoodSourceSchema.food_supply_id",
+        policy: StringScanPolicy::Union,
+        rationale: "known-food supply references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "WorkplaceSchema.workplace_id",
+        policy: StringScanPolicy::Union,
+        rationale: "workplace identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "WorkplaceSchema.place_id",
+        policy: StringScanPolicy::Union,
+        rationale: "workplace location references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "WorkplaceSchema.assigned_actor_ids",
+        policy: StringScanPolicy::Union,
+        rationale: "workplace assignment references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "RoutineTemplateSchema.template_id",
+        policy: StringScanPolicy::Union,
+        rationale: "routine template identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "RoutineAssignmentSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "routine assignment actor references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "RoutineAssignmentSchema.template_id",
+        policy: StringScanPolicy::Union,
+        rationale: "routine assignment template references are authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "DayWindowSchema.actor_id",
+        policy: StringScanPolicy::Union,
+        rationale: "day-window actor references are authored content and must not encode shortcut behavior",
+    },
+];
+
+fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+    reject_text_by_policy(
+        fixture.fixture_id.as_str(),
+        "fixture.fixture_id".to_string(),
+        StringScanPolicy::Union,
+        errors,
+    );
+    for (index, actor) in fixture.actors.iter().enumerate() {
+        reject_text_by_policy(
+            actor.actor_id.as_str(),
+            format!("actors[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            actor.current_place_id.as_str(),
+            format!("actors[{index}].current_place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, place) in fixture.places.iter().enumerate() {
+        reject_text_by_policy(
+            place.place_id.as_str(),
+            format!("places[{index}].place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        for (adjacent_index, place_id) in place.adjacent_place_ids.iter().enumerate() {
+            reject_text_by_policy(
+                place_id.as_str(),
+                format!("places[{index}].adjacent_place_ids[{adjacent_index}]"),
+                StringScanPolicy::Union,
+                errors,
+            );
+        }
+    }
+    for (index, door) in fixture.doors.iter().enumerate() {
+        reject_text_by_policy(
+            door.door_id.as_str(),
+            format!("doors[{index}].door_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            door.endpoint_a.as_str(),
+            format!("doors[{index}].endpoint_a"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            door.endpoint_b.as_str(),
+            format!("doors[{index}].endpoint_b"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, container) in fixture.containers.iter().enumerate() {
+        reject_text_by_policy(
+            container.container_id.as_str(),
+            format!("containers[{index}].container_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            container.place_id.as_str(),
+            format!("containers[{index}].place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        for (content_index, item_id) in container.contents.iter().enumerate() {
+            reject_text_by_policy(
+                item_id.as_str(),
+                format!("containers[{index}].contents[{content_index}]"),
+                StringScanPolicy::Union,
+                errors,
+            );
+        }
+    }
+    for (index, item) in fixture.items.iter().enumerate() {
+        reject_text_by_policy(
+            item.item_id.as_str(),
+            format!("items[{index}].item_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, affordance) in fixture.affordances.iter().enumerate() {
+        reject_text_by_policy(
+            affordance.action_id.as_str(),
+            format!("affordances[{index}].action_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+        reject_text_by_policy(
+            belief.belief_id.as_str(),
+            format!("initial_beliefs[{index}].belief_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            belief.holder_actor_id.as_str(),
+            format!("initial_beliefs[{index}].holder_actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, need) in fixture.initial_needs.iter().enumerate() {
+        reject_text_by_policy(
+            need.actor_id.as_str(),
+            format!("initial_needs[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, home) in fixture.homes.iter().enumerate() {
+        reject_text_by_policy(
+            home.actor_id.as_str(),
+            format!("homes[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            home.place_id.as_str(),
+            format!("homes[{index}].place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
+        reject_text_by_policy(
+            sleep_place.actor_id.as_str(),
+            format!("sleep_places[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            sleep_place.place_id.as_str(),
+            format!("sleep_places[{index}].place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            sleep_place.sleep_place_id.as_str(),
+            format!("sleep_places[{index}].sleep_place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, food) in fixture.food_supplies.iter().enumerate() {
+        reject_text_by_policy(
+            food.food_supply_id.as_str(),
+            format!("food_supplies[{index}].food_supply_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, edge) in fixture.known_food_sources.iter().enumerate() {
+        reject_text_by_policy(
+            edge.actor_id.as_str(),
+            format!("known_food_sources[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            edge.food_supply_id.as_str(),
+            format!("known_food_sources[{index}].food_supply_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, workplace) in fixture.workplaces.iter().enumerate() {
+        reject_text_by_policy(
+            workplace.workplace_id.as_str(),
+            format!("workplaces[{index}].workplace_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            workplace.place_id.as_str(),
+            format!("workplaces[{index}].place_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        for (actor_index, actor_id) in workplace.assigned_actor_ids.iter().enumerate() {
+            reject_text_by_policy(
+                actor_id.as_str(),
+                format!("workplaces[{index}].assigned_actor_ids[{actor_index}]"),
+                StringScanPolicy::Union,
+                errors,
+            );
+        }
+    }
+    for (index, template) in fixture.routine_templates.iter().enumerate() {
+        reject_text_by_policy(
+            template.template_id.as_str(),
+            format!("routine_templates[{index}].template_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, assignment) in fixture.routine_assignments.iter().enumerate() {
+        reject_text_by_policy(
+            assignment.actor_id.as_str(),
+            format!("routine_assignments[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+        reject_text_by_policy(
+            assignment.template_id.as_str(),
+            format!("routine_assignments[{index}].template_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+    for (index, window) in fixture.day_windows.iter().enumerate() {
+        reject_text_by_policy(
+            window.actor_id.as_str(),
+            format!("day_windows[{index}].actor_id"),
+            StringScanPolicy::Union,
+            errors,
+        );
+    }
+}
 
 fn planner_intended_seed_text(
     belief: &crate::schema::InitialBeliefSchema,
@@ -2383,7 +2826,9 @@ const PHASE3A_SHORTCUT_MARKERS: &[&str] = &[
 ];
 
 fn is_phase3a_shortcut_marker(value: &str) -> bool {
-    PHASE3A_SHORTCUT_MARKERS.contains(&value)
+    PHASE3A_SHORTCUT_MARKERS
+        .iter()
+        .any(|marker| value.contains(marker))
 }
 
 #[cfg(test)]
@@ -2474,7 +2919,23 @@ mod tests {
                 },
             ],
             initial_beliefs: Vec::new(),
-            initial_needs: Vec::new(),
+            initial_needs: vec![
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Hunger,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Fatigue,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Safety,
+                    value: 100,
+                },
+            ],
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),
@@ -2495,11 +2956,12 @@ mod tests {
             adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
             visibility_default: VisibilityDefault::Visible,
         });
-        fixture.initial_needs.push(InitialNeedSchema {
-            actor_id: ActorId::new("actor_tomas").unwrap(),
-            kind: NeedKind::Hunger,
-            value: 350,
-        });
+        fixture
+            .initial_needs
+            .iter_mut()
+            .find(|need| need.actor_id.as_str() == "actor_tomas" && need.kind == NeedKind::Hunger)
+            .unwrap()
+            .value = 350;
         fixture.sleep_places.push(SleepPlaceSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             place_id: PlaceId::new("shop_front").unwrap(),
@@ -2568,6 +3030,47 @@ mod tests {
     }
 
     #[test]
+    fn fixture_schema_v1_golden_bytes_load_001() {
+        const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+
+        let world = validate_fixture_bytes(GOLDEN_SCHEMA_V1_BYTES, &registry()).unwrap();
+
+        assert_eq!(world.fixture.schema_version.as_str(), FIXTURE_SCHEMA_V1);
+        assert!(world
+            .physical_state
+            .places()
+            .contains_key(&PlaceId::new("shop_front").unwrap()));
+    }
+
+    #[test]
+    fn fixture_schema_version_unsupported_rejected_001() {
+        let mut fixture = fixture();
+        fixture.schema_version = SchemaVersion::new("schema_v999").unwrap();
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+        assert!(report.errors.iter().any(|error| {
+            error.phase == ValidationPhase::ParseSchema
+                && error.code == "unsupported_fixture_schema_version"
+                && error.path == "fixture.schema_version"
+        }));
+
+        let bytes = serialize_fixture(&fixture);
+        let bytes_report = validate_fixture_bytes(&bytes, &registry())
+            .unwrap_err()
+            .report;
+
+        assert_eq!(
+            bytes_report
+                .errors
+                .iter()
+                .find(|error| error.code == "unsupported_fixture_schema_version")
+                .map(|error| (error.phase, error.path.as_str())),
+            Some((ValidationPhase::ParseSchema, "fixture.schema_version"))
+        );
+    }
+
+    #[test]
     fn negative_need_tuning_direction_is_rejected() {
         let mut fixture = fixture();
         fixture.need_model.awake_hunger_delta_per_tick = -50;
@@ -2615,6 +3118,38 @@ mod tests {
         assert!(errors.report.errors.iter().any(|error| {
             error.code == "invalid_need_band" && error.path == "initial_needs[0].value"
         }));
+    }
+
+    #[test]
+    fn fixture_missing_actor_need_seed_rejected_001() {
+        let mut fixture = fixture();
+        fixture
+            .initial_needs
+            .retain(|need| need.kind != NeedKind::Safety);
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+        assert!(report.errors.iter().any(|error| {
+            error.phase == ValidationPhase::State
+                && error.code == "missing_actor_need_seed"
+                && error.path == "initial_needs.actor_tomas.safety"
+        }));
+    }
+
+    #[test]
+    fn fixture_serialization_golden_bytes_are_pinned_001() {
+        const EXPECTED: &[u8] = b"fixture|strongbox_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|back_room|4261636b20726f6f6d|shop_front|visible\nplace|shop_front|53686f702066726f6e74|back_room|visible\ndoor|door_shop_back|shop_front|back_room|false|false\ncontainer|strongbox_tomas|shop_front|false|false|false|coin_stack_01\nitem|coin_stack_01|true|in:strongbox_tomas\naffordance|move|back_room\naffordance|open|strongbox_tomas\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+
+        let actual = serialize_fixture(&fixture());
+
+        assert_eq!(actual, EXPECTED);
+        let mut perturbed = actual.clone();
+        let position = perturbed
+            .windows(b"initial_need".len())
+            .position(|window| window == b"initial_need")
+            .expect("golden contains initial_need rows");
+        perturbed[position] = b'I';
+        assert_ne!(perturbed, EXPECTED);
     }
 
     #[test]
@@ -2702,6 +3237,7 @@ mod tests {
             .filter_map(|proof| match proof.policy {
                 ContentNegativePolicy::Numeric(policy) => Some(policy),
                 ContentNegativePolicy::StringScan(_) => None,
+                ContentNegativePolicy::FixtureSchemaVersion => None,
             })
             .collect::<BTreeSet<_>>();
         let actual_string_policies = CONTENT_NEGATIVE_PROOFS
@@ -2709,6 +3245,7 @@ mod tests {
             .filter_map(|proof| match proof.policy {
                 ContentNegativePolicy::Numeric(_) => None,
                 ContentNegativePolicy::StringScan(policy) => Some(policy),
+                ContentNegativePolicy::FixtureSchemaVersion => None,
             })
             .collect::<BTreeSet<_>>();
 
@@ -2735,6 +3272,12 @@ mod tests {
         assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
             proof.proving_test == "fixture_output_tag_script_marker_rejected_001"
                 && proof.policy == ContentNegativePolicy::StringScan(StringScanPolicy::Union)
+        }));
+        assert!(CONTENT_NEGATIVE_PROOFS.iter().any(|proof| {
+            proof.proving_test == "fixture_schema_version_unsupported_rejected_001"
+                && proof.policy == ContentNegativePolicy::FixtureSchemaVersion
+                && proof.rejection_code == "unsupported_fixture_schema_version"
+                && proof.rejection_path == "fixture.schema_version"
         }));
     }
 
@@ -2780,6 +3323,78 @@ mod tests {
                 registration.field
             );
         }
+    }
+
+    #[test]
+    fn schema_id_fields_are_classified_for_script_scanning() {
+        let schema = include_str!("schema.rs");
+        let discovered = discover_schema_fields(schema, is_schema_id_field_type);
+
+        let registered = SCANNED_ID_FIELDS
+            .iter()
+            .map(|registration| registration.field.to_string())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            id_field_scan_census_errors(&discovered, &registered),
+            Vec::<String>::new()
+        );
+        for registration in SCANNED_ID_FIELDS {
+            assert_eq!(registration.policy, StringScanPolicy::Union);
+            assert!(
+                !registration.rationale.is_empty(),
+                "{} needs a shortcut-scan rationale",
+                registration.field
+            );
+        }
+
+        let synthetic_schema = "pub struct SyntheticSchema {\n    pub synthetic_id: ItemId,\n}";
+        let synthetic_discovered =
+            discover_schema_fields(synthetic_schema, is_schema_id_field_type);
+        let synthetic_errors = id_field_scan_census_errors(&synthetic_discovered, &registered);
+        assert!(
+            synthetic_errors
+                .iter()
+                .any(|error| error.contains("SyntheticSchema.synthetic_id")),
+            "synthetic ID field must fail the scan-registration census: {synthetic_errors:?}"
+        );
+    }
+
+    fn is_schema_id_field_type(field_type: &str) -> bool {
+        let inner = field_type
+            .strip_prefix("Vec<")
+            .and_then(|value| value.strip_suffix('>'))
+            .unwrap_or(field_type);
+        matches!(
+            inner,
+            "FixtureId"
+                | "ActorId"
+                | "PlaceId"
+                | "DoorId"
+                | "ContainerId"
+                | "ItemId"
+                | "ActionId"
+                | "BeliefId"
+                | "SleepAffordanceId"
+                | "FoodSupplyId"
+                | "WorkplaceId"
+                | "RoutineTemplateId"
+        )
+    }
+
+    fn id_field_scan_census_errors(
+        discovered: &BTreeSet<String>,
+        registered: &BTreeSet<String>,
+    ) -> Vec<String> {
+        let mut errors = Vec::new();
+        for missing in discovered.difference(registered) {
+            errors.push(format!(
+                "ID-typed schema field is not shortcut-scanned: {missing}"
+            ));
+        }
+        for stale in registered.difference(discovered) {
+            errors.push(format!("shortcut-scan registration is stale: {stale}"));
+        }
+        errors
     }
 
     fn discover_schema_fields(

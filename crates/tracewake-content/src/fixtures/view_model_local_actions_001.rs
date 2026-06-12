@@ -39,7 +39,11 @@ pub fn view_model_local_actions_001() -> GoldenFixture {
             affordance("inspect_entity", "sample_token_01"),
         ],
         initial_beliefs: Vec::new(),
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_lina", NeedKind::Hunger, 100),
+            initial_need("actor_lina", NeedKind::Fatigue, 100),
+            initial_need("actor_lina", NeedKind::Safety, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

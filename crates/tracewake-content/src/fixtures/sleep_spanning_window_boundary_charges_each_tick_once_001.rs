@@ -16,6 +16,7 @@ pub fn sleep_spanning_window_boundary_charges_each_tick_once_001() -> GoldenFixt
         initial_needs: vec![
             initial_need("actor_elena", NeedKind::Fatigue, 720),
             initial_need("actor_elena", NeedKind::Hunger, 300),
+            initial_need("actor_elena", NeedKind::Safety, 100),
         ],
         homes: vec![home_schema("actor_elena", "home_elena")],
         sleep_places: vec![sleep_place_schema("actor_elena", "home_elena", "bed_elena")],

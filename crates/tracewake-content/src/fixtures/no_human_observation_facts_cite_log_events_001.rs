@@ -13,7 +13,11 @@ pub fn no_human_observation_facts_cite_log_events_001() -> GoldenFixture {
         items: Vec::new(),
         affordances: vec![affordance("eat", "food_stew_home_bruno")],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_bruno", NeedKind::Hunger, 920)],
+        initial_needs: vec![
+            initial_need("actor_bruno", NeedKind::Hunger, 920),
+            initial_need("actor_bruno", NeedKind::Fatigue, 100),
+            initial_need("actor_bruno", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_bruno", "home_bruno")],
         sleep_places: Vec::new(),
         food_supplies: vec![food_supply_at_place(
