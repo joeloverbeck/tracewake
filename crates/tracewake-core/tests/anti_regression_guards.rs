@@ -39,6 +39,8 @@ const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CONTENT_GOLDEN_FIXTURES_RUN_RS: &str =
+    include_str!("../../tracewake-content/tests/golden_fixtures_run.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
@@ -1284,7 +1286,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 41;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 42;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1441,6 +1443,13 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         negative_id: "synthetic_oblique_payload_helper_call",
         routing: MetaLockRouting::SharedScan,
         witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_011_no_human_day_runner_only_evidence",
+        negative_id: "synthetic_runner_only_work_completion_ancestry_removed",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 3,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
@@ -4884,6 +4893,64 @@ fn function_name_from_line(line: &str) -> Option<&str> {
         .or_else(|| line.strip_prefix("pub fn "))?;
     let name_end = rest.find('(')?;
     Some(rest[..name_end].trim())
+}
+
+#[test]
+fn guard_011_no_human_day_runner_only_evidence() {
+    let errors = no_human_day_runner_only_evidence_errors(CONTENT_GOLDEN_FIXTURES_RUN_RS);
+    assert!(
+        errors.is_empty(),
+        "canonical no-human day evidence must require runner-only ancestry:\n{}",
+        errors.join("\n")
+    );
+
+    let synthetic = CONTENT_GOLDEN_FIXTURES_RUN_RS.replace(
+        "has_no_human_event(&log, EventKind::WorkBlockCompleted)",
+        "has_event(&log, EventKind::WorkBlockCompleted)",
+    );
+    assert!(
+        no_human_day_runner_only_evidence_errors(&synthetic)
+            .iter()
+            .any(|error| error.contains("WorkBlockCompleted")),
+        "synthetic runner-only work completion ancestry removal must fail"
+    );
+}
+
+fn no_human_day_runner_only_evidence_errors(source: &str) -> Vec<String> {
+    let test_body = body_after_marker(
+        source,
+        "fn no_human_day_fixture_has_roster_activity_and_metrics_envelope",
+    );
+    let runner_only_section = test_body
+        .split("proposal_day_tomas_eat")
+        .next()
+        .unwrap_or(test_body);
+    let mut errors = Vec::new();
+    for (kind, snippet) in [
+        (
+            "WorkBlockCompleted",
+            "has_no_human_event(&log, EventKind::WorkBlockCompleted)",
+        ),
+        (
+            "SleepCompleted",
+            "has_no_human_event(&log, EventKind::SleepCompleted)",
+        ),
+    ] {
+        if !runner_only_section.contains(snippet) {
+            errors.push(format!(
+                "runner-only section lacks NoHumanProcess assertion for {kind}"
+            ));
+        }
+    }
+    if !(runner_only_section.contains("has_no_human_event_for_actor")
+        && runner_only_section.contains("EventKind::EatFailed")
+        && runner_only_section.contains("\"actor_mara\""))
+    {
+        errors.push(
+            "runner-only section lacks explicit Mara fail-only canonical resolution".to_string(),
+        );
+    }
+    errors
 }
 
 #[test]

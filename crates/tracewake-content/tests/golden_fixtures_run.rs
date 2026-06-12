@@ -203,6 +203,23 @@ fn has_event(log: &EventLog, kind: EventKind) -> bool {
     log.events().iter().any(|event| event.event_type == kind)
 }
 
+fn has_no_human_event(log: &EventLog, kind: EventKind) -> bool {
+    log.events().iter().any(|event| {
+        event.event_type == kind && event.ordering_key.phase == SchedulePhase::NoHumanProcess
+    })
+}
+
+fn has_no_human_event_for_actor(log: &EventLog, kind: EventKind, actor_id: &str) -> bool {
+    log.events().iter().any(|event| {
+        event.event_type == kind
+            && event.ordering_key.phase == SchedulePhase::NoHumanProcess
+            && event
+                .actor_id
+                .as_ref()
+                .is_some_and(|event_actor_id| event_actor_id.as_str() == actor_id)
+    })
+}
+
 fn payload<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
     event
         .payload
@@ -1706,7 +1723,16 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         actors_with_ordinary_actions,
         expected_roster.into_iter().collect()
     );
+    assert!(has_no_human_event(&log, EventKind::WorkBlockCompleted));
+    assert!(has_no_human_event(&log, EventKind::SleepCompleted));
+    assert!(has_no_human_event_for_actor(
+        &log,
+        EventKind::EatFailed,
+        "actor_mara"
+    ));
 
+    // Payload-shape coverage below is intentionally hand-driven; runner-only
+    // canonical evidence is asserted above before these manual proposals.
     let eat_tomas = proposal(
         "proposal_day_tomas_eat",
         "actor_tomas",
@@ -1833,20 +1859,17 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         &work_tomas,
         106,
     );
-    let work_started = log
-        .events()
+    let work_started = work_events
         .iter()
-        .find(|event| {
-            event.event_type == EventKind::WorkBlockStarted
-                && event
-                    .actor_id
-                    .as_ref()
-                    .is_some_and(|actor| actor.as_str() == "actor_tomas")
-        })
+        .find(|event| event.event_type == EventKind::WorkBlockStarted)
         .or_else(|| {
-            work_events
-                .iter()
-                .find(|event| event.event_type == EventKind::WorkBlockStarted)
+            log.events().iter().find(|event| {
+                event.event_type == EventKind::WorkBlockStarted
+                    && event
+                        .actor_id
+                        .as_ref()
+                        .is_some_and(|actor| actor.as_str() == "actor_tomas")
+            })
         })
         .unwrap()
         .clone();

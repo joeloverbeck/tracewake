@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-011: Canonical no-human-day runner-only evidence and recovery proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — content fixtures (`no_human_day_001.rs`), golden-fixture tests (`golden_fixtures_run.rs`)
@@ -162,3 +162,34 @@ explicitly instead.
 1. `cargo test -p tracewake-content --test golden_fixtures_run`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+The canonical no-human fixture now gives Tomas enough authored travel/work window
+to move to `workshop_tomas`, start work, and complete a work block under
+`SchedulePhase::NoHumanProcess`. The golden no-human-day test asserts runner-only
+`WorkBlockCompleted`, `SleepCompleted`, and Mara `EatFailed` evidence before any
+manual proposal injection. The subsequent manual proposal section is explicitly
+kept as payload-shape coverage and now selects the manual work-start event rather
+than the runner-produced one.
+
+Q3 resolution: canonical `no_human_day_001` records Mara's recovery variant as
+fail-only. The fixture keeps the existing empty-pantry tension and asserts Mara's
+autonomous `EatFailed` under no-human ancestry rather than adding a new recovery
+path to the canonical day.
+
+The meta-lock census now includes a source guard over the content golden test; a
+synthetic replacement of the runner-only work assertion with plain `has_event`
+fails the guard.
+
+Verification:
+
+1. `cargo test -p tracewake-content --test golden_fixtures_run`
+2. `cargo test -p tracewake-content`
+3. `cargo test -p tracewake-core --test anti_regression_guards`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`
