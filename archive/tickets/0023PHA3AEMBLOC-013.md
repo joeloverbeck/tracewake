@@ -146,7 +146,7 @@ report anchors (the 0022 pattern), with a missing-anchor synthetic; enroll under
 
 ## Outcome
 
-Status: COMPLETE on 2026-06-12.
+Completed: 2026-06-12
 
 - Added `reports/0023_ord_life_cert_scoped_acceptance.md` with the §7 evidence
   map, EMERGE-OBS `emerge_obs_v1` table, scheduled-run status, and explicit
