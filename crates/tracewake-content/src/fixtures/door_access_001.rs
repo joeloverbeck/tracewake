@@ -28,7 +28,11 @@ pub fn door_access_001() -> GoldenFixture {
             affordance("inspect_entity", "door_front_back"),
         ],
         initial_beliefs: Vec::new(),
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_sena", NeedKind::Hunger, 100),
+            initial_need("actor_sena", NeedKind::Fatigue, 100),
+            initial_need("actor_sena", NeedKind::Safety, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

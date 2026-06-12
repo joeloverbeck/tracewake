@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope};
-use tracewake_core::agent::need::NEED_MAX;
+use tracewake_core::agent::need::{NeedKind, NEED_MAX};
 use tracewake_core::agent::routine::RoutineDiagnosticKind;
 use tracewake_core::agent::{RoutineFamily, RoutineStepProposal};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
@@ -1028,6 +1028,31 @@ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationErr
     );
     for (index, need) in fixture.initial_needs.iter().enumerate() {
         validate_need_band_u16(need.value, format!("initial_needs[{index}].value"), errors);
+    }
+    let seeded_needs = fixture
+        .initial_needs
+        .iter()
+        .map(|need| (need.actor_id.clone(), need.kind))
+        .collect::<BTreeSet<_>>();
+    for actor in &fixture.actors {
+        for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+            if !seeded_needs.contains(&(actor.actor_id.clone(), kind)) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!(
+                        "initial_needs.{}.{}",
+                        actor.actor_id.as_str(),
+                        kind.stable_id()
+                    ),
+                    "missing_actor_need_seed",
+                    format!(
+                        "actor {} must author an initial {} need seed",
+                        actor.actor_id.as_str(),
+                        kind.stable_id()
+                    ),
+                ));
+            }
+        }
     }
     for (index, door) in fixture.doors.iter().enumerate() {
         if door.is_locked && door.is_open {
@@ -2894,7 +2919,23 @@ mod tests {
                 },
             ],
             initial_beliefs: Vec::new(),
-            initial_needs: Vec::new(),
+            initial_needs: vec![
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Hunger,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Fatigue,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Safety,
+                    value: 100,
+                },
+            ],
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),
@@ -2915,11 +2956,12 @@ mod tests {
             adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
             visibility_default: VisibilityDefault::Visible,
         });
-        fixture.initial_needs.push(InitialNeedSchema {
-            actor_id: ActorId::new("actor_tomas").unwrap(),
-            kind: NeedKind::Hunger,
-            value: 350,
-        });
+        fixture
+            .initial_needs
+            .iter_mut()
+            .find(|need| need.actor_id.as_str() == "actor_tomas" && need.kind == NeedKind::Hunger)
+            .unwrap()
+            .value = 350;
         fixture.sleep_places.push(SleepPlaceSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
             place_id: PlaceId::new("shop_front").unwrap(),
@@ -2989,7 +3031,7 @@ mod tests {
 
     #[test]
     fn fixture_schema_v1_golden_bytes_load_001() {
-        const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible";
+        const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
 
         let world = validate_fixture_bytes(GOLDEN_SCHEMA_V1_BYTES, &registry()).unwrap();
 
@@ -3076,6 +3118,38 @@ mod tests {
         assert!(errors.report.errors.iter().any(|error| {
             error.code == "invalid_need_band" && error.path == "initial_needs[0].value"
         }));
+    }
+
+    #[test]
+    fn fixture_missing_actor_need_seed_rejected_001() {
+        let mut fixture = fixture();
+        fixture
+            .initial_needs
+            .retain(|need| need.kind != NeedKind::Safety);
+
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+        assert!(report.errors.iter().any(|error| {
+            error.phase == ValidationPhase::State
+                && error.code == "missing_actor_need_seed"
+                && error.path == "initial_needs.actor_tomas.safety"
+        }));
+    }
+
+    #[test]
+    fn fixture_serialization_golden_bytes_are_pinned_001() {
+        const EXPECTED: &[u8] = b"fixture|strongbox_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|back_room|4261636b20726f6f6d|shop_front|visible\nplace|shop_front|53686f702066726f6e74|back_room|visible\ndoor|door_shop_back|shop_front|back_room|false|false\ncontainer|strongbox_tomas|shop_front|false|false|false|coin_stack_01\nitem|coin_stack_01|true|in:strongbox_tomas\naffordance|move|back_room\naffordance|open|strongbox_tomas\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+
+        let actual = serialize_fixture(&fixture());
+
+        assert_eq!(actual, EXPECTED);
+        let mut perturbed = actual.clone();
+        let position = perturbed
+            .windows(b"initial_need".len())
+            .position(|window| window == b"initial_need")
+            .expect("golden contains initial_need rows");
+        perturbed[position] = b'I';
+        assert_ne!(perturbed, EXPECTED);
     }
 
     #[test]

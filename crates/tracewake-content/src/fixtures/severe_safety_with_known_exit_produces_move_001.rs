@@ -16,7 +16,11 @@ pub fn severe_safety_with_known_exit_produces_move_001() -> GoldenFixture {
         items: Vec::new(),
         affordances: vec![affordance("move", "safety_corridor")],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_mara", NeedKind::Safety, 950)],
+        initial_needs: vec![
+            initial_need("actor_mara", NeedKind::Safety, 950),
+            initial_need("actor_mara", NeedKind::Hunger, 100),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

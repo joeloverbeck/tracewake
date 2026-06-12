@@ -16,7 +16,11 @@ pub fn embodied_workplace_availability_reflects_belief_not_truth_001() -> Golden
         items: Vec::new(),
         affordances: vec![affordance("work_block", "workplace_tomas")],
         initial_beliefs: Vec::new(),
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_tomas", NeedKind::Hunger, 100),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

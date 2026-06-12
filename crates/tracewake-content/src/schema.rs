@@ -731,12 +731,7 @@ impl FixtureSchema {
                 );
         }
         for actor in &self.actors {
-            let needs = needs_by_actor.entry(actor.actor_id.clone()).or_default();
-            for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
-                needs.entry(kind).or_insert_with(|| {
-                    NeedState::initial(kind, 100, NeedChangeCause::FixtureInitial)
-                });
-            }
+            needs_by_actor.entry(actor.actor_id.clone()).or_default();
         }
         for assignment in &self.routine_assignments {
             let template = self

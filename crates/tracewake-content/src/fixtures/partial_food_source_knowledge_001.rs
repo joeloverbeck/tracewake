@@ -21,6 +21,10 @@ pub fn partial_food_source_knowledge_001() -> GoldenFixture {
         initial_needs: vec![
             initial_need("actor_mara", NeedKind::Hunger, 880),
             initial_need("actor_tomas", NeedKind::Hunger, 880),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+            initial_need("actor_mara", NeedKind::Safety, 100),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
         ],
         homes: vec![
             home_schema("actor_mara", "home_mara"),

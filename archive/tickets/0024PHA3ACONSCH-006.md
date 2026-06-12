@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-006: Required per-actor need seeds and serialization golden bytes
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`schema.rs`, `validate.rs`, fixture modules) plus content tests.
@@ -136,3 +136,34 @@ symmetric-pair check it is.
 
 1. `cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Closed the silent need-default and serialization-honesty gaps:
+
+1. `validate_state` now rejects any actor missing Hunger, Fatigue, or Safety
+   `initial_need` rows with `missing_actor_need_seed`.
+2. `FixtureSchema::to_agent_state` no longer fills missing actor needs with
+   `NeedState::initial(kind, 100, ...)`; the grep proof for
+   `NeedState::initial(kind, 100` is empty.
+3. Every committed fixture now authors explicit per-actor need seeds, preserving
+   the old effective value of `100` only where the former runtime default applied.
+4. `all_fixtures_author_explicit_need_seeds_for_every_actor` sweeps committed
+   fixtures for all three need seeds per actor.
+5. `fixture_serialization_golden_bytes_are_pinned_001` compares `serialize_fixture`
+   output against an inline frozen byte snapshot and proves a synthetic perturbation
+   fails the comparison.
+
+Verification:
+
+1. `cargo test -p tracewake-content` passed.
+2. `cargo fmt --all --check` passed.
+3. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+4. `cargo build --workspace --all-targets --locked` passed.
+5. `cargo test --workspace` passed.
+6. `rg -n 'NeedState::initial\(kind, 100' crates/tracewake-content/src/schema.rs`
+   produced no matches.
+
+No need semantics, bands, or scale values changed.

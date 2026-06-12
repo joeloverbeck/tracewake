@@ -24,7 +24,11 @@ pub fn no_human_epistemic_check_001() -> GoldenFixture {
             affordance("inspect_entity", "strongbox_tomas"),
         ],
         initial_beliefs: vec![tomas_coin_expectation_seed()],
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_tomas", NeedKind::Hunger, 100),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

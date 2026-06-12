@@ -16,6 +16,7 @@ pub fn routine_blocked_diagnostic_001() -> GoldenFixture {
         initial_needs: vec![
             initial_need("actor_elena", NeedKind::Hunger, 260),
             initial_need("actor_elena", NeedKind::Fatigue, 260),
+            initial_need("actor_elena", NeedKind::Safety, 100),
         ],
         homes: vec![home_schema("actor_elena", "workshop_elena")],
         sleep_places: Vec::new(),

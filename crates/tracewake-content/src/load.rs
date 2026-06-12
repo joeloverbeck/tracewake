@@ -396,10 +396,11 @@ pub fn registry_for_fixture_scope(scope: FixtureScope) -> tracewake_core::action
 mod tests {
     use super::*;
     use crate::schema::{
-        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, ItemSchema, NeedModelSchema,
-        PlaceSchema,
+        ActorSchema, ContainerSchema, FixtureSchema, FixtureScope, InitialNeedSchema, ItemSchema,
+        NeedModelSchema, PlaceSchema,
     };
     use crate::serialization::serialize_fixture;
+    use tracewake_core::agent::NeedKind;
     use tracewake_core::ids::{ActorId, ContainerId, FixtureId, ItemId, PlaceId, SchemaVersion};
     use tracewake_core::location::Location;
     use tracewake_core::state::VisibilityDefault;
@@ -439,7 +440,23 @@ mod tests {
             }],
             affordances: Vec::new(),
             initial_beliefs: Vec::new(),
-            initial_needs: Vec::new(),
+            initial_needs: vec![
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Hunger,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Fatigue,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Safety,
+                    value: 100,
+                },
+            ],
             homes: Vec::new(),
             sleep_places: Vec::new(),
             food_supplies: Vec::new(),

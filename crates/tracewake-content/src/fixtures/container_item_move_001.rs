@@ -31,7 +31,11 @@ pub fn container_item_move_001() -> GoldenFixture {
             affordance("inspect_entity", "destination_crate"),
         ],
         initial_beliefs: Vec::new(),
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_mira", NeedKind::Hunger, 100),
+            initial_need("actor_mira", NeedKind::Fatigue, 100),
+            initial_need("actor_mira", NeedKind::Safety, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

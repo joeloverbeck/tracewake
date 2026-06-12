@@ -13,7 +13,11 @@ pub fn no_human_metrics_require_typed_responsible_layer_001() -> GoldenFixture {
         items: Vec::new(),
         affordances: Vec::new(),
         initial_beliefs: Vec::new(),
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_tomas", NeedKind::Hunger, 100),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

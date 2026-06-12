@@ -54,6 +54,11 @@ pub fn no_human_day_001() -> GoldenFixture {
             initial_need("actor_mara", NeedKind::Hunger, 900),
             initial_need("actor_tomas", NeedKind::Fatigue, 260),
             initial_need("actor_tomas", NeedKind::Hunger, 520),
+            initial_need("actor_anna", NeedKind::Safety, 100),
+            initial_need("actor_elena", NeedKind::Safety, 100),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+            initial_need("actor_mara", NeedKind::Safety, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
         ],
         homes: vec![
             home_schema("actor_anna", "office_anna"),

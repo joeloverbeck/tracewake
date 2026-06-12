@@ -15,7 +15,11 @@ pub fn aged_food_record_surfaces_as_remembered_belief_not_observation_001() -> G
         items: Vec::new(),
         affordances: vec![affordance("eat", "food_stew_home_tomas")],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_tomas", NeedKind::Hunger, 650)],
+        initial_needs: vec![
+            initial_need("actor_tomas", NeedKind::Hunger, 650),
+            initial_need("actor_tomas", NeedKind::Fatigue, 100),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: Vec::new(),
         food_supplies: vec![food_supply_at_place(

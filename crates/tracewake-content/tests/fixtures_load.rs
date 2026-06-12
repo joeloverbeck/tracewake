@@ -287,6 +287,11 @@ fn phase3a_fixture() -> FixtureSchema {
                 kind: NeedKind::Hunger,
                 value: 350,
             },
+            InitialNeedSchema {
+                actor_id: ActorId::new("actor_tomas").unwrap(),
+                kind: NeedKind::Safety,
+                value: 100,
+            },
         ],
         homes: vec![HomeSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
@@ -501,6 +506,29 @@ fn all_fixtures_load_deterministically_and_validate() {
             first.manifest.content_fingerprint,
             second.manifest.content_fingerprint
         );
+    }
+}
+
+#[test]
+fn all_fixtures_author_explicit_need_seeds_for_every_actor() {
+    for golden in fixtures::all() {
+        let seeded = golden
+            .fixture
+            .initial_needs
+            .iter()
+            .map(|need| (need.actor_id.clone(), need.kind))
+            .collect::<BTreeSet<_>>();
+        for actor in &golden.fixture.actors {
+            for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+                assert!(
+                    seeded.contains(&(actor.actor_id.clone(), kind)),
+                    "fixture {} missing {:?} seed for {}",
+                    golden.fixture.fixture_id.as_str(),
+                    kind,
+                    actor.actor_id.as_str()
+                );
+            }
+        }
     }
 }
 
@@ -976,7 +1004,7 @@ fn fixtures_load_unsupported_schema_version_rejected_001() {
 
 #[test]
 fn fixtures_load_schema_v1_golden_bytes_load() {
-    const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_load_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible";
+    const GOLDEN_SCHEMA_V1_BYTES: &[u8] = b"fixture|schema_v1_golden_load_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|shop_front|53686f702066726f6e74||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
 
     let loaded = load_fixture_package(
         ContentManifestId::new("manifest_schema_v1_golden_load").unwrap(),

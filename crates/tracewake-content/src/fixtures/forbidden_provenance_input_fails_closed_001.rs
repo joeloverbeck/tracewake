@@ -13,7 +13,11 @@ pub fn forbidden_provenance_input_fails_closed_001() -> GoldenFixture {
         items: Vec::new(),
         affordances: Vec::new(),
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_mara", NeedKind::Hunger, 900)],
+        initial_needs: vec![
+            initial_need("actor_mara", NeedKind::Hunger, 900),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+            initial_need("actor_mara", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_mara", "home_mara")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

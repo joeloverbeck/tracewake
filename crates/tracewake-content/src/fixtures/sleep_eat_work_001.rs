@@ -24,6 +24,7 @@ pub fn sleep_eat_work_001() -> GoldenFixture {
         initial_needs: vec![
             initial_need("actor_tomas", NeedKind::Hunger, 460),
             initial_need("actor_tomas", NeedKind::Fatigue, 620),
+            initial_need("actor_tomas", NeedKind::Safety, 100),
         ],
         homes: vec![home_schema("actor_tomas", "home_tomas")],
         sleep_places: vec![sleep_place_schema("actor_tomas", "home_tomas", "bed_tomas")],

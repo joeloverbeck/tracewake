@@ -13,7 +13,11 @@ pub fn severe_safety_without_known_exit_waits_with_knowledge_blocker_001() -> Go
         items: Vec::new(),
         affordances: Vec::new(),
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_mara", NeedKind::Safety, 950)],
+        initial_needs: vec![
+            initial_need("actor_mara", NeedKind::Safety, 950),
+            initial_need("actor_mara", NeedKind::Hunger, 100),
+            initial_need("actor_mara", NeedKind::Fatigue, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

@@ -13,7 +13,11 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
         items: Vec::new(),
         affordances: vec![affordance("sleep", "home_elena")],
         initial_beliefs: Vec::new(),
-        initial_needs: vec![initial_need("actor_elena", NeedKind::Fatigue, 920)],
+        initial_needs: vec![
+            initial_need("actor_elena", NeedKind::Fatigue, 920),
+            initial_need("actor_elena", NeedKind::Hunger, 100),
+            initial_need("actor_elena", NeedKind::Safety, 100),
+        ],
         homes: vec![home_schema("actor_elena", "home_elena")],
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),

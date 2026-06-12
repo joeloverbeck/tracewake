@@ -16,7 +16,11 @@ pub fn no_human_advance_001() -> GoldenFixture {
             affordance("inspect_entity", "notebook_01"),
         ],
         initial_beliefs: Vec::new(),
-        initial_needs: Vec::new(),
+        initial_needs: vec![
+            initial_need("actor_ren", NeedKind::Hunger, 100),
+            initial_need("actor_ren", NeedKind::Fatigue, 100),
+            initial_need("actor_ren", NeedKind::Safety, 100),
+        ],
         homes: Vec::new(),
         sleep_places: Vec::new(),
         food_supplies: Vec::new(),
