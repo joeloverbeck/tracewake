@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-010: Projection-policy closure — workplace accessibility gate and oracle de-hardcoding
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` (`agent/no_human_surface.rs`, `epistemics/projection.rs` tests).
@@ -131,5 +131,25 @@ classifier output; the `"home_tomas"` literal is removed.
 
 ### Commands
 
-1. `cargo test -p tracewake-core epistemics:: agent::`
+1. `cargo test -p tracewake-core --lib -- epistemics:: agent::`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+- Gated `workplace_believed_accessible` on the workplace policy row's
+  `FromAnyPlace` accessibility scope while preserving current table behavior.
+- Added direct no-human surface coverage for workplace access under both
+  accessibility poles and a workplace accessibility row-mutation negative in the
+  projection policy table tests.
+- Replaced the policy oracle's fixture-literal latest-record derivation with the
+  classifier's own current/latest record flags.
+
+Proof:
+
+1. `cargo test -p tracewake-core --lib -- epistemics:: agent::`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`

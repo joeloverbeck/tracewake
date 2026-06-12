@@ -242,7 +242,7 @@ impl NoHumanActorKnownSurfaceBuilder {
                     *believed_access_open,
                     source.source_label(),
                     vec![source_event_id.clone()],
-                    source_tick,
+                    fact_policy,
                 );
             }
             ActorKnownProjectionRecord::LocalDoor { .. }
@@ -292,7 +292,7 @@ impl NoHumanActorKnownSurfaceBuilder {
         believed_access_open: bool,
         source: impl Into<String>,
         source_event_ids: Vec<EventId>,
-        source_tick: SimTick,
+        policy: ProjectionFactPolicy,
     ) {
         let source_event_ids = SourceEventIds::checked(source_event_ids)
             .expect("role notice source ids are non-empty");
@@ -304,7 +304,7 @@ impl NoHumanActorKnownSurfaceBuilder {
             "actor_knows_workplace",
             format!("{}@{}", workplace_id.as_str(), place_id.as_str()),
             format!("role_assignment_notice:{source}"),
-            Some(source_tick),
+            Some(policy.source_tick),
             source_event_ids.clone(),
         ));
         self.facts.push(ActorKnownFact::routine_assignment(
@@ -312,17 +312,19 @@ impl NoHumanActorKnownSurfaceBuilder {
             "workplace_assignment_active",
             workplace_id.as_str(),
             format!("role_assignment_notice:{source}"),
-            Some(source_tick),
+            Some(policy.source_tick),
             source_event_ids.clone(),
         ));
-        self.facts.push(ActorKnownFact::routine_assignment(
-            self.actor_id.clone(),
-            "workplace_believed_accessible",
-            format!("{}:{}", workplace_id.as_str(), believed_access_open),
-            format!("role_assignment_notice:{source}"),
-            Some(source_tick),
-            source_event_ids.clone(),
-        ));
+        if policy.accessibility_scope == ActorKnownProjectionAccessibilityScope::FromAnyPlace {
+            self.facts.push(ActorKnownFact::routine_assignment(
+                self.actor_id.clone(),
+                "workplace_believed_accessible",
+                format!("{}:{}", workplace_id.as_str(), believed_access_open),
+                format!("role_assignment_notice:{source}"),
+                Some(policy.source_tick),
+                source_event_ids.clone(),
+            ));
+        }
         if place_id == self.current_place_id {
             if let Some(current_place_witness_event_id) = &self.current_place_witness_event_id {
                 let current_place_source_event_ids =
@@ -631,7 +633,7 @@ mod tests {
         .build(&agent_state)
     }
 
-    fn food_fact_ids(surface: &SealedActorKnownSurface) -> Vec<&str> {
+    fn fact_stable_ids(surface: &SealedActorKnownSurface) -> Vec<&str> {
         surface
             .context()
             .actor_known_facts()
@@ -686,7 +688,7 @@ mod tests {
             policy_from_any_place,
         );
         let reachable_surface = reachable_builder.build(&AgentState::default());
-        let reachable_fact_ids = food_fact_ids(&reachable_surface);
+        let reachable_fact_ids = fact_stable_ids(&reachable_surface);
         assert!(reachable_fact_ids.contains(&"actor_knows_food_source"));
         assert!(reachable_fact_ids.contains(&"food_source_believed_accessible"));
         assert!(reachable_surface
@@ -703,13 +705,64 @@ mod tests {
             policy_not_accessible,
         );
         let current_place_surface = current_place_builder.build(&AgentState::default());
-        let current_place_fact_ids = food_fact_ids(&current_place_surface);
+        let current_place_fact_ids = fact_stable_ids(&current_place_surface);
         assert!(current_place_fact_ids.contains(&"actor_knows_food_source"));
         assert!(!current_place_fact_ids.contains(&"food_source_believed_accessible"));
         assert!(current_place_surface
             .context()
             .known_food_sources()
             .contains("table_bread"));
+    }
+
+    #[test]
+    fn workplace_accessible_fact_requires_from_any_place_scope() {
+        let actor_id = actor_id();
+        let workshop = place_id("workshop_tomas");
+        let event_id = EventId::new("event.workplace_scope.actor_tomas").unwrap();
+        let policy_from_any_place = ProjectionFactPolicy {
+            freshness: ActorKnownProjectionFreshness::CurrentlyPerceived,
+            source_tick: SimTick::new(4),
+            accessibility_scope: ActorKnownProjectionAccessibilityScope::FromAnyPlace,
+        };
+        let policy_not_accessible = ProjectionFactPolicy {
+            freshness: ActorKnownProjectionFreshness::CurrentlyPerceived,
+            source_tick: SimTick::new(4),
+            accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+        };
+
+        let mut reachable_builder =
+            NoHumanActorKnownSurfaceBuilder::new(actor_id.clone(), workshop.clone(), None);
+        reachable_builder.add_role_assignment_notice(
+            workplace_id(),
+            workshop.clone(),
+            true,
+            "role_assignment_notice:evented",
+            vec![event_id.clone()],
+            policy_from_any_place,
+        );
+        let reachable_surface = reachable_builder.build(&AgentState::default());
+        let reachable_fact_ids = fact_stable_ids(&reachable_surface);
+        assert!(reachable_fact_ids.contains(&"actor_knows_workplace"));
+        assert!(reachable_fact_ids.contains(&"workplace_assignment_active"));
+        assert!(reachable_fact_ids.contains(&"workplace_believed_accessible"));
+        assert_eq!(reachable_surface.context().known_workplaces().len(), 1);
+
+        let mut current_place_builder =
+            NoHumanActorKnownSurfaceBuilder::new(actor_id, workshop.clone(), None);
+        current_place_builder.add_role_assignment_notice(
+            workplace_id(),
+            workshop,
+            true,
+            "role_assignment_notice:evented",
+            vec![event_id],
+            policy_not_accessible,
+        );
+        let current_place_surface = current_place_builder.build(&AgentState::default());
+        let current_place_fact_ids = fact_stable_ids(&current_place_surface);
+        assert!(current_place_fact_ids.contains(&"actor_knows_workplace"));
+        assert!(current_place_fact_ids.contains(&"workplace_assignment_active"));
+        assert!(!current_place_fact_ids.contains(&"workplace_believed_accessible"));
+        assert_eq!(current_place_surface.context().known_workplaces().len(), 1);
     }
 
     #[test]
