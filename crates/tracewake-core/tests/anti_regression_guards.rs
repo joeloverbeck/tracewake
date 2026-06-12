@@ -802,8 +802,11 @@ fn embodied_field_has_registered_producer(
                 || !producer_snippet_is_constant_literal(entry.producer_snippet))
             && producer_sources.iter().any(|(path, source)| {
                 *path == entry.source_path
-                    && (entry.producer_snippet.is_empty()
-                        || source.contains(entry.producer_snippet))
+                    && if entry.producer_snippet.is_empty() {
+                        source.contains(entry.field_name)
+                    } else {
+                        source.contains(entry.producer_snippet)
+                    }
             })
     })
 }
@@ -1362,7 +1365,7 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     },
     MetaLockRegistryEntry {
         lock_id: "embodied_view_option_and_collection_fields_have_reachable_producers",
-        negative_id: "synthetic_constant_literal_embodied_surface_producer",
+        negative_id: "synthetic_orphaned_deferral_embodied_surface_producer",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -5270,6 +5273,40 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
             .iter()
             .any(|error| error.contains("EmbodiedViewModel.debug_available")),
         "constant literal producer must not satisfy the embodied surface producer sweep"
+    );
+
+    let synthetic_orphaned_deferral_view_models = r#"
+        pub struct EmbodiedViewModel { pub visible_exits: Vec<VisibleExit>, }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
+    "#;
+    let synthetic_orphaned_deferral_errors = embodied_surface_dead_field_errors(
+        synthetic_orphaned_deferral_view_models,
+        &[(
+            "tracewake-core/src/view_models.rs",
+            "pub enum ActionAvailability { Available }",
+        )],
+        &[(
+            "tracewake-tui/src/render.rs",
+            "availability.debug_only_diagnostics()",
+        )],
+    );
+    assert!(
+        synthetic_orphaned_deferral_errors
+            .iter()
+            .any(|error| error.contains("ActionAvailability.debug_only_diagnostics")),
+        "synthetic_orphaned_deferral_embodied_surface_producer must fail the cite-only producer witness"
     );
 
     let unconsumed_sources = [(

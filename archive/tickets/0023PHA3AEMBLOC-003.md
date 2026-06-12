@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-003: Embodied-sweep cite-only deferral content witness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — test-oracle sweep (`anti_regression_guards.rs`)
@@ -116,3 +116,30 @@ source must produce a "no producer" error) and enroll the lock + negative in the
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented the embodied-sweep cite-only deferral content witness in
+`crates/tracewake-core/tests/anti_regression_guards.rs`.
+
+- Repaired `embodied_field_has_registered_producer` so an empty
+  `producer_snippet` no longer passes by path presence alone; it must find the
+  declared field name in the cited source.
+- Added `synthetic_orphaned_deferral_embodied_surface_producer`, proving an
+  `ActionAvailability.debug_only_diagnostics` deferral whose cited source omits the
+  field fails the sweep.
+- Enrolled the embodied sweep registry negative under the orphaned-deferral
+  synthetic while retaining the existing constant-literal producer negative inside
+  the same test.
+
+Deviations: none.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed
+- `cargo fmt --all --check` — passed after applying `cargo fmt --all`
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
