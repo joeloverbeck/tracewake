@@ -310,6 +310,116 @@ const PANIC_ALLOWLIST: &[PanicAllowlistEntry] = &[
         token: ".expect(\"stuck diagnostic is versioned\")",
         rationale: "Stuck diagnostic events are constructed with the current schema before typed agent application.",
     },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "EventId::new(format!(",
+        rationale: "Scheduler event ids are deterministic strings built from typed ids, stable kinds, and ticks before append.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "EventEnvelope::new_caused_v1(",
+        rationale: "Scheduler envelopes are built with current schema constants and typed causes before append/application.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ProcessId::new(\"no_human_day\").unwrap()",
+        rationale: "The no-human process id is a static literal used to stamp scheduler-originated events.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ProcessId::new(\"no_human_advance\").unwrap()",
+        rationale: "The no-human advance process id is a static literal used to stamp scheduler-originated process markers.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"passive_need_delta\").unwrap()",
+        rationale: "The passive-need action id is a static internal scheduler event label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"sleep_completed\").unwrap()",
+        rationale: "The sleep-completion action id is a static internal scheduler lifecycle label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"work_block_completed\").unwrap()",
+        rationale: "The work-completion action id is a static internal scheduler lifecycle label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"routine_step_completed\").unwrap()",
+        rationale: "The routine-step-completed action id is a static scheduler lifecycle label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"decision_trace_recorded\").unwrap()",
+        rationale: "The decision-trace action id is a static scheduler lifecycle label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"intention_started\").unwrap()",
+        rationale: "The intention-started action id is a static scheduler lifecycle label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"intention_continued\").unwrap()",
+        rationale: "The intention-continued action id is a static scheduler lifecycle label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(\"stuck_diagnostic_recorded\").unwrap()",
+        rationale: "The stuck-diagnostic action id is a static scheduler diagnostic label.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(kind.stable_id()).unwrap()",
+        rationale: "No-human process marker kinds are closed enum variants with stable ids.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "ActionId::new(label).unwrap()",
+        rationale: "Routine step event labels are internal constants selected by the scheduler call site.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "SemanticActionId::new(proposal.action_id.as_str()).unwrap()",
+        rationale: "Routine step semantic ids are converted from an already-typed proposal ActionId.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "IntentionId::new(format!(",
+        rationale: "Scheduler intention ids are deterministic strings built from typed actor/window/action material.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "CandidateGoalId::new(format!(",
+        rationale: "Scheduler candidate-goal ids are deterministic strings built from typed actor/tick/action material.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: "StuckDiagnosticId::new(format!(",
+        rationale: "Scheduler stuck-diagnostic ids are deterministic strings built from closed diagnostic kinds and typed ids.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/sleep.rs",
+        token: "EventId::new(format!(",
+        rationale: "Sleep completion and need event ids are deterministic strings built from the accepted sleep-start event id.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/sleep.rs",
+        token: "EventEnvelope::new_caused_v1(",
+        rationale: "Sleep envelopes are built with current schema constants and typed proposal/event causes.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/work.rs",
+        token: "EventId::new(format!(",
+        rationale: "Work completion and need event ids are deterministic strings built from the accepted work-start event id.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/work.rs",
+        token: "EventEnvelope::new_caused_v1(",
+        rationale: "Work envelopes are built with current schema constants and typed proposal/event causes.",
+    },
 ];
 
 const BANNED_NONDETERMINISM_TOKENS: &[BannedApiToken] = &[
@@ -1334,6 +1444,18 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "generative_lock_two_sided_floor_ratchets",
         negative_id: "synthetic_unrecorded_generative_floor_raise",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "hidden_truth_context_discrimination_witness",
+        negative_id: "synthetic_context_hidden_food_injection",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "log_derived_panic_guard_scans_unwrap",
+        negative_id: "synthetic_log_derived_unwrap_payload",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -5832,14 +5954,15 @@ fn scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data() {
         fn actor_has_open_body_exclusive_duration(log: &EventLog) -> bool {
             open_body_exclusive_starts(log).expect("duplicate duration terminals are rejected before no-human scheduling");
             apply_agent_event(agent_state, &event).expect("routine stuck diagnostic event applies to live agent state");
+            event.payload.iter().find(|field| field.key == "actor_id").unwrap();
             true
         }
         "#.to_string(),
     )];
     let synthetic_violations = log_derived_panic_violations(&synthetic_sources);
     assert!(
-        synthetic_violations.len() == 2,
-        "synthetic log-derived expects must fail the panic guard"
+        synthetic_violations.len() == 3,
+        "synthetic_log_derived_unwrap_payload must fail with log-derived expects"
     );
     assert!(
         PANIC_ALLOWLIST
@@ -5852,17 +5975,32 @@ fn scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data() {
 fn log_derived_panic_violations(sources: &[(&str, String)]) -> Vec<String> {
     let mut violations = Vec::new();
     for (path, source) in sources {
-        for line in source.lines() {
+        let lines = source.lines().collect::<Vec<_>>();
+        for (index, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
-            if !(trimmed.contains(".expect(") || trimmed.contains("assert!(")) {
+            if !(trimmed.contains(".expect(")
+                || trimmed.contains(".unwrap(")
+                || trimmed.contains("assert!("))
+            {
                 continue;
             }
-            if !panic_allowlist_covers(path, trimmed) {
-                violations.push(format!("{path}: {trimmed}"));
+            let scan_unit = panic_scan_unit(&lines, index);
+            if !panic_allowlist_covers(path, &scan_unit) {
+                violations.push(format!("{path}: {scan_unit}"));
             }
         }
     }
     violations
+}
+
+fn panic_scan_unit(lines: &[&str], index: usize) -> String {
+    let start = index.saturating_sub(20);
+    lines[start..=index]
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn panic_allowlist_covers(path: &str, line: &str) -> bool {
