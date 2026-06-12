@@ -122,8 +122,8 @@ pub fn no_human_day_001() -> GoldenFixture {
             routine_assignment_schema("actor_anna", "routine_anna_blocked_office", 10, 18),
             routine_assignment_schema("actor_elena", "routine_elena_sleep", 24, 32),
             routine_assignment_schema("actor_mara", "routine_mara_food_unavailable", 4, 10),
-            routine_assignment_schema("actor_tomas", "routine_tomas_go_work", 8, 10),
-            routine_assignment_schema("actor_tomas", "routine_tomas_work", 10, 18),
+            routine_assignment_schema("actor_tomas", "routine_tomas_go_work", 8, 18),
+            routine_assignment_schema("actor_tomas", "routine_tomas_work", 18, 32),
         ],
         day_windows: vec![
             day_window_schema("actor_anna", 0, 32),
@@ -161,6 +161,7 @@ pub fn no_human_day_001() -> GoldenFixture {
                 "autonomous_no_human_event=FoodConsumed|EatFailed",
                 "autonomous_no_human_event=SleepCompleted",
                 "autonomous_no_human_event=WorkBlockCompleted|WorkBlockFailed",
+                "canonical_mara_recovery_resolution=fail_only_empty_food_source",
             ],
             acceptance_assertions: vec![
                 "no emitted event references player or controller identity",
@@ -168,6 +169,7 @@ pub fn no_human_day_001() -> GoldenFixture {
                 "autonomous no-human events are not manually forced action-unit events",
                 "movement uses ActorMoved events before workplace presence",
                 "Mara's empty food source records typed failure",
+                "Mara's canonical recovery variant is recorded as fail-only on no_human_day_001",
                 "Anna's closed workplace records an access blocker",
                 "metrics derive from the event log and have nonzero activity",
             ],

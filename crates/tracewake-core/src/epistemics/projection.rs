@@ -141,9 +141,12 @@ impl ActorKnownProjectionKindPolicy {
         match self.classification {
             ActorKnownProjectionPolicy::ReclassifyWhenStale => true,
             ActorKnownProjectionPolicy::SupersedeNewestBySubject => {
-                let ActorKnownProjectionRecord::Workplace { workplace_id, .. } = record else {
-                    return false;
-                };
+                let workplace_id = record.supersede_workplace_subject().unwrap_or_else(|| {
+                    panic!(
+                        "actor-known projection kind with SupersedeNewestBySubject lacks a subject extractor: {}",
+                        record.kind()
+                    )
+                });
                 selected_workplaces
                     .get(workplace_id)
                     .is_some_and(|selected| *selected == record)
@@ -676,6 +679,22 @@ impl ActorKnownProjectionSource {
 }
 
 impl ActorKnownProjectionRecord {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Route { .. } => "route",
+            Self::FoodSource { .. } => "food_source",
+            Self::SleepPlace { .. } => "sleep_place",
+            Self::Workplace { .. } => "workplace",
+        }
+    }
+
+    fn supersede_workplace_subject(&self) -> Option<&WorkplaceId> {
+        match self {
+            Self::Workplace { workplace_id, .. } => Some(workplace_id),
+            Self::Route { .. } | Self::FoodSource { .. } | Self::SleepPlace { .. } => None,
+        }
+    }
+
     pub fn actor_id(&self) -> &ActorId {
         match self {
             Self::Route { actor_id, .. }
@@ -721,12 +740,7 @@ impl ActorKnownProjectionRecord {
     }
 
     pub fn policy(&self) -> ActorKnownProjectionKindPolicy {
-        match self {
-            Self::Route { .. } => actor_known_projection_kind_policy("route"),
-            Self::FoodSource { .. } => actor_known_projection_kind_policy("food_source"),
-            Self::SleepPlace { .. } => actor_known_projection_kind_policy("sleep_place"),
-            Self::Workplace { .. } => actor_known_projection_kind_policy("workplace"),
-        }
+        actor_known_projection_kind_policy(self.kind())
     }
 
     fn relevant_place_id(&self) -> &PlaceId {
@@ -1151,40 +1165,133 @@ mod tests {
             policies.keys().copied().collect::<Vec<_>>(),
             ["food_source", "route", "sleep_place", "workplace"]
         );
-        assert_eq!(
-            policies["food_source"].classification(),
-            ActorKnownProjectionPolicy::ReclassifyWhenStale
+        for record in policy_behavior_records(actor_id("actor_tomas")) {
+            assert!(
+                policies.contains_key(record.kind()),
+                "policy table lacks record kind {}",
+                record.kind()
+            );
+        }
+    }
+
+    #[test]
+    fn actor_known_projection_policy_table_drives_record_behavior() {
+        let actor = actor_id("actor_tomas");
+        let current_place = place_id("home_tomas");
+        let context = KnowledgeContext::embodied(actor.clone(), SimTick::new(4));
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.actor_known_records_by_actor.insert(
+            actor.clone(),
+            policy_behavior_records(actor).into_iter().collect(),
         );
-        assert_eq!(
-            policies["food_source"].embodied_scope(),
-            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly
-        );
-        assert_eq!(
-            policies["food_source"].accessibility_scope(),
-            ActorKnownProjectionAccessibilityScope::FromAnyPlace
-        );
-        assert_eq!(
-            policies["sleep_place"].classification(),
-            ActorKnownProjectionPolicy::ReclassifyWhenStale
-        );
-        assert_eq!(
-            policies["sleep_place"].accessibility_scope(),
-            ActorKnownProjectionAccessibilityScope::FromAnyPlace
-        );
-        assert_eq!(
-            policies["workplace"].classification(),
-            ActorKnownProjectionPolicy::SupersedeNewestBySubject
-        );
-        assert_eq!(
-            policies["workplace"].embodied_scope(),
-            ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly
+
+        let classified =
+            projection.classified_actor_known_records_for_context(&context, &current_place);
+        let by_kind = classified
+            .iter()
+            .map(|classified| (classified.record().kind(), *classified))
+            .collect::<BTreeMap<_, _>>();
+
+        let policies = actor_known_projection_policy_kinds();
+        for (kind, policy) in policies {
+            let classified = by_kind
+                .get(kind)
+                .unwrap_or_else(|| panic!("classified records omit policy kind {kind}"));
+            assert_eq!(
+                classified.record().policy().classification(),
+                policy.classification(),
+                "{kind} dispatches to a policy classification different from the table"
+            );
+            assert_eq!(
+                classified.record().policy().embodied_scope(),
+                policy.embodied_scope(),
+                "{kind} dispatches to an embodied scope different from the table"
+            );
+            assert_eq!(
+                classified.record().policy().accessibility_scope(),
+                policy.accessibility_scope(),
+                "{kind} dispatches to an accessibility scope different from the table"
+            );
+            assert_eq!(
+                policy.includes_in_embodied_context(
+                    classified.is_current_place_record(),
+                    classified.is_latest_current_place_record()
+                ),
+                kind == "workplace",
+                "{kind} embodied inclusion must be behaviorally tied to the declared scope"
+            );
+            if policy.classification() == ActorKnownProjectionPolicy::ReclassifyWhenStale {
+                assert_eq!(
+                    classified.freshness(),
+                    ActorKnownProjectionFreshness::Remembered,
+                    "{kind} should classify a direct non-observation-backed record as remembered"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn supersede_newest_by_subject_requires_subject_extractor() {
+        let policy = ActorKnownProjectionKindPolicy {
+            classification: ActorKnownProjectionPolicy::SupersedeNewestBySubject,
+            embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+            accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+        };
+        let actor = actor_id("actor_tomas");
+        let route_record = ActorKnownProjectionRecord::Route {
+            actor_id: actor,
+            from_place_id: place_id("home_tomas"),
+            to_place_id: place_id("market"),
+            source: ActorKnownProjectionSource::VisibleExit,
+            source_event_id: event_id("event_visible_exit"),
+            source_tick: SimTick::new(4),
+        };
+
+        let result = std::panic::catch_unwind(|| {
+            policy.includes_classified_record(&route_record, &BTreeMap::new());
+        });
+        assert!(
+            result.is_err(),
+            "synthetic non-workplace supersede policy must fail loudly instead of dropping records"
         );
     }
 
     #[test]
-    fn actor_known_projection_records_dispatch_to_declared_policy_table() {
+    fn workplace_current_place_scope_drops_other_place_from_embodied_context() {
         let actor = actor_id("actor_tomas");
-        let records = [
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            workplace_id("workplace_tomas"),
+            place_id("home_tomas"),
+            true,
+            event_id("event_role_notice_home"),
+            SimTick::new(4),
+        );
+        let context = KnowledgeContext::embodied(actor, SimTick::new(9));
+
+        let classified =
+            projection.classified_actor_known_records_for_context(&context, &place_id("market"));
+        let workplace_record = classified
+            .iter()
+            .find(|classified| classified.record().kind() == "workplace")
+            .expect("no-human classifier keeps remembered workplace record");
+
+        assert!(!workplace_record.is_current_place_record());
+        assert!(
+            !workplace_record
+                .record()
+                .policy()
+                .includes_in_embodied_context(
+                    workplace_record.is_current_place_record(),
+                    workplace_record.is_latest_current_place_record(),
+                ),
+            "workplace CurrentPlaceOnly policy must drop other-place records from embodied context"
+        );
+    }
+
+    fn policy_behavior_records(actor: ActorId) -> Vec<ActorKnownProjectionRecord> {
+        vec![
             ActorKnownProjectionRecord::Route {
                 actor_id: actor.clone(),
                 from_place_id: place_id("home_tomas"),
@@ -1219,23 +1326,7 @@ mod tests {
                 source_event_id: event_id("event_role_notice"),
                 source_tick: SimTick::new(4),
             },
-        ];
-
-        let policies = actor_known_projection_policy_kinds();
-        let dispatched: Vec<_> = records
-            .iter()
-            .map(|record| record.policy().classification())
-            .collect();
-
-        assert_eq!(
-            dispatched,
-            [
-                policies["route"].classification(),
-                policies["food_source"].classification(),
-                policies["sleep_place"].classification(),
-                policies["workplace"].classification()
-            ]
-        );
+        ]
     }
 
     #[test]

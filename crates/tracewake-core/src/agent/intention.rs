@@ -297,4 +297,21 @@ mod tests {
             IntentionTransitionError::ActiveIntentionAlreadyExists
         );
     }
+
+    #[test]
+    fn intention_status_stable_ids_cover_all_variants() {
+        let cases = [
+            (IntentionStatus::Active, "active", false),
+            (IntentionStatus::Suspended, "suspended", false),
+            (IntentionStatus::Completed, "completed", true),
+            (IntentionStatus::Failed, "failed", true),
+            (IntentionStatus::Abandoned, "abandoned", true),
+            (IntentionStatus::Interrupted, "interrupted", true),
+        ];
+
+        for (status, stable_id, is_terminal) in cases {
+            assert_eq!(status.stable_id(), stable_id);
+            assert_eq!(status.is_terminal(), is_terminal);
+        }
+    }
 }

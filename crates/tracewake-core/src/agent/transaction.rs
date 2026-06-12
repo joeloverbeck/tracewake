@@ -142,7 +142,22 @@ impl ActorDecisionTransaction {
                 .collect()
         };
         let mut last_method_failure: Option<(CandidateGoal, String)> = None;
+        let max_method_attempts = candidates.len().saturating_add(1);
+        let mut method_attempts = 0usize;
         let (selection, method) = loop {
+            method_attempts = method_attempts.saturating_add(1);
+            if method_attempts > max_method_attempts {
+                return ActorDecisionTransactionOutcome::Stuck {
+                    diagnostic: Box::new(stuck_diagnostic(
+                        &input.actor_id,
+                        input.decision_tick,
+                        last_method_failure.as_ref().map(|(goal, _)| goal),
+                        None,
+                        "empty local plan",
+                        "method selection retry limit exceeded without retiring the failed goal",
+                    )),
+                };
+            }
             let Some(selection) = select_goal_and_trace(DecisionInput {
                 actor_id: input.actor_id.clone(),
                 decision_tick: input.decision_tick,
@@ -192,12 +207,26 @@ impl ActorDecisionTransaction {
                 Err(error) => {
                     let failed_goal = selection.selected_goal.clone();
                     let error = format!("{error:?}");
+                    let mut retired_failed_goal = false;
                     for candidate in candidates.iter_mut().filter(|candidate| {
                         candidate.candidate_goal_id == failed_goal.candidate_goal_id
                     }) {
+                        retired_failed_goal = true;
                         candidate.applicability = ApplicabilityResult::Inapplicable;
                         candidate.rejection_reason =
                             Some(format!("method_selection_rejected:{error}"));
+                    }
+                    if !retired_failed_goal {
+                        return ActorDecisionTransactionOutcome::Stuck {
+                            diagnostic: Box::new(stuck_diagnostic(
+                                &input.actor_id,
+                                input.decision_tick,
+                                Some(&failed_goal),
+                                None,
+                                "empty local plan",
+                                format!("method failure did not retire selected goal: {error}"),
+                            )),
+                        };
                     }
                     last_method_failure = Some((failed_goal, error));
                 }
@@ -816,9 +845,10 @@ fn stuck_diagnostic_for_plan_failure(
 mod tests {
     use super::*;
     use crate::agent::{
-        ActorKnownFact, IntentionSource, NeedChangeCause, NeedKind, NeedState, SourceEventIds,
+        ActorKnownFact, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
+        SourceEventIds,
     };
-    use crate::ids::PlaceId;
+    use crate::ids::{CandidateGoalId, DecisionTraceId, IntentionId, PlaceId, RoutineTemplateId};
     use std::collections::{BTreeMap, BTreeSet};
 
     fn actor_id() -> ActorId {
@@ -1017,6 +1047,142 @@ mod tests {
             )]),
         );
         state
+    }
+
+    #[test]
+    fn active_intention_lookup_requires_actor_specific_live_index() {
+        let actor = actor_id();
+        let other_actor = ActorId::new("actor_mara").unwrap();
+        let intention = Intention::adopt(
+            IntentionId::new("intention_tomas_breakfast").unwrap(),
+            actor.clone(),
+            IntentionSource::NeedPressure,
+            CandidateGoalId::new("goal_tomas_breakfast").unwrap(),
+            Some(RoutineTemplateId::new("routine_eat_meal").unwrap()),
+            Some("eat".to_string()),
+            3,
+            SimTick::new(20),
+            DecisionTraceId::new("trace_tomas_breakfast").unwrap(),
+        );
+        let other_intention = Intention::adopt(
+            IntentionId::new("intention_mara_work").unwrap(),
+            other_actor.clone(),
+            IntentionSource::RoutineDuty,
+            CandidateGoalId::new("goal_mara_work").unwrap(),
+            Some(RoutineTemplateId::new("routine_work_block").unwrap()),
+            Some("work_block".to_string()),
+            2,
+            SimTick::new(20),
+            DecisionTraceId::new("trace_mara_work").unwrap(),
+        );
+        let mut state = AgentState::default();
+        state
+            .active_intention_by_actor
+            .insert(actor.clone(), intention.intention_id.clone());
+        state
+            .active_intention_by_actor
+            .insert(other_actor.clone(), other_intention.intention_id.clone());
+        state
+            .intentions
+            .insert(intention.intention_id.clone(), intention.clone());
+        state.intentions.insert(
+            other_intention.intention_id.clone(),
+            other_intention.clone(),
+        );
+
+        assert_eq!(active_intention_for_actor(&state, &actor), Some(intention));
+        assert_eq!(
+            active_intention_for_actor(&state, &other_actor),
+            Some(other_intention)
+        );
+        assert_eq!(
+            active_intention_for_actor(&state, &ActorId::new("actor_elena").unwrap()),
+            None
+        );
+    }
+
+    #[test]
+    fn witness_kind_allowlist_covers_no_human_intention_and_need_sources() {
+        assert!(witness_kind_allowed(
+            "agent_needs_present",
+            &EventKind::NeedDeltaApplied
+        ));
+        assert!(!witness_kind_allowed(
+            "agent_needs_present",
+            &EventKind::ObservationRecorded
+        ));
+
+        for stable_id in [
+            "actor_belief_projection_limitation",
+            "modeled_wait_reason",
+            "reevaluation_window_known",
+        ] {
+            assert!(witness_kind_allowed(
+                stable_id,
+                &EventKind::NoHumanDayStarted
+            ));
+            assert!(witness_kind_allowed(
+                stable_id,
+                &EventKind::NoHumanAdvanceStarted
+            ));
+            assert!(!witness_kind_allowed(
+                stable_id,
+                &EventKind::ObservationRecorded
+            ));
+        }
+
+        for stable_id in ["active_intention_present", "next_step_available"] {
+            for event_kind in [
+                EventKind::IntentionStarted,
+                EventKind::IntentionContinued,
+                EventKind::IntentionResumed,
+                EventKind::NoHumanDayStarted,
+                EventKind::NoHumanAdvanceStarted,
+            ] {
+                assert!(witness_kind_allowed(stable_id, &event_kind));
+            }
+            assert!(!witness_kind_allowed(
+                stable_id,
+                &EventKind::RoleAssignmentNoticeRecorded
+            ));
+        }
+    }
+
+    #[test]
+    fn stuck_diagnostic_maps_candidate_and_local_plan_blockers() {
+        let no_candidate = stuck_diagnostic(
+            &actor_id(),
+            SimTick::new(21),
+            None,
+            None,
+            "no applicable candidate",
+            "",
+        );
+        assert_eq!(
+            no_candidate.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::CandidateGeneration
+        );
+        assert_eq!(
+            no_candidate.typed_diagnostic.blocker_code,
+            BlockerCode::NoApplicableCandidate
+        );
+
+        let empty_plan = stuck_diagnostic(
+            &actor_id(),
+            SimTick::new(22),
+            None,
+            None,
+            "empty local plan",
+            "",
+        );
+        assert_eq!(
+            empty_plan.typed_diagnostic.responsible_layer,
+            ResponsibleLayer::LocalPlanning
+        );
+        assert_eq!(
+            empty_plan.typed_diagnostic.blocker_code,
+            BlockerCode::EmptyLocalPlan
+        );
     }
 
     #[test]

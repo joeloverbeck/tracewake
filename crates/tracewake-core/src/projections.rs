@@ -1211,8 +1211,9 @@ mod tests {
     use super::*;
     use crate::agent::{Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState};
     use crate::epistemics::{
-        Belief, Channel, Confidence, Contradiction, ContradictionKind, HolderKind, Observation,
-        ObservationSubject, ObservationTarget, Proposition, SourceRef, Stance,
+        ActorKnownFoodSourceFact, ActorKnownSleepAffordanceFact, Belief, Channel, Confidence,
+        Contradiction, ContradictionKind, HolderKind, Observation, ObservationSubject,
+        ObservationTarget, Proposition, SourceRef, Stance,
     };
     use crate::events::PayloadField;
     use crate::ids::{
@@ -1402,6 +1403,67 @@ mod tests {
             .semantic_actions
             .iter()
             .all(|entry| entry.semantic_action_id.as_str() != "0"));
+    }
+
+    #[test]
+    fn phase3a_semantic_actions_include_disabled_empty_food_and_known_sleep() {
+        let mut state = state();
+        state.sleep_affordances.insert(
+            SleepAffordanceId::new("bed_tomas").unwrap(),
+            SleepAffordanceState::new(
+                SleepAffordanceId::new("bed_tomas").unwrap(),
+                place_id("shop_front"),
+                4,
+                20,
+                2,
+            ),
+        );
+        let context = KnowledgeContext::embodied_at_frontier_with_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            vec![ActorKnownFoodSourceFact::with_believed_servings(
+                FoodSupplyId::new("food_empty_bowl").unwrap(),
+                Some(0),
+                "test:empty_food",
+            )],
+            vec![ActorKnownSleepAffordanceFact::new(
+                SleepAffordanceId::new("bed_tomas").unwrap(),
+                place_id("shop_front"),
+                "test:known_sleep",
+            )],
+            Vec::new(),
+        );
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, &state, None);
+
+        assert_eq!(
+            actor_known_sleep_affordances_for_context(&context),
+            vec![SleepAffordanceId::new("bed_tomas").unwrap()]
+        );
+        assert_eq!(
+            visible_open_sleep_affordance(&source),
+            Some(SleepAffordanceId::new("bed_tomas").unwrap())
+        );
+
+        let view =
+            build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
+                .unwrap();
+        assert!(view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "sleep.here"
+                && entry.target_ids == ["bed_tomas"]));
+        let eat_empty = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "eat.food.food_empty_bowl")
+            .unwrap();
+        assert!(!eat_empty.enabled);
+        assert!(matches!(
+            eat_empty.availability,
+            ActionAvailability::Disabled { .. }
+        ));
     }
 
     #[test]
@@ -2233,10 +2295,19 @@ mod tests {
         let mut replay_failure = metric_event(EventKind::ReplayProjectionRebuilt, 16, 16);
         replay_failure.payload = vec![PayloadField::new("status", "failure")];
         log.append(replay_failure).unwrap();
-        let mut player_conditioned = metric_event(EventKind::ActionStarted, 17, 17);
+        let mut replay_success = metric_event(EventKind::ReplayProjectionRebuilt, 17, 17);
+        replay_success.payload = vec![PayloadField::new("status", "success")];
+        log.append(replay_success).unwrap();
+        let mut non_replay_failure = metric_event(EventKind::ActionStarted, 18, 18);
+        non_replay_failure.payload = vec![PayloadField::new("status", "failure")];
+        log.append(non_replay_failure).unwrap();
+        let mut second_non_replay_failure = metric_event(EventKind::ActionFailed, 19, 19);
+        second_non_replay_failure.payload = vec![PayloadField::new("status", "failure")];
+        log.append(second_non_replay_failure).unwrap();
+        let mut player_conditioned = metric_event(EventKind::ActionStarted, 20, 20);
         player_conditioned.effects_summary = "conditioned on player choice".to_string();
         log.append(player_conditioned).unwrap();
-        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 18, 20);
+        append_metric_event(&mut log, EventKind::NoHumanDayCompleted, 21, 24);
 
         let metrics = no_human_day_metrics(&log);
         let events = log.events();
@@ -2309,13 +2380,106 @@ mod tests {
         assert_eq!(metrics.routine_interruptions, 2);
         assert_eq!(metrics.planner_failures, 1);
         assert_eq!(metrics.stuck_actor_count, 1);
-        assert_eq!(metrics.run_duration_ticks, 20);
+        assert_eq!(metrics.run_duration_ticks, 24);
         assert_eq!(metrics.replay_failure_count, 1);
         assert_eq!(metrics.tui_action_coverage, events.len());
         assert_eq!(metrics.player_conditioned_event_count, 1);
         assert_eq!(
             metrics.player_conditioned_event_rate_per_1000,
             (metrics.player_conditioned_event_count as u64 * 1000) / metrics.events_per_day as u64
+        );
+    }
+
+    #[test]
+    fn no_human_metrics_helpers_use_typed_fields_and_player_terms() {
+        let mut local_planning = metric_event(EventKind::DecisionTraceRecorded, 91, 91);
+        local_planning.payload = vec![
+            PayloadField::new("responsible_layer", "local_planning"),
+            PayloadField::new("blocker_code", "none"),
+        ];
+        assert_eq!(
+            typed_responsible_layer(&local_planning),
+            Some(ResponsibleLayer::LocalPlanning)
+        );
+        assert_eq!(typed_blocker_code(&local_planning), Some(BlockerCode::None));
+        assert!(is_typed_planner_failure_event(&local_planning));
+
+        let mut empty_plan = metric_event(EventKind::StuckDiagnosticRecorded, 92, 92);
+        empty_plan.payload = vec![
+            PayloadField::new("responsible_layer", "candidate_generation"),
+            PayloadField::new("blocker_code", "empty_local_plan"),
+        ];
+        assert!(is_typed_planner_failure_event(&empty_plan));
+
+        let mut unrelated = metric_event(EventKind::StuckDiagnosticRecorded, 93, 93);
+        unrelated.payload = vec![
+            PayloadField::new("responsible_layer", "method_selection"),
+            PayloadField::new("blocker_code", "no_applicable_method"),
+        ];
+        assert!(!is_typed_planner_failure_event(&unrelated));
+
+        let mut participant_player = metric_event(EventKind::ActionStarted, 94, 94);
+        participant_player.participants = vec!["controller_1".to_string()];
+        assert!(contains_player_conditioned_fact(&participant_player));
+
+        let mut payload_player = metric_event(EventKind::ActionStarted, 95, 95);
+        payload_player.payload = vec![PayloadField::new("selection", "player_selected_wait")];
+        assert!(contains_player_conditioned_fact(&payload_player));
+
+        let mut summary_player = metric_event(EventKind::ActionStarted, 96, 96);
+        summary_player.effects_summary = "conditioned on controller choice".to_string();
+        assert!(contains_player_conditioned_fact(&summary_player));
+
+        let neutral = metric_event(EventKind::ActionStarted, 97, 97);
+        assert!(!contains_player_conditioned_fact(&neutral));
+    }
+
+    #[test]
+    fn semantic_action_entry_proposal_branches_are_exact() {
+        let sleep_entry = SemanticActionEntry::with_availability(
+            SemanticActionId::new("sleep.here").unwrap(),
+            ActionId::new("sleep").unwrap(),
+            vec!["bed_tomas".to_string()],
+            "Sleep here",
+            ActionAvailability::available(),
+        );
+        let sleep_proposal = proposal_from_semantic_action_entry(
+            ProposalId::new("proposal_sleep_entry").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            SimTick::new(7),
+            &sleep_entry,
+            None,
+            None,
+        );
+        assert_eq!(
+            sleep_proposal.parameters.get("sleep_affordance_id"),
+            Some(&"bed_tomas".to_string())
+        );
+
+        let wait_entry = SemanticActionEntry::with_availability(
+            SemanticActionId::new("wait.1_tick").unwrap(),
+            ActionId::new("wait").unwrap(),
+            vec!["1_tick".to_string()],
+            "Wait",
+            ActionAvailability::available(),
+        );
+        let wait_proposal = proposal_from_semantic_action_entry(
+            ProposalId::new("proposal_wait_entry").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            SimTick::new(7),
+            &wait_entry,
+            None,
+            None,
+        );
+        assert_eq!(
+            wait_proposal.parameters.get("ticks"),
+            Some(&"1".to_string())
+        );
+        assert_eq!(
+            wait_proposal.parameters.get("reason"),
+            Some(&"actor selected wait".to_string())
         );
     }
 

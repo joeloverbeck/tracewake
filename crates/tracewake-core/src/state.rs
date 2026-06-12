@@ -355,6 +355,9 @@ impl AgentState {
 }
 
 impl PlaceState {
+    /// Constructs an in-code place with a visible default for fixture/test assembly
+    /// convenience. Authored content must still pass the fail-closed loader
+    /// `visibility_default` column; this constructor is not an authoring fallback.
     pub fn new(place_id: PlaceId, display_label: impl Into<String>) -> Self {
         Self {
             place_id,
@@ -369,6 +372,9 @@ impl PlaceState {
     }
 }
 
+/// Default visibility used by already-typed state. The permissive `Visible`
+/// constructor default is loader-only convenience for in-code state assembly;
+/// authored fixtures must explicitly provide and validate this field.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VisibilityDefault {
     Visible,

@@ -91,12 +91,8 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
     assert!(notebook.source_bound_beliefs.is_empty());
     assert!(!view.holder_known_context_source_summary.contains("debug"));
     for actor_surface in [rendered_view.as_str(), rendered_notebook.as_str()] {
-        let without_marked_context = actor_surface
-            .lines()
-            .filter(|line| !line.starts_with("Knowledge context: DEBUG NON-DIEGETIC"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        assert!(!without_marked_context.contains("DEBUG NON-DIEGETIC"));
+        assert!(!actor_surface.contains("Knowledge context"));
+        assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
         assert!(!actor_surface.contains("food_hidden_pantry"));
         assert!(!actor_surface.contains("debug_omniscience"));
     }
@@ -428,12 +424,8 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
     assert!(mara_notebook.typed_leads.is_empty());
     assert!(mara_notebook.source_bound_beliefs.is_empty());
     for actor_surface in [mara_rendered_view.as_str(), mara_rendered_notebook.as_str()] {
-        let without_marked_context = actor_surface
-            .lines()
-            .filter(|line| !line.starts_with("Knowledge context: DEBUG NON-DIEGETIC"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        assert!(!without_marked_context.contains("DEBUG NON-DIEGETIC"));
+        assert!(!actor_surface.contains("Knowledge context"));
+        assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
         assert!(!actor_surface.contains("belief_tomas"));
     }
     assert!(mara_view

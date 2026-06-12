@@ -31,14 +31,6 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     } else if let Some(summary) = &view.last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
     }
-    lines.push(format!(
-        "Knowledge context: DEBUG NON-DIEGETIC id={} hash={} tick={} frontier={} sources={}",
-        view.holder_known_context_id.as_str(),
-        view.holder_known_context_hash.as_str(),
-        view.sim_tick.value(),
-        view.holder_known_context_frontier,
-        view.holder_known_context_source_summary
-    ));
     if let Some(status) = &view.phase3a_status {
         lines.push("Needs:".to_string());
         if status.need_summaries.is_empty() {
@@ -137,15 +129,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
                     .map(|reason| reason.stable_id())
                     .collect::<Vec<_>>()
                     .join(",");
-                let diagnostics = if action.availability.debug_only_diagnostics().is_empty() {
-                    String::new()
-                } else {
-                    format!(
-                        " debug_diagnostics={}",
-                        action.availability.debug_only_diagnostics().join(",")
-                    )
-                };
-                format!(" disabled: {summary} reasons={reason_codes}{diagnostics}")
+                format!(" disabled: {summary} reasons={reason_codes}")
             })
             .unwrap_or_default();
         lines.push(format!(
@@ -156,8 +140,34 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             disabled
         ));
     }
-    lines.push(format!("Debug: available={}", view.debug_available));
+    lines.join("\n")
+}
 
+pub fn render_debug_overlay(view: &EmbodiedViewModel) -> String {
+    let mut lines = Vec::new();
+    if !view.debug_available {
+        return lines.join("\n");
+    }
+    lines.push("DEBUG NON-DIEGETIC: Embodied Overlay".to_string());
+    lines.push(format!(
+        "Knowledge context: id={} hash={} tick={} frontier={} sources={}",
+        view.holder_known_context_id.as_str(),
+        view.holder_known_context_hash.as_str(),
+        view.sim_tick.value(),
+        view.holder_known_context_frontier,
+        view.holder_known_context_source_summary
+    ));
+    lines.push(format!("Debug: available={}", view.debug_available));
+    for action in &view.semantic_actions {
+        let diagnostics = action.availability.debug_only_diagnostics();
+        if !diagnostics.is_empty() {
+            lines.push(format!(
+                "debug_diagnostics action={} values={}",
+                action.semantic_action_id.as_str(),
+                diagnostics.join(",")
+            ));
+        }
+    }
     lines.join("\n")
 }
 
@@ -321,7 +331,7 @@ mod tests {
 
         assert!(rendered.contains("open.door.door_market_store"));
         assert!(rendered.contains("Market stall"));
-        assert!(rendered.contains("Debug: available=true"));
+        assert!(!rendered.contains("Debug: available=true"));
     }
 
     #[test]
@@ -415,8 +425,11 @@ mod tests {
         };
 
         let rendered = render_embodied_view(&view);
+        let overlay = render_debug_overlay(&view);
 
-        assert!(rendered.contains("debug_diagnostics=validator_fact=door_closed"));
+        assert!(!rendered.contains("debug_diagnostics"));
+        assert!(overlay.contains("debug_diagnostics action=open.door_market_store"));
+        assert!(overlay.contains("validator_fact=door_closed"));
     }
 
     #[test]
@@ -579,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn renderer_marks_knowledge_context_frontier_non_diegetic() {
+    fn renderer_keeps_debug_tokens_out_of_embodied_view() {
         let context = context();
         let view = EmbodiedViewModel {
             view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
@@ -608,7 +621,45 @@ mod tests {
 
         let rendered = render_embodied_view(&view);
 
-        assert!(rendered.contains("Knowledge context: DEBUG NON-DIEGETIC"));
+        assert!(!rendered.contains("Knowledge context"));
+        assert!(!rendered.contains("DEBUG NON-DIEGETIC"));
+        assert!(!rendered.contains("Debug:"));
+        assert!(!rendered.contains("debug_diagnostics"));
+    }
+
+    #[test]
+    fn debug_overlay_marks_knowledge_context_frontier_non_diegetic() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_debug_overlay(&view);
+
+        assert!(rendered.contains("DEBUG NON-DIEGETIC: Embodied Overlay"));
+        assert!(rendered.contains("Knowledge context: id=hkc."));
         assert!(rendered.contains("frontier=0"));
+        assert!(rendered.contains("Debug: available=true"));
     }
 }

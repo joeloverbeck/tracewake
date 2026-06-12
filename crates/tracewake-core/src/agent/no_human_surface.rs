@@ -522,7 +522,7 @@ mod tests {
     use crate::events::apply::apply_epistemic_event;
     use crate::events::log::EventLog;
     use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
-    use crate::ids::{ActionId, ContentManifestId, SemanticActionId};
+    use crate::ids::{ActionId, ContentManifestId, IntentionId, SemanticActionId};
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 
     fn actor_id() -> ActorId {
@@ -634,6 +634,27 @@ mod tests {
             .iter()
             .map(|fact| fact.stable_id())
             .collect()
+    }
+
+    #[test]
+    fn active_intention_presence_uses_actor_specific_index() {
+        let actor_id = actor_id();
+        let other_actor_id = ActorId::new("actor_elena").unwrap();
+        let mut agent_state = AgentState::default();
+
+        assert!(!has_active_intention(&agent_state, &actor_id));
+
+        agent_state.active_intention_by_actor.insert(
+            other_actor_id,
+            IntentionId::new("intention_other_actor").unwrap(),
+        );
+        assert!(!has_active_intention(&agent_state, &actor_id));
+
+        agent_state.active_intention_by_actor.insert(
+            actor_id.clone(),
+            IntentionId::new("intention_actor_tomas").unwrap(),
+        );
+        assert!(has_active_intention(&agent_state, &actor_id));
     }
 
     #[test]

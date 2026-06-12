@@ -336,6 +336,7 @@ mod tests {
         ActorKnownFact, GoalKind, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
         SourceEventIds,
     };
+    use crate::epistemics::KnowledgeProvenanceKind;
     use crate::ids::{CandidateGoalId, EventId, IntentionId, RoutineTemplateId};
 
     fn actor_id() -> ActorId {
@@ -391,6 +392,111 @@ mod tests {
         .unwrap()
     }
 
+    fn candidate(priority: crate::agent::GoalPriority) -> CandidateGoal {
+        CandidateGoal::new(
+            CandidateGoalId::new(format!("goal_{}", priority.stable_id())).unwrap(),
+            actor_id(),
+            SimTick::new(12),
+            SimTick::new(13),
+            crate::agent::CandidateGoalSource::NeedPressure,
+            GoalKind::Eat,
+            priority,
+            priority.stable_id(),
+            Vec::new(),
+            ApplicabilityResult::Applicable,
+            None,
+            None,
+            DecisionTraceId::new(format!("trace_{}", priority.stable_id())).unwrap(),
+        )
+    }
+
+    #[test]
+    fn actor_known_input_source_class_stable_ids_cover_all_variants() {
+        let cases = [
+            (
+                ActorKnownInputSourceClass::ActorKnown(KnowledgeProvenanceKind::Observation),
+                "observation",
+            ),
+            (
+                ActorKnownInputSourceClass::ActorKnown(KnowledgeProvenanceKind::Memory),
+                "memory",
+            ),
+            (
+                ActorKnownInputSourceClass::RoutineAssignment,
+                "routine_assignment",
+            ),
+            (
+                ActorKnownInputSourceClass::FixturePossibility,
+                "fixture_possibility",
+            ),
+            (
+                ActorKnownInputSourceClass::PipelineValidationTruth,
+                "pipeline_validation_truth",
+            ),
+            (
+                ActorKnownInputSourceClass::DebugOmniscience,
+                "debug_omniscience",
+            ),
+            (
+                ActorKnownInputSourceClass::UnprovenPhysicalTruth,
+                "unproven_physical_truth",
+            ),
+        ];
+
+        assert_eq!(
+            cases
+                .iter()
+                .map(|(source_class, _)| source_class.stable_id())
+                .collect::<Vec<_>>(),
+            cases
+                .iter()
+                .map(|(_, stable_id)| *stable_id)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn durability_levels_distinguish_priority_bands() {
+        use crate::agent::GoalPriority;
+
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::SevereSafety)),
+            9
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::SevereHunger)),
+            9
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::SevereFatigue)),
+            9
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::ActiveIntentionContinuation)),
+            8
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::UrgentHungerOrFatigue)),
+            7
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::RoutineWindowDuty)),
+            6
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::ReturnHomeOrSleepWindow)),
+            6
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::IdleWithReason)),
+            4
+        );
+        assert_eq!(
+            durability_level_for(&candidate(GoalPriority::MildNeedPressure)),
+            4
+        );
+    }
+
     #[test]
     fn mild_hunger_continues_active_intention() {
         let selection = decide_for_hunger(300);
@@ -438,6 +544,15 @@ mod tests {
             selection.trace.selected_goal_id,
             Some(selection.selected_goal.candidate_goal_id.clone())
         );
+        assert!(selection
+            .trace
+            .rejected_goals
+            .iter()
+            .all(|rejected| rejected.stable_ref
+                != selection.selected_goal.candidate_goal_id.as_str()));
+        assert!(selection.trace.rejected_goals.iter().any(
+            |rejected| rejected.stable_ref == "goal_actor_tomas_12_continue_current_intention"
+        ));
     }
 
     #[test]

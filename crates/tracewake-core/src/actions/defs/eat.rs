@@ -1,15 +1,20 @@
+use crate::actions::defs::need_events::{
+    build_need_delta_and_threshold_events, NeedDeltaEventSpec,
+};
 use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
+use crate::agent::NeedKind;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{ContentManifestId, EventId, FoodSupplyId};
 use crate::location::Location;
 use crate::scheduler::OrderingKey;
-use crate::state::{FoodSupplyState, PhysicalState};
+use crate::state::{AgentState, FoodSupplyState, PhysicalState};
 
 pub fn build_eat_events(
     state: &PhysicalState,
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
@@ -61,14 +66,16 @@ pub fn build_eat_events(
         food,
         food.servings - 1,
     );
-    let need_delta = hunger_delta_event(
+    let mut events = vec![consumed];
+    events.extend(eat_need_events(
+        agent_state,
         proposal,
         ordering_key,
         content_manifest_id,
-        &consumed,
+        &events[0],
         -food.hunger_reduction_per_serving,
-    );
-    Ok(vec![consumed, need_delta])
+    ));
+    Ok(events)
 }
 
 fn food_consumed_event(
@@ -114,42 +121,51 @@ fn food_consumed_event(
     event
 }
 
-fn hunger_delta_event(
+fn eat_need_events(
+    agent_state: &AgentState,
     proposal: &Proposal,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     consumed_event: &EventEnvelope,
     delta: i32,
-) -> EventEnvelope {
+) -> Vec<EventEnvelope> {
     let actor_id = proposal.actor_id.as_ref().expect("actor checked");
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new(format!(
-            "event.eat_hunger_delta.{}",
-            proposal.proposal_id.as_str()
-        ))
-        .unwrap(),
-        EventKind::NeedDeltaApplied,
-        0,
-        0,
-        proposal.requested_tick,
-        ordering_key.clone(),
-        content_manifest_id.clone(),
-        vec![EventCause::Event(consumed_event.event_id.clone())],
+    let current_hunger = agent_state
+        .needs_by_actor
+        .get(actor_id)
+        .and_then(|needs| needs.get(&NeedKind::Hunger))
+        .map(crate::agent::NeedState::value);
+    build_need_delta_and_threshold_events(
+        NeedDeltaEventSpec {
+            event_id: EventId::new(format!(
+                "event.eat_hunger_delta.{}",
+                proposal.proposal_id.as_str()
+            ))
+            .unwrap(),
+            threshold_event_id: EventId::new(format!(
+                "event.eat_hunger_threshold.{}",
+                proposal.proposal_id.as_str()
+            ))
+            .unwrap(),
+            tick: proposal.requested_tick,
+            ordering_key: ordering_key.clone(),
+            content_manifest_id: content_manifest_id.clone(),
+            causes: vec![EventCause::Event(consumed_event.event_id.clone())],
+            actor_id: actor_id.clone(),
+            proposal_id: Some(proposal.proposal_id.clone()),
+            process_id: None,
+            participants: vec![actor_id.to_string()],
+            need_kind: NeedKind::Hunger,
+            delta,
+            elapsed_ticks: 0,
+            cause_kind: "action_effect".to_string(),
+            cause_action_id: Some("eat".to_string()),
+            extra_payload: vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)],
+            delta_effects_summary: "hunger reduced by modeled food consumption".to_string(),
+            threshold_effects_summary: "hunger pressure band crossed after eating".to_string(),
+        },
+        current_hunger,
     )
-    .unwrap();
-    event.actor_id = Some(actor_id.clone());
-    event.proposal_id = Some(proposal.proposal_id.clone());
-    event.participants = vec![actor_id.to_string()];
-    event.payload = vec![
-        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
-        PayloadField::new("actor_id", actor_id.as_str()),
-        PayloadField::new("need_kind", "hunger"),
-        PayloadField::new("delta", delta.to_string()),
-        PayloadField::new("cause_kind", "action_effect"),
-        PayloadField::new("cause_action_id", "eat"),
-    ];
-    event.effects_summary = "hunger reduced by modeled food consumption".to_string();
-    event
 }
 
 fn eat_failed_event(
@@ -312,7 +328,7 @@ mod tests {
     use crate::events::log::EventLog;
     use crate::ids::{ActionId, ActorId, ContainerId, PlaceId, ProposalId};
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, ContainerState, PlaceState};
+    use crate::state::{ActorBody, AgentState, ContainerState, PlaceState};
     use crate::time::SimTick;
 
     fn actor_id() -> ActorId {
@@ -371,11 +387,49 @@ mod tests {
         )
     }
 
+    fn agent_state(hunger: i32) -> AgentState {
+        let mut agent_state = AgentState::default();
+        agent_state.needs_by_actor.insert(
+            actor_id(),
+            [(
+                NeedKind::Hunger,
+                crate::agent::NeedState::initial(
+                    NeedKind::Hunger,
+                    hunger,
+                    crate::agent::NeedChangeCause::FixtureInitial,
+                ),
+            )]
+            .into_iter()
+            .collect(),
+        );
+        agent_state
+    }
+
+    fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+        event
+            .payload
+            .iter()
+            .find(|field| field.key == key)
+            .map(|field| field.value.as_str())
+    }
+
+    fn eat_events(state: &PhysicalState) -> Vec<EventEnvelope> {
+        build_eat_events(
+            state,
+            &agent_state(450),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap()
+    }
+
     #[test]
-    fn eat_consumes_one_serving_and_emits_hunger_delta() {
+    fn eat_consumes_one_serving_and_emits_non_crossing_hunger_delta() {
         let mut state = state(2);
         let events = build_eat_events(
             &state,
+            &agent_state(450),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -384,6 +438,7 @@ mod tests {
 
         assert_eq!(events[0].event_type, EventKind::FoodConsumed);
         assert_eq!(events[1].event_type, EventKind::NeedDeltaApplied);
+        assert_eq!(events.len(), 2);
         assert!(events[1]
             .payload
             .iter()
@@ -393,10 +448,41 @@ mod tests {
     }
 
     #[test]
+    fn eat_records_location_payload_for_place_food() {
+        let state = state(2);
+        let events = eat_events(&state);
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(payload_value(&events[0], "location"), Some("place:kitchen"));
+    }
+
+    #[test]
+    fn eat_hunger_delta_emits_threshold_crossing_when_band_changes() {
+        let state = state(2);
+        let events = build_eat_events(
+            &state,
+            &agent_state(510),
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(events[1].event_type, EventKind::NeedDeltaApplied);
+        assert_eq!(events[2].event_type, EventKind::NeedThresholdCrossed);
+        assert_eq!(payload_value(&events[2], "from_value"), Some("510"));
+        assert_eq!(payload_value(&events[2], "to_value"), Some("390"));
+        assert_eq!(payload_value(&events[2], "from_band"), Some("urgent"));
+        assert_eq!(payload_value(&events[2], "to_band"), Some("rising"));
+    }
+
+    #[test]
     fn eat_empty_food_source_fails_without_consumption() {
         let state = state(0);
         let events = build_eat_events(
             &state,
+            &agent_state(450),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -409,6 +495,32 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "blocker_kind" && field.value == "resource"));
+    }
+
+    #[test]
+    fn eat_food_at_other_place_fails_access_without_consumption() {
+        let mut state = state(1);
+        let remote_place_id = PlaceId::new("pantry_room").unwrap();
+        state.places.insert(
+            remote_place_id.clone(),
+            PlaceState::new(remote_place_id.clone(), "Pantry room"),
+        );
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::AtPlace(remote_place_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, EventKind::EatFailed);
+        assert_eq!(payload_value(&events[0], "blocker_kind"), Some("access"));
+        assert_eq!(
+            payload_value(&events[0], "absence_ancestry"),
+            Some("food source not at actor place")
+        );
+        assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
     }
 
     #[test]
@@ -426,6 +538,7 @@ mod tests {
 
         let events = build_eat_events(
             &state,
+            &agent_state(450),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),
@@ -441,6 +554,104 @@ mod tests {
     }
 
     #[test]
+    fn eat_in_open_local_container_consumes_and_records_container_payload() {
+        let mut state = state(2);
+        let container_id = ContainerId::new("pantry").unwrap();
+        let mut container = ContainerState::fixed_at_place(container_id.clone(), place_id());
+        container.is_open = true;
+        state.containers.insert(container_id.clone(), container);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::InContainer(container_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(
+            payload_value(&events[0], "location"),
+            Some("container:pantry")
+        );
+        assert_eq!(payload_value(&events[0], "servings_after"), Some("1"));
+    }
+
+    #[test]
+    fn eat_in_open_remote_container_fails_access_without_consumption() {
+        let mut state = state(1);
+        let remote_place_id = PlaceId::new("pantry_room").unwrap();
+        state.places.insert(
+            remote_place_id.clone(),
+            PlaceState::new(remote_place_id.clone(), "Pantry room"),
+        );
+        let container_id = ContainerId::new("remote_pantry").unwrap();
+        let mut container = ContainerState::fixed_at_place(container_id.clone(), remote_place_id);
+        container.is_open = true;
+        state.containers.insert(container_id.clone(), container);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::InContainer(container_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, EventKind::EatFailed);
+        assert_eq!(payload_value(&events[0], "blocker_kind"), Some("access"));
+        assert_eq!(
+            payload_value(&events[0], "absence_ancestry"),
+            Some("food source container not reachable")
+        );
+        assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
+    fn eat_self_carried_food_consumes_and_records_actor_payload() {
+        let mut state = state(2);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::CarriedBy(actor_id());
+
+        let events = eat_events(&state);
+
+        assert_eq!(events[0].event_type, EventKind::FoodConsumed);
+        assert_eq!(
+            payload_value(&events[0], "location"),
+            Some("actor:actor_tomas")
+        );
+        assert_eq!(payload_value(&events[0], "servings_after"), Some("1"));
+    }
+
+    #[test]
+    fn eat_food_carried_by_other_actor_fails_access_with_debug_ancestry() {
+        let mut state = state(1);
+        let carrier_id = ActorId::new("actor_mara").unwrap();
+        state.actors.insert(
+            carrier_id.clone(),
+            ActorBody::new(carrier_id.clone(), place_id()),
+        );
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::CarriedBy(carrier_id);
+
+        let events = eat_events(&state);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, EventKind::EatFailed);
+        assert_eq!(payload_value(&events[0], "blocker_kind"), Some("access"));
+        assert_eq!(
+            payload_value(&events[0], "absence_ancestry"),
+            Some("food source carried by another actor")
+        );
+        assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
     fn eat_carrier_access_failure_keeps_unobservable_distinction_out_of_reason() {
         let mut state = state(1);
         state
@@ -451,6 +662,7 @@ mod tests {
 
         let events = build_eat_events(
             &state,
+            &agent_state(450),
             &proposal(),
             &ordering_key(),
             &ContentManifestId::new("phase3a_manifest").unwrap(),

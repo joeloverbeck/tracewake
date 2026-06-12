@@ -138,7 +138,7 @@ pub fn all_steps_are_proposals(template: &RoutineTemplate) -> bool {
     template.steps.iter().all(|step| match step.proposed() {
         RoutineStepProposal::Action(action_id) => !action_id.as_str().is_empty(),
         RoutineStepProposal::Wait(reason) => !reason.is_empty(),
-        RoutineStepProposal::Diagnostic(diagnostic) => !diagnostic.is_empty(),
+        RoutineStepProposal::Diagnostic(diagnostic) => !diagnostic.stable_id().is_empty(),
     })
 }
 
@@ -250,6 +250,33 @@ mod tests {
             template.steps.first().unwrap().proposed(),
             RoutineStepProposal::Action(&SemanticActionId::new("move").unwrap())
         );
+    }
+
+    #[test]
+    fn proposal_step_validation_rejects_empty_wait_payload() {
+        let mut template = phase3a_routine_templates()
+            .into_iter()
+            .find(|template| template.family == RoutineFamily::Wait)
+            .unwrap();
+        assert!(all_steps_are_proposals(&template));
+
+        template.steps = vec![RoutineStep::WaitUntil {
+            reason: String::new(),
+        }];
+        assert!(!all_steps_are_proposals(&template));
+    }
+
+    #[test]
+    fn proposal_step_validation_accepts_typed_diagnostic_payload() {
+        let mut template = phase3a_routine_templates()
+            .into_iter()
+            .find(|template| template.family == RoutineFamily::Wait)
+            .unwrap();
+        template.steps = vec![RoutineStep::FailWithTypedDiagnostic {
+            diagnostic: crate::agent::routine::RoutineDiagnosticKind::NoSleepAffordance,
+        }];
+
+        assert!(all_steps_are_proposals(&template));
     }
 
     trait TemplateTestRender {

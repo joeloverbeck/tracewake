@@ -756,7 +756,7 @@ impl FixtureSchema {
             let current_step = template.steps.first().map(|step| match step.proposed() {
                 RoutineStepProposal::Action(action_id) => action_id.as_str().to_string(),
                 RoutineStepProposal::Wait(reason) => reason.to_string(),
-                RoutineStepProposal::Diagnostic(diagnostic) => diagnostic.to_string(),
+                RoutineStepProposal::Diagnostic(diagnostic) => diagnostic.stable_id().to_string(),
             });
             let intention = Intention::adopt(
                 intention_id.clone(),

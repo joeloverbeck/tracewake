@@ -47,6 +47,28 @@ Observed on the finished tree:
 | `cargo build --workspace --all-targets --locked` | Passed. |
 | `cargo test --workspace` | Passed. |
 
+## Spec §7 Evidence Map
+
+| §7 item | Report anchor | Finding anchors |
+|---:|---|---|
+| 1 | Rebind-After-Rejection | `ORD-HARD-066` |
+| 2 | Spec §7 item 2 scheduled mutation job record | `ORD-HARD-067`, `ORD-HARD-071`, `ORD-HARD-102` |
+| 3 | Hidden-Truth Gate Rebuild And Visibility Demotion | `ORD-HARD-068` |
+| 4 | Per-Arm Census | `ORD-HARD-069`, `ORD-HARD-070` |
+| 5 | Mutation Perimeter And Rationale Split | `ORD-HARD-072` |
+| 6 | Baseline Triage | `ORD-HARD-073`, `ORD-HARD-099` |
+| 7 | Policy Dispatch And Sleep Accessibility | `ORD-HARD-074`, `ORD-HARD-075` |
+| 8 | Shared Crossing Emitter And Corrupt-History Rejection | `ORD-HARD-076`, `ORD-HARD-085` |
+| 9 | Typed Place Concealment | `ORD-HARD-078` |
+| 10 | Event/State Perimeter | `ORD-HARD-079`, `ORD-HARD-080` |
+| 11 | Content Integrity And Contract Prose | `ORD-HARD-081`, `ORD-HARD-087` |
+| 12 | Embodied Provenance And Dead-Surface Sweep | `ORD-HARD-082`, `ORD-HARD-083` |
+| 13 | Generative Tier Deltas | `ORD-HARD-084`, `ORD-HARD-086`, `ORD-HARD-092` |
+| 14 | Low-Group Closures And Deferrals | `ORD-HARD-088`-`ORD-HARD-098`, including `ORD-HARD-095` |
+| 15 | Risk Register And Conformance Index | `R-27`, `R-28`, `R-29` |
+| 16 | EMERGE-OBS Refresh | `emerge_obs_v1` |
+| 17 | Explicit Non-Certification Boundary | not full-project certification |
+
 ## 1. Rebind-After-Rejection
 
 Primary ticket: `archive/tickets/0021PHA3APOSREB-001.md`.
@@ -58,16 +80,22 @@ TUI adversarial gates:
 `rejection_report_must_match_viewer_before_embodied_projection_renders_it`, and
 `renderer_marks_knowledge_context_frontier_non_diegetic`.
 
-## 2. Scheduled Ratchet And Guard Outputs
+## 2. Hidden-Truth Provenance Guard Outputs
 
 Primary ticket: `archive/tickets/0021PHA3APOSREB-002.md`.
 
 Hidden-truth gates now build actor-known contexts from applied event-log records
 rather than fixture-local context fabricators or fabricated event ids. The scheduled
-ratchet is represented by the widened hidden-truth/provenance source guards:
+ratchet is not evidenced by this section; this section records the widened
+hidden-truth/provenance source guards:
 `guard_0021_hidden_truth_gates_use_event_log_provenance`,
 `guard_0021_fabricated_visible_local_event_id_is_retired`, and
 `guard_0021_actor_known_context_producers_are_projection_backed`.
+
+Spec §7 item 2 scheduled mutation job record: pending post-merge. No first
+green-with-live-ratchet scheduled mutation run, and no honest red with newly caught
+misses, was recorded in the 0021 report. This is the `ORD-HARD-102` evidence
+deviation corrected by the 0022 package.
 
 ## 3. Hidden-Truth Gate Rebuild And Visibility Demotion
 
@@ -104,6 +132,14 @@ Mutation baseline misses are pinned by normalized count/hash and the disposition
 ledger rejects unledgered misses, stale entries, unsupported tags, missing
 `warrants-test` tickets, and bulk-repeated rationales. Retired entries and closed
 tags are enforced by `mutation_baseline_misses_are_pinned_and_ledgered`.
+
+`ORD-HARD-099` correction: this section previously described governance capabilities
+as "Baseline Triage." The 0021 pass did not retire any baseline entry or assign
+per-entry test debt. The real triage was performed later by
+`archive/tickets/0022PHA3ABASTRI-001.md`, which assigned all 143 remaining entries in
+`reports/0020_mutants_baseline_disposition.md` to focused test-debt tickets
+`0022PHA3ABASTRI-015` through `0022PHA3ABASTRI-023` without changing
+`.cargo/mutants-baseline-misses.txt`.
 
 ## 7. Policy Dispatch And Sleep Accessibility
 
@@ -193,9 +229,14 @@ Conformance rows added or updated under
 | `0021 actor-known projection policy dispatch` | Projection records dispatch per-kind policy through a table and shared consumers. |
 | `0021 INV-087 bind-time perception decision` | The possession/perception tension is explicitly deferred, with no silent constitutional edit. |
 
-Risk-register entries `R-27` and `R-28` continue to govern this artifact: reachability
-claims must name emitted-path evidence, and family corrections must enumerate sibling
-surfaces or explicit exemptions.
+Risk-register entries `R-27`, `R-28`, and `R-29` continue to govern this artifact:
+reachability claims must name emitted-path evidence, family corrections must
+enumerate sibling surfaces or explicit exemptions, and new or modified guards must
+carry a synthetic negative or live behavior case proving the protected behavior
+fails on regression. `R-29` was added for 0021 as Guard Vacuity / Decorative Locks,
+covering source guards, mutation baselines, policy tables, ledger parity checks,
+conformance rows, and acceptance reports whose assertions are only presence, shape,
+or count checks.
 
 ## 16. EMERGE-OBS Refresh
 
@@ -239,6 +280,18 @@ No production or test-logic changes were made for this capstone. The only artifa
 created by this ticket is this report. Ticket archival landed in commit `a466d13`,
 and final spec archival/truthing landed in commit `4c348b1`; no 0021 ticket or spec
 archive bookkeeping remains pending.
+
+Outcome amended: 2026-06-12
+
+- `ORD-HARD-102`: §2 was retitled from "Scheduled Ratchet And Guard Outputs" to
+  "Hidden-Truth Provenance Guard Outputs" because it records provenance guards, not a
+  scheduled mutation ratchet run. The required spec §7 item 2 scheduled-run evidence
+  remains explicitly pending post-merge for 0021.
+- `ORD-HARD-099`: §6 now records that 0021 performed governance hardening but not the
+  real baseline triage; `archive/tickets/0022PHA3ABASTRI-001.md` is the corrective
+  triage work.
+- `ORD-HARD-119`: §15 now quotes the R-29 risk-register addition that 0021 §7 item 15
+  required alongside R-27 and R-28.
 
 ## Finished-Tree Gate Record
 

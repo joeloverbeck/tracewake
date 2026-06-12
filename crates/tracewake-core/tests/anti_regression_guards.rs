@@ -36,14 +36,21 @@ const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
 const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
+const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CONTENT_GOLDEN_FIXTURES_RUN_RS: &str =
+    include_str!("../../tracewake-content/tests/golden_fixtures_run.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
 const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
 const MUTANTS_BASELINE_MISSES: &str = include_str!("../../../.cargo/mutants-baseline-misses.txt");
 const MUTANTS_BASELINE_LEDGER: &str =
     include_str!("../../../reports/0020_mutants_baseline_disposition.md");
+const ACCEPTANCE_0021_REPORT: &str =
+    include_str!("../../../reports/0021_ord_life_cert_scoped_acceptance.md");
+const ACCEPTANCE_0022_REPORT: &str =
+    include_str!("../../../reports/0022_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -107,11 +114,33 @@ struct EmbodiedSurfaceFieldProducer {
     rationale: &'static str,
 }
 
+struct PanicAllowlistEntry {
+    path: &'static str,
+    token: &'static str,
+    rationale: &'static str,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct EmbodiedSurfaceField {
     struct_name: String,
     field_name: String,
     type_name: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MetaLockRouting {
+    SharedScan,
+    BehaviorAssertion,
+    TicketOwnedDebt { ticket: &'static str },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct MetaLockRegistryEntry {
+    lock_id: &'static str,
+    negative_id: &'static str,
+    routing: MetaLockRouting,
+    witness_count: usize,
+    witness_min: usize,
 }
 
 const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
@@ -128,15 +157,15 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "debug_available",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.debug_available = true;",
+            producer_snippet: "view.debug_available = self.debug_available_for(actor_id);",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
-            rationale: "Core leaves debug availability false; the TUI boundary derives it from the presence of debug panel wiring.",
+            rationale: "Core leaves debug availability false; the TUI boundary derives it from the live controller binding for the viewed actor.",
         },
         EmbodiedSurfaceFieldProducer {
             struct_name: "ActionAvailability",
             field_name: "debug_only_diagnostics",
             source_path: "tracewake-core/src/view_models.rs",
-            producer_snippet: "debug_only_diagnostics: Vec<String>",
+            producer_snippet: "",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
             rationale: "Current production action availability keeps actor-safe provenance populated and defers debug-only diagnostics until a concrete debug-only disabled site needs them.",
         },
@@ -150,6 +179,7 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
             "actor_id",
             "need_kind",
             "delta",
+            "elapsed_ticks",
             "cause_kind",
             "cause_action_id",
         ],
@@ -218,6 +248,54 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
             "fallback_attempts",
         ],
         rationale: "Routine step transitions mutate typed RoutineExecution lifecycle columns and do not retain arbitrary semantic payload fields.",
+    },
+];
+
+const PANIC_ALLOWLIST: &[PanicAllowlistEntry] = &[
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"actor checked\")",
+        rationale: "Payload location was matched against actor ownership before removing from the actor inventory.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"item location checked\")",
+        rationale: "The item location variant was matched immediately before mutating its containing collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"place checked\")",
+        rationale: "The place existence check returned earlier with ApplyError before mutating the place collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        token: ".expect(\"container checked\")",
+        rationale: "The container existence check returned earlier with ApplyError before mutating the container collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/defs/work.rs",
+        token: ".expect(\"actor checked\")",
+        rationale: "The work event builder validates actor presence before constructing actor-scoped event payloads.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"agent event is appendable\")",
+        rationale: "Internal scheduler agent events are constructed with the current schema before append; log-derived failures use the typed try path.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"agent event applies to live state\")",
+        rationale: "Internal lifecycle events are generated from live agent state; completion and stuck-diagnostic log-derived paths use typed error collection.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"no-human marker is versioned\")",
+        rationale: "No-human process markers are static current-schema diagnostic events.",
+    },
+    PanicAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        token: ".expect(\"stuck diagnostic is versioned\")",
+        rationale: "Stuck diagnostic events are constructed with the current schema before typed agent application.",
     },
 ];
 
@@ -529,6 +607,18 @@ fn hidden_truth_harness_provenance_violations(source: &str) -> Vec<String> {
                 .to_string(),
         );
     }
+    for dead_parameter in ["_known_edges", "_known_food_sources"] {
+        if source.contains(dead_parameter) {
+            violations.push(format!(
+                "hidden_truth_gates.rs leaves dead adversarial parameter {dead_parameter}"
+            ));
+        }
+    }
+    if !source.contains("planner_hidden_truth_fixture_witness_errors") {
+        violations.push(
+            "hidden_truth_gates.rs lacks the planner adversarial fixture witness".to_string(),
+        );
+    }
     violations
 }
 
@@ -557,6 +647,16 @@ fn actor_known_context_constructor_violations(sources: &[(String, String)]) -> V
             violations.push(format!(
                 "{path} constructs ActorKnownPlanningContext outside the builder/classifier surface"
             ));
+        }
+        if !allowed_constructor_sites.contains(&path.as_str()) {
+            for line in uncommented.lines() {
+                if line.contains("pub fn ") && line.contains("-> ActorKnownPlanningContext") {
+                    violations.push(format!(
+                        "{path} exposes public ActorKnownPlanningContext producer: {}",
+                        line.trim()
+                    ));
+                }
+            }
         }
     }
 
@@ -685,8 +785,12 @@ fn embodied_field_has_registered_producer(
             && entry.field_name == field.field_name
             && !entry.cite.is_empty()
             && !entry.rationale.is_empty()
+            && (entry.producer_snippet.is_empty()
+                || !producer_snippet_is_constant_literal(entry.producer_snippet))
             && producer_sources.iter().any(|(path, source)| {
-                *path == entry.source_path && source.contains(entry.producer_snippet)
+                *path == entry.source_path
+                    && (entry.producer_snippet.is_empty()
+                        || source.contains(entry.producer_snippet))
             })
     })
 }
@@ -719,10 +823,23 @@ fn struct_body_has_non_default_field(body: &str, field_name: &str) -> bool {
         let value = trimmed[explicit.len()..].trim();
         !(value.starts_with("None")
             || value.starts_with("Vec::new()")
-            || value.starts_with("false"))
+            || value.starts_with("false")
+            || value.starts_with("true")
+            || value
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_ascii_digit()))
     }) || body
         .lines()
         .any(|line| line.trim() == format!("{field_name},"))
+}
+
+fn producer_snippet_is_constant_literal(snippet: &str) -> bool {
+    let normalized = normalized_source(snippet);
+    normalized.contains("= true")
+        || normalized.contains(": true")
+        || normalized.contains("= false")
+        || normalized.contains(": false")
 }
 
 fn source_has_field_consumer(source: &str, field_name: &str) -> bool {
@@ -1155,9 +1272,407 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/work.rs",
 ];
 
-const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 143;
-const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
+const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 0;
+const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xcbf2_9ce4_8422_2325;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
+const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
+const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
+const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
+    ("actor_waited", 10),
+    ("need_delta", 12),
+    ("food_consumed", 6),
+    ("sleep_started", 6),
+    ("work_started", 7),
+    ("sleep_completed", 4),
+    ("sleep_interrupted", 2),
+    ("work_completed", 4),
+    ("work_failed", 3),
+];
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 43;
+
+const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
+    MetaLockRegistryEntry {
+        lock_id: "meta_lock_registry_census",
+        negative_id: "synthetic_meta_lock_without_negative",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: META_LOCK_REGISTRY_MIN_ENTRIES,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "mutation_baseline_misses_are_pinned_and_ledgered",
+        negative_id: "synthetic_unrecorded_mutation_baseline_shrink",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: MUTANTS_BASELINE_NORMALIZED_COUNT,
+        witness_min: 0,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "generative_lock_two_sided_floor_ratchets",
+        negative_id: "synthetic_unrecorded_generative_floor_raise",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "generative_support_constructs_zero_event_envelopes",
+        negative_id: "synthetic_support_event_envelope_construction",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "physical_mutating_event_kinds_have_explicit_world_apply_arms",
+        negative_id: "synthetic_missing_arm_catch_all",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "agent_stream_event_kinds_have_explicit_agent_apply_arms",
+        negative_id: "synthetic_missing_agent_stream_apply_arm",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "action_emitted_event_kinds_have_cause_disposition",
+        negative_id: "synthetic_action_emitted_kind_without_cause_required",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data",
+        negative_id: "synthetic_log_derived_expect",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance",
+        negative_id: "synthetic_unfiltered_checked_facts_iter",
+        routing: MetaLockRouting::TicketOwnedDebt {
+            ticket: "0022PHA3ABASTRI-009",
+        },
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "embodied_view_option_and_collection_fields_have_reachable_producers",
+        negative_id: "synthetic_constant_literal_embodied_surface_producer",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass",
+        negative_id: "synthetic_direct_scheduler_proposal_bypass",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_duration_need_deltas_route_through_shared_emitter",
+        negative_id: "synthetic_direct_duration_need_delta_construction",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_scheduler_does_not_fabricate_empty_epistemic_projection",
+        negative_id: "synthetic_empty_epistemic_projection",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_018_actor_known_facts_require_source_event_witness",
+        negative_id: "synthetic_actor_known_fact_without_witness",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms",
+        negative_id: "synthetic_missing_witness_kind_stable_id_arm",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth",
+        negative_id: "synthetic_raw_assignment_or_sleep_truth_read",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed",
+        negative_id: "synthetic_unsealed_cognition_channel",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_embodied_projection_workplaces_are_context_backed",
+        negative_id: "synthetic_contextless_workplace_projection",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability",
+        negative_id: "synthetic_literal_true_action_availability",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_no_human_metrics_do_not_scan_display_text",
+        negative_id: "synthetic_display_text_metric_scan",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_perception_visibility_uses_typed_place_visibility",
+        negative_id: "synthetic_prose_visibility_branch",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_perception_visibility_other_emission_paths",
+        negative_id: "synthetic_prose_branch_in_other_emission_path",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "typed_column_closure_oblique_payload_helper_calls",
+        negative_id: "synthetic_oblique_payload_helper_call",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_011_no_human_day_runner_only_evidence",
+        negative_id: "synthetic_runner_only_work_completion_ancestry_removed",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_sleep_validation_requires_modeled_affordance",
+        negative_id: "synthetic_sleep_validation_without_affordance",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_actor_known_projection_policy_table_has_production_callers",
+        negative_id: "synthetic_projection_policy_without_caller",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_015_ordinary_life_tuning_comes_from_authored_state",
+        negative_id: "synthetic_ordinary_life_tuning_literal",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch",
+        negative_id: "synthetic_routine_family_to_primitive_dispatch",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition",
+        negative_id: "synthetic_scheduler_rewrites_transaction_proposal",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_transaction_has_no_silent_method_fallback_scan",
+        negative_id: "synthetic_silent_method_fallback_scan",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_015_hidden_truth_audit_fails_closed_in_transaction",
+        negative_id: "synthetic_hidden_truth_audit_open_transaction",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_decision_hidden_truth_audit_uses_typed_input_refs",
+        negative_id: "synthetic_hidden_truth_audit_string_tag",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id:
+            "guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters",
+        negative_id: "synthetic_need_value_parameter_read",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_002_agent_state_keeps_typed_trace_and_diagnostic_records",
+        negative_id: "synthetic_untyped_agent_trace_record",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_authoritative_state_fields_are_not_publicly_mutable",
+        negative_id: "synthetic_public_authoritative_state_field",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_mutation_capability_is_private_to_event_application",
+        negative_id: "synthetic_public_mutation_capability",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_no_production_seed_mutation_outside_state_definition",
+        negative_id: "synthetic_seed_mutation_outside_state",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_no_direct_state_collection_insert_outside_event_application",
+        negative_id: "synthetic_direct_state_collection_insert",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_actor_known_context_has_no_public_arbitrary_constructor",
+        negative_id: "synthetic_public_actor_known_context_constructor",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_actor_known_context_producers_are_projection_backed",
+        negative_id: "synthetic_unbacked_actor_known_context_producer",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_hidden_truth_gates_use_event_log_provenance",
+        negative_id: "synthetic_hidden_truth_gate_without_event_log",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "hidden_food_closed_container_is_not_actor_known_food_source",
+        negative_id: "synthetic_empty_hidden_food_adversarial_fixture",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "hidden_route_edge_absent_from_actor_context_blocks_route_plan",
+        negative_id: "synthetic_empty_hidden_route_adversarial_fixture",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context",
+        negative_id: "synthetic_empty_planner_hidden_truth_fixture",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "actor_known_projection_policy_table_drives_record_behavior",
+        negative_id: "synthetic_policy_table_behavior_drift",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 4,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "workplace_current_place_scope_drops_other_place_from_embodied_context",
+        negative_id: "synthetic_workplace_embodied_scope_removed",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "supersede_newest_by_subject_requires_subject_extractor",
+        negative_id: "synthetic_non_workplace_supersede_subject",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_fabricated_visible_local_event_id_is_retired",
+        negative_id: "synthetic_fabricated_visible_local_event_id",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_hidden_truth_audit_is_derived_from_provenance_not_tags",
+        negative_id: "synthetic_hidden_truth_audit_tag_match",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_continue_routine_marker_alone_is_not_behavioral_progress",
+        negative_id: "synthetic_continue_marker_as_progress",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
+        negative_id: "synthetic_missing_mutation_efficacy_note",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_008_action_registry_uses_typed_scopes_not_phase1_boolean",
+        negative_id: "synthetic_action_registry_phase1_boolean",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_008_phase1_loader_does_not_register_later_phase_actions",
+        negative_id: "synthetic_phase1_loader_registers_later_phase",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_008_phase1_loader_source_guard_has_mutation_self_coverage",
+        negative_id: "synthetic_phase1_loader_guard_mutation",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+];
 
 fn yaml_step_run_block<'a>(ci_yml: &'a str, step_name: &str) -> Option<&'a str> {
     let marker = format!("- name: {step_name}");
@@ -1190,6 +1705,27 @@ fn simple_glob_matches(pattern: &str, path: &str) -> bool {
         return path.starts_with(prefix);
     }
     false
+}
+
+fn recognized_mutants_exclude_glob(pattern: &str) -> bool {
+    !pattern.contains('*')
+        || pattern.ends_with("/**")
+        || (pattern.ends_with('*') && !pattern[..pattern.len() - 1].contains('*'))
+}
+
+fn parse_mutants_toml_top_level_keys(mutants_toml: &str) -> Vec<String> {
+    mutants_toml
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('[') {
+                return None;
+            }
+            trimmed
+                .split_once('=')
+                .map(|(key, _)| key.trim().to_string())
+        })
+        .collect()
 }
 
 fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
@@ -1227,6 +1763,24 @@ fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
                 )
         })
         .filter(|value| !value.is_empty())
+        .collect()
+}
+
+fn yaml_concurrency_block(ci_yml: &str) -> Option<&str> {
+    let start = ci_yml.find("\nconcurrency:\n")? + "\nconcurrency:\n".len();
+    let body = &ci_yml[start..];
+    let end = body.find("\n\nenv:").unwrap_or(body.len());
+    Some(&body[..end])
+}
+
+fn yaml_step_blocks_with_cargo_mutants(ci_yml: &str) -> Vec<&str> {
+    ci_yml
+        .split("\n      - name:")
+        .filter(|block| {
+            non_comment_lines(block)
+                .iter()
+                .any(|line| line.contains("cargo mutants"))
+        })
         .collect()
 }
 
@@ -1272,8 +1826,106 @@ fn mutation_rationale_violations(classifications: &[WorkspaceSourceClassificatio
         .collect()
 }
 
+fn anti_regression_guard_test_names(source: &str) -> BTreeSet<String> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            trimmed
+                .strip_prefix("fn guard_")
+                .and_then(|tail| tail.split_once('('))
+                .map(|(name, _)| format!("guard_{name}"))
+        })
+        .collect()
+}
+
+fn meta_lock_registry_errors(
+    registry: &[MetaLockRegistryEntry],
+    anti_regression_source: &str,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut lock_ids = BTreeSet::new();
+    let mut negative_ids = BTreeSet::new();
+
+    if registry.len() < META_LOCK_REGISTRY_MIN_ENTRIES {
+        errors.push(format!(
+            "meta-lock registry enumerates too few locks: expected at least {}, got {}",
+            META_LOCK_REGISTRY_MIN_ENTRIES,
+            registry.len()
+        ));
+    }
+
+    for entry in registry {
+        if !lock_ids.insert(entry.lock_id) {
+            errors.push(format!(
+                "meta-lock registry duplicates lock {}",
+                entry.lock_id
+            ));
+        }
+        if entry.negative_id.trim().is_empty() {
+            errors.push(format!(
+                "meta-lock {} lacks a registered negative",
+                entry.lock_id
+            ));
+        } else if !negative_ids.insert(entry.negative_id) {
+            errors.push(format!(
+                "meta-lock registry duplicates negative {}",
+                entry.negative_id
+            ));
+        }
+        match entry.routing {
+            MetaLockRouting::SharedScan | MetaLockRouting::BehaviorAssertion => {}
+            MetaLockRouting::TicketOwnedDebt { ticket } => {
+                if !ticket_exists(ticket) {
+                    errors.push(format!(
+                        "meta-lock {} routes artifact-shaped negative to missing ticket {}",
+                        entry.lock_id, ticket
+                    ));
+                }
+            }
+        }
+        if entry.witness_min == 0
+            && entry.lock_id != "mutation_baseline_misses_are_pinned_and_ledgered"
+        {
+            errors.push(format!(
+                "meta-lock {} has a zero witness minimum",
+                entry.lock_id
+            ));
+        }
+        if entry.witness_count < entry.witness_min {
+            errors.push(format!(
+                "meta-lock {} witness count {} is below minimum {}",
+                entry.lock_id, entry.witness_count, entry.witness_min
+            ));
+        }
+    }
+
+    if !lock_ids.contains("meta_lock_registry_census") {
+        errors.push("meta-lock registry does not list its own census lock".to_string());
+    }
+    if !negative_ids.contains("synthetic_meta_lock_without_negative") {
+        errors.push("meta-lock registry does not list its reflexive negative".to_string());
+    }
+
+    for guard_name in anti_regression_guard_test_names(anti_regression_source) {
+        if !lock_ids.contains(guard_name.as_str()) {
+            errors.push(format!(
+                "anti-regression structural guard {guard_name} is missing from meta-lock registry"
+            ));
+        }
+    }
+
+    errors
+}
+
 fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
     let mut violations = Vec::new();
+
+    for key in parse_mutants_toml_top_level_keys(mutants_toml) {
+        if !matches!(key.as_str(), "additional_cargo_args" | "exclude_globs") {
+            violations.push(format!("mutants.toml uses unsupported key {key}"));
+        }
+    }
 
     if mutants_toml.contains("crates/tracewake-core/src/actions/defs/**") {
         violations.push("mutants.toml excludes all action definitions".to_string());
@@ -1283,10 +1935,21 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         yaml_step_run_block(ci_yml, "Run guarded-layer mutation baseline").unwrap_or_default();
     let scheduled_effective_lines = non_comment_lines(scheduled_block).join("\n");
     let in_diff_block = yaml_step_run_block(ci_yml, "Check guarded-layer diff").unwrap_or_default();
-    let in_diff_filter_line = non_comment_lines(in_diff_block)
+    let in_diff_filter_lines = non_comment_lines(in_diff_block)
         .into_iter()
-        .find(|line| line.contains("grep -E") && line.contains("actions/defs/"))
-        .unwrap_or_default();
+        .filter(|line| {
+            line.contains("git diff --name-only")
+                && line.contains("grep -E")
+                && line.contains("actions/defs/")
+        })
+        .collect::<Vec<_>>();
+    if in_diff_filter_lines.len() != 1 {
+        violations.push(format!(
+            "in-diff mutation guarded-path filter must have exactly one git diff --name-only grep line, found {}",
+            in_diff_filter_lines.len()
+        ));
+    }
+    let in_diff_filter_line = in_diff_filter_lines.first().copied().unwrap_or_default();
 
     for scheduled_filter in MUTATION_PERIMETER_REQUIRED_FILTERS {
         if !scheduled_effective_lines.contains(scheduled_filter) {
@@ -1297,12 +1960,42 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
 
     for excluded in parse_exclude_globs(mutants_toml) {
+        if !recognized_mutants_exclude_glob(&excluded) {
+            violations.push(format!(
+                "mutants.toml exclude_globs entry {excluded} uses unsupported glob shape"
+            ));
+        }
         for required_path in MUTATION_PERIMETER_CANARY_PATHS {
             if simple_glob_matches(&excluded, required_path) {
                 violations.push(format!(
                     "mutants.toml exclude_globs entry {excluded} covers mutation perimeter path {required_path}"
                 ));
             }
+        }
+    }
+
+    let exclude_globs = parse_exclude_globs(mutants_toml);
+    for entry in WORKSPACE_SOURCE_CLASSIFICATIONS.iter().filter(|entry| {
+        entry
+            .path
+            .starts_with("crates/tracewake-core/src/actions/defs/")
+            && entry.path.ends_with(".rs")
+    }) {
+        let excluded = exclude_globs
+            .iter()
+            .any(|pattern| simple_glob_matches(pattern, entry.path));
+        let in_mutation_perimeter = MUTATION_PERIMETER_CANARY_PATHS.contains(&entry.path);
+        if in_mutation_perimeter && excluded {
+            violations.push(format!(
+                "mutants.toml excludes guarded action definition {}",
+                entry.path
+            ));
+        }
+        if !in_mutation_perimeter && !excluded {
+            violations.push(format!(
+                "mutants.toml does not exclude non-perimeter action definition {}",
+                entry.path
+            ));
         }
     }
 
@@ -1338,18 +2031,29 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         WORKSPACE_SOURCE_CLASSIFICATIONS,
     ));
 
-    for line in ci_yml.lines().filter(|line| line.contains("cargo mutants")) {
-        if line.contains("|| true") {
-            violations.push("cargo-mutants invocation swallows failures".to_string());
-        }
-    }
-    let mutants_invocations = non_comment_lines(ci_yml)
+    for line in non_comment_lines(ci_yml)
         .into_iter()
         .filter(|line| line.contains("cargo mutants"))
-        .count();
-    let status_captures = ci_yml.matches("mutants_status=$?").count();
-    if status_captures < mutants_invocations {
-        violations.push("in-diff cargo-mutants status is not captured".to_string());
+    {
+        if line.contains("||") || line.contains("&&") {
+            violations.push("cargo-mutants invocation has shell suffix".to_string());
+        }
+    }
+    for block in yaml_step_blocks_with_cargo_mutants(ci_yml) {
+        let effective_lines = non_comment_lines(block);
+        let mutants_invocations = effective_lines
+            .iter()
+            .filter(|line| line.contains("cargo mutants"))
+            .count();
+        let status_captures = effective_lines
+            .iter()
+            .filter(|line| line.contains("mutants_status=$?"))
+            .count();
+        if status_captures < mutants_invocations {
+            violations.push(
+                "cargo-mutants step does not capture status in the same step block".to_string(),
+            );
+        }
     }
     if !ci_yml.contains("\"$mutants_status\" -ne 0")
         || !ci_yml.contains("\"$mutants_status\" -ne 2")
@@ -1378,6 +2082,14 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
             "scheduled/manual mutation runs are not exempt from concurrency cancellation"
                 .to_string(),
         );
+    }
+    let concurrency_group_line = yaml_concurrency_block(ci_yml)
+        .unwrap_or_default()
+        .lines()
+        .find(|line| line.trim_start().starts_with("group:"))
+        .unwrap_or_default();
+    if !concurrency_group_line.contains("github.event_name") {
+        violations.push("concurrency group does not isolate github.event_name".to_string());
     }
     if !ci_yml.contains("github.event_name == 'pull_request' || github.event_name == 'push'") {
         violations.push("mutation in-diff job does not run on guarded direct pushes".to_string());
@@ -1440,6 +2152,16 @@ fn ledgered_mutant_misses(ledger: &str) -> std::collections::BTreeSet<String> {
         .collect()
 }
 
+fn mutation_baseline_change_log_records(ledger: &str, count: usize, hash: u64) -> bool {
+    let count_marker = format!("normalized-count={count}");
+    let hash_marker = format!("fnv1a64={hash:016x}");
+    ledger.lines().any(|line| {
+        line.contains("baseline-delta:")
+            && line.contains(&count_marker)
+            && line.contains(&hash_marker)
+    })
+}
+
 fn ticket_exists(ticket_id: &str) -> bool {
     let active = format!("tickets/{ticket_id}.md");
     let archived = format!("archive/tickets/{ticket_id}.md");
@@ -1468,6 +2190,12 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
             "normalized mutation baseline hash changed: expected {MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x}, got {hash:016x}"
         ));
     }
+    if !mutation_baseline_change_log_records(ledger, normalized.len(), hash) {
+        errors.push(format!(
+            "mutation baseline lacks recorded baseline change log for normalized-count={} fnv1a64={hash:016x}",
+            normalized.len()
+        ));
+    }
 
     let ledgered = ledgered_mutant_misses(ledger);
     for miss in normalized.difference(&ledgered) {
@@ -1493,19 +2221,30 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
         let Some((_, disposition)) = line.split_once(" — ") else {
             continue;
         };
-        *rationale_counts.entry(disposition.to_string()).or_default() += 1;
         let Some((tag, rationale)) = disposition.split_once(": ") else {
             errors.push(format!(
                 "mutation baseline ledger entry lacks closed tag: {line}"
             ));
             continue;
         };
-        if rationale.trim().is_empty() {
+        let rationale = rationale.trim();
+        if rationale.is_empty() {
             errors.push(format!(
                 "mutation baseline ledger entry lacks rationale: {line}"
             ));
         }
+        let normalized_rationale = mutation_ledger_rationale_suffix(rationale);
+        *rationale_counts.entry(normalized_rationale).or_default() += 1;
         if tag == "justified-baseline" {
+            let rationale_lower = rationale.to_ascii_lowercase();
+            if rationale_lower.contains("warrants a")
+                || rationale_lower.contains("future")
+                || rationale_lower.contains("follow-up")
+            {
+                errors.push(format!(
+                    "mutation baseline justified-baseline entry encodes deferred test debt: {line}"
+                ));
+            }
             continue;
         }
         let Some(ticket_id) = tag.strip_prefix("warrants-test:") else {
@@ -1514,7 +2253,7 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
             ));
             continue;
         };
-        if !ticket_id.starts_with("0021PHA3APOSREB-") || !ticket_exists(ticket_id) {
+        if !ticket_exists(ticket_id) {
             errors.push(format!(
                 "mutation baseline warrants-test tag references missing ticket {ticket_id}"
             ));
@@ -1528,6 +2267,272 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
         }
     }
 
+    errors
+}
+
+fn mutation_ledger_rationale_suffix(rationale: &str) -> String {
+    let lower = rationale.to_ascii_lowercase();
+    for marker in [
+        "coverage remains assigned for ",
+        "coverage remains accepted because ",
+        "baseline residence remains accepted because ",
+    ] {
+        if let Some(index) = lower.find(marker) {
+            return rationale[index + marker.len()..].trim().to_string();
+        }
+    }
+    rationale.trim().to_string()
+}
+
+fn generative_floor_ratchet_errors(source: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let expected_constants = [
+        (
+            "RECORDED_GENERATIVE_MASK_DIVERSITY",
+            RECORDED_GENERATIVE_MASK_DIVERSITY,
+        ),
+        (
+            "RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY",
+            RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY,
+        ),
+    ];
+    for (name, expected) in expected_constants {
+        let needle = format!("const {name}: usize = {expected};");
+        if !source.contains(&needle) {
+            errors.push(format!(
+                "generative corpus floor {name} does not match recorded value {expected}"
+            ));
+        }
+    }
+    for (flag, expected) in RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS {
+        let needle = format!("(\"{flag}\", {expected})");
+        if !source.contains(&needle) {
+            errors.push(format!(
+                "generative corpus contributor floor {flag} does not match recorded value {expected}"
+            ));
+        }
+    }
+    for forbidden in [
+        "masks.len() >=",
+        "sequence_lengths.len() >=",
+        "seeds.len() >=",
+    ] {
+        if source.contains(forbidden) {
+            errors.push(format!(
+                "generative corpus floor remains one-sided: {forbidden}"
+            ));
+        }
+    }
+    for required in [
+        "assert_eq!(\n        masks.len(),\n        RECORDED_GENERATIVE_MASK_DIVERSITY",
+        "assert_eq!(\n        sequence_lengths.len(),\n        RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY",
+        "assert_eq!(\n        actual_counts, expected_counts,",
+    ] {
+        if !source.contains(required) {
+            errors.push(format!(
+                "generative corpus floor assertion is not two-sided: {required}"
+            ));
+        }
+    }
+    errors
+}
+
+#[derive(Clone, Copy)]
+struct AcceptanceChecklistAnchor {
+    item: u8,
+    anchors: &'static [&'static str],
+}
+
+const ACCEPTANCE_0021_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Rebind-After-Rejection", "ORD-HARD-066"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Spec §7 item 2 scheduled mutation job record",
+            "ORD-HARD-102",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &[
+            "Hidden-Truth Gate Rebuild And Visibility Demotion",
+            "ORD-HARD-068",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Per-Arm Census", "ORD-HARD-069"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &["Mutation Perimeter And Rationale Split", "ORD-HARD-072"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["Baseline Triage", "ORD-HARD-099"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &["Policy Dispatch And Sleep Accessibility", "ORD-HARD-074"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Shared Crossing Emitter And Corrupt-History Rejection",
+            "ORD-HARD-076",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &["Typed Place Concealment", "ORD-HARD-078"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &["Event/State Perimeter", "ORD-HARD-079"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &["Content Integrity And Contract Prose", "ORD-HARD-081"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &["Embodied Provenance And Dead-Surface Sweep", "ORD-HARD-082"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &["Generative Tier Deltas", "ORD-HARD-084"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &["Low-Group Closures And Deferrals", "ORD-HARD-095"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 15,
+        anchors: &["Risk Register And Conformance Index", "R-29"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 16,
+        anchors: &["EMERGE-OBS Refresh", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 17,
+        anchors: &[
+            "Explicit Non-Certification Boundary",
+            "not full-project certification",
+        ],
+    },
+];
+
+const ACCEPTANCE_0022_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Real Baseline Triage", "ORD-HARD-099"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Concurrency And Fail-Closed Mutation Config",
+            "ORD-HARD-100",
+            "ORD-HARD-101",
+            "ORD-HARD-102",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &["Embodied Render Split", "ORD-HARD-103", "ORD-HARD-104"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Planner-Gate Adversarial Restoration", "ORD-HARD-105"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &["Policy Behavioral Table", "ORD-HARD-106", "ORD-HARD-115"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["Eat Crossing Proof", "ORD-HARD-107"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &["Scheduler Typed Errors", "ORD-HARD-108"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Census And Totality Guard Widening",
+            "ORD-HARD-109",
+            "ORD-HARD-110",
+            "ORD-HARD-112",
+            "ORD-HARD-113",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &[
+            "Runner-Only Canonical-Day Proof",
+            "ORD-HARD-111",
+            "ORD-HARD-120",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &[
+            "Content And Generative Hygiene",
+            "ORD-HARD-116",
+            "ORD-HARD-117",
+            "ORD-HARD-118",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &["Meta-Lock Tier", "bijection census", "nonzero-witness"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &[
+            "0021 Report Corrections And Checklist Parity",
+            "ORD-HARD-119",
+            "acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &["Risk Register And Conformance Index Diffs", "R-29"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &["EMERGE-OBS Refresh", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 15,
+        anchors: &[
+            "Explicit Non-Certification Statement",
+            "not full-project certification",
+            "not Phase 4 entry",
+            "not `FIRST-PROOF-CERT`",
+        ],
+    },
+];
+
+fn acceptance_checklist_anchor_errors(
+    report: &str,
+    anchors: &[AcceptanceChecklistAnchor],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for row in anchors {
+        for anchor in row.anchors {
+            if !report.contains(anchor) {
+                errors.push(format!(
+                    "acceptance artifact checklist item {} lacks anchor {anchor}",
+                    row.item
+                ));
+            }
+        }
+    }
     errors
 }
 
@@ -1791,15 +2796,56 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic specific perimeter-path exclusion must fail the guard"
     );
 
+    let unsupported_key = format!("{MUTANTS_TOML}\nexclude_re = [\".*\"]\n");
+    assert!(
+        mutation_perimeter_consistency_violations(&unsupported_key, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("unsupported key exclude_re")),
+        "synthetic unsupported cargo-mutants config key must fail the guard"
+    );
+
+    let unsupported_glob = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/defs/wait.rs\",",
+        "  \"**/wait.rs\",",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&unsupported_glob, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("unsupported glob shape")),
+        "synthetic unsupported exclude glob must fail closed"
+    );
+
+    let missing_wait_exclusion = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/defs/wait.rs\",\n",
+        "",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&missing_wait_exclusion, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("wait.rs")),
+        "synthetic non-perimeter action def missing from exclude_globs must fail parity"
+    );
+
     let swallowed_failure = CI_YML.replace(
         "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle",
-        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || true",
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || echo ok",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &swallowed_failure)
             .iter()
-            .any(|violation| violation.contains("swallows failures")),
+            .any(|violation| violation.contains("shell suffix")),
         "synthetic swallowed cargo-mutants failure must fail the perimeter guard"
+    );
+
+    let comment_only_capture = CI_YML.replace(
+        "          mutants_status=$?\n          set -e\n",
+        "          # mutants_status=$?\n          set -e\n",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &comment_only_capture)
+            .iter()
+            .any(|violation| violation.contains("same step block")),
+        "synthetic comment-only status capture must fail the perimeter guard"
     );
 
     let missing_scheduled_capture = CI_YML.replace(
@@ -1811,6 +2857,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("status")),
         "synthetic scheduled status-capture removal must fail the perimeter guard"
+    );
+
+    let missing_event_name_concurrency = CI_YML.replace(
+        "ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}",
+        "ci-${{ github.workflow }}-${{ github.ref }}",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_event_name_concurrency)
+            .iter()
+            .any(|violation| violation.contains("github.event_name")),
+        "synthetic concurrency group event-name removal must fail the perimeter guard"
     );
 
     let missing_push = CI_YML.replace(
@@ -1855,6 +2912,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("actions/defs/eat.rs")),
         "synthetic in-diff regex removal must fail for eat.rs"
+    );
+
+    let decoy_in_diff = CI_YML.replace(
+        "          if git diff --name-only \"$guarded_range\" | grep -E",
+        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(eat|sleep|work)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_in_diff)
+            .iter()
+            .any(|violation| violation.contains("exactly one git diff --name-only")),
+        "synthetic uncommented in-diff filter decoy must fail the perimeter guard"
     );
 
     let narrowed_agent_in_diff = CI_YML.replace(
@@ -1904,14 +2972,57 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
                 .any(|error| error.contains("hash changed"))
             && synthetic_errors
                 .iter()
-                .any(|error| error.contains("lacks ledger disposition")),
-        "synthetic unledgered baseline append must fail count, hash, and ledger checks"
+                .any(|error| error.contains("lacks ledger disposition"))
+            && synthetic_errors
+                .iter()
+                .any(|error| error.contains("recorded baseline change log")),
+        "synthetic unledgered baseline append must fail count, hash, ledger, and change-log checks"
+    );
+
+    if !MUTANTS_BASELINE_MISSES.trim().is_empty() {
+        let shrink = MUTANTS_BASELINE_MISSES
+            .lines()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let shrink_errors = mutation_baseline_governance_errors(&shrink, MUTANTS_BASELINE_LEDGER);
+        assert!(
+            shrink_errors
+                .iter()
+                .any(|error| error.contains("count changed"))
+                && shrink_errors
+                    .iter()
+                    .any(|error| error.contains("hash changed"))
+                && shrink_errors
+                    .iter()
+                    .any(|error| error.contains("recorded baseline change log")),
+            "synthetic unrecorded baseline shrink must fail count, hash, and change-log checks"
+        );
+    } else {
+        assert!(
+            MUTANTS_BASELINE_MISSES.trim().is_empty(),
+            "zero pinned mutation baseline must have no accepted misses"
+        );
+    }
+
+    let unrecorded_floor_raise_ledger = MUTANTS_BASELINE_LEDGER.replace(
+        "baseline-delta: normalized-count=0 fnv1a64=cbf29ce484222325",
+        "baseline-delta: normalized-count=1 fnv1a64=cbf29ce484222325",
+    );
+    assert!(
+        mutation_baseline_governance_errors(
+            MUTANTS_BASELINE_MISSES,
+            &unrecorded_floor_raise_ledger
+        )
+        .iter()
+        .any(|error| error.contains("recorded baseline change log")),
+        "synthetic unrecorded baseline floor raise must fail change-log governance"
     );
 
     let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
         .map(|index| {
             format!(
-                "- `synthetic/path_{index}.rs: replace x -> y` — justified-baseline: repeated rationale"
+                "- `synthetic/path_{index}.rs: replace x -> y` — justified-baseline: module {index} coverage remains accepted because repeated suffix"
             )
         })
         .collect::<Vec<_>>()
@@ -1925,19 +3036,160 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         bulk_errors
             .iter()
             .any(|error| error.contains("repeats one rationale")),
-        "synthetic bulk-accepted ledger rationale must fail governance"
+        "synthetic bulk-accepted ledger rationale suffix must fail governance"
     );
 
-    let bad_tag_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "justified-baseline:",
-        "warrants-test:0021PHA3APOSREB-999:",
-        1,
+    let deferred_ledger = format!(
+        "{MUTANTS_BASELINE_LEDGER}\n- `synthetic/path.rs: replace x -> y` — justified-baseline: this warrants a future focused assertion"
     );
     assert!(
-        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &bad_tag_ledger)
+        mutation_baseline_governance_errors(
+            "synthetic/path.rs:1:1: replace x -> y",
+            &deferred_ledger
+        )
+        .iter()
+        .any(|error| error.contains("deferred test debt")),
+        "synthetic justified-baseline deferral language must fail governance"
+    );
+
+    let bad_tag_ledger = format!(
+        "{MUTANTS_BASELINE_LEDGER}\n- `synthetic/path.rs: replace x -> y` — warrants-test:0022PHA3ABASTRI-999: synthetic missing ticket"
+    );
+    assert!(
+        mutation_baseline_governance_errors(
+            "synthetic/path.rs:1:1: replace x -> y",
+            &bad_tag_ledger
+        )
+        .iter()
+        .any(|error| error.contains("missing ticket")),
+        "synthetic warrants-test tag with missing ticket must fail governance"
+    );
+}
+
+#[test]
+fn meta_lock_registry_covers_structural_locks_and_negatives() {
+    let errors = meta_lock_registry_errors(META_LOCK_REGISTRY, ANTI_REGRESSION_GUARDS_RS);
+    assert!(
+        errors.is_empty(),
+        "meta-lock registry census failed:\n{}",
+        errors.join("\n")
+    );
+
+    let mut missing_negative = META_LOCK_REGISTRY.to_vec();
+    missing_negative[0].negative_id = "";
+    assert!(
+        meta_lock_registry_errors(&missing_negative, ANTI_REGRESSION_GUARDS_RS)
+            .iter()
+            .any(|error| error.contains("lacks a registered negative")),
+        "synthetic lock without negative must fail the meta-lock census"
+    );
+
+    let mut non_routed_negative = META_LOCK_REGISTRY.to_vec();
+    non_routed_negative[0].routing = MetaLockRouting::TicketOwnedDebt {
+        ticket: "0022PHA3ABASTRI-999",
+    };
+    assert!(
+        meta_lock_registry_errors(&non_routed_negative, ANTI_REGRESSION_GUARDS_RS)
             .iter()
             .any(|error| error.contains("missing ticket")),
-        "synthetic warrants-test tag with missing ticket must fail governance"
+        "synthetic non-routed negative must fail the meta-lock census"
+    );
+
+    let mut zero_match_scan = META_LOCK_REGISTRY.to_vec();
+    zero_match_scan[0].witness_count = 0;
+    assert!(
+        meta_lock_registry_errors(&zero_match_scan, ANTI_REGRESSION_GUARDS_RS)
+            .iter()
+            .any(|error| error.contains("below minimum")),
+        "synthetic zero-match scan must fail the nonzero-witness rule"
+    );
+
+    let unregistered_guard_source = format!(
+        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn guard_synthetic_unregistered_lock() {{}}\n"
+    );
+    assert!(
+        meta_lock_registry_errors(META_LOCK_REGISTRY, &unregistered_guard_source)
+            .iter()
+            .any(|error| error.contains("guard_synthetic_unregistered_lock")),
+        "synthetic unregistered structural guard must fail the meta-lock census"
+    );
+}
+
+#[test]
+fn generative_lock_source_uses_two_sided_recorded_floors() {
+    let errors = generative_floor_ratchet_errors(GENERATIVE_LOCK_RS);
+    assert!(
+        errors.is_empty(),
+        "generative floor ratchet failed: {errors:#?}"
+    );
+
+    let raised_floor = GENERATIVE_LOCK_RS.replace(
+        "const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;",
+        "const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 8;",
+    );
+    assert!(
+        generative_floor_ratchet_errors(&raised_floor)
+            .iter()
+            .any(|error| error.contains("RECORDED_GENERATIVE_MASK_DIVERSITY")),
+        "synthetic unrecorded generative floor raise must fail"
+    );
+
+    let one_sided_floor = GENERATIVE_LOCK_RS.replace("masks.len(),", "masks.len() >= 4,");
+    assert!(
+        generative_floor_ratchet_errors(&one_sided_floor)
+            .iter()
+            .any(|error| error.contains("one-sided")),
+        "synthetic one-sided generative floor must fail"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0021_REPORT,
+        ACCEPTANCE_0021_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0021 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0021_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic missing acceptance artifact anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0021_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic missing acceptance checklist anchor must fail through the real checker"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0022_REPORT,
+        ACCEPTANCE_0022_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0022 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0022_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic missing 0022 acceptance artifact anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0022_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic missing 0022 acceptance checklist anchor must fail through the real checker"
     );
 }
 
@@ -2247,6 +3499,10 @@ fn human_source_report(
     let mut registry = ActionRegistry::new();
     registry.register(ActionDefinition::query_only(
         ActionId::new("look").unwrap(),
+        ActionScope::Phase1,
+    ));
+    registry.register(ActionDefinition::query_only(
+        ActionId::new("inspect_place").unwrap(),
         ActionScope::Phase1,
     ));
     let content_manifest_id = ContentManifestId::new("phase1_manifest").unwrap();
@@ -2647,6 +3903,24 @@ fn forged_or_stale_source_context_rejected_by_reason_code() {
             "{case_id}"
         );
     }
+
+    let mut raw_action_prefix = source_bound_human_proposal(
+        "proposal_raw_action_prefix",
+        &actor_id,
+        "inspect_place",
+        "inspect_place.shop_front",
+        SimTick::ZERO,
+        0,
+    );
+    raw_action_prefix
+        .parameters
+        .insert("controller_id".to_string(), "controller_human".to_string());
+    let report = human_source_report(&raw_action_prefix, 0);
+    assert_eq!(report.status, ReportStatus::Accepted);
+    assert!(
+        report.reason_codes.is_empty(),
+        "raw action-id semantic prefixes must validate before dotted aliases are considered"
+    );
 
     let mut actor_mismatch = source_bound_human_proposal(
         "proposal_actor_mismatch",
@@ -3097,12 +4371,13 @@ fn guard_006_duration_need_deltas_route_through_shared_emitter() {
     let violations = direct_duration_need_delta_construction_violations(&core_production_sources());
     assert!(
         violations.is_empty(),
-        "wait/sleep/work/window need deltas must be constructed by need_events.rs: {violations:?}"
+        "action/scheduler need deltas must be constructed by need_events.rs: {violations:?}"
     );
 
-    let synthetic_sources = vec![(
-        "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
-        r#"
+    let synthetic_sources = vec![
+        (
+            "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
+            r#"
         fn build_synthetic_delta() -> EventEnvelope {
             EventEnvelope::new_caused_v1(
                 event_id,
@@ -3116,26 +4391,39 @@ fn guard_006_duration_need_deltas_route_through_shared_emitter() {
             )
         }
         "#
-        .to_string(),
-    )];
+            .to_string(),
+        ),
+        (
+            "crates/tracewake-core/src/actions/defs/eat.rs".to_string(),
+            r#"
+        fn build_synthetic_eat_delta() -> EventEnvelope {
+            EventEnvelope::new_caused_v1(
+                event_id,
+                EventKind::NeedDeltaApplied,
+                0,
+                0,
+                tick,
+                ordering_key,
+                content_manifest_id,
+                causes,
+            )
+        }
+        "#
+            .to_string(),
+        ),
+    ];
     let synthetic_violations =
         direct_duration_need_delta_construction_violations(&synthetic_sources);
     assert!(
-        !synthetic_violations.is_empty(),
-        "synthetic direct NeedDeltaApplied construction must fail this guard"
+        synthetic_violations.len() == 2,
+        "synthetic direct NeedDeltaApplied construction must fail this guard for every guarded action/scheduler source"
     );
 }
 
 fn direct_duration_need_delta_construction_violations(sources: &[(String, String)]) -> Vec<String> {
-    const GUARDED_PATHS: &[&str] = &[
-        "crates/tracewake-core/src/actions/defs/wait.rs",
-        "crates/tracewake-core/src/actions/defs/sleep.rs",
-        "crates/tracewake-core/src/actions/defs/work.rs",
-        "crates/tracewake-core/src/scheduler.rs",
-    ];
     sources
         .iter()
-        .filter(|(path, _)| GUARDED_PATHS.contains(&path.as_str()))
+        .filter(|(path, source)| need_delta_guard_perimeter(path, source))
         .flat_map(|(path, source)| {
             let normalized = normalized_source(source);
             let mut violations = Vec::new();
@@ -3156,6 +4444,18 @@ fn direct_duration_need_delta_construction_violations(sources: &[(String, String
             violations
         })
         .collect()
+}
+
+fn need_delta_guard_perimeter(path: &str, source: &str) -> bool {
+    if path == "crates/tracewake-core/src/actions/defs/need_events.rs" {
+        return false;
+    }
+    let guarded_layer = path == "crates/tracewake-core/src/scheduler.rs"
+        || (path.starts_with("crates/tracewake-core/src/actions/defs/") && path.ends_with(".rs"));
+    guarded_layer
+        && (source.contains("EventKind::NeedDeltaApplied")
+            || source.contains("NeedDeltaEventSpec")
+            || source.contains("build_need_delta_and_threshold_events"))
 }
 
 #[test]
@@ -3551,6 +4851,45 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
         "producer aliases from the wrong struct must not satisfy the scoped producer sweep"
     );
 
+    let constant_producer_view_models = r#"
+        pub struct EmbodiedViewModel {
+            pub visible_exits: Vec<VisibleExit>,
+            pub debug_available: bool,
+        }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
+    "#;
+    let constant_producer_sources = [(
+        "tracewake-core/src/projections.rs",
+        "EmbodiedViewModel { visible_exits: collect_visible_exits(), debug_available: true }",
+    )];
+    let constant_producer_consumers = [(
+        "tracewake-tui/src/render.rs",
+        "view.visible_exits.len(); view.debug_available; exit.blocker_summary.as_ref(); door.endpoint_a.as_str(); door.endpoint_b.as_str(); item.source.clone(); action.target_ids.len(); availability.debug_only_diagnostics()",
+    )];
+    let constant_producer_errors = embodied_surface_dead_field_errors(
+        constant_producer_view_models,
+        &constant_producer_sources,
+        &constant_producer_consumers,
+    );
+    assert!(
+        constant_producer_errors
+            .iter()
+            .any(|error| error.contains("EmbodiedViewModel.debug_available")),
+        "constant literal producer must not satisfy the embodied surface producer sweep"
+    );
+
     let unconsumed_sources = [(
         "tracewake-core/src/projections.rs",
         "EmbodiedViewModel { visible_exits: collect_visible_exits() }",
@@ -3624,24 +4963,153 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
     "#;
     let synthetic_violations = perception_visibility_prose_branch_violations(synthetic);
     assert!(
-        synthetic_violations.len() >= 3,
+        synthetic_violations
+            .iter()
+            .any(|violation| violation.contains("place.place_id.as_str().contains")),
+        "synthetic id-substring visibility branch must fail this guard"
+    );
+    assert!(
+        synthetic_violations
+            .iter()
+            .any(|violation| violation.contains("display_label")),
         "synthetic prose/id visibility branch must fail this guard"
+    );
+
+    let other_emission_path_synthetic = r#"
+        fn current_place_perception_events(
+            state: &PhysicalState,
+            actor_id: &ActorId,
+            decision_tick: SimTick,
+            content_manifest_id: &ContentManifestId,
+        ) -> Vec<EventEnvelope> {
+            let Some(place) = state.places().get(&current_place_id) else {
+                return Vec::new();
+            };
+            let label_payload = PayloadField::string("place_label", place.display_label.clone());
+            if place.display_label.to_lowercase().contains("hidden") {
+                return Vec::new();
+            }
+            observation_event(actor_id, decision_tick, 0, content_manifest_id, label_payload)
+        }
+    "#;
+    let other_emission_path_violations =
+        perception_visibility_prose_branch_violations(other_emission_path_synthetic);
+    assert!(
+        other_emission_path_violations
+            .iter()
+            .any(
+                |violation| violation.contains("current_place_perception_events")
+                    && violation.contains("display_label")
+            ),
+        "synthetic prose branch outside is_visible_exit_target must fail this guard"
     );
 }
 
-fn perception_visibility_prose_branch_violations(source: &str) -> Vec<&'static str> {
+fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
     let stripped = source_without_comments(source);
-    let visibility_body = body_after_marker(&stripped, "fn is_visible_exit_target");
-    [
-        "display_label",
-        ".to_lowercase()",
-        ".contains(\"hidden\")",
-        "place.place_id.as_str()",
-        "place_id.as_str().contains",
-    ]
-    .into_iter()
-    .filter(|needle| visibility_body.contains(needle))
-    .collect()
+    let mut violations = Vec::new();
+    let mut current_fn = "module";
+    for line in stripped.lines().map(str::trim) {
+        if let Some(function_name) = function_name_from_line(line) {
+            current_fn = function_name;
+        }
+        if line.is_empty() || perception_line_is_typed_label_payload_write(line) {
+            continue;
+        }
+        let branches_on_display_label =
+            line.contains("display_label") && source_line_is_branch_shape(line);
+        let branches_on_id_substring =
+            line.contains(".as_str().contains") || line.contains(".as_str().starts_with");
+        let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
+            || line.contains(".to_lowercase()")
+            || line.contains(".to_ascii_lowercase()");
+        if branches_on_display_label || branches_on_id_substring || branches_on_hidden_prose {
+            violations.push(format!("{current_fn}: {line}"));
+        }
+    }
+    violations
+}
+
+fn perception_line_is_typed_label_payload_write(line: &str) -> bool {
+    line.contains("PayloadField") && line.contains("display_label")
+}
+
+fn source_line_is_branch_shape(line: &str) -> bool {
+    line.starts_with("if ")
+        || line.starts_with("else if ")
+        || line.starts_with("while ")
+        || line.starts_with("match ")
+        || line.starts_with("&&")
+        || line.starts_with("||")
+        || line.contains(".filter(")
+        || line.contains("&&")
+        || line.contains("||")
+}
+
+fn function_name_from_line(line: &str) -> Option<&str> {
+    let rest = line
+        .strip_prefix("fn ")
+        .or_else(|| line.strip_prefix("pub fn "))?;
+    let name_end = rest.find('(')?;
+    Some(rest[..name_end].trim())
+}
+
+#[test]
+fn guard_011_no_human_day_runner_only_evidence() {
+    let errors = no_human_day_runner_only_evidence_errors(CONTENT_GOLDEN_FIXTURES_RUN_RS);
+    assert!(
+        errors.is_empty(),
+        "canonical no-human day evidence must require runner-only ancestry:\n{}",
+        errors.join("\n")
+    );
+
+    let synthetic = CONTENT_GOLDEN_FIXTURES_RUN_RS.replace(
+        "has_no_human_event(&log, EventKind::WorkBlockCompleted)",
+        "has_event(&log, EventKind::WorkBlockCompleted)",
+    );
+    assert!(
+        no_human_day_runner_only_evidence_errors(&synthetic)
+            .iter()
+            .any(|error| error.contains("WorkBlockCompleted")),
+        "synthetic runner-only work completion ancestry removal must fail"
+    );
+}
+
+fn no_human_day_runner_only_evidence_errors(source: &str) -> Vec<String> {
+    let test_body = body_after_marker(
+        source,
+        "fn no_human_day_fixture_has_roster_activity_and_metrics_envelope",
+    );
+    let runner_only_section = test_body
+        .split("proposal_day_tomas_eat")
+        .next()
+        .unwrap_or(test_body);
+    let mut errors = Vec::new();
+    for (kind, snippet) in [
+        (
+            "WorkBlockCompleted",
+            "has_no_human_event(&log, EventKind::WorkBlockCompleted)",
+        ),
+        (
+            "SleepCompleted",
+            "has_no_human_event(&log, EventKind::SleepCompleted)",
+        ),
+    ] {
+        if !runner_only_section.contains(snippet) {
+            errors.push(format!(
+                "runner-only section lacks NoHumanProcess assertion for {kind}"
+            ));
+        }
+    }
+    if !(runner_only_section.contains("has_no_human_event_for_actor")
+        && runner_only_section.contains("EventKind::EatFailed")
+        && runner_only_section.contains("\"actor_mara\""))
+    {
+        errors.push(
+            "runner-only section lacks explicit Mara fail-only canonical resolution".to_string(),
+        );
+    }
+    errors
 }
 
 #[test]
@@ -3692,6 +5160,18 @@ fn guard_0021_actor_known_projection_policy_table_has_production_callers() {
         "policy caller guard must fail closed when production call sites disappear"
     );
     assert_absent(EPISTEMIC_PROJECTION_RS, "CurrentPlaceLatestOnly");
+    assert_absent(
+        EPISTEMIC_PROJECTION_RS,
+        concat!(
+            "actor_known_projection_records",
+            "_dispatch_to_declared_policy_table"
+        ),
+    );
+    assert!(
+        EPISTEMIC_PROJECTION_RS
+            .contains("actor_known_projection_policy_table_drives_record_behavior"),
+        "policy-table lock must be behavioral, not a self-echo dispatch assertion"
+    );
 }
 
 #[test]
@@ -3720,6 +5200,77 @@ fn guard_015_ordinary_life_tuning_comes_from_authored_state() {
             && sleep.contains("sleep_affordance.hunger_rise_per_tick"),
         "sleep duration and recovery must read authored sleep affordance state"
     );
+}
+
+#[test]
+fn scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data() {
+    let sources = [
+        (
+            "crates/tracewake-core/src/scheduler.rs",
+            production(SCHEDULER_RS),
+        ),
+        (
+            "crates/tracewake-core/src/events/apply.rs",
+            production(EVENTS_APPLY_RS),
+        ),
+        (
+            "crates/tracewake-core/src/actions/defs/sleep.rs",
+            production(SLEEP_RS),
+        ),
+        (
+            "crates/tracewake-core/src/actions/defs/work.rs",
+            production(WORK_RS),
+        ),
+    ];
+    let violations = log_derived_panic_violations(&sources);
+    assert!(
+        violations.is_empty(),
+        "unallowlisted panic on apply/completion/scheduler path: {violations:?}"
+    );
+
+    let synthetic_sources = [(
+        "crates/tracewake-core/src/scheduler.rs",
+        r#"
+        fn actor_has_open_body_exclusive_duration(log: &EventLog) -> bool {
+            open_body_exclusive_starts(log).expect("duplicate duration terminals are rejected before no-human scheduling");
+            apply_agent_event(agent_state, &event).expect("routine stuck diagnostic event applies to live agent state");
+            true
+        }
+        "#.to_string(),
+    )];
+    let synthetic_violations = log_derived_panic_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations.len() == 2,
+        "synthetic log-derived expects must fail the panic guard"
+    );
+    assert!(
+        PANIC_ALLOWLIST
+            .iter()
+            .all(|entry| !entry.rationale.trim().is_empty()),
+        "panic allowlist entries must carry rationales"
+    );
+}
+
+fn log_derived_panic_violations(sources: &[(&str, String)]) -> Vec<String> {
+    let mut violations = Vec::new();
+    for (path, source) in sources {
+        for line in source.lines() {
+            let trimmed = line.trim();
+            if !(trimmed.contains(".expect(") || trimmed.contains("assert!(")) {
+                continue;
+            }
+            if !panic_allowlist_covers(path, trimmed) {
+                violations.push(format!("{path}: {trimmed}"));
+            }
+        }
+    }
+    violations
+}
+
+fn panic_allowlist_covers(path: &str, line: &str) -> bool {
+    PANIC_ALLOWLIST.iter().any(|entry| {
+        entry.path == path && line.contains(entry.token) && !entry.rationale.trim().is_empty()
+    })
 }
 
 #[test]
@@ -4150,6 +5701,29 @@ fn typed_column_closure_exemptions_are_rationale_bearing_and_live() {
         "synthetic exemption consuming an unlisted payload key must fail"
     );
 
+    let synthetic_oblique_helper_source = r#"
+        fn apply_synthetic(state: &mut AgentState, payload: &BTreeMap<&str, &str>) {
+            consume_oblique_payload_key(state, &payload);
+        }
+        fn consume_oblique_payload_key(
+            state: &mut AgentState,
+            payload: &BTreeMap<&str, &str>,
+        ) {
+            let value = required(payload, "oblique_unlisted_key")?;
+            state.intentions.insert(intention_id, value);
+        }
+    "#;
+    let synthetic_oblique_helper_errors = typed_column_closure_exemption_errors(
+        synthetic_oblique_helper_source,
+        &synthetic_exemptions,
+    );
+    assert!(
+        synthetic_oblique_helper_errors
+            .iter()
+            .any(|error| error.contains("oblique_unlisted_key")),
+        "synthetic oblique helper call receiving &payload must fail"
+    );
+
     let synthetic_payload_fields_source = r#"
         fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
             state.intentions.insert(intention_id, intention_with(payload_fields(event)));
@@ -4420,20 +5994,73 @@ fn literal_payload_keys(body: &str) -> BTreeSet<String> {
 fn payload_helper_calls(body: &str) -> BTreeSet<String> {
     let mut calls = BTreeSet::new();
     let mut search_start = 0;
-    while let Some(relative_index) = body[search_start..].find("(payload") {
+    while let Some(relative_index) = body[search_start..].find('(') {
         let open_index = search_start + relative_index;
         let prefix = body[..open_index].trim_end();
-        let name_start = prefix
-            .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        let name = &prefix[name_start..];
-        if !name.is_empty() {
-            calls.insert(name.to_string());
+        if let Some(name) = call_name_before_open_paren(prefix) {
+            let close_index =
+                matching_close_delimiter(body, open_index, b'(', b')').unwrap_or(open_index);
+            let args = &body[open_index + 1..close_index];
+            if call_arguments_include_payload_binding(args) {
+                calls.insert(name.to_string());
+            }
+            search_start = close_index + 1;
+        } else {
+            search_start = open_index + 1;
         }
-        search_start = open_index + "(payload".len();
     }
     calls
+}
+
+fn call_name_before_open_paren(prefix: &str) -> Option<&str> {
+    let name_start = prefix
+        .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+        .map(|index| index + 1)
+        .unwrap_or(0);
+    let name = &prefix[name_start..];
+    if name.is_empty()
+        || matches!(
+            name,
+            "if" | "while" | "for" | "match" | "return" | "Some" | "Ok" | "Err"
+        )
+    {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+fn call_arguments_include_payload_binding(args: &str) -> bool {
+    split_top_level_args(args).into_iter().any(|arg| {
+        let normalized = arg
+            .trim()
+            .trim_start_matches('&')
+            .trim_start_matches('*')
+            .trim();
+        normalized == "payload"
+            || normalized.starts_with("payload.")
+            || normalized.starts_with("payload)")
+    })
+}
+
+fn matching_close_delimiter(source: &str, open_index: usize, open: u8, close: u8) -> Option<usize> {
+    let mut depth = 0_i32;
+    let mut in_string = false;
+    let bytes = source.as_bytes();
+    for index in open_index..bytes.len() {
+        match bytes[index] {
+            b'"' if index == 0 || bytes[index - 1] != b'\\' => in_string = !in_string,
+            byte if !in_string && byte == open => depth += 1,
+            byte if !in_string && byte == close => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn typed_column_closure_exemption_errors(
@@ -4485,8 +6112,9 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
     assert!(
         generative_duration_terminal_fabricator_errors(&support_fabricator)
             .iter()
-            .any(|error| error.contains("support/generative.rs")),
-        "support-file terminal fabricator synthetic must fail"
+            .any(|error| error.contains("support/generative.rs")
+                && error.contains("EventEnvelope")),
+        "support-file EventEnvelope construction synthetic must fail"
     );
 
     let direct_envelope = [(
@@ -4516,6 +6144,11 @@ fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> V
     ];
     let mut errors = Vec::new();
     for (path, source) in sources {
+        if *path == "support/generative.rs" && source.contains("EventEnvelope::new") {
+            errors.push(format!(
+                "{path} constructs EventEnvelope directly; support generators must use engine-emitted events"
+            ));
+        }
         for forbidden in banned_helpers {
             if source.contains(forbidden) {
                 errors.push(format!(
@@ -4659,6 +6292,7 @@ fn event_kind_metadata_is_total() {
         assert_eq!(metadata.stream, kind.stream());
         assert_eq!(metadata.schema_version, EventSchemaVersion::V1);
         assert_eq!(metadata.physical_mutating, kind.physical_mutating());
+        assert_eq!(metadata.cause_required, kind.requires_cause());
         assert_eq!(
             metadata.replay_handling,
             EventReplayHandling::for_stream(metadata.stream)
@@ -4679,17 +6313,11 @@ fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
     use tracewake_core::events::EventKind;
 
     let apply_body = body_after_marker(EVENTS_APPLY_RS, "fn apply_event_with_capability");
-    for kind in EventKind::all()
-        .iter()
-        .copied()
-        .filter(|kind| kind.metadata().physical_mutating)
-    {
-        let arm = format!("EventKind::{kind:?}");
-        assert!(
-            apply_body.contains(&arm),
-            "physical-mutating event kind lacks explicit world apply arm: {kind:?}"
-        );
-    }
+    let missing = missing_world_apply_arms(apply_body);
+    assert!(
+        missing.is_empty(),
+        "physical-mutating event kinds lack explicit world apply arms: {missing:?}"
+    );
     assert_absent(apply_body, "_ => Ok(ApplyOutcome::NonWorldNoOp)");
 
     let synthetic_apply = r#"
@@ -4700,10 +6328,37 @@ fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
             }
         }
     "#;
+    let synthetic_missing = missing_world_apply_arms(synthetic_apply);
     assert!(
-        !synthetic_apply.contains("EventKind::FoodConsumed")
+        synthetic_missing.contains(&EventKind::FoodConsumed)
             && synthetic_apply.contains("_ => Ok(ApplyOutcome::NonWorldNoOp)"),
         "synthetic missing-arm catch-all must fail the totality guard"
+    );
+}
+
+#[test]
+fn agent_stream_event_kinds_have_explicit_agent_apply_arms() {
+    use tracewake_core::events::EventKind;
+
+    let apply_body = body_after_marker(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability");
+    let missing = missing_agent_apply_arms(apply_body);
+    assert!(
+        missing.is_empty(),
+        "agent-stream event kinds lack explicit agent apply arms or no-op allowlist entries: {missing:?}"
+    );
+
+    let synthetic_apply = r#"
+        fn apply_agent_event_with_capability(event: &EventEnvelope) -> Result<ApplyOutcome, ApplyError> {
+            match event.event_type {
+                EventKind::NoHumanDayStarted => Ok(ApplyOutcome::WorldNoOp),
+                _ => Err(ApplyError::NonAgentEvent),
+            }
+        }
+    "#;
+    let synthetic_missing = missing_agent_apply_arms(synthetic_apply);
+    assert!(
+        synthetic_missing.contains(&EventKind::NeedDeltaApplied),
+        "synthetic missing agent-stream apply arm must fail the totality guard"
     );
 }
 
@@ -4711,42 +6366,81 @@ fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
 fn action_emitted_event_kinds_have_cause_disposition() {
     use tracewake_core::events::EventKind;
 
-    let required = [
-        EventKind::ActorMoved,
-        EventKind::ActorWaited,
-        EventKind::BeliefUpdated,
-        EventKind::ContainerChecked,
-        EventKind::ContainerClosed,
-        EventKind::ContainerOpened,
-        EventKind::DoorClosed,
-        EventKind::DoorOpened,
-        EventKind::ItemPlacedInContainer,
-        EventKind::ItemPlacedInPlace,
-        EventKind::ItemRemovedFromContainer,
-        EventKind::ItemTakenFromPlace,
-        EventKind::ObservationRecorded,
+    let action_sources = [
+        ("movement.rs", MOVEMENT_RS),
+        ("wait.rs", WAIT_RS),
+        ("openclose.rs", OPENCLOSE_RS),
+        ("checkcontainer.rs", CHECKCONTAINER_RS),
+        ("takeplace.rs", TAKEPLACE_RS),
+        ("perception.rs", PERCEPTION_RS),
+        ("eat.rs", EAT_RS),
+        ("sleep.rs", SLEEP_RS),
+        ("work.rs", WORK_RS),
     ];
-
-    for kind in required {
-        assert!(
-            kind.requires_cause(),
-            "action-emitted kind lacks required-cause disposition: {kind:?}"
-        );
-    }
-
-    for source in [
-        MOVEMENT_RS,
-        WAIT_RS,
-        OPENCLOSE_RS,
-        CHECKCONTAINER_RS,
-        TAKEPLACE_RS,
-        PERCEPTION_RS,
-    ] {
+    for (_, source) in action_sources {
         assert!(
             source.contains("EventEnvelope::new_caused_v1"),
             "action-emitted source must construct caused envelopes"
         );
     }
+    let violations = action_emitted_kind_cause_disposition_violations(&action_sources);
+    assert!(
+        violations.is_empty(),
+        "action-emitted kinds lack required-cause metadata: {violations:?}"
+    );
+
+    let synthetic_sources = [(
+        "synthetic_action.rs",
+        "EventEnvelope::new_caused_v1(event_id, EventKind::ReplayProjectionRebuilt, 0, 0, tick, key, manifest, causes)",
+    )];
+    let synthetic_violations = action_emitted_kind_cause_disposition_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations
+            .iter()
+            .any(|violation| violation
+                .contains(&format!("{:?}", EventKind::ReplayProjectionRebuilt))),
+        "synthetic action-emitted kind without cause-required metadata must fail"
+    );
+}
+
+fn missing_world_apply_arms(source: &str) -> Vec<tracewake_core::events::EventKind> {
+    tracewake_core::events::EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.metadata().physical_mutating)
+        .filter(|kind| !source.contains(&format!("EventKind::{kind:?}")))
+        .collect()
+}
+
+fn missing_agent_apply_arms(source: &str) -> Vec<tracewake_core::events::EventKind> {
+    use tracewake_core::events::{apply::AGENT_WORLD_NOOP_ALLOWLIST, EventKind, EventStream};
+
+    EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.metadata().stream == EventStream::Agent)
+        .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
+        .filter(|kind| !source.contains(&format!("EventKind::{kind:?}")))
+        .collect()
+}
+
+fn action_emitted_kind_cause_disposition_violations(sources: &[(&str, &str)]) -> Vec<String> {
+    tracewake_core::events::EventKind::all()
+        .iter()
+        .copied()
+        .flat_map(|kind| {
+            let arm = format!("EventKind::{kind:?}");
+            sources
+                .iter()
+                .filter(move |(_, source)| {
+                    source.contains("EventEnvelope::new_caused_v1") && source.contains(&arm)
+                })
+                .filter(move |_| !kind.metadata().cause_required)
+                .map(move |(path, _)| {
+                    format!("{path}: action-emitted kind lacks required-cause metadata: {kind:?}")
+                })
+        })
+        .collect()
 }
 
 #[test]
@@ -4990,6 +6684,17 @@ fn guard_0021_actor_known_context_producers_are_projection_backed() {
         }),
         "synthetic context producer must fail the source guard"
     );
+
+    let synthetic_return_sources = vec![(
+        "crates/tracewake-core/src/agent/synthetic_return.rs".to_string(),
+        "pub fn leak_context() -> ActorKnownPlanningContext { todo!() }".to_string(),
+    )];
+    assert!(
+        actor_known_context_constructor_violations(&synthetic_return_sources)
+            .iter()
+            .any(|violation| violation.contains("public ActorKnownPlanningContext producer")),
+        "synthetic public ActorKnownPlanningContext return producer must fail the source guard"
+    );
 }
 
 #[test]
@@ -5000,14 +6705,26 @@ fn guard_0021_hidden_truth_gates_use_event_log_provenance() {
         "hidden-truth gates must use real applied epistemic events: {violations:?}"
     );
 
-    let synthetic = "fn context() { let _ = build_actor_known_planning_state(); }";
+    let synthetic =
+        "fn context(_known_edges: (), _known_food_sources: ()) { let _ = build_actor_known_planning_state(); }";
     let synthetic_violations = hidden_truth_harness_provenance_violations(synthetic);
     assert!(
         synthetic_violations.iter().any(|violation| {
             violation.contains("build_actor_known_planning_state")
                 || violation.contains("applying epistemic events")
+                || violation.contains("_known_edges")
+                || violation.contains("_known_food_sources")
         }),
         "synthetic fabricated hidden-truth harness must fail the source guard"
+    );
+
+    let missing_witness =
+        HIDDEN_TRUTH_GATES_RS.replace("planner_hidden_truth_fixture_witness_errors", "");
+    assert!(
+        hidden_truth_harness_provenance_violations(&missing_witness)
+            .iter()
+            .any(|violation| violation.contains("adversarial fixture witness")),
+        "synthetic missing planner witness must fail the source guard"
     );
 }
 

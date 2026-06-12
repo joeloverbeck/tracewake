@@ -216,6 +216,62 @@ mod tests {
     }
 
     #[test]
+    fn goal_and_source_stable_ids_cover_all_variants() {
+        let goal_ids = [
+            (GoalKind::Eat, "eat"),
+            (GoalKind::FindFood, "find_food"),
+            (GoalKind::SleepOrRest, "sleep_or_rest"),
+            (GoalKind::GoToWork, "go_to_work"),
+            (GoalKind::PerformWorkBlock, "perform_work_block"),
+            (GoalKind::ReturnHome, "return_home"),
+            (
+                GoalKind::ContinueCurrentIntention,
+                "continue_current_intention",
+            ),
+            (GoalKind::IdleWithReason, "idle_with_reason"),
+            (GoalKind::LeaveUnsafePlace, "leave_unsafe_place"),
+        ];
+        let source_ids = [
+            (CandidateGoalSource::NeedPressure, "need_pressure"),
+            (CandidateGoalSource::RoutineDuty, "routine_duty"),
+            (
+                CandidateGoalSource::CurrentIntentionContinuation,
+                "current_intention_continuation",
+            ),
+            (
+                CandidateGoalSource::SafetyInterruption,
+                "safety_interruption",
+            ),
+            (
+                CandidateGoalSource::FixtureRoutineAssignment,
+                "fixture_routine_assignment",
+            ),
+            (CandidateGoalSource::Fallback, "fallback"),
+        ];
+
+        assert_eq!(
+            goal_ids
+                .iter()
+                .map(|(kind, _)| kind.stable_id())
+                .collect::<Vec<_>>(),
+            goal_ids
+                .iter()
+                .map(|(_, stable_id)| *stable_id)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            source_ids
+                .iter()
+                .map(|(source, _)| source.stable_id())
+                .collect::<Vec<_>>(),
+            source_ids
+                .iter()
+                .map(|(_, stable_id)| *stable_id)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
     fn candidate_goal_order_is_total_and_stable() {
         let unsorted = vec![
             candidate(

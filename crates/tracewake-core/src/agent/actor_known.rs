@@ -548,10 +548,16 @@ mod tests {
         PlaceId::new(value).unwrap()
     }
 
+    fn source() -> SourceEventIds {
+        SourceEventIds::checked(vec![EventId::new("event_test_source").unwrap()]).unwrap()
+    }
+
+    fn observed_fact(stable_id: &str, value: &str) -> ActorKnownFact {
+        ActorKnownFact::observed_now(actor_id(), stable_id, value, "test", None, source())
+    }
+
     #[test]
     fn hidden_truth_audit_reads_provenance_graph_not_stored_boolean() {
-        let source =
-            SourceEventIds::checked(vec![EventId::new("event_test_source").unwrap()]).unwrap();
         let context = ActorKnownPlanningContext::from_observed_parts(
             actor_id(),
             place_id("home"),
@@ -567,7 +573,7 @@ mod tests {
                 "home",
                 "test:current_place",
                 None,
-                source,
+                source(),
             )],
         );
         assert!(context.audit_with(&[]).actor_known_only);
@@ -602,8 +608,7 @@ mod tests {
     #[test]
     fn structured_actor_known_fields_are_derived_from_facts() {
         let actor_id = actor_id();
-        let source =
-            SourceEventIds::checked(vec![EventId::new("event_test_source").unwrap()]).unwrap();
+        let source = source();
         let context = ActorKnownPlanningContext::from_observed_parts(
             actor_id.clone(),
             place_id("home"),
@@ -619,6 +624,14 @@ mod tests {
                     "known_route_surface",
                     "home->market",
                     "test:route",
+                    None,
+                    source.clone(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id.clone(),
+                    "known_container_surface",
+                    "pantry@home",
+                    "test:container",
                     None,
                     source.clone(),
                 ),
@@ -653,6 +666,10 @@ mod tests {
             .known_edges()
             .get(&place_id("home"))
             .is_some_and(|edges| edges.contains(&place_id("market"))));
+        assert!(context
+            .known_containers_by_place()
+            .get(&place_id("home"))
+            .is_some_and(|containers| containers.contains(&ContainerId::new("pantry").unwrap())));
         assert!(context.known_food_sources().contains("food_stew"));
         assert!(context.known_sleep_places().contains(&place_id("home")));
         assert_eq!(
@@ -662,6 +679,89 @@ mod tests {
             Some(&place_id("market"))
         );
         assert!(context.audit_with(&[]).actor_known_only);
+    }
+
+    #[test]
+    fn actor_known_facts_are_sorted_by_stable_id_then_proof_note() {
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            place_id("home"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "known_route_surface",
+                    "home->market",
+                    "source:z",
+                    None,
+                    source(),
+                ),
+                ActorKnownFact::remembered_belief(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "source:b",
+                    None,
+                    source(),
+                ),
+                ActorKnownFact::observed_now(
+                    actor_id(),
+                    "actor_knows_food_source",
+                    "food_stew",
+                    "source:a",
+                    None,
+                    source(),
+                ),
+            ],
+        );
+
+        let ordered = context
+            .actor_known_facts()
+            .iter()
+            .map(ActorKnownFact::proof_note)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            ordered,
+            vec![
+                "actor_knows_food_source=observed_now:source:a",
+                "actor_knows_food_source=remembered_belief:source:b",
+                "known_route_surface=observed_now:source:z",
+            ]
+        );
+    }
+
+    #[test]
+    fn structured_fact_gaps_require_exact_actor_known_stable_id_and_value() {
+        let mut context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            place_id("home"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![
+                observed_fact("actor_knows_food_source", "food_other"),
+                observed_fact("actor_knows_sleep_place", "food_hidden"),
+                ActorKnownFact::unproven("actor_knows_food_source", "food_hidden"),
+            ],
+        );
+        context.known_food_sources.insert("food_hidden".to_string());
+
+        let gaps = context.structured_fact_gaps();
+        let audit = context.audit_with(&[]);
+
+        assert_eq!(gaps, vec!["known_food_sources:food_hidden".to_string()]);
+        assert!(!audit.actor_known_only);
+        assert!(audit
+            .notes
+            .contains("structured_context_without_fact:known_food_sources:food_hidden"));
     }
 
     #[test]

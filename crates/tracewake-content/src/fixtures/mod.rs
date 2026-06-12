@@ -57,6 +57,7 @@ mod work_block_failed_then_sleep_succeeds_001;
 mod work_completion_fails_when_actor_displaced_001;
 mod workplace_assignment_provenance_001;
 
+use tracewake_core::agent::routine::RoutineDiagnosticKind;
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{

@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::{ActionEffect, ActionRegistry, ActionScope};
 use tracewake_core::agent::need::NEED_MAX;
+use tracewake_core::agent::routine::RoutineDiagnosticKind;
 use tracewake_core::agent::{RoutineFamily, RoutineStepProposal};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
@@ -1396,7 +1397,7 @@ fn validate_routine_rules(
         let has_explicit_diagnostic = template.steps.iter().any(|step| {
             matches!(
                 step.proposed(),
-                RoutineStepProposal::Diagnostic(diagnostic) if !diagnostic.is_empty()
+                RoutineStepProposal::Diagnostic(diagnostic) if !diagnostic.stable_id().is_empty()
             )
         });
         if template.fallback_rules.is_empty() && !has_explicit_diagnostic {
@@ -1522,14 +1523,14 @@ fn has_explicit_no_sleep_diagnostic(fixture: &FixtureSchema) -> bool {
         template.steps.iter().any(|step| {
             matches!(
                 step.proposed(),
-                RoutineStepProposal::Diagnostic(diagnostic) if is_no_sleep_diagnostic(diagnostic)
+                RoutineStepProposal::Diagnostic(diagnostic) if is_no_sleep_diagnostic(*diagnostic)
             )
         })
     })
 }
 
-fn is_no_sleep_diagnostic(value: &str) -> bool {
-    matches!(value, "no_sleep_affordance" | "NoSleepAffordance")
+fn is_no_sleep_diagnostic(value: RoutineDiagnosticKind) -> bool {
+    matches!(value, RoutineDiagnosticKind::NoSleepAffordance)
 }
 
 fn known_action_scope(action_id: &ActionId) -> Option<ActionScope> {
@@ -1820,7 +1821,7 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
                     errors,
                 ),
                 RoutineStepProposal::Diagnostic(diagnostic) => reject_text_by_policy(
-                    diagnostic,
+                    diagnostic.stable_id(),
                     format!("routine_templates[{template_index}].steps[{index}]"),
                     StringScanPolicy::Union,
                     errors,
@@ -2393,6 +2394,7 @@ mod tests {
         FoodSupplySchema, InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema,
         RoutineAssignmentSchema, RoutineTemplateSchema, SleepPlaceSchema, WorkplaceSchema,
     };
+    use tracewake_core::agent::routine::{RoutineDiagnosticKind, RoutineStepParseError};
     use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
     use tracewake_core::ids::{
         ActionId, ActorId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
@@ -2930,6 +2932,13 @@ mod tests {
             .errors
             .iter()
             .any(|error| error.code == "missing_sleep_surface"));
+
+        let mut unknown_diagnostic =
+            b"routine_step_v1|fail_with_typed_diagnostic|756e6b6e6f776e5".to_vec();
+        unknown_diagnostic.extend_from_slice(b"f");
+        unknown_diagnostic.extend_from_slice(b"646961676e6f73746963");
+        let err = RoutineStep::deserialize_canonical(&unknown_diagnostic).unwrap_err();
+        assert_eq!(err, RoutineStepParseError::InvalidDiagnosticKind);
     }
 
     #[test]
@@ -2938,12 +2947,12 @@ mod tests {
         fixture.sleep_places.clear();
         fixture.routine_templates[0].family = RoutineFamily::SleepNight;
         fixture.routine_templates[0].steps = vec![RoutineStep::FailWithTypedDiagnostic {
-            diagnostic: "no_sleep_affordance".to_string(),
+            diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
         }];
         validate_fixture(&fixture, &registry()).unwrap();
 
-        fixture.routine_templates[0].steps = vec![RoutineStep::FailWithTypedDiagnostic {
-            diagnostic: "no_sleep_affordance: descriptive prose".to_string(),
+        fixture.routine_templates[0].steps = vec![RoutineStep::WaitUntil {
+            reason: "no_sleep_affordance: descriptive prose".to_string(),
         }];
         let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
         assert!(report
