@@ -894,6 +894,52 @@ fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
 }
 
 #[test]
+fn fixtures_load_raw_line_prose_born_fact_rejected_001() {
+    let raw = b"fixture|load_prose_born_fact_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nnotes|the culprit is actor_mara";
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_load_prose_born_fact").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/load_prose_born_fact.twf".to_string(),
+            bytes: raw.to_vec(),
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("prose-born raw line must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript && error.code == "prose_born_fact"
+    }));
+}
+
+#[test]
+fn fixtures_load_forbidden_top_level_key_rejected_001() {
+    let raw = b"fixture|load_forbidden_key_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nappear_at|actor_tomas|workshop";
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_load_forbidden_key").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/load_forbidden_key.twf".to_string(),
+            bytes: raw.to_vec(),
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("forbidden top-level raw key must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.code == "forbidden_form"
+            && error.path.contains("appear_at")
+    }));
+}
+
+#[test]
 fn fixtures_load_unsupported_schema_version_rejected_001() {
     let mut fixture = phase3a_fixture();
     fixture.schema_version = SchemaVersion::new("schema_v999").unwrap();

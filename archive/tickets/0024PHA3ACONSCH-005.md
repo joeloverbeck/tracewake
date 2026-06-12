@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-005: Raw-line validation on the production load path and ID-field shortcut scanning
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`validate.rs`, `load.rs`) plus content tests.
@@ -142,3 +142,36 @@ scanned; add the marker-bearing-id negative fixture.
 
 1. `cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Closed both validation gaps:
+
+1. `load_fixture_package` now validates the primary fixture bytes through
+   `validate_fixture_bytes`, so raw-line validation is on the production load path
+   before manifest construction. The loader derives the action registry from the
+   raw `fixture_scope|...` line first, avoiding a pre-deserialize that would mask
+   raw-line diagnostics.
+2. Load-path negatives now prove `notes|...culprit...` rejects with
+   `prose_born_fact`, and `appear_at|...` rejects with `forbidden_form`, both as
+   `LoadError::Validation`.
+3. Stable-ID authored values are now scanned through the same union shortcut/script
+   policy used for String fields. A negative fixture with
+   `item|appear_at_workshop|...` rejects at `items[0].item_id` with
+   `authored_shortcut_effect`.
+4. The schema-field census now derives ID-typed fields from `schema.rs`, checks
+   every ID field has a shortcut-scan registration and rationale, and includes a
+   synthetic unregistered ID field proof.
+
+Verification:
+
+1. `cargo test -p tracewake-content` passed.
+2. `cargo fmt --all --check` passed.
+3. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+4. `cargo build --workspace --all-targets --locked` passed.
+5. `cargo test --workspace` passed.
+
+No shortcut marker names were added; enforcement was widened to the production
+load path and ID-typed authored fields.

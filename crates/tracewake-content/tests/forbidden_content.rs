@@ -161,6 +161,18 @@ fn forbidden_content_phase3a_teleport_and_refill_shortcuts_are_blocking_errors()
 }
 
 #[test]
+fn forbidden_content_marker_bearing_id_is_rejected_001() {
+    let raw = b"fixture|bad_fixture\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nitem|appear_at_workshop|true|at:home_tomas";
+    let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
+
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.code == "authored_shortcut_effect"
+            && error.path == "items[0].item_id"
+    }));
+}
+
+#[test]
 fn forbidden_content_routine_template_without_typed_family_is_blocking_error() {
     let step = encode("routine_step_v1|start_work_block|work_block.workplace_shop");
     let raw = format!(
