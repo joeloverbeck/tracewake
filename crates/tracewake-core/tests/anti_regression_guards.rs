@@ -59,6 +59,8 @@ const ACCEPTANCE_0022_REPORT: &str =
     include_str!("../../../reports/0022_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0023_REPORT: &str =
     include_str!("../../../reports/0023_ord_life_cert_scoped_acceptance.md");
+const ACCEPTANCE_0024_REPORT: &str =
+    include_str!("../../../reports/0024_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -1605,6 +1607,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors",
         negative_id: "synthetic_0023_missing_acceptance_anchor",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors",
+        negative_id: "synthetic_0024_missing_acceptance_anchor",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -3631,6 +3639,103 @@ const ACCEPTANCE_0023_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
     },
 ];
 
+const ACCEPTANCE_0024_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Fixture Schema-Version Gate", "ORD-HARD-140"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Meta-Witness Completion",
+            "ORD-HARD-141",
+            "ORD-HARD-142",
+            "ORD-HARD-145",
+            "ORD-HARD-146",
+            "ORD-HARD-155",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &["Truth-Access Removal", "ORD-HARD-143", "ORD-HARD-154"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Derived Apply Perimeter", "ORD-HARD-144"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &[
+            "Content Loader Closures",
+            "ORD-HARD-150",
+            "ORD-HARD-151",
+            "ORD-HARD-164",
+            "ORD-HARD-165",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["TUI Debug Quarantine", "ORD-HARD-152", "ORD-HARD-153"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &[
+            "Policy And Projection Closures",
+            "ORD-HARD-147",
+            "ORD-HARD-156",
+            "ORD-HARD-148",
+            "ORD-HARD-149",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Oracle Closures",
+            "ORD-HARD-157",
+            "ORD-HARD-158",
+            "ORD-HARD-159",
+            "ORD-HARD-160",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &[
+            "0005 Coherence Decisions",
+            "ORD-HARD-161",
+            "ORD-HARD-162",
+            "ORD-HARD-163",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &["Premise-Held Confirmations", "ORD-HARD-140", "ORD-HARD-165"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &[
+            "Documentation Diffs",
+            "docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &["EMERGE-OBS Derivation", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &["Mutation Run Status", "scheduled mutation still pending"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &[
+            "Explicit Non-Certification Statement",
+            "not full-project certification",
+            "not Phase 4 entry",
+            "not `FIRST-PROOF-CERT`",
+        ],
+    },
+];
+
 fn acceptance_checklist_anchor_errors(
     report: &str,
     anchors: &[AcceptanceChecklistAnchor],
@@ -4504,6 +4609,31 @@ fn acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors() {
             .iter()
             .any(|error| error.contains("item 99")),
         "synthetic_0023_missing_acceptance_anchor must fail through the real checker"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0024_REPORT,
+        ACCEPTANCE_0024_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0024 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0024_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic_0024_missing_acceptance_anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0024_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic_0024_missing_acceptance_anchor must fail through the real checker"
     );
 }
 

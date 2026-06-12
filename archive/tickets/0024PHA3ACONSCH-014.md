@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-014: 0024 acceptance artifact and conformance-index rows (capstone)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `reports/0024_ord_life_cert_scoped_acceptance.md` (new), `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`, `crates/tracewake-core/tests/anti_regression_guards.rs` (artifact parity guard).
@@ -131,3 +131,25 @@ firing missing-anchor synthetic, enrolled under the live-witness rule.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards --test emergence_ledger`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+- Added `reports/0024_ord_life_cert_scoped_acceptance.md` with all fourteen
+  spec §7 anchors, the `emerge_obs_v1` derivation, honest mutation-run status,
+  and the explicit non-certification statement.
+- Added 0024 conformance rows for `ORD-HARD-140`, `ORD-HARD-141`,
+  `ORD-HARD-143`, and `ORD-HARD-144`, and recorded the `ORD-HARD-161`
+  cognition-priority decision.
+- Added the 0024 acceptance-artifact parity guard and registered it in
+  `META_LOCK_REGISTRY` with the firing missing-anchor synthetic.
+
+Proof:
+
+1. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+2. `cargo test -p tracewake-core --test anti_regression_guards --test emergence_ledger`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
