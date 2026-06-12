@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-018: Mutation baseline focused tests for candidate and decision selection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — focused candidate, generation, and decision tests in `tracewake-core`
@@ -75,3 +75,28 @@ Add focused tests that kill the assigned candidate, decision, and generation mut
 2. `cargo mutants -f crates/tracewake-core/src/agent/candidate.rs --no-shuffle`
 3. `cargo mutants -f crates/tracewake-core/src/agent/decision.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/agent/generation.rs --no-shuffle`
+
+## Completion Notes (2026-06-12)
+
+- Added focused candidate stable-id coverage for every `GoalKind` and
+  `CandidateGoalSource` variant.
+- Added decision focused coverage for actor-known input-source stable ids,
+  durability priority bands, and selected-vs-rejected goal trace separation.
+- Added generation focused coverage for severe fatigue candidates and exact
+  actor-known proof notes on generated candidates.
+- Retired thirteen candidate/decision/generation mutation baseline entries after
+  targeted mutation runs caught all viable assigned mutants.
+- Mutation baseline normalized count/hash after retirement:
+  `normalized-count=110 fnv1a64=3ca20aa3e40a267e`.
+- Verification:
+  - `cargo test -p tracewake-core`
+  - `cargo mutants -f crates/tracewake-core/src/agent/candidate.rs --no-shuffle`
+    (`13 mutants tested in 64s: 9 caught, 4 unviable`)
+  - `cargo mutants -f crates/tracewake-core/src/agent/decision.rs --no-shuffle`
+    (`26 mutants tested in 2m: 19 caught, 7 unviable`)
+  - `cargo mutants -f crates/tracewake-core/src/agent/generation.rs --no-shuffle`
+    (`20 mutants tested in 2m: 14 caught, 6 unviable`)
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`

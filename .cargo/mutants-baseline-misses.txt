@@ -39,19 +39,6 @@ crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosti
 crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with "xyzzy"
 crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""
 crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/candidate.rs:21:9: replace GoalKind::stable_id -> &'static str with ""
-crates/tracewake-core/src/agent/candidate.rs:21:9: replace GoalKind::stable_id -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/candidate.rs:47:9: replace CandidateGoalSource::stable_id -> &'static str with ""
-crates/tracewake-core/src/agent/candidate.rs:47:9: replace CandidateGoalSource::stable_id -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/decision.rs:21:9: replace ActorKnownInputSourceClass::stable_id -> &'static str with ""
-crates/tracewake-core/src/agent/decision.rs:21:9: replace ActorKnownInputSourceClass::stable_id -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/decision.rs:155:57: replace != with == in select_goal_and_trace
-crates/tracewake-core/src/agent/decision.rs:318:5: replace durability_level_for -> u8 with 0
-crates/tracewake-core/src/agent/decision.rs:318:5: replace durability_level_for -> u8 with 1
-crates/tracewake-core/src/agent/generation.rs:112:13: delete match arm (NeedKind::Fatigue, NeedBand::Severe) in generate_candidate_goals
-crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec![]
-crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec![String::new()]
-crates/tracewake-core/src/agent/generation.rs:199:5: replace actor_known_fact_notes -> Vec<String> with vec!["xyzzy".into()]
 crates/tracewake-core/src/agent/htn.rs:230:20: delete ! in resolve_condition
 crates/tracewake-core/src/agent/htn.rs:238:17: replace && with || in resolve_condition
 crates/tracewake-core/src/agent/htn.rs:238:20: delete ! in resolve_condition

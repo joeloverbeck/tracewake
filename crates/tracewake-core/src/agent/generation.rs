@@ -367,6 +367,59 @@ mod tests {
     }
 
     #[test]
+    fn severe_fatigue_generates_severe_sleep_candidate() {
+        let output = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            needs: vec![NeedState::initial(
+                NeedKind::Fatigue,
+                800,
+                NeedChangeCause::TickDelta,
+            )],
+            active_intention: None,
+            actor_known_facts: vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "actor_knows_sleep_place",
+                "home_tomas",
+                "test:visible_sleep_place",
+                None,
+                test_source(),
+            )],
+            routine_window_goal: None,
+        });
+
+        assert!(output.candidates.iter().any(|candidate| {
+            candidate.goal_kind == GoalKind::SleepOrRest
+                && candidate.source == CandidateGoalSource::NeedPressure
+                && candidate.priority == GoalPriority::SevereFatigue
+                && candidate.priority_reason == "fatigue is severe"
+        }));
+    }
+
+    #[test]
+    fn generated_candidates_carry_actor_known_fact_notes() {
+        let output = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            needs: vec![NeedState::initial(
+                NeedKind::Hunger,
+                800,
+                NeedChangeCause::TickDelta,
+            )],
+            active_intention: None,
+            actor_known_facts: vec![known_food_fact()],
+            routine_window_goal: Some(GoalKind::ReturnHome),
+        });
+        let expected_note = "actor_knows_food_source=observed_now:test:visible_food".to_string();
+
+        assert!(!output.candidates.is_empty());
+        assert!(output
+            .candidates
+            .iter()
+            .all(|candidate| candidate.belief_inputs == vec![expected_note.clone()]));
+    }
+
+    #[test]
     fn hidden_true_food_location_is_not_used_without_actor_belief() {
         let output = generate_candidate_goals(&CandidateGenerationInput {
             actor_id: actor_id(),

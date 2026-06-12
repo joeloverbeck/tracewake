@@ -1272,8 +1272,8 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/work.rs",
 ];
 
-const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 123;
-const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xde3b_7670_491e_9a39;
+const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 110;
+const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0x3ca2_0aa3_e40a_267e;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
 const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
@@ -2997,8 +2997,8 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     );
 
     let unrecorded_floor_raise_ledger = MUTANTS_BASELINE_LEDGER.replace(
-        "baseline-delta: normalized-count=123 fnv1a64=de3b7670491e9a39",
-        "baseline-delta: normalized-count=124 fnv1a64=de3b7670491e9a39",
+        "baseline-delta: normalized-count=110 fnv1a64=3ca20aa3e40a267e",
+        "baseline-delta: normalized-count=111 fnv1a64=3ca20aa3e40a267e",
     );
     assert!(
         mutation_baseline_governance_errors(
@@ -3031,7 +3031,7 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     );
 
     let deferred_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "warrants-test:0022PHA3ABASTRI-018:",
+        "warrants-test:0022PHA3ABASTRI-019:",
         "justified-baseline: this warrants a future focused assertion",
         1,
     );
@@ -3043,7 +3043,7 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     );
 
     let bad_tag_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "warrants-test:0022PHA3ABASTRI-018:",
+        "warrants-test:0022PHA3ABASTRI-019:",
         "warrants-test:0022PHA3ABASTRI-999:",
         1,
     );
