@@ -7,10 +7,11 @@ pub fn hidden_food_closed_container_001() -> GoldenFixture {
         vec![
             "actor_mara starts hungry at home_mara",
             "food_hidden_pantry is physically present in a closed opaque hidden_pantry",
-            "no observation or belief reveals the hidden food",
+            "actor_mara has an authored known_food_sources edge for food_hidden_pantry",
+            "closed opaque hidden_pantry blocks direct local visibility of the food",
         ],
         vec![
-            "known food sources exclude closed-container physical truth",
+            "usable food targets exclude closed-container physical truth",
             "selected proposal cannot target food_hidden_pantry without provenance",
         ],
     ))

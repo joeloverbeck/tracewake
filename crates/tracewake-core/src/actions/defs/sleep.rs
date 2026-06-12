@@ -1,3 +1,6 @@
+use crate::actions::defs::need_events::{
+    build_need_delta_and_threshold_events, NeedDeltaEventSpec,
+};
 use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
@@ -172,6 +175,7 @@ pub fn build_sleep_completion_events(
 ) -> Result<Vec<EventEnvelope>, ApplyError> {
     if let Some(reason) = sleep_interruption_reason(state, agent_state, sleep_started_event) {
         return build_sleep_interruption_events(
+            agent_state,
             sleep_started_event,
             log,
             ordering_key,
@@ -181,6 +185,7 @@ pub fn build_sleep_completion_events(
         );
     }
     build_sleep_end_events(
+        agent_state,
         sleep_started_event,
         log,
         ordering_key,
@@ -252,6 +257,7 @@ fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyErr
 }
 
 pub fn build_sleep_interruption_events(
+    agent_state: &AgentState,
     sleep_started_event: &EventEnvelope,
     log: &EventLog,
     ordering_key: &OrderingKey,
@@ -260,6 +266,7 @@ pub fn build_sleep_interruption_events(
     reason: &str,
 ) -> Result<Vec<EventEnvelope>, ApplyError> {
     build_sleep_end_events(
+        agent_state,
         sleep_started_event,
         log,
         ordering_key,
@@ -270,7 +277,9 @@ pub fn build_sleep_interruption_events(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_sleep_end_events(
+    agent_state: &AgentState,
     sleep_started_event: &EventEnvelope,
     log: &EventLog,
     ordering_key: &OrderingKey,
@@ -282,7 +291,10 @@ fn build_sleep_end_events(
     let actor_id = sleep_started_event
         .actor_id
         .clone()
-        .expect("sleep start event carries actor");
+        .ok_or_else(|| ApplyError::BadPayload {
+            key: "actor_id",
+            value: "missing".to_string(),
+        })?;
     let sleep_ticks = classify_actor_tick_regimes_with_start(
         log,
         &actor_id,
@@ -326,73 +338,98 @@ fn build_sleep_end_events(
     ];
     lifecycle.effects_summary = format!("{} after {} ticks", kind.stable_id(), sleep_ticks);
 
-    let mut fatigue = need_delta_event(
+    let mut fatigue_events = sleep_need_events(
+        agent_state,
         sleep_started_event,
         ordering_key,
         content_manifest_id,
         end_tick,
-        "fatigue",
+        NeedKind::Fatigue,
         fatigue_delta,
         sleep_ticks,
-    );
-    fatigue.effects_summary = format!(
-        "fatigue recovered by {} over {} sleep ticks",
-        fatigue_delta.abs(),
-        sleep_ticks
-    );
-    let hunger = need_delta_event(
+    )?;
+    if let Some(fatigue) = fatigue_events.first_mut() {
+        fatigue.effects_summary = format!(
+            "fatigue recovered by {} over {} sleep ticks",
+            fatigue_delta.abs(),
+            sleep_ticks
+        );
+    }
+    let hunger_events = sleep_need_events(
+        agent_state,
         sleep_started_event,
         ordering_key,
         content_manifest_id,
         end_tick,
-        "hunger",
+        NeedKind::Hunger,
         hunger_delta,
         sleep_ticks,
-    );
-    Ok(vec![lifecycle, fatigue, hunger])
+    )?;
+    let mut events = vec![lifecycle];
+    events.extend(fatigue_events);
+    events.extend(hunger_events);
+    Ok(events)
 }
 
-fn need_delta_event(
+#[allow(clippy::too_many_arguments)]
+fn sleep_need_events(
+    agent_state: &AgentState,
     sleep_started_event: &EventEnvelope,
     ordering_key: &OrderingKey,
     content_manifest_id: &ContentManifestId,
     tick: SimTick,
-    need_kind: &str,
+    need_kind: NeedKind,
     delta: i32,
     elapsed_ticks: u64,
-) -> EventEnvelope {
+) -> Result<Vec<EventEnvelope>, ApplyError> {
     let actor_id = sleep_started_event
         .actor_id
         .clone()
-        .expect("sleep start event carries actor");
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new(format!(
-            "event.sleep_need_delta.{}.{}",
+        .ok_or_else(|| ApplyError::BadPayload {
+            key: "actor_id",
+            value: "missing".to_string(),
+        })?;
+    let current = agent_state
+        .needs_by_actor
+        .get(&actor_id)
+        .and_then(|needs| needs.get(&need_kind))
+        .map(crate::agent::NeedState::value);
+    Ok(build_need_delta_and_threshold_events(
+        NeedDeltaEventSpec {
+            event_id: EventId::new(format!(
+                "event.sleep_need_delta.{}.{}",
+                need_kind.stable_id(),
+                sleep_started_event.event_id.as_str()
+            ))
+            .unwrap(),
+            threshold_event_id: EventId::new(format!(
+                "event.sleep_need_threshold.{}.{}",
+                need_kind.stable_id(),
+                sleep_started_event.event_id.as_str()
+            ))
+            .unwrap(),
+            tick,
+            ordering_key: ordering_key.clone(),
+            content_manifest_id: content_manifest_id.clone(),
+            causes: vec![EventCause::Event(sleep_started_event.event_id.clone())],
+            actor_id: actor_id.clone(),
+            proposal_id: sleep_started_event.proposal_id.clone(),
+            process_id: None,
+            participants: vec![actor_id.to_string()],
             need_kind,
-            sleep_started_event.event_id.as_str()
-        ))
-        .unwrap(),
-        EventKind::NeedDeltaApplied,
-        0,
-        0,
-        tick,
-        ordering_key.clone(),
-        content_manifest_id.clone(),
-        vec![EventCause::Event(sleep_started_event.event_id.clone())],
-    )
-    .unwrap();
-    event.actor_id = Some(actor_id.clone());
-    event.participants = vec![actor_id.to_string()];
-    event.payload = vec![
-        PayloadField::new("actor_id", actor_id.as_str()),
-        PayloadField::new("need_kind", need_kind),
-        PayloadField::new("delta", delta.to_string()),
-        PayloadField::new("elapsed_ticks", elapsed_ticks.to_string()),
-        PayloadField::new("cause_kind", "action_effect"),
-        PayloadField::new("cause_action_id", "sleep"),
-    ];
-    event.effects_summary = format!("{need_kind} delta from elapsed sleep");
-    event
+            delta,
+            elapsed_ticks,
+            cause_kind: "action_effect".to_string(),
+            cause_action_id: Some("sleep".to_string()),
+            extra_payload: Vec::new(),
+            delta_effects_summary: format!("{} delta from elapsed sleep", need_kind.stable_id()),
+            threshold_effects_summary: format!(
+                "{} crossed threshold during sleep",
+                need_kind.stable_id()
+            ),
+        },
+        current,
+    ))
 }
 
 fn parse_duration_ticks(proposal: &Proposal) -> Result<Option<u64>, ActionRejection> {
@@ -559,7 +596,7 @@ mod tests {
         );
         let events = build_sleep_completion_events(
             &state(),
-            &AgentState::default(),
+            &agent_state_with_needs(260, 100),
             &EventLog::new(),
             &start,
             &completion_key,
@@ -583,6 +620,21 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "delta" && field.value == "-60"));
+        assert!(events.iter().any(|event| {
+            event.event_type == EventKind::NeedThresholdCrossed
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "need_kind" && field.value == "fatigue")
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "from_band" && field.value == "rising")
+                && event
+                    .payload
+                    .iter()
+                    .any(|field| field.key == "to_band" && field.value == "comfortable")
+        }));
         assert!(!fatigue.effects_summary.contains("comfortable"));
     }
 
@@ -682,6 +734,7 @@ mod tests {
             0,
         );
         let events = build_sleep_interruption_events(
+            &AgentState::default(),
             &start,
             &EventLog::new(),
             &interruption_key,

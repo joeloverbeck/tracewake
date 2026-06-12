@@ -1,10 +1,8 @@
 use std::collections::{BTreeSet, VecDeque};
 
 pub use crate::agent::actor_known::{
-    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
     derive_hidden_truth_audit, ActorKnownFact,
     ActorKnownPlanningContext as ActorKnownPlanningState, ActorKnownProvenance,
-    VisibleLocalPlanningState,
 };
 use crate::agent::{ActorKnownPlanningContext, BlockerCategory, HiddenTruthAudit, RoutineStep};
 use crate::ids::{ActionId, ActorId, ContainerId, PlaceId};

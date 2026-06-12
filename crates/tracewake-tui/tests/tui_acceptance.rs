@@ -435,15 +435,20 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(!embodied.contains("value=410"));
     assert!(embodied.contains("Intention:"));
     assert!(embodied.contains("active:routine_tomas_go_work:wait"));
-    assert!(!embodied.contains("DEBUG NON-DIEGETIC"));
+    let embodied_without_marked_context = embodied
+        .lines()
+        .filter(|line| !line.starts_with("Knowledge context: DEBUG NON-DIEGETIC"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(!embodied_without_marked_context.contains("DEBUG NON-DIEGETIC"));
     assert!(!embodied.contains("routine_events="));
     assert!(!embodied.contains("work_failed="));
     assert!(!embodied.contains("food_hidden_pantry"));
     assert!(metrics.contains("DEBUG NON-DIEGETIC: No Human Day"));
     assert!(metrics.contains("no_human_day_metrics_v1"));
-    assert!(metrics.contains("routine_events=8"));
+    assert!(metrics.contains("routine_events=5"));
     assert!(metrics.contains("work_failed=1"));
-    assert!(metrics.contains("need_crossings=2"));
+    assert!(metrics.contains("need_crossings=4"));
     assert!(metrics.contains("routine_interruptions=2"));
     assert!(metrics.contains("replay_failures=0"));
     let events_line = metrics

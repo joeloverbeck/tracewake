@@ -5,13 +5,14 @@ use tracewake_core::agent::need::NEED_MAX;
 use tracewake_core::agent::{RoutineFamily, RoutineStepProposal};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{PrivacyScope, SourceRef};
-use tracewake_core::events::InitialBeliefSourceKind;
+use tracewake_core::events::{EventCause, InitialBeliefSourceKind};
 use tracewake_core::ids::{ActionId, FoodSupplyId, PlaceId, WorkplaceId};
 use tracewake_core::location::Location;
 use tracewake_core::state::PhysicalState;
 
 use crate::schema::{
-    content_field_by_canonical_key, ActionAffordanceSchema, FixtureSchema, FixtureScope,
+    content_field_by_canonical_key, routine_assignment_actor_suffix,
+    routine_family_assignment_suffix, ActionAffordanceSchema, FixtureSchema, FixtureScope,
 };
 pub use crate::schema::{content_field_registry, ValidationPhase};
 use crate::serialization::{deserialize_fixture, serialize_fixture, SerializationError};
@@ -481,6 +482,31 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
         .iter()
         .map(|template| template.template_id.clone())
         .collect::<BTreeSet<_>>();
+    let routine_template_families = fixture
+        .routine_templates
+        .iter()
+        .map(|template| (template.template_id.clone(), template.family))
+        .collect::<BTreeMap<_, _>>();
+
+    let mut actor_suffixes = BTreeMap::new();
+    for (index, actor) in fixture.actors.iter().enumerate() {
+        let suffix = routine_assignment_actor_suffix(&actor.actor_id).to_string();
+        if let Some(previous_actor) = actor_suffixes.insert(suffix.clone(), actor.actor_id.clone())
+        {
+            if previous_actor != actor.actor_id {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!("actors[{index}].actor_id"),
+                    "ambiguous_actor_assignment_suffix",
+                    format!(
+                        "actor IDs {} and {} collapse to routine assignment suffix {suffix}",
+                        previous_actor.as_str(),
+                        actor.actor_id.as_str()
+                    ),
+                ));
+            }
+        }
+    }
 
     for (index, actor) in fixture.actors.iter().enumerate() {
         if !places.contains(&actor.current_place_id) {
@@ -691,6 +717,9 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
             ));
         }
     }
+    let mut assignment_by_actor_start = BTreeMap::new();
+    let mut assignment_by_actor_family = BTreeMap::new();
+    let mut assignment_by_derived_suffix = BTreeMap::new();
     for (index, assignment) in fixture.routine_assignments.iter().enumerate() {
         if !actors.contains(&assignment.actor_id) {
             missing(
@@ -709,6 +738,51 @@ fn validate_references(fixture: &FixtureSchema, errors: &mut Vec<ContentValidati
                 assignment.template_id.as_str(),
                 "routine_template",
             );
+        }
+        if let Some(previous_index) = assignment_by_actor_start
+            .insert((assignment.actor_id.clone(), assignment.start_tick), index)
+        {
+            errors.push(ContentValidationError::new(
+                ValidationPhase::State,
+                format!("routine_assignments[{index}].start_tick"),
+                "ambiguous_active_routine_assignment",
+                format!(
+                    "actor {} has multiple routine assignments starting at tick {} at indexes {previous_index} and {index}; earliest active intention derivation must not tie",
+                    assignment.actor_id.as_str(),
+                    assignment.start_tick.value()
+                ),
+            ));
+        }
+        if let Some(family) = routine_template_families.get(&assignment.template_id) {
+            if let Some(previous_index) =
+                assignment_by_actor_family.insert((assignment.actor_id.clone(), *family), index)
+            {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!("routine_assignments[{index}]"),
+                    "duplicate_actor_routine_family",
+                    format!(
+                        "actor {} has duplicate {:?} routine assignments at indexes {previous_index} and {index}",
+                        assignment.actor_id.as_str(),
+                        family
+                    ),
+                ));
+            }
+
+            let derived_key = (
+                routine_assignment_actor_suffix(&assignment.actor_id).to_string(),
+                routine_family_assignment_suffix(*family).to_string(),
+            );
+            if let Some(previous_index) = assignment_by_derived_suffix.insert(derived_key, index) {
+                errors.push(ContentValidationError::new(
+                    ValidationPhase::State,
+                    format!("routine_assignments[{index}]"),
+                    "routine_assignment_id_collision",
+                    format!(
+                        "routine assignment at index {index} derives the same intention/execution ID suffix as index {previous_index}"
+                    ),
+                ));
+            }
         }
         if assignment.start_tick >= assignment.end_tick {
             errors.push(ContentValidationError::new(
@@ -1448,13 +1522,14 @@ fn has_explicit_no_sleep_diagnostic(fixture: &FixtureSchema) -> bool {
         template.steps.iter().any(|step| {
             matches!(
                 step.proposed(),
-                RoutineStepProposal::Diagnostic(diagnostic)
-                    if diagnostic.contains("no_sleep")
-                        || diagnostic.contains("no_sleep_affordance")
-                        || diagnostic.contains("NoSleepAffordance")
+                RoutineStepProposal::Diagnostic(diagnostic) if is_no_sleep_diagnostic(diagnostic)
             )
         })
     })
+}
+
+fn is_no_sleep_diagnostic(value: &str) -> bool {
+    matches!(value, "no_sleep_affordance" | "NoSleepAffordance")
 }
 
 fn known_action_scope(action_id: &ActionId) -> Option<ActionScope> {
@@ -1830,10 +1905,19 @@ fn planner_intended_seed_text(
         match &belief.source {
             SourceRef::Event(event_id) => event_id.as_str().to_string(),
             SourceRef::Action(action_id) => action_id.as_str().to_string(),
-            SourceRef::Cause(cause) => format!("{cause:?}"),
+            SourceRef::Cause(cause) => stable_event_cause_id(cause),
         },
     ]
     .into_iter()
+}
+
+fn stable_event_cause_id(cause: &EventCause) -> String {
+    match cause {
+        EventCause::Event(id) => format!("event:{}", id.as_str()),
+        EventCause::Proposal(id) => format!("proposal:{}", id.as_str()),
+        EventCause::ValidationReport(id) => format!("validation_report:{}", id.as_str()),
+        EventCause::Process(id) => format!("process:{}", id.as_str()),
+    }
 }
 
 fn contains_planner_seed_marker(value: String) -> bool {
@@ -2314,6 +2398,7 @@ mod tests {
         ActionId, ActorId, ContainerId, DoorId, FixtureId, FoodSupplyId, ItemId, PlaceId,
         RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId, WorkplaceId,
     };
+    use tracewake_core::state::VisibilityDefault;
     use tracewake_core::time::SimTick;
 
     fn registry() -> ActionRegistry {
@@ -2347,11 +2432,13 @@ mod tests {
                     place_id: PlaceId::new("back_room").unwrap(),
                     display_label: "Back room".to_string(),
                     adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
+                    visibility_default: VisibilityDefault::Visible,
                 },
                 PlaceSchema {
                     place_id: PlaceId::new("shop_front").unwrap(),
                     display_label: "Shop front".to_string(),
                     adjacent_place_ids: vec![PlaceId::new("back_room").unwrap()],
+                    visibility_default: VisibilityDefault::Visible,
                 },
             ],
             doors: vec![DoorSchema {
@@ -2404,6 +2491,7 @@ mod tests {
             place_id: PlaceId::new("workshop").unwrap(),
             display_label: "Workshop".to_string(),
             adjacent_place_ids: vec![PlaceId::new("shop_front").unwrap()],
+            visibility_default: VisibilityDefault::Visible,
         });
         fixture.initial_needs.push(InitialNeedSchema {
             actor_id: ActorId::new("actor_tomas").unwrap(),
@@ -2529,7 +2617,7 @@ mod tests {
 
     #[test]
     fn fixture_food_supply_negative_servings_rejected_001() {
-        let raw = b"fixture|phase3a_bad_servings_001\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|546f6d617320686f6d65|\nfood_supply|food_soup_pot|at:home_tomas|-1|180";
+        let raw = b"fixture|phase3a_bad_servings_001\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|546f6d617320686f6d65||visible\nfood_supply|food_soup_pot|at:home_tomas|-1|180";
 
         let errors = validate_fixture_bytes(raw, &registry()).unwrap_err();
 
@@ -2735,6 +2823,7 @@ mod tests {
             place_id: PlaceId::new("shop_front").unwrap(),
             display_label: "Duplicate".to_string(),
             adjacent_place_ids: Vec::new(),
+            visibility_default: VisibilityDefault::Visible,
         });
         fixture.affordances.push(ActionAffordanceSchema {
             action_id: ActionId::new("open").unwrap(),
@@ -2837,6 +2926,26 @@ mod tests {
 
         let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
 
+        assert!(report
+            .errors
+            .iter()
+            .any(|error| error.code == "missing_sleep_surface"));
+    }
+
+    #[test]
+    fn phase3a_sleep_surface_contract_uses_typed_no_sleep_diagnostic() {
+        let mut fixture = phase3a_fixture();
+        fixture.sleep_places.clear();
+        fixture.routine_templates[0].family = RoutineFamily::SleepNight;
+        fixture.routine_templates[0].steps = vec![RoutineStep::FailWithTypedDiagnostic {
+            diagnostic: "no_sleep_affordance".to_string(),
+        }];
+        validate_fixture(&fixture, &registry()).unwrap();
+
+        fixture.routine_templates[0].steps = vec![RoutineStep::FailWithTypedDiagnostic {
+            diagnostic: "no_sleep_affordance: descriptive prose".to_string(),
+        }];
+        let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
         assert!(report
             .errors
             .iter()

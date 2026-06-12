@@ -10,17 +10,17 @@ use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
 use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
-    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
     generate_candidate_goals, plan_local_actions, record_current_place_perception_and_project,
     select_goal_and_trace, select_method_from_templates, ActorDecisionTransaction,
     ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
     BlockerCategory, CandidateGenerationInput, DecisionInput, DecisionTraceRecord, GoalKind,
     LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder,
     NoHumanActorKnownSurfaceRequest, PlannerGoal, ResponsibleLayer, RoutineCondition,
-    RoutineFamily, RoutineStep, RoutineTemplate, SourceEventIds, VisibleLocalPlanningState,
+    RoutineFamily, RoutineStep, RoutineTemplate, SourceEventIds,
 };
 use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    ChecksumContext,
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
@@ -68,6 +68,35 @@ fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId)
         loaded.canonical_agent_state,
         manifest_id,
     )
+}
+
+fn actor_known_context_from_projection(
+    projection: &EpistemicProjection,
+    agent_state: &AgentState,
+    actor_id: ActorId,
+    current_place_id: PlaceId,
+    decision_tick: SimTick,
+) -> tracewake_core::agent::ActorKnownPlanningState {
+    let frame_event_id = EventId::new(format!(
+        "event_test_frame_{}_{}",
+        actor_id.as_str(),
+        decision_tick.value()
+    ))
+    .unwrap();
+    NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+        projection,
+        agent_state,
+        actor_id,
+        current_place_id,
+        decision_tick,
+        window_id: "test_window",
+        window_end_tick: SimTick::new(decision_tick.value() + 4),
+        current_place_witness_event_id: Some(frame_event_id.clone()),
+        needs_witness_event_id: Some(frame_event_id.clone()),
+        frame_event_id: Some(frame_event_id),
+    })
+    .build(agent_state)
+    .into_context()
 }
 
 fn load_with_log(
@@ -286,32 +315,56 @@ fn decision_trace_records(log: &EventLog) -> Vec<DecisionTraceRecord> {
         .collect()
 }
 
-fn tamper_sleep_place_starting_belief(
+fn tamper_first_decision_trace_source_event(
     log: &EventLog,
-    actor_id: &str,
-    replacement_place_id: &str,
+    replacement_event_id: &str,
 ) -> EventLog {
     let mut tampered = EventLog::new();
     let mut replaced = false;
     for event in log.events() {
         let mut event = event.clone();
-        if !replaced
-            && event.event_type == EventKind::StartingBeliefRecorded
-            && payload(&event, "actor_id") == Some(actor_id)
-            && payload(&event, "belief_kind") == Some("sleep_place")
-        {
-            let value = event
+        if !replaced && event.event_type == EventKind::DecisionTraceRecorded {
+            let trace_canonical = event
                 .payload
                 .iter_mut()
-                .find(|field| field.key == "value")
-                .expect("sleep_place starting belief carries value");
-            value.value = replacement_place_id.to_string();
+                .find(|field| field.key == "trace_canonical")
+                .expect("decision trace event carries trace_canonical");
+            let mut record =
+                DecisionTraceRecord::deserialize_canonical(trace_canonical.value.as_bytes())
+                    .expect("decision trace canonical parses before tamper");
+            let first_input = record
+                .actor_known_inputs
+                .first_mut()
+                .expect("decision trace records actor-known inputs");
+            *first_input = replace_first_source_event(first_input, replacement_event_id);
+            record.actor_known_context_hash =
+                Some(compute_holder_known_context_hash(record.actor_known_inputs.clone()).hash);
+            trace_canonical.value = record.serialize_canonical();
             replaced = true;
         }
         tampered.append(event).unwrap();
     }
-    assert!(replaced, "fixture contains sleep_place starting belief");
+    assert!(replaced, "fixture contains decision trace event");
     tampered
+}
+
+fn replace_first_source_event(input: &str, replacement_event_id: &str) -> String {
+    let mut parts = input
+        .split('|')
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    for part in &mut parts {
+        let Some(source_events) = part.strip_prefix("source_events=") else {
+            continue;
+        };
+        let suffix = source_events
+            .split_once(',')
+            .map(|(_, rest)| format!(",{rest}"))
+            .unwrap_or_default();
+        *part = format!("source_events={replacement_event_id}{suffix}");
+        return parts.join("|");
+    }
+    panic!("actor-known input records source_events");
 }
 
 fn tamper_first_continue_routine_kind(log: &EventLog, replacement_kind: EventKind) -> EventLog {
@@ -996,7 +1049,16 @@ fn routine_blocked_fixture_records_access_failure_without_silent_loop() {
 
 #[test]
 fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
-    let (_state, agent_state, manifest_id) = load(fixtures::planner_trace_001());
+    let golden = fixtures::planner_trace_001();
+    let manifest_id =
+        ContentManifestId::new(format!("manifest_{}", golden.fixture.fixture_id.as_str())).unwrap();
+    let loaded = load_fixture_package(
+        manifest_id.clone(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![golden.source_file()],
+    )
+    .unwrap();
+    let agent_state = loaded.canonical_agent_state;
     let actor_id: ActorId = "actor_tomas".parse().unwrap();
     let generated = generate_candidate_goals(&CandidateGenerationInput {
         actor_id: actor_id.clone(),
@@ -1026,22 +1088,12 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
         actor_known_inputs: generated.actor_known_inputs_used.clone(),
     })
     .unwrap();
-    let actor_known_state = build_actor_known_planning_state(
-        &actor_id,
-        &EpistemicProjection::new(manifest_id.clone()),
+    let actor_known_state = actor_known_context_from_projection(
+        &loaded.epistemic_projection,
         &agent_state,
-        &VisibleLocalPlanningState::new(
-            "home_tomas".parse().unwrap(),
-            BTreeMap::from([(
-                "home_tomas".parse().unwrap(),
-                BTreeSet::from(["market_square".parse().unwrap()]),
-            )]),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeSet::from(["food_market_stew".to_string()]),
-            BTreeSet::new(),
-            BTreeMap::new(),
-        ),
+        actor_id.clone(),
+        "home_tomas".parse().unwrap(),
+        SimTick::new(2),
     );
     let rejected_template = RoutineTemplate::new(
         RoutineTemplateId::new("routine_a_rejected_eat_workplace").unwrap(),
@@ -1237,18 +1289,13 @@ fn severe_safety_without_known_exit_is_local_knowledge_blocker() {
         .expect("fixture actor exists")
         .current_place_id
         .clone();
-    let actor_known_context = build_actor_known_planning_state_with_projection_limitation(
-        &actor_id,
+    let empty_projection = EpistemicProjection::new(_manifest_id.clone());
+    let actor_known_context = actor_known_context_from_projection(
+        &empty_projection,
         &agent_state,
-        &VisibleLocalPlanningState::new(
-            current_place,
-            BTreeMap::<PlaceId, BTreeSet<PlaceId>>::new(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeSet::new(),
-            BTreeSet::new(),
-            BTreeMap::new(),
-        ),
+        actor_id.clone(),
+        current_place,
+        SimTick::ZERO,
     );
 
     let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
@@ -1404,19 +1451,12 @@ fn no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs() {
         .any(|input| input.contains("food_hidden_pantry")));
 
     let epistemic_projection = EpistemicProjection::new(manifest_id.clone());
-    let actor_known_state = build_actor_known_planning_state(
-        &actor_id,
+    let actor_known_state = actor_known_context_from_projection(
         &epistemic_projection,
         &agent_state,
-        &VisibleLocalPlanningState::new(
-            "home_mara".parse().unwrap(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeSet::new(),
-            BTreeSet::new(),
-            BTreeMap::new(),
-        ),
+        actor_id.clone(),
+        "home_mara".parse().unwrap(),
+        SimTick::new(1),
     );
     assert!(!actor_known_state
         .known_food_sources()
@@ -1898,7 +1938,7 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
     assert!(has_event(&log, EventKind::ActorMoved));
     assert!(has_event(&log, EventKind::WorkBlockCompleted));
     assert!(has_event(&log, EventKind::WorkBlockFailed));
-    assert!(has_event(&log, EventKind::ContinueRoutineProposed));
+    assert!(has_event(&log, EventKind::ActionRejected));
     assert!(has_event(&log, EventKind::NeedThresholdCrossed));
 
     let blocked = log
@@ -2380,7 +2420,8 @@ fn no_human_decision_context_hash_gate_fails_when_source_evidence_tampered() {
     let context = checksum_context("no_human_day_001", &log);
     let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
     let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
-    let tampered = tamper_sleep_place_starting_belief(&log, "actor_elena", "home_mara");
+    let tampered =
+        tamper_first_decision_trace_source_event(&log, "event.tampered.actor_known_source");
     let replay = run_replay(
         &initial_state,
         &initial_agent_state,
@@ -2393,9 +2434,14 @@ fn no_human_decision_context_hash_gate_fails_when_source_evidence_tampered() {
 
     assert!(!replay.matches_expected);
     assert!(!replay.decision_context_hash_failures.is_empty());
-    assert!(replay.decision_context_hash_failures[0]
-        .issue
-        .contains("decision_context_hash_mismatch"));
+    assert!(
+        replay
+            .decision_context_hash_failures
+            .iter()
+            .any(|failure| failure.issue.contains("decision_context_hash_mismatch")),
+        "{:?}",
+        replay.decision_context_hash_failures
+    );
 }
 
 #[test]

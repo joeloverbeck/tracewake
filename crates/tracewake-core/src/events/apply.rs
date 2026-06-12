@@ -91,11 +91,18 @@ pub enum ApplyError {
         actual: String,
     },
     EventKindStreamMismatch,
+    UnhandledWorldEventKind(EventKind),
     NonAgentEvent,
     MissingNeedState {
         actor_id: ActorId,
         need_kind: NeedKind,
     },
+    DuplicateNeedTickCharge {
+        actor_id: ActorId,
+        need_kind: NeedKind,
+        tick: u64,
+    },
+    MalformedElapsedTicks(String),
     MissingIntention(IntentionId),
     MissingRoutineExecution(RoutineExecutionId),
     MissingCause,
@@ -118,6 +125,7 @@ pub enum EpistemicApplyError {
     BadPayload { key: &'static str, value: String },
     EventKindStreamMismatch,
     NonEpistemicEvent,
+    MissingCause,
     MissingHolder,
     MissingSource,
 }
@@ -147,6 +155,10 @@ fn apply_event_with_capability(
 
     if event.stream != EventStream::World {
         return Ok(ApplyOutcome::NonWorldNoOp);
+    }
+
+    if event.event_type.requires_cause() && event.causes.is_empty() {
+        return Err(ApplyError::MissingCause);
     }
 
     let payload = payload_map(&event.payload);
@@ -180,7 +192,7 @@ fn apply_event_with_capability(
             apply_food_consumed(state, &payload).map(|_| ApplyOutcome::Applied)
         }
         EventKind::ActorWaited | EventKind::TimeAdvanced => Ok(ApplyOutcome::WorldNoOp),
-        _ => Ok(ApplyOutcome::NonWorldNoOp),
+        other => Err(ApplyError::UnhandledWorldEventKind(other)),
     }
 }
 
@@ -200,6 +212,10 @@ pub fn apply_epistemic_event(
 
     if event.stream != EventStream::Epistemic {
         return Ok(ApplyOutcome::NonWorldNoOp);
+    }
+
+    if event.event_type.requires_cause() && event.causes.is_empty() {
+        return Err(EpistemicApplyError::MissingCause);
     }
 
     let payload = payload_map(&event.payload);
@@ -231,18 +247,16 @@ pub fn apply_epistemic_event(
                 })
             })?;
             let place_id = parse_place_id_epistemic(&payload, "place_id")?;
-            let access_open = payload
-                .get("access_open")
-                .map(|value| match *value {
-                    "true" => Ok(true),
-                    "false" => Ok(false),
-                    _ => Err(EpistemicApplyError::BadPayload {
+            let access_open = match required_epistemic(&payload, "access_open")? {
+                "true" => true,
+                "false" => false,
+                value => {
+                    return Err(EpistemicApplyError::BadPayload {
                         key: "access_open",
-                        value: (*value).to_string(),
-                    }),
-                })
-                .transpose()?
-                .unwrap_or(true);
+                        value: value.to_string(),
+                    })
+                }
+            };
             projection.insert_role_assignment_notice(
                 actor_id,
                 workplace_id,
@@ -1123,7 +1137,7 @@ fn apply_need_delta(
     let need_kind = parse_need_kind(payload)?;
     let delta = parse_i32(payload, "delta")?;
     let cause = parse_need_change_cause(payload)?;
-    assert_single_tick_delta_charge(state, event, payload, &actor_id, need_kind);
+    assert_single_tick_delta_charge(state, event, payload, &actor_id, need_kind)?;
     if matches!(cause, NeedChangeCause::FixtureInitial) {
         let needs = state.needs_by_actor.entry(actor_id.clone()).or_default();
         needs
@@ -1150,21 +1164,21 @@ fn assert_single_tick_delta_charge(
     payload: &BTreeMap<&str, &str>,
     actor_id: &ActorId,
     need_kind: NeedKind,
-) {
-    let Some(elapsed_ticks) = payload
-        .get("elapsed_ticks")
-        .and_then(|value| value.parse::<u64>().ok())
-    else {
-        return;
+) -> Result<(), ApplyError> {
+    let Some(elapsed_tick_value) = payload.get("elapsed_ticks") else {
+        return Ok(());
     };
+    let elapsed_ticks = elapsed_tick_value
+        .parse::<u64>()
+        .map_err(|_| ApplyError::MalformedElapsedTicks((*elapsed_tick_value).to_string()))?;
     if elapsed_ticks == 0 {
-        return;
+        return Ok(());
     }
     let Some(cause_kind) = payload.get("cause_kind") else {
-        return;
+        return Ok(());
     };
     if !matches!(*cause_kind, "tick_delta" | "action_effect") {
-        return;
+        return Ok(());
     }
     let first_tick = event
         .sim_tick
@@ -1175,14 +1189,15 @@ fn assert_single_tick_delta_charge(
         let inserted = state
             .need_tick_charges
             .insert((actor_id.clone(), need_kind, tick));
-        assert!(
-            inserted,
-            "duplicate need tick charge actor={} need={} tick={}",
-            actor_id.as_str(),
-            need_kind.stable_id(),
-            tick
-        );
+        if !inserted {
+            return Err(ApplyError::DuplicateNeedTickCharge {
+                actor_id: actor_id.clone(),
+                need_kind,
+                tick,
+            });
+        }
     }
+    Ok(())
 }
 
 fn apply_intention_started(
@@ -1260,10 +1275,7 @@ fn apply_intention_transition(
                         key: "progress_tick",
                         value: (*progress_tick).to_string(),
                     })?;
-                let step = payload
-                    .get("current_step")
-                    .copied()
-                    .unwrap_or("continue_current_intention");
+                let step = required(payload, "current_step")?;
                 intention.record_progress(SimTick::new(tick), step);
             }
         }
@@ -1326,18 +1338,12 @@ fn apply_routine_step_transition(
     payload: &BTreeMap<&str, &str>,
 ) -> Result<(), ApplyError> {
     let routine_execution_id = parse_routine_execution_id(payload)?;
-    let tick = payload
-        .get("progress_tick")
-        .copied()
-        .unwrap_or("0")
+    let tick_value = required(payload, "progress_tick")?;
+    let tick = tick_value
         .parse::<u64>()
         .map_err(|_| ApplyError::BadPayload {
             key: "progress_tick",
-            value: payload
-                .get("progress_tick")
-                .copied()
-                .unwrap_or("0")
-                .to_string(),
+            value: tick_value.to_string(),
         })?;
     let execution = state
         .routine_executions
@@ -1747,6 +1753,11 @@ mod tests {
             ContentManifestId::new("phase1_manifest").unwrap(),
         );
         event.payload = payload;
+        if kind.requires_cause() {
+            event.causes = vec![EventCause::Process(
+                ProcessId::new("process_apply_test").unwrap(),
+            )];
+        }
         event
     }
 
@@ -2022,7 +2033,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "duplicate need tick charge")]
     fn single_tick_delta_charge_rejects_overlapping_action_effect_duration() {
         let mut state = agent_state();
         let mut event = caused_agent_event(
@@ -2042,7 +2052,37 @@ mod tests {
             apply_agent_event(&mut state, &event),
             Ok(ApplyOutcome::Applied)
         );
-        let _ = apply_agent_event(&mut state, &event);
+        assert!(matches!(
+            apply_agent_event(&mut state, &event),
+            Err(ApplyError::DuplicateNeedTickCharge {
+                actor_id: duplicate_actor_id,
+                need_kind: NeedKind::Hunger,
+                tick: 4,
+            }) if duplicate_actor_id == actor_id("actor_tomas")
+        ));
+    }
+
+    #[test]
+    fn malformed_elapsed_ticks_rejects_without_mutating_need_state() {
+        let mut state = agent_state();
+        let before = state.clone();
+        let event = caused_agent_event(
+            EventKind::NeedDeltaApplied,
+            vec![
+                PayloadField::new("actor_id", "actor_tomas"),
+                PayloadField::new("need_kind", "hunger"),
+                PayloadField::new("delta", "40"),
+                PayloadField::new("elapsed_ticks", "two"),
+                PayloadField::new("cause_kind", "action_effect"),
+                PayloadField::new("cause_action_id", "sleep"),
+            ],
+        );
+
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Err(ApplyError::MalformedElapsedTicks("two".to_string()))
+        );
+        assert_eq!(state, before);
     }
 
     #[test]

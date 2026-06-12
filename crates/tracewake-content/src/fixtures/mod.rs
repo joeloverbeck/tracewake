@@ -67,6 +67,7 @@ use tracewake_core::ids::{
     PlaceId, RoutineTemplateId, SchemaVersion, SemanticActionId, SleepAffordanceId,
 };
 use tracewake_core::location::Location;
+use tracewake_core::state::VisibilityDefault;
 use tracewake_core::time::SimTick;
 
 use crate::load::SourceFile;
@@ -245,7 +246,7 @@ fn hidden_truth_adversarial_fixture(
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),
-            place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
+            concealed_place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
         ],
         doors: Vec::new(),
         containers: vec![container_schema(
@@ -374,6 +375,68 @@ pub fn validate_fixture_contract_metadata(
     violations
 }
 
+pub fn validate_golden_fixture_contract_metadata(
+    golden: &GoldenFixture,
+) -> Vec<FixtureContractViolation> {
+    let mut violations = validate_fixture_contract_metadata(&golden.contract);
+    validate_known_food_contract_metadata(golden, &mut violations);
+    violations
+}
+
+fn validate_known_food_contract_metadata(
+    golden: &GoldenFixture,
+    violations: &mut Vec<FixtureContractViolation>,
+) {
+    if golden.fixture.known_food_sources.is_empty() {
+        return;
+    }
+
+    let contract_text = golden
+        .contract
+        .setup
+        .iter()
+        .chain(golden.contract.acceptance_assertions.iter())
+        .copied()
+        .collect::<Vec<_>>()
+        .join("\n");
+    let normalized = contract_text.to_ascii_lowercase();
+    let denies_known_food_seed = [
+        "no observation or belief",
+        "no authored known_food_sources edge",
+        "no known_food_sources edge",
+        "known food sources exclude",
+    ]
+    .iter()
+    .any(|marker| normalized.contains(marker));
+    if denies_known_food_seed {
+        violations.push(FixtureContractViolation {
+            fixture_id: golden.contract.fixture_id,
+            code: "known_food_contract_denial",
+            message: format!(
+                "fixture {} contract text denies an authored known_food_sources seed",
+                golden.contract.fixture_id
+            ),
+        });
+    }
+
+    for edge in &golden.fixture.known_food_sources {
+        if !contract_text.contains(edge.actor_id.as_str())
+            || !contract_text.contains(edge.food_supply_id.as_str())
+        {
+            violations.push(FixtureContractViolation {
+                fixture_id: golden.contract.fixture_id,
+                code: "known_food_contract_omission",
+                message: format!(
+                    "fixture {} contract text must name authored known_food_sources edge {} -> {}",
+                    golden.contract.fixture_id,
+                    edge.actor_id.as_str(),
+                    edge.food_supply_id.as_str()
+                ),
+            });
+        }
+    }
+}
+
 pub fn by_id(fixture_id: &str) -> Option<GoldenFixture> {
     all()
         .into_iter()
@@ -435,10 +498,38 @@ fn actor_schema(actor_id: &str, current_place_id: &str) -> ActorSchema {
 }
 
 fn place_schema(place_id: &str, display_label: &str, adjacent_place_ids: &[&str]) -> PlaceSchema {
+    place_schema_with_visibility(
+        place_id,
+        display_label,
+        adjacent_place_ids,
+        VisibilityDefault::Visible,
+    )
+}
+
+fn concealed_place_schema(
+    place_id: &str,
+    display_label: &str,
+    adjacent_place_ids: &[&str],
+) -> PlaceSchema {
+    place_schema_with_visibility(
+        place_id,
+        display_label,
+        adjacent_place_ids,
+        VisibilityDefault::Concealed,
+    )
+}
+
+fn place_schema_with_visibility(
+    place_id: &str,
+    display_label: &str,
+    adjacent_place_ids: &[&str],
+    visibility_default: VisibilityDefault,
+) -> PlaceSchema {
     PlaceSchema {
         place_id: place(place_id),
         display_label: display_label.to_string(),
         adjacent_place_ids: adjacent_place_ids.iter().map(|id| place(id)).collect(),
+        visibility_default,
     }
 }
 

@@ -17,7 +17,7 @@ pub mod transaction;
 
 pub use actor_known::{
     ActorKnownFact, ActorKnownPlanningContext, ActorKnownProvenance, SourceEventIds,
-    SourceEventIdsError, VisibleLocalPlanningState,
+    SourceEventIdsError,
 };
 pub use candidate::{
     ApplicabilityResult, CandidateGoal, CandidateGoalSource, GoalKind, GoalPriority,
@@ -51,7 +51,6 @@ pub use perception::{
     record_current_place_perception, record_current_place_perception_and_project,
 };
 pub use planner::{
-    build_actor_known_planning_state, build_actor_known_planning_state_with_projection_limitation,
     derive_hidden_truth_audit, plan_local_actions, ActorKnownPlanningState, LocalPlan,
     LocalPlanFailure, LocalPlanRequest, LocalPlanTrace, PlannedProposal, PlannerGoal,
     DEFAULT_PLANNER_BUDGET,

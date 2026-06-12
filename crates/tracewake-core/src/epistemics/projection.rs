@@ -84,15 +84,95 @@ pub enum ActorKnownProjectionFreshness {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActorKnownProjectionPolicy {
-    CurrentPlaceLatestOnly,
     ReclassifyWhenStale,
     SupersedeNewestBySubject,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActorKnownProjectionEmbodiedScope {
+    LatestCurrentPlaceOnly,
+    CurrentPlaceOnly,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActorKnownProjectionAccessibilityScope {
+    None,
+    FromAnyPlace,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ActorKnownProjectionKindPolicy {
+    classification: ActorKnownProjectionPolicy,
+    embodied_scope: ActorKnownProjectionEmbodiedScope,
+    accessibility_scope: ActorKnownProjectionAccessibilityScope,
+}
+
+impl ActorKnownProjectionKindPolicy {
+    pub fn classification(&self) -> ActorKnownProjectionPolicy {
+        self.classification
+    }
+
+    pub fn embodied_scope(&self) -> ActorKnownProjectionEmbodiedScope {
+        self.embodied_scope
+    }
+
+    pub fn accessibility_scope(&self) -> ActorKnownProjectionAccessibilityScope {
+        self.accessibility_scope
+    }
+
+    pub fn includes_in_embodied_context(
+        &self,
+        current_place_record: bool,
+        latest_current_place_record: bool,
+    ) -> bool {
+        match self.embodied_scope {
+            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly => {
+                latest_current_place_record
+            }
+            ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly => current_place_record,
+        }
+    }
+
+    fn includes_classified_record(
+        &self,
+        record: &ActorKnownProjectionRecord,
+        selected_workplaces: &BTreeMap<WorkplaceId, &ActorKnownProjectionRecord>,
+    ) -> bool {
+        match self.classification {
+            ActorKnownProjectionPolicy::ReclassifyWhenStale => true,
+            ActorKnownProjectionPolicy::SupersedeNewestBySubject => {
+                let ActorKnownProjectionRecord::Workplace { workplace_id, .. } = record else {
+                    return false;
+                };
+                selected_workplaces
+                    .get(workplace_id)
+                    .is_some_and(|selected| *selected == record)
+            }
+        }
+    }
+
+    fn freshness(
+        &self,
+        record: &ActorKnownProjectionRecord,
+        latest_current_place_record: bool,
+        context_tick: SimTick,
+    ) -> ActorKnownProjectionFreshness {
+        match self.classification {
+            ActorKnownProjectionPolicy::ReclassifyWhenStale => {
+                reclassifying_record_freshness(record, latest_current_place_record, context_tick)
+            }
+            ActorKnownProjectionPolicy::SupersedeNewestBySubject => {
+                ActorKnownProjectionFreshness::Remembered
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ClassifiedActorKnownProjectionRecord<'a> {
     record: &'a ActorKnownProjectionRecord,
     freshness: ActorKnownProjectionFreshness,
+    current_place_record: bool,
     latest_current_place_record: bool,
 }
 
@@ -111,6 +191,10 @@ impl<'a> ClassifiedActorKnownProjectionRecord<'a> {
 
     pub fn is_latest_current_place_record(&self) -> bool {
         self.latest_current_place_record
+    }
+
+    pub fn is_current_place_record(&self) -> bool {
+        self.current_place_record
     }
 }
 
@@ -284,12 +368,6 @@ impl EpistemicProjection {
         self.observations_by_id.get(observation_id)
     }
 
-    pub(crate) fn belief_count_for_actor(&self, actor_id: &ActorId) -> usize {
-        self.beliefs_by_holder
-            .get(actor_id)
-            .map_or(0, BTreeSet::len)
-    }
-
     pub fn has_belief(&self, belief_id: &BeliefId) -> bool {
         self.beliefs_by_id.contains_key(belief_id)
     }
@@ -385,13 +463,13 @@ impl EpistemicProjection {
             .get(context.viewer_actor_id())
             .into_iter()
             .flat_map(|records| records.iter())
-            .filter(|record| match record {
-                ActorKnownProjectionRecord::Workplace { workplace_id, .. } => selected_workplaces
-                    .get(workplace_id)
-                    .is_some_and(|selected| *selected == *record),
-                _ => true,
+            .filter(|record| {
+                record
+                    .policy()
+                    .includes_classified_record(record, &selected_workplaces)
             })
             .map(|record| {
+                let current_place_record = record.relevant_place_id() == current_place_id;
                 let latest_current_place_record = is_latest_current_place_record(
                     record,
                     current_place_id,
@@ -399,11 +477,12 @@ impl EpistemicProjection {
                 );
                 ClassifiedActorKnownProjectionRecord {
                     record,
-                    freshness: record_freshness(
+                    freshness: record.policy().freshness(
                         record,
                         latest_current_place_record,
                         context.current_tick(),
                     ),
+                    current_place_record,
                     latest_current_place_record,
                 }
             })
@@ -641,12 +720,12 @@ impl ActorKnownProjectionRecord {
         }
     }
 
-    pub fn policy(&self) -> ActorKnownProjectionPolicy {
+    pub fn policy(&self) -> ActorKnownProjectionKindPolicy {
         match self {
-            Self::Route { .. } | Self::FoodSource { .. } | Self::SleepPlace { .. } => {
-                ActorKnownProjectionPolicy::ReclassifyWhenStale
-            }
-            Self::Workplace { .. } => ActorKnownProjectionPolicy::SupersedeNewestBySubject,
+            Self::Route { .. } => actor_known_projection_kind_policy("route"),
+            Self::FoodSource { .. } => actor_known_projection_kind_policy("food_source"),
+            Self::SleepPlace { .. } => actor_known_projection_kind_policy("sleep_place"),
+            Self::Workplace { .. } => actor_known_projection_kind_policy("workplace"),
         }
     }
 
@@ -735,22 +814,49 @@ impl ActorKnownProjectionRecord {
     }
 }
 
-pub fn actor_known_projection_policy_kinds() -> BTreeMap<&'static str, ActorKnownProjectionPolicy> {
+pub fn actor_known_projection_policy_kinds(
+) -> BTreeMap<&'static str, ActorKnownProjectionKindPolicy> {
     BTreeMap::from([
-        ("route", ActorKnownProjectionPolicy::ReclassifyWhenStale),
+        (
+            "route",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+            },
+        ),
         (
             "food_source",
-            ActorKnownProjectionPolicy::ReclassifyWhenStale,
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::FromAnyPlace,
+            },
         ),
         (
             "sleep_place",
-            ActorKnownProjectionPolicy::ReclassifyWhenStale,
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::FromAnyPlace,
+            },
         ),
         (
             "workplace",
-            ActorKnownProjectionPolicy::SupersedeNewestBySubject,
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::SupersedeNewestBySubject,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::FromAnyPlace,
+            },
         ),
     ])
+}
+
+pub fn actor_known_projection_kind_policy(kind: &str) -> ActorKnownProjectionKindPolicy {
+    let mut policies = actor_known_projection_policy_kinds();
+    policies
+        .remove(kind)
+        .unwrap_or_else(|| panic!("unknown actor-known projection kind: {kind}"))
 }
 
 fn newest_workplace_records<'a>(
@@ -780,7 +886,7 @@ fn workplace_record_is_newer(
             && candidate.source_event_id() > previous.source_event_id())
 }
 
-fn record_freshness(
+fn reclassifying_record_freshness(
     record: &ActorKnownProjectionRecord,
     latest_current_place_record: bool,
     context_tick: SimTick,
@@ -1046,16 +1152,89 @@ mod tests {
             ["food_source", "route", "sleep_place", "workplace"]
         );
         assert_eq!(
-            policies["food_source"],
+            policies["food_source"].classification(),
             ActorKnownProjectionPolicy::ReclassifyWhenStale
         );
         assert_eq!(
-            policies["sleep_place"],
+            policies["food_source"].embodied_scope(),
+            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly
+        );
+        assert_eq!(
+            policies["food_source"].accessibility_scope(),
+            ActorKnownProjectionAccessibilityScope::FromAnyPlace
+        );
+        assert_eq!(
+            policies["sleep_place"].classification(),
             ActorKnownProjectionPolicy::ReclassifyWhenStale
         );
         assert_eq!(
-            policies["workplace"],
+            policies["sleep_place"].accessibility_scope(),
+            ActorKnownProjectionAccessibilityScope::FromAnyPlace
+        );
+        assert_eq!(
+            policies["workplace"].classification(),
             ActorKnownProjectionPolicy::SupersedeNewestBySubject
+        );
+        assert_eq!(
+            policies["workplace"].embodied_scope(),
+            ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly
+        );
+    }
+
+    #[test]
+    fn actor_known_projection_records_dispatch_to_declared_policy_table() {
+        let actor = actor_id("actor_tomas");
+        let records = [
+            ActorKnownProjectionRecord::Route {
+                actor_id: actor.clone(),
+                from_place_id: place_id("home_tomas"),
+                to_place_id: place_id("market"),
+                source: ActorKnownProjectionSource::VisibleExit,
+                source_event_id: event_id("event_visible_exit"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::FoodSource {
+                actor_id: actor.clone(),
+                food_source_id: "food_stew".to_string(),
+                place_id: Some(place_id("home_tomas")),
+                believed_servings: Some(2),
+                source: ActorKnownProjectionSource::VisibleFoodSupply,
+                source_event_id: event_id("event_visible_food"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::SleepPlace {
+                actor_id: actor.clone(),
+                place_id: place_id("home_tomas"),
+                sleep_affordance_id: Some("bed_tomas".to_string()),
+                source: ActorKnownProjectionSource::VisibleSleepAffordance,
+                source_event_id: event_id("event_visible_sleep"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::Workplace {
+                actor_id: actor,
+                workplace_id: workplace_id("workplace_tomas"),
+                place_id: place_id("home_tomas"),
+                believed_access_open: true,
+                source: ActorKnownProjectionSource::RoleAssignmentNotice,
+                source_event_id: event_id("event_role_notice"),
+                source_tick: SimTick::new(4),
+            },
+        ];
+
+        let policies = actor_known_projection_policy_kinds();
+        let dispatched: Vec<_> = records
+            .iter()
+            .map(|record| record.policy().classification())
+            .collect();
+
+        assert_eq!(
+            dispatched,
+            [
+                policies["route"].classification(),
+                policies["food_source"].classification(),
+                policies["sleep_place"].classification(),
+                policies["workplace"].classification()
+            ]
         );
     }
 

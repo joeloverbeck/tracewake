@@ -2,7 +2,7 @@ use crate::actions::defs::ActionRejection;
 use crate::actions::pipeline::PipelineStage;
 use crate::actions::proposal::Proposal;
 use crate::actions::report::{CheckedFact, ReasonCode};
-use crate::events::{EventEnvelope, EventKind, PayloadField};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField};
 use crate::ids::{ContainerId, ContentManifestId, DoorId, EventId};
 use crate::location::Location;
 use crate::scheduler::OrderingKey;
@@ -128,7 +128,7 @@ fn event(
     kind: EventKind,
     payload: Vec<PayloadField>,
 ) -> EventEnvelope {
-    let mut event = EventEnvelope::new_v1(
+    let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.{}.{}",
             kind.stable_id(),
@@ -141,7 +141,9 @@ fn event(
         proposal.requested_tick,
         ordering_key.clone(),
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Proposal(proposal.proposal_id.clone())],
+    )
+    .expect("open/close events carry proposal ancestry");
     event.actor_id = proposal.actor_id.clone();
     event.proposal_id = Some(proposal.proposal_id.clone());
     event.payload = payload;

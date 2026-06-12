@@ -150,6 +150,7 @@ impl TuiApp {
             &self.content_manifest_id,
         );
         self.bound_actor_id = Some(actor_id);
+        self.last_rejection = None;
         Ok(())
     }
 
@@ -173,6 +174,7 @@ impl TuiApp {
         )
         .map_err(AppError::from)?;
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
+        view.debug_available = true;
         Ok(view)
     }
 
@@ -417,8 +419,10 @@ mod tests {
         let mut app = TuiApp::load_default().unwrap();
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
+        assert!(app.current_view().unwrap().debug_available);
         let before = app.render_current_view().unwrap();
         assert!(before.contains("strongbox_tomas"));
+        assert!(before.contains("Debug: available=true"));
 
         let result = app
             .submit_semantic_action(

@@ -1,10 +1,13 @@
 mod support;
 
+use std::collections::BTreeSet;
+
 use support::{AgentSeed, PhysicalSeed};
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
+const PERCEPTION_RS: &str = include_str!("../src/agent/perception.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const PIPELINE_RS: &str = include_str!("../src/actions/pipeline.rs");
@@ -15,7 +18,13 @@ const CHECKSUM_RS: &str = include_str!("../src/checksum.rs");
 const EVENTS_MOD_RS: &str = include_str!("../src/events/mod.rs");
 const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
+const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
+const MOVEMENT_RS: &str = include_str!("../src/actions/defs/movement.rs");
+const WAIT_RS: &str = include_str!("../src/actions/defs/wait.rs");
+const OPENCLOSE_RS: &str = include_str!("../src/actions/defs/openclose.rs");
+const CHECKCONTAINER_RS: &str = include_str!("../src/actions/defs/checkcontainer.rs");
+const TAKEPLACE_RS: &str = include_str!("../src/actions/defs/takeplace.rs");
 const SLEEP_RS: &str = include_str!("../src/actions/defs/sleep.rs");
 const TIME_RS: &str = include_str!("../src/time.rs");
 const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
@@ -23,9 +32,14 @@ const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
 const VIEW_MODELS_RS: &str = include_str!("../src/view_models.rs");
+const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
+const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
+const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
+const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
+const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
 const MUTANTS_BASELINE_MISSES: &str = include_str!("../../../.cargo/mutants-baseline-misses.txt");
 const MUTANTS_BASELINE_LEDGER: &str =
@@ -101,20 +115,44 @@ struct EmbodiedSurfaceField {
 }
 
 const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
-    &[EmbodiedSurfaceFieldProducer {
-        struct_name: "EmbodiedViewModel",
-        field_name: "notebook",
-        source_path: "tracewake-tui/src/app.rs",
-        producer_snippet: "view.notebook = Some(build_notebook_view",
-        cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
-        rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
-    }];
+    &[
+        EmbodiedSurfaceFieldProducer {
+            struct_name: "EmbodiedViewModel",
+            field_name: "notebook",
+            source_path: "tracewake-tui/src/app.rs",
+            producer_snippet: "view.notebook = Some(build_notebook_view",
+            cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
+            rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
+        },
+        EmbodiedSurfaceFieldProducer {
+            struct_name: "EmbodiedViewModel",
+            field_name: "debug_available",
+            source_path: "tracewake-tui/src/app.rs",
+            producer_snippet: "view.debug_available = true;",
+            cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
+            rationale: "Core leaves debug availability false; the TUI boundary derives it from the presence of debug panel wiring.",
+        },
+        EmbodiedSurfaceFieldProducer {
+            struct_name: "ActionAvailability",
+            field_name: "debug_only_diagnostics",
+            source_path: "tracewake-core/src/view_models.rs",
+            producer_snippet: "debug_only_diagnostics: Vec<String>",
+            cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
+            rationale: "Current production action availability keeps actor-safe provenance populated and defers debug-only diagnostics until a concrete debug-only disabled site needs them.",
+        },
+    ];
 
 const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
     TypedColumnClosureExemption {
         map_name: "needs_by_actor",
         anchor: "apply_need_delta",
-        typed_columns: &["actor_id", "need_kind", "delta", "cause_kind"],
+        typed_columns: &[
+            "actor_id",
+            "need_kind",
+            "delta",
+            "cause_kind",
+            "cause_action_id",
+        ],
         rationale: "NeedDeltaApplied materializes typed need columns and does not retain arbitrary semantic payload fields.",
     },
     TypedColumnClosureExemption {
@@ -129,12 +167,17 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
         typed_columns: &[
             "intention_id",
             "actor_id",
+            "status",
+            "source",
             "candidate_goal_id",
+            "selected_goal_id",
+            "selected_routine_method",
             "routine_template_id",
             "current_step",
             "durability_level",
             "start_tick",
             "decision_trace_id",
+            "trace_id",
         ],
         rationale: "IntentionStarted builds the typed Intention record from closed columns rather than retaining event payload fields.",
     },
@@ -147,7 +190,21 @@ const TYPED_COLUMN_CLOSURE_EXEMPTIONS: &[TypedColumnClosureExemption] = &[
     TypedColumnClosureExemption {
         map_name: "active_intention_by_actor",
         anchor: "apply_intention_started",
-        typed_columns: &["actor_id", "intention_id"],
+        typed_columns: &[
+            "intention_id",
+            "actor_id",
+            "status",
+            "source",
+            "candidate_goal_id",
+            "selected_goal_id",
+            "selected_routine_method",
+            "routine_template_id",
+            "current_step",
+            "durability_level",
+            "start_tick",
+            "decision_trace_id",
+            "trace_id",
+        ],
         rationale: "The active-intention index is a typed pointer derived from IntentionStarted columns.",
     },
     TypedColumnClosureExemption {
@@ -428,27 +485,91 @@ fn assert_absent(haystack: impl AsRef<str>, needle: &str) {
     );
 }
 
+fn source_without_comments(source: &str) -> String {
+    source
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim_start();
+            !(trimmed.starts_with("//") || trimmed.starts_with("///"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn normalized_source(source: &str) -> String {
     source.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+fn fabricated_planning_event_id_violations(sources: &[(String, String)]) -> Vec<String> {
+    sources
+        .iter()
+        .filter(|(_, source)| source.contains("event_visible_local_planning_state"))
+        .map(|(path, _)| path.clone())
+        .collect()
+}
+
+fn hidden_truth_harness_provenance_violations(source: &str) -> Vec<String> {
+    let banned_builders = [
+        "build_actor_known_planning_state",
+        "build_actor_known_planning_state_with_projection_limitation",
+        "observe_visible_local",
+        "event_visible_local_planning_state",
+    ];
+    let mut violations = Vec::new();
+    for banned in banned_builders {
+        if source.contains(banned) {
+            violations.push(format!(
+                "hidden_truth_gates.rs uses fabricated builder {banned}"
+            ));
+        }
+    }
+    if !source.contains("apply_epistemic_event") {
+        violations.push(
+            "hidden_truth_gates.rs must build gate contexts by applying epistemic events"
+                .to_string(),
+        );
+    }
+    violations
+}
+
+fn actor_known_context_constructor_violations(sources: &[(String, String)]) -> Vec<String> {
+    let allowed_constructor_sites = [
+        "crates/tracewake-core/src/agent/actor_known.rs",
+        "crates/tracewake-core/src/agent/no_human_surface.rs",
+    ];
+    let banned_public_builders = [
+        "pub fn build_actor_known_planning_state",
+        "pub fn build_actor_known_planning_state_with_projection_limitation",
+        "pub fn observe_visible_local",
+    ];
+    let mut violations = Vec::new();
+
+    for (path, source) in sources {
+        let uncommented = source_without_comments(&production(source));
+        for banned in banned_public_builders {
+            if uncommented.contains(banned) {
+                violations.push(format!("{path} exposes retired context producer {banned}"));
+            }
+        }
+        if !allowed_constructor_sites.contains(&path.as_str())
+            && uncommented.contains("ActorKnownPlanningContext::from_observed_parts(")
+        {
+            violations.push(format!(
+                "{path} constructs ActorKnownPlanningContext outside the builder/classifier surface"
+            ));
+        }
+    }
+
+    violations
+}
+
 fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField> {
     let mut fields = Vec::new();
-    for struct_name in [
-        "EmbodiedViewModel",
-        "Phase3AEmbodiedStatus",
-        "WhyNotView",
-        "NotebookView",
-        "NotebookBeliefEntry",
-        "NotebookLeadEntry",
-        "VisibleExit",
-        "SemanticActionEntry",
-        "ActionAvailability",
-    ] {
+    for struct_name in embodied_struct_census() {
         let marker = format!("pub struct {struct_name} {{");
-        let Some(start) = view_models_source.find(&marker) else {
-            continue;
-        };
+        let start = view_models_source
+            .find(&marker)
+            .unwrap_or_else(|| panic!("embodied surface census entry {struct_name} is a struct"));
         let body_start = start + marker.len();
         let body = view_models_source[body_start..]
             .lines()
@@ -463,7 +584,11 @@ fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField
             let Some((field_name, type_name)) = field.trim_end_matches(',').split_once(": ") else {
                 continue;
             };
-            if type_name.starts_with("Option<") || type_name.starts_with("Vec<") {
+            if type_name.starts_with("Option<")
+                || type_name.starts_with("Vec<")
+                || embodied_scalar_field_is_in_census(struct_name, field_name)
+                || *struct_name == "NotebookLeadEntry"
+            {
                 fields.push(EmbodiedSurfaceField {
                     struct_name: struct_name.to_string(),
                     field_name: field_name.to_string(),
@@ -472,32 +597,81 @@ fn embodied_surface_fields(view_models_source: &str) -> Vec<EmbodiedSurfaceField
             }
         }
     }
+    let action_availability_marker = "pub enum ActionAvailability {";
+    assert!(
+        view_models_source.contains(action_availability_marker),
+        "embodied surface census entry ActionAvailability is an enum"
+    );
+    fields.push(EmbodiedSurfaceField {
+        struct_name: "ActionAvailability".to_string(),
+        field_name: "debug_only_diagnostics".to_string(),
+        type_name: "Vec<String>".to_string(),
+    });
     fields.sort_by(|left, right| {
         (&left.struct_name, &left.field_name).cmp(&(&right.struct_name, &right.field_name))
     });
     fields
 }
 
+fn embodied_struct_census() -> &'static [&'static str] {
+    &[
+        "EmbodiedViewModel",
+        "Phase3AEmbodiedStatus",
+        "WhyNotView",
+        "NotebookView",
+        "NotebookBeliefEntry",
+        "NotebookObservationEntry",
+        "NotebookContradictionEntry",
+        "NotebookLeadEntry",
+        "VisibleExit",
+        "VisibleDoor",
+        "VisibleContainer",
+        "VisibleItem",
+        "SemanticActionEntry",
+    ]
+}
+
+fn embodied_scalar_field_is_in_census(struct_name: &str, field_name: &str) -> bool {
+    matches!(
+        (struct_name, field_name),
+        ("EmbodiedViewModel", "debug_available")
+            | ("VisibleDoor", "endpoint_a")
+            | ("VisibleDoor", "endpoint_b")
+            | ("VisibleItem", "source")
+    )
+}
+
 fn embodied_surface_dead_field_errors(
     view_models_source: &str,
     producer_sources: &[(&str, &str)],
+    consumer_sources: &[(&str, &str)],
 ) -> Vec<String> {
     let fields = embodied_surface_fields(view_models_source);
     let mut errors = Vec::new();
     for field in fields {
-        if embodied_field_has_registered_producer(&field, producer_sources) {
-            continue;
+        let has_producer = embodied_field_has_registered_producer(&field, producer_sources)
+            || producer_sources.iter().any(|(_, source)| {
+                source_has_non_default_struct_field_producer(
+                    source,
+                    &field.struct_name,
+                    &field.field_name,
+                )
+            });
+        if !has_producer {
+            errors.push(format!(
+                "{}.{} ({}) has no non-default embodied producer or cited external producer",
+                field.struct_name, field.field_name, field.type_name
+            ));
         }
-        if producer_sources
+        if !consumer_sources
             .iter()
-            .any(|(_, source)| source_has_non_default_field_producer(source, &field.field_name))
+            .any(|(_, source)| source_has_field_consumer(source, &field.field_name))
         {
-            continue;
+            errors.push(format!(
+                "{}.{} ({}) has no embodied render/app consumer or cited deferral",
+                field.struct_name, field.field_name, field.type_name
+            ));
         }
-        errors.push(format!(
-            "{}.{} ({}) has no non-default embodied producer or cited external producer",
-            field.struct_name, field.field_name, field.type_name
-        ));
     }
     errors
 }
@@ -517,29 +691,67 @@ fn embodied_field_has_registered_producer(
     })
 }
 
-fn source_has_non_default_field_producer(source: &str, field_name: &str) -> bool {
-    let explicit = format!("{field_name}:");
+fn source_has_non_default_struct_field_producer(
+    source: &str,
+    struct_name: &str,
+    field_name: &str,
+) -> bool {
+    let marker = format!("{struct_name} {{");
     let mut search_start = 0;
-    while let Some(relative_index) = source[search_start..].find(&explicit) {
-        let field_index = search_start + relative_index;
-        let line_start = source[..field_index]
-            .rfind('\n')
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        let line = &source[line_start..field_index];
-        if !line.trim_start().starts_with("pub ") {
-            let value_start = field_index + explicit.len();
-            let value = source[value_start..].trim_start();
-            if !(value.starts_with("None") || value.starts_with("Vec::new()")) {
-                return true;
-            }
+    while let Some(relative_index) = source[search_start..].find(&marker) {
+        let marker_index = search_start + relative_index;
+        let body = body_from_open_brace(&source[marker_index + struct_name.len()..]);
+        if struct_body_has_non_default_field(body, field_name) {
+            return true;
         }
-        search_start = field_index + explicit.len();
+        search_start = marker_index + marker.len();
     }
+    false
+}
 
-    let shorthand = format!("{field_name},");
-    source.lines().any(|line| line.trim() == shorthand)
+fn struct_body_has_non_default_field(body: &str, field_name: &str) -> bool {
+    let explicit = format!("{field_name}:");
+    body.lines().any(|line| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with(&explicit) {
+            return false;
+        }
+        let value = trimmed[explicit.len()..].trim();
+        !(value.starts_with("None")
+            || value.starts_with("Vec::new()")
+            || value.starts_with("false"))
+    }) || body
+        .lines()
+        .any(|line| line.trim() == format!("{field_name},"))
+}
+
+fn source_has_field_consumer(source: &str, field_name: &str) -> bool {
+    source.contains(&format!(".{field_name}"))
+        || source.contains(&format!("{field_name}()"))
         || source.contains(&format!("{field_name} = Some("))
+        || source.contains(&format!("{field_name} = true"))
+}
+
+fn body_from_open_brace(after_name: &str) -> &str {
+    let start = after_name
+        .find('{')
+        .expect("struct construction starts with opening brace");
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_name[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    &after_name[start..end.expect("struct construction body closes")]
 }
 
 fn body_after_marker<'a>(source: &'a str, marker: &str) -> &'a str {
@@ -707,7 +919,9 @@ fn dependency_entries_from_manifest(manifest_path: &str, source: &str) -> Vec<De
 const CORE_FOUNDATION_RATIONALE: &str =
     "core foundation/replay/event/state infrastructure outside current ORD-HARD guarded cognition perimeter";
 const CORE_ACTION_RATIONALE: &str =
-    "core action validation/registry code is covered by targeted action, pipeline, and guarded action-definition mutation guards";
+    "core action validation/registry code outside the current scheduled ratchet is covered by targeted action and pipeline behavior gates";
+const CORE_ACTION_MUTATION_PERIMETER_RATIONALE: &str =
+    "core action code is inside the guarded mutation perimeter and must be covered by scheduled and in-diff cargo-mutants filters";
 const CORE_EPISTEMIC_RATIONALE: &str =
     "epistemic data model is covered by capability, provenance, and projection tests";
 const CONTENT_RATIONALE: &str =
@@ -802,17 +1016,18 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/accuseprobe.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/checkcontainer.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/continue_routine.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
-    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/eat.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/eat.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_MUTATION_PERIMETER_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/inspect.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/movement.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/need_events.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/openclose.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
-    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/sleep.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/sleep.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_MUTATION_PERIMETER_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/takeplace.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/wait.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
-    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/work.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/defs/work.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_MUTATION_PERIMETER_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
-    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/pipeline.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/pipeline.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_MUTATION_PERIMETER_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/proposal.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/registry.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/actions/report.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_ACTION_RATIONALE } },
@@ -942,6 +1157,120 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
 
 const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 143;
 const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
+const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
+
+fn yaml_step_run_block<'a>(ci_yml: &'a str, step_name: &str) -> Option<&'a str> {
+    let marker = format!("- name: {step_name}");
+    let start = ci_yml.find(&marker)?;
+    let after = &ci_yml[start + marker.len()..];
+    let run_start = after.find("run: |")? + "run: |".len();
+    let body = &after[run_start..];
+    let end = body.find("\n      - name:").unwrap_or(body.len());
+    Some(&body[..end])
+}
+
+fn non_comment_lines(source: &str) -> Vec<&str> {
+    source
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim_start();
+            !trimmed.is_empty() && !trimmed.starts_with('#')
+        })
+        .collect()
+}
+
+fn simple_glob_matches(pattern: &str, path: &str) -> bool {
+    if pattern == path {
+        return true;
+    }
+    if let Some(prefix) = pattern.strip_suffix("/**") {
+        return path.starts_with(&format!("{prefix}/"));
+    }
+    if let Some(prefix) = pattern.strip_suffix('*') {
+        return path.starts_with(prefix);
+    }
+    false
+}
+
+fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
+    let Some(after_marker) = mutants_toml.split("exclude_globs = [").nth(1) else {
+        return Vec::new();
+    };
+    let Some(block) = after_marker.split(']').next() else {
+        return Vec::new();
+    };
+    block
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .trim_end_matches(',')
+                .trim_matches('"')
+                .split_once('#')
+                .map_or_else(
+                    || {
+                        Some(
+                            line.trim()
+                                .trim_end_matches(',')
+                                .trim_matches('"')
+                                .to_string(),
+                        )
+                    },
+                    |(value, _)| {
+                        Some(
+                            value
+                                .trim()
+                                .trim_end_matches(',')
+                                .trim_matches('"')
+                                .to_string(),
+                        )
+                    },
+                )
+        })
+        .filter(|value| !value.is_empty())
+        .collect()
+}
+
+fn in_diff_filter_matches_path(filter_line: &str, required_path: &str) -> bool {
+    if required_path.starts_with("crates/tracewake-core/src/agent/") {
+        filter_line.contains("crates/tracewake-core/src/agent/|")
+    } else if required_path == "crates/tracewake-core/src/scheduler.rs" {
+        filter_line.contains("crates/tracewake-core/src/scheduler\\.rs")
+    } else if required_path == "crates/tracewake-core/src/projections.rs" {
+        filter_line.contains("crates/tracewake-core/src/projections\\.rs")
+    } else if required_path == "crates/tracewake-core/src/actions/pipeline.rs" {
+        filter_line.contains("crates/tracewake-core/src/actions/pipeline\\.rs")
+    } else {
+        let stem = required_path
+            .rsplit('/')
+            .next()
+            .and_then(|file_name| file_name.strip_suffix(".rs"))
+            .unwrap_or(required_path);
+        filter_line
+            .split("actions/defs/(")
+            .nth(1)
+            .and_then(|tail| tail.split(")\\.rs").next())
+            .is_some_and(|group| group.split('|').any(|entry| entry == stem))
+    }
+}
+
+fn mutation_rationale_violations(classifications: &[WorkspaceSourceClassification]) -> Vec<String> {
+    classifications
+        .iter()
+        .filter_map(|entry| match entry.class {
+            WorkspaceSourceClass::GuardedLayer => None,
+            WorkspaceSourceClass::Exempt { rationale }
+                if rationale.contains("mutation")
+                    && !MUTATION_PERIMETER_CANARY_PATHS.contains(&entry.path) =>
+            {
+                Some(format!(
+                    "{} claims mutation coverage but is outside the mutation perimeter",
+                    entry.path
+                ))
+            }
+            WorkspaceSourceClass::Exempt { .. } => None,
+        })
+        .collect()
+}
 
 fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
     let mut violations = Vec::new();
@@ -950,43 +1279,35 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         violations.push("mutants.toml excludes all action definitions".to_string());
     }
 
-    let in_diff_filter_line = ci_yml
-        .lines()
+    let scheduled_block =
+        yaml_step_run_block(ci_yml, "Run guarded-layer mutation baseline").unwrap_or_default();
+    let scheduled_effective_lines = non_comment_lines(scheduled_block).join("\n");
+    let in_diff_block = yaml_step_run_block(ci_yml, "Check guarded-layer diff").unwrap_or_default();
+    let in_diff_filter_line = non_comment_lines(in_diff_block)
+        .into_iter()
         .find(|line| line.contains("grep -E") && line.contains("actions/defs/"))
-        .unwrap_or_default();
-    let in_diff_defs_group = in_diff_filter_line
-        .split("actions/defs/(")
-        .nth(1)
-        .and_then(|tail| tail.split(")\\.rs").next())
         .unwrap_or_default();
 
     for scheduled_filter in MUTATION_PERIMETER_REQUIRED_FILTERS {
-        if !ci_yml.contains(scheduled_filter) {
+        if !scheduled_effective_lines.contains(scheduled_filter) {
             violations.push(format!(
                 "scheduled mutation baseline omits required filter {scheduled_filter}"
             ));
         }
     }
 
+    for excluded in parse_exclude_globs(mutants_toml) {
+        for required_path in MUTATION_PERIMETER_CANARY_PATHS {
+            if simple_glob_matches(&excluded, required_path) {
+                violations.push(format!(
+                    "mutants.toml exclude_globs entry {excluded} covers mutation perimeter path {required_path}"
+                ));
+            }
+        }
+    }
+
     for required_path in MUTATION_PERIMETER_CANARY_PATHS {
-        let stem = required_path
-            .rsplit('/')
-            .next()
-            .and_then(|file_name| file_name.strip_suffix(".rs"))
-            .unwrap_or(required_path);
-        let matches_in_diff_filter =
-            if required_path.starts_with("crates/tracewake-core/src/agent/") {
-                in_diff_filter_line.contains("crates/tracewake-core/src/agent/")
-            } else if *required_path == "crates/tracewake-core/src/scheduler.rs" {
-                in_diff_filter_line.contains("crates/tracewake-core/src/scheduler\\.rs")
-            } else if *required_path == "crates/tracewake-core/src/projections.rs" {
-                in_diff_filter_line.contains("crates/tracewake-core/src/projections\\.rs")
-            } else if *required_path == "crates/tracewake-core/src/actions/pipeline.rs" {
-                in_diff_filter_line.contains("crates/tracewake-core/src/actions/pipeline\\.rs")
-            } else {
-                in_diff_defs_group.split('|').any(|entry| entry == stem)
-            };
-        if !matches_in_diff_filter {
+        if !in_diff_filter_matches_path(in_diff_filter_line, required_path) {
             violations.push(format!(
                 "in-diff mutation guarded-path filter omits {required_path}"
             ));
@@ -1013,15 +1334,21 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         }
     }
 
-    for line in ci_yml
-        .lines()
-        .filter(|line| line.contains("cargo mutants --in-diff"))
-    {
+    violations.extend(mutation_rationale_violations(
+        WORKSPACE_SOURCE_CLASSIFICATIONS,
+    ));
+
+    for line in ci_yml.lines().filter(|line| line.contains("cargo mutants")) {
         if line.contains("|| true") {
-            violations.push("in-diff cargo-mutants invocation swallows failures".to_string());
+            violations.push("cargo-mutants invocation swallows failures".to_string());
         }
     }
-    if !ci_yml.contains("mutants_status=$?") {
+    let mutants_invocations = non_comment_lines(ci_yml)
+        .into_iter()
+        .filter(|line| line.contains("cargo mutants"))
+        .count();
+    let status_captures = ci_yml.matches("mutants_status=$?").count();
+    if status_captures < mutants_invocations {
         violations.push("in-diff cargo-mutants status is not captured".to_string());
     }
     if !ci_yml.contains("\"$mutants_status\" -ne 0")
@@ -1034,6 +1361,23 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
     if !ci_yml.contains("[ ! -d mutants.out ]") {
         violations.push("in-diff mutation job does not require output artifacts".to_string());
+    }
+    if !scheduled_block.contains("echo \"mutants_status=$mutants_status\" >> \"$GITHUB_OUTPUT\"") {
+        violations
+            .push("scheduled cargo-mutants status is not exposed to baseline check".to_string());
+    }
+    if !ci_yml.contains("if: always() && steps.scheduled_mutants.outcome != 'skipped'") {
+        violations.push(
+            "scheduled mutation baseline check does not run after accepted misses".to_string(),
+        );
+    }
+    if !ci_yml.contains("github.event_name != 'schedule'")
+        || !ci_yml.contains("github.event_name != 'workflow_dispatch'")
+    {
+        violations.push(
+            "scheduled/manual mutation runs are not exempt from concurrency cancellation"
+                .to_string(),
+        );
     }
     if !ci_yml.contains("github.event_name == 'pull_request' || github.event_name == 'push'") {
         violations.push("mutation in-diff job does not run on guarded direct pushes".to_string());
@@ -1096,6 +1440,18 @@ fn ledgered_mutant_misses(ledger: &str) -> std::collections::BTreeSet<String> {
         .collect()
 }
 
+fn ticket_exists(ticket_id: &str) -> bool {
+    let active = format!("tickets/{ticket_id}.md");
+    let archived = format!("archive/tickets/{ticket_id}.md");
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .map(|workspace_root| {
+            workspace_root.join(active).exists() || workspace_root.join(archived).exists()
+        })
+        .unwrap_or(false)
+}
+
 fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<String> {
     let mut errors = Vec::new();
     let normalized = normalized_mutant_misses(baseline);
@@ -1123,6 +1479,7 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
         errors.push(format!("mutation baseline ledger entry is stale: {miss}"));
     }
 
+    let mut rationale_counts = std::collections::BTreeMap::<String, usize>::new();
     for line in ledger
         .lines()
         .filter(|line| line.trim_start().starts_with("- `"))
@@ -1130,6 +1487,43 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
         if !line.contains(" — ") {
             errors.push(format!(
                 "mutation baseline ledger entry lacks rationale: {line}"
+            ));
+            continue;
+        }
+        let Some((_, disposition)) = line.split_once(" — ") else {
+            continue;
+        };
+        *rationale_counts.entry(disposition.to_string()).or_default() += 1;
+        let Some((tag, rationale)) = disposition.split_once(": ") else {
+            errors.push(format!(
+                "mutation baseline ledger entry lacks closed tag: {line}"
+            ));
+            continue;
+        };
+        if rationale.trim().is_empty() {
+            errors.push(format!(
+                "mutation baseline ledger entry lacks rationale: {line}"
+            ));
+        }
+        if tag == "justified-baseline" {
+            continue;
+        }
+        let Some(ticket_id) = tag.strip_prefix("warrants-test:") else {
+            errors.push(format!(
+                "mutation baseline ledger entry uses unsupported disposition tag {tag}"
+            ));
+            continue;
+        };
+        if !ticket_id.starts_with("0021PHA3APOSREB-") || !ticket_exists(ticket_id) {
+            errors.push(format!(
+                "mutation baseline warrants-test tag references missing ticket {ticket_id}"
+            ));
+        }
+    }
+    for (rationale, count) in rationale_counts {
+        if count > MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES {
+            errors.push(format!(
+                "mutation baseline ledger repeats one rationale {count} times: {rationale}"
             ));
         }
     }
@@ -1386,6 +1780,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic broad action-def exclusion must fail the perimeter guard"
     );
 
+    let excluded_eat = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/mod.rs\",",
+        "  \"crates/tracewake-core/src/actions/defs/eat.rs\",\n  \"crates/tracewake-core/src/actions/mod.rs\",",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&excluded_eat, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("exclude_globs") && violation.contains("eat.rs")),
+        "synthetic specific perimeter-path exclusion must fail the guard"
+    );
+
     let swallowed_failure = CI_YML.replace(
         "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle",
         "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || true",
@@ -1395,6 +1800,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("swallows failures")),
         "synthetic swallowed cargo-mutants failure must fail the perimeter guard"
+    );
+
+    let missing_scheduled_capture = CI_YML.replace(
+        "          mutants_status=$?\n          set -e\n          echo \"mutants_status=$mutants_status\" >> \"$GITHUB_OUTPUT\"\n",
+        "",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_scheduled_capture)
+            .iter()
+            .any(|violation| violation.contains("status")),
+        "synthetic scheduled status-capture removal must fail the perimeter guard"
     );
 
     let missing_push = CI_YML.replace(
@@ -1419,6 +1835,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic scheduled-filter removal must fail for eat.rs"
     );
 
+    let decoy_scheduled_filter = CI_YML.replace(
+        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
+        "          # -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_scheduled_filter)
+            .iter()
+            .any(|violation| violation.contains("actions/defs/eat.rs")),
+        "synthetic commented scheduled-filter decoy must fail for eat.rs"
+    );
+
     let missing_eat_in_diff = CI_YML.replace(
         "actions/defs/(eat|sleep|work)\\.rs",
         "actions/defs/(sleep|work)\\.rs",
@@ -1428,6 +1855,30 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("actions/defs/eat.rs")),
         "synthetic in-diff regex removal must fail for eat.rs"
+    );
+
+    let narrowed_agent_in_diff = CI_YML.replace(
+        "crates/tracewake-core/src/agent/",
+        "crates/tracewake-core/src/agent/planning/",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &narrowed_agent_in_diff)
+            .iter()
+            .any(|violation| violation.contains("agent/transaction.rs")),
+        "synthetic narrowed in-diff agent regex must fail the canary"
+    );
+
+    let false_mutation_rationale_sources = vec![WorkspaceSourceClassification {
+        path: "crates/tracewake-core/src/actions/defs/wait.rs",
+        class: WorkspaceSourceClass::Exempt {
+            rationale: CORE_ACTION_MUTATION_PERIMETER_RATIONALE,
+        },
+    }];
+    assert!(
+        mutation_rationale_violations(&false_mutation_rationale_sources)
+            .iter()
+            .any(|violation| violation.contains("wait.rs")),
+        "synthetic non-perimeter mutation rationale must fail"
     );
 }
 
@@ -1455,6 +1906,38 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
                 .iter()
                 .any(|error| error.contains("lacks ledger disposition")),
         "synthetic unledgered baseline append must fail count, hash, and ledger checks"
+    );
+
+    let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
+        .map(|index| {
+            format!(
+                "- `synthetic/path_{index}.rs: replace x -> y` — justified-baseline: repeated rationale"
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let synthetic_baseline = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
+        .map(|index| format!("synthetic/path_{index}.rs:1:1: replace x -> y"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let bulk_errors = mutation_baseline_governance_errors(&synthetic_baseline, &bulk_ledger);
+    assert!(
+        bulk_errors
+            .iter()
+            .any(|error| error.contains("repeats one rationale")),
+        "synthetic bulk-accepted ledger rationale must fail governance"
+    );
+
+    let bad_tag_ledger = MUTANTS_BASELINE_LEDGER.replacen(
+        "justified-baseline:",
+        "warrants-test:0021PHA3APOSREB-999:",
+        1,
+    );
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &bad_tag_ledger)
+            .iter()
+            .any(|error| error.contains("missing ticket")),
+        "synthetic warrants-test tag with missing ticket must fail governance"
     );
 }
 
@@ -2394,6 +2877,22 @@ fn validation_report_keeps_typed_provenance_and_actor_debug_split() {
 }
 
 #[test]
+fn embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance() {
+    let projections = production(PROJECTIONS_RS);
+    assert!(
+        projections.contains("report.actor_visible_facts.iter()"),
+        "embodied validator availability must source actor provenance from actor-visible facts"
+    );
+    assert_absent(&projections, "report.checked_facts.iter()");
+
+    let synthetic_bad_projection = "provenance_refs.extend(report.checked_facts.iter())";
+    assert!(
+        synthetic_bad_projection.contains("report.checked_facts.iter()"),
+        "synthetic violation must exercise the checked-facts source guard"
+    );
+}
+
+#[test]
 fn privileged_tui_proposal_requires_current_view_source_context() {
     let app = production(TUI_APP_RS);
     assert!(
@@ -2591,6 +3090,72 @@ fn guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass() {
     ] {
         assert_absent_from_sources(&scheduler_sources, forbidden);
     }
+}
+
+#[test]
+fn guard_006_duration_need_deltas_route_through_shared_emitter() {
+    let violations = direct_duration_need_delta_construction_violations(&core_production_sources());
+    assert!(
+        violations.is_empty(),
+        "wait/sleep/work/window need deltas must be constructed by need_events.rs: {violations:?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
+        r#"
+        fn build_synthetic_delta() -> EventEnvelope {
+            EventEnvelope::new_caused_v1(
+                event_id,
+                EventKind::NeedDeltaApplied,
+                0,
+                0,
+                tick,
+                ordering_key,
+                content_manifest_id,
+                causes,
+            )
+        }
+        "#
+        .to_string(),
+    )];
+    let synthetic_violations =
+        direct_duration_need_delta_construction_violations(&synthetic_sources);
+    assert!(
+        !synthetic_violations.is_empty(),
+        "synthetic direct NeedDeltaApplied construction must fail this guard"
+    );
+}
+
+fn direct_duration_need_delta_construction_violations(sources: &[(String, String)]) -> Vec<String> {
+    const GUARDED_PATHS: &[&str] = &[
+        "crates/tracewake-core/src/actions/defs/wait.rs",
+        "crates/tracewake-core/src/actions/defs/sleep.rs",
+        "crates/tracewake-core/src/actions/defs/work.rs",
+        "crates/tracewake-core/src/scheduler.rs",
+    ];
+    sources
+        .iter()
+        .filter(|(path, _)| GUARDED_PATHS.contains(&path.as_str()))
+        .flat_map(|(path, source)| {
+            let normalized = normalized_source(source);
+            let mut violations = Vec::new();
+            let mut search_start = 0;
+            while let Some(relative_index) =
+                normalized[search_start..].find("EventKind::NeedDeltaApplied")
+            {
+                let index = search_start + relative_index;
+                let context_start = index.saturating_sub(300);
+                let context = &normalized[context_start..index];
+                if context.contains("EventEnvelope::new")
+                    || context.contains("EventEnvelope :: new")
+                {
+                    violations.push(format!("{path}: direct NeedDeltaApplied construction"));
+                }
+                search_start = index + "EventKind::NeedDeltaApplied".len();
+            }
+            violations
+        })
+        .collect()
 }
 
 #[test]
@@ -2853,13 +3418,19 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
     let projection = production(PROJECTIONS_RS);
     let view_models = production(VIEW_MODELS_RS);
     let tui_app = production(TUI_APP_RS);
+    let tui_render = production(TUI_RENDER_RS);
     let producer_sources = [
         ("tracewake-core/src/projections.rs", projection.as_str()),
         ("tracewake-core/src/view_models.rs", view_models.as_str()),
         ("tracewake-tui/src/app.rs", tui_app.as_str()),
     ];
+    let consumer_sources = [
+        ("tracewake-tui/src/render.rs", tui_render.as_str()),
+        ("tracewake-tui/src/app.rs", tui_app.as_str()),
+    ];
 
-    let errors = embodied_surface_dead_field_errors(&view_models, &producer_sources);
+    let errors =
+        embodied_surface_dead_field_errors(&view_models, &producer_sources, &consumer_sources);
     assert!(
         errors.is_empty(),
         "dead embodied surface field sweep found missing producers: {errors:#?}"
@@ -2870,6 +3441,19 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
             pub visible_exits: Vec<VisibleExit>,
             pub synthetic_dead_field: Option<String>,
         }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
     "#;
     let synthetic_projection = r#"
         fn build() -> EmbodiedViewModel {
@@ -2880,13 +3464,107 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
         }
     "#;
     let synthetic_sources = [("tracewake-core/src/projections.rs", synthetic_projection)];
-    let synthetic_errors =
-        embodied_surface_dead_field_errors(synthetic_view_models, &synthetic_sources);
+    let synthetic_consumers = [("tracewake-tui/src/render.rs", "view.visible_exits.len()")];
+    let synthetic_errors = embodied_surface_dead_field_errors(
+        synthetic_view_models,
+        &synthetic_sources,
+        &synthetic_consumers,
+    );
     assert!(
         synthetic_errors
             .iter()
             .any(|error| error.contains("synthetic_dead_field")),
         "synthetic hardwired default embodied field must fail the sweep"
+    );
+
+    let unmatched = std::panic::catch_unwind(|| {
+        embodied_surface_fields("pub enum ActionAvailability { Available }")
+    });
+    assert!(
+        unmatched.is_err(),
+        "unmatched listed embodied struct names must fail instead of being skipped"
+    );
+
+    let enum_view_models = r#"
+        pub struct EmbodiedViewModel {
+            pub visible_exits: Vec<VisibleExit>,
+        }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability {
+            Available,
+            Disabled { debug_only_diagnostics: Vec<String>, }
+        }
+    "#;
+    let enum_fields = embodied_surface_fields(enum_view_models);
+    assert!(
+        enum_fields.iter().any(|field| {
+            field.struct_name == "ActionAvailability"
+                && field.field_name == "debug_only_diagnostics"
+        }),
+        "enum fields must be enrolled in the embodied surface sweep"
+    );
+
+    let cross_struct_view_models = r#"
+        pub struct EmbodiedViewModel { pub visible_exits: Vec<VisibleExit>, }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
+    "#;
+    let cross_struct_sources = [(
+        "tracewake-core/src/projections.rs",
+        "OtherStruct { typed_leads: vec![lead] }",
+    )];
+    let cross_struct_consumers = [(
+        "tracewake-tui/src/render.rs",
+        "view.visible_exits.len(); status.salient_interruption.as_ref(); why.actor_visible_facts.len(); notebook.typed_leads.len(); belief.contradiction_ids.len(); observation.observation_id.len(); contradiction.contradiction_id.len(); lead.lead_id.len(); exit.blocker_summary.as_ref(); door.endpoint_a.as_str(); door.endpoint_b.as_str(); item.source.clone(); action.target_ids.len(); availability.debug_only_diagnostics()",
+    )];
+    let cross_struct_errors = embodied_surface_dead_field_errors(
+        cross_struct_view_models,
+        &cross_struct_sources,
+        &cross_struct_consumers,
+    );
+    assert!(
+        cross_struct_errors
+            .iter()
+            .any(|error| error.contains("NotebookView.typed_leads")),
+        "producer aliases from the wrong struct must not satisfy the scoped producer sweep"
+    );
+
+    let unconsumed_sources = [(
+        "tracewake-core/src/projections.rs",
+        "EmbodiedViewModel { visible_exits: collect_visible_exits() }",
+    )];
+    let unconsumed_errors = embodied_surface_dead_field_errors(
+        cross_struct_view_models,
+        &unconsumed_sources,
+        &[("tracewake-tui/src/render.rs", "")],
+    );
+    assert!(
+        unconsumed_errors
+            .iter()
+            .any(|error| error.contains("has no embodied render/app consumer")),
+        "produced-but-unconsumed fields must fail the two-sided sweep"
     );
 }
 
@@ -2927,6 +3605,46 @@ fn guard_014_no_human_metrics_do_not_scan_display_text() {
 }
 
 #[test]
+fn guard_014_perception_visibility_uses_typed_place_visibility() {
+    let perception = guarded_source("src/agent/perception.rs");
+    let violations = perception_visibility_prose_branch_violations(&perception);
+    assert!(
+        violations.is_empty(),
+        "perception visibility must read typed place visibility, not prose or id substrings: {violations:?}"
+    );
+
+    let synthetic = r#"
+        fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
+            let Some(place) = state.places().get(place_id) else {
+                return false;
+            };
+            !place.place_id.as_str().contains("hidden")
+                && !place.display_label.to_lowercase().contains("hidden")
+        }
+    "#;
+    let synthetic_violations = perception_visibility_prose_branch_violations(synthetic);
+    assert!(
+        synthetic_violations.len() >= 3,
+        "synthetic prose/id visibility branch must fail this guard"
+    );
+}
+
+fn perception_visibility_prose_branch_violations(source: &str) -> Vec<&'static str> {
+    let stripped = source_without_comments(source);
+    let visibility_body = body_after_marker(&stripped, "fn is_visible_exit_target");
+    [
+        "display_label",
+        ".to_lowercase()",
+        ".contains(\"hidden\")",
+        "place.place_id.as_str()",
+        "place_id.as_str().contains",
+    ]
+    .into_iter()
+    .filter(|needle| visibility_body.contains(needle))
+    .collect()
+}
+
+#[test]
 fn guard_014_sleep_validation_requires_modeled_affordance() {
     let sleep = production(SLEEP_RS);
     let projection = production(PROJECTIONS_RS);
@@ -2954,6 +3672,26 @@ fn guard_014_sleep_validation_requires_modeled_affordance() {
         builder.contains("actor_knows_sleep_affordance"),
         "no-human cognition must derive sleep affordance ids as actor-known facts"
     );
+}
+
+#[test]
+fn guard_0021_actor_known_projection_policy_table_has_production_callers() {
+    fn policy_caller_count(source: &str) -> usize {
+        production(source).matches(".policy()").count()
+    }
+
+    assert!(
+        policy_caller_count(EPISTEMIC_PROJECTION_RS) >= 1,
+        "ActorKnownProjectionRecord::policy() must drive production classification instead of remaining decorative"
+    );
+    let synthetic_zero_caller =
+        EPISTEMIC_PROJECTION_RS.replace(".policy()", ".decorative_policy()");
+    assert_eq!(
+        policy_caller_count(&synthetic_zero_caller),
+        0,
+        "policy caller guard must fail closed when production call sites disappear"
+    );
+    assert_absent(EPISTEMIC_PROJECTION_RS, "CurrentPlaceLatestOnly");
 }
 
 #[test]
@@ -3238,6 +3976,7 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
         .collect::<Vec<_>>();
     let source = production(EVENTS_APPLY_RS);
     let sites = agent_state_map_write_sites(&source, &covered_maps);
+    let rebound_errors = agent_state_map_rebound_errors(&source, &covered_maps);
     let errors = materialized_agent_apply_arm_version_errors(
         &source,
         &sites,
@@ -3259,6 +3998,11 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
         "materialized AgentState map writes without version gate or typed-column exemption:\n{}",
         errors.join("\n")
     );
+    assert!(
+        rebound_errors.is_empty(),
+        "covered AgentState maps must not be rebound through &mut state.<map> aliases:\n{}",
+        rebound_errors.join("\n")
+    );
 
     let synthetic_source = r#"
         fn apply_synthetic(state: &mut AgentState) {
@@ -3273,6 +4017,85 @@ fn materialized_agent_apply_arms_require_payload_schema_version() {
             .iter()
             .any(|error| error.contains("needs_by_actor") && error.contains("apply_synthetic")),
         "synthetic covered-map write without gate or exemption must fail the census"
+    );
+
+    let two_arm_inline_source = r#"
+        fn apply_agent_event_with_capability(state: &mut AgentState, event: &EventEnvelope) {
+            let payload = payload_map(&event.payload);
+            match event.event_type {
+                EventKind::DecisionTraceRecorded => {
+                    require_payload_version(&payload, "trace_schema_version", "1")?;
+                    state.decision_traces.insert(trace_id, record);
+                }
+                EventKind::StuckDiagnosticRecorded => {
+                    state.stuck_diagnostics.insert(diagnostic_id, record);
+                }
+                _ => {}
+            }
+        }
+    "#;
+    let two_arm_sites = agent_state_map_write_sites(
+        two_arm_inline_source,
+        &["decision_traces", "stuck_diagnostics"],
+    );
+    let two_arm_errors =
+        materialized_agent_apply_arm_version_errors(two_arm_inline_source, &two_arm_sites, &[]);
+    assert!(
+        two_arm_errors
+            .iter()
+            .any(|error| error.contains("stuck_diagnostics")
+                && error.contains("EventKind::StuckDiagnosticRecorded")),
+        "synthetic second inline arm without its own gate must fail per-arm anchoring"
+    );
+
+    let retain_source = r#"
+        fn apply_synthetic(state: &mut AgentState) {
+            state.needs_by_actor.retain(|_, _| true);
+        }
+    "#;
+    let retain_sites = agent_state_map_write_sites(retain_source, &["needs_by_actor"]);
+    let retain_errors =
+        materialized_agent_apply_arm_version_errors(retain_source, &retain_sites, &[]);
+    assert!(
+        retain_errors
+            .iter()
+            .any(|error| error.contains("needs_by_actor") && error.contains("retain")),
+        "synthetic retain-shaped covered-map write must fail the inverted write scan"
+    );
+
+    let rebound_source = r#"
+        fn apply_synthetic(state: &mut AgentState) {
+            let needs = &mut state.needs_by_actor;
+            needs.insert(actor_id, values);
+        }
+    "#;
+    let rebound_errors = agent_state_map_rebound_errors(rebound_source, &["needs_by_actor"]);
+    assert!(
+        rebound_errors
+            .iter()
+            .any(|error| error.contains("needs_by_actor")),
+        "synthetic &mut state.<map> rebound must fail the source guard"
+    );
+
+    let payload_fields_source = r#"
+        fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
+            state.ordinary_life_episodes.insert(event.event_id.clone(), OrdinaryLifeEpisodeRecord {
+                payload_fields: payload_fields(event),
+            });
+        }
+    "#;
+    let payload_fields_sites =
+        agent_state_map_write_sites(payload_fields_source, &["ordinary_life_episodes"]);
+    let payload_fields_errors = materialized_agent_apply_arm_version_errors(
+        payload_fields_source,
+        &payload_fields_sites,
+        &[],
+    );
+    assert!(
+        payload_fields_errors
+            .iter()
+            .any(|error| error.contains("payload_fields")),
+        "synthetic payload_fields retention outside a gated materialized arm must fail"
     );
 }
 
@@ -3298,6 +4121,50 @@ fn typed_column_closure_exemptions_are_rationale_bearing_and_live() {
             exemption.map_name
         );
     }
+    let errors =
+        typed_column_closure_exemption_errors(EVENTS_APPLY_RS, TYPED_COLUMN_CLOSURE_EXEMPTIONS);
+    assert!(
+        errors.is_empty(),
+        "typed-column exemptions must list every consumed payload key and avoid raw payload retention:\n{}",
+        errors.join("\n")
+    );
+
+    let synthetic_source = r#"
+        fn apply_synthetic(state: &mut AgentState, payload: &BTreeMap<&str, &str>) {
+            let value = required(payload, "unlisted_key")?;
+            state.intentions.insert(intention_id, value);
+        }
+    "#;
+    let synthetic_exemptions = [TypedColumnClosureExemption {
+        map_name: "intentions",
+        anchor: "apply_synthetic",
+        typed_columns: &["intention_id"],
+        rationale: "synthetic exemption with an omitted consumed key",
+    }];
+    let synthetic_errors =
+        typed_column_closure_exemption_errors(synthetic_source, &synthetic_exemptions);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("unlisted_key")),
+        "synthetic exemption consuming an unlisted payload key must fail"
+    );
+
+    let synthetic_payload_fields_source = r#"
+        fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
+            state.intentions.insert(intention_id, intention_with(payload_fields(event)));
+        }
+    "#;
+    let synthetic_payload_fields_errors = typed_column_closure_exemption_errors(
+        synthetic_payload_fields_source,
+        &synthetic_exemptions,
+    );
+    assert!(
+        synthetic_payload_fields_errors
+            .iter()
+            .any(|error| error.contains("payload_fields")),
+        "synthetic exempted helper retaining payload_fields must fail"
+    );
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -3308,6 +4175,16 @@ struct AgentStateMapWriteSite {
     index: usize,
 }
 
+const AGENT_STATE_MAP_READ_METHODS: &[&str] = &[
+    "contains_key",
+    "get",
+    "is_empty",
+    "iter",
+    "keys",
+    "len",
+    "values",
+];
+
 fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<AgentStateMapWriteSite> {
     let scan_source = normalized_source(source).replace(" .", ".");
     let mut sites = Vec::new();
@@ -3317,17 +4194,18 @@ fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<Agent
         while let Some(relative_index) = scan_source[search_start..].find(&map_token) {
             let index = search_start + relative_index;
             let after = &scan_source[index + map_token.len()..];
-            let Some(write_method) = ["insert(", "entry(", "get_mut("]
-                .into_iter()
-                .find(|method| after.starts_with(method))
-            else {
+            let method_name = after
+                .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+                .next()
+                .unwrap_or("");
+            if method_name.is_empty() || AGENT_STATE_MAP_READ_METHODS.contains(&method_name) {
                 search_start = index + map_token.len();
                 continue;
-            };
+            }
             sites.push(AgentStateMapWriteSite {
                 map_name: (*map_name).to_string(),
                 anchor: enclosing_apply_anchor(&scan_source, index),
-                write_token: format!("{map_token}{write_method}"),
+                write_token: format!("{map_token}{method_name}("),
                 index,
             });
             search_start = index + map_token.len();
@@ -3347,6 +4225,19 @@ fn agent_state_map_write_sites(source: &str, covered_maps: &[&str]) -> Vec<Agent
     sites
 }
 
+fn agent_state_map_rebound_errors(source: &str, covered_maps: &[&str]) -> Vec<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    covered_maps
+        .iter()
+        .filter_map(|map_name| {
+            let token = format!("&mut state.{map_name}");
+            scan_source
+                .contains(&token)
+                .then(|| format!("{map_name} is rebound through {token}"))
+        })
+        .collect()
+}
+
 fn enclosing_apply_anchor(scan_source: &str, index: usize) -> String {
     let prefix = &scan_source[..index];
     let fn_start = prefix
@@ -3362,7 +4253,7 @@ fn enclosing_apply_anchor(scan_source: &str, index: usize) -> String {
         .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
         .next()
         .unwrap_or("unknown");
-    if fn_name != "apply_agent_event" {
+    if !fn_name.starts_with("apply_agent_event") {
         return fn_name.to_string();
     }
     prefix
@@ -3382,7 +4273,7 @@ fn materialized_agent_apply_arm_version_errors(
     exemptions: &[TypedColumnClosureExemption],
 ) -> Vec<String> {
     let scan_source = normalized_source(source).replace(" .", ".");
-    sites
+    let mut errors = sites
         .iter()
         .filter_map(|site| {
             if apply_write_site_has_version_gate(&scan_source, site) {
@@ -3398,7 +4289,12 @@ fn materialized_agent_apply_arm_version_errors(
                 site.map_name, site.anchor, site.write_token
             ))
         })
-        .collect()
+        .collect::<Vec<_>>();
+    errors.extend(payload_fields_outside_gated_materialized_sites(
+        &scan_source,
+        sites,
+    ));
+    errors
 }
 
 fn apply_write_site_has_version_gate(scan_source: &str, site: &AgentStateMapWriteSite) -> bool {
@@ -3418,16 +4314,224 @@ fn apply_write_site_has_version_gate(scan_source: &str, site: &AgentStateMapWrit
             .contains(r#"require_payload_version(&payload, "diagnostic_schema_version", "1")"#)
 }
 
+fn payload_fields_outside_gated_materialized_sites(
+    scan_source: &str,
+    sites: &[AgentStateMapWriteSite],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut search_start = 0;
+    while let Some(relative_index) = scan_source[search_start..].find("payload_fields(") {
+        let index = search_start + relative_index;
+        let anchor = enclosing_apply_anchor(scan_source, index);
+        if anchor == "payload_fields" {
+            search_start = index + "payload_fields(".len();
+            continue;
+        }
+        let anchored_site = sites
+            .iter()
+            .filter(|site| site.index <= index && site.anchor == anchor)
+            .max_by_key(|site| site.index);
+        if !anchored_site.is_some_and(|site| apply_write_site_has_version_gate(scan_source, site)) {
+            errors.push(format!(
+                "payload_fields at byte {index} is outside a gated materialized write site"
+            ));
+        }
+        search_start = index + "payload_fields(".len();
+    }
+    errors
+}
+
+fn consumed_payload_keys_for_anchor(source: &str, anchor: &str) -> BTreeSet<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    let mut visited = BTreeSet::new();
+    consumed_payload_keys_for_function(&scan_source, anchor, &mut visited)
+}
+
+fn consumed_payload_keys_for_function(
+    scan_source: &str,
+    function_name: &str,
+    visited: &mut BTreeSet<String>,
+) -> BTreeSet<String> {
+    if !visited.insert(function_name.to_string()) {
+        return BTreeSet::new();
+    }
+    let Some(body) = function_body(scan_source, function_name) else {
+        return BTreeSet::new();
+    };
+    let mut keys = literal_payload_keys(body);
+    for callee in payload_helper_calls(body) {
+        if matches!(
+            callee.as_str(),
+            "required" | "expect_bool" | "parse_i32" | "parse_u8" | "parse_u64_agent"
+        ) {
+            continue;
+        }
+        keys.extend(consumed_payload_keys_for_function(
+            scan_source,
+            &callee,
+            visited,
+        ));
+    }
+    keys
+}
+
+fn function_body<'a>(scan_source: &'a str, function_name: &str) -> Option<&'a str> {
+    let marker = format!("fn {function_name}");
+    let after_marker = scan_source.split(&marker).nth(1)?;
+    let start = after_marker.find('{')?;
+    let mut depth = 0_i32;
+    let mut end = None;
+    for (offset, byte) in after_marker[start..].bytes().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = Some(start + offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    end.map(|end| &after_marker[start..end])
+}
+
+fn literal_payload_keys(body: &str) -> BTreeSet<String> {
+    let mut keys = BTreeSet::new();
+    for marker in [
+        r#"required(payload, ""#,
+        r#"required(&payload, ""#,
+        r#"payload.get(""#,
+        r#"payload, ""#,
+    ] {
+        let mut search_start = 0;
+        while let Some(relative_index) = body[search_start..].find(marker) {
+            let value_start = search_start + relative_index + marker.len();
+            if let Some(value_end) = body[value_start..].find('"') {
+                keys.insert(body[value_start..value_start + value_end].to_string());
+            }
+            search_start = value_start;
+        }
+    }
+    keys
+}
+
+fn payload_helper_calls(body: &str) -> BTreeSet<String> {
+    let mut calls = BTreeSet::new();
+    let mut search_start = 0;
+    while let Some(relative_index) = body[search_start..].find("(payload") {
+        let open_index = search_start + relative_index;
+        let prefix = body[..open_index].trim_end();
+        let name_start = prefix
+            .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        let name = &prefix[name_start..];
+        if !name.is_empty() {
+            calls.insert(name.to_string());
+        }
+        search_start = open_index + "(payload".len();
+    }
+    calls
+}
+
+fn typed_column_closure_exemption_errors(
+    source: &str,
+    exemptions: &[TypedColumnClosureExemption],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for exemption in exemptions {
+        let consumed_keys = consumed_payload_keys_for_anchor(source, exemption.anchor);
+        for key in &consumed_keys {
+            if !exemption.typed_columns.contains(&key.as_str()) {
+                errors.push(format!(
+                    "{} exemption for {} consumes unlisted payload key {key}",
+                    exemption.anchor, exemption.map_name
+                ));
+            }
+        }
+        if function_body(
+            &normalized_source(source).replace(" .", "."),
+            exemption.anchor,
+        )
+        .is_some_and(|body| body.contains("payload_fields("))
+        {
+            errors.push(format!(
+                "{} exemption for {} retains raw payload_fields",
+                exemption.anchor, exemption.map_name
+            ));
+        }
+    }
+    errors
+}
+
 #[test]
 fn generative_lock_cannot_fabricate_duration_terminals() {
-    for forbidden in [
+    let sources = [
+        ("generative_lock.rs", GENERATIVE_LOCK_RS),
+        ("support/generative.rs", SUPPORT_GENERATIVE_RS),
+    ];
+    let errors = generative_duration_terminal_fabricator_errors(&sources);
+    assert!(
+        errors.is_empty(),
+        "generative duration-terminal fabricator ban failed: {errors:#?}"
+    );
+
+    let support_fabricator = [(
+        "support/generative.rs",
+        "fn helper() { EventEnvelope::new_v1(id, EventKind::WorkBlockFailed, 0, 0, tick, key, manifest); }",
+    )];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&support_fabricator)
+            .iter()
+            .any(|error| error.contains("support/generative.rs")),
+        "support-file terminal fabricator synthetic must fail"
+    );
+
+    let direct_envelope = [(
+        "generative_lock.rs",
+        "fn helper() { EventEnvelope::new_caused_v1(id, EventKind::SleepCompleted, 0, 0, tick, key, manifest, causes); }",
+    )];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&direct_envelope)
+            .iter()
+            .any(|error| error.contains("directly constructs")),
+        "direct terminal envelope construction synthetic must fail"
+    );
+}
+
+fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> Vec<String> {
+    let banned_helpers = [
         "build_sleep_completion_events",
         "build_work_completion_events",
         "append_generated_duration_terminals",
         "generated_duration_completion",
-    ] {
-        assert_absent(GENERATIVE_LOCK_RS, forbidden);
+    ];
+    let terminal_kinds = [
+        "EventKind::SleepCompleted",
+        "EventKind::SleepInterrupted",
+        "EventKind::WorkBlockCompleted",
+        "EventKind::WorkBlockFailed",
+    ];
+    let mut errors = Vec::new();
+    for (path, source) in sources {
+        for forbidden in banned_helpers {
+            if source.contains(forbidden) {
+                errors.push(format!(
+                    "{path} contains banned fabricator helper {forbidden}"
+                ));
+            }
+        }
+        if source.contains("EventEnvelope::new")
+            && terminal_kinds.iter().any(|kind| source.contains(kind))
+        {
+            errors.push(format!(
+                "{path} directly constructs a duration-terminal EventEnvelope"
+            ));
+        }
     }
+    errors
 }
 
 #[test]
@@ -3446,44 +4550,26 @@ fn guard_002_agent_state_keeps_typed_trace_and_diagnostic_records() {
 
 #[test]
 fn guard_001_authoritative_state_fields_are_not_publicly_mutable() {
-    for forbidden in [
-        "pub actors:",
-        "pub places:",
-        "pub doors:",
-        "pub containers:",
-        "pub items:",
-        "pub food_supplies:",
-        "pub workplaces:",
-        "pub needs_by_actor:",
-        "pub intentions:",
-        "pub active_intention_by_actor:",
-        "pub routine_executions:",
-        "pub decision_traces:",
-        "pub stuck_diagnostics:",
-    ] {
-        assert_absent(STATE_RS, forbidden);
-    }
+    use tracewake_core::checksum::{
+        AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
+    };
 
-    for required in [
-        "pub(crate) actors:",
-        "pub(crate) places:",
-        "pub(crate) doors:",
-        "pub(crate) containers:",
-        "pub(crate) items:",
-        "pub(crate) food_supplies:",
-        "pub(crate) workplaces:",
-        "pub(crate) needs_by_actor:",
-        "pub(crate) intentions:",
-        "pub(crate) active_intention_by_actor:",
-        "pub(crate) routine_executions:",
-        "pub(crate) decision_traces:",
-        "pub(crate) stuck_diagnostics:",
-    ] {
+    for field_name in PHYSICAL_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .chain(AGENT_STATE_CHECKSUM_COVERAGE)
+        .map(|entry| entry.field_name)
+    {
+        let forbidden = format!("pub {field_name}:");
+        assert_absent(STATE_RS, &forbidden);
+
+        let required = format!("pub(crate) {field_name}:");
         assert!(
-            STATE_RS.contains(required),
+            STATE_RS.contains(&required),
             "authoritative state field visibility changed: {required}"
         );
     }
+
+    assert_absent(STATE_RS, "pub fn set_need_model");
 }
 
 #[test]
@@ -3589,6 +4675,81 @@ fn event_kind_metadata_is_total() {
 }
 
 #[test]
+fn physical_mutating_event_kinds_have_explicit_world_apply_arms() {
+    use tracewake_core::events::EventKind;
+
+    let apply_body = body_after_marker(EVENTS_APPLY_RS, "fn apply_event_with_capability");
+    for kind in EventKind::all()
+        .iter()
+        .copied()
+        .filter(|kind| kind.metadata().physical_mutating)
+    {
+        let arm = format!("EventKind::{kind:?}");
+        assert!(
+            apply_body.contains(&arm),
+            "physical-mutating event kind lacks explicit world apply arm: {kind:?}"
+        );
+    }
+    assert_absent(apply_body, "_ => Ok(ApplyOutcome::NonWorldNoOp)");
+
+    let synthetic_apply = r#"
+        fn apply_event_with_capability(event: &EventEnvelope) -> Result<ApplyOutcome, ApplyError> {
+            match event.event_type {
+                EventKind::ActorMoved => Ok(ApplyOutcome::Applied),
+                _ => Ok(ApplyOutcome::NonWorldNoOp),
+            }
+        }
+    "#;
+    assert!(
+        !synthetic_apply.contains("EventKind::FoodConsumed")
+            && synthetic_apply.contains("_ => Ok(ApplyOutcome::NonWorldNoOp)"),
+        "synthetic missing-arm catch-all must fail the totality guard"
+    );
+}
+
+#[test]
+fn action_emitted_event_kinds_have_cause_disposition() {
+    use tracewake_core::events::EventKind;
+
+    let required = [
+        EventKind::ActorMoved,
+        EventKind::ActorWaited,
+        EventKind::BeliefUpdated,
+        EventKind::ContainerChecked,
+        EventKind::ContainerClosed,
+        EventKind::ContainerOpened,
+        EventKind::DoorClosed,
+        EventKind::DoorOpened,
+        EventKind::ItemPlacedInContainer,
+        EventKind::ItemPlacedInPlace,
+        EventKind::ItemRemovedFromContainer,
+        EventKind::ItemTakenFromPlace,
+        EventKind::ObservationRecorded,
+    ];
+
+    for kind in required {
+        assert!(
+            kind.requires_cause(),
+            "action-emitted kind lacks required-cause disposition: {kind:?}"
+        );
+    }
+
+    for source in [
+        MOVEMENT_RS,
+        WAIT_RS,
+        OPENCLOSE_RS,
+        CHECKCONTAINER_RS,
+        TAKEPLACE_RS,
+        PERCEPTION_RS,
+    ] {
+        assert!(
+            source.contains("EventEnvelope::new_caused_v1"),
+            "action-emitted source must construct caused envelopes"
+        );
+    }
+}
+
+#[test]
 fn non_world_stream_cannot_change_physical_checksum() {
     use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
     use tracewake_core::events::apply::{apply_event, ApplyOutcome};
@@ -3677,6 +4838,30 @@ fn checksum_coverage_is_total_for_authoritative_state() {
 }
 
 #[test]
+fn replay_physical_state_diff_covers_checksum_families() {
+    use tracewake_core::checksum::PHYSICAL_STATE_CHECKSUM_COVERAGE;
+
+    for entry in PHYSICAL_STATE_CHECKSUM_COVERAGE {
+        let diff_check = format!(
+            "expected.{} != actual.{}",
+            entry.field_name, entry.field_name
+        );
+        assert!(
+            REBUILD_RS.contains(&diff_check),
+            "diff_physical_state must explain checksum family {}",
+            entry.field_name
+        );
+
+        let report_prefix = format!("diff.starts_with(\"{} \")", entry.field_name);
+        assert!(
+            REPORT_RS.contains(&report_prefix),
+            "replay report must classify diff family {}",
+            entry.field_name
+        );
+    }
+}
+
+#[test]
 fn new_authoritative_field_without_checksum_registry_fails() {
     let state_source = r#"
 pub struct PhysicalState {
@@ -3753,28 +4938,22 @@ fn guard_001_no_production_seed_mutation_outside_state_definition() {
 
 #[test]
 fn guard_001_no_direct_state_collection_insert_outside_event_application() {
+    use tracewake_core::checksum::{
+        AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
+    };
+
     // Smoke-only source scan: direct mutation is primarily blocked by private
     // fields, private mutation capabilities, and compile-fail fixtures.
-    let forbidden_writes = [
-        ".actors.insert",
-        ".places.insert",
-        ".doors.insert",
-        ".containers.insert",
-        ".items.insert",
-        ".food_supplies.insert",
-        ".workplaces.insert",
-        ".needs_by_actor.insert",
-        ".intentions.insert",
-        ".active_intention_by_actor.insert",
-        ".routine_executions.insert",
-        ".decision_traces.insert",
-        ".stuck_diagnostics.insert",
-    ];
+    let forbidden_writes = PHYSICAL_STATE_CHECKSUM_COVERAGE
+        .iter()
+        .chain(AGENT_STATE_CHECKSUM_COVERAGE)
+        .map(|entry| format!(".{}.insert", entry.field_name))
+        .collect::<Vec<_>>();
     for (path, source) in core_production_sources() {
         if path == "crates/tracewake-core/src/events/apply.rs" {
             continue;
         }
-        for forbidden in forbidden_writes {
+        for forbidden in &forbidden_writes {
             assert_absent(&source, forbidden);
         }
     }
@@ -3787,6 +4966,69 @@ fn guard_001_actor_known_context_has_no_public_arbitrary_constructor() {
     assert!(
         actor_known.contains("pub(crate) fn from_observed_parts"),
         "observed-parts constructor must stay crate-private"
+    );
+}
+
+#[test]
+fn guard_0021_actor_known_context_producers_are_projection_backed() {
+    let sources = core_production_sources();
+    let violations = actor_known_context_constructor_violations(&sources);
+    assert!(
+        violations.is_empty(),
+        "actor-known planning context producers must stay inside the no-human builder/classifier path: {violations:?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/agent/synthetic.rs".to_string(),
+        "pub fn build_actor_known_planning_state() -> ActorKnownPlanningContext { ActorKnownPlanningContext::from_observed_parts(todo!(), todo!(), todo!(), todo!(), todo!(), todo!(), todo!(), todo!(), todo!()) }".to_string(),
+    )];
+    let synthetic_violations = actor_known_context_constructor_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations.iter().any(|violation| {
+            violation.contains("retired context producer")
+                || violation.contains("outside the builder/classifier surface")
+        }),
+        "synthetic context producer must fail the source guard"
+    );
+}
+
+#[test]
+fn guard_0021_hidden_truth_gates_use_event_log_provenance() {
+    let violations = hidden_truth_harness_provenance_violations(HIDDEN_TRUTH_GATES_RS);
+    assert!(
+        violations.is_empty(),
+        "hidden-truth gates must use real applied epistemic events: {violations:?}"
+    );
+
+    let synthetic = "fn context() { let _ = build_actor_known_planning_state(); }";
+    let synthetic_violations = hidden_truth_harness_provenance_violations(synthetic);
+    assert!(
+        synthetic_violations.iter().any(|violation| {
+            violation.contains("build_actor_known_planning_state")
+                || violation.contains("applying epistemic events")
+        }),
+        "synthetic fabricated hidden-truth harness must fail the source guard"
+    );
+}
+
+#[test]
+fn guard_0021_fabricated_visible_local_event_id_is_retired() {
+    let violations = fabricated_planning_event_id_violations(&production_sources());
+    assert!(
+        violations.is_empty(),
+        "fabricated visible-local planning provenance id must not appear in production source: {violations:?}"
+    );
+
+    let synthetic_sources = vec![(
+        "crates/tracewake-core/src/agent/synthetic.rs".to_string(),
+        "let _ = EventId::new(\"event_visible_local_planning_state\");".to_string(),
+    )];
+    let synthetic_violations = fabricated_planning_event_id_violations(&synthetic_sources);
+    assert!(
+        synthetic_violations
+            .iter()
+            .any(|path| path.ends_with("synthetic.rs")),
+        "synthetic fabricated event id must fail the source guard"
     );
 }
 

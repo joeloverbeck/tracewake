@@ -279,10 +279,6 @@ impl PhysicalState {
     pub const fn need_model(&self) -> &NeedModelState {
         &self.need_model
     }
-
-    pub fn set_need_model(&mut self, need_model: NeedModelState) {
-        self.need_model = need_model;
-    }
 }
 
 impl AgentState {
@@ -376,6 +372,20 @@ impl PlaceState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VisibilityDefault {
     Visible,
+    Concealed,
+}
+
+impl VisibilityDefault {
+    pub const fn stable_id(&self) -> &'static str {
+        match self {
+            Self::Visible => "visible",
+            Self::Concealed => "concealed",
+        }
+    }
+
+    pub const fn is_visible(&self) -> bool {
+        matches!(self, Self::Visible)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

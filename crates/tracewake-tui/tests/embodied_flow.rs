@@ -24,7 +24,9 @@ fn bind_render_submit_rerender_and_show_why_not() {
         .holder_known_context_hash
         .as_str()
         .starts_with("hkc1-"));
-    assert!(first.contains("Knowledge context: id=hkc.actor_tomas.0.4 hash=hkc1-"));
+    assert!(
+        first.contains("Knowledge context: DEBUG NON-DIEGETIC id=hkc.actor_tomas.0.4 hash=hkc1-")
+    );
     assert!(first.contains("tick=0 frontier=4 sources=allowed=5 provenance=5"));
     assert!(!first.contains("Knowledge context: knowledge."));
 

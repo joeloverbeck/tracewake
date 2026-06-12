@@ -424,7 +424,20 @@ impl EventKind {
     pub const fn requires_cause(self) -> bool {
         matches!(
             self,
-            EventKind::NeedDeltaApplied
+            EventKind::ActorMoved
+                | EventKind::DoorOpened
+                | EventKind::DoorClosed
+                | EventKind::ContainerOpened
+                | EventKind::ContainerClosed
+                | EventKind::ItemRemovedFromContainer
+                | EventKind::ItemTakenFromPlace
+                | EventKind::ItemPlacedInContainer
+                | EventKind::ItemPlacedInPlace
+                | EventKind::ActorWaited
+                | EventKind::ObservationRecorded
+                | EventKind::BeliefUpdated
+                | EventKind::ContainerChecked
+                | EventKind::NeedDeltaApplied
                 | EventKind::NeedThresholdCrossed
                 | EventKind::CandidateGoalsEvaluated
                 | EventKind::IntentionStarted

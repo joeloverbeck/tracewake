@@ -1,6 +1,9 @@
 use std::collections::BTreeSet;
 
-use tracewake_content::fixtures::{self, validate_fixture_contract_metadata};
+use tracewake_content::fixtures::{
+    self, validate_fixture_contract_metadata, validate_golden_fixture_contract_metadata,
+    FixtureContract,
+};
 use tracewake_content::load::{load_fixture_package, registry_for_fixture_scope};
 use tracewake_content::schema::{
     ActorSchema, DayWindowSchema, FixtureSchema, FixtureScope, FoodSupplySchema, HomeSchema,
@@ -17,7 +20,7 @@ use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineSt
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::events::apply::apply_epistemic_event;
-use tracewake_core::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
@@ -27,6 +30,7 @@ use tracewake_core::ids::{
 use tracewake_core::location::Location;
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
+use tracewake_core::state::VisibilityDefault;
 use tracewake_core::time::SimTick;
 
 fn registry() -> ActionRegistry {
@@ -158,16 +162,37 @@ fn known_food_source_helper_call_sites_from_sources(
             call_sites.insert(path.clone());
         }
         for function_name in function_names_before_helper_calls(source, HELPER_CALL) {
-            helper_wrappers.insert(function_name);
+            if !function_name.ends_with("_001") {
+                helper_wrappers.insert(function_name);
+            }
         }
     }
+
+    loop {
+        let mut changed = false;
+        let current_wrappers = helper_wrappers.iter().cloned().collect::<Vec<_>>();
+        for (_, source) in sources {
+            for wrapper in &current_wrappers {
+                let wrapper_call = format!("{wrapper}(");
+                for function_name in function_names_before_helper_calls(source, &wrapper_call) {
+                    if !function_name.ends_with("_001") && helper_wrappers.insert(function_name) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
     for (path, source) in sources {
         for wrapper in &helper_wrappers {
-            if source_defines_function(source, wrapper) {
-                continue;
-            }
             let wrapper_call = format!("{wrapper}(");
-            if source.contains(&wrapper_call) {
+            if function_names_before_helper_calls(source, &wrapper_call)
+                .into_iter()
+                .any(|function_name| function_name.ends_with("_001"))
+            {
                 call_sites.insert(path.clone());
             }
         }
@@ -177,27 +202,27 @@ fn known_food_source_helper_call_sites_from_sources(
 
 fn function_names_before_helper_calls(source: &str, helper_call: &str) -> BTreeSet<String> {
     let mut function_names = BTreeSet::new();
-    let mut search_start = 0;
-    while let Some(relative_index) = source[search_start..].find(helper_call) {
-        let helper_index = search_start + relative_index;
-        if let Some(function_marker_index) = source[..helper_index].rfind("fn ") {
-            let name_start = function_marker_index + "fn ".len();
-            let name_end = source[name_start..]
-                .find('(')
-                .map(|offset| name_start + offset)
-                .expect("fixture function signature has parameter list");
-            let function_name = source[name_start..name_end].trim();
-            if !function_name.ends_with("_001") {
-                function_names.insert(function_name.to_string());
+    let mut current_function = None;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if let Some(signature) = trimmed
+            .strip_prefix("fn ")
+            .or_else(|| trimmed.strip_prefix("pub fn "))
+        {
+            let Some((name, _)) = signature.split_once('(') else {
+                current_function = None;
+                continue;
+            };
+            current_function = Some(name.trim().to_string());
+            continue;
+        }
+        if line.contains(helper_call) {
+            if let Some(function_name) = &current_function {
+                function_names.insert(function_name.clone());
             }
         }
-        search_start = helper_index + helper_call.len();
     }
     function_names
-}
-
-fn source_defines_function(source: &str, function_name: &str) -> bool {
-    source.contains(&format!("fn {function_name}("))
 }
 
 fn known_food_source_helper_census_errors(call_sites: &BTreeSet<String>) -> Vec<String> {
@@ -237,11 +262,13 @@ fn phase3a_fixture() -> FixtureSchema {
                 place_id: PlaceId::new("workshop").unwrap(),
                 display_label: "Workshop".to_string(),
                 adjacent_place_ids: vec![PlaceId::new("home_tomas").unwrap()],
+                visibility_default: VisibilityDefault::Visible,
             },
             PlaceSchema {
                 place_id: PlaceId::new("home_tomas").unwrap(),
                 display_label: "Tomas home".to_string(),
                 adjacent_place_ids: vec![PlaceId::new("workshop").unwrap()],
+                visibility_default: VisibilityDefault::Visible,
             },
         ],
         doors: Vec::new(),
@@ -325,6 +352,120 @@ fn phase3a_fixture() -> FixtureSchema {
 }
 
 #[test]
+fn fixture_validation_rejects_duplicate_routine_assignment_family() {
+    let mut fixture = phase3a_fixture();
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("actor_tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+        start_tick: SimTick::new(21),
+        end_tick: SimTick::new(30),
+    });
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "duplicate_actor_routine_family"));
+}
+
+#[test]
+fn fixture_validation_rejects_ambiguous_actor_assignment_suffix_collision() {
+    let mut fixture = phase3a_fixture();
+    fixture.actors.push(ActorSchema {
+        actor_id: ActorId::new("tomas").unwrap(),
+        current_place_id: PlaceId::new("home_tomas").unwrap(),
+    });
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_work_shift").unwrap(),
+        start_tick: SimTick::new(21),
+        end_tick: SimTick::new(30),
+    });
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "ambiguous_actor_assignment_suffix"));
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "routine_assignment_id_collision"));
+}
+
+#[test]
+fn fixture_validation_rejects_tied_active_intention_derivation() {
+    let mut fixture = phase3a_fixture();
+    fixture.routine_templates.push(RoutineTemplateSchema {
+        template_id: RoutineTemplateId::new("routine_sleep_shift").unwrap(),
+        family: RoutineFamily::SleepNight,
+        applicability_conditions: Vec::new(),
+        preconditions: Vec::new(),
+        steps: vec![RoutineStep::StartScheduledSleep {
+            action_id: SemanticActionId::new("sleep.bed_tomas").unwrap(),
+        }],
+        min_duration_ticks: 4,
+        max_duration_ticks: 6,
+        interruption_points: vec![0],
+        failure_modes: vec!["sleep_place_blocked".to_string()],
+        fallback_rules: vec!["wait".to_string()],
+        debug_labels: vec!["phase3a_schema_sample".to_string()],
+        reservable_resource: Some("body".to_string()),
+    });
+    fixture.routine_assignments.push(RoutineAssignmentSchema {
+        actor_id: ActorId::new("actor_tomas").unwrap(),
+        template_id: RoutineTemplateId::new("routine_sleep_shift").unwrap(),
+        start_tick: SimTick::new(10),
+        end_tick: SimTick::new(30),
+    });
+    fixture.canonicalize();
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "ambiguous_active_routine_assignment"));
+}
+
+#[test]
+fn source_ref_cause_uses_stable_typed_canonical_encoding() {
+    let mut fixture = phase3a_fixture();
+    fixture.initial_beliefs.push(InitialBeliefSchema {
+        belief_id: BeliefId::new("belief_cause_source_probe").unwrap(),
+        holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+        proposition: Proposition::ItemLocatedAtPlace {
+            item_id: "coin_stack_01".parse().unwrap(),
+            place_id: "home_tomas".parse().unwrap(),
+        },
+        stance: tracewake_core::epistemics::Stance::BelievesTrue,
+        confidence: Confidence::new(900).unwrap(),
+        source_kind: tracewake_core::events::InitialBeliefSourceKind::AuthoredPrehistory,
+        source: SourceRef::Cause(EventCause::Process(
+            ProcessId::new("process_fixture_cause").unwrap(),
+        )),
+        channel: None,
+        acquired_tick: SimTick::ZERO,
+        last_verified_tick: None,
+        privacy_scope: tracewake_core::epistemics::PrivacyScope::ActorPrivate(
+            ActorId::new("actor_tomas").unwrap(),
+        ),
+        schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+    });
+    fixture.canonicalize();
+
+    let bytes = serialize_fixture(&fixture);
+    let rendered = String::from_utf8(bytes).unwrap();
+
+    assert!(rendered.contains("process:process_fixture_cause"));
+    assert!(!rendered.contains("Process("));
+}
+
+#[test]
 fn all_fixtures_load_deterministically_and_validate() {
     let registry = registry();
     let all = fixtures::all();
@@ -390,6 +531,10 @@ fn known_food_source_blanket_helper_call_sites_are_allowlisted() {
                 fixture.populate_known_food_sources_for_all_actors();
                 golden
             }
+
+            fn depth_two_helper() -> GoldenFixture {
+                hidden_truth_adversarial_fixture()
+            }
             "#
             .to_string(),
         ),
@@ -397,7 +542,7 @@ fn known_food_source_blanket_helper_call_sites_are_allowlisted() {
             "src/fixtures/synthetic_indirect_consumer_001.rs".to_string(),
             r#"
             pub fn synthetic_indirect_consumer_001() -> GoldenFixture {
-                hidden_truth_adversarial_fixture()
+                depth_two_helper()
             }
             "#
             .to_string(),
@@ -739,13 +884,24 @@ fn fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected() {
 
 #[test]
 fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
-    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|\nunknown_phase3a_section|actor_tomas|workshop";
+    let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nunknown_phase3a_section|actor_tomas|workshop";
     let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
 
     assert!(report
         .errors
         .iter()
         .any(|error| error.code == "unknown_field"));
+}
+
+#[test]
+fn fixtures_load_place_visibility_default_is_required() {
+    let raw = b"fixture|missing_place_visibility\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65|";
+    let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
+
+    assert!(report
+        .errors
+        .iter()
+        .any(|error| error.code == "bad_line" && error.message.contains("place|")));
 }
 
 #[test]
@@ -894,6 +1050,64 @@ fn every_fixture_declares_contract_actions_reports_and_assertions() {
         assert!(!golden.contract.expected_events_or_reports.is_empty());
         assert!(!golden.contract.acceptance_assertions.is_empty());
     }
+}
+
+#[test]
+fn hidden_truth_fixture_contracts_match_authored_known_food_edges() {
+    for golden in [
+        fixtures::hidden_food_closed_container_001(),
+        fixtures::hidden_food_unknown_route_001(),
+        fixtures::hidden_route_edge_001(),
+        fixtures::debug_omniscience_excluded_001(),
+        fixtures::workplace_assignment_provenance_001(),
+    ] {
+        assert_eq!(
+            validate_golden_fixture_contract_metadata(&golden),
+            Vec::new(),
+            "{} contract should match authored known_food_sources",
+            golden.contract.fixture_id
+        );
+    }
+
+    assert_eq!(
+        fixtures::hidden_food_closed_container_001()
+            .fixture
+            .known_food_sources
+            .len(),
+        1,
+        "closed-container fixture keeps the load-bearing known-food edge"
+    );
+    for golden in [
+        fixtures::hidden_food_unknown_route_001(),
+        fixtures::hidden_route_edge_001(),
+        fixtures::debug_omniscience_excluded_001(),
+        fixtures::workplace_assignment_provenance_001(),
+    ] {
+        assert!(
+            golden.fixture.known_food_sources.is_empty(),
+            "{} should not carry unrelated known-food seed edges",
+            golden.contract.fixture_id
+        );
+    }
+}
+
+#[test]
+fn known_food_contract_denial_is_rejected() {
+    let mut golden = fixtures::hidden_food_closed_container_001();
+    golden.contract = FixtureContract {
+        fixture_id: "hidden_food_closed_container_001",
+        purpose: "synthetic denial",
+        setup: vec!["no observation or belief reveals the hidden food"],
+        allowed_actions: vec!["synthetic"],
+        expected_events_or_reports: vec!["synthetic"],
+        acceptance_assertions: vec!["synthetic"],
+    };
+
+    let violations = validate_golden_fixture_contract_metadata(&golden);
+
+    assert!(violations
+        .iter()
+        .any(|violation| violation.code == "known_food_contract_denial"));
 }
 
 #[test]

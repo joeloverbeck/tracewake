@@ -26,6 +26,10 @@ pub fn no_human_advance_001() -> GoldenFixture {
         routine_assignments: Vec::new(),
         day_windows: Vec::new(),
     };
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "legacy fixture blanket food-source seeding is pinned by fixtures_load census; new fixtures must author per-actor known_food_sources edges"
+    )]
     fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {

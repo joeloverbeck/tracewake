@@ -11,7 +11,7 @@ on:
 # Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -179,7 +179,9 @@ jobs:
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --version 27.1.0 --locked
       - name: Run guarded-layer mutation baseline
+        id: scheduled_mutants
         run: |
+          set +e
           cargo mutants --workspace \
             -f 'crates/tracewake-core/src/agent/**' \
             -f 'crates/tracewake-core/src/scheduler*' \
@@ -189,8 +191,21 @@ jobs:
             -f 'crates/tracewake-core/src/actions/defs/sleep.rs' \
             -f 'crates/tracewake-core/src/actions/defs/work.rs' \
             --no-shuffle
+          mutants_status=$?
+          set -e
+          echo "mutants_status=$mutants_status" >> "$GITHUB_OUTPUT"
+          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ]; then
+            echo "cargo-mutants failed with status $mutants_status; this is a tool/run failure, not a passing mutation gate."
+            find mutants.out -maxdepth 2 -type f -print || true
+            exit "$mutants_status"
+          fi
       - name: Check missed-mutant baseline
+        if: always() && steps.scheduled_mutants.outcome != 'skipped'
         run: |
+          if [ "${{ steps.scheduled_mutants.outputs.mutants_status }}" = "0" ] && [ ! -f mutants.out/missed.txt ]; then
+            echo "cargo-mutants exited 0 and produced no missed mutants; scheduled mutation baseline is clean."
+            exit 0
+          fi
           if [ ! -f mutants.out/missed.txt ]; then
             echo "cargo-mutants did not produce mutants.out/missed.txt; inspect artifact before updating the baseline."
             find mutants.out -maxdepth 2 -type f -print || true

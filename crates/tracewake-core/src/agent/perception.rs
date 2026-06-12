@@ -5,7 +5,7 @@ use crate::epistemics::{
     SourceRef,
 };
 use crate::events::log::EventLog;
-use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use crate::ids::{
     ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, ObservationId, PlaceId, ProcessId,
     SleepAffordanceId,
@@ -170,13 +170,17 @@ pub fn current_place_knowledge_context(
             "epistemic_projection:{}",
             classified.record().source_event_id().as_str()
         );
+        let included_by_policy = classified.record().policy().includes_in_embodied_context(
+            classified.is_current_place_record(),
+            classified.is_latest_current_place_record(),
+        );
         match classified.record() {
             ActorKnownProjectionRecord::Route {
                 from_place_id,
                 to_place_id,
                 ..
             } => {
-                if !classified.is_latest_current_place_record() {
+                if !included_by_policy {
                     continue;
                 }
                 routes.push(ActorKnownRouteFact::new(
@@ -190,7 +194,7 @@ pub fn current_place_knowledge_context(
                 believed_servings,
                 ..
             } => {
-                if !classified.is_latest_current_place_record() {
+                if !included_by_policy {
                     continue;
                 }
                 let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
@@ -207,7 +211,7 @@ pub fn current_place_knowledge_context(
                 sleep_affordance_id,
                 ..
             } => {
-                if !classified.is_latest_current_place_record() {
+                if !included_by_policy {
                     continue;
                 }
                 let Some(sleep_affordance_id) = sleep_affordance_id
@@ -228,7 +232,7 @@ pub fn current_place_knowledge_context(
                 believed_access_open,
                 ..
             } => {
-                if place_id == &actor.current_place_id {
+                if included_by_policy {
                     workplaces.push(ActorKnownWorkplaceFact::new(
                         workplace_id.clone(),
                         place_id.clone(),
@@ -295,8 +299,7 @@ fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
     let Some(place) = state.places().get(place_id) else {
         return false;
     };
-    !place.place_id.as_str().contains("hidden")
-        && !place.display_label.to_lowercase().contains("hidden")
+    place.visibility_default.is_visible()
 }
 
 fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
@@ -341,7 +344,8 @@ fn observation_event(
         vec![perceived.kind.to_string(), perceived.target_id.clone()],
         format!("perception_{index:04}"),
     );
-    let mut event = EventEnvelope::new_v1(
+    let process_id = ProcessId::new("current_place_perception").unwrap();
+    let mut event = EventEnvelope::new_caused_v1(
         event_id.clone(),
         EventKind::ObservationRecorded,
         0,
@@ -349,10 +353,12 @@ fn observation_event(
         decision_tick,
         ordering_key,
         content_manifest_id.clone(),
-    );
+        vec![EventCause::Process(process_id.clone())],
+    )
+    .expect("perception observations carry process ancestry");
     event.actor_id = Some(actor_id.clone());
     event.place_id = Some(perceived.place_id.clone());
-    event.process_id = Some(ProcessId::new("current_place_perception").unwrap());
+    event.process_id = Some(process_id);
     event.participants = vec![
         actor_id.to_string(),
         perceived.place_id.to_string(),
@@ -397,7 +403,8 @@ mod tests {
     use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
     use crate::state::AgentState;
     use crate::state::{
-        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, WorkplaceState,
+        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, VisibilityDefault,
+        WorkplaceState,
     };
 
     fn actor_id(value: &str) -> ActorId {
@@ -527,6 +534,65 @@ mod tests {
                     field.key == "source_event_id" && field.value == event.event_id.as_str()
                 })
         }));
+    }
+
+    #[test]
+    fn visible_exit_perception_follows_typed_visibility_not_id_or_label_prose() {
+        let actor = actor_id("actor_tomas");
+        let home = place_id("home_tomas");
+        let misleading_visible = place_id("hidden_annex");
+        let concealed_plain = place_id("quiet_annex");
+
+        let mut home_state = PlaceState::new(home.clone(), "Tomas home");
+        home_state
+            .adjacent_place_ids
+            .insert(misleading_visible.clone());
+        home_state
+            .adjacent_place_ids
+            .insert(concealed_plain.clone());
+        let mut visible_state = PlaceState::new(misleading_visible.clone(), "Hidden annex");
+        visible_state.visibility_default = VisibilityDefault::Visible;
+        let mut concealed_state = PlaceState::new(concealed_plain.clone(), "Quiet annex");
+        concealed_state.visibility_default = VisibilityDefault::Concealed;
+
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor.clone(), home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home, home_state);
+        places.insert(misleading_visible.clone(), visible_state);
+        places.insert(concealed_plain.clone(), concealed_state);
+        let state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        );
+
+        let visible_exit_targets =
+            current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id())
+                .into_iter()
+                .filter(|event| {
+                    event
+                        .payload
+                        .iter()
+                        .any(|field| field.key == "perceived_kind" && field.value == "visible_exit")
+                })
+                .filter_map(|event| {
+                    event
+                        .payload
+                        .iter()
+                        .find(|field| field.key == "target_id")
+                        .map(|field| field.value.clone())
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+
+        assert!(visible_exit_targets.contains(misleading_visible.as_str()));
+        assert!(!visible_exit_targets.contains(concealed_plain.as_str()));
     }
 
     #[test]
@@ -716,6 +782,77 @@ mod tests {
             .actor_known_sleep_affordances()
             .iter()
             .any(|fact| fact.sleep_affordance_id().as_str() == "cot_tomas"));
+    }
+
+    #[test]
+    fn embodied_context_filters_reclassified_records_by_declared_scope_but_no_human_keeps_memory() {
+        let actor = actor_id("actor_tomas");
+        let mut state = state_with_visible_current_place_surfaces();
+        let manifest_id = manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+
+        for event in current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+        {
+            project_perception_event(&mut projection, &event);
+        }
+
+        let workshop = place_id("workshop_tomas");
+        state
+            .actors
+            .get_mut(&actor)
+            .expect("test actor exists")
+            .current_place_id = workshop.clone();
+
+        let filter_context =
+            KnowledgeContext::embodied_at_frontier(actor.clone(), SimTick::new(9), 4);
+        let classified =
+            projection.classified_actor_known_records_for_context(&filter_context, &workshop);
+        let sleep_record = classified
+            .iter()
+            .find(|record| {
+                matches!(
+                    record.record(),
+                    ActorKnownProjectionRecord::SleepPlace { sleep_affordance_id, .. }
+                        if sleep_affordance_id.as_deref() == Some("bed_tomas")
+                )
+            })
+            .expect("shared classifier keeps remembered sleep place");
+        assert!(
+            !sleep_record.record().policy().includes_in_embodied_context(
+                sleep_record.is_current_place_record(),
+                sleep_record.is_latest_current_place_record(),
+            )
+        );
+
+        let agent_state = AgentState::default();
+        let no_human_surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &projection,
+                agent_state: &agent_state,
+                actor_id: actor.clone(),
+                current_place_id: workshop.clone(),
+                decision_tick: SimTick::new(9),
+                window_id: "morning",
+                window_end_tick: SimTick::new(12),
+                current_place_witness_event_id: None,
+                needs_witness_event_id: None,
+                frame_event_id: Some(EventId::new("event_frame").unwrap()),
+            })
+            .build(&agent_state);
+        assert!(no_human_surface
+            .context()
+            .known_sleep_places()
+            .contains(&place_id("home_tomas")));
+
+        let embodied_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(9),
+            &manifest_id,
+            4,
+        );
+        assert!(embodied_context.actor_known_sleep_affordances().is_empty());
     }
 
     #[test]

@@ -1,9 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::agent::HiddenTruthAudit;
-use crate::epistemics::EpistemicProjection;
 use crate::ids::{ActorId, ContainerId, EventId, PlaceId, WorkplaceId};
-use crate::state::AgentState;
 use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -531,214 +529,6 @@ impl DerivedActorKnownFields {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VisibleLocalPlanningState {
-    current_place_id: PlaceId,
-    visible_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-    visible_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
-    visible_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
-    visible_food_sources: BTreeSet<String>,
-    visible_sleep_places: BTreeSet<PlaceId>,
-    visible_workplaces: BTreeMap<WorkplaceId, PlaceId>,
-}
-
-impl VisibleLocalPlanningState {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        current_place_id: PlaceId,
-        visible_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-        visible_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
-        visible_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
-        visible_food_sources: BTreeSet<String>,
-        visible_sleep_places: BTreeSet<PlaceId>,
-        visible_workplaces: BTreeMap<WorkplaceId, PlaceId>,
-    ) -> Self {
-        Self {
-            current_place_id,
-            visible_edges,
-            visible_closed_doors,
-            visible_containers_by_place,
-            visible_food_sources,
-            visible_sleep_places,
-            visible_workplaces,
-        }
-    }
-}
-
-pub fn build_actor_known_planning_state(
-    actor_id: &ActorId,
-    epistemic_projection: &EpistemicProjection,
-    agent_state: &AgentState,
-    visible_local: &VisibleLocalPlanningState,
-) -> ActorKnownPlanningContext {
-    observe_visible_local(
-        actor_id,
-        Some(epistemic_projection),
-        agent_state,
-        visible_local,
-    )
-}
-
-pub fn build_actor_known_planning_state_with_projection_limitation(
-    actor_id: &ActorId,
-    agent_state: &AgentState,
-    visible_local: &VisibleLocalPlanningState,
-) -> ActorKnownPlanningContext {
-    observe_visible_local(actor_id, None, agent_state, visible_local)
-}
-
-pub fn observe_visible_local(
-    actor_id: &ActorId,
-    epistemic_projection: Option<&EpistemicProjection>,
-    agent_state: &AgentState,
-    visible_local: &VisibleLocalPlanningState,
-) -> ActorKnownPlanningContext {
-    let visible_local_source =
-        SourceEventIds::checked(vec![
-            EventId::new("event_visible_local_planning_state").unwrap()
-        ])
-        .unwrap();
-    let mut facts = vec![ActorKnownFact::observed_now(
-        actor_id.clone(),
-        "actor_current_place_visible",
-        visible_local.current_place_id.as_str(),
-        format!(
-            "visible_local:current_place:{}",
-            visible_local.current_place_id.as_str()
-        ),
-        None,
-        visible_local_source.clone(),
-    )];
-    if agent_state.needs_by_actor.contains_key(actor_id) {
-        facts.push(ActorKnownFact::remembered_belief(
-            actor_id.clone(),
-            "agent_needs_present",
-            "needs_present",
-            "agent_state:needs_present",
-            None,
-            visible_local_source.clone(),
-        ));
-    }
-    if let Some(epistemic_projection) = epistemic_projection {
-        let actor_belief_count = epistemic_projection.belief_count_for_actor(actor_id);
-        facts.push(ActorKnownFact::remembered_belief(
-            actor_id.clone(),
-            "actor_belief_projection",
-            actor_belief_count.to_string(),
-            format!("epistemic_projection:actor_beliefs:{actor_belief_count}"),
-            None,
-            visible_local_source.clone(),
-        ));
-    } else {
-        facts.push(ActorKnownFact::remembered_belief(
-            actor_id.clone(),
-            "actor_belief_projection_limitation",
-            "not_supplied",
-            "no_human_day:typed_projection_limitation",
-            None,
-            visible_local_source.clone(),
-        ));
-    }
-    for (from, tos) in &visible_local.visible_edges {
-        for to in tos {
-            facts.push(ActorKnownFact::observed_now(
-                actor_id.clone(),
-                "known_route_surface",
-                format!("{}->{}", from.as_str(), to.as_str()),
-                format!("visible_local:edge:{}->{}", from.as_str(), to.as_str()),
-                None,
-                visible_local_source.clone(),
-            ));
-        }
-    }
-    for ((from, to), door_id) in &visible_local.visible_closed_doors {
-        facts.push(ActorKnownFact::observed_now(
-            actor_id.clone(),
-            "known_closed_door_surface",
-            format!("{}->{}@{door_id}", from.as_str(), to.as_str()),
-            format!(
-                "visible_local:closed_door:{}->{}@{door_id}",
-                from.as_str(),
-                to.as_str()
-            ),
-            None,
-            visible_local_source.clone(),
-        ));
-    }
-    for (place_id, containers) in &visible_local.visible_containers_by_place {
-        for container_id in containers {
-            facts.push(ActorKnownFact::observed_now(
-                actor_id.clone(),
-                "known_container_surface",
-                format!("{}@{}", container_id.as_str(), place_id.as_str()),
-                format!(
-                    "visible_local:container:{}@{}",
-                    container_id.as_str(),
-                    place_id.as_str()
-                ),
-                None,
-                visible_local_source.clone(),
-            ));
-        }
-    }
-    for food_source in &visible_local.visible_food_sources {
-        facts.push(ActorKnownFact::observed_now(
-            actor_id.clone(),
-            "actor_knows_food_source",
-            food_source,
-            format!("visible_local:food:{food_source}"),
-            None,
-            visible_local_source.clone(),
-        ));
-    }
-    for sleep_place in &visible_local.visible_sleep_places {
-        facts.push(ActorKnownFact::observed_now(
-            actor_id.clone(),
-            "actor_knows_sleep_place",
-            sleep_place.as_str(),
-            format!("visible_local:sleep_place:{}", sleep_place.as_str()),
-            None,
-            visible_local_source.clone(),
-        ));
-    }
-    for (workplace_id, place_id) in &visible_local.visible_workplaces {
-        facts.push(ActorKnownFact::observed_now(
-            actor_id.clone(),
-            "actor_knows_workplace",
-            format!("{}@{}", workplace_id.as_str(), place_id.as_str()),
-            format!(
-                "visible_local:workplace:{}@{}",
-                workplace_id.as_str(),
-                place_id.as_str()
-            ),
-            None,
-            visible_local_source.clone(),
-        ));
-        facts.push(ActorKnownFact::routine_assignment(
-            actor_id.clone(),
-            "workplace_assignment_active",
-            workplace_id.as_str(),
-            format!(
-                "visible_local:workplace_assignment:{}",
-                workplace_id.as_str()
-            ),
-            None,
-            visible_local_source.clone(),
-        ));
-    }
-    ActorKnownPlanningContext::from_observed_parts(
-        actor_id.clone(),
-        visible_local.current_place_id.clone(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeSet::new(),
-        BTreeSet::new(),
-        BTreeMap::new(),
-        facts,
-    )
-}
-
 pub fn derive_hidden_truth_audit(
     context: &ActorKnownPlanningContext,
     request_facts: &[ActorKnownFact],
@@ -749,7 +539,6 @@ pub fn derive_hidden_truth_audit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::ContentManifestId;
 
     fn actor_id() -> ActorId {
         ActorId::new("actor_tomas").unwrap()
@@ -759,50 +548,27 @@ mod tests {
         PlaceId::new(value).unwrap()
     }
 
-    fn visible_local() -> VisibleLocalPlanningState {
-        VisibleLocalPlanningState::new(
-            place_id("home"),
-            BTreeMap::from([(place_id("home"), BTreeSet::from([place_id("street")]))]),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeSet::from(["food_soup".to_string()]),
-            BTreeSet::from([place_id("home")]),
-            BTreeMap::new(),
-        )
-    }
-
-    #[test]
-    fn visible_local_observation_stamps_every_planner_fact_with_provenance() {
-        let actor_id = actor_id();
-        let epistemic_projection =
-            EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap());
-        let context = observe_visible_local(
-            &actor_id,
-            Some(&epistemic_projection),
-            &AgentState::default(),
-            &visible_local(),
-        );
-
-        assert!(!context.actor_known_facts().is_empty());
-        assert!(context
-            .actor_known_facts()
-            .iter()
-            .all(ActorKnownFact::is_actor_known));
-        assert!(context
-            .proof_sources()
-            .iter()
-            .any(|source| source.contains("observed_now:visible_local:food:food_soup")));
-    }
-
     #[test]
     fn hidden_truth_audit_reads_provenance_graph_not_stored_boolean() {
-        let epistemic_projection =
-            EpistemicProjection::new(ContentManifestId::new("manifest_test").unwrap());
-        let context = observe_visible_local(
-            &actor_id(),
-            Some(&epistemic_projection),
-            &AgentState::default(),
-            &visible_local(),
+        let source =
+            SourceEventIds::checked(vec![EventId::new("event_test_source").unwrap()]).unwrap();
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            place_id("home"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor_id(),
+                "actor_current_place_visible",
+                "home",
+                "test:current_place",
+                None,
+                source,
+            )],
         );
         assert!(context.audit_with(&[]).actor_known_only);
 
@@ -815,16 +581,15 @@ mod tests {
                 .audit_with(std::slice::from_ref(&unproven))
                 .actor_known_only
         );
-        let visible_local = visible_local();
         let context_with_unproven = ActorKnownPlanningContext::from_observed_parts(
             actor_id(),
-            visible_local.current_place_id,
-            visible_local.visible_edges,
-            visible_local.visible_closed_doors,
-            visible_local.visible_containers_by_place,
-            visible_local.visible_food_sources,
-            visible_local.visible_sleep_places,
-            visible_local.visible_workplaces,
+            place_id("home"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
             vec![unproven],
         );
         let audit = context_with_unproven.audit_with(&[]);

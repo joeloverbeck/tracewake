@@ -47,20 +47,14 @@ impl TerminalCounts {
             EventKind::SleepCompleted => self.sleep_completed += 1,
             EventKind::SleepInterrupted => {
                 self.sleep_interrupted += 1;
-                if matches!(
-                    payload_value(event, "reason"),
-                    Some("actor_displaced" | "sleep_affordance_closed")
-                ) {
+                if matches!(payload_value(event, "reason"), Some("actor_displaced")) {
                     self.continuity_failure += 1;
                 }
             }
             EventKind::WorkBlockCompleted => self.work_completed += 1,
             EventKind::WorkBlockFailed => {
                 self.work_failed += 1;
-                if matches!(
-                    payload_value(event, "reason"),
-                    Some("actor_displaced" | "workplace_unusable")
-                ) {
+                if matches!(payload_value(event, "reason"), Some("actor_displaced")) {
                     self.continuity_failure += 1;
                 }
             }
@@ -71,10 +65,18 @@ impl TerminalCounts {
 
 #[test]
 fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
+    assert!(
+        (0..=u16::MAX as i32).contains(&SLEEP_INTERRUPT_HUNGER_VALUE),
+        "sleep-interrupt generator constant must fit u16 before banding"
+    );
     assert_eq!(
         NeedBand::for_value(SLEEP_INTERRUPT_HUNGER_VALUE as u16),
         NeedBand::Severe,
         "sleep-interrupt generator constant must stay in the Severe hunger band"
+    );
+    assert!(
+        (0..=u16::MAX as i32).contains(&WORK_FAILURE_HUNGER_VALUE),
+        "work-failure generator constant must fit u16 before banding"
     );
     assert_eq!(
         NeedBand::for_value(WORK_FAILURE_HUNGER_VALUE as u16),
@@ -88,6 +90,7 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
     let mut terminal_kinds = BTreeSet::new();
     let mut terminal_counts = TerminalCounts::default();
     let mut terminal_tamper_cases = 0_usize;
+    let mut tampered_terminal_kinds = BTreeSet::new();
     let mut seed_contributors: BTreeMap<&'static str, BTreeSet<u64>> = BTreeMap::new();
     for seed in GENERATIVE_SEEDS {
         let case = generate_case(*seed);
@@ -189,8 +192,9 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
 
         assert_live_matches_replay(&run, *seed);
         assert_payload_tamper_poisons_replay(&run, *seed);
-        if duration_terminal_event_index(&run.log).is_ok() {
-            assert_duration_terminal_payload_tamper_poisons_replay(&run, *seed);
+        for event_index in duration_terminal_event_indices(&run.log) {
+            assert_duration_terminal_payload_tamper_poisons_replay(&run, *seed, event_index);
+            tampered_terminal_kinds.insert(run.log.events()[event_index].event_type.stable_id());
             terminal_tamper_cases += 1;
         }
         assert_serialization_round_trip(&run.log, *seed);
@@ -263,6 +267,16 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
     assert!(
         terminal_tamper_cases > 0,
         "generated corpus never ran terminal-targeted tamper checks; terminals={terminal_kinds:?}; {corpus_summary}"
+    );
+    assert_eq!(
+        tampered_terminal_kinds,
+        BTreeSet::from([
+            "sleep_completed",
+            "sleep_interrupted",
+            "work_block_completed",
+            "work_block_failed",
+        ]),
+        "terminal-targeted tamper coverage missed a duration-terminal kind; terminals={terminal_kinds:?}; {corpus_summary}"
     );
     assert!(
         terminal_counts.continuity_failure > 0,
@@ -373,9 +387,13 @@ fn assert_derived_contributor_set(
     if let Some(seed) = expected.first() {
         missing_one.remove(seed);
     }
-    assert_ne!(
-        missing_one, expected,
-        "synthetic removal of a derived {flag} contributor must fail the contributor assertion"
+    assert!(
+        !expected.is_empty(),
+        "derived {flag} contributor predicate must produce at least one seed before synthetic removal"
+    );
+    assert!(
+        missing_one.len() + 1 == expected.len(),
+        "synthetic removal of a derived {flag} contributor must remove exactly one contributor"
     );
 }
 
@@ -413,6 +431,7 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         "seed={}",
         case.seed
     );
+    assert_in_block_displacement_ordering(case, &log);
     GeneratedRun {
         initial_world,
         initial_agent_state,
@@ -421,6 +440,33 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         log,
         final_tick: report.final_tick,
     }
+}
+
+fn assert_in_block_displacement_ordering(
+    case: &support::generative::GeneratedCase,
+    log: &EventLog,
+) {
+    if !case.mask.displace_during_work {
+        return;
+    }
+    let work = case
+        .sequence
+        .iter()
+        .find(|step| step.kind == support::generative::GeneratedActionKind::Work)
+        .expect("displacement mask schedules work");
+    let movement = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorMoved)
+        .expect("displacement mask emits movement");
+    let scheduled_completion_tick = work.start_tick.advance_by(work.duration_ticks);
+    assert!(
+        movement.sim_tick < scheduled_completion_tick,
+        "seed={} displacement move tick {} must precede scheduled work completion tick {}",
+        case.seed,
+        movement.sim_tick.value(),
+        scheduled_completion_tick.value()
+    );
 }
 
 fn checksum_context(seed: u64, log: &EventLog, tick: SimTick) -> ChecksumContext {
@@ -496,9 +542,11 @@ fn assert_payload_tamper_poisons_replay(run: &GeneratedRun, seed: u64) {
     panic!("seed={seed} had no payload perturbation that poisoned replay");
 }
 
-fn assert_duration_terminal_payload_tamper_poisons_replay(run: &GeneratedRun, seed: u64) {
-    let event_index = duration_terminal_event_index(&run.log)
-        .unwrap_or_else(|message| panic!("seed={seed} {message}"));
+fn assert_duration_terminal_payload_tamper_poisons_replay(
+    run: &GeneratedRun,
+    seed: u64,
+    event_index: usize,
+) {
     let event = &run.log.events()[event_index];
     assert!(
         !event.payload.is_empty(),
@@ -516,10 +564,11 @@ fn assert_duration_terminal_payload_tamper_poisons_replay(run: &GeneratedRun, se
     }
 }
 
-fn duration_terminal_event_index(log: &EventLog) -> Result<usize, String> {
+fn duration_terminal_event_indices(log: &EventLog) -> Vec<usize> {
     log.events()
         .iter()
-        .position(|event| {
+        .enumerate()
+        .filter_map(|(index, event)| {
             matches!(
                 event.event_type,
                 EventKind::SleepCompleted
@@ -527,7 +576,15 @@ fn duration_terminal_event_index(log: &EventLog) -> Result<usize, String> {
                     | EventKind::WorkBlockCompleted
                     | EventKind::WorkBlockFailed
             )
+            .then_some(index)
         })
+        .collect()
+}
+
+fn duration_terminal_event_index(log: &EventLog) -> Result<usize, String> {
+    duration_terminal_event_indices(log)
+        .into_iter()
+        .next()
         .ok_or_else(|| "duration-terminal tamper floor had no duration terminal event".to_string())
 }
 
@@ -652,14 +709,12 @@ fn has_event(log: &EventLog, kind: EventKind) -> bool {
 
 fn has_continuity_failure_terminal(log: &EventLog) -> bool {
     log.events().iter().any(|event| match event.event_type {
-        EventKind::SleepInterrupted => matches!(
-            payload_value(event, "reason"),
-            Some("actor_displaced" | "sleep_affordance_closed")
-        ),
-        EventKind::WorkBlockFailed => matches!(
-            payload_value(event, "reason"),
-            Some("actor_displaced" | "workplace_unusable")
-        ),
+        EventKind::SleepInterrupted => {
+            matches!(payload_value(event, "reason"), Some("actor_displaced"))
+        }
+        EventKind::WorkBlockFailed => {
+            matches!(payload_value(event, "reason"), Some("actor_displaced"))
+        }
         _ => false,
     })
 }

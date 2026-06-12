@@ -23,7 +23,7 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
             "routine_elena_sleep",
             RoutineFamily::SleepNight,
             vec![RoutineStep::FailWithTypedDiagnostic {
-                diagnostic: "no_sleep_affordance: disabled sleep evidence channel".to_string(),
+                diagnostic: "no_sleep_affordance".to_string(),
             }],
             &["sleep_place_blocked"],
         )],
@@ -35,6 +35,10 @@ pub fn no_human_sleep_knowledge_requires_observation_or_record_001() -> GoldenFi
         )],
         day_windows: vec![day_window_schema("actor_elena", 0, 8)],
     };
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "legacy fixture blanket food-source seeding is pinned by fixtures_load census; new fixtures must author per-actor known_food_sources edges"
+    )]
     fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {

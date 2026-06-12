@@ -9,7 +9,7 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
         actors: vec![actor_schema("actor_mara", "home_mara")],
         places: vec![
             place_schema("home_mara", "Mara home", &["hidden_workshop"]),
-            place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
+            concealed_place_schema("hidden_workshop", "Hidden workshop", &["home_mara"]),
         ],
         doors: Vec::new(),
         containers: vec![container_schema(
@@ -58,6 +58,10 @@ pub fn no_hidden_truth_planning_001() -> GoldenFixture {
         )],
         day_windows: vec![day_window_schema("actor_mara", 0, 8)],
     };
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "legacy fixture blanket food-source seeding is pinned by fixtures_load census; new fixtures must author per-actor known_food_sources edges"
+    )]
     fixture.populate_known_food_sources_for_all_actors();
     fixture.canonicalize();
     GoldenFixture {

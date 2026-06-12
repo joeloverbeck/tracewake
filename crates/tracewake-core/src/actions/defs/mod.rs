@@ -4,6 +4,7 @@ pub mod continue_routine;
 pub mod eat;
 pub mod inspect;
 pub mod movement;
+pub(crate) mod need_events;
 pub mod openclose;
 pub mod sleep;
 pub mod takeplace;

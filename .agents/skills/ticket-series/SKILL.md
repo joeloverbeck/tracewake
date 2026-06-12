@@ -148,11 +148,18 @@ cargo test --workspace
    appears, check for active Git processes, then retry serially.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
-   Use concrete sweeps for the exact spec filename, ticket prefix, live paths,
-   and archive paths, for example:
+   Use separate concrete sweeps for stale live paths and expected archive
+   provenance. First run a strict stale-live-path sweep for the exact live spec
+   and ticket paths, for example:
 
 ```sh
-rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket prefix>|archive/specs/<spec filename>|archive/tickets/<ticket prefix>" docs reports specs tickets
+rg -n '(^|[^/A-Za-z0-9_-])(specs/<spec filename>|tickets/<ticket prefix>)' docs reports specs tickets
+```
+
+   Then run an archive-reference audit for expected archived paths, for example:
+
+```sh
+rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs reports archive
 ```
 
    Update active references that should point to `archive/specs/` or
@@ -171,6 +178,13 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
    checks match what actually happened. If a report originally recorded a
    deferral that was completed later in the same series, amend the report so the
    final archived state is truthful.
+   Also grep active reports and outcomes for stale pending-state language, then
+   manually review any matches:
+
+```sh
+rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports archive/tickets archive/specs docs/4-specs
+```
+
 7. Run a final status/diff check and commit the spec archive/truthing work.
 8. Before sending the final response or marking a `/goal` complete, confirm:
    - no matching active ticket paths remain under `tickets/`;
@@ -183,6 +197,8 @@ rg -n "<spec filename>|<ticket prefix>|specs/<spec filename>|tickets/<ticket pre
      or documented unrelated pre-existing changes that were deliberately left
      untouched;
    - the spec archive/truthing commit exists.
+   - the final response has been checked against the `## Reporting` bullets
+     below.
 9. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
    checks, and required commits are done. On a resumed `/goal` turn, re-run the

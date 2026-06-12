@@ -24,8 +24,10 @@ pub use observation::{
     PrivacyScope, SourceRef, TickWindow,
 };
 pub use projection::{
-    ActorKnownProjectionFreshness, ActorKnownProjectionRecord, ActorKnownProjectionSource,
-    ClassifiedActorKnownProjectionRecord, EpistemicProjection, EpistemicProjectionChecksum,
-    EpistemicProjectionChecksumReport, NotebookEntry, ProjectionEventRange,
+    ActorKnownProjectionAccessibilityScope, ActorKnownProjectionEmbodiedScope,
+    ActorKnownProjectionFreshness, ActorKnownProjectionKindPolicy, ActorKnownProjectionPolicy,
+    ActorKnownProjectionRecord, ActorKnownProjectionSource, ClassifiedActorKnownProjectionRecord,
+    EpistemicProjection, EpistemicProjectionChecksum, EpistemicProjectionChecksumReport,
+    NotebookEntry, ProjectionEventRange,
 };
 pub use proposition::{Proposition, PropositionReferenceError};

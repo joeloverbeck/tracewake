@@ -67,6 +67,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "disallowed_methods",
     },
     NegativeFixture {
+        name: "banned_known_food_blanket_helper",
+        expected_stderr: "disallowed_methods",
+    },
+    NegativeFixture {
         name: "banned_macro_expands_to_spawn_or_fs",
         expected_stderr: "disallowed_methods",
     },
@@ -205,6 +209,11 @@ const CLIPPY_BAN_PROOFS: &[ClippyBanProof] = &[
     ClippyBanProof {
         clippy_path: "std::time::SystemTime",
         proving_fixture: "banned_systemtime_alias",
+    },
+    ClippyBanProof {
+        clippy_path:
+            "tracewake_content::schema::FixtureSchema::populate_known_food_sources_for_all_actors",
+        proving_fixture: "banned_known_food_blanket_helper",
     },
 ];
 

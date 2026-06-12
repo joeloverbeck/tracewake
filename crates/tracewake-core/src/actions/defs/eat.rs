@@ -42,15 +42,15 @@ pub fn build_eat_events(
         )]);
     }
 
-    if let Some(reason) = access_failure(state, food, &actor.actor_id, &actor.current_place_id) {
+    if let Some(failure) = access_failure(state, food, &actor.actor_id, &actor.current_place_id) {
         return Ok(vec![eat_failed_event(
             proposal,
             ordering_key,
             content_manifest_id,
             food_supply_id.as_str(),
             "access",
-            reason,
-            reason,
+            failure.actor_visible_reason,
+            failure.absence_ancestry,
         )]);
     }
 
@@ -194,30 +194,50 @@ fn eat_failed_event(
     event
 }
 
-fn access_failure<'a>(
-    state: &'a PhysicalState,
+struct EatAccessFailure {
+    actor_visible_reason: &'static str,
+    absence_ancestry: &'static str,
+}
+
+fn access_failure(
+    state: &PhysicalState,
     food: &FoodSupplyState,
     actor_id: &crate::ids::ActorId,
     actor_place_id: &crate::ids::PlaceId,
-) -> Option<&'a str> {
+) -> Option<EatAccessFailure> {
     match &food.location {
         Location::AtPlace(place_id) if place_id == actor_place_id => None,
-        Location::AtPlace(_) => Some("food source not at actor place"),
+        Location::AtPlace(_) => Some(EatAccessFailure {
+            actor_visible_reason: "food source not reachable",
+            absence_ancestry: "food source not at actor place",
+        }),
         Location::CarriedBy(carrier_id) if carrier_id == actor_id => None,
-        Location::CarriedBy(carrier_id) => Some(if state.actors.contains_key(carrier_id) {
-            "food source carried by another actor"
-        } else {
-            "food source carrier absent"
+        Location::CarriedBy(carrier_id) => Some(EatAccessFailure {
+            actor_visible_reason: "food source not reachable",
+            absence_ancestry: if state.actors.contains_key(carrier_id) {
+                "food source carried by another actor"
+            } else {
+                "food source carrier absent"
+            },
         }),
         Location::InContainer(container_id) => {
             let Some(container) = state.containers.get(container_id) else {
-                return Some("food source container absent");
+                return Some(EatAccessFailure {
+                    actor_visible_reason: "food source not reachable",
+                    absence_ancestry: "food source container absent",
+                });
             };
             if container.location != Location::AtPlace(actor_place_id.clone()) {
-                return Some("food source container not reachable");
+                return Some(EatAccessFailure {
+                    actor_visible_reason: "food source not reachable",
+                    absence_ancestry: "food source container not reachable",
+                });
             }
             if !container.is_open {
-                return Some("food source container closed");
+                return Some(EatAccessFailure {
+                    actor_visible_reason: "food source not reachable",
+                    absence_ancestry: "food source container closed",
+                });
             }
             None
         }
@@ -418,6 +438,42 @@ mod tests {
             .iter()
             .any(|field| field.key == "blocker_kind" && field.value == "access"));
         assert_eq!(state.food_supplies[&food_supply_id()].servings, 1);
+    }
+
+    #[test]
+    fn eat_carrier_access_failure_keeps_unobservable_distinction_out_of_reason() {
+        let mut state = state(1);
+        state
+            .food_supplies
+            .get_mut(&food_supply_id())
+            .unwrap()
+            .location = Location::CarriedBy(ActorId::new("actor_absent_carrier").unwrap());
+
+        let events = build_eat_events(
+            &state,
+            &proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap();
+
+        let reason = events[0]
+            .payload
+            .iter()
+            .find(|field| field.key == "reason")
+            .map(|field| field.value.as_str())
+            .expect("eat failure carries actor-facing reason");
+        let absence_ancestry = events[0]
+            .payload
+            .iter()
+            .find(|field| field.key == "absence_ancestry")
+            .map(|field| field.value.as_str())
+            .expect("eat failure carries debug ancestry");
+
+        assert_eq!(reason, "food source not reachable");
+        assert!(!reason.contains("carried by another actor"));
+        assert!(!reason.contains("carrier absent"));
+        assert_eq!(absence_ancestry, "food source carrier absent");
     }
 
     #[test]

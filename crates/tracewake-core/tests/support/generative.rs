@@ -189,7 +189,11 @@ pub fn generate_case(seed: u64) -> GeneratedCase {
             scheduled_wait_reason: format!("generated_wait_seed_{seed:x}_{index}"),
             duration_ticks: duration,
         });
-        tick = end_tick + rng.range(0, 2);
+        tick = if mask.displace_during_work && kind == GeneratedActionKind::Work {
+            start_tick + 1
+        } else {
+            end_tick + rng.range(0, 2)
+        };
     }
     let start_tick = sequence
         .first()

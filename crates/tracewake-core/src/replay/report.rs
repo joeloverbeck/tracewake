@@ -17,6 +17,8 @@ pub enum ReplayDivergenceFieldFamily {
     Item,
     FoodSupply,
     Workplace,
+    SleepAffordance,
+    NeedModel,
     Unknown,
 }
 
@@ -170,6 +172,10 @@ fn classify_state_diff_family(diff: &str) -> ReplayDivergenceFieldFamily {
         ReplayDivergenceFieldFamily::FoodSupply
     } else if diff.starts_with("workplaces ") {
         ReplayDivergenceFieldFamily::Workplace
+    } else if diff.starts_with("sleep_affordances ") {
+        ReplayDivergenceFieldFamily::SleepAffordance
+    } else if diff.starts_with("need_model ") {
+        ReplayDivergenceFieldFamily::NeedModel
     } else {
         ReplayDivergenceFieldFamily::Unknown
     }
@@ -184,11 +190,14 @@ mod tests {
     use crate::events::log::EventLog;
     use crate::ids::{
         ActionId, ActorId, ContentVersion, EventId, FixtureId, ItemId, PlaceId, ProposalId,
-        SchemaVersion,
+        SchemaVersion, SleepAffordanceId,
     };
     use crate::location::Location;
     use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, ContainerState, ItemState, PhysicalState, PlaceState};
+    use crate::state::{
+        ActorBody, ContainerState, ItemState, NeedModelState, PhysicalState, PlaceState,
+        SleepAffordanceState,
+    };
     use crate::time::SimTick;
 
     fn actor_id() -> ActorId {
@@ -339,6 +348,60 @@ mod tests {
                 first_divergent_event_id: Some(log.events()[0].event_id.as_str().to_string()),
                 field_family: ReplayDivergenceFieldFamily::Actor,
             })
+        );
+    }
+
+    #[test]
+    fn replay_divergence_classifies_sleep_affordance_family() {
+        let initial = initial_state();
+        let mut expected = initial.clone();
+        let sleep_affordance_id = SleepAffordanceId::new("bed_tomas").unwrap();
+        expected.sleep_affordances.insert(
+            sleep_affordance_id.clone(),
+            SleepAffordanceState::new(
+                sleep_affordance_id,
+                PlaceId::new("shop_front").unwrap(),
+                4,
+                20,
+                2,
+            ),
+        );
+
+        let report = run_replay(
+            &initial,
+            &crate::state::AgentState::default(),
+            &EventLog::new(),
+            &context(),
+            Some(&expected),
+            None,
+            None,
+        );
+
+        assert_eq!(
+            report.first_divergence.map(|detail| detail.field_family),
+            Some(ReplayDivergenceFieldFamily::SleepAffordance)
+        );
+    }
+
+    #[test]
+    fn replay_divergence_classifies_need_model_family() {
+        let initial = initial_state();
+        let mut expected = initial.clone();
+        expected.need_model = NeedModelState::new(7, 3);
+
+        let report = run_replay(
+            &initial,
+            &crate::state::AgentState::default(),
+            &EventLog::new(),
+            &context(),
+            Some(&expected),
+            None,
+            None,
+        );
+
+        assert_eq!(
+            report.first_divergence.map(|detail| detail.field_family),
+            Some(ReplayDivergenceFieldFamily::NeedModel)
         );
     }
 

@@ -379,6 +379,7 @@ mod tests {
     use crate::serialization::serialize_fixture;
     use tracewake_core::ids::{ActorId, ContainerId, FixtureId, ItemId, PlaceId, SchemaVersion};
     use tracewake_core::location::Location;
+    use tracewake_core::state::VisibilityDefault;
 
     fn fixture() -> FixtureSchema {
         FixtureSchema {
@@ -397,6 +398,7 @@ mod tests {
                 place_id: PlaceId::new("shop_front").unwrap(),
                 display_label: "Shop front".to_string(),
                 adjacent_place_ids: Vec::new(),
+                visibility_default: VisibilityDefault::Visible,
             }],
             doors: Vec::new(),
             containers: vec![ContainerSchema {

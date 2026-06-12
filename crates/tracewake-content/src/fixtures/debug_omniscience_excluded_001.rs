@@ -1,11 +1,12 @@
 use crate::fixtures::*;
 
 pub fn debug_omniscience_excluded_001() -> GoldenFixture {
-    with_actor_mara_known_hidden_food(hidden_truth_adversarial_fixture(
+    hidden_truth_adversarial_fixture(
         "debug_omniscience_excluded_001",
         "Prove debug-only omniscience is excluded from actor-known planning context.",
         vec![
             "hidden physical facts exist in the fixture",
+            "no authored known_food_sources edge is supplied for debug-only hidden facts",
             "debug views may inspect them out of band",
             "planner context must contain no DebugOmniscience provenance",
         ],
@@ -13,5 +14,5 @@ pub fn debug_omniscience_excluded_001() -> GoldenFixture {
             "actor-known proof sources exclude debug_omniscience",
             "debug-only facts never make hidden targets applicable",
         ],
-    ))
+    )
 }

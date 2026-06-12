@@ -5,20 +5,24 @@ mod support;
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
-    build_actor_known_planning_state, plan_local_actions, ActorDecisionTransaction,
-    ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
-    LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, PlannerGoal, RoutineFamily,
-    RoutineStep,
+    plan_local_actions, ActorDecisionTransaction, ActorDecisionTransactionInput,
+    ActorDecisionTransactionOutcome, ActorKnownFact, LocalPlanRequest, NeedChangeCause, NeedKind,
+    NeedState, NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, PlannerGoal,
+    RoutineFamily, RoutineStep,
 };
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::debug_reports::item_location_report;
 use tracewake_core::epistemics::{ActorKnownFoodSourceFact, EpistemicProjection, KnowledgeContext};
+use tracewake_core::events::apply::apply_epistemic_event;
+use tracewake_core::events::log::EventLog;
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::{
-    ActorId, ContainerId, ContentManifestId, ContentVersion, FixtureId, FoodSupplyId, ItemId,
-    PlaceId, WorkplaceId,
+    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
+    FoodSupplyId, ItemId, PlaceId, ProcessId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{build_embodied_view_model, EmbodiedProjectionSource};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{ActorBody, AgentState, ContainerState, FoodSupplyState, PlaceState};
 use tracewake_core::time::SimTick;
 
@@ -104,6 +108,102 @@ fn registry() -> ActionRegistry {
     registry
 }
 
+fn content_manifest_id() -> ContentManifestId {
+    ContentManifestId::new("hidden_truth_gate_manifest").unwrap()
+}
+
+fn helper_process_id(value: &str) -> ProcessId {
+    ProcessId::new(value).unwrap()
+}
+
+fn ordering_key(tick: SimTick, action_id: &str) -> OrderingKey {
+    OrderingKey::new(
+        tick,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor_id()),
+        ProposalSequence::new(tick.value()),
+        ActionId::new(action_id).unwrap(),
+        vec![actor_id().as_str().to_string()],
+        format!("{action_id}:{}", tick.value()),
+    )
+}
+
+fn observation_event(event_id: &str, tick: SimTick) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(event_id).unwrap(),
+        EventKind::ObservationRecorded,
+        0,
+        0,
+        tick,
+        ordering_key(tick, "observe"),
+        content_manifest_id(),
+        vec![EventCause::Process(helper_process_id(
+            "process_hidden_truth_gate_observation",
+        ))],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id());
+    event.participants = vec![actor_id().as_str().to_string()];
+    event.place_id = Some(place_id("home_mara"));
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("observation_id", format!("obs_{event_id}")),
+        PayloadField::new("observer_actor_id", actor_id().as_str()),
+        PayloadField::new("channel", "direct_sight"),
+        PayloadField::new("observed_tick", tick.value().to_string()),
+        PayloadField::new("observer_place_id", "home_mara"),
+        PayloadField::new("place_id", "home_mara"),
+        PayloadField::new("confidence", "900"),
+        PayloadField::new("source_event_id", event_id),
+    ];
+    event
+}
+
+fn role_notice_event(
+    workplace_id: &WorkplaceId,
+    workplace_place_id: &PlaceId,
+    tick: SimTick,
+) -> EventEnvelope {
+    let event_id = format!("event_notice_{}", workplace_id.as_str());
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(&event_id).unwrap(),
+        EventKind::RoleAssignmentNoticeRecorded,
+        0,
+        0,
+        tick,
+        ordering_key(tick, "notice"),
+        content_manifest_id(),
+        vec![EventCause::Process(helper_process_id(
+            "process_hidden_truth_gate_notice",
+        ))],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id());
+    event.participants = vec![
+        actor_id().as_str().to_string(),
+        workplace_id.as_str().to_string(),
+    ];
+    event.place_id = Some(workplace_place_id.clone());
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("actor_id", actor_id().as_str()),
+        PayloadField::new("workplace_id", workplace_id.as_str()),
+        PayloadField::new("place_id", workplace_place_id.as_str()),
+        PayloadField::new("access_open", "true"),
+    ];
+    event
+}
+
+fn append_epistemic_event(
+    log: &mut EventLog,
+    projection: &mut EpistemicProjection,
+    event: EventEnvelope,
+) -> EventId {
+    let appended = log.append(event).unwrap();
+    apply_epistemic_event(projection, &appended).unwrap();
+    appended.event_id
+}
+
 fn agent_state(hunger: u16) -> AgentState {
     let mut state = AgentSeed::default();
     state.needs_by_actor_mut().insert(
@@ -131,24 +231,55 @@ fn agent_state(hunger: u16) -> AgentState {
 }
 
 fn context(
-    known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-    known_food_sources: BTreeSet<String>,
+    _known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+    _known_food_sources: BTreeSet<String>,
     known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
 ) -> tracewake_core::agent::ActorKnownPlanningState {
-    build_actor_known_planning_state(
-        &actor_id(),
-        &EpistemicProjection::new(ContentManifestId::new("hidden_truth_gate_manifest").unwrap()),
-        &agent_state(880),
-        &tracewake_core::agent::VisibleLocalPlanningState::new(
-            place_id("home_mara"),
-            known_edges,
-            BTreeMap::new(),
-            BTreeMap::new(),
-            known_food_sources,
-            BTreeSet::new(),
-            known_workplaces,
-        ),
-    )
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(content_manifest_id());
+    let frame_event_id = append_epistemic_event(
+        &mut log,
+        &mut projection,
+        observation_event("event_hidden_truth_gate_frame", SimTick::ZERO),
+    );
+    for (workplace_id, workplace_place_id) in known_workplaces {
+        append_epistemic_event(
+            &mut log,
+            &mut projection,
+            role_notice_event(&workplace_id, &workplace_place_id, SimTick::new(1)),
+        );
+    }
+    let agent_state = agent_state(880);
+    let surface =
+        NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+            projection: &projection,
+            agent_state: &agent_state,
+            actor_id: actor_id(),
+            current_place_id: place_id("home_mara"),
+            decision_tick: SimTick::ZERO,
+            window_id: "hidden_truth_gate",
+            window_end_tick: SimTick::new(4),
+            current_place_witness_event_id: Some(frame_event_id.clone()),
+            needs_witness_event_id: Some(frame_event_id.clone()),
+            frame_event_id: Some(frame_event_id),
+        })
+        .build(&agent_state);
+    let log_event_ids = log
+        .events()
+        .iter()
+        .map(|event| event.event_id.clone())
+        .collect::<BTreeSet<_>>();
+    for fact in surface.context().actor_known_facts() {
+        for source_event_id in fact.source_event_ids() {
+            assert!(
+                log_event_ids.contains(source_event_id),
+                "actor-known fact {} cites source event {} outside the test log",
+                fact.stable_id(),
+                source_event_id.as_str()
+            );
+        }
+    }
+    surface.into_context()
 }
 
 fn proof_sources_are_actor_known(context: &tracewake_core::agent::ActorKnownPlanningState) {
