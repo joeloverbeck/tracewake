@@ -447,9 +447,9 @@ false pass; the reporting slice proposed high — divergence named).
 **Verification:** operator-verified (`no_direct_apply_event_outside_event_replay_or_pipeline`
 forbids only the literals `apply_event(`/`apply_event_stream(`; `events/apply.rs`
 exposes `pub fn apply_event_stream`, `apply_event`, `apply_epistemic_event`,
-`apply_agent_event`; `scheduler.rs` carries ~20 `apply_agent_event`/
-`apply_epistemic_event` call sites and `agent/no_human_surface.rs` one, none
-allowlisted because their tokens are not scanned).
+`apply_agent_event`; `scheduler.rs` carries production `apply_agent_event`/
+`apply_epistemic_event` call sites while `agent/no_human_surface.rs`'s apply helper
+is test-only, and the live production tokens are not scanned).
 
 **Responsible layers:** `test_oracle`, kernel mutation perimeter.
 
@@ -458,8 +458,8 @@ the forbidden-token set is a hand-picked subset of the real mutator population);
 INV-009/011 direction (the guard's claim "event application is the only post-seed
 mutation path" is enforced for half the entry points).
 
-**Evidence:** the current call sites are legitimate (scheduler and pipeline route
-agent/epistemic application lawfully), but the guard cannot tell: a new
+**Evidence:** the current production call sites are legitimate (scheduler and
+pipeline route agent/epistemic application lawfully), but the guard cannot tell: a new
 `apply_agent_event` call in a view model, content loader, or TUI path would mutate
 authoritative agent state with zero guard firing. The companion ordering check
 (`accepted_action_appends_before_authoritative_apply`) checks a string pair only.
@@ -472,9 +472,9 @@ functions; nothing derives it from `apply.rs`'s public surface.
 
 **Required correction:** derive the forbidden-token set from the `pub fn apply_*`
 signatures in `events/apply.rs` (a parity census so adding a fifth mutator
-auto-extends the scan); allowlist `scheduler.rs`/`actions/pipeline.rs`/
-`agent/no_human_surface.rs`/`replay/rebuild.rs` with cited rationales; enroll the
-scan in `META_LOCK_REGISTRY` with a live witness per allowlisted seam.
+auto-extends the scan); allowlist the live production seams
+`scheduler.rs`/`actions/pipeline.rs`/`replay/rebuild.rs` with cited rationales;
+enroll the scan in `META_LOCK_REGISTRY` with a live witness per allowlisted seam.
 
 **Structural lock:** a synthetic injecting `apply_agent_event(` into a
 non-allowlisted source must fire; the parity census must fail when `apply.rs` gains a

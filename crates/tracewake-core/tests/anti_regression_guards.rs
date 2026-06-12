@@ -127,6 +127,11 @@ struct PanicAllowlistEntry {
     rationale: &'static str,
 }
 
+struct ApplyMutatorAllowlistEntry {
+    path: &'static str,
+    rationale: &'static str,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct EmbodiedSurfaceField {
     struct_name: String,
@@ -518,6 +523,25 @@ const SCHEDULER_MARKER_EVENT_ALLOWLIST: &[SchedulerMarkerAllowlistEntry] = &[
         snippet: "append_and_apply_agent_event",
         rationale: "agent-stream routine, need, trace, and diagnostic records are replayable scheduler diagnostics, not physical primitive dispatch",
         responsible_layer: "core/scheduler",
+    },
+];
+
+const APPLY_MUTATOR_ALLOWLIST: &[ApplyMutatorAllowlistEntry] = &[
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/events/apply.rs",
+        rationale: "defines the authoritative apply surface and may dispatch between world, agent, and epistemic event streams",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/replay/rebuild.rs",
+        rationale: "rebuilds canonical state from committed event logs during replay",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/actions/pipeline.rs",
+        rationale: "applies already accepted action events and performs cloned-state dry-run validation",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/scheduler.rs",
+        rationale: "applies scheduler-owned agent diagnostics and replay checks for no-human event streams",
     },
 ];
 
@@ -1078,6 +1102,102 @@ fn core_production_sources() -> Vec<(String, String)> {
         .collect()
 }
 
+fn apply_mutator_tokens_from(apply_source: &str) -> BTreeSet<String> {
+    production(apply_source)
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            let after_pub_fn = trimmed.strip_prefix("pub fn ")?;
+            let name = after_pub_fn.split_once('(')?.0.trim();
+            name.starts_with("apply_").then(|| format!("{name}("))
+        })
+        .collect()
+}
+
+fn apply_mutator_allowed_path(path: &str) -> bool {
+    APPLY_MUTATOR_ALLOWLIST
+        .iter()
+        .any(|entry| entry.path == path && !entry.rationale.trim().is_empty())
+}
+
+fn apply_mutator_perimeter_errors(
+    apply_source: &str,
+    sources: &[(String, String)],
+    scanned_tokens: &BTreeSet<String>,
+) -> Vec<String> {
+    let public_tokens = apply_mutator_tokens_from(apply_source);
+    let mut errors = Vec::new();
+
+    for token in public_tokens.difference(scanned_tokens) {
+        errors.push(format!(
+            "public apply mutator {token} is absent from the mutation perimeter scan"
+        ));
+    }
+    for token in scanned_tokens.difference(&public_tokens) {
+        errors.push(format!(
+            "mutation perimeter scan lists non-public apply mutator {token}"
+        ));
+    }
+    for entry in APPLY_MUTATOR_ALLOWLIST {
+        if entry.rationale.trim().is_empty() {
+            errors.push(format!(
+                "apply mutator allowlist entry {} lacks rationale",
+                entry.path
+            ));
+        }
+    }
+
+    for (path, source) in sources {
+        let present_tokens = scanned_tokens
+            .iter()
+            .filter(|token| source.contains(token.as_str()))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !present_tokens.is_empty() && !apply_mutator_allowed_path(path) {
+            errors.push(format!(
+                "{} contains direct apply mutator call(s): {}",
+                path,
+                present_tokens.join(", ")
+            ));
+        }
+    }
+
+    let allowlist_paths = APPLY_MUTATOR_ALLOWLIST
+        .iter()
+        .map(|entry| entry.path)
+        .collect::<BTreeSet<_>>();
+    let live_paths = sources
+        .iter()
+        .map(|(path, _)| path.as_str())
+        .filter(|path| allowlist_paths.contains(path))
+        .collect::<BTreeSet<_>>();
+    for missing_path in allowlist_paths.difference(&live_paths) {
+        errors.push(format!(
+            "apply mutator allowlist path {} is not a core production source",
+            missing_path
+        ));
+    }
+
+    errors
+}
+
+fn apply_mutator_live_witness_count(sources: &[(String, String)]) -> usize {
+    let scanned_tokens = apply_mutator_tokens_from(EVENTS_APPLY_RS);
+    APPLY_MUTATOR_ALLOWLIST
+        .iter()
+        .filter(|entry| {
+            sources
+                .iter()
+                .find(|(path, _)| path == entry.path)
+                .is_some_and(|(_, source)| {
+                    scanned_tokens
+                        .iter()
+                        .any(|token| source.contains(token.as_str()))
+                })
+        })
+        .count()
+}
+
 #[allow(
     clippy::disallowed_methods,
     reason = "anti-regression test scans source files; this helper is not simulation outcome code"
@@ -1547,7 +1667,7 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         lock_id: "no_direct_apply_event_outside_event_replay_or_pipeline",
         negative_id: "synthetic_direct_apply_event_call",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_min: 1,
+        witness_min: 4,
     },
     MetaLockRegistryEntry {
         lock_id: "event_apply_remains_only_post_seed_mutation_path",
@@ -2279,6 +2399,9 @@ fn meta_lock_live_witness_count(
             anti_regression_source
                 .contains("accepted_action_appends_before_authoritative_apply();"),
         );
+    }
+    if entry.lock_id == "no_direct_apply_event_outside_event_replay_or_pipeline" {
+        return apply_mutator_live_witness_count(&core_production_sources());
     }
     if entry.lock_id == "guard_014_embodied_projection_source_has_no_physical_state_field" {
         return usize::from(anti_regression_source.contains("synthetic_dead_field"))
@@ -5378,30 +5501,77 @@ fn privileged_tui_proposal_requires_current_view_source_context() {
 
 #[test]
 fn no_direct_apply_event_outside_event_replay_or_pipeline() {
-    // Smoke-only source scan: compile-fail fixtures and capability privacy are
-    // the primary enforcement layer; this catches obvious new direct calls.
-    let allowed_paths = [
-        "crates/tracewake-core/src/events/apply.rs",
-        "crates/tracewake-core/src/replay/rebuild.rs",
-        "crates/tracewake-core/src/actions/pipeline.rs",
-    ];
-    let mut violations = Vec::new();
-    for (path, source) in core_production_sources() {
-        let contains_direct_apply =
-            source.contains("apply_event(") || source.contains("apply_event_stream(");
-        if contains_direct_apply && !allowed_paths.iter().any(|allowed| *allowed == path) {
-            violations.push(path);
-        }
-    }
-
+    let sources = core_production_sources();
+    let scanned_tokens = apply_mutator_tokens_from(EVENTS_APPLY_RS);
+    let errors = apply_mutator_perimeter_errors(EVENTS_APPLY_RS, &sources, &scanned_tokens);
     assert!(
-        violations.is_empty(),
-        "direct apply_event/apply_event_stream call outside event/replay/pipeline production code:\n{}",
-        violations.join("\n")
+        errors.is_empty(),
+        "direct apply mutator call outside allowlisted production seams:\n{}",
+        errors.join("\n")
+    );
+    assert_eq!(
+        scanned_tokens,
+        BTreeSet::from([
+            "apply_agent_event(".to_string(),
+            "apply_epistemic_event(".to_string(),
+            "apply_event(".to_string(),
+            "apply_event_stream(".to_string(),
+        ]),
+        "apply mutator scan must be derived from every public apply.rs mutator"
     );
     assert!(
         production(include_str!("../src/actions/pipeline.rs")).contains("let mut dry_run = context.state.clone();"),
         "pipeline dry-run validation must apply constructed events to cloned, non-authoritative state"
+    );
+
+    let mut injected_sources = sources.clone();
+    injected_sources.push((
+        "crates/tracewake-core/src/view_models.rs".to_string(),
+        "fn leaking_view_model() { apply_agent_event(agent_state, &event).unwrap(); }".to_string(),
+    ));
+    let injection_errors =
+        apply_mutator_perimeter_errors(EVENTS_APPLY_RS, &injected_sources, &scanned_tokens);
+    assert!(
+        injection_errors
+            .iter()
+            .any(|error| error.contains("view_models.rs") && error.contains("apply_agent_event(")),
+        "synthetic_direct_apply_agent_event_call did not trigger: {injection_errors:?}"
+    );
+
+    let divergent_apply_source =
+        format!("{EVENTS_APPLY_RS}\npub fn apply_story_event(_state: &mut (), _event: &()) {{}}\n");
+    let parity_errors =
+        apply_mutator_perimeter_errors(&divergent_apply_source, &sources, &scanned_tokens);
+    assert!(
+        parity_errors
+            .iter()
+            .any(|error| error.contains("apply_story_event(")),
+        "synthetic_unscanned_public_apply_mutator did not trigger: {parity_errors:?}"
+    );
+
+    assert_eq!(
+        apply_mutator_live_witness_count(&sources),
+        APPLY_MUTATOR_ALLOWLIST.len(),
+        "each apply mutator allowlist seam must have a live apply call witness"
+    );
+    let dropped_scheduler_sources = sources
+        .iter()
+        .map(|(path, source)| {
+            if path == "crates/tracewake-core/src/scheduler.rs" {
+                let mut retired_source = source.clone();
+                for token in &scanned_tokens {
+                    retired_source = retired_source.replace(token, "retired_apply_mutator(");
+                }
+                (path.clone(), retired_source)
+            } else {
+                (path.clone(), source.clone())
+            }
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        apply_mutator_live_witness_count(&dropped_scheduler_sources)
+            < APPLY_MUTATOR_ALLOWLIST.len(),
+        "synthetic_apply_mutator_witness_drop did not reduce the per-seam witness count"
     );
 }
 

@@ -1,9 +1,9 @@
 # 0024PHA3ACONSCH-008: Derive the post-seed mutation perimeter from the apply surface and enroll it with live witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
-**Engine Changes**: Yes — `tracewake-core` test guards (`crates/tracewake-core/tests/anti_regression_guards.rs`); no production crate code.
+**Engine Changes**: Yes — `tracewake-core` test guards (`crates/tracewake-core/tests/anti_regression_guards.rs`) and spec evidence correction; no production crate code.
 **Deps**: 0024PHA3ACONSCH-001
 
 ## Problem
@@ -12,9 +12,9 @@ Spec 0024 `ORD-HARD-144` (medium): the post-seed mutation guard
 `no_direct_apply_event_outside_event_replay_or_pipeline` forbids only the literal
 tokens `apply_event(` and `apply_event_stream(`, but `events/apply.rs` exposes four
 public mutators — the unscanned `apply_agent_event` and `apply_epistemic_event`
-write authoritative agent/epistemic state and are called from `scheduler.rs` (~20
-sites), `actions/pipeline.rs`, and `agent/no_human_surface.rs`, none allowlisted
-because their tokens are never scanned. A new direct `apply_agent_event` call in a
+write authoritative agent/epistemic state and are called from live production seams
+such as `scheduler.rs` and `actions/pipeline.rs`, while `agent/no_human_surface.rs`
+only carries a test-only apply helper in the current checkout. A new direct `apply_agent_event` call in a
 view model, content loader, or TUI path would mutate authoritative state with zero
 guard firing. The scan also has no nonzero-witness floor (not enrolled in
 `META_LOCK_REGISTRY`), so a refactor renaming the allowlisted seams' calls leaves it
@@ -26,9 +26,10 @@ green with zero real sites.
    three-file allowlist in `no_direct_apply_event_outside_event_replay_or_pipeline`;
    the four `pub fn apply_*` signatures in `crates/tracewake-core/src/events/apply.rs`
    (`apply_event_stream`, `apply_event`, `apply_epistemic_event`,
-   `apply_agent_event`); call-site counts in `scheduler.rs` and
-   `agent/no_human_surface.rs`. Current call sites are lawful — the defect is guard
-   scope, not behavior.
+   `apply_agent_event`); call-site counts in `scheduler.rs`, `actions/pipeline.rs`,
+   `replay/rebuild.rs`, and `events/apply.rs`. Current production call sites are
+   lawful — the defect is guard scope, not behavior. Reassessment corrected the
+   earlier `agent/no_human_surface.rs` assumption: its apply helper is test-only.
 2. Verified against spec 0024 §4 (`ORD-HARD-144`) and R-28
    (`docs/3-reference/01_DESIGN_RISK_REGISTER.md`): a hand-picked token subset of a
    public API is the type-convention census shape.
@@ -41,8 +42,8 @@ green with zero real sites.
    mutator population, not half of it.
 5. Enforcement surface (mutation perimeter): this ticket widens detection and adds
    witnesses; it changes no production code path, relaxes no validation, and the
-   newly-allowlisted seams (`scheduler.rs`, `actions/pipeline.rs`,
-   `agent/no_human_surface.rs`, `replay/rebuild.rs`) each carry a cited rationale —
+   newly-allowlisted production seams (`events/apply.rs`, `scheduler.rs`,
+   `actions/pipeline.rs`, `replay/rebuild.rs`) each carry a cited rationale —
    the lawful routing surfaces verified during the audit.
 
 ## Architecture Check
@@ -78,8 +79,9 @@ today: `apply_event`, `apply_event_stream`, `apply_epistemic_event`,
 ### 2. Rationale-bearing allowlist
 
 Allowlist `events/apply.rs` (definitions), `replay/rebuild.rs`,
-`actions/pipeline.rs`, `scheduler.rs`, `agent/no_human_surface.rs` — each entry with
-a cited rationale naming its lawful routing role.
+`actions/pipeline.rs`, `scheduler.rs` — each entry with a cited rationale naming
+its lawful routing role. `agent/no_human_surface.rs` is not allowlisted because its
+apply helper is test-only in the live checkout.
 
 ### 3. Enrollment + synthetics
 
@@ -131,3 +133,27 @@ non-allowlisted-injection and parity-divergence synthetics.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented a derived post-seed mutation perimeter scanner in
+`anti_regression_guards.rs`. The guard now derives its mutator token set from
+`events/apply.rs` public `pub fn apply_*` signatures, scans core production sources,
+requires rationale-bearing allowlist entries for the live production seams, and
+counts one live witness per allowlisted seam through `META_LOCK_REGISTRY`.
+
+Added synthetics proving the guard fails for a non-allowlisted
+`apply_agent_event(` call, for a new public `apply_*` mutator absent from the scan's
+token set, and for a live-seam witness drop. Corrected the spec/ticket evidence for
+`agent/no_human_surface.rs`: its apply usage is currently test-only, so it is not a
+production allowlist seam.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test anti_regression_guards` passed.
+2. `cargo fmt --all --check` passed.
+3. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+4. `cargo build --workspace --all-targets --locked` passed.
+5. `cargo test --workspace` passed.
