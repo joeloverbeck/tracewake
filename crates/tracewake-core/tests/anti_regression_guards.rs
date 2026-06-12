@@ -184,10 +184,10 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
         EmbodiedSurfaceFieldProducer {
             struct_name: "ActionAvailability",
             field_name: "debug_only_diagnostics",
-            source_path: "tracewake-core/src/view_models.rs",
-            producer_snippet: "",
+            source_path: "tracewake-tui/src/render.rs",
+            producer_snippet: "availability.debug_only_diagnostics()",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
-            rationale: "Current production action availability keeps actor-safe provenance populated and defers debug-only diagnostics until a concrete debug-only disabled site needs them.",
+            rationale: "Current production action availability keeps actor-safe provenance populated; the TUI render boundary consumes debug-only diagnostics through the accessor, proving the field is not orphaned at its definition site.",
         },
     ];
 
@@ -920,12 +920,19 @@ fn embodied_field_has_registered_producer(
             && producer_sources.iter().any(|(path, source)| {
                 *path == entry.source_path
                     && if entry.producer_snippet.is_empty() {
-                        source.contains(entry.field_name)
+                        source_has_deferral_write_or_consume_site(source, entry.field_name)
                     } else {
                         source.contains(entry.producer_snippet)
                     }
             })
     })
+}
+
+fn source_has_deferral_write_or_consume_site(source: &str, field_name: &str) -> bool {
+    source.contains(&format!(".{field_name}()"))
+        || source.contains(&format!("{field_name}()"))
+        || source.contains(&format!("{field_name} = Some("))
+        || source.contains(&format!("{field_name} = true"))
 }
 
 fn source_has_non_default_struct_field_producer(
@@ -1407,6 +1414,8 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
 
 const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 0;
 const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xcbf2_9ce4_8422_2325;
+const MUTANTS_BASELINE_GENESIS_COUNT: usize = 143;
+const MUTANTS_BASELINE_GENESIS_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
 const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
@@ -1908,7 +1917,7 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     },
     MetaLockCensusExemption {
         test_name: "mutation_perimeter_matches_duration_action_rationale_and_ci_filters",
-        rationale: "Mutation perimeter governance test covered separately by mutation-CI meta-lock entries.",
+        rationale: "Mutation perimeter governance test covered separately by lock_id mutation_perimeter_logical_line_swallow_scan and sibling mutation-CI meta-lock entries.",
     },
     MetaLockCensusExemption {
         test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
@@ -1984,7 +1993,7 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     },
     MetaLockCensusExemption {
         test_name: "generative_lock_cannot_fabricate_duration_terminals",
-        rationale: "Generative harness behavior proof represented by support/generative guard entries.",
+        rationale: "Generative harness behavior proof represented by lock_id generative_support_bans_bare_event_envelope_token and sibling support/generative guard entries.",
     },
 ];
 
@@ -2192,6 +2201,47 @@ fn meta_lock_census_exemption_rationale(test_name: &str) -> Option<&'static str>
         .iter()
         .find(|entry| entry.test_name == test_name)
         .map(|entry| entry.rationale)
+}
+
+fn meta_lock_census_exemption_errors(
+    test_name: &str,
+    rationale: &str,
+    lock_ids: &BTreeSet<&str>,
+    anti_regression_source: &str,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    if rationale.trim().is_empty() {
+        errors.push(format!("exemption {test_name} has empty rationale"));
+    }
+    let body = function_body_if_present(anti_regression_source, &format!("fn {test_name}"))
+        .unwrap_or_default();
+    if !test_body_has_structural_scan_shape(body) {
+        return errors;
+    }
+    if rationale.contains("Historical acceptance-artifact anchor audit") {
+        return errors;
+    }
+    let Some(covering_lock_id) = rationale
+        .split("lock_id ")
+        .nth(1)
+        .and_then(|tail| tail.split_whitespace().next())
+        .map(|token| token.trim_matches(|ch: char| ch == '.' || ch == ',' || ch == '`'))
+    else {
+        errors.push(format!(
+            "scan-shaped exemption {test_name} lacks covering lock_id"
+        ));
+        return errors;
+    };
+    if !lock_ids.contains(covering_lock_id) {
+        errors.push(format!(
+            "scan-shaped exemption {test_name} names missing covering lock_id {covering_lock_id}"
+        ));
+    }
+    errors
+}
+
+fn test_body_has_structural_scan_shape(body: &str) -> bool {
+    body.contains("_errors(") || body.contains("_violations(")
 }
 
 fn function_body_if_present<'a>(source: &'a str, marker: &str) -> Option<&'a str> {
@@ -2688,7 +2738,12 @@ fn meta_lock_registry_errors(
             continue;
         }
         match meta_lock_census_exemption_rationale(&test_name) {
-            Some(rationale) if !rationale.trim().is_empty() => {}
+            Some(rationale) => errors.extend(meta_lock_census_exemption_errors(
+                &test_name,
+                rationale,
+                &lock_ids,
+                anti_regression_source,
+            )),
             _ => {
                 errors.push(format!(
                     "anti-regression test {test_name} is missing from meta-lock registry or rationale-bearing exemption"
@@ -2971,6 +3026,17 @@ fn mutation_baseline_change_log_records(ledger: &str, count: usize, hash: u64) -
         .filter(|line| line.contains("baseline-delta:"))
         .filter_map(parse_mutation_baseline_delta)
         .collect::<Vec<_>>();
+    let Some(genesis) = deltas.first() else {
+        return false;
+    };
+    if genesis.from_count != MUTANTS_BASELINE_GENESIS_COUNT
+        || genesis.from_hash != MUTANTS_BASELINE_GENESIS_FNV1A64
+    {
+        return false;
+    }
+    if deltas.len() < 2 {
+        return false;
+    }
     let Some(head) = deltas.last() else {
         return false;
     };
@@ -3994,6 +4060,28 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         "synthetic missing-predecessor shrink must fail change-log governance"
     );
 
+    let fabricated_single_link = format!(
+        "- synthetic — baseline-delta: from-count={MUTANTS_BASELINE_NORMALIZED_COUNT} from-fnv1a64={MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x} -> to-count={MUTANTS_BASELINE_NORMALIZED_COUNT} to-fnv1a64={MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x}; fabricated head-only ledger."
+    );
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &fabricated_single_link)
+            .iter()
+            .any(|error| error.contains("recorded baseline change log")),
+        "synthetic fabricated single-link ledger must fail the genesis anchor"
+    );
+
+    let shortened_chain = MUTANTS_BASELINE_LEDGER
+        .lines()
+        .filter(|line| !line.contains("0022PHA3ABASTRI-015"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &shortened_chain)
+            .iter()
+            .any(|error| error.contains("recorded baseline change log")),
+        "synthetic shortened baseline chain must fail adjacency"
+    );
+
     let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
         .map(|index| {
             format!(
@@ -4068,6 +4156,22 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
             .iter()
             .any(|error| error.contains("missing ticket")),
         "synthetic non-routed negative must fail the meta-lock census"
+    );
+
+    let scan_shaped_exemption_source = format!(
+        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn synthetic_scan_shaped_exemption() {{ let _ = synthetic_errors(); }}\n"
+    );
+    let scan_shaped_exemptions = BTreeSet::from(["synthetic_scan_shaped_exemption"]);
+    assert!(
+        meta_lock_census_exemption_errors(
+            "synthetic_scan_shaped_exemption",
+            "synthetic rationale without covering lock",
+            &scan_shaped_exemptions,
+            &scan_shaped_exemption_source,
+        )
+        .iter()
+        .any(|error| error.contains("covering lock_id")),
+        "synthetic scan-shaped exemption without covering lock_id must fail"
     );
 
     let anchorless_source = ANTI_REGRESSION_GUARDS_RS.replace(

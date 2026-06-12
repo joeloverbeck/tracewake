@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-002: Deferral content witness, baseline-ledger genesis anchor, and census-exemption validation
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test guards (`crates/tracewake-core/tests/anti_regression_guards.rs`); possibly a normalization edit to `reports/0020_mutants_baseline_disposition.md` (evidence ledger, as surfaced).
@@ -149,3 +149,39 @@ new rule and their rationales updated to carry covering lock_ids where applicabl
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented in `crates/tracewake-core/tests/anti_regression_guards.rs`.
+
+- Replaced the self-satisfying `debug_only_diagnostics` deferral citation with the
+  live TUI render consumer `availability.debug_only_diagnostics()`, and made
+  cite-only deferral producers require write/consume-shaped evidence rather than
+  field-name definition presence.
+- Added mutation-baseline genesis pins for the recorded 143-entry origin
+  (`from-count=143`, `from-fnv1a64=bd1855a5ee82b428`), required a nontrivial chain,
+  and added fabricated-single-link and shortened-chain synthetics.
+- Added scan-shaped census-exemption validation requiring a covering registry
+  `lock_id`, with a firing synthetic for an uncovered scan-shaped exemption.
+  Current scan-shaped exemptions now name covering lock IDs where applicable.
+- `reports/0020_mutants_baseline_disposition.md` already carried explicit genesis
+  `from-*` fields, so no report normalization was needed.
+
+Deviations: none.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Enumerated-criterion dispositions:
+
+- `ORD-HARD-142` deferral content witness: completed.
+- `ORD-HARD-145` baseline-ledger genesis anchor: completed.
+- `ORD-HARD-155` census-exemption validation: completed.
+- Deferred or dropped members: none.
