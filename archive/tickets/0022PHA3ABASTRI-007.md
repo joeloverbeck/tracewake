@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-007: Eat crossing emitter routing and derived guard perimeter
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — actions kernel (`actions/defs/eat.rs`), shared emitter consumption, test-oracle guard perimeter, golden-log repricing
@@ -156,3 +156,39 @@ EMERGE-OBS inputs are measured later by `-014`), in one batch, from real runs.
 1. `cargo test -p tracewake-core eat`
 2. `cargo test -p tracewake-core --test anti_regression_guards && cargo test -p tracewake-content`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-12.
+
+Eat hunger deltas now route through `need_events::build_need_delta_and_threshold_events`
+with the current actor hunger from `AgentState`, so eating emits the existing
+`NeedThresholdCrossed` event when the serving's hunger reduction crosses a need band.
+The private direct constructor was deleted. `build_eat_events` now receives
+`AgentState` from the shared action pipeline, while failure paths keep their previous
+single-event behavior.
+
+The shared-emitter anti-regression guard now derives its perimeter from action-def and
+scheduler sources that reference need-delta emission, excluding only
+`need_events.rs`; synthetic direct constructions in both `work.rs` and `eat.rs` prove
+the derived guard fails for newly participating action defs. Eat tests now cover a
+non-crossing reduction (`450 -> 330`, no crossing) and a crossing reduction
+(`510 -> 390`, urgent -> rising).
+
+Golden repricing was required in one TUI assertion: the real
+`no_human_day_001` debug panel now reports `need_crossings=5` instead of `4`, derived
+from `run no-human-day` / `debug no-human-day` against the actual fixture. No fixture
+files or canonical logs were rewritten.
+
+Verification:
+
+1. `cargo test -p tracewake-core eat`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo test -p tracewake-content`
+4. `grep -R -c "hunger_delta_event" crates` returned zero matches and exit 1,
+   the expected grep behavior for no matches.
+5. `cargo test -p tracewake-tui --test tui_acceptance tui_runs_no_human_day_and_inspects_real_post_run_panels`
+6. `cargo fmt --all --check`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`
+9. `cargo test --workspace`

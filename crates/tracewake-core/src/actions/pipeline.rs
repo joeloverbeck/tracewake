@@ -589,6 +589,7 @@ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> Pip
             ActionEffect::Eat => {
                 let events = match build_eat_events(
                     context.state,
+                    context.agent_state,
                     proposal,
                     context.ordering_key,
                     context.content_manifest_id,

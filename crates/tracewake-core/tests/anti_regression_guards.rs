@@ -4091,12 +4091,13 @@ fn guard_006_duration_need_deltas_route_through_shared_emitter() {
     let violations = direct_duration_need_delta_construction_violations(&core_production_sources());
     assert!(
         violations.is_empty(),
-        "wait/sleep/work/window need deltas must be constructed by need_events.rs: {violations:?}"
+        "action/scheduler need deltas must be constructed by need_events.rs: {violations:?}"
     );
 
-    let synthetic_sources = vec![(
-        "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
-        r#"
+    let synthetic_sources = vec![
+        (
+            "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
+            r#"
         fn build_synthetic_delta() -> EventEnvelope {
             EventEnvelope::new_caused_v1(
                 event_id,
@@ -4110,26 +4111,39 @@ fn guard_006_duration_need_deltas_route_through_shared_emitter() {
             )
         }
         "#
-        .to_string(),
-    )];
+            .to_string(),
+        ),
+        (
+            "crates/tracewake-core/src/actions/defs/eat.rs".to_string(),
+            r#"
+        fn build_synthetic_eat_delta() -> EventEnvelope {
+            EventEnvelope::new_caused_v1(
+                event_id,
+                EventKind::NeedDeltaApplied,
+                0,
+                0,
+                tick,
+                ordering_key,
+                content_manifest_id,
+                causes,
+            )
+        }
+        "#
+            .to_string(),
+        ),
+    ];
     let synthetic_violations =
         direct_duration_need_delta_construction_violations(&synthetic_sources);
     assert!(
-        !synthetic_violations.is_empty(),
-        "synthetic direct NeedDeltaApplied construction must fail this guard"
+        synthetic_violations.len() == 2,
+        "synthetic direct NeedDeltaApplied construction must fail this guard for every guarded action/scheduler source"
     );
 }
 
 fn direct_duration_need_delta_construction_violations(sources: &[(String, String)]) -> Vec<String> {
-    const GUARDED_PATHS: &[&str] = &[
-        "crates/tracewake-core/src/actions/defs/wait.rs",
-        "crates/tracewake-core/src/actions/defs/sleep.rs",
-        "crates/tracewake-core/src/actions/defs/work.rs",
-        "crates/tracewake-core/src/scheduler.rs",
-    ];
     sources
         .iter()
-        .filter(|(path, _)| GUARDED_PATHS.contains(&path.as_str()))
+        .filter(|(path, source)| need_delta_guard_perimeter(path, source))
         .flat_map(|(path, source)| {
             let normalized = normalized_source(source);
             let mut violations = Vec::new();
@@ -4150,6 +4164,18 @@ fn direct_duration_need_delta_construction_violations(sources: &[(String, String
             violations
         })
         .collect()
+}
+
+fn need_delta_guard_perimeter(path: &str, source: &str) -> bool {
+    if path == "crates/tracewake-core/src/actions/defs/need_events.rs" {
+        return false;
+    }
+    let guarded_layer = path == "crates/tracewake-core/src/scheduler.rs"
+        || (path.starts_with("crates/tracewake-core/src/actions/defs/") && path.ends_with(".rs"));
+    guarded_layer
+        && (source.contains("EventKind::NeedDeltaApplied")
+            || source.contains("NeedDeltaEventSpec")
+            || source.contains("build_need_delta_and_threshold_events"))
 }
 
 #[test]
