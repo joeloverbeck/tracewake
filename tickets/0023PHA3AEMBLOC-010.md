@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — hidden-truth gate harness (`hidden_truth_gates.rs`), panic guard (`anti_regression_guards.rs`)
-**Deps**: 0023PHA3AEMBLOC-001, `specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md`
+**Deps**: archive/tickets/0023PHA3AEMBLOC-001.md, `specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md`
 
 ## Problem
 

@@ -139,8 +139,13 @@ struct MetaLockRegistryEntry {
     lock_id: &'static str,
     negative_id: &'static str,
     routing: MetaLockRouting,
-    witness_count: usize,
     witness_min: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct MetaLockCensusExemption {
+    test_name: &'static str,
+    rationale: &'static str,
 }
 
 const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
@@ -1295,56 +1300,48 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         lock_id: "meta_lock_registry_census",
         negative_id: "synthetic_meta_lock_without_negative",
         routing: MetaLockRouting::SharedScan,
-        witness_count: META_LOCK_REGISTRY_MIN_ENTRIES,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "mutation_baseline_misses_are_pinned_and_ledgered",
         negative_id: "synthetic_unrecorded_mutation_baseline_shrink",
         routing: MetaLockRouting::SharedScan,
-        witness_count: MUTANTS_BASELINE_NORMALIZED_COUNT,
         witness_min: 0,
     },
     MetaLockRegistryEntry {
         lock_id: "generative_lock_two_sided_floor_ratchets",
         negative_id: "synthetic_unrecorded_generative_floor_raise",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 3,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "generative_support_constructs_zero_event_envelopes",
         negative_id: "synthetic_support_event_envelope_construction",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "physical_mutating_event_kinds_have_explicit_world_apply_arms",
         negative_id: "synthetic_missing_arm_catch_all",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "agent_stream_event_kinds_have_explicit_agent_apply_arms",
         negative_id: "synthetic_missing_agent_stream_apply_arm",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "action_emitted_event_kinds_have_cause_disposition",
         negative_id: "synthetic_action_emitted_kind_without_cause_required",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data",
         negative_id: "synthetic_log_derived_expect",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
@@ -1353,168 +1350,168 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         routing: MetaLockRouting::TicketOwnedDebt {
             ticket: "0022PHA3ABASTRI-009",
         },
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "embodied_view_option_and_collection_fields_have_reachable_producers",
         negative_id: "synthetic_constant_literal_embodied_surface_producer",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "scheduler_never_direct_dispatches_primitive_action",
+        negative_id: "synthetic_direct_scheduler_dispatch",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "no_direct_apply_event_outside_event_replay_or_pipeline",
+        negative_id: "synthetic_direct_apply_event_call",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "event_apply_remains_only_post_seed_mutation_path",
+        negative_id: "synthetic_post_seed_mutation_path_bypass",
+        routing: MetaLockRouting::BehaviorAssertion,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass",
         negative_id: "synthetic_direct_scheduler_proposal_bypass",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_006_duration_need_deltas_route_through_shared_emitter",
         negative_id: "synthetic_direct_duration_need_delta_construction",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_006_scheduler_does_not_fabricate_empty_epistemic_projection",
         negative_id: "synthetic_empty_epistemic_projection",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_018_actor_known_facts_require_source_event_witness",
         negative_id: "synthetic_actor_known_fact_without_witness",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms",
         negative_id: "synthetic_missing_witness_kind_stable_id_arm",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth",
         negative_id: "synthetic_raw_assignment_or_sleep_truth_read",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed",
         negative_id: "synthetic_unsealed_cognition_channel",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_embodied_projection_workplaces_are_context_backed",
         negative_id: "synthetic_contextless_workplace_projection",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability",
         negative_id: "synthetic_literal_true_action_availability",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_no_human_metrics_do_not_scan_display_text",
         negative_id: "synthetic_display_text_metric_scan",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_perception_visibility_uses_typed_place_visibility",
         negative_id: "synthetic_prose_visibility_branch",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 3,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_perception_visibility_other_emission_paths",
         negative_id: "synthetic_prose_branch_in_other_emission_path",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "typed_column_closure_oblique_payload_helper_calls",
         negative_id: "synthetic_oblique_payload_helper_call",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "typed_column_closure_exemptions_are_rationale_bearing_and_live",
+        negative_id: "synthetic_payload_fields_outside_gated_materialized_site",
+        routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_011_no_human_day_runner_only_evidence",
         negative_id: "synthetic_runner_only_work_completion_ancestry_removed",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 3,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_sleep_validation_requires_modeled_affordance",
         negative_id: "synthetic_sleep_validation_without_affordance",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_0021_actor_known_projection_policy_table_has_production_callers",
         negative_id: "synthetic_projection_policy_without_caller",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_015_ordinary_life_tuning_comes_from_authored_state",
         negative_id: "synthetic_ordinary_life_tuning_literal",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch",
         negative_id: "synthetic_routine_family_to_primitive_dispatch",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition",
         negative_id: "synthetic_scheduler_rewrites_transaction_proposal",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_transaction_has_no_silent_method_fallback_scan",
         negative_id: "synthetic_silent_method_fallback_scan",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_015_hidden_truth_audit_fails_closed_in_transaction",
         negative_id: "synthetic_hidden_truth_audit_open_transaction",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_014_decision_hidden_truth_audit_uses_typed_input_refs",
         negative_id: "synthetic_hidden_truth_audit_string_tag",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
@@ -1522,155 +1519,272 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
             "guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters",
         negative_id: "synthetic_need_value_parameter_read",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state",
+        negative_id: "synthetic_agent_world_noop_allows_materialized_event",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "materialized_agent_payload_records_keep_payload_fields",
+        negative_id: "synthetic_materialized_agent_record_without_payload_fields",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "materialized_agent_apply_arms_require_payload_schema_version",
+        negative_id: "synthetic_materialized_agent_apply_arm_without_payload_schema_version",
+        routing: MetaLockRouting::BehaviorAssertion,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_002_agent_state_keeps_typed_trace_and_diagnostic_records",
         negative_id: "synthetic_untyped_agent_trace_record",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_001_authoritative_state_fields_are_not_publicly_mutable",
         negative_id: "synthetic_public_authoritative_state_field",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_001_mutation_capability_is_private_to_event_application",
         negative_id: "synthetic_public_mutation_capability",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_001_no_production_seed_mutation_outside_state_definition",
         negative_id: "synthetic_seed_mutation_outside_state",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_001_no_direct_state_collection_insert_outside_event_application",
         negative_id: "synthetic_direct_state_collection_insert",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_001_actor_known_context_has_no_public_arbitrary_constructor",
         negative_id: "synthetic_public_actor_known_context_constructor",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "adding_event_schema_version_requires_migrator_registration",
+        negative_id: "synthetic_event_schema_without_migrator",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "non_world_stream_cannot_change_physical_checksum",
+        negative_id: "synthetic_non_world_physical_checksum_change",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "checksum_coverage_is_total_for_authoritative_state",
+        negative_id: "synthetic_checksum_coverage_gap",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "new_authoritative_field_without_checksum_registry_fails",
+        negative_id: "synthetic_authoritative_field_without_registry",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "new_authoritative_field_without_canonical_checksum_line_fails",
+        negative_id: "synthetic_authoritative_field_without_checksum_line",
+        routing: MetaLockRouting::BehaviorAssertion,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_0021_actor_known_context_producers_are_projection_backed",
         negative_id: "synthetic_unbacked_actor_known_context_producer",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_0021_hidden_truth_gates_use_event_log_provenance",
         negative_id: "synthetic_hidden_truth_gate_without_event_log",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "hidden_food_closed_container_is_not_actor_known_food_source",
         negative_id: "synthetic_empty_hidden_food_adversarial_fixture",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "hidden_route_edge_absent_from_actor_context_blocks_route_plan",
         negative_id: "synthetic_empty_hidden_route_adversarial_fixture",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context",
         negative_id: "synthetic_empty_planner_hidden_truth_fixture",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "actor_known_projection_policy_table_drives_record_behavior",
         negative_id: "synthetic_policy_table_behavior_drift",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 4,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "workplace_current_place_scope_drops_other_place_from_embodied_context",
         negative_id: "synthetic_workplace_embodied_scope_removed",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "supersede_newest_by_subject_requires_subject_extractor",
         negative_id: "synthetic_non_workplace_supersede_subject",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_0021_fabricated_visible_local_event_id_is_retired",
         negative_id: "synthetic_fabricated_visible_local_event_id",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_001_hidden_truth_audit_is_derived_from_provenance_not_tags",
         negative_id: "synthetic_hidden_truth_audit_tag_match",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_006_continue_routine_marker_alone_is_not_behavioral_progress",
         negative_id: "synthetic_continue_marker_as_progress",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
         negative_id: "synthetic_missing_mutation_efficacy_note",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_008_action_registry_uses_typed_scopes_not_phase1_boolean",
         negative_id: "synthetic_action_registry_phase1_boolean",
         routing: MetaLockRouting::BehaviorAssertion,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_008_phase1_loader_does_not_register_later_phase_actions",
         negative_id: "synthetic_phase1_loader_registers_later_phase",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_008_phase1_loader_source_guard_has_mutation_self_coverage",
         negative_id: "synthetic_phase1_loader_guard_mutation",
         routing: MetaLockRouting::SharedScan,
-        witness_count: 1,
         witness_min: 1,
+    },
+];
+
+const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
+    MetaLockCensusExemption {
+        test_name: "cognition_inputs_are_context_backed",
+        rationale: "Product-surface regression test with direct behavioral assertions; not a structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "guarded_layer_source_census_matches_module_tree",
+        rationale: "Workspace inventory census that feeds other source guards; not a structural lock with a synthetic negative.",
+    },
+    MetaLockCensusExemption {
+        test_name: "mutation_perimeter_matches_duration_action_rationale_and_ci_filters",
+        rationale: "Mutation perimeter governance test covered separately by mutation-CI meta-lock entries.",
+    },
+    MetaLockCensusExemption {
+        test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
+        rationale: "Empty-baseline governance entry is enrolled under a zero-minimum registry exemption.",
+    },
+    MetaLockCensusExemption {
+        test_name: "meta_lock_registry_covers_structural_locks_and_negatives",
+        rationale: "Self-reflexive meta-lock census test is represented by lock_id meta_lock_registry_census.",
+    },
+    MetaLockCensusExemption {
+        test_name: "generative_lock_source_uses_two_sided_recorded_floors",
+        rationale: "Generative ratchet test is represented by lock_id generative_lock_two_sided_floor_ratchets.",
+    },
+    MetaLockCensusExemption {
+        test_name: "acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors",
+        rationale: "Historical acceptance-artifact anchor audit; not a standing structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors",
+        rationale: "Historical acceptance-artifact anchor audit; not a standing structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "workspace_source_classification_census_matches_production_tree",
+        rationale: "Workspace inventory parity test, not a structural anti-regression lock with its own negative.",
+    },
+    MetaLockCensusExemption {
+        test_name: "workspace_dependency_posture_matches_allowlist",
+        rationale: "Dependency posture assertion over Cargo manifests; not part of the structural lock registry.",
+    },
+    MetaLockCensusExemption {
+        test_name: "guarded_layer_entries_are_exactly_the_workspace_guarded_classifications",
+        rationale: "Workspace classification parity test feeding mutation perimeter checks.",
+    },
+    MetaLockCensusExemption {
+        test_name: "nondeterminism_api_gate",
+        rationale: "Broad source hygiene gate with its own allowlist proof, not a spec-0022 structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "source_guard_discovers_new_nested_production_file",
+        rationale: "Source-census helper self-test, not a standing structural lock.",
+    },
+    MetaLockCensusExemption {
+        test_name: "source_guard_does_not_silently_skip_production_after_cfg_test",
+        rationale: "Source-census helper self-test, not a standing structural lock.",
+    },
+    MetaLockCensusExemption {
+        test_name: "forged_or_stale_source_context_rejected_by_reason_code",
+        rationale: "Behavioral validation regression, not a structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "diagnostics_never_assert_display_label_as_authority",
+        rationale: "Product diagnostic regression test, not a structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "validation_report_keeps_typed_provenance_and_actor_debug_split",
+        rationale: "Validation report behavior test, not a structural source-scan lock.",
+    },
+    MetaLockCensusExemption {
+        test_name: "privileged_tui_proposal_requires_current_view_source_context",
+        rationale: "Behavioral possession/TUI regression, not a structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "accepted_action_appends_before_authoritative_apply",
+        rationale: "Pipeline ordering behavior test, not a structural source-scan lock.",
+    },
+    MetaLockCensusExemption {
+        test_name: "event_kind_metadata_is_total",
+        rationale: "Typed registry parity test; downstream structural locks cover apply/cause/checksum consequences.",
+    },
+    MetaLockCensusExemption {
+        test_name: "replay_physical_state_diff_covers_checksum_families",
+        rationale: "Replay report parity companion to checksum coverage, not a separate structural lock family.",
+    },
+    MetaLockCensusExemption {
+        test_name: "generative_lock_cannot_fabricate_duration_terminals",
+        rationale: "Generative harness behavior proof represented by support/generative guard entries.",
     },
 ];
 
@@ -1826,17 +1940,187 @@ fn mutation_rationale_violations(classifications: &[WorkspaceSourceClassificatio
         .collect()
 }
 
-fn anti_regression_guard_test_names(source: &str) -> BTreeSet<String> {
-    source
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim_start();
-            trimmed
-                .strip_prefix("fn guard_")
+fn anti_regression_test_names(source: &str) -> BTreeSet<String> {
+    let mut tests = BTreeSet::new();
+    let mut previous_was_test_attr = false;
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed == "#[test]" {
+            previous_was_test_attr = true;
+            continue;
+        }
+        if previous_was_test_attr {
+            if let Some(name) = trimmed
+                .strip_prefix("fn ")
                 .and_then(|tail| tail.split_once('('))
-                .map(|(name, _)| format!("guard_{name}"))
+                .map(|(name, _)| name.to_string())
+            {
+                tests.insert(name);
+            }
+            previous_was_test_attr = false;
+        }
+    }
+    tests
+}
+
+fn meta_lock_census_exemption_rationale(test_name: &str) -> Option<&'static str> {
+    META_LOCK_CENSUS_EXEMPTIONS
+        .iter()
+        .find(|entry| entry.test_name == test_name)
+        .map(|entry| entry.rationale)
+}
+
+fn function_body_if_present<'a>(source: &'a str, marker: &str) -> Option<&'a str> {
+    source
+        .split(marker)
+        .nth(1)
+        .and_then(|after_marker| after_marker.find('{').map(|start| (after_marker, start)))
+        .and_then(|(after_marker, start)| {
+            let mut depth = 0_i32;
+            for (offset, byte) in after_marker[start..].bytes().enumerate() {
+                match byte {
+                    b'{' => depth += 1,
+                    b'}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            return Some(&after_marker[start..start + offset + 1]);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
         })
-        .collect()
+}
+
+fn meta_lock_live_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    match entry.lock_id {
+        "meta_lock_registry_census" => anti_regression_test_names(anti_regression_source).len(),
+        "mutation_baseline_misses_are_pinned_and_ledgered" => {
+            normalized_mutant_misses(MUTANTS_BASELINE_MISSES).len()
+        }
+        "generative_lock_two_sided_floor_ratchets" => RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
+            .iter()
+            .filter(|(_, count)| *count > 0)
+            .count(),
+        "physical_mutating_event_kinds_have_explicit_world_apply_arms" => {
+            if !anti_regression_source
+                .contains("body_after_marker(EVENTS_APPLY_RS, \"fn apply_event_with_capability\")")
+            {
+                return 0;
+            }
+            let Some(apply_body) =
+                function_body_if_present(EVENTS_APPLY_RS, "fn apply_event_with_capability")
+            else {
+                return 0;
+            };
+            tracewake_core::events::EventKind::all()
+                .iter()
+                .filter(|kind| kind.metadata().physical_mutating)
+                .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
+                .count()
+        }
+        "agent_stream_event_kinds_have_explicit_agent_apply_arms" => {
+            use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
+            use tracewake_core::events::{EventKind, EventStream};
+
+            if !anti_regression_source.contains(
+                "body_after_marker(EVENTS_APPLY_RS, \"fn apply_agent_event_with_capability\")",
+            ) {
+                return 0;
+            }
+            let Some(apply_body) =
+                function_body_if_present(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability")
+            else {
+                return 0;
+            };
+            EventKind::all()
+                .iter()
+                .filter(|kind| kind.metadata().stream == EventStream::Agent)
+                .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
+                .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
+                .count()
+        }
+        "action_emitted_event_kinds_have_cause_disposition" => [
+            MOVEMENT_RS,
+            WAIT_RS,
+            OPENCLOSE_RS,
+            CHECKCONTAINER_RS,
+            TAKEPLACE_RS,
+            PERCEPTION_RS,
+            EAT_RS,
+            SLEEP_RS,
+            WORK_RS,
+        ]
+        .iter()
+        .filter(|source| source.contains("EventEnvelope::new_caused_v1"))
+        .count(),
+        "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data" => [
+            production(SCHEDULER_RS),
+            production(EVENTS_APPLY_RS),
+            production(SLEEP_RS),
+            production(WORK_RS),
+        ]
+        .iter()
+        .filter(|source| source.contains(".expect(") || source.contains("assert!("))
+        .count(),
+        "embodied_view_option_and_collection_fields_have_reachable_producers" => {
+            embodied_surface_fields(&production(VIEW_MODELS_RS)).len()
+        }
+        "guard_014_perception_visibility_uses_typed_place_visibility" => PERCEPTION_RS
+            .lines()
+            .filter(|line| line.contains("visibility_default"))
+            .count(),
+        "guard_014_perception_visibility_other_emission_paths" => [
+            "current_place_perception_events",
+            "observation_event",
+            "is_visible_exit_target",
+        ]
+        .iter()
+        .filter(|marker| PERCEPTION_RS.contains(*marker))
+        .count(),
+        "typed_column_closure_oblique_payload_helper_calls" => TYPED_COLUMN_CLOSURE_EXEMPTIONS
+            .iter()
+            .filter(|entry| !entry.rationale.trim().is_empty())
+            .count(),
+        "guard_011_no_human_day_runner_only_evidence" => CONTENT_GOLDEN_FIXTURES_RUN_RS
+            .lines()
+            .filter(|line| line.contains("run_no_human_day"))
+            .count(),
+        "guard_0021_actor_known_context_producers_are_projection_backed" => {
+            ACTOR_KNOWN_RS.matches("from_observed_parts").count()
+        }
+        "guard_0021_hidden_truth_gates_use_event_log_provenance" => function_body_if_present(
+            anti_regression_source,
+            "fn guard_0021_hidden_truth_gates_use_event_log_provenance",
+        )
+        .map_or(0, |body| {
+            usize::from(body.contains("hidden_truth_harness_provenance_violations"))
+        }),
+        "guard_0021_fabricated_visible_local_event_id_is_retired" => function_body_if_present(
+            anti_regression_source,
+            "fn guard_0021_fabricated_visible_local_event_id_is_retired",
+        )
+        .map_or(0, |body| {
+            usize::from(body.contains("fabricated_planning_event_id_violations"))
+        }),
+        "guard_008_phase1_loader_does_not_register_later_phase_actions" => {
+            usize::from(CONTENT_LOAD_RS.contains("FixtureScope::Phase1"))
+        }
+        "guard_008_phase1_loader_source_guard_has_mutation_self_coverage" => {
+            usize::from(anti_regression_source.contains(entry.negative_id))
+        }
+        _ => {
+            let test_names = anti_regression_test_names(anti_regression_source);
+            usize::from(
+                test_names.contains(entry.lock_id)
+                    || anti_regression_source.contains(entry.negative_id),
+            )
+        }
+    }
 }
 
 fn meta_lock_registry_errors(
@@ -1892,10 +2176,11 @@ fn meta_lock_registry_errors(
                 entry.lock_id
             ));
         }
-        if entry.witness_count < entry.witness_min {
+        let witness_count = meta_lock_live_witness_count(entry, anti_regression_source);
+        if witness_count < entry.witness_min {
             errors.push(format!(
                 "meta-lock {} witness count {} is below minimum {}",
-                entry.lock_id, entry.witness_count, entry.witness_min
+                entry.lock_id, witness_count, entry.witness_min
             ));
         }
     }
@@ -1907,11 +2192,17 @@ fn meta_lock_registry_errors(
         errors.push("meta-lock registry does not list its reflexive negative".to_string());
     }
 
-    for guard_name in anti_regression_guard_test_names(anti_regression_source) {
-        if !lock_ids.contains(guard_name.as_str()) {
-            errors.push(format!(
-                "anti-regression structural guard {guard_name} is missing from meta-lock registry"
+    for test_name in anti_regression_test_names(anti_regression_source) {
+        if lock_ids.contains(test_name.as_str()) {
+            continue;
+        }
+        match meta_lock_census_exemption_rationale(&test_name) {
+            Some(rationale) if !rationale.trim().is_empty() => {}
+            _ => {
+                errors.push(format!(
+                    "anti-regression test {test_name} is missing from meta-lock registry or rationale-bearing exemption"
             ));
+            }
         }
     }
 
@@ -3095,23 +3386,25 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
         "synthetic non-routed negative must fail the meta-lock census"
     );
 
-    let mut zero_match_scan = META_LOCK_REGISTRY.to_vec();
-    zero_match_scan[0].witness_count = 0;
+    let anchorless_source = ANTI_REGRESSION_GUARDS_RS.replace(
+        "fn apply_event_with_capability",
+        "fn stale_apply_event_with_capability",
+    );
     assert!(
-        meta_lock_registry_errors(&zero_match_scan, ANTI_REGRESSION_GUARDS_RS)
+        meta_lock_registry_errors(META_LOCK_REGISTRY, &anchorless_source)
             .iter()
             .any(|error| error.contains("below minimum")),
-        "synthetic zero-match scan must fail the nonzero-witness rule"
+        "synthetic anchor-miss scan must fail the live nonzero-witness rule"
     );
 
     let unregistered_guard_source = format!(
-        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn guard_synthetic_unregistered_lock() {{}}\n"
+        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn synthetic_unprefixed_structural_lock() {{}}\n"
     );
     assert!(
         meta_lock_registry_errors(META_LOCK_REGISTRY, &unregistered_guard_source)
             .iter()
-            .any(|error| error.contains("guard_synthetic_unregistered_lock")),
-        "synthetic unregistered structural guard must fail the meta-lock census"
+            .any(|error| error.contains("synthetic_unprefixed_structural_lock")),
+        "synthetic unprefixed structural lock must fail the meta-lock census"
     );
 }
 

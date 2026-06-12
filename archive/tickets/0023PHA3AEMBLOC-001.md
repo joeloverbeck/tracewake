@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-001: Meta-lock live witness counts and closed census membership
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-oracle meta-locks (`anti_regression_guards.rs`), `docs/3-reference/01_DESIGN_RISK_REGISTER.md`
@@ -169,3 +169,34 @@ convention).
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented the meta-lock live-witness and closed-census repair in
+`crates/tracewake-core/tests/anti_regression_guards.rs`.
+
+- Removed authored `witness_count` literals from `MetaLockRegistryEntry`; effective
+  counts are now computed from live scan bodies, registry/test populations, or the
+  source surfaces the lock describes.
+- Added the anchor-miss synthetic so a stale scan anchor fails the live-count rule.
+- Replaced the `fn guard_`-only census with a full `#[test]` population census plus
+  rationale-bearing exemptions for non-lock tests.
+- Enrolled the eleven previously out-of-census structural locks named in
+  Assumption 6, plus the existing typed-column structural test discovered during
+  implementation.
+- Extended R-28/R-29 in `docs/3-reference/01_DESIGN_RISK_REGISTER.md` with the
+  convention-scoped census, literal witness count, and binding-laundering shapes.
+
+Deviations: `typed_column_closure_exemptions_are_rationale_bearing_and_live` was
+enrolled as an additional existing structural lock because the repaired full-test
+census exposed it as outside the old prefix-scoped membership.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed
+- `cargo fmt --all --check` — passed after applying `cargo fmt --all`
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
