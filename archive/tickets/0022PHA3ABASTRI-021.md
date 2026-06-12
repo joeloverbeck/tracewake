@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-021: Mutation baseline focused tests for no-human planning and scheduler routines
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — focused no-human, planner, and scheduler tests in `tracewake-core`
@@ -76,3 +76,30 @@ Add focused tests that kill the assigned no-human, planner, and scheduler mutant
 2. `cargo mutants -f crates/tracewake-core/src/agent/no_human_surface.rs --no-shuffle`
 3. `cargo mutants -f crates/tracewake-core/src/agent/planner.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/scheduler.rs --no-shuffle`
+
+## Completion Notes (2026-06-12)
+
+Implemented focused tests for the no-human active-intention surface, planner
+sleep/work preconditions, exact scheduler witness lookups, pending completion
+ticks, body-exclusive future-completion checks, stuck diagnostic boundaries, due
+sleep/work start filters, window progress recording, marker idempotence, routine
+failure reasons, and stuck diagnostic stable vocabulary. The scheduler advancement
+loops now use finite tick ranges with debug assertions so a broken tick advance
+cannot hang the test suite.
+
+Retired the ticket-owned mutation baseline rows. The normalized baseline is now
+`normalized-count=44 fnv1a64=28297e34c777adc7`.
+
+Verification:
+
+1. `cargo test -p tracewake-core --lib agent::no_human_surface::tests`
+2. `cargo test -p tracewake-core --lib agent::planner::tests`
+3. `cargo test -p tracewake-core --lib scheduler::`
+4. `cargo mutants -f crates/tracewake-core/src/agent/no_human_surface.rs --no-shuffle` — `16 mutants tested in 71s: 12 caught, 4 unviable`
+5. `cargo mutants -f crates/tracewake-core/src/agent/planner.rs --no-shuffle` — `22 mutants tested in 76s: 12 caught, 10 unviable`
+6. `cargo mutants -f crates/tracewake-core/src/scheduler.rs --no-shuffle` — `203 mutants tested in 12m: 170 caught, 33 unviable`
+7. `cargo test -p tracewake-core --test anti_regression_guards mutation_baseline_misses_are_pinned_and_ledgered`
+8. `cargo fmt --all --check`
+9. `cargo clippy --workspace --all-targets -- -D warnings`
+10. `cargo build --workspace --all-targets --locked`
+11. `cargo test --workspace`

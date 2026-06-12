@@ -8,42 +8,7 @@ crates/tracewake-core/src/projections.rs:326:53: replace || with && in contains_
 crates/tracewake-core/src/projections.rs:701:13: delete match arm Some(0) in phase3a_semantic_actions
 crates/tracewake-core/src/projections.rs:1073:33: replace == with != in proposal_from_semantic_action_entry
 crates/tracewake-core/src/projections.rs:1102:5: replace visible_open_sleep_affordance -> Option<SleepAffordanceId> with None
-crates/tracewake-core/src/scheduler.rs:703:21: replace && with || in no_human::latest_current_place_perception_event_id
-crates/tracewake-core/src/scheduler.rs:702:21: replace && with || in no_human::latest_current_place_perception_event_id
-crates/tracewake-core/src/scheduler.rs:701:21: replace && with || in no_human::latest_current_place_perception_event_id
-crates/tracewake-core/src/scheduler.rs:715:25: replace || with && in no_human::latest_need_event_id
-crates/tracewake-core/src/scheduler.rs:774:13: replace no_human::PendingCompletion::tick -> Option<SimTick> with None
-crates/tracewake-core/src/scheduler.rs:774:13: replace no_human::PendingCompletion::tick -> Option<SimTick> with Some(Default::default())
-crates/tracewake-core/src/scheduler.rs:941:13: delete match arm EventKind::WorkBlockCompleted in no_human::append_routine_step_completed_after_duration_completion
-crates/tracewake-core/src/scheduler.rs:1066:25: replace && with || in no_human::actor_has_open_body_exclusive_duration
-crates/tracewake-core/src/scheduler.rs:1065:25: replace && with || in no_human::actor_has_open_body_exclusive_duration
-crates/tracewake-core/src/scheduler.rs:1067:66: replace > with >= in no_human::actor_has_open_body_exclusive_duration
-crates/tracewake-core/src/scheduler.rs:1112:34: replace < with <= in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1112:86: replace < with > in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1112:86: replace < with <= in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1122:21: replace && with || in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1121:21: replace && with || in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1121:52: replace > with >= in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1122:53: replace < with <= in no_human::routine_stuck_diagnostic_kinds
-crates/tracewake-core/src/scheduler.rs:1385:21: replace && with || in no_human::latest_action_tick_delta_tick
-crates/tracewake-core/src/scheduler.rs:1384:21: replace && with || in no_human::latest_action_tick_delta_tick
-crates/tracewake-core/src/scheduler.rs:1383:21: replace && with || in no_human::latest_action_tick_delta_tick
-crates/tracewake-core/src/scheduler.rs:1508:59: replace && with || in no_human::build_window_need_threshold_event
-crates/tracewake-core/src/scheduler.rs:1853:9: replace no_human::is_instant_routine_progress_event -> bool with true
-crates/tracewake-core/src/scheduler.rs:1853:29: replace == with != in no_human::is_instant_routine_progress_event
-crates/tracewake-core/src/scheduler.rs:2012:13: delete match arm EventKind::ActionRejected in no_human::routine_failure_reason
-crates/tracewake-core/src/scheduler.rs:2013:13: delete match arm EventKind::EatFailed in no_human::routine_failure_reason
-crates/tracewake-core/src/scheduler.rs:2015:13: delete match arm EventKind::ContinueRoutineRejected in no_human::routine_failure_reason
-crates/tracewake-core/src/scheduler.rs:2154:17: replace == with != in no_human::append_marker
-crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with ""
-crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with "xyzzy"
-crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""
-crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/no_human_surface.rs:496:5: replace has_active_intention -> bool with true
-crates/tracewake-core/src/agent/no_human_surface.rs:496:5: replace has_active_intention -> bool with false
 crates/tracewake-core/src/agent/perception.rs:292:9: replace && with || in is_visible_exit_target
-crates/tracewake-core/src/agent/planner.rs:129:9: replace && with || in plan_start_sleep
-crates/tracewake-core/src/agent/planner.rs:167:57: replace && with || in plan_start_work_block
 crates/tracewake-core/src/agent/trace.rs:40:13: delete match arm "waited" in DecisionOutcome::parse
 crates/tracewake-core/src/agent/trace.rs:41:13: delete match arm "replanned" in DecisionOutcome::parse
 crates/tracewake-core/src/agent/trace.rs:42:13: delete match arm "failed" in DecisionOutcome::parse

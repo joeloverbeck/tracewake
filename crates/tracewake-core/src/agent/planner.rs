@@ -617,4 +617,119 @@ mod tests {
             .notes
             .contains("unproven:caller supplied no modeled source"));
     }
+
+    #[test]
+    fn start_sleep_requires_current_place_and_actor_known_sleep_place() {
+        let mut state = known_state();
+        let home = place("home");
+        let office = place("office");
+
+        let plan = plan_local_actions(
+            &state,
+            &request(
+                PlannerGoal::StartSleep(home.clone()),
+                DEFAULT_PLANNER_BUDGET,
+            ),
+        )
+        .unwrap();
+        assert_eq!(plan.proposals[0].action_id.as_str(), "sleep");
+
+        state = ActorKnownPlanningState::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            Vec::new(),
+        );
+        let unknown_current_place_sleep = plan_local_actions(
+            &state,
+            &request(
+                PlannerGoal::StartSleep(home.clone()),
+                DEFAULT_PLANNER_BUDGET,
+            ),
+        )
+        .unwrap_err();
+        assert_eq!(
+            unknown_current_place_sleep.blocker,
+            BlockerCategory::Knowledge
+        );
+
+        let remote_known_sleep = plan_local_actions(
+            &known_state(),
+            &request(PlannerGoal::StartSleep(office), DEFAULT_PLANNER_BUDGET),
+        )
+        .unwrap_err();
+        assert_eq!(remote_known_sleep.blocker, BlockerCategory::Knowledge);
+    }
+
+    #[test]
+    fn start_work_block_requires_matching_workplace_at_current_place() {
+        let home = place("home");
+        let office = place("office");
+        let workplace_id = "workplace_office";
+        let state = ActorKnownPlanningState::from_observed_parts(
+            actor_id(),
+            office.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![observed_fact(
+                "actor_knows_workplace",
+                &format!("{workplace_id}@office"),
+                "test:workplace_notice",
+            )],
+        );
+
+        let plan = plan_local_actions(
+            &state,
+            &request(
+                PlannerGoal::StartWorkBlock(workplace_id.to_string()),
+                DEFAULT_PLANNER_BUDGET,
+            ),
+        )
+        .unwrap();
+        assert_eq!(plan.proposals[0].action_id.as_str(), "work_block");
+
+        let wrong_workplace = plan_local_actions(
+            &state,
+            &request(
+                PlannerGoal::StartWorkBlock("workplace_other".to_string()),
+                DEFAULT_PLANNER_BUDGET,
+            ),
+        )
+        .unwrap_err();
+        assert_eq!(wrong_workplace.blocker, BlockerCategory::Knowledge);
+
+        let remote_state = ActorKnownPlanningState::from_observed_parts(
+            actor_id(),
+            home,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![observed_fact(
+                "actor_knows_workplace",
+                &format!("{workplace_id}@office"),
+                "test:workplace_notice",
+            )],
+        );
+        let remote_workplace = plan_local_actions(
+            &remote_state,
+            &request(
+                PlannerGoal::StartWorkBlock(workplace_id.to_string()),
+                DEFAULT_PLANNER_BUDGET,
+            ),
+        )
+        .unwrap_err();
+        assert_eq!(remote_workplace.blocker, BlockerCategory::Knowledge);
+    }
 }

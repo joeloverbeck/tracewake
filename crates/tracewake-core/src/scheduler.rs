@@ -539,32 +539,24 @@ pub mod no_human {
                     result
                         .appended_events
                         .iter()
-                        .filter(|event| {
-                            event.event_type == EventKind::SleepStarted
-                                && scheduled_completion_tick(event)
-                                    .is_some_and(|tick| tick <= final_tick)
-                        })
+                        .filter(|event| is_due_sleep_start(event, final_tick))
                         .cloned(),
                 );
                 pending_work_starts.extend(
                     result
                         .appended_events
                         .iter()
-                        .filter(|event| {
-                            event.event_type == EventKind::WorkBlockStarted
-                                && scheduled_completion_tick(event)
-                                    .is_some_and(|tick| tick <= final_tick)
-                        })
+                        .filter(|event| is_due_work_start(event, final_tick))
                         .cloned(),
                 );
                 let progress_events = no_human_progress_event_count(&result.appended_events);
                 ordinary_pipeline_events += progress_events;
-                if progress_events > 0 {
-                    progress_by_window_actor.insert(
-                        (window.window_id.clone(), actor_id.clone()),
-                        progress_events,
-                    );
-                }
+                record_window_progress(
+                    &mut progress_by_window_actor,
+                    &window.window_id,
+                    actor_id,
+                    progress_events,
+                );
                 append_intention_lifecycle_after_proposal(
                     log,
                     agent_state,
@@ -688,6 +680,28 @@ pub mod no_human {
             ordinary_pipeline_events,
             stuck_diagnostic_event_ids,
             scheduler_errors,
+        }
+    }
+
+    fn is_due_sleep_start(event: &EventEnvelope, final_tick: SimTick) -> bool {
+        event.event_type == EventKind::SleepStarted
+            && scheduled_completion_tick(event).is_some_and(|tick| tick <= final_tick)
+    }
+
+    fn is_due_work_start(event: &EventEnvelope, final_tick: SimTick) -> bool {
+        event.event_type == EventKind::WorkBlockStarted
+            && scheduled_completion_tick(event).is_some_and(|tick| tick <= final_tick)
+    }
+
+    fn record_window_progress(
+        progress_by_window_actor: &mut BTreeMap<(String, ActorId), usize>,
+        window_id: &str,
+        actor_id: &ActorId,
+        progress_events: usize,
+    ) {
+        if progress_events > 0 {
+            progress_by_window_actor
+                .insert((window_id.to_string(), actor_id.clone()), progress_events);
         }
     }
 
@@ -2175,9 +2189,11 @@ pub mod no_human {
         sorted.sort_by(|left, right| left.0.cmp(&right.0));
 
         for (ordering_key, proposal) in sorted {
-            while scheduler.current_tick < proposal.requested_tick {
-                scheduler.advance_one_tick();
-                let due_tick = scheduler.current_tick;
+            for expected_tick in
+                scheduler.current_tick.value().saturating_add(1)..=proposal.requested_tick.value()
+            {
+                let due_tick = scheduler.advance_one_tick();
+                debug_assert_eq!(due_tick, SimTick::new(expected_tick));
                 append_due_completions(
                     physical_state,
                     log,
@@ -2220,9 +2236,9 @@ pub mod no_human {
         }
 
         let final_tick = start_tick.advance_by(tick_count);
-        while scheduler.current_tick < final_tick {
-            scheduler.advance_one_tick();
-            let due_tick = scheduler.current_tick;
+        for expected_tick in scheduler.current_tick.value().saturating_add(1)..=final_tick.value() {
+            let due_tick = scheduler.advance_one_tick();
+            debug_assert_eq!(due_tick, SimTick::new(expected_tick));
             append_due_completions(
                 physical_state,
                 log,
@@ -3053,6 +3069,460 @@ pub mod no_human {
             event.actor_id = Some(actor_id());
             event.payload = vec![PayloadField::new("payload_schema_version", "1")];
             event
+        }
+
+        fn observation_event(
+            event_id: &str,
+            actor_id: &ActorId,
+            place_id: &PlaceId,
+            tick: SimTick,
+        ) -> EventEnvelope {
+            let mut event = EventEnvelope::new_v1(
+                EventId::new(event_id).unwrap(),
+                EventKind::ObservationRecorded,
+                0,
+                0,
+                tick,
+                OrderingKey::new(
+                    tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id.clone()),
+                    ProposalSequence::new(0),
+                    ActionId::new("record_observation").unwrap(),
+                    vec![actor_id.as_str().to_string(), place_id.as_str().to_string()],
+                    event_id,
+                ),
+                content_manifest_id(),
+            );
+            event.actor_id = Some(actor_id.clone());
+            event.place_id = Some(place_id.clone());
+            event
+        }
+
+        fn need_delta_event(
+            event_id: &str,
+            event_actor_id: Option<ActorId>,
+            payload_actor_id: Option<&ActorId>,
+            cause_kind: &str,
+            causes: Vec<EventCause>,
+            tick: SimTick,
+        ) -> EventEnvelope {
+            let mut event = EventEnvelope::new_v1(
+                EventId::new(event_id).unwrap(),
+                EventKind::NeedDeltaApplied,
+                0,
+                0,
+                tick,
+                OrderingKey::new(
+                    tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(event_actor_id.clone().unwrap_or_else(actor_id)),
+                    ProposalSequence::new(0),
+                    ActionId::new("need_delta").unwrap(),
+                    vec![event_id.to_string()],
+                    event_id,
+                ),
+                content_manifest_id(),
+            );
+            event.actor_id = event_actor_id;
+            event.causes = causes;
+            event.payload = vec![
+                PayloadField::new("cause_kind", cause_kind),
+                PayloadField::new("need_kind", "hunger"),
+            ];
+            if let Some(actor_id) = payload_actor_id {
+                event
+                    .payload
+                    .push(PayloadField::new("actor_id", actor_id.as_str()));
+            }
+            event
+        }
+
+        #[test]
+        fn no_human_log_witness_lookups_require_exact_event_shape() {
+            let actor = actor_id();
+            let other_actor = ActorId::new("actor_elena").unwrap();
+            let kitchen = PlaceId::new("kitchen").unwrap();
+            let hall = PlaceId::new("hall").unwrap();
+            let mut log = EventLog::new();
+            for event in [
+                observation_event(
+                    "event.obs.other_actor",
+                    &other_actor,
+                    &kitchen,
+                    SimTick::new(5),
+                ),
+                observation_event("event.obs.other_place", &actor, &hall, SimTick::new(5)),
+                observation_event("event.obs.other_tick", &actor, &kitchen, SimTick::new(4)),
+                observation_event("event.obs.exact", &actor, &kitchen, SimTick::new(5)),
+            ] {
+                log.append(event).unwrap();
+            }
+
+            assert_eq!(
+                latest_current_place_perception_event_id(&log, &actor, SimTick::new(5), &kitchen)
+                    .unwrap()
+                    .as_str(),
+                "event.obs.exact"
+            );
+            assert_eq!(
+                latest_current_place_perception_event_id(&log, &actor, SimTick::new(5), &hall)
+                    .unwrap()
+                    .as_str(),
+                "event.obs.other_place"
+            );
+            assert!(latest_current_place_perception_event_id(
+                &log,
+                &other_actor,
+                SimTick::new(4),
+                &kitchen
+            )
+            .is_none());
+
+            let mut need_log = EventLog::new();
+            need_log
+                .append(need_delta_event(
+                    "event.need.other_actor",
+                    Some(other_actor.clone()),
+                    None,
+                    "tick_delta",
+                    vec![EventCause::Proposal(
+                        ProposalId::new("proposal_other").unwrap(),
+                    )],
+                    SimTick::new(3),
+                ))
+                .unwrap();
+            need_log
+                .append(need_delta_event(
+                    "event.need.fixture",
+                    Some(actor.clone()),
+                    None,
+                    "fixture_initial",
+                    vec![EventCause::Proposal(
+                        ProposalId::new("proposal_fixture").unwrap(),
+                    )],
+                    SimTick::new(4),
+                ))
+                .unwrap();
+            need_log
+                .append(need_delta_event(
+                    "event.need.payload_actor",
+                    None,
+                    Some(&actor),
+                    "tick_delta",
+                    vec![EventCause::Event(EventId::new("event.wait.actor").unwrap())],
+                    SimTick::new(5),
+                ))
+                .unwrap();
+            need_log
+                .append(need_delta_event(
+                    "event.need.action_tick",
+                    Some(actor.clone()),
+                    None,
+                    "tick_delta",
+                    vec![EventCause::Event(EventId::new("event.wait.actor").unwrap())],
+                    SimTick::new(6),
+                ))
+                .unwrap();
+
+            assert_eq!(
+                latest_need_event_id(&need_log, &actor).unwrap().as_str(),
+                "event.need.action_tick"
+            );
+            assert_eq!(
+                latest_action_tick_delta_tick(need_log.events(), &actor),
+                Some(SimTick::new(6))
+            );
+            assert_eq!(
+                latest_action_tick_delta_tick(need_log.events(), &other_actor),
+                Some(SimTick::new(3))
+            );
+        }
+
+        #[test]
+        fn pending_completion_and_open_duration_checks_use_future_completion_tick() {
+            let actor = actor_id();
+            let mut log = EventLog::new();
+            let sleep_start = open_sleep_start_event();
+            assert_eq!(
+                PendingCompletion::Sleep(sleep_start.clone()).tick(),
+                Some(SimTick::new(2))
+            );
+            assert_eq!(
+                PendingCompletion::Sleep(sleep_start.clone()).event_id(),
+                &sleep_start.event_id
+            );
+            log.append(sleep_start.clone()).unwrap();
+
+            assert!(actor_has_open_body_exclusive_duration(&log, &actor, SimTick::new(1)).unwrap());
+            assert!(
+                !actor_has_open_body_exclusive_duration(&log, &actor, SimTick::new(2)).unwrap()
+            );
+            assert!(!actor_has_open_body_exclusive_duration(
+                &log,
+                &ActorId::new("actor_elena").unwrap(),
+                SimTick::new(1)
+            )
+            .unwrap());
+
+            let mut non_body_exclusive = sleep_start;
+            non_body_exclusive.event_id =
+                EventId::new("event.sleep_started.non_body_exclusive").unwrap();
+            for field in &mut non_body_exclusive.payload {
+                if field.key == "body_exclusive" {
+                    field.value = "false".to_string();
+                }
+            }
+            let mut non_body_log = EventLog::new();
+            non_body_log.append(non_body_exclusive).unwrap();
+            assert!(!actor_has_open_body_exclusive_duration(
+                &non_body_log,
+                &actor,
+                SimTick::new(1)
+            )
+            .unwrap());
+        }
+
+        #[test]
+        fn no_human_day_due_start_filters_and_progress_recording_are_exact() {
+            let mut sleep_start = open_sleep_start_event();
+            assert!(is_due_sleep_start(&sleep_start, SimTick::new(2)));
+            assert!(!is_due_sleep_start(&sleep_start, SimTick::new(1)));
+            assert!(!is_due_work_start(&sleep_start, SimTick::new(2)));
+
+            sleep_start.event_type = EventKind::WorkBlockStarted;
+            assert!(is_due_work_start(&sleep_start, SimTick::new(2)));
+            assert!(!is_due_work_start(&sleep_start, SimTick::new(1)));
+            assert!(!is_due_sleep_start(&sleep_start, SimTick::new(2)));
+
+            let actor = actor_id();
+            let mut progress = BTreeMap::new();
+            record_window_progress(&mut progress, "morning", &actor, 0);
+            assert!(progress.is_empty());
+            record_window_progress(&mut progress, "morning", &actor, 2);
+            assert_eq!(progress.get(&("morning".to_string(), actor)), Some(&2));
+        }
+
+        #[test]
+        fn routine_stuck_diagnostics_use_actor_window_and_progress_boundaries() {
+            let actor = actor_id();
+            let other_actor = ActorId::new("actor_elena").unwrap();
+            let window = DayWindow {
+                window_id: "midday".to_string(),
+                start_tick: SimTick::new(10),
+                end_tick: SimTick::new(12),
+            };
+            let mut agent_state = agent_state(&actor);
+            let past_due = RoutineExecutionId::new("routine_exec_past_due").unwrap();
+            agent_state.routine_executions.insert(
+                past_due.clone(),
+                crate::agent::RoutineExecution::new(
+                    past_due.clone(),
+                    actor.clone(),
+                    RoutineTemplateId::new("routine_past_due").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::ZERO,
+                    Some(SimTick::new(8)),
+                    None,
+                    None,
+                    DecisionTraceId::new("trace_past_due").unwrap(),
+                ),
+            );
+            let waiting = RoutineExecutionId::new("routine_exec_waiting_boundary").unwrap();
+            let mut waiting_execution = crate::agent::RoutineExecution::new(
+                waiting.clone(),
+                actor.clone(),
+                RoutineTemplateId::new("routine_waiting_boundary").unwrap(),
+                RoutineFamily::Wait,
+                SimTick::ZERO,
+                Some(SimTick::new(20)),
+                None,
+                None,
+                DecisionTraceId::new("trace_waiting_boundary").unwrap(),
+            );
+            waiting_execution.wait(SimTick::new(9));
+            waiting_execution.record_fallback_attempt();
+            agent_state
+                .routine_executions
+                .insert(waiting.clone(), waiting_execution);
+            let boundary = RoutineExecutionId::new("routine_exec_boundary").unwrap();
+            let mut boundary_execution = crate::agent::RoutineExecution::new(
+                boundary.clone(),
+                actor.clone(),
+                RoutineTemplateId::new("routine_boundary").unwrap(),
+                RoutineFamily::Wait,
+                SimTick::new(10),
+                Some(SimTick::new(10)),
+                None,
+                None,
+                DecisionTraceId::new("trace_boundary").unwrap(),
+            );
+            boundary_execution.wait(SimTick::new(10));
+            boundary_execution.record_fallback_attempt();
+            agent_state
+                .routine_executions
+                .insert(boundary, boundary_execution);
+            let expected_at_start =
+                RoutineExecutionId::new("routine_exec_expected_at_start").unwrap();
+            agent_state.routine_executions.insert(
+                expected_at_start.clone(),
+                crate::agent::RoutineExecution::new(
+                    expected_at_start,
+                    actor.clone(),
+                    RoutineTemplateId::new("routine_expected_at_start").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::ZERO,
+                    Some(SimTick::new(10)),
+                    None,
+                    None,
+                    DecisionTraceId::new("trace_expected_at_start").unwrap(),
+                ),
+            );
+            let progressed_at_expected =
+                RoutineExecutionId::new("routine_exec_progressed_at_expected").unwrap();
+            let mut progressed_execution = crate::agent::RoutineExecution::new(
+                progressed_at_expected.clone(),
+                actor.clone(),
+                RoutineTemplateId::new("routine_progressed_at_expected").unwrap(),
+                RoutineFamily::Wait,
+                SimTick::ZERO,
+                Some(SimTick::new(8)),
+                None,
+                None,
+                DecisionTraceId::new("trace_progressed_at_expected").unwrap(),
+            );
+            progressed_execution.last_progress_tick = SimTick::new(8);
+            agent_state
+                .routine_executions
+                .insert(progressed_at_expected, progressed_execution);
+            let mut no_fallback_waiting = crate::agent::RoutineExecution::new(
+                RoutineExecutionId::new("routine_exec_waiting_no_fallback").unwrap(),
+                actor.clone(),
+                RoutineTemplateId::new("routine_waiting_no_fallback").unwrap(),
+                RoutineFamily::Wait,
+                SimTick::ZERO,
+                Some(SimTick::new(20)),
+                None,
+                None,
+                DecisionTraceId::new("trace_waiting_no_fallback").unwrap(),
+            );
+            no_fallback_waiting.wait(SimTick::new(9));
+            agent_state.routine_executions.insert(
+                RoutineExecutionId::new("routine_exec_waiting_no_fallback").unwrap(),
+                no_fallback_waiting,
+            );
+            let other = RoutineExecutionId::new("routine_exec_other_actor").unwrap();
+            agent_state.routine_executions.insert(
+                other.clone(),
+                crate::agent::RoutineExecution::new(
+                    other,
+                    other_actor,
+                    RoutineTemplateId::new("routine_other_actor").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::ZERO,
+                    Some(SimTick::new(8)),
+                    None,
+                    None,
+                    DecisionTraceId::new("trace_other_actor").unwrap(),
+                ),
+            );
+
+            let diagnostics = routine_stuck_diagnostic_kinds(&agent_state, &actor, &window);
+            assert_eq!(
+                diagnostics,
+                vec![
+                    (StuckDiagnosticKind::PastExpectedProgressWindow, past_due),
+                    (StuckDiagnosticKind::RepeatedIdleWait, waiting),
+                ]
+            );
+        }
+
+        #[test]
+        fn routine_failure_reason_marker_and_stuck_diagnostic_vocabulary_are_stable() {
+            for (kind, reason) in [
+                (EventKind::ActionRejected, "action_rejected"),
+                (EventKind::EatFailed, "eat_failed"),
+                (EventKind::WorkBlockFailed, "work_block_failed"),
+                (
+                    EventKind::ContinueRoutineRejected,
+                    "continue_routine_rejected",
+                ),
+                (EventKind::ActorWaited, "ordinary_action_failed"),
+            ] {
+                let mut event = EventEnvelope::new_v1(
+                    EventId::new(format!("event.reason.{}", kind.stable_id())).unwrap(),
+                    kind,
+                    0,
+                    0,
+                    SimTick::ZERO,
+                    OrderingKey::new(
+                        SimTick::ZERO,
+                        SchedulePhase::NoHumanProcess,
+                        SchedulerSourceId::Actor(actor_id()),
+                        ProposalSequence::new(0),
+                        ActionId::new("reason_probe").unwrap(),
+                        Vec::new(),
+                        "reason_probe",
+                    ),
+                    content_manifest_id(),
+                );
+                if kind.requires_cause() {
+                    event.causes = vec![EventCause::Process(
+                        ProcessId::new("process_reason").unwrap(),
+                    )];
+                }
+                assert_eq!(routine_failure_reason(&event), reason);
+            }
+
+            for (kind, stable_id, blocker) in [
+                (
+                    StuckDiagnosticKind::WindowNoProgress,
+                    "window_no_progress",
+                    "no progress recorded in no-human day window",
+                ),
+                (
+                    StuckDiagnosticKind::PastExpectedProgressWindow,
+                    "past_expected_progress_window",
+                    "no progress past expected progress window",
+                ),
+                (
+                    StuckDiagnosticKind::RepeatedIdleWait,
+                    "repeated_idle_wait",
+                    "repeated idle/wait without typed progress reason",
+                ),
+            ] {
+                assert_eq!(kind.stable_id(), stable_id);
+                assert_eq!(kind.concrete_blocker(), blocker);
+                assert!(!kind.actual_source().is_empty());
+            }
+
+            let process_id = ProcessId::new("process_marker_probe").unwrap();
+            let mut log = EventLog::new();
+            let day_completed = append_marker(
+                &mut log,
+                EventKind::NoHumanDayCompleted,
+                &process_id,
+                SimTick::new(3),
+                1,
+                3,
+                content_manifest_id(),
+            );
+            assert!(day_completed.payload.iter().any(|field| {
+                field.key == "metrics_projection" && field.value == "no_human_day_metrics_v1"
+            }));
+            let advance_completed = append_marker(
+                &mut log,
+                EventKind::NoHumanAdvanceCompleted,
+                &process_id,
+                SimTick::new(4),
+                2,
+                4,
+                content_manifest_id(),
+            );
+            assert!(!advance_completed
+                .payload
+                .iter()
+                .any(|field| field.key == "metrics_projection"));
         }
 
         #[test]
