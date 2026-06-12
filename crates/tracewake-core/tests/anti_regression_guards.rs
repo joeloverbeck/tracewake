@@ -153,15 +153,15 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "debug_available",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.debug_available = true;",
+            producer_snippet: "view.debug_available = self.debug_available_for(actor_id);",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
-            rationale: "Core leaves debug availability false; the TUI boundary derives it from the presence of debug panel wiring.",
+            rationale: "Core leaves debug availability false; the TUI boundary derives it from the live controller binding for the viewed actor.",
         },
         EmbodiedSurfaceFieldProducer {
             struct_name: "ActionAvailability",
             field_name: "debug_only_diagnostics",
             source_path: "tracewake-core/src/view_models.rs",
-            producer_snippet: "debug_only_diagnostics: Vec<String>",
+            producer_snippet: "",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
             rationale: "Current production action availability keeps actor-safe provenance populated and defers debug-only diagnostics until a concrete debug-only disabled site needs them.",
         },
@@ -780,8 +780,12 @@ fn embodied_field_has_registered_producer(
             && entry.field_name == field.field_name
             && !entry.cite.is_empty()
             && !entry.rationale.is_empty()
+            && (entry.producer_snippet.is_empty()
+                || !producer_snippet_is_constant_literal(entry.producer_snippet))
             && producer_sources.iter().any(|(path, source)| {
-                *path == entry.source_path && source.contains(entry.producer_snippet)
+                *path == entry.source_path
+                    && (entry.producer_snippet.is_empty()
+                        || source.contains(entry.producer_snippet))
             })
     })
 }
@@ -814,10 +818,23 @@ fn struct_body_has_non_default_field(body: &str, field_name: &str) -> bool {
         let value = trimmed[explicit.len()..].trim();
         !(value.starts_with("None")
             || value.starts_with("Vec::new()")
-            || value.starts_with("false"))
+            || value.starts_with("false")
+            || value.starts_with("true")
+            || value
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_ascii_digit()))
     }) || body
         .lines()
         .any(|line| line.trim() == format!("{field_name},"))
+}
+
+fn producer_snippet_is_constant_literal(snippet: &str) -> bool {
+    let normalized = normalized_source(snippet);
+    normalized.contains("= true")
+        || normalized.contains(": true")
+        || normalized.contains("= false")
+        || normalized.contains(": false")
 }
 
 fn source_has_field_consumer(source: &str, field_name: &str) -> bool {
@@ -1266,7 +1283,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 38;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 39;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1324,6 +1341,13 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         routing: MetaLockRouting::TicketOwnedDebt {
             ticket: "0022PHA3ABASTRI-009",
         },
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "embodied_view_option_and_collection_fields_have_reachable_producers",
+        negative_id: "synthetic_constant_literal_embodied_surface_producer",
+        routing: MetaLockRouting::SharedScan,
         witness_count: 1,
         witness_min: 1,
     },
@@ -4642,6 +4666,45 @@ fn embodied_view_option_and_collection_fields_have_reachable_producers() {
             .iter()
             .any(|error| error.contains("NotebookView.typed_leads")),
         "producer aliases from the wrong struct must not satisfy the scoped producer sweep"
+    );
+
+    let constant_producer_view_models = r#"
+        pub struct EmbodiedViewModel {
+            pub visible_exits: Vec<VisibleExit>,
+            pub debug_available: bool,
+        }
+        pub struct Phase3AEmbodiedStatus { pub salient_interruption: Option<String>, }
+        pub struct WhyNotView { pub actor_visible_facts: Vec<String>, }
+        pub struct NotebookView { pub typed_leads: Vec<NotebookLeadEntry>, }
+        pub struct NotebookBeliefEntry { pub contradiction_ids: Vec<String>, }
+        pub struct NotebookObservationEntry { pub observation_id: String, }
+        pub struct NotebookContradictionEntry { pub contradiction_id: String, }
+        pub struct NotebookLeadEntry { pub lead_id: String, }
+        pub struct VisibleExit { pub blocker_summary: Option<String>, }
+        pub struct VisibleDoor { pub endpoint_a: PlaceId, pub endpoint_b: PlaceId, }
+        pub struct VisibleContainer { pub container_id: ContainerId, }
+        pub struct VisibleItem { pub source: VisibleItemSource, }
+        pub struct SemanticActionEntry { pub target_ids: Vec<String>, }
+        pub enum ActionAvailability { Available, Disabled { debug_only_diagnostics: Vec<String>, } }
+    "#;
+    let constant_producer_sources = [(
+        "tracewake-core/src/projections.rs",
+        "EmbodiedViewModel { visible_exits: collect_visible_exits(), debug_available: true }",
+    )];
+    let constant_producer_consumers = [(
+        "tracewake-tui/src/render.rs",
+        "view.visible_exits.len(); view.debug_available; exit.blocker_summary.as_ref(); door.endpoint_a.as_str(); door.endpoint_b.as_str(); item.source.clone(); action.target_ids.len(); availability.debug_only_diagnostics()",
+    )];
+    let constant_producer_errors = embodied_surface_dead_field_errors(
+        constant_producer_view_models,
+        &constant_producer_sources,
+        &constant_producer_consumers,
+    );
+    assert!(
+        constant_producer_errors
+            .iter()
+            .any(|error| error.contains("EmbodiedViewModel.debug_available")),
+        "constant literal producer must not satisfy the embodied surface producer sweep"
     );
 
     let unconsumed_sources = [(

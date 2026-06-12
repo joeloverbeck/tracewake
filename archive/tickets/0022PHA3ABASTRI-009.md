@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-009: Embodied debug-render split and sweep producer semantics
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — TUI render boundary (`render.rs`, `app.rs`), view-model production (`projections.rs`), dead-surface sweep (`anti_regression_guards.rs`)
@@ -156,3 +156,30 @@ census including the nonzero-witness minimums.
 1. `cargo test -p tracewake-tui`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+The embodied renderer no longer emits `Debug:`, `debug_diagnostics`, or
+`Knowledge context` tokens. Those lines now live in `render_debug_overlay`, which
+returns content only when the derived `debug_available` flag is true. The TUI app
+now derives `debug_available` from the live controller binding for the viewed actor
+instead of hardcoding `true`, and the unit test covers the bound and detached states.
+
+The embodied-surface producer sweep now rejects constant literal producers, permits
+cite-only deferral entries without declaration-alias snippets, and registers the
+synthetic constant-producer negative with the meta-lock census.
+
+Deviation: `crates/tracewake-core/src/projections.rs` did not require changes; the
+view-model shape stayed unchanged and the derivation lives at the TUI boundary.
+
+Verification:
+
+1. `cargo test -p tracewake-tui`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `grep -n "debug_available = true" crates/tracewake-tui/src/app.rs` returned no matches
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

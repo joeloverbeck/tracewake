@@ -174,8 +174,20 @@ impl TuiApp {
         )
         .map_err(AppError::from)?;
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
-        view.debug_available = true;
+        view.debug_available = self.debug_available_for(actor_id);
         Ok(view)
+    }
+
+    fn debug_available_for(&self, actor_id: &ActorId) -> bool {
+        self.controller_bindings
+            .binding(&self.controller_id)
+            .is_some_and(|binding| {
+                binding.binding.bound_actor_id.as_ref() == Some(actor_id)
+                    && !matches!(
+                        binding.binding.mode,
+                        tracewake_core::state::ControllerMode::Detached
+                    )
+            })
     }
 
     fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
@@ -422,7 +434,16 @@ mod tests {
         assert!(app.current_view().unwrap().debug_available);
         let before = app.render_current_view().unwrap();
         assert!(before.contains("strongbox_tomas"));
-        assert!(before.contains("Debug: available=true"));
+        assert!(!before.contains("Debug: available=true"));
+        app.controller_bindings.detach(
+            &app.controller_id,
+            app.scheduler.current_tick,
+            &mut app.log,
+            app.content_manifest_id.clone(),
+        );
+        assert!(!app.current_view().unwrap().debug_available);
+        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
 
         let result = app
             .submit_semantic_action(

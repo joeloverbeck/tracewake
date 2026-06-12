@@ -435,12 +435,8 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(!embodied.contains("value=410"));
     assert!(embodied.contains("Intention:"));
     assert!(embodied.contains("active:routine_tomas_go_work:wait"));
-    let embodied_without_marked_context = embodied
-        .lines()
-        .filter(|line| !line.starts_with("Knowledge context: DEBUG NON-DIEGETIC"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    assert!(!embodied_without_marked_context.contains("DEBUG NON-DIEGETIC"));
+    assert!(!embodied.contains("Knowledge context"));
+    assert!(!embodied.contains("DEBUG NON-DIEGETIC"));
     assert!(!embodied.contains("routine_events="));
     assert!(!embodied.contains("work_failed="));
     assert!(!embodied.contains("food_hidden_pantry"));
@@ -583,7 +579,7 @@ fn phase2a_tui_transcript_discovers_absence_without_culprit_leak() {
     );
     let debug_replay = app.render_debug_replay_panel();
 
-    assert!(after_view.contains("Knowledge context:"));
+    assert!(!after_view.contains("Knowledge context:"));
     assert!(after_notebook.contains("missing"));
     assert!(after_notebook.contains("source=event:"));
     assert!(after_notebook.contains("Contradictions:"));
