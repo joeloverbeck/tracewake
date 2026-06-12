@@ -6,7 +6,7 @@ Target implementation commits under review:
 `7bc71b5` through `efc1851`
 
 Scope:
-`specs/0022_PHASE_3A_BASELINE_TRIAGE_INTEGRITY_EMBODIED_DEBUG_QUARANTINE_ADVERSARIAL_GATE_RESTORATION_AND_LOCK_BEHAVIORAL_PROOF_HARDENING_SPEC.md`
+`archive/specs/0022_PHASE_3A_BASELINE_TRIAGE_INTEGRITY_EMBODIED_DEBUG_QUARANTINE_ADVERSARIAL_GATE_RESTORATION_AND_LOCK_BEHAVIORAL_PROOF_HARDENING_SPEC.md`
 
 This report is scoped evidence toward `ORD-LIFE-CERT` for the 0022 Phase 3A
 baseline triage, mutation/CI parity, hidden-truth gate restoration, policy-lock,

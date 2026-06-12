@@ -1,6 +1,6 @@
 # 0022 Phase 3A Baseline-Triage Integrity, Embodied Debug Quarantine, Adversarial-Gate Restoration, and Lock-Behavioral-Proof Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `9ce820f` (merge PR #29: post-0021 closeout with all `0021PHA3APOSREB` tickets landed — including the post-audit `-014` mutation-gate closure — and the acceptance artifact `reports/0021_ord_life_cert_scoped_acceptance.md` truthed at `78c0973`). The audit ran at pre-merge `ad39160`; every finding was re-verified at `9ce820f` — the `-014` delta is test-only (four mutation-killing inline tests in `scheduler.rs`, `agent/no_human_surface.rs`, and `actions/defs/wait.rs`; no production, ledger, or baseline-file changes) and refutes no finding.
@@ -1013,3 +1013,37 @@ recording, for the implementation commits:
   direction preserved. The INV-087 decision remains deferred, untouched.
 - [x] Scope stays within the Phase 3A ordinary-life surface and its lock/evidence
   layer.
+
+## Outcome
+
+Completed: 2026-06-12
+
+Spec 0022 landed as twenty-three ticket commits, ending with the final
+mutation-baseline closure commit `f005d30`. The implementation closed the
+baseline-triage integrity, mutation-CI parity, meta-lock, hidden-truth,
+policy-lock, eat-crossing, scheduler reject-loudly, embodied debug-render,
+census-widening, runner-only no-human proof, diagnostic/generative, conformance,
+acceptance-artifact, and focused mutation-test findings recorded by this spec.
+
+The final artifact is `reports/0022_ord_life_cert_scoped_acceptance.md`; it records
+the implementation commit manifest, the §7 evidence map, the 0021 evidence
+corrections, the conformance and risk-register closure, and the explicit
+non-certification posture. The mutation-baseline disposition now records
+normalized-count `0` with FNV-1a64 `cbf29ce484222325`. No doctrine amendment was
+made.
+
+Deviations from the original plan: the original thirteen-ticket implementation
+opened focused mutation-test follow-ups `0022PHA3ABASTRI-015` through
+`0022PHA3ABASTRI-023`; those follow-ups retired the remaining viable baseline
+mutants instead of leaving ticketed test debt in the baseline ledger.
+
+Verification passed on 2026-06-12:
+
+```sh
+cargo test -p tracewake-core --test anti_regression_guards
+cargo test -p tracewake-core
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo build --workspace --all-targets --locked
+cargo test --workspace
+```
