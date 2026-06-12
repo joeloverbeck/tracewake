@@ -17,6 +17,7 @@ const STATE_RS: &str = include_str!("../src/state.rs");
 const CHECKSUM_RS: &str = include_str!("../src/checksum.rs");
 const EVENTS_MOD_RS: &str = include_str!("../src/events/mod.rs");
 const EVENTS_APPLY_RS: &str = include_str!("../src/events/apply.rs");
+const EVENTS_ENVELOPE_RS: &str = include_str!("../src/events/envelope.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
@@ -1466,6 +1467,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "generative_support_bans_bare_event_envelope_token",
+        negative_id: "synthetic_support_event_envelope_default",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "physical_mutating_event_kinds_have_explicit_world_apply_arms",
         negative_id: "synthetic_missing_arm_catch_all",
         routing: MetaLockRouting::SharedScan,
@@ -1480,6 +1487,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "action_emitted_event_kinds_have_cause_disposition",
         negative_id: "synthetic_action_emitted_kind_without_cause_required",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "event_kind_cause_required_exhaustive_match",
+        negative_id: "synthetic_cause_required_match_without_default",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -6975,6 +6988,30 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
         "support-file EventEnvelope construction synthetic must fail"
     );
 
+    let support_default_fabricator = [(
+        "support/generative.rs",
+        "fn helper() { let _event = EventEnvelope::default(); }",
+    )];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&support_default_fabricator)
+            .iter()
+            .any(|error| error.contains("support/generative.rs")
+                && error.contains("EventEnvelope")),
+        "synthetic_support_event_envelope_default must fail the support fabricator ban"
+    );
+
+    let support_struct_literal_fabricator = [(
+        "support/generative.rs",
+        "fn helper() { let _event = EventEnvelope { event_type: EventKind::SleepCompleted, ..base }; }",
+    )];
+    assert!(
+        generative_duration_terminal_fabricator_errors(&support_struct_literal_fabricator)
+            .iter()
+            .any(|error| error.contains("support/generative.rs")
+                && error.contains("EventEnvelope")),
+        "synthetic support EventEnvelope struct literal must fail the support fabricator ban"
+    );
+
     let direct_envelope = [(
         "generative_lock.rs",
         "fn helper() { EventEnvelope::new_caused_v1(id, EventKind::SleepCompleted, 0, 0, tick, key, manifest, causes); }",
@@ -7002,7 +7039,7 @@ fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> V
     ];
     let mut errors = Vec::new();
     for (path, source) in sources {
-        if *path == "support/generative.rs" && source.contains("EventEnvelope::new") {
+        if *path == "support/generative.rs" && source.contains("EventEnvelope") {
             errors.push(format!(
                 "{path} constructs EventEnvelope directly; support generators must use engine-emitted events"
             ));
@@ -7129,6 +7166,15 @@ fn event_kind_metadata_is_total() {
     use tracewake_core::events::{EventKind, EventReplayHandling, EventSchemaVersion, EventStream};
 
     let registry = EventKind::registry();
+    let cause_required_body = body_after_marker(EVENTS_ENVELOPE_RS, "const fn cause_required");
+    assert!(
+        cause_required_body.contains("match self"),
+        "cause_required must remain an exhaustive match over EventKind"
+    );
+    assert!(
+        !cause_required_body.contains("matches!(") && !cause_required_body.contains("_ =>"),
+        "synthetic_cause_required_match_without_default must fail if cause_required regains a default arm"
+    );
     assert_eq!(
         registry.len(),
         EventKind::all().len(),
