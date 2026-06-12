@@ -143,3 +143,24 @@ report anchors (the 0022 pattern), with a missing-anchor synthetic; enroll under
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Status: COMPLETE on 2026-06-12.
+
+- Added `reports/0023_ord_life_cert_scoped_acceptance.md` with the §7 evidence
+  map, EMERGE-OBS `emerge_obs_v1` table, scheduled-run status, and explicit
+  non-certification posture.
+- Added conformance rows for the §6 embodied-locality, meta-lock, policy, and
+  debug-overlay surfaces, with grep-resolving landed symbols.
+- Extended `anti_regression_guards.rs` with the 0023 checklist parity guard and
+  `synthetic_0023_missing_acceptance_anchor` registry enrollment.
+
+Verification:
+
+- `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

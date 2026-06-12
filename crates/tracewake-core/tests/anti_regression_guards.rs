@@ -52,6 +52,8 @@ const ACCEPTANCE_0021_REPORT: &str =
     include_str!("../../../reports/0021_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0022_REPORT: &str =
     include_str!("../../../reports/0022_ord_life_cert_scoped_acceptance.md");
+const ACCEPTANCE_0023_REPORT: &str =
+    include_str!("../../../reports/0023_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 
 struct BannedApiToken {
@@ -1463,6 +1465,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "generative_support_constructs_zero_event_envelopes",
         negative_id: "synthetic_support_event_envelope_construction",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors",
+        negative_id: "synthetic_0023_missing_acceptance_anchor",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -3063,6 +3071,105 @@ const ACCEPTANCE_0022_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
     },
 ];
 
+const ACCEPTANCE_0023_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &["Embodied Locality Migration", "ORD-HARD-121"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &[
+            "Meta-Lock Registry And Witness Repair",
+            "ORD-HARD-122",
+            "ORD-HARD-123",
+            "ORD-HARD-124",
+            "ORD-HARD-129",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &["Debug Overlay Wiring", "ORD-HARD-125", "ORD-HARD-135"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &["Policy Surface-Driven Lock", "ORD-HARD-126"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &[
+            "Scan-Evasion Closures",
+            "ORD-HARD-127",
+            "ORD-HARD-128",
+            "ORD-HARD-130",
+            "ORD-HARD-132",
+            "ORD-HARD-136",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &["In-Context Witness And Panic Closure", "ORD-HARD-131"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &[
+            "Canonical Intent And Sleep Positive",
+            "ORD-HARD-137",
+            "ORD-HARD-138",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "Cause Disposition And Baseline Governance",
+            "ORD-HARD-139",
+            "ORD-HARD-134",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &[
+            "0022 Evidence-Honesty Correction",
+            "ORD-HARD-133",
+            "acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &["Premise-Held Confirmations", "ORD-HARD-121", "ORD-HARD-139"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &[
+            "Risk Register And Conformance Diffs",
+            "docs/3-reference/01_DESIGN_RISK_REGISTER.md",
+            "docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &[
+            "EMERGE-OBS Derivation And Scheduled Run Status",
+            "emerge_obs_v1",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &[
+            "EMERGE-OBS Derivation And Scheduled Run Status",
+            "scheduled mutation still pending",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 14,
+        anchors: &[
+            "Explicit Non-Certification Statement",
+            "not full-project certification",
+            "not Phase 4 entry",
+            "not `FIRST-PROOF-CERT`",
+        ],
+    },
+];
+
 fn acceptance_checklist_anchor_errors(
     report: &str,
     anchors: &[AcceptanceChecklistAnchor],
@@ -3807,6 +3914,31 @@ fn acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors() {
         .iter()
         .any(|error| error.contains("All 143 remaining")),
         "synthetic stale baseline narrative must fail the 0022 acceptance artifact guard"
+    );
+}
+
+#[test]
+fn acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors() {
+    let errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0023_REPORT,
+        ACCEPTANCE_0023_CHECKLIST_ANCHORS,
+    );
+    assert!(
+        errors.is_empty(),
+        "0023 acceptance artifact checklist anchors are missing: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0023_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic_0023_missing_acceptance_anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0023_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic_0023_missing_acceptance_anchor must fail through the real checker"
     );
 }
 
