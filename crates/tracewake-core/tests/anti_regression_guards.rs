@@ -1493,19 +1493,30 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
         let Some((_, disposition)) = line.split_once(" — ") else {
             continue;
         };
-        *rationale_counts.entry(disposition.to_string()).or_default() += 1;
         let Some((tag, rationale)) = disposition.split_once(": ") else {
             errors.push(format!(
                 "mutation baseline ledger entry lacks closed tag: {line}"
             ));
             continue;
         };
-        if rationale.trim().is_empty() {
+        let rationale = rationale.trim();
+        if rationale.is_empty() {
             errors.push(format!(
                 "mutation baseline ledger entry lacks rationale: {line}"
             ));
         }
+        let normalized_rationale = mutation_ledger_rationale_suffix(rationale);
+        *rationale_counts.entry(normalized_rationale).or_default() += 1;
         if tag == "justified-baseline" {
+            let rationale_lower = rationale.to_ascii_lowercase();
+            if rationale_lower.contains("warrants a")
+                || rationale_lower.contains("future")
+                || rationale_lower.contains("follow-up")
+            {
+                errors.push(format!(
+                    "mutation baseline justified-baseline entry encodes deferred test debt: {line}"
+                ));
+            }
             continue;
         }
         let Some(ticket_id) = tag.strip_prefix("warrants-test:") else {
@@ -1514,7 +1525,7 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
             ));
             continue;
         };
-        if !ticket_id.starts_with("0021PHA3APOSREB-") || !ticket_exists(ticket_id) {
+        if !ticket_exists(ticket_id) {
             errors.push(format!(
                 "mutation baseline warrants-test tag references missing ticket {ticket_id}"
             ));
@@ -1529,6 +1540,20 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
     }
 
     errors
+}
+
+fn mutation_ledger_rationale_suffix(rationale: &str) -> String {
+    let lower = rationale.to_ascii_lowercase();
+    for marker in [
+        "coverage remains assigned for ",
+        "coverage remains accepted because ",
+        "baseline residence remains accepted because ",
+    ] {
+        if let Some(index) = lower.find(marker) {
+            return rationale[index + marker.len()..].trim().to_string();
+        }
+    }
+    rationale.trim().to_string()
 }
 
 fn split_top_level_args(args: &str) -> Vec<String> {
@@ -1911,7 +1936,7 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
     let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
         .map(|index| {
             format!(
-                "- `synthetic/path_{index}.rs: replace x -> y` — justified-baseline: repeated rationale"
+                "- `synthetic/path_{index}.rs: replace x -> y` — justified-baseline: module {index} coverage remains accepted because repeated suffix"
             )
         })
         .collect::<Vec<_>>()
@@ -1925,12 +1950,24 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
         bulk_errors
             .iter()
             .any(|error| error.contains("repeats one rationale")),
-        "synthetic bulk-accepted ledger rationale must fail governance"
+        "synthetic bulk-accepted ledger rationale suffix must fail governance"
+    );
+
+    let deferred_ledger = MUTANTS_BASELINE_LEDGER.replacen(
+        "warrants-test:0022PHA3ABASTRI-015:",
+        "justified-baseline: this warrants a future focused assertion",
+        1,
+    );
+    assert!(
+        mutation_baseline_governance_errors(MUTANTS_BASELINE_MISSES, &deferred_ledger)
+            .iter()
+            .any(|error| error.contains("deferred test debt")),
+        "synthetic justified-baseline deferral language must fail governance"
     );
 
     let bad_tag_ledger = MUTANTS_BASELINE_LEDGER.replacen(
-        "justified-baseline:",
-        "warrants-test:0021PHA3APOSREB-999:",
+        "warrants-test:0022PHA3ABASTRI-015:",
+        "warrants-test:0022PHA3ABASTRI-999:",
         1,
     );
     assert!(

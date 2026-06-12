@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-001: Real mutation-baseline triage and ledger governance hardening
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-oracle guards (`anti_regression_guards.rs`), mutation baseline + disposition ledger, focused mutation-killing tests in guarded-layer crates, `docs/3-reference/01_DESIGN_RISK_REGISTER.md`
@@ -183,3 +183,47 @@ conformance-index rows are owned by `0022PHA3ABASTRI-013`, not this ticket.
 2. `cargo mutants -f <retired-entry-file> --no-shuffle` per retired entry (targeted
    kill-proof), or one `cargo mutants --in-diff` run over the ticket diff.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+What changed:
+
+- Performed the 0022 mutation-baseline triage over all 143 normalized entries in
+  `reports/0020_mutants_baseline_disposition.md`.
+- Retired zero entries from `.cargo/mutants-baseline-misses.txt`; no targeted
+  mutation-killing run was performed for an individual baseline entry in this ticket,
+  so the baseline count/hash pins intentionally remain unchanged.
+- Replaced the old boilerplate `justified-baseline` rationales with concrete
+  `warrants-test:<ticket-id>` dispositions and filed the focused test-debt tickets
+  `0022PHA3ABASTRI-015` through `0022PHA3ABASTRI-023`.
+- Hardened `mutation_baseline_governance_errors` to reject deferred-test language in
+  `justified-baseline` entries, count repeated rationale suffixes, and resolve any
+  `warrants-test` ticket through `tickets/` or `archive/tickets/` instead of the old
+  0021 prefix pin.
+- Extended R-28 and R-29 in `docs/3-reference/01_DESIGN_RISK_REGISTER.md` with the
+  work-product-as-evidence, self-echo-lock, artifact-shaped-synthetic, bijection,
+  nonzero-witness, and two-sided-ratchet guardrails required by the spec.
+
+Deviations from original plan:
+
+- No baseline entries were removed because no focused mutation-killing proof was
+  produced for an individual entry in this ticket. The follow-up tickets carry that
+  remaining test debt explicitly.
+- No `cargo mutants` command was run because the ticket retired no entries.
+
+Verification results:
+
+- `rg -n "justified-baseline.*(warrants a|future|follow-up)|justified-baseline:|warrants-test:0022PHA3ABASTRI-0(15|16|17|18|19|20|21|22|23)" reports/0020_mutants_baseline_disposition.md`
+  showed zero deferred `justified-baseline` entries and the expected
+  `warrants-test` assignments.
+- `awk '/^- `/ { line=$0; sub(/^.*warrants-test:/, "", line); sub(/:.*/, "", line); print line }' reports/0020_mutants_baseline_disposition.md | sort | uniq -c`
+  showed all 143 entries assigned to tickets `0022PHA3ABASTRI-015` through
+  `0022PHA3ABASTRI-023`.
+- `cargo test -p tracewake-core --test anti_regression_guards mutation_baseline_misses_are_pinned_and_ledgered` passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` passed.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
