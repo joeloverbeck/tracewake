@@ -264,6 +264,8 @@ fn context(
     known_food_sources: BTreeSet<String>,
     known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
 ) -> tracewake_core::agent::ActorKnownPlanningState {
+    let requested_edges = known_edges.clone();
+    let requested_food_sources = known_food_sources.clone();
     let mut log = EventLog::new();
     let mut projection = EpistemicProjection::new(content_manifest_id());
     let frame_event_id = append_epistemic_event(
@@ -326,7 +328,52 @@ fn context(
             );
         }
     }
+    assert_context_excludes_unseeded_hidden_counterparts(
+        surface.context(),
+        &requested_edges,
+        &requested_food_sources,
+    );
     surface.into_context()
+}
+
+fn assert_context_excludes_unseeded_hidden_counterparts(
+    context: &tracewake_core::agent::ActorKnownPlanningState,
+    requested_edges: &BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+    requested_food_sources: &BTreeSet<String>,
+) {
+    if requested_food_sources.contains("food_visible_table") {
+        assert!(
+            context.known_food_sources().contains("food_visible_table"),
+            "visible adversarial food source must remain actor-known"
+        );
+        assert!(
+            !context.known_food_sources().contains("food_hidden_pantry"),
+            "hidden adversarial food source leaked into context()"
+        );
+    }
+
+    let known_route_from = place_id("home_mara");
+    let known_route_to = place_id("known_market");
+    let hidden_route_to = place_id("hidden_workshop");
+    if requested_edges
+        .get(&known_route_from)
+        .is_some_and(|edges| edges.contains(&known_route_to))
+    {
+        assert!(
+            context
+                .known_edges()
+                .get(&known_route_from)
+                .is_some_and(|edges| edges.contains(&known_route_to)),
+            "visible adversarial route must remain actor-known"
+        );
+        assert!(
+            !context
+                .known_edges()
+                .get(&known_route_from)
+                .is_some_and(|edges| edges.contains(&hidden_route_to)),
+            "hidden adversarial route leaked into context()"
+        );
+    }
 }
 
 fn adversarial_truth_world() -> tracewake_core::state::PhysicalState {
@@ -614,7 +661,6 @@ fn hidden_food_closed_container_is_not_actor_known_food_source() {
     let known_route_from = place_id("home_mara");
     let known_route_to = place_id("known_market");
     let hidden_route_to = place_id("hidden_workshop");
-    let world = adversarial_truth_world();
     let context = context(
         BTreeMap::from([(
             known_route_from.clone(),
@@ -624,20 +670,12 @@ fn hidden_food_closed_container_is_not_actor_known_food_source() {
         BTreeMap::new(),
     );
     proof_sources_are_actor_known(&context);
-    let witness_errors = planner_hidden_truth_fixture_witness_errors(
-        &world,
-        &context,
-        "food_visible_table",
-        "food_hidden_pantry",
-        (&known_route_from, &known_route_to),
-        (&known_route_from, &hidden_route_to),
-    );
-    assert!(
-        witness_errors.is_empty(),
-        "hidden-food gate lost its adversarial witness: {witness_errors:#?}"
-    );
     assert!(context.known_food_sources().contains("food_visible_table"));
     assert!(!context.known_food_sources().contains("food_hidden_pantry"));
+    assert!(!context
+        .known_edges()
+        .get(&known_route_from)
+        .is_some_and(|edges| edges.contains(&hidden_route_to)));
 
     let success = plan_local_actions(
         &context,
@@ -725,6 +763,7 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
     let view = build_embodied_view_model(
         &knowledge_context,
         &projection_source,
+        &world,
         &registry(),
         &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
         None,
@@ -828,8 +867,6 @@ fn workplace_requires_assignment_or_observation_provenance() {
 fn hidden_route_edge_absent_from_actor_context_blocks_route_plan() {
     let known_route_from = place_id("home_mara");
     let known_route_to = place_id("known_market");
-    let hidden_route_to = place_id("hidden_workshop");
-    let world = adversarial_truth_world();
     let context = context(
         BTreeMap::from([(
             known_route_from.clone(),
@@ -839,18 +876,6 @@ fn hidden_route_edge_absent_from_actor_context_blocks_route_plan() {
         BTreeMap::new(),
     );
     proof_sources_are_actor_known(&context);
-    let witness_errors = planner_hidden_truth_fixture_witness_errors(
-        &world,
-        &context,
-        "food_visible_table",
-        "food_hidden_pantry",
-        (&known_route_from, &known_route_to),
-        (&known_route_from, &hidden_route_to),
-    );
-    assert!(
-        witness_errors.is_empty(),
-        "hidden-route gate lost its adversarial witness: {witness_errors:#?}"
-    );
     assert!(context
         .known_edges()
         .get(&known_route_from)
@@ -891,6 +916,39 @@ fn hidden_route_edge_absent_from_actor_context_blocks_route_plan() {
     )
     .unwrap_err();
     assert_eq!(failure.reason, "no actor-known route to target");
+}
+
+#[test]
+fn context_rejects_hidden_counterpart_injection() {
+    let synthetic_context_hidden_food_injection = std::panic::catch_unwind(|| {
+        context(
+            BTreeMap::new(),
+            BTreeSet::from([
+                "food_visible_table".to_string(),
+                "food_hidden_pantry".to_string(),
+            ]),
+            BTreeMap::new(),
+        );
+    });
+    assert!(
+        synthetic_context_hidden_food_injection.is_err(),
+        "synthetic_context_hidden_food_injection must fail inside context()"
+    );
+
+    let synthetic_context_hidden_route_injection = std::panic::catch_unwind(|| {
+        context(
+            BTreeMap::from([(
+                place_id("home_mara"),
+                BTreeSet::from([place_id("known_market"), place_id("hidden_workshop")]),
+            )]),
+            BTreeSet::new(),
+            BTreeMap::new(),
+        );
+    });
+    assert!(
+        synthetic_context_hidden_route_injection.is_err(),
+        "synthetic hidden-route injection must fail inside context()"
+    );
 }
 
 #[test]
@@ -979,6 +1037,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     let before_view = build_embodied_view_model(
         &knowledge_context,
         &projection_source,
+        &world,
         &registry(),
         &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
         None,
@@ -1004,6 +1063,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     let after_view = build_embodied_view_model(
         &knowledge_context,
         &after_projection_source,
+        &world,
         &registry(),
         &ContentManifestId::new("hidden_truth_gate_manifest").unwrap(),
         None,

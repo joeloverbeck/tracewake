@@ -245,6 +245,10 @@ impl NoHumanActorKnownSurfaceBuilder {
                     source_tick,
                 );
             }
+            ActorKnownProjectionRecord::LocalDoor { .. }
+            | ActorKnownProjectionRecord::LocalContainer { .. }
+            | ActorKnownProjectionRecord::LocalItem { .. }
+            | ActorKnownProjectionRecord::LocalActor { .. } => {}
         }
     }
 

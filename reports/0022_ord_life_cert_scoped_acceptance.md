@@ -75,10 +75,10 @@ Observed on the finished tree:
 Primary ticket: `archive/tickets/0022PHA3ABASTRI-001.md`.
 
 The real baseline triage is the work product in
-`reports/0020_mutants_baseline_disposition.md`, not a governance promise. All 143
-remaining normalized baseline entries are ledgered with closed disposition tags.
-No entry was retired by focused tests in this slice; instead, test debt was filed
-to the follow-up series `0022PHA3ABASTRI-015` through `0022PHA3ABASTRI-023`.
+`reports/0020_mutants_baseline_disposition.md`, not a governance promise. The
+remaining normalized baseline was retired from 143 to 0 through focused follow-up
+tickets `0022PHA3ABASTRI-015` through `0022PHA3ABASTRI-023`; the current pinned
+baseline is empty and its chained change log ends at normalized-count 0.
 
 `mutation_baseline_misses_are_pinned_and_ledgered` now rejects unledgered misses,
 stale ledger entries, unsupported tags, missing `warrants-test` tickets,

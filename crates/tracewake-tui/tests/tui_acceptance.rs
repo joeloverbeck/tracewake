@@ -151,6 +151,40 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "changed_after_accepted_world_event",
     });
 
+    let mut sleep = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
+    sleep
+        .bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let rendered_sleep = sleep.render_current_view().unwrap();
+    assert!(
+        rendered_sleep.contains("Sleep here"),
+        "actor-known sleep affordance must render an embodied sleep action: {rendered_sleep}"
+    );
+    let view = sleep.current_view().unwrap();
+    let sleep_action = semantic_action_for_action_id(&sleep, "sleep");
+    let slept = sleep.submit_semantic_action(&sleep_action).unwrap();
+    assert_eq!(slept.report.status, ReportStatus::Accepted);
+    assert!(!slept.report.event_ids.is_empty());
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "sleep_eat_work_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        semantic_id: Some(sleep_action.as_str().to_string()),
+        report_status: Some(slept.report.status),
+        event_ids: slept
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_source_summary.clone()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["embodied_view", "sleep_semantic_action", "event_ids"],
+        checksum_result: "accepted_sleep_started_event",
+    });
+
     let mut why_not = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
     why_not
         .bind_actor(ActorId::new("actor_sena").unwrap())
@@ -324,7 +358,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "byte_identical_sections",
     });
 
-    assert_eq!(artifacts.len(), 6);
+    assert_eq!(artifacts.len(), 7);
     for artifact in &artifacts {
         artifact.assert_review_fields();
     }

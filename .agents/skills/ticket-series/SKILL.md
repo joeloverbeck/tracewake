@@ -74,6 +74,22 @@ For each ticket:
    with the spec archive/truthing commit and recording that choice.
 5. Update the ticket with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
+   The archived ticket outcome must use the canonical heading and completion
+   date shape:
+
+```md
+## Outcome
+
+Completed: YYYY-MM-DD
+```
+
+   Before committing, verify the archived ticket mechanically, for example:
+
+```sh
+rg --files-without-match '^## Outcome' archive/tickets/<ticket-id>.md
+rg --files-without-match '^Completed: ' archive/tickets/<ticket-id>.md
+```
+
 6. Archive the ticket:
    - Create `archive/tickets/` if absent.
    - Prefer `git mv` for tracked tickets.
@@ -178,6 +194,16 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    checks match what actually happened. If a report originally recorded a
    deferral that was completed later in the same series, amend the report so the
    final archived state is truthful.
+   Mechanically verify that every archived ticket in the series and the archived
+   spec use the repository archival format:
+
+```sh
+rg --files-without-match '^## Outcome' archive/tickets/<ticket-prefix>*.md archive/specs/<spec filename>
+rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md archive/specs/<spec filename>
+```
+
+   Treat any printed path as incomplete archive truthing; fix it before the
+   final commit.
    Also grep active reports and outcomes for stale pending-state language, then
    manually review any matches:
 
@@ -207,6 +233,9 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    response alone.
 
 ## Reporting
+
+For active `/goal` runs, call the goal completion tool after the final audit and
+before the final response; do not rely on a prose closeout alone.
 
 Final responses must include:
 

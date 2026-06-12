@@ -46,7 +46,7 @@ use crate::debug_panels::{
     render_item_location_panel, render_no_human_day_panel, render_phase3a_debug_panel,
     render_projection_rebuild_panel, render_replay_panel,
 };
-use crate::render::render_embodied_view;
+use crate::render::{render_debug_overlay, render_embodied_view};
 
 #[derive(Debug)]
 pub enum AppError {
@@ -168,6 +168,7 @@ impl TuiApp {
         let mut view = build_embodied_view_model(
             &context,
             &source,
+            &self.state,
             &self.registry,
             &self.content_manifest_id,
             self.last_rejection.as_ref(),
@@ -203,6 +204,15 @@ impl TuiApp {
 
     pub fn render_current_view(&self) -> Result<String, AppError> {
         Ok(render_embodied_view(&self.current_view()?))
+    }
+
+    pub fn render_debug_embodied_overlay(&self) -> Result<Option<String>, AppError> {
+        let view = self.current_view()?;
+        if view.debug_available {
+            Ok(Some(render_debug_overlay(&view)))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn submit_semantic_action(
@@ -453,8 +463,74 @@ mod tests {
         assert_eq!(result.report.status, ReportStatus::Accepted);
 
         let after = app.render_current_view().unwrap();
-        assert!(after.contains("coin_stack_01"));
+        assert!(after.contains("strongbox_tomas"));
+        assert!(!after.contains("coin_stack_01"));
         assert!(app.event_count() >= 2);
+    }
+
+    #[test]
+    fn app_debug_overlay_renders_only_for_bound_embodied_controller() {
+        let mut app = TuiApp::load_default().unwrap();
+        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
+
+        let rendered = app.render_debug_embodied_overlay().unwrap().unwrap();
+        assert!(rendered.contains("DEBUG NON-DIEGETIC: Embodied Overlay"));
+        assert!(rendered.contains("Knowledge context: id=hkc."));
+
+        app.controller_bindings.detach(
+            &app.controller_id,
+            app.scheduler.current_tick,
+            &mut app.log,
+            app.content_manifest_id.clone(),
+        );
+
+        assert_eq!(app.render_debug_embodied_overlay().unwrap(), None);
+    }
+
+    #[test]
+    fn render_functions_have_production_callers_or_documented_allowlist() {
+        let render_source = include_str!("render.rs");
+        let app_source = include_str!("app.rs");
+        let run_source = include_str!("run.rs");
+        let transcript_source = include_str!("transcript.rs");
+
+        assert!(render_reachability_errors(
+            render_source,
+            &[
+                production_source(app_source),
+                production_source(run_source),
+                production_source(transcript_source)
+            ]
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn render_reachability_guard_fires_on_synthetic_uncalled_renderer() {
+        let render_source = format!(
+            "{}\npub fn render_synthetic_uncalled_panel() -> String {{ String::new() }}\n",
+            include_str!("render.rs")
+        );
+        let app_source = include_str!("app.rs");
+        let run_source = include_str!("run.rs");
+        let transcript_source = include_str!("transcript.rs");
+
+        let errors = render_reachability_errors(
+            &render_source,
+            &[
+                production_source(app_source),
+                production_source(run_source),
+                production_source(transcript_source),
+            ],
+        );
+
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("render_synthetic_uncalled_panel")),
+            "synthetic uncalled render function was not reported: {errors:?}"
+        );
     }
 
     #[test]
@@ -483,5 +559,45 @@ mod tests {
         assert!(app.event_count() > before_events);
         assert!(app.render_debug_no_human_day_panel().contains("events="));
         assert!(app.render_debug_no_human_day_panel().contains("canonical="));
+    }
+
+    fn render_reachability_errors(render_source: &str, caller_sources: &[&str]) -> Vec<String> {
+        render_function_names(render_source)
+            .into_iter()
+            .filter(|name| !render_function_is_called(name, caller_sources))
+            .filter(|name| !render_function_allowlisted(name))
+            .map(|name| format!("{name} has no production caller"))
+            .collect()
+    }
+
+    fn render_function_names(source: &str) -> Vec<String> {
+        source
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim_start();
+                let rest = trimmed.strip_prefix("pub fn render_")?;
+                let name_end = rest.find('(')?;
+                Some(format!("render_{}", &rest[..name_end]))
+            })
+            .collect()
+    }
+
+    fn render_function_is_called(name: &str, caller_sources: &[&str]) -> bool {
+        caller_sources
+            .iter()
+            .any(|source| source.matches(name).count() > 1 || source.contains(&format!("{name}(")))
+    }
+
+    fn render_function_allowlisted(name: &str) -> bool {
+        match name {
+            // `render_rejection` is production transcript evidence rather than an interactive
+            // panel; it is exercised by `transcript.rs`, not by the command-loop app path.
+            "render_rejection" => true,
+            _ => false,
+        }
+    }
+
+    fn production_source(source: &str) -> &str {
+        source.split("\n#[cfg(test)]").next().unwrap_or(source)
     }
 }

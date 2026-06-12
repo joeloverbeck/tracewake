@@ -5,9 +5,11 @@ use crate::epistemics::contradiction::Contradiction;
 use crate::epistemics::knowledge_context::{KnowledgeContext, ViewMode};
 use crate::epistemics::observation::{Observation, SourceRef, EPISTEMIC_RECORD_SCHEMA_V1};
 use crate::ids::{
-    ActorId, BeliefId, ContentManifestId, ContradictionId, EpistemicProjectionVersion, EventId,
-    ObservationId, PlaceId, SchemaVersion, WorkplaceId,
+    ActorId, BeliefId, ContainerId, ContentManifestId, ContradictionId, DoorId,
+    EpistemicProjectionVersion, EventId, ItemId, ObservationId, PlaceId, SchemaVersion,
+    WorkplaceId,
 };
+use crate::location::Location;
 use crate::time::SimTick;
 use crate::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
@@ -35,6 +37,10 @@ pub enum ActorKnownProjectionSource {
     StartingBelief,
     VisibleExit,
     VisibleFoodSupply,
+    VisibleDoor,
+    VisibleContainer,
+    VisibleItem,
+    VisibleActor,
     VisibleSleepAffordance,
 }
 
@@ -70,6 +76,47 @@ pub enum ActorKnownProjectionRecord {
         workplace_id: WorkplaceId,
         place_id: PlaceId,
         believed_access_open: bool,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+        source_tick: SimTick,
+    },
+    LocalDoor {
+        actor_id: ActorId,
+        door_id: DoorId,
+        place_id: PlaceId,
+        endpoint_a: PlaceId,
+        endpoint_b: PlaceId,
+        is_open: bool,
+        is_locked: bool,
+        blocks_movement_when_closed: bool,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+        source_tick: SimTick,
+    },
+    LocalContainer {
+        actor_id: ActorId,
+        container_id: ContainerId,
+        place_id: PlaceId,
+        is_open: bool,
+        is_locked: bool,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+        source_tick: SimTick,
+    },
+    LocalItem {
+        actor_id: ActorId,
+        item_id: ItemId,
+        place_id: PlaceId,
+        source_location: Location,
+        portable: bool,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+        source_tick: SimTick,
+    },
+    LocalActor {
+        actor_id: ActorId,
+        observed_actor_id: ActorId,
+        place_id: PlaceId,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
         source_tick: SimTick,
@@ -663,6 +710,10 @@ impl ActorKnownProjectionSource {
             Self::StartingBelief => "evented_starting_belief",
             Self::VisibleExit => "evented_perception:visible_exit",
             Self::VisibleFoodSupply => "evented_perception:visible_food_supply",
+            Self::VisibleDoor => "evented_perception:visible_door",
+            Self::VisibleContainer => "evented_perception:visible_container",
+            Self::VisibleItem => "evented_perception:visible_item",
+            Self::VisibleActor => "evented_perception:visible_actor",
             Self::VisibleSleepAffordance => "evented_perception:visible_sleep_affordance",
         }
     }
@@ -673,6 +724,10 @@ impl ActorKnownProjectionSource {
             Self::StartingBelief => "starting_belief",
             Self::VisibleExit => "visible_exit",
             Self::VisibleFoodSupply => "visible_food_supply",
+            Self::VisibleDoor => "visible_door",
+            Self::VisibleContainer => "visible_container",
+            Self::VisibleItem => "visible_item",
+            Self::VisibleActor => "visible_actor",
             Self::VisibleSleepAffordance => "visible_sleep_affordance",
         }
     }
@@ -683,6 +738,10 @@ impl ActorKnownProjectionRecord {
         match self {
             Self::Route { .. } => "route",
             Self::FoodSource { .. } => "food_source",
+            Self::LocalActor { .. } => "local_actor",
+            Self::LocalContainer { .. } => "local_container",
+            Self::LocalDoor { .. } => "local_door",
+            Self::LocalItem { .. } => "local_item",
             Self::SleepPlace { .. } => "sleep_place",
             Self::Workplace { .. } => "workplace",
         }
@@ -691,7 +750,13 @@ impl ActorKnownProjectionRecord {
     fn supersede_workplace_subject(&self) -> Option<&WorkplaceId> {
         match self {
             Self::Workplace { workplace_id, .. } => Some(workplace_id),
-            Self::Route { .. } | Self::FoodSource { .. } | Self::SleepPlace { .. } => None,
+            Self::Route { .. }
+            | Self::FoodSource { .. }
+            | Self::SleepPlace { .. }
+            | Self::LocalDoor { .. }
+            | Self::LocalContainer { .. }
+            | Self::LocalItem { .. }
+            | Self::LocalActor { .. } => None,
         }
     }
 
@@ -699,6 +764,10 @@ impl ActorKnownProjectionRecord {
         match self {
             Self::Route { actor_id, .. }
             | Self::FoodSource { actor_id, .. }
+            | Self::LocalActor { actor_id, .. }
+            | Self::LocalContainer { actor_id, .. }
+            | Self::LocalDoor { actor_id, .. }
+            | Self::LocalItem { actor_id, .. }
             | Self::SleepPlace { actor_id, .. }
             | Self::Workplace { actor_id, .. } => actor_id,
         }
@@ -708,6 +777,10 @@ impl ActorKnownProjectionRecord {
         match self {
             Self::Route { source, .. }
             | Self::FoodSource { source, .. }
+            | Self::LocalActor { source, .. }
+            | Self::LocalContainer { source, .. }
+            | Self::LocalDoor { source, .. }
+            | Self::LocalItem { source, .. }
             | Self::SleepPlace { source, .. }
             | Self::Workplace { source, .. } => source,
         }
@@ -719,6 +792,18 @@ impl ActorKnownProjectionRecord {
                 source_event_id, ..
             }
             | Self::FoodSource {
+                source_event_id, ..
+            }
+            | Self::LocalActor {
+                source_event_id, ..
+            }
+            | Self::LocalContainer {
+                source_event_id, ..
+            }
+            | Self::LocalDoor {
+                source_event_id, ..
+            }
+            | Self::LocalItem {
                 source_event_id, ..
             }
             | Self::SleepPlace {
@@ -734,6 +819,10 @@ impl ActorKnownProjectionRecord {
         match self {
             Self::Route { source_tick, .. }
             | Self::FoodSource { source_tick, .. }
+            | Self::LocalActor { source_tick, .. }
+            | Self::LocalContainer { source_tick, .. }
+            | Self::LocalDoor { source_tick, .. }
+            | Self::LocalItem { source_tick, .. }
             | Self::SleepPlace { source_tick, .. }
             | Self::Workplace { source_tick, .. } => *source_tick,
         }
@@ -753,7 +842,12 @@ impl ActorKnownProjectionRecord {
             Self::FoodSource { place_id: None, .. } => {
                 panic!("projection food-source records must carry source place")
             }
-            Self::SleepPlace { place_id, .. } | Self::Workplace { place_id, .. } => place_id,
+            Self::SleepPlace { place_id, .. }
+            | Self::Workplace { place_id, .. }
+            | Self::LocalDoor { place_id, .. }
+            | Self::LocalContainer { place_id, .. }
+            | Self::LocalItem { place_id, .. }
+            | Self::LocalActor { place_id, .. } => place_id,
         }
     }
 
@@ -824,6 +918,84 @@ impl ActorKnownProjectionRecord {
                 source_event_id.as_str(),
                 source_tick.value()
             ),
+            Self::LocalDoor {
+                door_id,
+                place_id,
+                endpoint_a,
+                endpoint_b,
+                is_open,
+                is_locked,
+                blocks_movement_when_closed,
+                source,
+                source_event_id,
+                source_tick,
+                ..
+            } => format!(
+                "local_door|id={}|place={}|a={}|b={}|open={}|locked={}|blocks={}|source={}|event={}|tick={}",
+                door_id.as_str(),
+                place_id.as_str(),
+                endpoint_a.as_str(),
+                endpoint_b.as_str(),
+                is_open,
+                is_locked,
+                blocks_movement_when_closed,
+                source.stable_id(),
+                source_event_id.as_str(),
+                source_tick.value()
+            ),
+            Self::LocalContainer {
+                container_id,
+                place_id,
+                is_open,
+                is_locked,
+                source,
+                source_event_id,
+                source_tick,
+                ..
+            } => format!(
+                "local_container|id={}|place={}|open={}|locked={}|source={}|event={}|tick={}",
+                container_id.as_str(),
+                place_id.as_str(),
+                is_open,
+                is_locked,
+                source.stable_id(),
+                source_event_id.as_str(),
+                source_tick.value()
+            ),
+            Self::LocalItem {
+                item_id,
+                place_id,
+                source_location,
+                portable,
+                source,
+                source_event_id,
+                source_tick,
+                ..
+            } => format!(
+                "local_item|id={}|place={}|location={}|portable={}|source={}|event={}|tick={}",
+                item_id.as_str(),
+                place_id.as_str(),
+                location_key(source_location),
+                portable,
+                source.stable_id(),
+                source_event_id.as_str(),
+                source_tick.value()
+            ),
+            Self::LocalActor {
+                observed_actor_id,
+                place_id,
+                source,
+                source_event_id,
+                source_tick,
+                ..
+            } => format!(
+                "local_actor|id={}|place={}|source={}|event={}|tick={}",
+                observed_actor_id.as_str(),
+                place_id.as_str(),
+                source.stable_id(),
+                source_event_id.as_str(),
+                source_tick.value()
+            ),
         }
     }
 }
@@ -845,6 +1017,38 @@ pub fn actor_known_projection_policy_kinds(
                 classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
                 embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
                 accessibility_scope: ActorKnownProjectionAccessibilityScope::FromAnyPlace,
+            },
+        ),
+        (
+            "local_actor",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+            },
+        ),
+        (
+            "local_container",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+            },
+        ),
+        (
+            "local_door",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+            },
+        ),
+        (
+            "local_item",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
             },
         ),
         (
@@ -909,6 +1113,10 @@ fn reclassifying_record_freshness(
         record.source(),
         ActorKnownProjectionSource::VisibleExit
             | ActorKnownProjectionSource::VisibleFoodSupply
+            | ActorKnownProjectionSource::VisibleDoor
+            | ActorKnownProjectionSource::VisibleContainer
+            | ActorKnownProjectionSource::VisibleItem
+            | ActorKnownProjectionSource::VisibleActor
             | ActorKnownProjectionSource::VisibleSleepAffordance
     ) {
         return ActorKnownProjectionFreshness::Remembered;
@@ -917,6 +1125,14 @@ fn reclassifying_record_freshness(
         return ActorKnownProjectionFreshness::Remembered;
     }
     ActorKnownProjectionFreshness::CurrentlyPerceived
+}
+
+fn location_key(location: &Location) -> String {
+    match location {
+        Location::AtPlace(place_id) => format!("place:{}", place_id.as_str()),
+        Location::InContainer(container_id) => format!("container:{}", container_id.as_str()),
+        Location::CarriedBy(actor_id) => format!("carried:{}", actor_id.as_str()),
+    }
 }
 
 fn is_latest_current_place_record(
@@ -967,6 +1183,108 @@ fn actor_known_records_from_observation(
                 believed_servings: observation_payload_value(observation, "servings")
                     .and_then(|value| value.parse::<u32>().ok()),
                 source: ActorKnownProjectionSource::VisibleFoodSupply,
+                source_event_id,
+                source_tick: observation.observed_tick(),
+            }]
+        }
+        Some("visible_door") => {
+            let Some(door_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| DoorId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(endpoint_a) = observation_payload_value(observation, "endpoint_a")
+                .and_then(|value| PlaceId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(endpoint_b) = observation_payload_value(observation, "endpoint_b")
+                .and_then(|value| PlaceId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(is_open) = observation_payload_bool(observation, "is_open") else {
+                return Vec::new();
+            };
+            let Some(is_locked) = observation_payload_bool(observation, "is_locked") else {
+                return Vec::new();
+            };
+            let Some(blocks_movement_when_closed) =
+                observation_payload_bool(observation, "blocks_movement_when_closed")
+            else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::LocalDoor {
+                actor_id,
+                door_id,
+                place_id: observation.observer_place_id().clone(),
+                endpoint_a,
+                endpoint_b,
+                is_open,
+                is_locked,
+                blocks_movement_when_closed,
+                source: ActorKnownProjectionSource::VisibleDoor,
+                source_event_id,
+                source_tick: observation.observed_tick(),
+            }]
+        }
+        Some("visible_container") => {
+            let Some(container_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| ContainerId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(is_open) = observation_payload_bool(observation, "is_open") else {
+                return Vec::new();
+            };
+            let Some(is_locked) = observation_payload_bool(observation, "is_locked") else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::LocalContainer {
+                actor_id,
+                container_id,
+                place_id: observation.observer_place_id().clone(),
+                is_open,
+                is_locked,
+                source: ActorKnownProjectionSource::VisibleContainer,
+                source_event_id,
+                source_tick: observation.observed_tick(),
+            }]
+        }
+        Some("visible_item") => {
+            let Some(item_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| ItemId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(source_location) = observation_item_location(observation) else {
+                return Vec::new();
+            };
+            let Some(portable) = observation_payload_bool(observation, "portable") else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::LocalItem {
+                actor_id,
+                item_id,
+                place_id: observation.observer_place_id().clone(),
+                source_location,
+                portable,
+                source: ActorKnownProjectionSource::VisibleItem,
+                source_event_id,
+                source_tick: observation.observed_tick(),
+            }]
+        }
+        Some("visible_actor") => {
+            let Some(observed_actor_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| ActorId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::LocalActor {
+                actor_id,
+                observed_actor_id,
+                place_id: observation.observer_place_id().clone(),
+                source: ActorKnownProjectionSource::VisibleActor,
                 source_event_id,
                 source_tick: observation.observed_tick(),
             }]
@@ -1040,6 +1358,25 @@ fn observation_payload_value<'a>(observation: &'a Observation, key: &str) -> Opt
         .map(|field| field.value.as_str())
 }
 
+fn observation_payload_bool(observation: &Observation, key: &str) -> Option<bool> {
+    observation_payload_value(observation, key).and_then(|value| value.parse::<bool>().ok())
+}
+
+fn observation_item_location(observation: &Observation) -> Option<Location> {
+    match observation_payload_value(observation, "item_source_kind")? {
+        "place" => observation_payload_value(observation, "item_source_place_id")
+            .and_then(|value| PlaceId::new(value).ok())
+            .map(Location::AtPlace),
+        "container" => observation_payload_value(observation, "item_source_container_id")
+            .and_then(|value| ContainerId::new(value).ok())
+            .map(Location::InContainer),
+        "carried" => observation_payload_value(observation, "item_source_actor_id")
+            .and_then(|value| ActorId::new(value).ok())
+            .map(Location::CarriedBy),
+        _ => None,
+    }
+}
+
 fn holder_key(holder: &HolderKind) -> String {
     match holder {
         HolderKind::Actor(actor_id) => format!("actor:{}", actor_id.as_str()),
@@ -1098,12 +1435,19 @@ fn source_summary(source: &SourceRef) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agent::{
+        current_place_knowledge_context, NoHumanActorKnownSurfaceBuilder,
+        NoHumanActorKnownSurfaceRequest,
+    };
     use crate::epistemics::belief::{Belief, HolderKind, Stance};
     use crate::epistemics::knowledge_context::KnowledgeContext;
-    use crate::epistemics::observation::{Confidence, SourceRef};
+    use crate::epistemics::observation::{
+        Channel, Confidence, Observation, ObservationSubject, ObservationTarget, SourceRef,
+    };
     use crate::epistemics::proposition::Proposition;
-    use crate::ids::{ContainerId, EventId, ItemId};
+    use crate::ids::{ContainerId, DoorId, EventId, ItemId, ObservationId};
     use crate::location::Location;
+    use crate::state::{ActorBody, AgentState, NeedModelState, PhysicalState};
     use crate::time::SimTick;
 
     fn actor_id(value: &str) -> ActorId {
@@ -1163,7 +1507,16 @@ mod tests {
 
         assert_eq!(
             policies.keys().copied().collect::<Vec<_>>(),
-            ["food_source", "route", "sleep_place", "workplace"]
+            [
+                "food_source",
+                "local_actor",
+                "local_container",
+                "local_door",
+                "local_item",
+                "route",
+                "sleep_place",
+                "workplace"
+            ]
         );
         for record in policy_behavior_records(actor_id("actor_tomas")) {
             assert!(
@@ -1176,58 +1529,50 @@ mod tests {
 
     #[test]
     fn actor_known_projection_policy_table_drives_record_behavior() {
-        let actor = actor_id("actor_tomas");
         let current_place = place_id("home_tomas");
-        let context = KnowledgeContext::embodied(actor.clone(), SimTick::new(4));
-        let mut projection = EpistemicProjection::new(manifest_id());
-        projection.actor_known_records_by_actor.insert(
-            actor.clone(),
-            policy_behavior_records(actor).into_iter().collect(),
+        let policies = actor_known_projection_policy_kinds();
+
+        let mismatches = policy_surface_mismatches(&policies, &current_place);
+
+        assert!(
+            mismatches.is_empty(),
+            "policy table rows must drive emitted no-human and embodied surface behavior: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn actor_known_projection_policy_table_detects_synthetic_row_mutations() {
+        let current_place = place_id("home_tomas");
+        let mut policies = actor_known_projection_policy_kinds();
+
+        policies.get_mut("food_source").unwrap().accessibility_scope =
+            ActorKnownProjectionAccessibilityScope::None;
+        assert!(
+            policy_surface_mismatches(&policies, &current_place)
+                .iter()
+                .any(|mismatch| mismatch.contains("food_source accessibility")),
+            "accessibility-scope mutation must be caught by emitted no-human facts"
         );
 
-        let classified =
-            projection.classified_actor_known_records_for_context(&context, &current_place);
-        let by_kind = classified
-            .iter()
-            .map(|classified| (classified.record().kind(), *classified))
-            .collect::<BTreeMap<_, _>>();
+        let mut policies = actor_known_projection_policy_kinds();
+        policies.get_mut("workplace").unwrap().classification =
+            ActorKnownProjectionPolicy::ReclassifyWhenStale;
+        assert!(
+            policy_surface_mismatches(&policies, &current_place)
+                .iter()
+                .any(|mismatch| mismatch.contains("workplace classification")),
+            "classification mutation must be caught by superseded workplace surface output"
+        );
 
-        let policies = actor_known_projection_policy_kinds();
-        for (kind, policy) in policies {
-            let classified = by_kind
-                .get(kind)
-                .unwrap_or_else(|| panic!("classified records omit policy kind {kind}"));
-            assert_eq!(
-                classified.record().policy().classification(),
-                policy.classification(),
-                "{kind} dispatches to a policy classification different from the table"
-            );
-            assert_eq!(
-                classified.record().policy().embodied_scope(),
-                policy.embodied_scope(),
-                "{kind} dispatches to an embodied scope different from the table"
-            );
-            assert_eq!(
-                classified.record().policy().accessibility_scope(),
-                policy.accessibility_scope(),
-                "{kind} dispatches to an accessibility scope different from the table"
-            );
-            assert_eq!(
-                policy.includes_in_embodied_context(
-                    classified.is_current_place_record(),
-                    classified.is_latest_current_place_record()
-                ),
-                kind == "workplace",
-                "{kind} embodied inclusion must be behaviorally tied to the declared scope"
-            );
-            if policy.classification() == ActorKnownProjectionPolicy::ReclassifyWhenStale {
-                assert_eq!(
-                    classified.freshness(),
-                    ActorKnownProjectionFreshness::Remembered,
-                    "{kind} should classify a direct non-observation-backed record as remembered"
-                );
-            }
-        }
+        let mut policies = actor_known_projection_policy_kinds();
+        policies.get_mut("workplace").unwrap().embodied_scope =
+            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly;
+        assert!(
+            stale_workplace_embodied_scope_mismatches(&policies)
+                .iter()
+                .any(|mismatch| mismatch.contains("workplace embodied")),
+            "embodied-scope mutation must be caught by stale current-place workplace behavior"
+        );
     }
 
     #[test]
@@ -1309,6 +1654,47 @@ mod tests {
                 source_event_id: event_id("event_visible_food"),
                 source_tick: SimTick::new(4),
             },
+            ActorKnownProjectionRecord::LocalActor {
+                actor_id: actor.clone(),
+                observed_actor_id: actor_id("actor_mara"),
+                place_id: place_id("home_tomas"),
+                source: ActorKnownProjectionSource::VisibleActor,
+                source_event_id: event_id("event_visible_actor"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::LocalContainer {
+                actor_id: actor.clone(),
+                container_id: container_id("strongbox_tomas"),
+                place_id: place_id("home_tomas"),
+                is_open: false,
+                is_locked: false,
+                source: ActorKnownProjectionSource::VisibleContainer,
+                source_event_id: event_id("event_visible_container"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::LocalDoor {
+                actor_id: actor.clone(),
+                door_id: DoorId::new("door_home_market").unwrap(),
+                place_id: place_id("home_tomas"),
+                endpoint_a: place_id("home_tomas"),
+                endpoint_b: place_id("market"),
+                is_open: true,
+                is_locked: false,
+                blocks_movement_when_closed: true,
+                source: ActorKnownProjectionSource::VisibleDoor,
+                source_event_id: event_id("event_visible_door"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::LocalItem {
+                actor_id: actor.clone(),
+                item_id: item_id("coin_stack_01"),
+                place_id: place_id("home_tomas"),
+                source_location: Location::AtPlace(place_id("home_tomas")),
+                portable: true,
+                source: ActorKnownProjectionSource::VisibleItem,
+                source_event_id: event_id("event_visible_item"),
+                source_tick: SimTick::new(4),
+            },
             ActorKnownProjectionRecord::SleepPlace {
                 actor_id: actor.clone(),
                 place_id: place_id("home_tomas"),
@@ -1327,6 +1713,255 @@ mod tests {
                 source_tick: SimTick::new(4),
             },
         ]
+    }
+
+    fn policy_surface_mismatches(
+        policies: &BTreeMap<&'static str, ActorKnownProjectionKindPolicy>,
+        current_place: &PlaceId,
+    ) -> Vec<String> {
+        let actor = actor_id("actor_tomas");
+        let projection = policy_behavior_projection(actor.clone());
+        let embodied_context =
+            policy_behavior_embodied_context(&projection, actor.clone(), current_place.clone());
+        let no_human_fact_values =
+            policy_behavior_no_human_fact_values(&projection, actor, current_place.clone());
+        let mut mismatches = Vec::new();
+
+        for (kind, policy) in policies {
+            let expected_embodied = expected_embodied_presence(kind, *policy, current_place);
+            let actual_embodied = embodied_surface_contains(&embodied_context, kind);
+            if actual_embodied != expected_embodied {
+                mismatches.push(format!(
+                    "{kind} embodied expected {expected_embodied} observed {actual_embodied}"
+                ));
+            }
+
+            if let Some(access_fact_id) = accessibility_fact_id(kind) {
+                let expected_accessibility = policy.accessibility_scope()
+                    == ActorKnownProjectionAccessibilityScope::FromAnyPlace;
+                let actual_accessibility = no_human_fact_values.contains_key(access_fact_id);
+                if actual_accessibility != expected_accessibility {
+                    mismatches.push(format!(
+                        "{kind} accessibility expected {expected_accessibility} observed {actual_accessibility}"
+                    ));
+                }
+            }
+        }
+
+        let expected_workplace_values = match policies
+            .get("workplace")
+            .expect("policy table has workplace")
+            .classification()
+        {
+            ActorKnownProjectionPolicy::SupersedeNewestBySubject => {
+                vec!["workplace_tomas:true".to_string()]
+            }
+            ActorKnownProjectionPolicy::ReclassifyWhenStale => vec![
+                "workplace_tomas:false".to_string(),
+                "workplace_tomas:true".to_string(),
+            ],
+        };
+        let actual_workplace_values = no_human_fact_values
+            .get("workplace_believed_accessible")
+            .cloned()
+            .unwrap_or_default();
+        if actual_workplace_values != expected_workplace_values {
+            mismatches.push(format!(
+                "workplace classification expected values {expected_workplace_values:?} observed {actual_workplace_values:?}"
+            ));
+        }
+
+        mismatches
+    }
+
+    fn policy_behavior_projection(actor: ActorId) -> EpistemicProjection {
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_observation(Observation::new(
+            ObservationId::new("observation_current_place_tick_4").unwrap(),
+            actor.clone(),
+            Channel::DirectSight,
+            SimTick::new(4),
+            place_id("home_tomas"),
+            ObservationSubject::Place(place_id("home_tomas")),
+            ObservationTarget::Place(place_id("home_tomas")),
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(event_id("event_current_place_tick_4")),
+        ));
+        let mut records = policy_behavior_records(actor);
+        records.push(ActorKnownProjectionRecord::Workplace {
+            actor_id: actor_id("actor_tomas"),
+            workplace_id: workplace_id("workplace_tomas"),
+            place_id: place_id("home_tomas"),
+            believed_access_open: false,
+            source: ActorKnownProjectionSource::RoleAssignmentNotice,
+            source_event_id: event_id("event_role_notice_old_closed"),
+            source_tick: SimTick::new(3),
+        });
+        projection
+            .actor_known_records_by_actor
+            .entry(actor_id("actor_tomas"))
+            .or_default()
+            .extend(records);
+        projection
+    }
+
+    fn policy_behavior_embodied_context(
+        projection: &EpistemicProjection,
+        actor: ActorId,
+        current_place: PlaceId,
+    ) -> KnowledgeContext {
+        let mut state = PhysicalState::empty(NeedModelState::new(5, 3));
+        state
+            .actors
+            .insert(actor.clone(), ActorBody::new(actor.clone(), current_place));
+        current_place_knowledge_context(
+            &state,
+            Some(projection),
+            &actor,
+            SimTick::new(4),
+            &manifest_id(),
+            8,
+        )
+    }
+
+    fn policy_behavior_no_human_fact_values(
+        projection: &EpistemicProjection,
+        actor: ActorId,
+        current_place: PlaceId,
+    ) -> BTreeMap<String, Vec<String>> {
+        let surface =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection,
+                agent_state: &AgentState::default(),
+                actor_id: actor,
+                current_place_id: current_place,
+                decision_tick: SimTick::new(4),
+                window_id: "policy_surface_window",
+                window_end_tick: SimTick::new(5),
+                current_place_witness_event_id: Some(event_id("event_current_place_witness")),
+                needs_witness_event_id: None,
+                frame_event_id: Some(event_id("event_policy_frame")),
+            })
+            .build(&AgentState::default());
+        let mut values = BTreeMap::<String, Vec<String>>::new();
+        for fact in surface.context().actor_known_facts() {
+            values
+                .entry(fact.stable_id().to_string())
+                .or_default()
+                .push(fact.value().to_string());
+        }
+        for fact_values in values.values_mut() {
+            fact_values.sort();
+            fact_values.dedup();
+        }
+        values
+    }
+
+    fn stale_workplace_embodied_scope_mismatches(
+        policies: &BTreeMap<&'static str, ActorKnownProjectionKindPolicy>,
+    ) -> Vec<String> {
+        let actor = actor_id("actor_tomas");
+        let current_place = place_id("home_tomas");
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_observation(Observation::new(
+            ObservationId::new("observation_current_place_tick_4").unwrap(),
+            actor.clone(),
+            Channel::DirectSight,
+            SimTick::new(4),
+            current_place.clone(),
+            ObservationSubject::Place(current_place.clone()),
+            ObservationTarget::Place(current_place.clone()),
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(event_id("event_current_place_tick_4")),
+        ));
+        projection.insert_role_assignment_notice(
+            actor.clone(),
+            workplace_id("workplace_tomas"),
+            current_place.clone(),
+            true,
+            event_id("event_role_notice_stale"),
+            SimTick::new(3),
+        );
+        let embodied_context =
+            policy_behavior_embodied_context(&projection, actor, current_place.clone());
+        let expected_embodied = policies
+            .get("workplace")
+            .expect("policy table has workplace")
+            .includes_in_embodied_context(true, false);
+        let actual_embodied = embodied_surface_contains(&embodied_context, "workplace");
+        if actual_embodied == expected_embodied {
+            Vec::new()
+        } else {
+            vec![format!(
+                "workplace embodied expected {expected_embodied} observed {actual_embodied}"
+            )]
+        }
+    }
+
+    fn expected_embodied_presence(
+        kind: &str,
+        policy: ActorKnownProjectionKindPolicy,
+        current_place: &PlaceId,
+    ) -> bool {
+        let current_place_record = relevant_place_for_kind(kind) == Some(current_place.clone());
+        let latest_current_place_record =
+            current_place_record && current_place.as_str() == "home_tomas";
+        policy.includes_in_embodied_context(current_place_record, latest_current_place_record)
+    }
+
+    fn relevant_place_for_kind(kind: &str) -> Option<PlaceId> {
+        match kind {
+            "route" | "food_source" | "local_actor" | "local_container" | "local_door"
+            | "local_item" | "sleep_place" | "workplace" => Some(place_id("home_tomas")),
+            _ => None,
+        }
+    }
+
+    fn embodied_surface_contains(context: &KnowledgeContext, kind: &str) -> bool {
+        match kind {
+            "route" => context
+                .actor_known_routes()
+                .iter()
+                .any(|fact| fact.from_place_id().as_str() == "home_tomas"),
+            "food_source" => context
+                .actor_known_food_sources()
+                .iter()
+                .any(|fact| fact.food_supply_id().as_str() == "food_stew"),
+            "local_actor" => context
+                .actor_known_local_actors()
+                .iter()
+                .any(|fact| fact.actor_id().as_str() == "actor_mara"),
+            "local_container" => context
+                .actor_known_containers()
+                .iter()
+                .any(|fact| fact.container_id().as_str() == "strongbox_tomas"),
+            "local_door" => context
+                .actor_known_doors()
+                .iter()
+                .any(|fact| fact.door_id().as_str() == "door_home_market"),
+            "local_item" => context
+                .actor_known_items()
+                .iter()
+                .any(|fact| fact.item_id().as_str() == "coin_stack_01"),
+            "sleep_place" => context
+                .actor_known_sleep_affordances()
+                .iter()
+                .any(|fact| fact.sleep_affordance_id().as_str() == "bed_tomas"),
+            "workplace" => context
+                .actor_known_workplaces()
+                .iter()
+                .any(|fact| fact.workplace_id().as_str() == "workplace_tomas"),
+            other => panic!("unhandled policy behavior kind {other}"),
+        }
+    }
+
+    fn accessibility_fact_id(kind: &str) -> Option<&'static str> {
+        match kind {
+            "food_source" => Some("food_source_believed_accessible"),
+            "sleep_place" => Some("sleep_place_believed_accessible"),
+            "workplace" => Some("workplace_believed_accessible"),
+            _ => None,
+        }
     }
 
     #[test]

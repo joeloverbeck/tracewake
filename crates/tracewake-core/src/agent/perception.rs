@@ -1,5 +1,6 @@
 use crate::epistemics::{
-    ActorKnownFoodSourceFact, ActorKnownProjectionRecord, ActorKnownRouteFact,
+    ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact,
+    ActorKnownLocalActorFact, ActorKnownProjectionRecord, ActorKnownRouteFact,
     ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact, Channel, Confidence,
     EpistemicProjection, KnowledgeContext, Observation, ObservationSubject, ObservationTarget,
     SourceRef,
@@ -66,6 +67,7 @@ pub fn current_place_perception_events(
         target_id: current_place_id.as_str().to_string(),
         place_id: current_place_id.clone(),
         servings: None,
+        payload: Vec::new(),
     });
 
     if let Some(place) = state.places().get(&current_place_id) {
@@ -79,8 +81,83 @@ pub fn current_place_perception_events(
                 target_id: adjacent_place_id.as_str().to_string(),
                 place_id: current_place_id.clone(),
                 servings: None,
+                payload: Vec::new(),
             });
         }
+    }
+
+    for door in state
+        .doors()
+        .values()
+        .filter(|door| door.connects_place(&current_place_id))
+    {
+        observations.push(PerceivedThing {
+            kind: "visible_door",
+            subject_id: current_place_id.as_str().to_string(),
+            target_id: door.door_id.as_str().to_string(),
+            place_id: current_place_id.clone(),
+            servings: None,
+            payload: vec![
+                PayloadField::new("endpoint_a", door.endpoint_a.as_str()),
+                PayloadField::new("endpoint_b", door.endpoint_b.as_str()),
+                PayloadField::new("is_open", door.is_open.to_string()),
+                PayloadField::new("is_locked", door.is_locked.to_string()),
+                PayloadField::new(
+                    "blocks_movement_when_closed",
+                    door.blocks_movement_when_closed.to_string(),
+                ),
+            ],
+        });
+    }
+
+    for container in state.containers().values().filter(|container| {
+        matches!(&container.location, Location::AtPlace(place_id) if place_id == &current_place_id)
+    }) {
+        observations.push(PerceivedThing {
+            kind: "visible_container",
+            subject_id: current_place_id.as_str().to_string(),
+            target_id: container.container_id.as_str().to_string(),
+            place_id: current_place_id.clone(),
+            servings: None,
+            payload: vec![
+                PayloadField::new("is_open", container.is_open.to_string()),
+                PayloadField::new("is_locked", container.is_locked.to_string()),
+            ],
+        });
+    }
+
+    for item in state.items().values() {
+        let Some(payload) = visible_item_payload(state, &current_place_id, &item.location) else {
+            continue;
+        };
+        observations.push(PerceivedThing {
+            kind: "visible_item",
+            subject_id: current_place_id.as_str().to_string(),
+            target_id: item.item_id.as_str().to_string(),
+            place_id: current_place_id.clone(),
+            servings: None,
+            payload: payload
+                .into_iter()
+                .chain([PayloadField::new("portable", item.portable.to_string())])
+                .collect(),
+        });
+    }
+
+    for local_actor_id in state.actors().keys().filter(|local_actor_id| {
+        *local_actor_id != actor_id
+            && state
+                .actors()
+                .get(*local_actor_id)
+                .is_some_and(|local_actor| local_actor.current_place_id == current_place_id)
+    }) {
+        observations.push(PerceivedThing {
+            kind: "visible_actor",
+            subject_id: current_place_id.as_str().to_string(),
+            target_id: local_actor_id.as_str().to_string(),
+            place_id: current_place_id.clone(),
+            servings: None,
+            payload: Vec::new(),
+        });
     }
 
     for food in state.food_supplies().values().filter(|food| {
@@ -92,6 +169,7 @@ pub fn current_place_perception_events(
             target_id: food.food_supply_id.as_str().to_string(),
             place_id: current_place_id.clone(),
             servings: Some(food.servings),
+            payload: Vec::new(),
         });
     }
 
@@ -108,6 +186,7 @@ pub fn current_place_perception_events(
             target_id: sleep_affordance.sleep_affordance_id.as_str().to_string(),
             place_id: current_place_id.clone(),
             servings: None,
+            payload: Vec::new(),
         });
     }
 
@@ -138,9 +217,13 @@ pub fn current_place_knowledge_context(
     let mut sleep_affordances = Vec::new();
     let mut routes = Vec::new();
     let mut workplaces = Vec::new();
+    let mut doors = Vec::new();
+    let mut containers = Vec::new();
+    let mut items = Vec::new();
+    let mut local_actors = Vec::new();
 
     let Some(actor) = state.actors().get(actor_id) else {
-        return KnowledgeContext::embodied_at_frontier_with_facts(
+        return KnowledgeContext::embodied_at_frontier_with_all_facts(
             actor_id.clone(),
             decision_tick,
             event_frontier,
@@ -148,10 +231,14 @@ pub fn current_place_knowledge_context(
             food_sources,
             sleep_affordances,
             routes,
+            doors,
+            containers,
+            items,
+            local_actors,
         );
     };
     let Some(epistemic_projection) = epistemic_projection else {
-        return KnowledgeContext::embodied_at_frontier_with_facts(
+        return KnowledgeContext::embodied_at_frontier_with_all_facts(
             actor_id.clone(),
             decision_tick,
             event_frontier,
@@ -159,6 +246,10 @@ pub fn current_place_knowledge_context(
             food_sources,
             sleep_affordances,
             routes,
+            doors,
+            containers,
+            items,
+            local_actors,
         );
     };
     let filter_context =
@@ -247,10 +338,71 @@ pub fn current_place_knowledge_context(
                     ));
                 }
             }
+            ActorKnownProjectionRecord::LocalDoor {
+                door_id,
+                endpoint_a,
+                endpoint_b,
+                is_open,
+                is_locked,
+                blocks_movement_when_closed,
+                ..
+            } => {
+                if included_by_policy {
+                    doors.push(ActorKnownDoorFact::new(
+                        door_id.clone(),
+                        endpoint_a.clone(),
+                        endpoint_b.clone(),
+                        *is_open,
+                        *is_locked,
+                        *blocks_movement_when_closed,
+                        source_key,
+                    ));
+                }
+            }
+            ActorKnownProjectionRecord::LocalContainer {
+                container_id,
+                is_open,
+                is_locked,
+                ..
+            } => {
+                if included_by_policy {
+                    containers.push(ActorKnownContainerFact::new(
+                        container_id.clone(),
+                        *is_open,
+                        *is_locked,
+                        source_key,
+                    ));
+                }
+            }
+            ActorKnownProjectionRecord::LocalItem {
+                item_id,
+                source_location,
+                portable,
+                ..
+            } => {
+                if included_by_policy {
+                    items.push(ActorKnownItemFact::new(
+                        item_id.clone(),
+                        source_location.clone(),
+                        *portable,
+                        source_key,
+                    ));
+                }
+            }
+            ActorKnownProjectionRecord::LocalActor {
+                observed_actor_id, ..
+            } => {
+                if included_by_policy {
+                    local_actors.push(ActorKnownLocalActorFact::new(
+                        observed_actor_id.clone(),
+                        source_key,
+                    ));
+                }
+            }
         }
     }
 
-    KnowledgeContext::embodied_at_frontier_with_facts(
+    KnowledgeContext::embodied_at_frontier_with_all_facts(
         actor_id.clone(),
         decision_tick,
         event_frontier,
@@ -258,6 +410,10 @@ pub fn current_place_knowledge_context(
         food_sources,
         sleep_affordances,
         routes,
+        doors,
+        containers,
+        items,
+        local_actors,
     )
 }
 
@@ -317,6 +473,35 @@ struct PerceivedThing {
     target_id: String,
     place_id: PlaceId,
     servings: Option<u32>,
+    payload: Vec<PayloadField>,
+}
+
+fn visible_item_payload(
+    state: &PhysicalState,
+    current_place_id: &PlaceId,
+    location: &Location,
+) -> Option<Vec<PayloadField>> {
+    match location {
+        Location::AtPlace(place_id) if place_id == current_place_id => Some(vec![
+            PayloadField::new("item_source_kind", "place"),
+            PayloadField::new("item_source_place_id", place_id.as_str()),
+        ]),
+        Location::InContainer(container_id) => {
+            let container = state.containers().get(container_id)?;
+            if !matches!(&container.location, Location::AtPlace(place_id) if place_id == current_place_id)
+            {
+                return None;
+            }
+            if !container.is_open && !container.contents_visible_when_closed {
+                return None;
+            }
+            Some(vec![
+                PayloadField::new("item_source_kind", "container"),
+                PayloadField::new("item_source_container_id", container_id.as_str()),
+            ])
+        }
+        Location::CarriedBy(_) | Location::AtPlace(_) => None,
+    }
 }
 
 fn observation_event(
@@ -386,6 +571,7 @@ fn observation_event(
             .payload
             .push(PayloadField::new("servings", servings.to_string()));
     }
+    event.payload.extend(perceived.payload);
     event.effects_summary = format!(
         "current-place perception recorded {} {}",
         perceived.kind, perceived.target_id
@@ -400,11 +586,11 @@ mod tests {
     use super::*;
     use crate::agent::{NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest};
     use crate::epistemics::{ActorKnownProjectionFreshness, EpistemicProjection};
-    use crate::ids::{FoodSupplyId, SleepAffordanceId, WorkplaceId};
+    use crate::ids::{ContainerId, FoodSupplyId, ItemId, SleepAffordanceId, WorkplaceId};
     use crate::state::AgentState;
     use crate::state::{
-        ActorBody, FoodSupplyState, PlaceState, SleepAffordanceState, VisibilityDefault,
-        WorkplaceState,
+        ActorBody, ContainerState, FoodSupplyState, ItemState, PlaceState, SleepAffordanceState,
+        VisibilityDefault, WorkplaceState,
     };
 
     fn actor_id(value: &str) -> ActorId {
@@ -534,6 +720,133 @@ mod tests {
                     field.key == "source_event_id" && field.value == event.event_id.as_str()
                 })
         }));
+    }
+
+    fn item_id(value: &str) -> ItemId {
+        ItemId::new(value).unwrap()
+    }
+
+    fn container_id(value: &str) -> ContainerId {
+        ContainerId::new(value).unwrap()
+    }
+
+    fn visible_item_events(state: &PhysicalState, actor: &ActorId) -> Vec<EventEnvelope> {
+        current_place_perception_events(state, actor, SimTick::new(4), &manifest_id())
+            .into_iter()
+            .filter(|event| payload_value(event, "perceived_kind") == Some("visible_item"))
+            .collect()
+    }
+
+    #[test]
+    fn visible_item_perception_follows_current_place_match_not_id_prose() {
+        let actor = actor_id("actor_tomas");
+        let home = place_id("home_tomas");
+        let elsewhere = place_id("workshop_tomas");
+
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor.clone(), home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home.clone(), PlaceState::new(home.clone(), "Tomas home"));
+        places.insert(
+            elsewhere.clone(),
+            PlaceState::new(elsewhere.clone(), "Workshop"),
+        );
+
+        let here = item_id("item_here");
+        let there = item_id("item_elsewhere");
+        let mut items = BTreeMap::new();
+        items.insert(
+            here.clone(),
+            ItemState::new(here.clone(), Location::AtPlace(home.clone())),
+        );
+        items.insert(
+            there.clone(),
+            ItemState::new(there.clone(), Location::AtPlace(elsewhere)),
+        );
+
+        let state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            items,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        );
+
+        let events = visible_item_events(&state, &actor);
+
+        // The item co-located with the actor is perceived and keyed as a place source.
+        let here_event = events
+            .iter()
+            .find(|event| payload_value(event, "target_id") == Some(here.as_str()))
+            .expect("item at the actor's current place is perceived");
+        assert_eq!(payload_value(here_event, "item_source_kind"), Some("place"));
+        assert_eq!(
+            payload_value(here_event, "item_source_place_id"),
+            Some(home.as_str())
+        );
+        // An item at a different place is not perceived from here.
+        assert!(events
+            .iter()
+            .all(|event| payload_value(event, "target_id") != Some(there.as_str())));
+    }
+
+    #[test]
+    fn visible_item_perception_reveals_open_container_without_closed_visibility() {
+        let actor = actor_id("actor_tomas");
+        let home = place_id("home_tomas");
+
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor.clone(), home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home.clone(), PlaceState::new(home.clone(), "Tomas home"));
+
+        let chest_id = container_id("chest_tomas");
+        let stored = item_id("item_in_chest");
+        let mut chest = ContainerState::fixed_at_place(chest_id.clone(), home);
+        // Open, but contents are *not* visible while closed: visibility must hinge
+        // on the container being open, not on both conditions holding.
+        chest.is_open = true;
+        chest.contents_visible_when_closed = false;
+        chest.contents.insert(stored.clone());
+        let mut containers = BTreeMap::new();
+        containers.insert(chest_id.clone(), chest);
+
+        let mut items = BTreeMap::new();
+        items.insert(
+            stored.clone(),
+            ItemState::new(stored.clone(), Location::InContainer(chest_id.clone())),
+        );
+
+        let state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            containers,
+            items,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        );
+
+        let events = visible_item_events(&state, &actor);
+
+        let stored_event = events
+            .iter()
+            .find(|event| payload_value(event, "target_id") == Some(stored.as_str()))
+            .expect("item in an open container at the current place is perceived");
+        assert_eq!(
+            payload_value(stored_event, "item_source_kind"),
+            Some("container")
+        );
+        assert_eq!(
+            payload_value(stored_event, "item_source_container_id"),
+            Some(chest_id.as_str())
+        );
     }
 
     #[test]

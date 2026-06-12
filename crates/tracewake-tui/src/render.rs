@@ -2,6 +2,13 @@ use tracewake_core::actions::report::ValidationReport;
 use tracewake_core::view_models::VisibleItemSource;
 use tracewake_core::view_models::{EmbodiedViewModel, NotebookView};
 
+pub const DEBUG_TOKENS: &[&str] = &[
+    "DEBUG NON-DIEGETIC",
+    "Knowledge context",
+    "Debug:",
+    "debug_diagnostics",
+];
+
 pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     let mut lines = Vec::new();
     lines.push(format!(
@@ -148,21 +155,26 @@ pub fn render_debug_overlay(view: &EmbodiedViewModel) -> String {
     if !view.debug_available {
         return lines.join("\n");
     }
-    lines.push("DEBUG NON-DIEGETIC: Embodied Overlay".to_string());
+    lines.push(format!("{}: Embodied Overlay", DEBUG_TOKENS[0]));
     lines.push(format!(
-        "Knowledge context: id={} hash={} tick={} frontier={} sources={}",
+        "{}: id={} hash={} tick={} frontier={} sources={}",
+        DEBUG_TOKENS[1],
         view.holder_known_context_id.as_str(),
         view.holder_known_context_hash.as_str(),
         view.sim_tick.value(),
         view.holder_known_context_frontier,
         view.holder_known_context_source_summary
     ));
-    lines.push(format!("Debug: available={}", view.debug_available));
+    lines.push(format!(
+        "{} available={}",
+        DEBUG_TOKENS[2], view.debug_available
+    ));
     for action in &view.semantic_actions {
         let diagnostics = action.availability.debug_only_diagnostics();
         if !diagnostics.is_empty() {
             lines.push(format!(
-                "debug_diagnostics action={} values={}",
+                "{} action={} values={}",
+                DEBUG_TOKENS[3],
                 action.semantic_action_id.as_str(),
                 diagnostics.join(",")
             ));
@@ -621,10 +633,44 @@ mod tests {
 
         let rendered = render_embodied_view(&view);
 
-        assert!(!rendered.contains("Knowledge context"));
-        assert!(!rendered.contains("DEBUG NON-DIEGETIC"));
-        assert!(!rendered.contains("Debug:"));
-        assert!(!rendered.contains("debug_diagnostics"));
+        assert_embodied_render_excludes_debug_tokens(&rendered, DEBUG_TOKENS);
+    }
+
+    #[test]
+    fn renderer_debug_token_negative_extends_from_token_source() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+        let rendered = render_embodied_view(&view);
+        let tokens = DEBUG_TOKENS
+            .iter()
+            .copied()
+            .chain(["synthetic_debug_token"])
+            .collect::<Vec<_>>();
+
+        assert_embodied_render_excludes_debug_tokens(&rendered, &tokens);
     }
 
     #[test]
@@ -661,5 +707,14 @@ mod tests {
         assert!(rendered.contains("Knowledge context: id=hkc."));
         assert!(rendered.contains("frontier=0"));
         assert!(rendered.contains("Debug: available=true"));
+    }
+
+    fn assert_embodied_render_excludes_debug_tokens(rendered: &str, tokens: &[&str]) {
+        for token in tokens {
+            assert!(
+                !rendered.contains(token),
+                "embodied render leaked debug token {token:?}:\n{rendered}"
+            );
+        }
     }
 }

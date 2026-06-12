@@ -427,52 +427,64 @@ impl EventKind {
     }
 
     const fn cause_required(self) -> bool {
-        matches!(
-            self,
+        match self {
             EventKind::ActorMoved
-                | EventKind::DoorOpened
-                | EventKind::DoorClosed
-                | EventKind::ContainerOpened
-                | EventKind::ContainerClosed
-                | EventKind::ItemRemovedFromContainer
-                | EventKind::ItemTakenFromPlace
-                | EventKind::ItemPlacedInContainer
-                | EventKind::ItemPlacedInPlace
-                | EventKind::ActorWaited
-                | EventKind::ObservationRecorded
-                | EventKind::BeliefUpdated
-                | EventKind::ContainerChecked
-                | EventKind::NeedDeltaApplied
-                | EventKind::NeedThresholdCrossed
-                | EventKind::CandidateGoalsEvaluated
-                | EventKind::IntentionStarted
-                | EventKind::IntentionContinued
-                | EventKind::IntentionSuspended
-                | EventKind::IntentionResumed
-                | EventKind::IntentionCompleted
-                | EventKind::IntentionFailed
-                | EventKind::IntentionAbandoned
-                | EventKind::IntentionInterrupted
-                | EventKind::RoutineStepStarted
-                | EventKind::RoutineStepCompleted
-                | EventKind::RoutineStepFailed
-                | EventKind::DecisionTraceRecorded
-                | EventKind::SleepStarted
-                | EventKind::SleepCompleted
-                | EventKind::SleepInterrupted
-                | EventKind::FoodConsumed
-                | EventKind::FoodServiceUsed
-                | EventKind::EatFailed
-                | EventKind::WorkBlockStarted
-                | EventKind::WorkBlockCompleted
-                | EventKind::WorkBlockFailed
-                | EventKind::ContinueRoutineProposed
-                | EventKind::ContinueRoutineAccepted
-                | EventKind::ContinueRoutineRejected
-                | EventKind::StuckDiagnosticRecorded
-                | EventKind::NoHumanDayStarted
-                | EventKind::NoHumanDayCompleted
-        )
+            | EventKind::DoorOpened
+            | EventKind::DoorClosed
+            | EventKind::ContainerOpened
+            | EventKind::ContainerClosed
+            | EventKind::ItemRemovedFromContainer
+            | EventKind::ItemTakenFromPlace
+            | EventKind::ItemPlacedInContainer
+            | EventKind::ItemPlacedInPlace
+            | EventKind::ActorWaited
+            | EventKind::ObservationRecorded
+            | EventKind::BeliefUpdated
+            | EventKind::ContainerChecked
+            | EventKind::NeedDeltaApplied
+            | EventKind::NeedThresholdCrossed
+            | EventKind::CandidateGoalsEvaluated
+            | EventKind::IntentionStarted
+            | EventKind::IntentionContinued
+            | EventKind::IntentionSuspended
+            | EventKind::IntentionResumed
+            | EventKind::IntentionCompleted
+            | EventKind::IntentionFailed
+            | EventKind::IntentionAbandoned
+            | EventKind::IntentionInterrupted
+            | EventKind::RoutineStepStarted
+            | EventKind::RoutineStepCompleted
+            | EventKind::RoutineStepFailed
+            | EventKind::DecisionTraceRecorded
+            | EventKind::SleepStarted
+            | EventKind::SleepCompleted
+            | EventKind::SleepInterrupted
+            | EventKind::FoodConsumed
+            | EventKind::FoodServiceUsed
+            | EventKind::EatFailed
+            | EventKind::WorkBlockStarted
+            | EventKind::WorkBlockCompleted
+            | EventKind::WorkBlockFailed
+            | EventKind::ContinueRoutineProposed
+            | EventKind::ContinueRoutineAccepted
+            | EventKind::ContinueRoutineRejected
+            | EventKind::StuckDiagnosticRecorded
+            | EventKind::NoHumanDayStarted
+            | EventKind::NoHumanDayCompleted => true,
+            EventKind::ControllerAttached
+            | EventKind::ControllerDetached
+            | EventKind::TimeAdvanced
+            | EventKind::ActionStarted
+            | EventKind::ActionFailed
+            | EventKind::ActionRejected
+            | EventKind::NoHumanAdvanceStarted
+            | EventKind::NoHumanAdvanceCompleted
+            | EventKind::InitialBeliefSeeded
+            | EventKind::RoleAssignmentNoticeRecorded
+            | EventKind::StartingBeliefRecorded
+            | EventKind::ExpectationContradicted
+            | EventKind::ReplayProjectionRebuilt => false,
+        }
     }
 }
 

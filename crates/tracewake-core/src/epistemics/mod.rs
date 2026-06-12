@@ -14,7 +14,8 @@ pub use contradiction::{
 };
 pub use knowledge_basis::actor_has_source_backed_support;
 pub use knowledge_context::{
-    ActorKnownFoodSourceFact, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
+    ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact,
+    ActorKnownLocalActorFact, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
     ActorKnownWorkplaceFact, AllowedKnowledgeSource, ForbiddenKnowledgeSource, ForbiddenTruthAudit,
     KnowledgeContext, KnowledgeContextStatus, KnowledgeProvenanceEntry, KnowledgeProvenanceKind,
     ScopeFilter, ViewMode,

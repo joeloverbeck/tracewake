@@ -5,9 +5,10 @@ use crate::checksum::{compute_holder_known_context_hash, HolderKnownContextHash}
 use crate::debug_capability::DebugCapability;
 use crate::epistemics::observation::{PrivacyScope, EPISTEMIC_RECORD_SCHEMA_V1};
 use crate::ids::{
-    ActorId, FoodSupplyId, HolderKnownContextId, PlaceId, SchemaVersion, SleepAffordanceId,
-    WorkplaceId,
+    ActorId, ContainerId, DoorId, FoodSupplyId, HolderKnownContextId, ItemId, PlaceId,
+    SchemaVersion, SleepAffordanceId, WorkplaceId,
 };
+use crate::location::Location;
 use crate::time::SimTick;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -326,6 +327,207 @@ pub struct ActorKnownRouteFact {
     source_key: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownDoorFact {
+    door_id: DoorId,
+    endpoint_a: PlaceId,
+    endpoint_b: PlaceId,
+    is_open: bool,
+    is_locked: bool,
+    blocks_movement_when_closed: bool,
+    source_key: String,
+}
+
+impl ActorKnownDoorFact {
+    pub fn new(
+        door_id: DoorId,
+        endpoint_a: PlaceId,
+        endpoint_b: PlaceId,
+        is_open: bool,
+        is_locked: bool,
+        blocks_movement_when_closed: bool,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            door_id,
+            endpoint_a,
+            endpoint_b,
+            is_open,
+            is_locked,
+            blocks_movement_when_closed,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn door_id(&self) -> &DoorId {
+        &self.door_id
+    }
+
+    pub fn endpoint_a(&self) -> &PlaceId {
+        &self.endpoint_a
+    }
+
+    pub fn endpoint_b(&self) -> &PlaceId {
+        &self.endpoint_b
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.is_open
+    }
+
+    pub fn is_locked(&self) -> bool {
+        self.is_locked
+    }
+
+    pub fn blocks_movement_when_closed(&self) -> bool {
+        self.blocks_movement_when_closed
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}:{}->{}:open={}:locked={}:blocks={}:{}",
+            self.door_id.as_str(),
+            self.endpoint_a.as_str(),
+            self.endpoint_b.as_str(),
+            self.is_open,
+            self.is_locked,
+            self.blocks_movement_when_closed,
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownContainerFact {
+    container_id: ContainerId,
+    is_open: bool,
+    is_locked: bool,
+    source_key: String,
+}
+
+impl ActorKnownContainerFact {
+    pub fn new(
+        container_id: ContainerId,
+        is_open: bool,
+        is_locked: bool,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            container_id,
+            is_open,
+            is_locked,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn container_id(&self) -> &ContainerId {
+        &self.container_id
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.is_open
+    }
+
+    pub fn is_locked(&self) -> bool {
+        self.is_locked
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}:open={}:locked={}:{}",
+            self.container_id.as_str(),
+            self.is_open,
+            self.is_locked,
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownItemFact {
+    item_id: ItemId,
+    source: Location,
+    portable: bool,
+    source_key: String,
+}
+
+impl ActorKnownItemFact {
+    pub fn new(
+        item_id: ItemId,
+        source: Location,
+        portable: bool,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            item_id,
+            source,
+            portable,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn item_id(&self) -> &ItemId {
+        &self.item_id
+    }
+
+    pub fn source(&self) -> &Location {
+        &self.source
+    }
+
+    pub fn portable(&self) -> bool {
+        self.portable
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}:{}:portable={}:{}",
+            self.item_id.as_str(),
+            location_key(&self.source),
+            self.portable,
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownLocalActorFact {
+    actor_id: ActorId,
+    source_key: String,
+}
+
+impl ActorKnownLocalActorFact {
+    pub fn new(actor_id: ActorId, source_key: impl Into<String>) -> Self {
+        Self {
+            actor_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn actor_id(&self) -> &ActorId {
+        &self.actor_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!("{}:{}", self.actor_id.as_str(), self.source_key)
+    }
+}
+
 impl ActorKnownRouteFact {
     pub fn new(
         from_place_id: PlaceId,
@@ -422,6 +624,10 @@ pub struct KnowledgeContext {
     actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
     actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
     actor_known_routes: Vec<ActorKnownRouteFact>,
+    actor_known_doors: Vec<ActorKnownDoorFact>,
+    actor_known_containers: Vec<ActorKnownContainerFact>,
+    actor_known_items: Vec<ActorKnownItemFact>,
+    actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
     forbidden_truth_audit: ForbiddenTruthAudit,
     status: KnowledgeContextStatus,
 }
@@ -473,6 +679,35 @@ impl KnowledgeContext {
         actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
         actor_known_routes: Vec<ActorKnownRouteFact>,
     ) -> Self {
+        Self::embodied_at_frontier_with_all_facts(
+            viewer_actor_id,
+            current_tick,
+            event_frontier,
+            actor_known_workplaces,
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn embodied_at_frontier_with_all_facts(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        actor_known_routes: Vec<ActorKnownRouteFact>,
+        actor_known_doors: Vec<ActorKnownDoorFact>,
+        actor_known_containers: Vec<ActorKnownContainerFact>,
+        actor_known_items: Vec<ActorKnownItemFact>,
+        actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
+    ) -> Self {
         let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
         Self::seal(
             viewer_actor_id.clone(),
@@ -491,6 +726,10 @@ impl KnowledgeContext {
             actor_known_food_sources,
             actor_known_sleep_affordances,
             actor_known_routes,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
         )
     }
 
@@ -512,6 +751,10 @@ impl KnowledgeContext {
         mut actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
         mut actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
         mut actor_known_routes: Vec<ActorKnownRouteFact>,
+        mut actor_known_doors: Vec<ActorKnownDoorFact>,
+        mut actor_known_containers: Vec<ActorKnownContainerFact>,
+        mut actor_known_items: Vec<ActorKnownItemFact>,
+        mut actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
     ) -> Self {
         provenance_entries.sort();
         provenance_entries.dedup();
@@ -523,6 +766,14 @@ impl KnowledgeContext {
         actor_known_sleep_affordances.dedup();
         actor_known_routes.sort();
         actor_known_routes.dedup();
+        actor_known_doors.sort();
+        actor_known_doors.dedup();
+        actor_known_containers.sort();
+        actor_known_containers.dedup();
+        actor_known_items.sort();
+        actor_known_items.dedup();
+        actor_known_local_actors.sort();
+        actor_known_local_actors.dedup();
         let projection_schema_version = SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap();
         let holder_known_context_id = HolderKnownContextId::new(format!(
             "hkc.{}.{}.{}",
@@ -553,6 +804,10 @@ impl KnowledgeContext {
             &actor_known_food_sources,
             &actor_known_sleep_affordances,
             &actor_known_routes,
+            &actor_known_doors,
+            &actor_known_containers,
+            &actor_known_items,
+            &actor_known_local_actors,
             &forbidden_truth_audit,
             status,
         ))
@@ -578,6 +833,10 @@ impl KnowledgeContext {
             actor_known_food_sources,
             actor_known_sleep_affordances,
             actor_known_routes,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
             forbidden_truth_audit,
             status,
         }
@@ -601,6 +860,10 @@ impl KnowledgeContext {
             ScopeFilter::DebugAll,
             true,
             baseline_embodied_provenance(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -695,6 +958,22 @@ impl KnowledgeContext {
         &self.actor_known_routes
     }
 
+    pub fn actor_known_doors(&self) -> &[ActorKnownDoorFact] {
+        &self.actor_known_doors
+    }
+
+    pub fn actor_known_containers(&self) -> &[ActorKnownContainerFact] {
+        &self.actor_known_containers
+    }
+
+    pub fn actor_known_items(&self) -> &[ActorKnownItemFact] {
+        &self.actor_known_items
+    }
+
+    pub fn actor_known_local_actors(&self) -> &[ActorKnownLocalActorFact] {
+        &self.actor_known_local_actors
+    }
+
     pub fn forbidden_truth_audit(&self) -> &ForbiddenTruthAudit {
         &self.forbidden_truth_audit
     }
@@ -774,6 +1053,10 @@ fn canonical_hash_inputs(
     actor_known_food_sources: &[ActorKnownFoodSourceFact],
     actor_known_sleep_affordances: &[ActorKnownSleepAffordanceFact],
     actor_known_routes: &[ActorKnownRouteFact],
+    actor_known_doors: &[ActorKnownDoorFact],
+    actor_known_containers: &[ActorKnownContainerFact],
+    actor_known_items: &[ActorKnownItemFact],
+    actor_known_local_actors: &[ActorKnownLocalActorFact],
     forbidden_truth_audit: &ForbiddenTruthAudit,
     status: KnowledgeContextStatus,
 ) -> Vec<String> {
@@ -834,7 +1117,35 @@ fn canonical_hash_inputs(
             .iter()
             .map(|fact| format!("actor_known_route={}", fact.canonical_key())),
     );
+    lines.extend(
+        actor_known_doors
+            .iter()
+            .map(|fact| format!("actor_known_door={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_containers
+            .iter()
+            .map(|fact| format!("actor_known_container={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_items
+            .iter()
+            .map(|fact| format!("actor_known_item={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_local_actors
+            .iter()
+            .map(|fact| format!("actor_known_local_actor={}", fact.canonical_key())),
+    );
     lines
+}
+
+fn location_key(location: &Location) -> String {
+    match location {
+        Location::AtPlace(place_id) => format!("place:{}", place_id.as_str()),
+        Location::InContainer(container_id) => format!("container:{}", container_id.as_str()),
+        Location::CarriedBy(actor_id) => format!("carried:{}", actor_id.as_str()),
+    }
 }
 
 #[cfg(test)]
