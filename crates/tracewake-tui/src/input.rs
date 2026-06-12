@@ -10,14 +10,8 @@ pub enum UiCommand {
     SelectSemanticAction(SemanticActionId),
     SelectByMenuIndex(usize),
     WaitOneTick,
-    OperatorProof(OperatorProofCommand),
     Debug(DebugCommand),
     Quit,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum OperatorProofCommand {
-    RunNoHumanDay,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,6 +31,7 @@ pub enum DebugCommand {
     Planner(ActorId),
     Stuck,
     NoHumanDay,
+    RunNoHumanDay,
     Actor(ActorId),
 }
 
@@ -71,11 +66,6 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
     }
     if trimmed == "wait" || trimmed == "w" {
         return Ok(UiCommand::WaitOneTick);
-    }
-    if trimmed == "run no-human-day" {
-        return Ok(UiCommand::OperatorProof(
-            OperatorProofCommand::RunNoHumanDay,
-        ));
     }
     if trimmed.chars().all(|ch| ch.is_ascii_digit()) {
         let one_based_selection = trimmed
@@ -116,6 +106,7 @@ fn parse_debug_command(input: &str) -> Result<DebugCommand, InputError> {
         "routines" => Ok(DebugCommand::Routines),
         "stuck" => Ok(DebugCommand::Stuck),
         "no-human-day" => Ok(DebugCommand::NoHumanDay),
+        "run no-human-day" => Ok(DebugCommand::RunNoHumanDay),
         _ => {
             if let Some(item_id) = trimmed.strip_prefix("item ") {
                 return ItemId::new(item_id.to_string())
@@ -239,10 +230,10 @@ mod tests {
         assert_eq!(parse_command("notebook").unwrap(), UiCommand::Notebook);
         assert_eq!(parse_command("wait").unwrap(), UiCommand::WaitOneTick);
         assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);
-        assert_eq!(
-            parse_command("run no-human-day").unwrap(),
-            UiCommand::OperatorProof(OperatorProofCommand::RunNoHumanDay)
-        );
+        assert!(matches!(
+            parse_command("run no-human-day"),
+            Err(InputError::UnknownCommand(command)) if command == "run no-human-day"
+        ));
     }
 
     #[test]
@@ -320,6 +311,10 @@ mod tests {
         assert_eq!(
             parse_command("debug no-human-day").unwrap(),
             UiCommand::Debug(DebugCommand::NoHumanDay)
+        );
+        assert_eq!(
+            parse_command("debug run no-human-day").unwrap(),
+            UiCommand::Debug(DebugCommand::RunNoHumanDay)
         );
         assert_eq!(
             parse_command("debug actor actor_tomas").unwrap(),

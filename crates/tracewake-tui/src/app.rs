@@ -189,6 +189,12 @@ impl TuiApp {
             })
     }
 
+    pub fn debug_available(&self) -> bool {
+        self.bound_actor_id
+            .as_ref()
+            .is_some_and(|actor_id| self.debug_available_for(actor_id))
+    }
+
     fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
         current_place_knowledge_context(
             &self.state,
@@ -489,12 +495,13 @@ mod tests {
     #[test]
     fn render_functions_have_production_callers_or_documented_allowlist() {
         let render_source = include_str!("render.rs");
+        let debug_panels_source = include_str!("debug_panels.rs");
         let app_source = include_str!("app.rs");
         let run_source = include_str!("run.rs");
         let transcript_source = include_str!("transcript.rs");
 
         assert!(render_reachability_errors(
-            render_source,
+            &[render_source, debug_panels_source],
             &[
                 production_source(app_source),
                 production_source(run_source),
@@ -506,16 +513,17 @@ mod tests {
 
     #[test]
     fn render_reachability_guard_fires_on_synthetic_uncalled_renderer() {
-        let render_source = format!(
+        let debug_panels_source = format!(
             "{}\npub fn render_synthetic_uncalled_panel() -> String {{ String::new() }}\n",
-            include_str!("render.rs")
+            include_str!("debug_panels.rs")
         );
+        let render_source = include_str!("render.rs");
         let app_source = include_str!("app.rs");
         let run_source = include_str!("run.rs");
         let transcript_source = include_str!("transcript.rs");
 
         let errors = render_reachability_errors(
-            &render_source,
+            &[render_source, &debug_panels_source],
             &[
                 production_source(app_source),
                 production_source(run_source),
@@ -528,6 +536,23 @@ mod tests {
                 .iter()
                 .any(|error| error.contains("render_synthetic_uncalled_panel")),
             "synthetic uncalled render function was not reported: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn debug_dispatch_routes_every_arm_through_availability_gate() {
+        let run_source = production_source(include_str!("run.rs"));
+
+        assert!(debug_command_gating_errors(run_source).is_empty());
+
+        let synthetic_ungated = run_source.replace(
+            "    if !app.debug_available() {\n        return writeln!(writer, \"Error: debug unavailable\");\n    }\n",
+            "",
+        );
+        let errors = debug_command_gating_errors(&synthetic_ungated);
+        assert!(
+            errors.iter().any(|error| error.contains("debug_available")),
+            "synthetic_ungated_debug_command_arm did not trigger: {errors:?}"
         );
     }
 
@@ -559,9 +584,10 @@ mod tests {
         assert!(app.render_debug_no_human_day_panel().contains("canonical="));
     }
 
-    fn render_reachability_errors(render_source: &str, caller_sources: &[&str]) -> Vec<String> {
-        render_function_names(render_source)
-            .into_iter()
+    fn render_reachability_errors(render_sources: &[&str], caller_sources: &[&str]) -> Vec<String> {
+        render_sources
+            .iter()
+            .flat_map(|source| render_function_names(source))
             .filter(|name| !render_function_is_called(name, caller_sources))
             .filter(|name| !render_function_allowlisted(name))
             .map(|name| format!("{name} has no production caller"))
@@ -593,6 +619,20 @@ mod tests {
             "render_rejection" => true,
             _ => false,
         }
+    }
+
+    fn debug_command_gating_errors(run_source: &str) -> Vec<String> {
+        let render_debug = run_source.split("fn render_debug").nth(1).unwrap_or("");
+        let gate_position = render_debug.find("if !app.debug_available()");
+        let match_position = render_debug.find("match debug_command");
+        let mut errors = Vec::new();
+        match (gate_position, match_position) {
+            (Some(gate), Some(dispatch)) if gate < dispatch => {}
+            _ => errors.push(
+                "render_debug must check debug_available before matching DebugCommand".to_string(),
+            ),
+        }
+        errors
     }
 
     fn production_source(source: &str) -> &str {

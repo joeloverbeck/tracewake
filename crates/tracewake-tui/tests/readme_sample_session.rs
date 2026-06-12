@@ -23,6 +23,7 @@ fn readme_documented_commands_are_live_against_binary() {
         "debug epistemics",
         "debug beliefs <actor_id>",
         "debug observations <actor_id>",
+        "debug run no-human-day",
         "quit",
         "q",
     ] {

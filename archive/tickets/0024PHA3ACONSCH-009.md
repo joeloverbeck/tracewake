@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-009: TUI operator-command quarantine, debug-command gating, and render-guard widening
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (`input.rs`, `run.rs`, `app.rs`), TUI tests, `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`, plus help/README surfaces as surfaced.
@@ -172,3 +172,28 @@ Phase 3B+).
 
 1. `cargo test -p tracewake-tui`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Moved no-human day advancement out of the embodied command surface. The old
+top-level `run no-human-day` spelling now returns an unknown-command error, while
+the operator-proof form is `debug run no-human-day` and runs only after the shared
+debug availability gate passes. Every `DebugCommand` arm now routes through the same
+gate before dispatch, including debug panels and the world-advancing operator proof.
+
+Widened the render reachability guard to include `debug_panels.rs`, added a
+synthetic uncalled debug panel, and added a source guard proving `render_debug`
+checks `debug_available` before matching any debug command. Updated command-loop
+tests, TUI acceptance/adversarial scripts, README/help command docs, and
+`docs/2-execution/07` with the operator-proof classification, gating policy, and
+Phase 3B+ staging record for player-facing time acceleration.
+
+Verification:
+
+1. `cargo test -p tracewake-tui` passed.
+2. `cargo fmt --all --check` passed.
+3. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+4. `cargo build --workspace --all-targets --locked` passed.
+5. `cargo test --workspace` passed.

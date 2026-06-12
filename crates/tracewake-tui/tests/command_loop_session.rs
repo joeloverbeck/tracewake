@@ -106,7 +106,7 @@ fn debug_item_does_not_leak_to_following_view_or_change_checksum() {
 fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     let output = run_session_with_args(
         &["no_human_day_001", "actor_tomas"],
-        "run no-human-day\ndebug routines\ndebug replay\nquit\n",
+        "debug run no-human-day\ndebug routines\ndebug replay\nquit\n",
     );
 
     assert!(output.contains("DEBUG NON-DIEGETIC: No Human Day"));
@@ -124,6 +124,17 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     assert!(output.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(output.contains("fixture=no_human_day_001"));
     assert!(!output.contains("food_hidden_pantry"));
+}
+
+#[test]
+fn top_level_no_human_day_command_is_not_a_play_verb() {
+    let output = run_session_with_args(
+        &["no_human_day_001", "actor_tomas"],
+        "run no-human-day\nquit\n",
+    );
+
+    assert!(output.contains("Error: unknown command: run no-human-day"));
+    assert!(!output.contains("DEBUG NON-DIEGETIC: No Human Day"));
 }
 
 fn first_menu_id(output: &str, one_based_index: usize) -> String {

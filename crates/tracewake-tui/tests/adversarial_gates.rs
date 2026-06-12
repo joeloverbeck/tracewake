@@ -727,7 +727,7 @@ fn adversarial_gates_no_human_operator_output_stays_debug_only() {
 
     run_command_loop(
         &mut app,
-        b"run no-human-day\nview\nquit\n".as_slice(),
+        b"debug run no-human-day\nview\nquit\n".as_slice(),
         &mut output,
     )
     .unwrap();

@@ -504,7 +504,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     command_app
         .bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
-    let script = b"run no-human-day\ndebug no-human-day\nview\nquit\n";
+    let script = b"debug run no-human-day\ndebug no-human-day\nview\nquit\n";
     let mut output = Vec::new();
 
     run_command_loop(&mut command_app, &script[..], &mut output).unwrap();
