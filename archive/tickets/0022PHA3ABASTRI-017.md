@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-017: Mutation baseline focused tests for actor-known context fields
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — focused actor-known context tests in `tracewake-core`
@@ -60,6 +60,23 @@ ledger.
 
 1. Context facts remain actor-known and provenance-derived.
 2. Baseline entries are removed only after the focused tests kill them.
+
+## Completion Notes (2026-06-12)
+
+- Added focused actor-known tests for derived container surfaces, deterministic
+  fact sorting, and structured gap detection that requires exact stable id,
+  value, and actor-known provenance.
+- Removed the eight assigned raw `agent/actor_known.rs` mutation baseline misses;
+  the normalized baseline is now 123 entries with
+  `fnv1a64=de3b7670491e9a39`.
+- Verification:
+  - `cargo test -p tracewake-core`
+  - `cargo mutants -f crates/tracewake-core/src/agent/actor_known.rs --no-shuffle`
+    (`79 mutants tested in 4m: 54 caught, 25 unviable`)
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`
 
 ## Test Plan
 
