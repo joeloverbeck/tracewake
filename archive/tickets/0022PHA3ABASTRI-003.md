@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-003: Mutation-CI bypass-channel closure and perimeter parity
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — CI workflow (`.github/workflows/ci.yml`), mutation config (`.cargo/mutants.toml`), test-oracle guards (`anti_regression_guards.rs`)
@@ -151,3 +151,39 @@ comment to describe the derived contract.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo mutants --list -f crates/tracewake-core/src/actions/defs/wait.rs --no-shuffle | head -5` (expect: excluded after parity derivation — empty selection)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+What changed:
+
+- Added `github.event_name` to the GitHub Actions `concurrency.group`, isolating
+  scheduled/manual mutation-baseline runs from ordinary pushes on the same ref.
+- Extended `.cargo/mutants.toml` exact exclusions for non-perimeter action defs so
+  ad hoc local `cargo mutants` runs match the reviewed mutation perimeter.
+- Hardened `mutation_perimeter_consistency_violations` to reject unsupported
+  `mutants.toml` keys, fail closed on unsupported exclude glob shapes, derive action
+  def exclusion parity from the source-classification table, require a single
+  `git diff --name-only` in-diff filter line, reject shell suffixes on `cargo mutants`
+  invocations, count `mutants_status=$?` captures in the same step block as each
+  invocation, and require `github.event_name` on the concurrency `group:` line.
+- Added synthetic negatives for `exclude_re`, `**/wait.rs`, missing `wait.rs`
+  exclusion, `|| echo ok`, comment-only status capture, event-name removal, and
+  in-diff decoy lines.
+
+Deviations from original plan:
+
+- None.
+
+Verification results:
+
+- `cargo test -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters` passed.
+- `cargo mutants --list -f crates/tracewake-core/src/actions/defs/wait.rs --no-shuffle | head -5` produced no output, proving `wait.rs` is excluded by local parity.
+- `grep -n "event_name" .github/workflows/ci.yml` showed `github.event_name` in the
+  concurrency group and the existing event-condition sites.
+- `cargo test -p tracewake-core --test anti_regression_guards` passed.
+- `cargo fmt --all --check` passed after applying `cargo fmt --all`.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

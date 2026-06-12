@@ -1194,6 +1194,27 @@ fn simple_glob_matches(pattern: &str, path: &str) -> bool {
     false
 }
 
+fn recognized_mutants_exclude_glob(pattern: &str) -> bool {
+    !pattern.contains('*')
+        || pattern.ends_with("/**")
+        || (pattern.ends_with('*') && !pattern[..pattern.len() - 1].contains('*'))
+}
+
+fn parse_mutants_toml_top_level_keys(mutants_toml: &str) -> Vec<String> {
+    mutants_toml
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('[') {
+                return None;
+            }
+            trimmed
+                .split_once('=')
+                .map(|(key, _)| key.trim().to_string())
+        })
+        .collect()
+}
+
 fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
     let Some(after_marker) = mutants_toml.split("exclude_globs = [").nth(1) else {
         return Vec::new();
@@ -1229,6 +1250,24 @@ fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
                 )
         })
         .filter(|value| !value.is_empty())
+        .collect()
+}
+
+fn yaml_concurrency_block(ci_yml: &str) -> Option<&str> {
+    let start = ci_yml.find("\nconcurrency:\n")? + "\nconcurrency:\n".len();
+    let body = &ci_yml[start..];
+    let end = body.find("\n\nenv:").unwrap_or(body.len());
+    Some(&body[..end])
+}
+
+fn yaml_step_blocks_with_cargo_mutants(ci_yml: &str) -> Vec<&str> {
+    ci_yml
+        .split("\n      - name:")
+        .filter(|block| {
+            non_comment_lines(block)
+                .iter()
+                .any(|line| line.contains("cargo mutants"))
+        })
         .collect()
 }
 
@@ -1277,6 +1316,12 @@ fn mutation_rationale_violations(classifications: &[WorkspaceSourceClassificatio
 fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
     let mut violations = Vec::new();
 
+    for key in parse_mutants_toml_top_level_keys(mutants_toml) {
+        if !matches!(key.as_str(), "additional_cargo_args" | "exclude_globs") {
+            violations.push(format!("mutants.toml uses unsupported key {key}"));
+        }
+    }
+
     if mutants_toml.contains("crates/tracewake-core/src/actions/defs/**") {
         violations.push("mutants.toml excludes all action definitions".to_string());
     }
@@ -1285,10 +1330,21 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         yaml_step_run_block(ci_yml, "Run guarded-layer mutation baseline").unwrap_or_default();
     let scheduled_effective_lines = non_comment_lines(scheduled_block).join("\n");
     let in_diff_block = yaml_step_run_block(ci_yml, "Check guarded-layer diff").unwrap_or_default();
-    let in_diff_filter_line = non_comment_lines(in_diff_block)
+    let in_diff_filter_lines = non_comment_lines(in_diff_block)
         .into_iter()
-        .find(|line| line.contains("grep -E") && line.contains("actions/defs/"))
-        .unwrap_or_default();
+        .filter(|line| {
+            line.contains("git diff --name-only")
+                && line.contains("grep -E")
+                && line.contains("actions/defs/")
+        })
+        .collect::<Vec<_>>();
+    if in_diff_filter_lines.len() != 1 {
+        violations.push(format!(
+            "in-diff mutation guarded-path filter must have exactly one git diff --name-only grep line, found {}",
+            in_diff_filter_lines.len()
+        ));
+    }
+    let in_diff_filter_line = in_diff_filter_lines.first().copied().unwrap_or_default();
 
     for scheduled_filter in MUTATION_PERIMETER_REQUIRED_FILTERS {
         if !scheduled_effective_lines.contains(scheduled_filter) {
@@ -1299,12 +1355,42 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
 
     for excluded in parse_exclude_globs(mutants_toml) {
+        if !recognized_mutants_exclude_glob(&excluded) {
+            violations.push(format!(
+                "mutants.toml exclude_globs entry {excluded} uses unsupported glob shape"
+            ));
+        }
         for required_path in MUTATION_PERIMETER_CANARY_PATHS {
             if simple_glob_matches(&excluded, required_path) {
                 violations.push(format!(
                     "mutants.toml exclude_globs entry {excluded} covers mutation perimeter path {required_path}"
                 ));
             }
+        }
+    }
+
+    let exclude_globs = parse_exclude_globs(mutants_toml);
+    for entry in WORKSPACE_SOURCE_CLASSIFICATIONS.iter().filter(|entry| {
+        entry
+            .path
+            .starts_with("crates/tracewake-core/src/actions/defs/")
+            && entry.path.ends_with(".rs")
+    }) {
+        let excluded = exclude_globs
+            .iter()
+            .any(|pattern| simple_glob_matches(pattern, entry.path));
+        let in_mutation_perimeter = MUTATION_PERIMETER_CANARY_PATHS.contains(&entry.path);
+        if in_mutation_perimeter && excluded {
+            violations.push(format!(
+                "mutants.toml excludes guarded action definition {}",
+                entry.path
+            ));
+        }
+        if !in_mutation_perimeter && !excluded {
+            violations.push(format!(
+                "mutants.toml does not exclude non-perimeter action definition {}",
+                entry.path
+            ));
         }
     }
 
@@ -1340,18 +1426,29 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         WORKSPACE_SOURCE_CLASSIFICATIONS,
     ));
 
-    for line in ci_yml.lines().filter(|line| line.contains("cargo mutants")) {
-        if line.contains("|| true") {
-            violations.push("cargo-mutants invocation swallows failures".to_string());
-        }
-    }
-    let mutants_invocations = non_comment_lines(ci_yml)
+    for line in non_comment_lines(ci_yml)
         .into_iter()
         .filter(|line| line.contains("cargo mutants"))
-        .count();
-    let status_captures = ci_yml.matches("mutants_status=$?").count();
-    if status_captures < mutants_invocations {
-        violations.push("in-diff cargo-mutants status is not captured".to_string());
+    {
+        if line.contains("||") || line.contains("&&") {
+            violations.push("cargo-mutants invocation has shell suffix".to_string());
+        }
+    }
+    for block in yaml_step_blocks_with_cargo_mutants(ci_yml) {
+        let effective_lines = non_comment_lines(block);
+        let mutants_invocations = effective_lines
+            .iter()
+            .filter(|line| line.contains("cargo mutants"))
+            .count();
+        let status_captures = effective_lines
+            .iter()
+            .filter(|line| line.contains("mutants_status=$?"))
+            .count();
+        if status_captures < mutants_invocations {
+            violations.push(
+                "cargo-mutants step does not capture status in the same step block".to_string(),
+            );
+        }
     }
     if !ci_yml.contains("\"$mutants_status\" -ne 0")
         || !ci_yml.contains("\"$mutants_status\" -ne 2")
@@ -1380,6 +1477,14 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
             "scheduled/manual mutation runs are not exempt from concurrency cancellation"
                 .to_string(),
         );
+    }
+    let concurrency_group_line = yaml_concurrency_block(ci_yml)
+        .unwrap_or_default()
+        .lines()
+        .find(|line| line.trim_start().starts_with("group:"))
+        .unwrap_or_default();
+    if !concurrency_group_line.contains("github.event_name") {
+        violations.push("concurrency group does not isolate github.event_name".to_string());
     }
     if !ci_yml.contains("github.event_name == 'pull_request' || github.event_name == 'push'") {
         violations.push("mutation in-diff job does not run on guarded direct pushes".to_string());
@@ -1925,15 +2030,56 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic specific perimeter-path exclusion must fail the guard"
     );
 
+    let unsupported_key = format!("{MUTANTS_TOML}\nexclude_re = [\".*\"]\n");
+    assert!(
+        mutation_perimeter_consistency_violations(&unsupported_key, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("unsupported key exclude_re")),
+        "synthetic unsupported cargo-mutants config key must fail the guard"
+    );
+
+    let unsupported_glob = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/defs/wait.rs\",",
+        "  \"**/wait.rs\",",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&unsupported_glob, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("unsupported glob shape")),
+        "synthetic unsupported exclude glob must fail closed"
+    );
+
+    let missing_wait_exclusion = MUTANTS_TOML.replace(
+        "  \"crates/tracewake-core/src/actions/defs/wait.rs\",\n",
+        "",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(&missing_wait_exclusion, CI_YML)
+            .iter()
+            .any(|violation| violation.contains("wait.rs")),
+        "synthetic non-perimeter action def missing from exclude_globs must fail parity"
+    );
+
     let swallowed_failure = CI_YML.replace(
         "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle",
-        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || true",
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || echo ok",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &swallowed_failure)
             .iter()
-            .any(|violation| violation.contains("swallows failures")),
+            .any(|violation| violation.contains("shell suffix")),
         "synthetic swallowed cargo-mutants failure must fail the perimeter guard"
+    );
+
+    let comment_only_capture = CI_YML.replace(
+        "          mutants_status=$?\n          set -e\n",
+        "          # mutants_status=$?\n          set -e\n",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &comment_only_capture)
+            .iter()
+            .any(|violation| violation.contains("same step block")),
+        "synthetic comment-only status capture must fail the perimeter guard"
     );
 
     let missing_scheduled_capture = CI_YML.replace(
@@ -1945,6 +2091,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("status")),
         "synthetic scheduled status-capture removal must fail the perimeter guard"
+    );
+
+    let missing_event_name_concurrency = CI_YML.replace(
+        "ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}",
+        "ci-${{ github.workflow }}-${{ github.ref }}",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_event_name_concurrency)
+            .iter()
+            .any(|violation| violation.contains("github.event_name")),
+        "synthetic concurrency group event-name removal must fail the perimeter guard"
     );
 
     let missing_push = CI_YML.replace(
@@ -1989,6 +2146,17 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("actions/defs/eat.rs")),
         "synthetic in-diff regex removal must fail for eat.rs"
+    );
+
+    let decoy_in_diff = CI_YML.replace(
+        "          if git diff --name-only \"$guarded_range\" | grep -E",
+        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(eat|sleep|work)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
+    );
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_in_diff)
+            .iter()
+            .any(|violation| violation.contains("exactly one git diff --name-only")),
+        "synthetic uncommented in-diff filter decoy must fail the perimeter guard"
     );
 
     let narrowed_agent_in_diff = CI_YML.replace(
