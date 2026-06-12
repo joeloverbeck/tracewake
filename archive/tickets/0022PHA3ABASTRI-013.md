@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-013: Conformance-index rows for landed 0022 enforcement
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — documentation only (`docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`)
@@ -116,3 +116,44 @@ census, nonzero-witness rule, two-sided ratchets (`-004`).
 2. Per-row symbol greps against `crates/tracewake-core/tests/` (recorded in
    implementation notes).
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Completion Outcome (2026-06-12)
+
+Implemented. Updated the architecture conformance index with 0022 rows for
+scheduled-ratchet concurrency isolation, behavioral policy-table dispatch,
+shared need-delta emitter routing, embodied debug-render split, hidden-truth
+adversarial witness restoration, meta-lock registry governance, and mutation
+baseline disposition triage. Existing mutation-perimeter, policy-dispatch, and
+baseline-governance rows now name the 0022-enforced shape instead of only the
+older 0020/0021 claims.
+
+Recorded row evidence with grep-stable symbols:
+
+1. `mutation_baseline_misses_are_pinned_and_ledgered`,
+   `MUTANTS_BASELINE_NORMALIZED_COUNT`, and
+   `MUTANTS_BASELINE_NORMALIZED_FNV1A64`.
+2. `mutation_perimeter_matches_duration_action_rationale_and_ci_filters` and
+   `github.event_name` concurrency isolation.
+3. `actor_known_projection_policy_table_drives_record_behavior` and
+   `synthetic_policy_table_behavior_drift`.
+4. `build_need_delta_and_threshold_events`,
+   `guard_006_duration_need_deltas_route_through_shared_emitter`, and
+   `direct_duration_need_delta_construction_violations`.
+5. `phase3a_debug_surfaces_render_deterministically_and_read_only` and
+   `adversarial_gates_rendering_does_not_change_typed_order_or_replay`.
+6. `planner_hidden_truth_fixture_witness_errors`,
+   `planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context`,
+   `hidden_food_closed_container_is_not_actor_known_food_source`, and
+   `hidden_route_edge_absent_from_actor_context_blocks_route_plan`.
+7. `META_LOCK_REGISTRY`, `META_LOCK_REGISTRY_MIN_ENTRIES`,
+   `meta_lock_registry_covers_structural_locks_and_negatives`, and
+   `generative_lock_two_sided_floor_ratchets`.
+
+Verification:
+
+1. `grep -n "bijection\|nonzero-witness\|two-sided\|debug-render\|adversarial" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+2. Per-row `rg` symbol checks against the named enforcement files.
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
