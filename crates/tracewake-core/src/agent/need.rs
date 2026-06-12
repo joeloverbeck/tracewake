@@ -237,10 +237,10 @@ impl NeedState {
             return None;
         }
 
-        let direction = if to_value > from_value {
-            ThresholdDirection::IncreasingPressure
-        } else {
-            ThresholdDirection::DecreasingPressure
+        let direction = match to_value.cmp(&from_value) {
+            std::cmp::Ordering::Greater => ThresholdDirection::IncreasingPressure,
+            std::cmp::Ordering::Less => ThresholdDirection::DecreasingPressure,
+            std::cmp::Ordering::Equal => return None,
         };
 
         Some(NeedThresholdCrossing {
@@ -388,6 +388,42 @@ mod tests {
     }
 
     #[test]
+    fn need_vocabulary_parses_every_canonical_stable_id() {
+        for (value, kind) in [
+            ("hunger", NeedKind::Hunger),
+            ("fatigue", NeedKind::Fatigue),
+            ("safety", NeedKind::Safety),
+        ] {
+            assert_eq!(NeedKind::parse(value), Ok(kind));
+            assert_eq!(kind.stable_id(), value);
+        }
+
+        for (value, band) in [
+            ("comfortable", NeedBand::Comfortable),
+            ("rising", NeedBand::Rising),
+            ("urgent", NeedBand::Urgent),
+            ("severe", NeedBand::Severe),
+        ] {
+            assert_eq!(NeedBand::parse(value), Ok(band));
+            assert_eq!(band.stable_id(), value);
+        }
+
+        for (value, direction) in [
+            (
+                "increasing_pressure",
+                ThresholdDirection::IncreasingPressure,
+            ),
+            (
+                "decreasing_pressure",
+                ThresholdDirection::DecreasingPressure,
+            ),
+        ] {
+            assert_eq!(ThresholdDirection::parse(value), Ok(direction));
+            assert_eq!(direction.stable_id(), value);
+        }
+    }
+
+    #[test]
     fn need_bands_match_phase_3a_boundaries() {
         assert_eq!(
             NeedState::initial(NeedKind::Hunger, 249, NeedChangeCause::FixtureInitial).band(),
@@ -464,6 +500,85 @@ mod tests {
             })
         );
         assert_eq!(NeedState::threshold_crossing(500, 749), None);
+        assert_eq!(NeedState::threshold_crossing(500, 500), None);
+    }
+
+    #[test]
+    fn threshold_crossing_round_trips_and_persists_last_crossing() {
+        let parsed =
+            NeedThresholdCrossing::parse("comfortable>severe:increasing_pressure").unwrap();
+        assert_eq!(
+            parsed,
+            Some(NeedThresholdCrossing {
+                from: NeedBand::Comfortable,
+                to: NeedBand::Severe,
+                direction: ThresholdDirection::IncreasingPressure,
+            })
+        );
+        assert_eq!(NeedThresholdCrossing::parse("none"), Ok(None));
+
+        let mut state = NeedState::initial(NeedKind::Fatigue, 249, NeedChangeCause::FixtureInitial);
+        let crossing = state.apply_delta(
+            501,
+            NeedChangeCause::RoutineEffect(RoutineExecutionId::new("routine_exec_sleep").unwrap()),
+        );
+        assert_eq!(state.last_threshold_crossing(), crossing);
+
+        let round_tripped =
+            NeedState::deserialize_canonical(&state.serialize_canonical_bytes()).unwrap();
+        assert_eq!(round_tripped.last_threshold_crossing(), crossing);
+        assert_eq!(
+            round_tripped.serialize_canonical(),
+            "need_state_v2|fatigue|0750|routine_effect:routine_exec_sleep|comfortable>severe:increasing_pressure"
+        );
+    }
+
+    #[test]
+    fn need_state_deserialize_rejects_wrong_shape_version_and_value() {
+        assert_eq!(
+            NeedState::deserialize_canonical(
+                b"need_state_v2|hunger|0250|fixture_initial|none|extra"
+            )
+            .unwrap_err(),
+            NeedParseError::InvalidShape
+        );
+        assert_eq!(
+            NeedState::deserialize_canonical(b"need_state_v1|hunger|0250|fixture_initial|none")
+                .unwrap_err(),
+            NeedParseError::InvalidShape
+        );
+        assert_eq!(
+            NeedState::deserialize_canonical(b"need_state_v2|hunger|1001|fixture_initial|none")
+                .unwrap_err(),
+            NeedParseError::InvalidValue
+        );
+        assert_eq!(
+            NeedState::deserialize_canonical(b"need_state_v2|hunger|1000|fixture_initial|none")
+                .unwrap()
+                .value(),
+            NEED_MAX
+        );
+    }
+
+    #[test]
+    fn need_parse_errors_render_human_readable_messages() {
+        let errors = [
+            NeedParseError::InvalidUtf8,
+            NeedParseError::InvalidShape,
+            NeedParseError::InvalidNeedKind,
+            NeedParseError::InvalidNeedBand,
+            NeedParseError::InvalidThresholdDirection,
+            NeedParseError::InvalidThresholdCrossing,
+            NeedParseError::InvalidValue,
+            NeedParseError::InvalidCause,
+            NeedParseError::InvalidId(ActionId::new("").unwrap_err()),
+        ];
+
+        for err in errors {
+            let rendered = err.to_string();
+            assert!(!rendered.is_empty());
+            assert_ne!(rendered, "xyzzy");
+        }
     }
 
     #[test]

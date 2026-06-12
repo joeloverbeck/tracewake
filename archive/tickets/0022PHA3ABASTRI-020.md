@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-020: Mutation baseline focused tests for need parsing and threshold state
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — focused need-model tests in `tracewake-core`
@@ -68,3 +68,28 @@ Add focused tests that kill the `need.rs` baseline mutants assigned in the ledge
 
 1. `cargo test -p tracewake-core`
 2. `cargo mutants -f crates/tracewake-core/src/agent/need.rs --no-shuffle`
+
+## Completion Notes (2026-06-12)
+
+- Added focused need vocabulary parser coverage for every `NeedKind`,
+  `NeedBand`, and `ThresholdDirection` stable id.
+- Added threshold-crossing parse, persistence, and round-trip assertions,
+  including `last_threshold_crossing` preservation.
+- Added canonical need-state deserialization negative tests for wrong version,
+  extra fields, and out-of-range values.
+- Added `NeedParseError` display coverage.
+- Replaced one equivalent `>` comparison surface in threshold-direction selection
+  with explicit `cmp` ordering; behavior remains unchanged, and the equivalent
+  mutation surface is no longer generated.
+- Retired twelve `agent/need.rs` mutation baseline entries after the targeted
+  mutation run caught all viable assigned mutants.
+- Mutation baseline normalized count/hash after retirement:
+  `normalized-count=71 fnv1a64=007ff5276b9b36cd`.
+- Verification:
+  - `cargo test -p tracewake-core`
+  - `cargo mutants -f crates/tracewake-core/src/agent/need.rs --no-shuffle`
+    (`64 mutants tested in 3m: 49 caught, 15 unviable`)
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`
