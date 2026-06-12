@@ -1,6 +1,6 @@
 # 0023 Phase 3A Embodied-Locality Truth-Firewall, Meta-Lock Witness-Integrity, and Guard-Evasion Closure Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `db4b53a` (merge PR #30: all `0022PHA3ABASTRI` tickets landed, including the `-015`–`-023` baseline-retirement follow-ups; acceptance artifact `reports/0022_ord_life_cert_scoped_acceptance.md`; spec-ledger truthing `956872d`). All four gates (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`) verified green at this baseline before the audit.
@@ -938,3 +938,46 @@ recording, for the implementation commits:
   direction preserved. The INV-087 decision remains deferred, untouched.
 - [x] Scope stays within the Phase 3A ordinary-life surface, its consumed Phase 1
   locality boundary, and its lock/evidence layer.
+
+## Outcome
+
+Completed: 2026-06-12.
+
+Spec 0023 landed as thirteen ticket commits, ending with
+`d54d33c Complete 0023PHA3AEMBLOC-013 acceptance artifact`.
+
+What changed:
+
+- Repaired the meta-lock tier with live witness counts, closed structural-lock
+  census coverage, chained generative baseline floors, and content-bearing
+  deferral witnesses.
+- Migrated embodied locality toward sealed actor-known current-place context and
+  kept raw physical truth out of the embodied projection source.
+- Wired the embodied debug overlay through the production TUI debug path and
+  locked derived debug-token coverage.
+- Added surface-driven projection-policy behavior coverage, scan-evasion
+  closures, in-context hidden-truth discrimination, log-derived `.unwrap(`
+  coverage, canonical-day intent coherence, positive embodied sleep reachability,
+  widened `EventEnvelope` construction bans, exhaustive `EventKind::cause_required`
+  disposition, and non-empty mutation-baseline governance.
+- Added `reports/0023_ord_life_cert_scoped_acceptance.md` with the §7 evidence map,
+  EMERGE-OBS `emerge_obs_v1` derivation table, scheduled-run status, and explicit
+  non-certification statement.
+- Added conformance-index rows for the §6 embodied-locality, meta-lock, policy,
+  and debug-overlay surfaces.
+
+Deviations from original plan:
+
+- The conformance-index rows landed with the capstone artifact rather than the
+  first ticket group, preserving evidence honesty by citing only landed symbols.
+- The 0022 evidence-honesty correction was superseded in the 0023 acceptance
+  artifact rather than rewriting the historical 0022 artifact text again.
+
+Verification:
+
+- `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

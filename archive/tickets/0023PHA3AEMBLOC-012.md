@@ -4,7 +4,7 @@
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — generative-tier guard (`anti_regression_guards.rs`), `EventKind::cause_required` (`events/envelope.rs`)
-**Deps**: archive/tickets/0023PHA3AEMBLOC-001.md, `specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md`
+**Deps**: archive/tickets/0023PHA3AEMBLOC-001.md, `archive/specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md`
 
 ## Problem
 

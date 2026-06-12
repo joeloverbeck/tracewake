@@ -4,7 +4,7 @@
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — TUI debug command/panel (`app.rs`, `render.rs`), derived debug-token constant, render guards
-**Deps**: archive/tickets/0023PHA3AEMBLOC-004.md, `specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md`
+**Deps**: archive/tickets/0023PHA3AEMBLOC-004.md, `archive/specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md`
 
 ## Problem
 
