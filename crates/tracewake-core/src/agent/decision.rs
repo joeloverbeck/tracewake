@@ -517,6 +517,31 @@ mod tests {
     }
 
     #[test]
+    fn urgent_need_vs_active_intention_follows_documented_order() {
+        let selection = decide_for_hunger(500);
+
+        assert_eq!(selection.selected_goal.goal_kind, GoalKind::Eat);
+        assert_eq!(
+            selection.selected_goal.priority,
+            crate::agent::GoalPriority::UrgentHungerOrFatigue
+        );
+        assert_eq!(selection.trace.outcome, DecisionOutcome::Switched);
+        assert!(matches!(
+            &selection.lifecycle_effects[..],
+            [
+                IntentionLifecycleEffect::Interrupted {
+                    intention_id,
+                    reason
+                },
+                IntentionLifecycleEffect::Adopted { intention, .. }
+            ] if intention_id.as_str() == "intention_work"
+                && reason.contains("urgent_hunger_or_fatigue")
+                && intention.source == IntentionSource::NeedPressure
+                && intention.selected_goal_id == selection.selected_goal.candidate_goal_id
+        ));
+    }
+
+    #[test]
     fn severe_hunger_switches_and_emits_trace() {
         let selection = decide_for_hunger(800);
 

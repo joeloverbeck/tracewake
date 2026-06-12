@@ -165,6 +165,7 @@ fn assert_required_acceptance_events(log: &EventLog) {
         EventKind::SleepStarted,
         EventKind::SleepCompleted,
         EventKind::FoodConsumed,
+        EventKind::EatFailed,
         EventKind::ActorWaited,
         EventKind::ActorMoved,
         EventKind::WorkBlockStarted,
@@ -478,22 +479,22 @@ fn capstone_windows() -> Vec<DayWindow> {
         DayWindow {
             window_id: "pre_dawn".to_string(),
             start_tick: SimTick::ZERO,
-            end_tick: SimTick::new(4),
+            end_tick: SimTick::new(3),
         },
         DayWindow {
             window_id: "morning".to_string(),
             start_tick: SimTick::new(4),
-            end_tick: SimTick::new(10),
+            end_tick: SimTick::new(9),
         },
         DayWindow {
             window_id: "work_window".to_string(),
             start_tick: SimTick::new(10),
-            end_tick: SimTick::new(18),
+            end_tick: SimTick::new(17),
         },
         DayWindow {
             window_id: "evening".to_string(),
             start_tick: SimTick::new(18),
-            end_tick: SimTick::new(24),
+            end_tick: SimTick::new(23),
         },
         DayWindow {
             window_id: "night".to_string(),
@@ -607,6 +608,15 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
             Location::AtPlace(PlaceId::new("home_bruno").unwrap()),
             2,
             240,
+        ),
+    );
+    world.food_supplies_mut().insert(
+        FoodSupplyId::new("food_empty_home_mara").unwrap(),
+        FoodSupplyState::new(
+            FoodSupplyId::new("food_empty_home_mara").unwrap(),
+            Location::AtPlace(PlaceId::new("home_mara").unwrap()),
+            0,
+            180,
         ),
     );
 

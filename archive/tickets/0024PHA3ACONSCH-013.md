@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-013: 0005 coherence — candidate-priority decision and pin, disjoint day windows, capstone EatFailed
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` (`agent/candidate.rs`, `agent/decision.rs` tests, `scheduler.rs`), core tests (`no_human_capstone.rs`); possibly a conformance-row note (recording destination per the decision).
@@ -156,5 +156,28 @@ Add `EventKind::EatFailed` to the capstone's required acceptance events.
 
 ### Commands
 
-1. `cargo test -p tracewake-core agent:: scheduler:: --test no_human_capstone`
+1. `cargo test -p tracewake-core --lib -- agent:: scheduler:: && cargo test -p tracewake-core --test no_human_capstone`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+- Recorded and pinned the Phase 3A priority decision in tests: the current
+  foundation-defensible order remains severe needs first, urgent need/routine
+  before active continuation, and active continuation before mild pressure.
+- Added the urgent-hunger-vs-active-intention behavioral test and the
+  `selection_rank` snapshot test so future priority changes are explicit.
+- Made default day windows disjoint inclusive ranges covering ticks `0..=32`
+  exactly once, with a scheduler coverage test; the capstone uses the same
+  disjoint boundaries.
+- Added `EatFailed` to the capstone required event list and gave Mara a visible
+  empty local food source so the capstone proves the shared eat-failure path.
+
+Proof:
+
+1. `cargo test -p tracewake-core --lib -- agent:: scheduler:: && cargo test -p tracewake-core --test no_human_capstone`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace`
