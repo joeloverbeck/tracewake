@@ -1460,6 +1460,18 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "guard_014_perception_visibility_detects_display_label_binding_laundering",
+        negative_id: "synthetic_display_label_binding_laundering",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_perception_visibility_detects_bare_display_label_substrings",
+        negative_id: "synthetic_bare_display_label_starts_with",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_014_perception_visibility_other_emission_paths",
         negative_id: "synthetic_prose_branch_in_other_emission_path",
         routing: MetaLockRouting::SharedScan,
@@ -1468,6 +1480,18 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "typed_column_closure_oblique_payload_helper_calls",
         negative_id: "synthetic_oblique_payload_helper_call",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "typed_column_closure_payload_receiver_helper_calls",
+        negative_id: "synthetic_payload_receiver_helper_call",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "typed_column_closure_payload_alias_helper_calls",
+        negative_id: "synthetic_payload_alias_helper_call",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -5470,6 +5494,48 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
             ),
         "synthetic prose branch outside is_visible_exit_target must fail this guard"
     );
+
+    let synthetic_laundered_display_label_branch = r#"
+        fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
+            let Some(place) = state.places().get(place_id) else {
+                return false;
+            };
+            let visible = place.display_label != "Hidden room";
+            if visible {
+                return true;
+            }
+            false
+        }
+    "#;
+    let synthetic_laundered_violations =
+        perception_visibility_prose_branch_violations(synthetic_laundered_display_label_branch);
+    assert!(
+        synthetic_laundered_violations
+            .iter()
+            .any(|violation| violation.contains("let visible = place.display_label")),
+        "synthetic_display_label_binding_laundering must fail before the later branch"
+    );
+
+    let synthetic_bare_string_id_substring = r#"
+        fn is_visible_exit_target(place: &PlaceState) -> bool {
+            !place.display_label.starts_with("hid")
+                && !place.place_id.ends_with("_hidden")
+        }
+    "#;
+    let synthetic_bare_string_violations =
+        perception_visibility_prose_branch_violations(synthetic_bare_string_id_substring);
+    assert!(
+        synthetic_bare_string_violations
+            .iter()
+            .any(|violation| violation.contains("display_label.starts_with")),
+        "synthetic_bare_display_label_starts_with must fail without an as_str() call"
+    );
+    assert!(
+        synthetic_bare_string_violations
+            .iter()
+            .any(|violation| violation.contains("place_id.ends_with")),
+        "synthetic_bare_id_ends_with must fail without an as_str() call"
+    );
 }
 
 fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
@@ -5483,10 +5549,8 @@ fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
         if line.is_empty() || perception_line_is_typed_label_payload_write(line) {
             continue;
         }
-        let branches_on_display_label =
-            line.contains("display_label") && source_line_is_branch_shape(line);
-        let branches_on_id_substring =
-            line.contains(".as_str().contains") || line.contains(".as_str().starts_with");
+        let branches_on_display_label = line.contains("display_label");
+        let branches_on_id_substring = branches_on_identity_substring(line);
         let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
             || line.contains(".to_lowercase()")
             || line.contains(".to_ascii_lowercase()");
@@ -5501,16 +5565,16 @@ fn perception_line_is_typed_label_payload_write(line: &str) -> bool {
     line.contains("PayloadField") && line.contains("display_label")
 }
 
-fn source_line_is_branch_shape(line: &str) -> bool {
-    line.starts_with("if ")
-        || line.starts_with("else if ")
-        || line.starts_with("while ")
-        || line.starts_with("match ")
-        || line.starts_with("&&")
-        || line.starts_with("||")
-        || line.contains(".filter(")
-        || line.contains("&&")
-        || line.contains("||")
+fn branches_on_identity_substring(line: &str) -> bool {
+    [".contains(", ".starts_with(", ".ends_with("]
+        .iter()
+        .any(|method| {
+            line.contains(method)
+                && (line.contains("display_label")
+                    || line.contains("_id")
+                    || line.contains(".id")
+                    || line.contains("Id"))
+        })
 }
 
 fn function_name_from_line(line: &str) -> Option<&str> {
@@ -6191,6 +6255,59 @@ fn typed_column_closure_exemptions_are_rationale_bearing_and_live() {
         "synthetic oblique helper call receiving &payload must fail"
     );
 
+    let synthetic_payload_receiver_source = r#"
+        fn apply_synthetic(state: &mut AgentState, payload: &BTreeMap<&str, &str>) {
+            payload.consume_into(state);
+        }
+        impl PayloadView {
+            fn consume_into(&self, state: &mut AgentState) {
+                let payload = self.payload;
+                let value = required(payload, "receiver_unlisted_key")?;
+                state.intentions.insert(intention_id, value);
+            }
+        }
+    "#;
+    let synthetic_payload_receiver_errors = typed_column_closure_exemption_errors(
+        synthetic_payload_receiver_source,
+        &synthetic_exemptions,
+    );
+    assert!(
+        synthetic_payload_receiver_errors
+            .iter()
+            .any(|error| error.contains("receiver_unlisted_key")),
+        "synthetic_payload_receiver_helper_call must fail"
+    );
+
+    let synthetic_payload_alias_source = r#"
+        fn apply_synthetic(state: &mut AgentState, payload: &BTreeMap<&str, &str>) {
+            let view = &payload;
+            consume_alias_payload_key(state, view);
+        }
+        fn consume_alias_payload_key(
+            state: &mut AgentState,
+            payload: &BTreeMap<&str, &str>,
+        ) {
+            let value = required(payload, "alias_unlisted_key")?;
+            state.intentions.insert(intention_id, value);
+        }
+    "#;
+    let synthetic_payload_alias_keys =
+        consumed_payload_keys_for_anchor(synthetic_payload_alias_source, "apply_synthetic");
+    assert!(
+        synthetic_payload_alias_keys.contains("alias_unlisted_key"),
+        "synthetic payload alias key derivation missed alias_unlisted_key: {synthetic_payload_alias_keys:?}"
+    );
+    let synthetic_payload_alias_errors = typed_column_closure_exemption_errors(
+        synthetic_payload_alias_source,
+        &synthetic_exemptions,
+    );
+    assert!(
+        synthetic_payload_alias_errors
+            .iter()
+            .any(|error| error.contains("alias_unlisted_key")),
+        "synthetic_payload_alias_helper_call must fail"
+    );
+
     let synthetic_payload_fields_source = r#"
         fn apply_synthetic(state: &mut AgentState, event: &EventEnvelope) {
             state.intentions.insert(intention_id, intention_with(payload_fields(event)));
@@ -6399,8 +6516,9 @@ fn consumed_payload_keys_for_function(
     let Some(body) = function_body(scan_source, function_name) else {
         return BTreeSet::new();
     };
-    let mut keys = literal_payload_keys(body);
-    for callee in payload_helper_calls(body) {
+    let payload_bindings = payload_binding_aliases(body);
+    let mut keys = literal_payload_keys(body, &payload_bindings);
+    for callee in payload_helper_calls(body, &payload_bindings) {
         if matches!(
             callee.as_str(),
             "required" | "expect_bool" | "parse_i32" | "parse_u8" | "parse_u64_agent"
@@ -6438,27 +6556,29 @@ fn function_body<'a>(scan_source: &'a str, function_name: &str) -> Option<&'a st
     end.map(|end| &after_marker[start..end])
 }
 
-fn literal_payload_keys(body: &str) -> BTreeSet<String> {
+fn literal_payload_keys(body: &str, payload_bindings: &BTreeSet<String>) -> BTreeSet<String> {
     let mut keys = BTreeSet::new();
-    for marker in [
-        r#"required(payload, ""#,
-        r#"required(&payload, ""#,
-        r#"payload.get(""#,
-        r#"payload, ""#,
-    ] {
-        let mut search_start = 0;
-        while let Some(relative_index) = body[search_start..].find(marker) {
-            let value_start = search_start + relative_index + marker.len();
-            if let Some(value_end) = body[value_start..].find('"') {
-                keys.insert(body[value_start..value_start + value_end].to_string());
+    for payload_binding in payload_bindings {
+        for marker in [
+            format!(r#"required({payload_binding}, ""#),
+            format!(r#"required(&{payload_binding}, ""#),
+            format!(r#"{payload_binding}.get(""#),
+            format!(r#"{payload_binding}, ""#),
+        ] {
+            let mut search_start = 0;
+            while let Some(relative_index) = body[search_start..].find(&marker) {
+                let value_start = search_start + relative_index + marker.len();
+                if let Some(value_end) = body[value_start..].find('"') {
+                    keys.insert(body[value_start..value_start + value_end].to_string());
+                }
+                search_start = value_start;
             }
-            search_start = value_start;
         }
     }
     keys
 }
 
-fn payload_helper_calls(body: &str) -> BTreeSet<String> {
+fn payload_helper_calls(body: &str, payload_bindings: &BTreeSet<String>) -> BTreeSet<String> {
     let mut calls = BTreeSet::new();
     let mut search_start = 0;
     while let Some(relative_index) = body[search_start..].find('(') {
@@ -6468,7 +6588,9 @@ fn payload_helper_calls(body: &str) -> BTreeSet<String> {
             let close_index =
                 matching_close_delimiter(body, open_index, b'(', b')').unwrap_or(open_index);
             let args = &body[open_index + 1..close_index];
-            if call_arguments_include_payload_binding(args) {
+            if call_arguments_include_payload_binding(args, payload_bindings)
+                || call_receiver_includes_payload_binding(prefix, name, payload_bindings)
+            {
                 calls.insert(name.to_string());
             }
             search_start = close_index + 1;
@@ -6497,17 +6619,81 @@ fn call_name_before_open_paren(prefix: &str) -> Option<&str> {
     }
 }
 
-fn call_arguments_include_payload_binding(args: &str) -> bool {
+fn call_arguments_include_payload_binding(args: &str, payload_bindings: &BTreeSet<String>) -> bool {
     split_top_level_args(args).into_iter().any(|arg| {
-        let normalized = arg
-            .trim()
-            .trim_start_matches('&')
-            .trim_start_matches('*')
-            .trim();
-        normalized == "payload"
-            || normalized.starts_with("payload.")
-            || normalized.starts_with("payload)")
+        let normalized = normalized_payload_expr(&arg);
+        payload_bindings.iter().any(|binding| {
+            normalized == *binding
+                || normalized
+                    .strip_prefix(binding)
+                    .is_some_and(|suffix| suffix.starts_with('.'))
+        })
     })
+}
+
+fn call_receiver_includes_payload_binding(
+    prefix: &str,
+    method_name: &str,
+    payload_bindings: &BTreeSet<String>,
+) -> bool {
+    let Some(before_method) = prefix.strip_suffix(method_name) else {
+        return false;
+    };
+    let Some(receiver_prefix) = before_method.strip_suffix('.') else {
+        return false;
+    };
+    let receiver = receiver_prefix
+        .rsplit(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '&' || ch == '*'))
+        .next()
+        .unwrap_or("");
+    let normalized = normalized_payload_expr(receiver);
+    payload_bindings
+        .iter()
+        .any(|binding| normalized == *binding)
+}
+
+fn payload_binding_aliases(body: &str) -> BTreeSet<String> {
+    let mut aliases = BTreeSet::from(["payload".to_string()]);
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for statement in body.split(';').map(str::trim) {
+            let Some(let_index) = statement.find("let ") else {
+                continue;
+            };
+            let rest = &statement[let_index + "let ".len()..];
+            let Some((left, right)) = rest.split_once('=') else {
+                continue;
+            };
+            let Some(alias) = let_binding_name(left) else {
+                continue;
+            };
+            let normalized_right = normalized_payload_expr(right.trim_end_matches(';'));
+            if aliases.contains(&normalized_right) && aliases.insert(alias) {
+                changed = true;
+            }
+        }
+    }
+    aliases
+}
+
+fn let_binding_name(left: &str) -> Option<String> {
+    let left = left.trim().trim_start_matches("mut ").trim();
+    let name = left
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+        .next()
+        .unwrap_or("");
+    (!name.is_empty()).then(|| name.to_string())
+}
+
+fn normalized_payload_expr(expr: &str) -> String {
+    expr.trim()
+        .trim_start_matches('&')
+        .trim_start_matches('*')
+        .trim()
+        .trim_end_matches(';')
+        .trim()
+        .to_string()
 }
 
 fn matching_close_delimiter(source: &str, open_index: usize, open: u8, close: u8) -> Option<usize> {

@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-008: Perception prose-scan laundering and consumed-key call-shape closure
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — test-oracle scans (`anti_regression_guards.rs`)
@@ -140,3 +140,7 @@ under the -001 registry.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
