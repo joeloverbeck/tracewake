@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-022: Mutation baseline focused tests for trace vocabulary and deserialization
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — focused trace parsing tests in `tracewake-core`
@@ -72,3 +72,24 @@ Add focused tests that kill the `trace.rs` baseline mutants assigned in the ledg
 
 1. `cargo test -p tracewake-core`
 2. `cargo mutants -f crates/tracewake-core/src/agent/trace.rs --no-shuffle`
+
+## Completion Notes (2026-06-12)
+
+Implemented focused trace vocabulary and canonical deserialization tests covering
+decision outcomes, responsible layers, blocker codes, stuck resulting statuses,
+need decoding, malformed trace/stuck diagnostic shapes, legacy hidden-truth
+fallbacks, parse-error mapping, and stuck diagnostic display messages.
+
+Retired the ticket-owned `agent/trace.rs` mutation baseline rows. The normalized
+baseline is now `normalized-count=16 fnv1a64=e099eb55c87448c7`.
+
+Verification:
+
+1. `cargo test -p tracewake-core --lib agent::trace::tests`
+2. `cargo mutants -f crates/tracewake-core/src/agent/trace.rs --no-shuffle` — `146 mutants tested in 9m: 128 caught, 18 unviable`
+3. `cargo test -p tracewake-core --test anti_regression_guards mutation_baseline_misses_are_pinned_and_ledgered`
+4. `cargo test -p tracewake-core`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`

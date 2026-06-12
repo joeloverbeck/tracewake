@@ -1147,6 +1147,11 @@ mod tests {
             record.typed_diagnostic.actual_source,
             "decision_outcome:failed"
         );
+
+        let legacy_hidden_truth = legacy.replace("|true|", "|false|");
+        let record =
+            DecisionTraceRecord::deserialize_canonical(legacy_hidden_truth.as_bytes()).unwrap();
+        assert!(record.typed_diagnostic.hidden_truth_referenced);
     }
 
     #[test]
@@ -1210,6 +1215,232 @@ mod tests {
                 "debug_quarantine",
             ]
         );
+    }
+
+    #[test]
+    fn decision_trace_vocabulary_parses_every_canonical_token() {
+        let outcomes = [
+            DecisionOutcome::Continued,
+            DecisionOutcome::Switched,
+            DecisionOutcome::Waited,
+            DecisionOutcome::Replanned,
+            DecisionOutcome::Failed,
+            DecisionOutcome::Completed,
+        ];
+        for outcome in outcomes {
+            assert_eq!(DecisionOutcome::parse(outcome.stable_id()), Some(outcome));
+        }
+        assert_eq!(DecisionOutcome::parse("completed "), None);
+
+        for layer in ResponsibleLayer::ALL {
+            assert_eq!(ResponsibleLayer::parse(layer.stable_id()).unwrap(), layer);
+        }
+        assert_eq!(
+            ResponsibleLayer::parse("debug-quarantine"),
+            Err(DiagnosticFieldParseError::InvalidResponsibleLayer)
+        );
+
+        let blocker_codes = [
+            BlockerCode::None,
+            BlockerCode::Physical,
+            BlockerCode::Access,
+            BlockerCode::Knowledge,
+            BlockerCode::Resource,
+            BlockerCode::SocialNormPlaceholder,
+            BlockerCode::SchedulingReservation,
+            BlockerCode::UnsupportedAction,
+            BlockerCode::PlannerBudgetExhausted,
+            BlockerCode::FixtureAuthoringError,
+            BlockerCode::NoApplicableCandidate,
+            BlockerCode::NoApplicableMethod,
+            BlockerCode::EmptyLocalPlan,
+            BlockerCode::LocalPlanFailed,
+            BlockerCode::HiddenTruthInput,
+            BlockerCode::ProvenanceDangling,
+            BlockerCode::ProvenanceClassMismatch,
+            BlockerCode::ProvenanceWitnessMismatch,
+        ];
+        for blocker_code in blocker_codes {
+            assert_eq!(
+                BlockerCode::parse(blocker_code.stable_id()).unwrap(),
+                blocker_code
+            );
+        }
+        assert_eq!(
+            BlockerCode::parse("local plan failed"),
+            Err(DiagnosticFieldParseError::InvalidBlockerCode)
+        );
+    }
+
+    #[test]
+    fn stuck_diagnostic_vocabulary_parses_every_canonical_token() {
+        for category in BlockerCategory::ALL {
+            assert_eq!(
+                BlockerCategory::parse(category.stable_id()).unwrap(),
+                category
+            );
+        }
+        assert_eq!(
+            BlockerCategory::parse("social norm placeholder"),
+            Err(StuckDiagnosticParseError::InvalidBlockerCategory)
+        );
+
+        let statuses = [
+            StuckResultingStatus::Idle,
+            StuckResultingStatus::Waiting,
+            StuckResultingStatus::Replanning,
+            StuckResultingStatus::Failed,
+            StuckResultingStatus::Suspended,
+            StuckResultingStatus::Completed,
+        ];
+        for status in statuses {
+            assert_eq!(
+                StuckResultingStatus::parse(status.stable_id()).unwrap(),
+                status
+            );
+        }
+        assert_eq!(
+            StuckResultingStatus::parse("complete"),
+            Err(StuckDiagnosticParseError::InvalidResultingStatus)
+        );
+
+        assert_eq!(decode_opt_need("-").unwrap(), None);
+        assert_eq!(decode_opt_need("hunger").unwrap(), Some(NeedKind::Hunger));
+        assert_eq!(decode_opt_need("fatigue").unwrap(), Some(NeedKind::Fatigue));
+        assert_eq!(decode_opt_need("safety").unwrap(), Some(NeedKind::Safety));
+        assert_eq!(
+            decode_opt_need("fatigue "),
+            Err(StuckDiagnosticParseError::InvalidNeed)
+        );
+    }
+
+    #[test]
+    fn canonical_trace_deserializers_reject_bad_prefix_and_field_count() {
+        let record = DecisionTraceRecord {
+            trace_id: DecisionTraceId::new("trace_vocab_shape").unwrap(),
+            actor_id: ActorId::new("actor_mara").unwrap(),
+            window_start_tick: SimTick::new(30),
+            window_end_tick: SimTick::new(31),
+            outcome: DecisionOutcome::Waited,
+            candidate_goal_count: 0,
+            actor_known_context_hash: Some(compute_holder_known_context_hash(Vec::new()).hash),
+            actor_known_inputs: Vec::new(),
+            hidden_truth_audit_result: HiddenTruthAudit {
+                actor_known_only: true,
+                notes: "no applicable method".to_string(),
+            },
+            typed_diagnostic: TypedDiagnosticFields {
+                responsible_layer: ResponsibleLayer::MethodSelection,
+                blocker_code: BlockerCode::NoApplicableMethod,
+                input_source: "actor_known_context".to_string(),
+                actual_source: "decision_outcome:waited".to_string(),
+                hidden_truth_referenced: false,
+                remediation_hint: "inspect method fallback".to_string(),
+            },
+        };
+        let canonical = record.serialize_canonical();
+        assert_eq!(
+            DecisionTraceRecord::deserialize_canonical(canonical.as_bytes())
+                .unwrap()
+                .typed_diagnostic
+                .blocker_code,
+            BlockerCode::NoApplicableMethod
+        );
+        let bad_prefix = canonical.replacen("decision_trace_v1", "decision_trace_v2", 1);
+        assert!(matches!(
+            DecisionTraceRecord::deserialize_canonical(bad_prefix.as_bytes()),
+            Err(DecisionTraceRecordParseError::InvalidShape)
+        ));
+        let missing_field = canonical.rsplit_once('|').unwrap().0;
+        assert!(matches!(
+            DecisionTraceRecord::deserialize_canonical(missing_field.as_bytes()),
+            Err(DecisionTraceRecordParseError::InvalidShape)
+        ));
+
+        let diagnostic = StuckDiagnostic::new(
+            StuckDiagnosticId::new("diagnostic_vocab_shape").unwrap(),
+            ActorId::new("actor_mara").unwrap(),
+            SimTick::new(30),
+            SimTick::new(31),
+            Some(NeedKind::Fatigue),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            BlockerCategory::PlannerBudgetExhausted,
+            "planner budget exhausted",
+            "I cannot find a local plan",
+            "debug only",
+            "replan",
+            StuckResultingStatus::Suspended,
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::LocalPlanning,
+            blocker_code: BlockerCode::PlannerBudgetExhausted,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "routine_stuck_diagnostic".to_string(),
+            hidden_truth_referenced: false,
+            remediation_hint: "inspect local planner".to_string(),
+        });
+        let canonical = diagnostic.serialize_canonical();
+        assert_eq!(
+            StuckDiagnostic::deserialize_canonical(canonical.as_bytes())
+                .unwrap()
+                .resulting_status,
+            StuckResultingStatus::Suspended
+        );
+        let bad_prefix = canonical.replacen("stuck_diagnostic_v1", "stuck_diagnostic_v2", 1);
+        assert!(matches!(
+            StuckDiagnostic::deserialize_canonical(bad_prefix.as_bytes()),
+            Err(StuckDiagnosticParseError::InvalidShape)
+        ));
+        let missing_field = canonical.rsplit_once('|').unwrap().0;
+        assert!(matches!(
+            StuckDiagnostic::deserialize_canonical(missing_field.as_bytes()),
+            Err(StuckDiagnosticParseError::InvalidShape)
+        ));
+    }
+
+    #[test]
+    fn stuck_parse_errors_map_and_display_as_typed_failures() {
+        assert_eq!(
+            DecisionTraceRecordParseError::from(StuckDiagnosticParseError::InvalidTextPayload),
+            DecisionTraceRecordParseError::InvalidTextPayload
+        );
+        assert_eq!(
+            DecisionTraceRecordParseError::from(StuckDiagnosticParseError::InvalidUtf8),
+            DecisionTraceRecordParseError::InvalidTextPayload
+        );
+        assert_eq!(
+            DecisionTraceRecordParseError::from(StuckDiagnosticParseError::InvalidNeed),
+            DecisionTraceRecordParseError::InvalidShape
+        );
+
+        let errors = [
+            StuckDiagnosticParseError::InvalidUtf8,
+            StuckDiagnosticParseError::InvalidShape,
+            StuckDiagnosticParseError::InvalidTick,
+            StuckDiagnosticParseError::InvalidNeed,
+            StuckDiagnosticParseError::InvalidTextPayload,
+            StuckDiagnosticParseError::InvalidBlockerCategory,
+            StuckDiagnosticParseError::InvalidResultingStatus,
+            StuckDiagnosticParseError::InvalidRoutineStep,
+            StuckDiagnosticParseError::InvalidBool,
+            StuckDiagnosticParseError::InvalidResponsibleLayer,
+            StuckDiagnosticParseError::InvalidBlockerCode,
+        ];
+        for error in errors {
+            let rendered = error.to_string();
+            assert!(!rendered.is_empty());
+        }
+        assert!(StuckDiagnosticParseError::InvalidTextPayload
+            .to_string()
+            .contains("text payload"));
+        assert!(StuckDiagnosticParseError::InvalidResponsibleLayer
+            .to_string()
+            .contains("responsible layer"));
     }
 
     #[test]

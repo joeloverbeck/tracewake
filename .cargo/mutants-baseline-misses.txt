@@ -9,34 +9,6 @@ crates/tracewake-core/src/projections.rs:701:13: delete match arm Some(0) in pha
 crates/tracewake-core/src/projections.rs:1073:33: replace == with != in proposal_from_semantic_action_entry
 crates/tracewake-core/src/projections.rs:1102:5: replace visible_open_sleep_affordance -> Option<SleepAffordanceId> with None
 crates/tracewake-core/src/agent/perception.rs:292:9: replace && with || in is_visible_exit_target
-crates/tracewake-core/src/agent/trace.rs:40:13: delete match arm "waited" in DecisionOutcome::parse
-crates/tracewake-core/src/agent/trace.rs:41:13: delete match arm "replanned" in DecisionOutcome::parse
-crates/tracewake-core/src/agent/trace.rs:42:13: delete match arm "failed" in DecisionOutcome::parse
-crates/tracewake-core/src/agent/trace.rs:104:13: delete match arm "intention_lifecycle" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:105:13: delete match arm "method_selection" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:107:13: delete match arm "proposal_construction" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:109:13: delete match arm "action_validation" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:110:13: delete match arm "projection" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:111:13: delete match arm "view_model" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:112:13: delete match arm "test_oracle" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:113:13: delete match arm "debug_quarantine" in ResponsibleLayer::parse
-crates/tracewake-core/src/agent/trace.rs:177:13: delete match arm "no_applicable_candidate" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:178:13: delete match arm "no_applicable_method" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:179:13: delete match arm "empty_local_plan" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:180:13: delete match arm "local_plan_failed" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:181:13: delete match arm "hidden_truth_input" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:182:13: delete match arm "provenance_dangling" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:183:13: delete match arm "provenance_class_mismatch" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:184:13: delete match arm "provenance_witness_mismatch" in BlockerCode::parse
-crates/tracewake-core/src/agent/trace.rs:291:54: replace || with && in DecisionTraceRecord::deserialize_canonical
-crates/tracewake-core/src/agent/trace.rs:360:57: delete ! in DecisionTraceRecord::deserialize_canonical
-crates/tracewake-core/src/agent/trace.rs:393:13: delete match arm StuckDiagnosticParseError::InvalidTextPayload | StuckDiagnosticParseError::InvalidUtf8 in <impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError>::from
-crates/tracewake-core/src/agent/trace.rs:602:13: delete match arm "suspended" in StuckResultingStatus::parse
-crates/tracewake-core/src/agent/trace.rs:603:13: delete match arm "completed" in StuckResultingStatus::parse
-crates/tracewake-core/src/agent/trace.rs:738:45: replace || with && in StuckDiagnostic::deserialize_canonical
-crates/tracewake-core/src/agent/trace.rs:824:9: replace <impl fmt::Display for StuckDiagnosticParseError>::fmt -> fmt::Result with Ok(Default::default())
-crates/tracewake-core/src/agent/trace.rs:882:9: delete match arm "fatigue" in decode_opt_need
-crates/tracewake-core/src/agent/trace.rs:883:9: delete match arm "safety" in decode_opt_need
 crates/tracewake-core/src/agent/transaction.rs:362:5: replace active_intention_for_actor -> Option<crate::agent::Intention> with None
 crates/tracewake-core/src/agent/transaction.rs:576:9: delete match arm "agent_needs_present" in witness_kind_allowed
 crates/tracewake-core/src/agent/transaction.rs:577:9: delete match arm "actor_belief_projection_limitation" | "modeled_wait_reason" | "reevaluation_window_known" in witness_kind_allowed
