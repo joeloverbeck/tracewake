@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-005: Planner hidden-truth gate adversarial restoration
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — truth-firewall acceptance gates (`hidden_truth_gates.rs`), test-oracle guards (`anti_regression_guards.rs`)
@@ -160,3 +160,34 @@ cheap, since it upgrades the contract rather than downgrading the comment).
 1. `cargo test -p tracewake-core --test hidden_truth_gates`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-12.
+
+- Re-armed `hidden_truth_gates.rs::context` so `known_edges` and
+  `known_food_sources` are consumed through real `ObservationRecorded` events applied
+  to the epistemic projection.
+- Restored the planner hidden-truth gates to assert known-visible and hidden-rejected
+  behavior against authoritative adversarial truth.
+- Added `planner_hidden_truth_fixture_witness_errors` and an empty-context negative
+  so the harness fails when its adversarial fixture goes vacuous again.
+- Registered the restored planner gates and witness with the meta-lock census added
+  by `0022PHA3ABASTRI-004`.
+- Resolved `ORD-HARD-114` by upgrading
+  `actor_known_context_constructor_violations` with a public
+  `ActorKnownPlanningContext` return-type scan and a synthetic public re-wrapper
+  negative.
+
+Verification run:
+
+1. `cargo test -p tracewake-core --test hidden_truth_gates`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `grep -c "_known_edges\|_known_food_sources" crates/tracewake-core/tests/hidden_truth_gates.rs` (printed `0`; grep exits `1` on zero matches)
+4. `cargo fmt --all`
+5. `cargo test -p tracewake-core --test hidden_truth_gates`
+6. `cargo test -p tracewake-core --test anti_regression_guards`
+7. `cargo fmt --all --check`
+8. `cargo clippy --workspace --all-targets -- -D warnings`
+9. `cargo build --workspace --all-targets --locked`
+10. `cargo test --workspace`

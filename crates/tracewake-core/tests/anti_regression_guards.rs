@@ -548,6 +548,18 @@ fn hidden_truth_harness_provenance_violations(source: &str) -> Vec<String> {
                 .to_string(),
         );
     }
+    for dead_parameter in ["_known_edges", "_known_food_sources"] {
+        if source.contains(dead_parameter) {
+            violations.push(format!(
+                "hidden_truth_gates.rs leaves dead adversarial parameter {dead_parameter}"
+            ));
+        }
+    }
+    if !source.contains("planner_hidden_truth_fixture_witness_errors") {
+        violations.push(
+            "hidden_truth_gates.rs lacks the planner adversarial fixture witness".to_string(),
+        );
+    }
     violations
 }
 
@@ -576,6 +588,16 @@ fn actor_known_context_constructor_violations(sources: &[(String, String)]) -> V
             violations.push(format!(
                 "{path} constructs ActorKnownPlanningContext outside the builder/classifier surface"
             ));
+        }
+        if !allowed_constructor_sites.contains(&path.as_str()) {
+            for line in uncommented.lines() {
+                if line.contains("pub fn ") && line.contains("-> ActorKnownPlanningContext") {
+                    violations.push(format!(
+                        "{path} exposes public ActorKnownPlanningContext producer: {}",
+                        line.trim()
+                    ));
+                }
+            }
         }
     }
 
@@ -1425,6 +1447,27 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "guard_0021_hidden_truth_gates_use_event_log_provenance",
         negative_id: "synthetic_hidden_truth_gate_without_event_log",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "hidden_food_closed_container_is_not_actor_known_food_source",
+        negative_id: "synthetic_empty_hidden_food_adversarial_fixture",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "hidden_route_edge_absent_from_actor_context_blocks_route_plan",
+        negative_id: "synthetic_empty_hidden_route_adversarial_fixture",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context",
+        negative_id: "synthetic_empty_planner_hidden_truth_fixture",
         routing: MetaLockRouting::SharedScan,
         witness_count: 1,
         witness_min: 1,
@@ -5920,6 +5963,17 @@ fn guard_0021_actor_known_context_producers_are_projection_backed() {
         }),
         "synthetic context producer must fail the source guard"
     );
+
+    let synthetic_return_sources = vec![(
+        "crates/tracewake-core/src/agent/synthetic_return.rs".to_string(),
+        "pub fn leak_context() -> ActorKnownPlanningContext { todo!() }".to_string(),
+    )];
+    assert!(
+        actor_known_context_constructor_violations(&synthetic_return_sources)
+            .iter()
+            .any(|violation| violation.contains("public ActorKnownPlanningContext producer")),
+        "synthetic public ActorKnownPlanningContext return producer must fail the source guard"
+    );
 }
 
 #[test]
@@ -5930,14 +5984,26 @@ fn guard_0021_hidden_truth_gates_use_event_log_provenance() {
         "hidden-truth gates must use real applied epistemic events: {violations:?}"
     );
 
-    let synthetic = "fn context() { let _ = build_actor_known_planning_state(); }";
+    let synthetic =
+        "fn context(_known_edges: (), _known_food_sources: ()) { let _ = build_actor_known_planning_state(); }";
     let synthetic_violations = hidden_truth_harness_provenance_violations(synthetic);
     assert!(
         synthetic_violations.iter().any(|violation| {
             violation.contains("build_actor_known_planning_state")
                 || violation.contains("applying epistemic events")
+                || violation.contains("_known_edges")
+                || violation.contains("_known_food_sources")
         }),
         "synthetic fabricated hidden-truth harness must fail the source guard"
+    );
+
+    let missing_witness =
+        HIDDEN_TRUTH_GATES_RS.replace("planner_hidden_truth_fixture_witness_errors", "");
+    assert!(
+        hidden_truth_harness_provenance_violations(&missing_witness)
+            .iter()
+            .any(|violation| violation.contains("adversarial fixture witness")),
+        "synthetic missing planner witness must fail the source guard"
     );
 }
 

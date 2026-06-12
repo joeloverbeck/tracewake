@@ -159,6 +159,35 @@ fn observation_event(event_id: &str, tick: SimTick) -> EventEnvelope {
     event
 }
 
+fn food_observation_event(food_source_id: &str, tick: SimTick) -> EventEnvelope {
+    let event_id = format!("event_visible_food_{}", food_source_id);
+    let mut event = observation_event(&event_id, tick);
+    event.payload.extend([
+        PayloadField::new("perceived_kind", "visible_food_supply"),
+        PayloadField::new("subject_id", "home_mara"),
+        PayloadField::new("target_id", food_source_id),
+        PayloadField::new("servings", "1"),
+    ]);
+    event
+}
+
+fn route_observation_event(from: &PlaceId, to: &PlaceId, tick: SimTick) -> EventEnvelope {
+    let event_id = format!("event_visible_exit_{}_to_{}", from.as_str(), to.as_str());
+    let mut event = observation_event(&event_id, tick);
+    event.place_id = Some(from.clone());
+    for field in &mut event.payload {
+        if field.key == "observer_place_id" || field.key == "place_id" {
+            field.value = from.as_str().to_string();
+        }
+    }
+    event.payload.extend([
+        PayloadField::new("perceived_kind", "visible_exit"),
+        PayloadField::new("subject_id", from.as_str()),
+        PayloadField::new("target_id", to.as_str()),
+    ]);
+    event
+}
+
 fn role_notice_event(
     workplace_id: &WorkplaceId,
     workplace_place_id: &PlaceId,
@@ -231,8 +260,8 @@ fn agent_state(hunger: u16) -> AgentState {
 }
 
 fn context(
-    _known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
-    _known_food_sources: BTreeSet<String>,
+    known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+    known_food_sources: BTreeSet<String>,
     known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
 ) -> tracewake_core::agent::ActorKnownPlanningState {
     let mut log = EventLog::new();
@@ -242,6 +271,24 @@ fn context(
         &mut projection,
         observation_event("event_hidden_truth_gate_frame", SimTick::ZERO),
     );
+    for (index, food_source_id) in known_food_sources.into_iter().enumerate() {
+        append_epistemic_event(
+            &mut log,
+            &mut projection,
+            food_observation_event(&food_source_id, SimTick::new(index as u64 + 1)),
+        );
+    }
+    let mut route_index = 0_u64;
+    for (from_place_id, to_place_ids) in known_edges {
+        for to_place_id in to_place_ids {
+            route_index += 1;
+            append_epistemic_event(
+                &mut log,
+                &mut projection,
+                route_observation_event(&from_place_id, &to_place_id, SimTick::new(route_index)),
+            );
+        }
+    }
     for (workplace_id, workplace_place_id) in known_workplaces {
         append_epistemic_event(
             &mut log,
@@ -280,6 +327,125 @@ fn context(
         }
     }
     surface.into_context()
+}
+
+fn adversarial_truth_world() -> tracewake_core::state::PhysicalState {
+    let mut world = PhysicalSeed::default();
+    world.places_mut().insert(
+        place_id("home_mara"),
+        PlaceState::new(place_id("home_mara"), "Mara home"),
+    );
+    world.places_mut().insert(
+        place_id("known_market"),
+        PlaceState::new(place_id("known_market"), "Known market"),
+    );
+    world.places_mut().insert(
+        place_id("hidden_workshop"),
+        PlaceState::new(place_id("hidden_workshop"), "Hidden workshop"),
+    );
+    world.actors_mut().insert(
+        actor_id(),
+        ActorBody::new(actor_id(), place_id("home_mara")),
+    );
+    world.food_supplies_mut().insert(
+        food_supply_id("food_visible_table"),
+        FoodSupplyState::new(
+            food_supply_id("food_visible_table"),
+            Location::AtPlace(place_id("home_mara")),
+            1,
+            180,
+        ),
+    );
+    let hidden_container_id = container_id("hidden_pantry");
+    world.containers_mut().insert(
+        hidden_container_id.clone(),
+        ContainerState::fixed_at_place(hidden_container_id.clone(), place_id("home_mara")),
+    );
+    world.food_supplies_mut().insert(
+        food_supply_id("food_hidden_pantry"),
+        FoodSupplyState::new(
+            food_supply_id("food_hidden_pantry"),
+            Location::InContainer(hidden_container_id),
+            1,
+            220,
+        ),
+    );
+    world.build()
+}
+
+fn planner_hidden_truth_fixture_witness_errors(
+    world: &tracewake_core::state::PhysicalState,
+    context: &tracewake_core::agent::ActorKnownPlanningState,
+    known_food_source: &str,
+    hidden_food_source: &str,
+    known_route: (&PlaceId, &PlaceId),
+    hidden_route: (&PlaceId, &PlaceId),
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    if !world
+        .food_supplies()
+        .contains_key(&food_supply_id(known_food_source))
+    {
+        errors.push(format!(
+            "known food {known_food_source} is absent from truth"
+        ));
+    }
+    if !world
+        .food_supplies()
+        .contains_key(&food_supply_id(hidden_food_source))
+    {
+        errors.push(format!(
+            "hidden food {hidden_food_source} is absent from truth"
+        ));
+    }
+    if !world.places().contains_key(known_route.0) || !world.places().contains_key(known_route.1) {
+        errors.push(format!(
+            "known route {}->{} is absent from truth places",
+            known_route.0.as_str(),
+            known_route.1.as_str()
+        ));
+    }
+    if !world.places().contains_key(hidden_route.0) || !world.places().contains_key(hidden_route.1)
+    {
+        errors.push(format!(
+            "hidden route {}->{} is absent from truth places",
+            hidden_route.0.as_str(),
+            hidden_route.1.as_str()
+        ));
+    }
+    if !context.known_food_sources().contains(known_food_source) {
+        errors.push(format!(
+            "known food {known_food_source} is absent from actor-known context"
+        ));
+    }
+    if context.known_food_sources().contains(hidden_food_source) {
+        errors.push(format!(
+            "hidden food {hidden_food_source} leaked into actor-known context"
+        ));
+    }
+    if !context
+        .known_edges()
+        .get(known_route.0)
+        .is_some_and(|edges| edges.contains(known_route.1))
+    {
+        errors.push(format!(
+            "known route {}->{} is absent from actor-known context",
+            known_route.0.as_str(),
+            known_route.1.as_str()
+        ));
+    }
+    if context
+        .known_edges()
+        .get(hidden_route.0)
+        .is_some_and(|edges| edges.contains(hidden_route.1))
+    {
+        errors.push(format!(
+            "hidden route {}->{} leaked into actor-known context",
+            hidden_route.0.as_str(),
+            hidden_route.1.as_str()
+        ));
+    }
+    errors
 }
 
 fn proof_sources_are_actor_known(context: &tracewake_core::agent::ActorKnownPlanningState) {
@@ -445,9 +611,48 @@ fn epistemic_confidence_paths_do_not_use_raw_floats_or_hash_ordering() {
 
 #[test]
 fn hidden_food_closed_container_is_not_actor_known_food_source() {
-    let context = context(BTreeMap::new(), BTreeSet::new(), BTreeMap::new());
+    let known_route_from = place_id("home_mara");
+    let known_route_to = place_id("known_market");
+    let hidden_route_to = place_id("hidden_workshop");
+    let world = adversarial_truth_world();
+    let context = context(
+        BTreeMap::from([(
+            known_route_from.clone(),
+            BTreeSet::from([known_route_to.clone()]),
+        )]),
+        BTreeSet::from(["food_visible_table".to_string()]),
+        BTreeMap::new(),
+    );
     proof_sources_are_actor_known(&context);
+    let witness_errors = planner_hidden_truth_fixture_witness_errors(
+        &world,
+        &context,
+        "food_visible_table",
+        "food_hidden_pantry",
+        (&known_route_from, &known_route_to),
+        (&known_route_from, &hidden_route_to),
+    );
+    assert!(
+        witness_errors.is_empty(),
+        "hidden-food gate lost its adversarial witness: {witness_errors:#?}"
+    );
+    assert!(context.known_food_sources().contains("food_visible_table"));
     assert!(!context.known_food_sources().contains("food_hidden_pantry"));
+
+    let success = plan_local_actions(
+        &context,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_visible_table".to_string()),
+            budget: 3,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .expect("known visible food must remain planner-reachable");
+    assert_eq!(success.proposals.len(), 1);
+    assert_eq!(success.proposals[0].target_ids, vec!["food_visible_table"]);
 
     let failure = plan_local_actions(
         &context,
@@ -620,13 +825,58 @@ fn workplace_requires_assignment_or_observation_provenance() {
 }
 
 #[test]
-fn hidden_route_edge_absent_from_actor_known_edges_blocks_route_plan() {
-    let context = context(BTreeMap::new(), BTreeSet::new(), BTreeMap::new());
+fn hidden_route_edge_absent_from_actor_context_blocks_route_plan() {
+    let known_route_from = place_id("home_mara");
+    let known_route_to = place_id("known_market");
+    let hidden_route_to = place_id("hidden_workshop");
+    let world = adversarial_truth_world();
+    let context = context(
+        BTreeMap::from([(
+            known_route_from.clone(),
+            BTreeSet::from([known_route_to.clone()]),
+        )]),
+        BTreeSet::from(["food_visible_table".to_string()]),
+        BTreeMap::new(),
+    );
     proof_sources_are_actor_known(&context);
+    let witness_errors = planner_hidden_truth_fixture_witness_errors(
+        &world,
+        &context,
+        "food_visible_table",
+        "food_hidden_pantry",
+        (&known_route_from, &known_route_to),
+        (&known_route_from, &hidden_route_to),
+    );
+    assert!(
+        witness_errors.is_empty(),
+        "hidden-route gate lost its adversarial witness: {witness_errors:#?}"
+    );
+    assert!(context
+        .known_edges()
+        .get(&known_route_from)
+        .is_some_and(|edges| edges.contains(&known_route_to)));
     assert!(!context
         .known_edges()
         .get(&place_id("home_mara"))
         .is_some_and(|edges| edges.contains(&place_id("hidden_workshop"))));
+
+    let success = plan_local_actions(
+        &context,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::MoveTowardPlace {
+                action_id: "move".parse().unwrap(),
+            },
+            goal: PlannerGoal::ReachPlace(known_route_to.clone()),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .expect("known visible route must remain planner-reachable");
+    assert_eq!(success.proposals.len(), 1);
+    assert_eq!(
+        success.proposals[0].target_ids,
+        vec![known_route_to.as_str()]
+    );
 
     let failure = plan_local_actions(
         &context,
@@ -635,12 +885,41 @@ fn hidden_route_edge_absent_from_actor_known_edges_blocks_route_plan() {
                 action_id: "move".parse().unwrap(),
             },
             goal: PlannerGoal::ReachPlace(place_id("hidden_workshop")),
-            budget: 1,
+            budget: 3,
             actor_known_facts: Vec::new(),
         },
     )
     .unwrap_err();
     assert_eq!(failure.reason, "no actor-known route to target");
+}
+
+#[test]
+fn planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context() {
+    let world = adversarial_truth_world();
+    let known_route_from = place_id("home_mara");
+    let known_route_to = place_id("known_market");
+    let hidden_route_to = place_id("hidden_workshop");
+    let empty_context = context(BTreeMap::new(), BTreeSet::new(), BTreeMap::new());
+    let errors = planner_hidden_truth_fixture_witness_errors(
+        &world,
+        &empty_context,
+        "food_visible_table",
+        "food_hidden_pantry",
+        (&known_route_from, &known_route_to),
+        (&known_route_from, &hidden_route_to),
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("known food food_visible_table")),
+        "empty adversarial food fixture must fail the witness check: {errors:#?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("known route home_mara->known_market")),
+        "empty adversarial route fixture must fail the witness check: {errors:#?}"
+    );
 }
 
 #[test]
