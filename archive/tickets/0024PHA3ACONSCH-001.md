@@ -1,6 +1,6 @@
 # 0024PHA3ACONSCH-001: Complete the meta-lock live-witness rule — eliminate the presence-check default arm and the anchor-presence witnesses
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` test guards (`crates/tracewake-core/tests/anti_regression_guards.rs`); no production crate code.
@@ -156,3 +156,42 @@ before its anchor is adjusted (Assumption item 6).
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+Implemented in `crates/tracewake-core/tests/anti_regression_guards.rs`.
+
+- Removed the presence-check fallback from `meta_lock_live_witness_count`; registry
+  entries now route through measured witnesses, behavior-assertion execution bodies,
+  ticket-owned debt bodies, or explicit scan-specific witness helpers.
+- Repaired the named anchor-presence witnesses:
+  `typed_column_closure_oblique_payload_helper_calls` now counts payload-helper
+  inspected sites, `guard_011_no_human_day_runner_only_evidence` counts the
+  runner-only assertion sites, and
+  `guard_014_perception_visibility_other_emission_paths` counts the inspected
+  perception emission functions.
+- Added structural synthetics proving a formerly default-routed witness fails with
+  its measured body absent, the fallback presence tokens are absent from
+  `meta_lock_live_witness_count`, and each repaired witness drops below its floor
+  when its inspected site set is emptied.
+- No production crate code or doctrine was changed.
+
+Deviations: none.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Enumerated-criterion dispositions:
+
+- Former default/presence fallback: completed.
+- `typed_column_closure_oblique_payload_helper_calls`: completed.
+- `guard_011_no_human_day_runner_only_evidence`: completed.
+- `guard_014_perception_visibility_other_emission_paths`: completed.
+- Deferred or dropped members: none.

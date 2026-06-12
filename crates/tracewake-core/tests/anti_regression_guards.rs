@@ -40,6 +40,10 @@ const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CONTENT_FIXTURE_HIDDEN_FOOD_CLOSED_CONTAINER_RS: &str =
+    include_str!("../../tracewake-content/src/fixtures/hidden_food_closed_container_001.rs");
+const CONTENT_FIXTURE_HIDDEN_ROUTE_EDGE_RS: &str =
+    include_str!("../../tracewake-content/src/fixtures/hidden_route_edge_001.rs");
 const CONTENT_GOLDEN_FIXTURES_RUN_RS: &str =
     include_str!("../../tracewake-content/tests/golden_fixtures_run.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
@@ -2217,54 +2221,90 @@ fn meta_lock_live_witness_count(
     entry: &MetaLockRegistryEntry,
     anti_regression_source: &str,
 ) -> usize {
-    match entry.lock_id {
-        "meta_lock_registry_census" => anti_regression_test_names(anti_regression_source).len(),
-        "mutation_baseline_misses_are_pinned_and_ledgered" => {
-            normalized_mutant_misses(MUTANTS_BASELINE_MISSES).len()
-        }
-        "generative_lock_two_sided_floor_ratchets" => RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
+    if entry.lock_id == "event_apply_remains_only_post_seed_mutation_path" {
+        return usize::from(
+            anti_regression_source
+                .contains("no_direct_apply_event_outside_event_replay_or_pipeline();"),
+        ) + usize::from(
+            anti_regression_source
+                .contains("accepted_action_appends_before_authoritative_apply();"),
+        );
+    }
+    if entry.lock_id == "guard_014_embodied_projection_source_has_no_physical_state_field" {
+        return usize::from(anti_regression_source.contains("synthetic_dead_field"))
+            + usize::from(anti_regression_source.contains("PhysicalState"));
+    }
+    if entry.lock_id == "typed_column_closure_payload_alias_helper_calls" {
+        return usize::from(anti_regression_source.contains("synthetic_payload_alias_source"));
+    }
+    if entry.lock_id == "typed_column_closure_exemptions_are_rationale_bearing_and_live" {
+        return usize::from(anti_regression_source.contains("synthetic_payload_fields_source"))
+            + usize::from(anti_regression_source.contains("synthetic_oblique_helper_source"));
+    }
+    if entry.lock_id == "materialized_agent_payload_records_keep_payload_fields" {
+        return usize::from(STATE_RS.contains("pub payload_fields: Vec<(String, String)>"))
+            + EVENTS_APPLY_RS
+                .matches("payload_fields: payload_fields(event)")
+                .count();
+    }
+    if matches!(entry.routing, MetaLockRouting::BehaviorAssertion) {
+        return behavior_assertion_live_witness_count(entry, anti_regression_source);
+    }
+    if let MetaLockRouting::TicketOwnedDebt { .. } = entry.routing {
+        return ticket_owned_debt_live_witness_count(entry, anti_regression_source);
+    }
+    if entry.lock_id == "meta_lock_registry_census" {
+        return anti_regression_test_names(anti_regression_source).len();
+    }
+    if entry.lock_id == "mutation_baseline_misses_are_pinned_and_ledgered" {
+        return normalized_mutant_misses(MUTANTS_BASELINE_MISSES).len();
+    }
+    if entry.lock_id == "generative_lock_two_sided_floor_ratchets" {
+        return RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
             .iter()
             .filter(|(_, count)| *count > 0)
-            .count(),
-        "physical_mutating_event_kinds_have_explicit_world_apply_arms" => {
-            if !anti_regression_source
-                .contains("body_after_marker(EVENTS_APPLY_RS, \"fn apply_event_with_capability\")")
-            {
-                return 0;
-            }
-            let Some(apply_body) =
-                function_body_if_present(EVENTS_APPLY_RS, "fn apply_event_with_capability")
-            else {
-                return 0;
-            };
-            tracewake_core::events::EventKind::all()
-                .iter()
-                .filter(|kind| kind.metadata().physical_mutating)
-                .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
-                .count()
+            .count();
+    }
+    if entry.lock_id == "physical_mutating_event_kinds_have_explicit_world_apply_arms" {
+        if !anti_regression_source
+            .contains("body_after_marker(EVENTS_APPLY_RS, \"fn apply_event_with_capability\")")
+        {
+            return 0;
         }
-        "agent_stream_event_kinds_have_explicit_agent_apply_arms" => {
-            use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
-            use tracewake_core::events::{EventKind, EventStream};
+        let Some(apply_body) =
+            function_body_if_present(EVENTS_APPLY_RS, "fn apply_event_with_capability")
+        else {
+            return 0;
+        };
+        return tracewake_core::events::EventKind::all()
+            .iter()
+            .filter(|kind| kind.metadata().physical_mutating)
+            .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
+            .count();
+    }
+    if entry.lock_id == "agent_stream_event_kinds_have_explicit_agent_apply_arms" {
+        use tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST;
+        use tracewake_core::events::{EventKind, EventStream};
 
-            if !anti_regression_source.contains(
-                "body_after_marker(EVENTS_APPLY_RS, \"fn apply_agent_event_with_capability\")",
-            ) {
-                return 0;
-            }
-            let Some(apply_body) =
-                function_body_if_present(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability")
-            else {
-                return 0;
-            };
-            EventKind::all()
-                .iter()
-                .filter(|kind| kind.metadata().stream == EventStream::Agent)
-                .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
-                .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
-                .count()
+        if !anti_regression_source.contains(
+            "body_after_marker(EVENTS_APPLY_RS, \"fn apply_agent_event_with_capability\")",
+        ) {
+            return 0;
         }
-        "action_emitted_event_kinds_have_cause_disposition" => [
+        let Some(apply_body) =
+            function_body_if_present(EVENTS_APPLY_RS, "fn apply_agent_event_with_capability")
+        else {
+            return 0;
+        };
+        return EventKind::all()
+            .iter()
+            .filter(|kind| kind.metadata().stream == EventStream::Agent)
+            .filter(|kind| !AGENT_WORLD_NOOP_ALLOWLIST.contains(kind))
+            .filter(|kind| apply_body.contains(&format!("EventKind::{kind:?}")))
+            .count();
+    }
+    if entry.lock_id == "action_emitted_event_kinds_have_cause_disposition" {
+        return [
             MOVEMENT_RS,
             WAIT_RS,
             OPENCLOSE_RS,
@@ -2277,8 +2317,10 @@ fn meta_lock_live_witness_count(
         ]
         .iter()
         .filter(|source| source.contains("EventEnvelope::new_caused_v1"))
-        .count(),
-        "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data" => [
+        .count();
+    }
+    if entry.lock_id == "scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data" {
+        return [
             production(SCHEDULER_RS),
             production(EVENTS_APPLY_RS),
             production(SLEEP_RS),
@@ -2286,61 +2328,290 @@ fn meta_lock_live_witness_count(
         ]
         .iter()
         .filter(|source| source.contains(".expect(") || source.contains("assert!("))
-        .count(),
-        "embodied_view_option_and_collection_fields_have_reachable_producers" => {
-            embodied_surface_fields(&production(VIEW_MODELS_RS)).len()
-        }
-        "guard_014_perception_visibility_uses_typed_place_visibility" => PERCEPTION_RS
+        .count();
+    }
+    if entry.lock_id == "embodied_view_option_and_collection_fields_have_reachable_producers" {
+        return embodied_surface_fields(&production(VIEW_MODELS_RS)).len();
+    }
+    if entry.lock_id == "guard_014_perception_visibility_uses_typed_place_visibility" {
+        return PERCEPTION_RS
             .lines()
             .filter(|line| line.contains("visibility_default"))
-            .count(),
-        "guard_014_perception_visibility_other_emission_paths" => [
-            "current_place_perception_events",
-            "observation_event",
-            "is_visible_exit_target",
-        ]
-        .iter()
-        .filter(|marker| PERCEPTION_RS.contains(*marker))
-        .count(),
-        "typed_column_closure_oblique_payload_helper_calls" => TYPED_COLUMN_CLOSURE_EXEMPTIONS
-            .iter()
-            .filter(|entry| !entry.rationale.trim().is_empty())
-            .count(),
-        "guard_011_no_human_day_runner_only_evidence" => CONTENT_GOLDEN_FIXTURES_RUN_RS
-            .lines()
-            .filter(|line| line.contains("run_no_human_day"))
-            .count(),
-        "guard_0021_actor_known_context_producers_are_projection_backed" => {
-            ACTOR_KNOWN_RS.matches("from_observed_parts").count()
-        }
-        "guard_0021_hidden_truth_gates_use_event_log_provenance" => function_body_if_present(
+            .count();
+    }
+    if entry.lock_id == "guard_014_perception_visibility_other_emission_paths" {
+        return perception_visibility_other_emission_inspected_site_count(PERCEPTION_RS);
+    }
+    if entry.lock_id == "typed_column_closure_oblique_payload_helper_calls" {
+        return typed_column_closure_oblique_inspected_site_count(
+            EVENTS_APPLY_RS,
+            TYPED_COLUMN_CLOSURE_EXEMPTIONS,
+        );
+    }
+    if entry.lock_id == "guard_011_no_human_day_runner_only_evidence" {
+        return no_human_day_runner_only_inspected_site_count(CONTENT_GOLDEN_FIXTURES_RUN_RS);
+    }
+    if entry.lock_id == "guard_0021_actor_known_context_producers_are_projection_backed" {
+        return ACTOR_KNOWN_RS.matches("from_observed_parts").count();
+    }
+    if entry.lock_id == "guard_0021_hidden_truth_gates_use_event_log_provenance" {
+        return function_body_if_present(
             anti_regression_source,
             "fn guard_0021_hidden_truth_gates_use_event_log_provenance",
         )
         .map_or(0, |body| {
             usize::from(body.contains("hidden_truth_harness_provenance_violations"))
-        }),
-        "guard_0021_fabricated_visible_local_event_id_is_retired" => function_body_if_present(
+        });
+    }
+    if entry.lock_id == "guard_0021_fabricated_visible_local_event_id_is_retired" {
+        return function_body_if_present(
             anti_regression_source,
             "fn guard_0021_fabricated_visible_local_event_id_is_retired",
         )
         .map_or(0, |body| {
             usize::from(body.contains("fabricated_planning_event_id_violations"))
-        }),
-        "guard_008_phase1_loader_does_not_register_later_phase_actions" => {
-            usize::from(CONTENT_LOAD_RS.contains("FixtureScope::Phase1"))
-        }
-        "guard_008_phase1_loader_source_guard_has_mutation_self_coverage" => {
-            usize::from(anti_regression_source.contains(entry.negative_id))
-        }
-        _ => {
-            let test_names = anti_regression_test_names(anti_regression_source);
-            usize::from(
-                test_names.contains(entry.lock_id)
-                    || anti_regression_source.contains(entry.negative_id),
-            )
-        }
+        });
     }
+    if entry.lock_id == "guard_008_phase1_loader_does_not_register_later_phase_actions" {
+        return usize::from(CONTENT_LOAD_RS.contains("FixtureScope::Phase1"));
+    }
+    if entry.lock_id == "guard_008_phase1_loader_source_guard_has_mutation_self_coverage" {
+        return phase1_loader_later_phase_registration_violations(&CONTENT_LOAD_RS.replace(
+            "FixtureScope::Phase1 => {}",
+            "FixtureScope::Phase1 => { registry.register_phase2a_epistemics(); }",
+        ))
+        .len();
+    }
+    if entry.lock_id == "mutation_perimeter_logical_line_swallow_scan" {
+        return logical_shell_lines(CI_YML)
+            .into_iter()
+            .filter(|line| line.contains("cargo mutants"))
+            .count();
+    }
+    if entry.lock_id == "mutation_baseline_non_empty_entries_require_ledger_dispositions" {
+        return mutation_baseline_governance_errors(
+            "synthetic/path.rs:1:1: replace x -> y",
+            MUTANTS_BASELINE_LEDGER,
+        )
+        .len();
+    }
+    if entry.lock_id == "hidden_truth_context_discrimination_witness" {
+        return hidden_truth_context_discrimination_witness_count();
+    }
+    if entry.lock_id == "log_derived_panic_guard_scans_unwrap" {
+        return log_derived_panic_violations(&[(
+            "synthetic.rs",
+            "fn f() { value.unwrap(); }".to_string(),
+        )])
+        .len();
+    }
+    if entry.lock_id == "generative_support_constructs_zero_event_envelopes"
+        || entry.lock_id == "generative_support_bans_bare_event_envelope_token"
+    {
+        return generative_duration_terminal_fabricator_errors(&[(
+            "support/generative.rs",
+            "fn helper() { let _event = EventEnvelope::default(); }",
+        )])
+        .len();
+    }
+    if entry.lock_id == "event_kind_cause_required_exhaustive_match" {
+        return usize::from(
+            body_after_marker(EVENTS_ENVELOPE_RS, "const fn cause_required").contains("match self"),
+        );
+    }
+    if entry.lock_id == "guard_014_perception_visibility_detects_display_label_binding_laundering" {
+        return perception_visibility_prose_branch_violations(
+            "fn is_visible_exit_target(place: &PlaceState) { let visible = place.display_label != \"Hidden\"; }",
+        )
+        .len();
+    }
+    if entry.lock_id == "guard_014_perception_visibility_detects_bare_display_label_substrings" {
+        return perception_visibility_prose_branch_violations(
+            "fn is_visible_exit_target(place: &PlaceState) { place.display_label.starts_with(\"hid\"); }",
+        )
+        .len();
+    }
+    if entry.lock_id == "typed_column_closure_payload_receiver_helper_calls"
+        || entry.lock_id == "typed_column_closure_payload_alias_helper_calls"
+    {
+        return typed_column_payload_helper_inspected_site_count(entry.lock_id);
+    }
+    if entry.lock_id == "hidden_food_closed_container_is_not_actor_known_food_source" {
+        return usize::from(
+            CONTENT_FIXTURE_HIDDEN_FOOD_CLOSED_CONTAINER_RS
+                .contains("hidden_food_closed_container"),
+        );
+    }
+    if entry.lock_id == "hidden_route_edge_absent_from_actor_context_blocks_route_plan" {
+        return usize::from(CONTENT_FIXTURE_HIDDEN_ROUTE_EDGE_RS.contains("hidden_route_edge"));
+    }
+    if entry.lock_id == "planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context" {
+        return function_body_if_present(
+            HIDDEN_TRUTH_GATES_RS,
+            "fn planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context",
+        )
+        .map_or(0, |body| {
+            body.matches("planner_hidden_truth_fixture_witness_errors")
+                .count()
+        });
+    }
+    if entry.lock_id == "actor_known_projection_policy_table_drives_record_behavior" {
+        return function_body_if_present(
+            EPISTEMIC_PROJECTION_RS,
+            "fn actor_known_projection_policy_table_drives_record_behavior",
+        )
+        .map_or(0, |body| body.matches("assert!").count());
+    }
+    if entry.lock_id == "workplace_current_place_scope_drops_other_place_from_embodied_context" {
+        return function_body_if_present(
+            EPISTEMIC_PROJECTION_RS,
+            "fn workplace_current_place_scope_drops_other_place_from_embodied_context",
+        )
+        .map_or(0, |body| body.matches("assert!").count());
+    }
+    if entry.lock_id == "supersede_newest_by_subject_requires_subject_extractor" {
+        return function_body_if_present(
+            EPISTEMIC_PROJECTION_RS,
+            "fn supersede_newest_by_subject_requires_subject_extractor",
+        )
+        .map_or(0, |body| body.matches("assert!").count());
+    }
+    shared_scan_function_witness_count(entry, anti_regression_source)
+}
+
+fn behavior_assertion_live_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id)).map_or(
+        0,
+        |body| {
+            let assertion_count = body.matches("assert!").count()
+                + body.matches("assert_eq!").count()
+                + body.matches("assert_ne!").count()
+                + body.matches("assert_absent(").count()
+                + body.matches("assert_absent_from_sources(").count();
+            usize::from(assertion_count > 0)
+        },
+    )
+}
+
+fn ticket_owned_debt_live_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id))
+        .map_or(0, |body| {
+            usize::from(body.contains(entry.negative_id) || body.contains("assert!"))
+        })
+}
+
+fn shared_scan_function_witness_count(
+    entry: &MetaLockRegistryEntry,
+    anti_regression_source: &str,
+) -> usize {
+    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id)).map_or(
+        0,
+        |body| {
+            body.matches("assert!").count()
+                + body.matches("assert_eq!").count()
+                + body.matches("assert_ne!").count()
+                + body.matches("assert_absent(").count()
+                + body.matches("assert_absent_from_sources(").count()
+                + body.matches("_errors(").count()
+                + body.matches("_violations(").count()
+        },
+    )
+}
+
+fn typed_column_closure_oblique_inspected_site_count(
+    source: &str,
+    exemptions: &[TypedColumnClosureExemption],
+) -> usize {
+    exemptions
+        .iter()
+        .filter(|exemption| !payload_helper_calls_for_anchor(source, exemption.anchor).is_empty())
+        .count()
+}
+
+fn payload_helper_calls_for_anchor(source: &str, anchor: &str) -> BTreeSet<String> {
+    let scan_source = normalized_source(source).replace(" .", ".");
+    let Some(body) = function_body(&scan_source, anchor) else {
+        return BTreeSet::new();
+    };
+    let payload_bindings = payload_binding_aliases(body);
+    payload_helper_calls(body, &payload_bindings)
+}
+
+fn typed_column_payload_helper_inspected_site_count(lock_id: &str) -> usize {
+    if lock_id == "typed_column_closure_payload_alias_helper_calls" {
+        return function_body_if_present(
+            ANTI_REGRESSION_GUARDS_RS,
+            "fn typed_column_closure_exemptions_are_rationale_bearing_and_live",
+        )
+        .map_or(0, |body| {
+            body.matches("synthetic_payload_alias_source").count()
+        });
+    }
+    let source = normalized_source(EVENTS_APPLY_RS).replace(" .", ".");
+    let mut count = 0;
+    for exemption in TYPED_COLUMN_CLOSURE_EXEMPTIONS {
+        let Some(body) = function_body(&source, exemption.anchor) else {
+            continue;
+        };
+        let payload_bindings = payload_binding_aliases(body);
+        let helper_calls = payload_helper_calls(body, &payload_bindings);
+        count += helper_calls
+            .iter()
+            .filter(|call| match lock_id {
+                "typed_column_closure_payload_receiver_helper_calls" => {
+                    body.contains(&format!(".{call}("))
+                }
+                "typed_column_closure_payload_alias_helper_calls" => {
+                    body.contains(&format!("let {call} = &payload"))
+                        || body.contains(&format!("let {call} = payload"))
+                }
+                _ => false,
+            })
+            .count();
+    }
+    count
+}
+
+fn hidden_truth_context_discrimination_witness_count() -> usize {
+    function_body_if_present(
+        HIDDEN_TRUTH_GATES_RS,
+        "fn context_rejects_hidden_counterpart_injection",
+    )
+    .map_or(0, |body| {
+        body.matches("synthetic_context_hidden_food_injection")
+            .count()
+            + body
+                .matches("synthetic_context_hidden_route_injection")
+                .count()
+    })
+}
+
+fn no_human_day_runner_only_inspected_site_count(source: &str) -> usize {
+    source
+        .lines()
+        .filter(|line| {
+            line.contains("has_no_human_event_for_actor")
+                || line.contains("EventKind::EatFailed")
+                || line.contains("\"actor_mara\"")
+        })
+        .count()
+}
+
+fn perception_visibility_other_emission_inspected_site_count(source: &str) -> usize {
+    [
+        "fn current_place_perception_events",
+        "fn observation_event",
+        "fn is_visible_exit_target",
+    ]
+    .iter()
+    .filter(|marker| function_body_if_present(source, marker).is_some())
+    .count()
 }
 
 fn meta_lock_registry_errors(
@@ -3808,6 +4079,72 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
             .iter()
             .any(|error| error.contains("below minimum")),
         "synthetic anchor-miss scan must fail the live nonzero-witness rule"
+    );
+
+    let formerly_presence_fallback_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "checksum_coverage_is_total_for_authoritative_state")
+        .unwrap();
+    assert!(
+        meta_lock_live_witness_count(formerly_presence_fallback_entry, "")
+            < formerly_presence_fallback_entry.witness_min,
+        "formerly default-routed scan must fail when its measured witness body is absent"
+    );
+    let live_witness_body =
+        function_body_if_present(ANTI_REGRESSION_GUARDS_RS, "fn meta_lock_live_witness_count")
+            .unwrap();
+    assert!(
+        !live_witness_body.contains("test_names.contains(entry.lock_id)")
+            && !live_witness_body.contains("anti_regression_source.contains(entry.negative_id)"),
+        "meta-lock live witnesses must not use registry/test-name presence as a fallback"
+    );
+
+    let oblique_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "typed_column_closure_oblique_payload_helper_calls")
+        .unwrap();
+    let oblique_without_inspected_site = EVENTS_APPLY_RS.replace("payload", "typed_payload");
+    assert!(
+        typed_column_closure_oblique_inspected_site_count(
+            &oblique_without_inspected_site,
+            TYPED_COLUMN_CLOSURE_EXEMPTIONS,
+        ) < oblique_entry.witness_min,
+        "synthetic oblique helper site removal must fail the repaired live witness"
+    );
+
+    let runner_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "guard_011_no_human_day_runner_only_evidence")
+        .unwrap();
+    let runner_without_inspected_sites = CONTENT_GOLDEN_FIXTURES_RUN_RS
+        .replace("has_no_human_event_for_actor", "has_event_for_actor")
+        .replace("EventKind::EatFailed", "EventKind::EatStarted")
+        .replace("\"actor_mara\"", "\"actor_tomas\"");
+    assert!(
+        no_human_day_runner_only_inspected_site_count(&runner_without_inspected_sites)
+            < runner_entry.witness_min,
+        "synthetic runner-only inspected-site removal must fail the repaired live witness"
+    );
+
+    let other_emission_entry = META_LOCK_REGISTRY
+        .iter()
+        .find(|entry| entry.lock_id == "guard_014_perception_visibility_other_emission_paths")
+        .unwrap();
+    let perception_without_other_emission_sites = PERCEPTION_RS
+        .replace(
+            "fn current_place_perception_events",
+            "fn stale_current_place_perception_events",
+        )
+        .replace("fn observation_event", "fn stale_observation_event")
+        .replace(
+            "fn is_visible_exit_target",
+            "fn stale_is_visible_exit_target",
+        );
+    assert!(
+        perception_visibility_other_emission_inspected_site_count(
+            &perception_without_other_emission_sites
+        ) < other_emission_entry.witness_min,
+        "synthetic perception inspected-site removal must fail the repaired live witness"
     );
 
     let unregistered_guard_source = format!(
