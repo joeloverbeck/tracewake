@@ -16,6 +16,10 @@ baseline with a rationale specific enough to survive the repetition bound and no
 deferred-test language; `warrants-test:<ticket-id>` is reserved for entries already
 assigned to a real follow-up ticket before they can be removed.
 
+## Baseline Change Log
+
+- 0022PHA3ABASTRI-004 — baseline-delta: normalized-count=143 fnv1a64=bd1855a5ee82b428; ratchet encoding only, with no accepted-entry growth or retirement.
+
 - `crates/tracewake-core/src/actions/pipeline.rs: replace && with || in is_body_exclusive_start` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace && with || in is_body_exclusive_start`.
 - `crates/tracewake-core/src/actions/pipeline.rs: replace == with != in decide_proposal` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace == with != in decide_proposal`.
 - `crates/tracewake-core/src/actions/pipeline.rs: replace controller_binding_check -> Option<PipelineDecision> with None` — warrants-test:0022PHA3ABASTRI-015: Focused mutation coverage remains assigned for `replace controller_binding_check -> Option<PipelineDecision> with None`.

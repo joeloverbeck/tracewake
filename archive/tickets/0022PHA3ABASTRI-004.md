@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-004: Meta-lock tier — bijection census, nonzero-witness rule, two-sided ratchets
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-oracle meta-guards (`anti_regression_guards.rs`), generative corpus floors (`generative_lock.rs`), disposition-ledger change log
@@ -159,3 +159,33 @@ improvement, with the recorded value updated through the same delta convention.
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo test -p tracewake-core --test generative_lock`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-12.
+
+- Added a registry-backed meta-lock census in
+  `crates/tracewake-core/tests/anti_regression_guards.rs` with stable lock IDs,
+  registered synthetic negatives, routing class, witness minimums, and a reflexive
+  `meta_lock_registry_census` entry.
+- Registered known artifact-shaped negatives as ticket-owned debt for
+  `0022PHA3ABASTRI-008` and `0022PHA3ABASTRI-009`, without re-routing them in this
+  ticket.
+- Extended mutation-baseline governance so the current normalized count/hash
+  (`143`, `bd1855a5ee82b428`) must be recorded in the disposition ledger's baseline
+  change log; added synthetics for append, shrink, and unrecorded floor movement.
+- Converted generative corpus diversity and contributor floors to exact recorded
+  values in `crates/tracewake-core/tests/generative_lock.rs`, with a source-level
+  guard that rejects one-sided floor assertions and unrecorded floor raises.
+
+Verification run:
+
+1. `cargo test -p tracewake-core --test generative_lock`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `cargo fmt --all`
+4. `cargo test -p tracewake-core --test anti_regression_guards`
+5. `cargo test -p tracewake-core --test generative_lock`
+6. `cargo fmt --all --check`
+7. `cargo clippy --workspace --all-targets -- -D warnings`
+8. `cargo build --workspace --all-targets --locked`
+9. `cargo test --workspace`

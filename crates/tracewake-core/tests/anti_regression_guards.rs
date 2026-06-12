@@ -36,6 +36,7 @@ const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
 const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
+const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
 const TUI_APP_RS: &str = include_str!("../../tracewake-tui/src/app.rs");
@@ -114,6 +115,22 @@ struct EmbodiedSurfaceField {
     struct_name: String,
     field_name: String,
     type_name: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MetaLockRouting {
+    SharedScan,
+    BehaviorAssertion,
+    TicketOwnedDebt { ticket: &'static str },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct MetaLockRegistryEntry {
+    lock_id: &'static str,
+    negative_id: &'static str,
+    routing: MetaLockRouting,
+    witness_count: usize,
+    witness_min: usize,
 }
 
 const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
@@ -1160,6 +1177,308 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
 const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 143;
 const MUTANTS_BASELINE_NORMALIZED_FNV1A64: u64 = 0xbd18_55a5_ee82_b428;
 const MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES: usize = 20;
+const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
+const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
+const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
+    ("actor_waited", 10),
+    ("need_delta", 12),
+    ("food_consumed", 6),
+    ("sleep_started", 6),
+    ("work_started", 7),
+    ("sleep_completed", 4),
+    ("sleep_interrupted", 2),
+    ("work_completed", 4),
+    ("work_failed", 3),
+];
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 35;
+
+const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
+    MetaLockRegistryEntry {
+        lock_id: "meta_lock_registry_census",
+        negative_id: "synthetic_meta_lock_without_negative",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: META_LOCK_REGISTRY_MIN_ENTRIES,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "mutation_baseline_misses_are_pinned_and_ledgered",
+        negative_id: "synthetic_unrecorded_mutation_baseline_shrink",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: MUTANTS_BASELINE_NORMALIZED_COUNT,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "generative_lock_two_sided_floor_ratchets",
+        negative_id: "synthetic_unrecorded_generative_floor_raise",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "physical_mutating_event_kinds_have_explicit_world_apply_arms",
+        negative_id: "synthetic_missing_arm_catch_all",
+        routing: MetaLockRouting::TicketOwnedDebt {
+            ticket: "0022PHA3ABASTRI-008",
+        },
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance",
+        negative_id: "synthetic_unfiltered_checked_facts_iter",
+        routing: MetaLockRouting::TicketOwnedDebt {
+            ticket: "0022PHA3ABASTRI-009",
+        },
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass",
+        negative_id: "synthetic_direct_scheduler_proposal_bypass",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_duration_need_deltas_route_through_shared_emitter",
+        negative_id: "synthetic_direct_duration_need_delta_construction",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_scheduler_does_not_fabricate_empty_epistemic_projection",
+        negative_id: "synthetic_empty_epistemic_projection",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_018_actor_known_facts_require_source_event_witness",
+        negative_id: "synthetic_actor_known_fact_without_witness",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms",
+        negative_id: "synthetic_missing_witness_kind_stable_id_arm",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth",
+        negative_id: "synthetic_raw_assignment_or_sleep_truth_read",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed",
+        negative_id: "synthetic_unsealed_cognition_channel",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_embodied_projection_workplaces_are_context_backed",
+        negative_id: "synthetic_contextless_workplace_projection",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability",
+        negative_id: "synthetic_literal_true_action_availability",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_no_human_metrics_do_not_scan_display_text",
+        negative_id: "synthetic_display_text_metric_scan",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_perception_visibility_uses_typed_place_visibility",
+        negative_id: "synthetic_prose_visibility_branch",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 3,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_sleep_validation_requires_modeled_affordance",
+        negative_id: "synthetic_sleep_validation_without_affordance",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_actor_known_projection_policy_table_has_production_callers",
+        negative_id: "synthetic_projection_policy_without_caller",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_015_ordinary_life_tuning_comes_from_authored_state",
+        negative_id: "synthetic_ordinary_life_tuning_literal",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch",
+        negative_id: "synthetic_routine_family_to_primitive_dispatch",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition",
+        negative_id: "synthetic_scheduler_rewrites_transaction_proposal",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_transaction_has_no_silent_method_fallback_scan",
+        negative_id: "synthetic_silent_method_fallback_scan",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_015_hidden_truth_audit_fails_closed_in_transaction",
+        negative_id: "synthetic_hidden_truth_audit_open_transaction",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_014_decision_hidden_truth_audit_uses_typed_input_refs",
+        negative_id: "synthetic_hidden_truth_audit_string_tag",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id:
+            "guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters",
+        negative_id: "synthetic_need_value_parameter_read",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_002_agent_state_keeps_typed_trace_and_diagnostic_records",
+        negative_id: "synthetic_untyped_agent_trace_record",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_authoritative_state_fields_are_not_publicly_mutable",
+        negative_id: "synthetic_public_authoritative_state_field",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_mutation_capability_is_private_to_event_application",
+        negative_id: "synthetic_public_mutation_capability",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_no_production_seed_mutation_outside_state_definition",
+        negative_id: "synthetic_seed_mutation_outside_state",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_no_direct_state_collection_insert_outside_event_application",
+        negative_id: "synthetic_direct_state_collection_insert",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_actor_known_context_has_no_public_arbitrary_constructor",
+        negative_id: "synthetic_public_actor_known_context_constructor",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_actor_known_context_producers_are_projection_backed",
+        negative_id: "synthetic_unbacked_actor_known_context_producer",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_hidden_truth_gates_use_event_log_provenance",
+        negative_id: "synthetic_hidden_truth_gate_without_event_log",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0021_fabricated_visible_local_event_id_is_retired",
+        negative_id: "synthetic_fabricated_visible_local_event_id",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_001_hidden_truth_audit_is_derived_from_provenance_not_tags",
+        negative_id: "synthetic_hidden_truth_audit_tag_match",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_006_continue_routine_marker_alone_is_not_behavioral_progress",
+        negative_id: "synthetic_continue_marker_as_progress",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
+        negative_id: "synthetic_missing_mutation_efficacy_note",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_008_action_registry_uses_typed_scopes_not_phase1_boolean",
+        negative_id: "synthetic_action_registry_phase1_boolean",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_008_phase1_loader_does_not_register_later_phase_actions",
+        negative_id: "synthetic_phase1_loader_registers_later_phase",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_008_phase1_loader_source_guard_has_mutation_self_coverage",
+        negative_id: "synthetic_phase1_loader_guard_mutation",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+];
 
 fn yaml_step_run_block<'a>(ci_yml: &'a str, step_name: &str) -> Option<&'a str> {
     let marker = format!("- name: {step_name}");
@@ -1311,6 +1630,96 @@ fn mutation_rationale_violations(classifications: &[WorkspaceSourceClassificatio
             WorkspaceSourceClass::Exempt { .. } => None,
         })
         .collect()
+}
+
+fn anti_regression_guard_test_names(source: &str) -> BTreeSet<String> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            trimmed
+                .strip_prefix("fn guard_")
+                .and_then(|tail| tail.split_once('('))
+                .map(|(name, _)| format!("guard_{name}"))
+        })
+        .collect()
+}
+
+fn meta_lock_registry_errors(
+    registry: &[MetaLockRegistryEntry],
+    anti_regression_source: &str,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut lock_ids = BTreeSet::new();
+    let mut negative_ids = BTreeSet::new();
+
+    if registry.len() < META_LOCK_REGISTRY_MIN_ENTRIES {
+        errors.push(format!(
+            "meta-lock registry enumerates too few locks: expected at least {}, got {}",
+            META_LOCK_REGISTRY_MIN_ENTRIES,
+            registry.len()
+        ));
+    }
+
+    for entry in registry {
+        if !lock_ids.insert(entry.lock_id) {
+            errors.push(format!(
+                "meta-lock registry duplicates lock {}",
+                entry.lock_id
+            ));
+        }
+        if entry.negative_id.trim().is_empty() {
+            errors.push(format!(
+                "meta-lock {} lacks a registered negative",
+                entry.lock_id
+            ));
+        } else if !negative_ids.insert(entry.negative_id) {
+            errors.push(format!(
+                "meta-lock registry duplicates negative {}",
+                entry.negative_id
+            ));
+        }
+        match entry.routing {
+            MetaLockRouting::SharedScan | MetaLockRouting::BehaviorAssertion => {}
+            MetaLockRouting::TicketOwnedDebt { ticket } => {
+                if !ticket_exists(ticket) {
+                    errors.push(format!(
+                        "meta-lock {} routes artifact-shaped negative to missing ticket {}",
+                        entry.lock_id, ticket
+                    ));
+                }
+            }
+        }
+        if entry.witness_min == 0 {
+            errors.push(format!(
+                "meta-lock {} has a zero witness minimum",
+                entry.lock_id
+            ));
+        }
+        if entry.witness_count < entry.witness_min {
+            errors.push(format!(
+                "meta-lock {} witness count {} is below minimum {}",
+                entry.lock_id, entry.witness_count, entry.witness_min
+            ));
+        }
+    }
+
+    if !lock_ids.contains("meta_lock_registry_census") {
+        errors.push("meta-lock registry does not list its own census lock".to_string());
+    }
+    if !negative_ids.contains("synthetic_meta_lock_without_negative") {
+        errors.push("meta-lock registry does not list its reflexive negative".to_string());
+    }
+
+    for guard_name in anti_regression_guard_test_names(anti_regression_source) {
+        if !lock_ids.contains(guard_name.as_str()) {
+            errors.push(format!(
+                "anti-regression structural guard {guard_name} is missing from meta-lock registry"
+            ));
+        }
+    }
+
+    errors
 }
 
 fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -> Vec<String> {
@@ -1547,6 +1956,16 @@ fn ledgered_mutant_misses(ledger: &str) -> std::collections::BTreeSet<String> {
         .collect()
 }
 
+fn mutation_baseline_change_log_records(ledger: &str, count: usize, hash: u64) -> bool {
+    let count_marker = format!("normalized-count={count}");
+    let hash_marker = format!("fnv1a64={hash:016x}");
+    ledger.lines().any(|line| {
+        line.contains("baseline-delta:")
+            && line.contains(&count_marker)
+            && line.contains(&hash_marker)
+    })
+}
+
 fn ticket_exists(ticket_id: &str) -> bool {
     let active = format!("tickets/{ticket_id}.md");
     let archived = format!("archive/tickets/{ticket_id}.md");
@@ -1573,6 +1992,12 @@ fn mutation_baseline_governance_errors(baseline: &str, ledger: &str) -> Vec<Stri
     if hash != MUTANTS_BASELINE_NORMALIZED_FNV1A64 {
         errors.push(format!(
             "normalized mutation baseline hash changed: expected {MUTANTS_BASELINE_NORMALIZED_FNV1A64:016x}, got {hash:016x}"
+        ));
+    }
+    if !mutation_baseline_change_log_records(ledger, normalized.len(), hash) {
+        errors.push(format!(
+            "mutation baseline lacks recorded baseline change log for normalized-count={} fnv1a64={hash:016x}",
+            normalized.len()
         ));
     }
 
@@ -1661,6 +2086,59 @@ fn mutation_ledger_rationale_suffix(rationale: &str) -> String {
         }
     }
     rationale.trim().to_string()
+}
+
+fn generative_floor_ratchet_errors(source: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let expected_constants = [
+        (
+            "RECORDED_GENERATIVE_MASK_DIVERSITY",
+            RECORDED_GENERATIVE_MASK_DIVERSITY,
+        ),
+        (
+            "RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY",
+            RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY,
+        ),
+    ];
+    for (name, expected) in expected_constants {
+        let needle = format!("const {name}: usize = {expected};");
+        if !source.contains(&needle) {
+            errors.push(format!(
+                "generative corpus floor {name} does not match recorded value {expected}"
+            ));
+        }
+    }
+    for (flag, expected) in RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS {
+        let needle = format!("(\"{flag}\", {expected})");
+        if !source.contains(&needle) {
+            errors.push(format!(
+                "generative corpus contributor floor {flag} does not match recorded value {expected}"
+            ));
+        }
+    }
+    for forbidden in [
+        "masks.len() >=",
+        "sequence_lengths.len() >=",
+        "seeds.len() >=",
+    ] {
+        if source.contains(forbidden) {
+            errors.push(format!(
+                "generative corpus floor remains one-sided: {forbidden}"
+            ));
+        }
+    }
+    for required in [
+        "assert_eq!(\n        masks.len(),\n        RECORDED_GENERATIVE_MASK_DIVERSITY",
+        "assert_eq!(\n        sequence_lengths.len(),\n        RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY",
+        "assert_eq!(\n        actual_counts, expected_counts,",
+    ] {
+        if !source.contains(required) {
+            errors.push(format!(
+                "generative corpus floor assertion is not two-sided: {required}"
+            ));
+        }
+    }
+    errors
 }
 
 #[derive(Clone, Copy)]
@@ -2206,8 +2684,44 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
                 .any(|error| error.contains("hash changed"))
             && synthetic_errors
                 .iter()
-                .any(|error| error.contains("lacks ledger disposition")),
-        "synthetic unledgered baseline append must fail count, hash, and ledger checks"
+                .any(|error| error.contains("lacks ledger disposition"))
+            && synthetic_errors
+                .iter()
+                .any(|error| error.contains("recorded baseline change log")),
+        "synthetic unledgered baseline append must fail count, hash, ledger, and change-log checks"
+    );
+
+    let shrink = MUTANTS_BASELINE_MISSES
+        .lines()
+        .skip(1)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let shrink_errors = mutation_baseline_governance_errors(&shrink, MUTANTS_BASELINE_LEDGER);
+    assert!(
+        shrink_errors
+            .iter()
+            .any(|error| error.contains("count changed"))
+            && shrink_errors
+                .iter()
+                .any(|error| error.contains("hash changed"))
+            && shrink_errors
+                .iter()
+                .any(|error| error.contains("recorded baseline change log")),
+        "synthetic unrecorded baseline shrink must fail count, hash, and change-log checks"
+    );
+
+    let unrecorded_floor_raise_ledger = MUTANTS_BASELINE_LEDGER.replace(
+        "baseline-delta: normalized-count=143 fnv1a64=bd1855a5ee82b428",
+        "baseline-delta: normalized-count=144 fnv1a64=bd1855a5ee82b428",
+    );
+    assert!(
+        mutation_baseline_governance_errors(
+            MUTANTS_BASELINE_MISSES,
+            &unrecorded_floor_raise_ledger
+        )
+        .iter()
+        .any(|error| error.contains("recorded baseline change log")),
+        "synthetic unrecorded baseline floor raise must fail change-log governance"
     );
 
     let bulk_ledger = (0..=MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES)
@@ -2252,6 +2766,83 @@ fn mutation_baseline_misses_are_pinned_and_ledgered() {
             .iter()
             .any(|error| error.contains("missing ticket")),
         "synthetic warrants-test tag with missing ticket must fail governance"
+    );
+}
+
+#[test]
+fn meta_lock_registry_covers_structural_locks_and_negatives() {
+    let errors = meta_lock_registry_errors(META_LOCK_REGISTRY, ANTI_REGRESSION_GUARDS_RS);
+    assert!(
+        errors.is_empty(),
+        "meta-lock registry census failed:\n{}",
+        errors.join("\n")
+    );
+
+    let mut missing_negative = META_LOCK_REGISTRY.to_vec();
+    missing_negative[0].negative_id = "";
+    assert!(
+        meta_lock_registry_errors(&missing_negative, ANTI_REGRESSION_GUARDS_RS)
+            .iter()
+            .any(|error| error.contains("lacks a registered negative")),
+        "synthetic lock without negative must fail the meta-lock census"
+    );
+
+    let mut non_routed_negative = META_LOCK_REGISTRY.to_vec();
+    non_routed_negative[0].routing = MetaLockRouting::TicketOwnedDebt {
+        ticket: "0022PHA3ABASTRI-999",
+    };
+    assert!(
+        meta_lock_registry_errors(&non_routed_negative, ANTI_REGRESSION_GUARDS_RS)
+            .iter()
+            .any(|error| error.contains("missing ticket")),
+        "synthetic non-routed negative must fail the meta-lock census"
+    );
+
+    let mut zero_match_scan = META_LOCK_REGISTRY.to_vec();
+    zero_match_scan[0].witness_count = 0;
+    assert!(
+        meta_lock_registry_errors(&zero_match_scan, ANTI_REGRESSION_GUARDS_RS)
+            .iter()
+            .any(|error| error.contains("below minimum")),
+        "synthetic zero-match scan must fail the nonzero-witness rule"
+    );
+
+    let unregistered_guard_source = format!(
+        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn guard_synthetic_unregistered_lock() {{}}\n"
+    );
+    assert!(
+        meta_lock_registry_errors(META_LOCK_REGISTRY, &unregistered_guard_source)
+            .iter()
+            .any(|error| error.contains("guard_synthetic_unregistered_lock")),
+        "synthetic unregistered structural guard must fail the meta-lock census"
+    );
+}
+
+#[test]
+fn generative_lock_source_uses_two_sided_recorded_floors() {
+    let errors = generative_floor_ratchet_errors(GENERATIVE_LOCK_RS);
+    assert!(
+        errors.is_empty(),
+        "generative floor ratchet failed: {errors:#?}"
+    );
+
+    let raised_floor = GENERATIVE_LOCK_RS.replace(
+        "const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;",
+        "const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 8;",
+    );
+    assert!(
+        generative_floor_ratchet_errors(&raised_floor)
+            .iter()
+            .any(|error| error.contains("RECORDED_GENERATIVE_MASK_DIVERSITY")),
+        "synthetic unrecorded generative floor raise must fail"
+    );
+
+    let one_sided_floor = GENERATIVE_LOCK_RS.replace("masks.len(),", "masks.len() >= 4,");
+    assert!(
+        generative_floor_ratchet_errors(&one_sided_floor)
+            .iter()
+            .any(|error| error.contains("one-sided")),
+        "synthetic one-sided generative floor must fail"
     );
 }
 

@@ -18,6 +18,20 @@ use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::time::SimTick;
 
+const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
+const RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY: usize = 4;
+const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
+    ("actor_waited", 10),
+    ("need_delta", 12),
+    ("food_consumed", 6),
+    ("sleep_started", 6),
+    ("work_started", 7),
+    ("sleep_completed", 4),
+    ("sleep_interrupted", 2),
+    ("work_completed", 4),
+    ("work_failed", 3),
+];
+
 #[derive(Default)]
 struct Reachability {
     actor_waited: bool,
@@ -284,12 +298,14 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
     );
     assert_multi_seed_contributors(&seed_contributors, &corpus_summary);
     assert_derived_seed_contributors(&seed_contributors, &corpus_summary);
-    assert!(
-        masks.len() >= 4,
+    assert_eq!(
+        masks.len(),
+        RECORDED_GENERATIVE_MASK_DIVERSITY,
         "generated corpus mask diversity too low: {masks:?}; {corpus_summary}"
     );
-    assert!(
-        sequence_lengths.len() >= 2,
+    assert_eq!(
+        sequence_lengths.len(),
+        RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY,
         "generated corpus sequence-length diversity too low: {sequence_lengths:?}; {corpus_summary}"
     );
 }
@@ -318,21 +334,27 @@ fn assert_multi_seed_contributors(
     contributors: &BTreeMap<&'static str, BTreeSet<u64>>,
     corpus_summary: &str,
 ) {
-    for flag in [
-        "actor_waited",
-        "need_delta",
-        "food_consumed",
-        "sleep_started",
-        "work_started",
-        "sleep_completed",
-        "sleep_interrupted",
-        "work_completed",
-        "work_failed",
-    ] {
+    let actual_counts = RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
+        .iter()
+        .map(|(flag, _)| {
+            let seeds = contributors.get(flag).cloned().unwrap_or_default();
+            ((*flag).to_string(), seeds.len())
+        })
+        .collect::<BTreeMap<_, _>>();
+    let expected_counts = RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS
+        .iter()
+        .map(|(flag, count)| ((*flag).to_string(), *count))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(
+        actual_counts, expected_counts,
+        "generated corpus multi-seed contributor counts changed; {corpus_summary}"
+    );
+
+    for (flag, recorded_count) in RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS {
         let seeds = contributors.get(flag).cloned().unwrap_or_default();
         assert!(
-            seeds.len() >= 2,
-            "generated corpus flag {flag} has too few contributing seeds: {seeds:x?}; {corpus_summary}"
+            *recorded_count >= 2,
+            "generated corpus flag {flag} no longer has multiple recorded seed contributors: {seeds:x?}; {corpus_summary}"
         );
     }
 }
