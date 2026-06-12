@@ -305,8 +305,10 @@ untouched across the entire 0021 range; zero entries retired by writing tests. A
 future focused assertion before removing from the accepted baseline" (noun-phrase
 variations yield ~76 distinct strings, max identical group 17, just under
 `MUTATION_LEDGER_MAX_IDENTICAL_RATIONALES = 20`). Zero `warrants-test` entries exist;
-no `0021PHA3APOSREB-014`+ follow-up tickets exist anywhere; ticket-004 records no
-deviation and the acceptance report's "Deviations From Plan" records none. Report §6
+the later archived `archive/tickets/0021PHA3APOSREB-014.md` closes the PR-local
+in-diff mutant gap but does not perform the baseline-ledger triage described here;
+ticket-004 records no deviation and the acceptance report's "Deviations From Plan"
+records none. Report §6
 ("Baseline Triage") asserts guard capabilities — "rejects … missing `warrants-test`
 tickets" is vacuously true with zero such entries. Entrenchment:
 `mutation_baseline_governance_errors` hard-pins

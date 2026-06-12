@@ -2407,6 +2407,93 @@ pub mod no_human {
             assert!(!window.contains_tick(SimTick::new(21)));
         }
 
+        fn threshold_payload<'a>(event: &'a EventEnvelope, key: &str) -> &'a str {
+            event
+                .payload
+                .iter()
+                .find(|field| field.key == key)
+                .map(|field| field.value.as_str())
+                .unwrap_or_else(|| panic!("missing payload field {key}"))
+        }
+
+        fn passive_threshold_event(
+            current_value: u16,
+            delta: i32,
+            has_active_intention: bool,
+        ) -> EventEnvelope {
+            let process = ProcessId::new("process_passive_needs").unwrap();
+            let actor = actor_id();
+            let window = DayWindow {
+                window_id: "window_morning".to_string(),
+                start_tick: SimTick::new(4),
+                end_tick: SimTick::new(8),
+            };
+            build_window_passive_need_events(
+                Some(current_value),
+                has_active_intention,
+                &process,
+                &actor,
+                &window,
+                &content_manifest_id(),
+                NeedKind::Hunger,
+                delta,
+                1,
+            )
+            .into_iter()
+            .find(|event| event.event_type == EventKind::NeedThresholdCrossed)
+            .expect("passive need delta should cross a threshold")
+        }
+
+        #[test]
+        fn severe_passive_need_interrupt_payload_requires_severe_crossing_and_active_intention() {
+            let severe_with_intention = passive_threshold_event(749, 1, true);
+            assert_eq!(
+                threshold_payload(&severe_with_intention, "to_band"),
+                "severe"
+            );
+            assert_eq!(
+                threshold_payload(
+                    &severe_with_intention,
+                    "severe_need_interrupts_active_intention"
+                ),
+                "true"
+            );
+            assert_eq!(
+                threshold_payload(&severe_with_intention, "interruption_cause"),
+                "severe_need_pressure"
+            );
+
+            let severe_without_intention = passive_threshold_event(749, 1, false);
+            assert_eq!(
+                threshold_payload(
+                    &severe_without_intention,
+                    "severe_need_interrupts_active_intention"
+                ),
+                "false"
+            );
+            assert_eq!(
+                threshold_payload(&severe_without_intention, "interruption_cause"),
+                "none"
+            );
+
+            let non_severe_with_intention = passive_threshold_event(249, 1, true);
+            assert_eq!(
+                threshold_payload(&non_severe_with_intention, "to_band"),
+                "rising"
+            );
+            assert_eq!(
+                threshold_payload(
+                    &non_severe_with_intention,
+                    "severe_need_interrupts_active_intention"
+                ),
+                "false"
+            );
+            assert_eq!(
+                threshold_payload(&non_severe_with_intention, "interruption_cause"),
+                "none"
+            );
+        }
+
         fn agent_state(actor_id: &ActorId) -> AgentState {
             let mut state = AgentState::default();
             state.needs_by_actor.insert(
@@ -2552,6 +2639,92 @@ pub mod no_human {
                     .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
                     .count(),
                 2
+            );
+        }
+
+        #[test]
+        fn advance_catches_up_intervening_ticks_before_later_proposal() {
+            let actor_id = actor_id();
+            let bedroom = PlaceId::new("bedroom").unwrap();
+            let sleep_affordance_id = SleepAffordanceId::new("bed_tomas").unwrap();
+            let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+            state
+                .places
+                .insert(bedroom.clone(), PlaceState::new(bedroom.clone(), "Bedroom"));
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), bedroom.clone()),
+            );
+            state.sleep_affordances.insert(
+                sleep_affordance_id.clone(),
+                SleepAffordanceState::new(sleep_affordance_id.clone(), bedroom, 2, 80, 1),
+            );
+            let mut log = EventLog::new();
+            let mut registry = ActionRegistry::new();
+            registry.register_phase1_inspect_wait();
+            registry.register_phase3a_sleep();
+            let mut agent_state = agent_state(&actor_id);
+
+            let mut sleep = Proposal::new(
+                ProposalId::new("proposal_sleep").unwrap(),
+                ProposalOrigin::Scheduler,
+                Some(actor_id.clone()),
+                ActionId::new("sleep").unwrap(),
+                SimTick::ZERO,
+            );
+            sleep.parameters.insert(
+                "sleep_affordance_id".to_string(),
+                sleep_affordance_id.as_str().to_string(),
+            );
+            sleep
+                .parameters
+                .insert("duration_ticks".to_string(), "2".to_string());
+
+            let mut wait = Proposal::new(
+                ProposalId::new("proposal_after_sleep_wait").unwrap(),
+                ProposalOrigin::Scheduler,
+                Some(actor_id),
+                ActionId::new("wait").unwrap(),
+                SimTick::new(3),
+            );
+            wait.parameters
+                .insert("reason".to_string(), "after sleep".to_string());
+
+            let report = advance_no_human(
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: &mut agent_state,
+                },
+                &mut log,
+                &registry,
+                content_manifest_id(),
+                SimTick::ZERO,
+                4,
+                vec![sleep, wait],
+            );
+
+            assert_eq!(report.final_tick, SimTick::new(4));
+            assert!(log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::SleepStarted));
+            let completed_index = log
+                .events()
+                .iter()
+                .position(|event| event.event_type == EventKind::SleepCompleted)
+                .expect("sleep completion at tick 2 must fire before tick 3 proposal");
+            let completed = &log.events()[completed_index];
+            assert_eq!(completed.sim_tick, SimTick::new(2));
+            let waited_index = log
+                .events()
+                .iter()
+                .position(|event| event.event_type == EventKind::ActorWaited)
+                .expect("later wait proposal should execute after catch-up");
+            let waited = &log.events()[waited_index];
+            assert_eq!(waited.sim_tick, SimTick::new(4));
+            assert!(
+                completed_index < waited_index,
+                "catch-up completions must be appended before later requested-tick proposals"
             );
         }
 

@@ -1,6 +1,6 @@
 # 0021PHA3APOSREB-014: Kill the five new in-diff mutants on guarded-layer lines (mutation gate closure)
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: None — test-only (new unit tests in existing inline `#[cfg(test)]` modules); no production logic, schema, fixture, or doc changes
@@ -194,3 +194,52 @@ perimeter/exclusion correction is owned by spec 0022, not pulled forward here.
 1. `cargo test --locked -p tracewake-core`
 2. `git diff origin/main...HEAD > /tmp/guarded.diff && cargo mutants --in-diff /tmp/guarded.diff --no-shuffle` (expect the five signatures caught; no new misses vs. baseline)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12
+
+What changed:
+
+- Added inline scheduler tests for O1 and O2:
+  `severe_passive_need_interrupt_payload_requires_severe_crossing_and_active_intention`
+  asserts the severe-threshold/active-intention conjunction and payload cause fields;
+  `advance_catches_up_intervening_ticks_before_later_proposal` asserts due duration
+  completions are appended before later requested-tick proposals.
+- Added inline no-human surface test
+  `food_source_accessible_fact_requires_from_any_place_scope`, proving
+  `food_source_believed_accessible` is emitted only for
+  `ActorKnownProjectionAccessibilityScope::FromAnyPlace` while
+  `actor_knows_food_source` remains present for both scopes.
+- Added inline wait test
+  `wait_without_threshold_crossing_keeps_reevaluation_flag_false`, proving the
+  `candidate_goal_reevaluation` flag remains false without a
+  `NeedThresholdCrossed` event.
+- No production logic, schema, fixture, CI, mutation config, or mutation baseline file was
+  changed.
+
+Deviations from original plan:
+
+- The literal mutation command
+  `git diff origin/main...HEAD > /tmp/guarded.diff && cargo mutants --in-diff /tmp/guarded.diff --no-shuffle`
+  failed before mutation because the three-dot diff line numbers did not match the edited
+  working tree. The source-matching equivalent
+  `git diff origin/main > /tmp/guarded.diff && cargo mutants --in-diff /tmp/guarded.diff --no-shuffle`
+  was run instead.
+
+Verification results:
+
+- `cargo test --locked -p tracewake-core` — passed.
+- `git diff origin/main > /tmp/guarded.diff && cargo mutants --in-diff /tmp/guarded.diff --no-shuffle`
+  — completed with 116 mutants tested: 73 caught, 39 unviable, 4 missed. The O1, O2, O3,
+  and O4 target signatures were present in `mutants.out/caught.txt`; the four remaining
+  misses were existing accepted baseline entries after line/column normalization, and
+  `comm -23` against `.cargo/mutants-baseline-misses.txt` printed no new misses.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Dropped/deferred enumerated members:
+
+- None.

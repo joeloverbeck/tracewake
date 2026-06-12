@@ -309,6 +309,19 @@ mod tests {
         proposal
     }
 
+    fn non_threshold_agent_state() -> AgentState {
+        let mut state = agent_state();
+        state.needs_by_actor.get_mut(&actor_id()).unwrap().insert(
+            NeedKind::Hunger,
+            NeedState::initial(NeedKind::Hunger, 10, NeedChangeCause::TickDelta),
+        );
+        state.needs_by_actor.get_mut(&actor_id()).unwrap().insert(
+            NeedKind::Fatigue,
+            NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::TickDelta),
+        );
+        state
+    }
+
     fn ordering_key() -> OrderingKey {
         OrderingKey::new(
             SimTick::new(4),
@@ -426,6 +439,33 @@ mod tests {
             .payload
             .iter()
             .any(|field| field.key == "to_band" && field.value == "rising"));
+    }
+
+    #[test]
+    fn wait_without_threshold_crossing_keeps_reevaluation_flag_false() {
+        let events = build_wait_events(
+            &state(),
+            &non_threshold_agent_state(),
+            &reasoned_threshold_proposal(),
+            &ordering_key(),
+            &ContentManifestId::new("phase1_manifest").unwrap(),
+        )
+        .unwrap();
+
+        assert!(events[0]
+            .payload
+            .iter()
+            .any(|field| { field.key == "candidate_goal_reevaluation" && field.value == "false" }));
+        assert!(!events
+            .iter()
+            .any(|event| event.event_type == EventKind::NeedThresholdCrossed));
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+                .count(),
+            2
+        );
     }
 
     #[test]

@@ -627,6 +627,66 @@ mod tests {
         .build(&agent_state)
     }
 
+    fn food_fact_ids(surface: &SealedActorKnownSurface) -> Vec<&str> {
+        surface
+            .context()
+            .actor_known_facts()
+            .iter()
+            .map(|fact| fact.stable_id())
+            .collect()
+    }
+
+    #[test]
+    fn food_source_accessible_fact_requires_from_any_place_scope() {
+        let actor_id = actor_id();
+        let kitchen = place_id("kitchen");
+        let event_id = EventId::new("event.food_scope.actor_tomas").unwrap();
+        let policy_from_any_place = ProjectionFactPolicy {
+            freshness: ActorKnownProjectionFreshness::CurrentlyPerceived,
+            source_tick: SimTick::new(4),
+            accessibility_scope: ActorKnownProjectionAccessibilityScope::FromAnyPlace,
+        };
+        let policy_not_accessible = ProjectionFactPolicy {
+            freshness: ActorKnownProjectionFreshness::CurrentlyPerceived,
+            source_tick: SimTick::new(4),
+            accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+        };
+
+        let mut reachable_builder =
+            NoHumanActorKnownSurfaceBuilder::new(actor_id.clone(), kitchen.clone(), None);
+        reachable_builder.add_food_source_knowledge(
+            "kitchen_stew",
+            "evented_perception:visible_food_supply",
+            vec![event_id.clone()],
+            policy_from_any_place,
+        );
+        let reachable_surface = reachable_builder.build(&AgentState::default());
+        let reachable_fact_ids = food_fact_ids(&reachable_surface);
+        assert!(reachable_fact_ids.contains(&"actor_knows_food_source"));
+        assert!(reachable_fact_ids.contains(&"food_source_believed_accessible"));
+        assert!(reachable_surface
+            .context()
+            .known_food_sources()
+            .contains("kitchen_stew"));
+
+        let mut current_place_builder =
+            NoHumanActorKnownSurfaceBuilder::new(actor_id, kitchen, None);
+        current_place_builder.add_food_source_knowledge(
+            "table_bread",
+            "evented_perception:visible_food_supply",
+            vec![event_id],
+            policy_not_accessible,
+        );
+        let current_place_surface = current_place_builder.build(&AgentState::default());
+        let current_place_fact_ids = food_fact_ids(&current_place_surface);
+        assert!(current_place_fact_ids.contains(&"actor_knows_food_source"));
+        assert!(!current_place_fact_ids.contains(&"food_source_believed_accessible"));
+        assert!(current_place_surface
+            .context()
+            .known_food_sources()
+            .contains("table_bread"));
+    }
+
     #[test]
     fn raw_workplace_assignment_is_not_actor_known_without_notice() {
         let actor_id = actor_id();
