@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-019: Mutation baseline focused tests for HTN, intention, methods, and routines
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — focused HTN/routine/intention tests in `tracewake-core`
@@ -77,3 +77,32 @@ Add focused tests that kill the assigned HTN, intention, methods, and routine mu
 3. `cargo mutants -f crates/tracewake-core/src/agent/intention.rs --no-shuffle`
 4. `cargo mutants -f crates/tracewake-core/src/agent/methods.rs --no-shuffle`
 5. `cargo mutants -f crates/tracewake-core/src/agent/routine.rs --no-shuffle`
+
+## Completion Notes (2026-06-12)
+
+- Added focused HTN condition-resolution tests for modeled food-search facts,
+  search-surface availability, and known-route edge vs modeled-fact surfaces.
+- Added intention stable-id coverage for every `IntentionStatus` variant and
+  terminal classification.
+- Added methods tests for negative empty-wait proposal validation and positive
+  typed diagnostic proposal validation.
+- Added routine tests for condition parser vocabulary, invalid canonical step
+  shapes, parse-error rendering, and suspend/abandon lifecycle transitions.
+- Retired twenty-eight HTN/intention/methods/routine mutation baseline entries
+  after targeted mutation runs caught all viable assigned mutants.
+- Mutation baseline normalized count/hash after retirement:
+  `normalized-count=83 fnv1a64=a336ed7ea5c0ed12`.
+- Verification:
+  - `cargo test -p tracewake-core`
+  - `cargo mutants -f crates/tracewake-core/src/agent/htn.rs --no-shuffle`
+    (`26 mutants tested in 2m: 18 caught, 8 unviable`)
+  - `cargo mutants -f crates/tracewake-core/src/agent/intention.rs --no-shuffle`
+    (`19 mutants tested in 2m: 18 caught, 1 unviable`)
+  - `cargo mutants -f crates/tracewake-core/src/agent/methods.rs --no-shuffle`
+    (`18 mutants tested in 73s: 13 caught, 5 unviable`)
+  - `cargo mutants -f crates/tracewake-core/src/agent/routine.rs --no-shuffle`
+    (`71 mutants tested in 4m: 67 caught, 4 unviable`)
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`

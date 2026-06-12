@@ -39,14 +39,6 @@ crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosti
 crates/tracewake-core/src/scheduler.rs:2173:13: replace no_human::StuckDiagnosticKind::stable_id -> &'static str with "xyzzy"
 crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""
 crates/tracewake-core/src/scheduler.rs:2181:13: replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/htn.rs:230:20: delete ! in resolve_condition
-crates/tracewake-core/src/agent/htn.rs:238:17: replace && with || in resolve_condition
-crates/tracewake-core/src/agent/htn.rs:238:20: delete ! in resolve_condition
-crates/tracewake-core/src/agent/htn.rs:281:5: replace has_modeled_fact -> bool with false
-crates/tracewake-core/src/agent/intention.rs:16:9: replace IntentionStatus::stable_id -> &'static str with ""
-crates/tracewake-core/src/agent/intention.rs:16:9: replace IntentionStatus::stable_id -> &'static str with "xyzzy"
-crates/tracewake-core/src/agent/methods.rs:138:5: replace all_steps_are_proposals -> bool with true
-crates/tracewake-core/src/agent/methods.rs:141:56: delete ! in all_steps_are_proposals
 crates/tracewake-core/src/agent/need.rs:27:13: delete match arm "fatigue" in NeedKind::parse
 crates/tracewake-core/src/agent/need.rs:28:13: delete match arm "safety" in NeedKind::parse
 crates/tracewake-core/src/agent/need.rs:63:13: delete match arm "comfortable" in NeedBand::parse
@@ -64,26 +56,6 @@ crates/tracewake-core/src/agent/no_human_surface.rs:496:5: replace has_active_in
 crates/tracewake-core/src/agent/perception.rs:292:9: replace && with || in is_visible_exit_target
 crates/tracewake-core/src/agent/planner.rs:129:9: replace && with || in plan_start_sleep
 crates/tracewake-core/src/agent/planner.rs:167:57: replace && with || in plan_start_work_block
-crates/tracewake-core/src/agent/routine.rs:133:36: replace || with && in RoutineStep::deserialize_canonical
-crates/tracewake-core/src/agent/routine.rs:244:13: delete match arm "actor_knows_food_source" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:245:13: delete match arm "actor_knows_workplace" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:246:13: delete match arm "workplace_assignment_active" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:247:13: delete match arm "actor_knows_home" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:248:13: delete match arm "actor_knows_sleep_place" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:249:13: delete match arm "actor_has_food_search_knowledge" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:250:13: delete match arm "active_intention_present" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:251:13: delete match arm "sleep_state_can_end" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:252:13: delete match arm "food_source_believed_accessible" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:253:13: delete match arm "actor_at_workplace" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:254:13: delete match arm "sleep_place_believed_accessible" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:255:13: delete match arm "search_surface_actor_known" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:256:13: delete match arm "next_step_available" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:257:13: delete match arm "known_route_surface" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:258:13: delete match arm "modeled_wait_reason" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:259:13: delete match arm "reevaluation_window_known" in RoutineCondition::parse
-crates/tracewake-core/src/agent/routine.rs:433:9: replace RoutineExecution::suspend with ()
-crates/tracewake-core/src/agent/routine.rs:445:9: replace RoutineExecution::abandon with ()
-crates/tracewake-core/src/agent/routine.rs:476:9: replace <impl fmt::Display for RoutineStepParseError>::fmt -> fmt::Result with Ok(Default::default())
 crates/tracewake-core/src/agent/trace.rs:40:13: delete match arm "waited" in DecisionOutcome::parse
 crates/tracewake-core/src/agent/trace.rs:41:13: delete match arm "replanned" in DecisionOutcome::parse
 crates/tracewake-core/src/agent/trace.rs:42:13: delete match arm "failed" in DecisionOutcome::parse

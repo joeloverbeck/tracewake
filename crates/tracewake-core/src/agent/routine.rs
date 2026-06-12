@@ -657,6 +657,22 @@ mod tests {
             execution.failure_interruption_reason.as_deref(),
             Some("known food absent")
         );
+
+        execution.suspend(SimTick::new(15), "market closed");
+        assert_eq!(execution.step_status, RoutineStepStatus::Suspended);
+        assert_eq!(execution.last_progress_tick, SimTick::new(15));
+        assert_eq!(
+            execution.failure_interruption_reason.as_deref(),
+            Some("market closed")
+        );
+
+        execution.abandon(SimTick::new(16), "new routine selected");
+        assert_eq!(execution.step_status, RoutineStepStatus::Abandoned);
+        assert_eq!(execution.last_progress_tick, SimTick::new(16));
+        assert_eq!(
+            execution.failure_interruption_reason.as_deref(),
+            Some("new routine selected")
+        );
     }
 
     #[test]
@@ -716,6 +732,71 @@ mod tests {
                     assert_eq!(diagnostic.stable_id(), "no_sleep_affordance")
                 }
             }
+        }
+    }
+
+    #[test]
+    fn routine_condition_parse_covers_stable_id_vocabulary() {
+        let conditions = [
+            RoutineCondition::ActorKnowsFoodSource,
+            RoutineCondition::ActorKnowsWorkplace,
+            RoutineCondition::WorkplaceAssignmentActive,
+            RoutineCondition::ActorKnowsHome,
+            RoutineCondition::ActorKnowsSleepPlace,
+            RoutineCondition::ActorHasFoodSearchKnowledge,
+            RoutineCondition::ActiveIntentionPresent,
+            RoutineCondition::SleepStateCanEnd,
+            RoutineCondition::FoodSourceBelievedAccessible,
+            RoutineCondition::ActorAtWorkplace,
+            RoutineCondition::SleepPlaceBelievedAccessible,
+            RoutineCondition::SearchSurfaceActorKnown,
+            RoutineCondition::NextStepAvailable,
+            RoutineCondition::KnownRouteSurface,
+            RoutineCondition::ModeledWaitReason,
+            RoutineCondition::ReevaluationWindowKnown,
+            RoutineCondition::FixtureAuthoredPossibility,
+            RoutineCondition::SharedPipelinePreconditions,
+            RoutineCondition::AssignedWorkplaceKnown,
+            RoutineCondition::AtWorkplace,
+        ];
+
+        for condition in conditions {
+            assert_eq!(
+                RoutineCondition::parse(condition.stable_id()),
+                Some(condition)
+            );
+        }
+        assert_eq!(RoutineCondition::parse("xyzzy"), None);
+    }
+
+    #[test]
+    fn routine_step_deserialize_rejects_wrong_version_and_extra_fields() {
+        assert_eq!(
+            RoutineStep::deserialize_canonical(b"routine_step_v0|wait_until|77616974").unwrap_err(),
+            RoutineStepParseError::InvalidShape
+        );
+        assert_eq!(
+            RoutineStep::deserialize_canonical(b"routine_step_v1|wait_until|77616974|extra")
+                .unwrap_err(),
+            RoutineStepParseError::InvalidShape
+        );
+    }
+
+    #[test]
+    fn routine_step_parse_errors_render_human_readable_messages() {
+        let errors = [
+            RoutineStepParseError::InvalidUtf8,
+            RoutineStepParseError::InvalidShape,
+            RoutineStepParseError::InvalidStepKind,
+            RoutineStepParseError::InvalidDiagnosticKind,
+            RoutineStepParseError::InvalidTextPayload,
+            RoutineStepParseError::InvalidSemanticActionId(SemanticActionId::new("").unwrap_err()),
+        ];
+
+        for err in errors {
+            let rendered = err.to_string();
+            assert!(!rendered.is_empty());
+            assert_ne!(rendered, "xyzzy");
         }
     }
 

@@ -252,6 +252,33 @@ mod tests {
         );
     }
 
+    #[test]
+    fn proposal_step_validation_rejects_empty_wait_payload() {
+        let mut template = phase3a_routine_templates()
+            .into_iter()
+            .find(|template| template.family == RoutineFamily::Wait)
+            .unwrap();
+        assert!(all_steps_are_proposals(&template));
+
+        template.steps = vec![RoutineStep::WaitUntil {
+            reason: String::new(),
+        }];
+        assert!(!all_steps_are_proposals(&template));
+    }
+
+    #[test]
+    fn proposal_step_validation_accepts_typed_diagnostic_payload() {
+        let mut template = phase3a_routine_templates()
+            .into_iter()
+            .find(|template| template.family == RoutineFamily::Wait)
+            .unwrap();
+        template.steps = vec![RoutineStep::FailWithTypedDiagnostic {
+            diagnostic: crate::agent::routine::RoutineDiagnosticKind::NoSleepAffordance,
+        }];
+
+        assert!(all_steps_are_proposals(&template));
+    }
+
     trait TemplateTestRender {
         fn serialize_for_test(&self) -> String;
     }

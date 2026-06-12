@@ -667,4 +667,85 @@ mod tests {
         );
         assert!(matches!(shared, ConditionResolution::Satisfied { .. }));
     }
+
+    #[test]
+    fn modeled_food_search_conditions_require_actor_known_fact_or_state_surface() {
+        let state = planning_state(&[]);
+        let modeled_search = vec![observed_fact(
+            "food_search_knowledge_local_visible",
+            "visible_shelf",
+            "test:search_surface",
+        )];
+
+        let no_search =
+            resolve_condition(&RoutineCondition::ActorHasFoodSearchKnowledge, &state, &[]);
+        assert!(matches!(no_search, ConditionResolution::Unknown { .. }));
+
+        let modeled = resolve_condition(
+            &RoutineCondition::ActorHasFoodSearchKnowledge,
+            &state,
+            &modeled_search,
+        );
+        assert_eq!(
+            modeled,
+            ConditionResolution::Satisfied {
+                proof_source:
+                    "actor_has_food_search_knowledge:actor_known_state:food_search_source"
+                        .to_string()
+            }
+        );
+
+        let no_surface = resolve_condition(&RoutineCondition::SearchSurfaceActorKnown, &state, &[]);
+        assert!(matches!(no_surface, ConditionResolution::Unknown { .. }));
+
+        let modeled_surface = resolve_condition(
+            &RoutineCondition::SearchSurfaceActorKnown,
+            &state,
+            &modeled_search,
+        );
+        assert_eq!(
+            modeled_surface,
+            ConditionResolution::Satisfied {
+                proof_source: "search_surface_actor_known:actor_known_state:search_surface"
+                    .to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn known_route_surface_accepts_either_known_edges_or_modeled_fact() {
+        let state_with_edges = planning_state(&[]);
+        let no_edges_state = ActorKnownPlanningState::from_observed_parts(
+            actor_id(),
+            PlaceId::new("home_tomas").unwrap(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            Vec::new(),
+        );
+
+        assert!(matches!(
+            resolve_condition(&RoutineCondition::KnownRouteSurface, &state_with_edges, &[]),
+            ConditionResolution::Satisfied { .. }
+        ));
+        assert!(matches!(
+            resolve_condition(&RoutineCondition::KnownRouteSurface, &no_edges_state, &[]),
+            ConditionResolution::Unknown { .. }
+        ));
+        assert!(matches!(
+            resolve_condition(
+                &RoutineCondition::KnownRouteSurface,
+                &no_edges_state,
+                &[observed_fact(
+                    "known_route_surface",
+                    "home_tomas->market_square",
+                    "test:route_notice",
+                )],
+            ),
+            ConditionResolution::Satisfied { .. }
+        ));
+    }
 }
