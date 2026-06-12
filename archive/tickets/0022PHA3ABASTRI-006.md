@@ -1,6 +1,6 @@
 # 0022PHA3ABASTRI-006: Table-driven policy behavioral locks and supersede-subject pairing
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — actor-known policy layer (`epistemics/projection.rs`), behavioral lock tests, census registration
@@ -165,3 +165,31 @@ Register the parametric test + synthetic negative with the `-004` bijection cens
 1. `cargo test -p tracewake-core epistemics`
 2. `cargo test -p tracewake-core --test anti_regression_guards`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed on 2026-06-12.
+
+- Replaced the self-echo policy dispatch test with
+  `actor_known_projection_policy_table_drives_record_behavior`.
+- Added `workplace_current_place_scope_drops_other_place_from_embodied_context` so
+  the workplace `CurrentPlaceOnly` embodied-scope negative can fire.
+- Added `supersede_newest_by_subject_requires_subject_extractor`; a synthetic
+  non-workplace supersede policy now panics instead of silently dropping records.
+- Added `ActorKnownProjectionRecord::kind()` and a narrow supersede subject extractor
+  used by the `SupersedeNewestBySubject` branch.
+- Registered the new policy behavioral locks with the meta-lock census and extended
+  the anti-regression guard to keep the retired self-echo test name absent.
+
+Verification run:
+
+1. `cargo test -p tracewake-core epistemics`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `grep -R -c "actor_known_projection_records_dispatch_to_declared_policy_table" crates/tracewake-core/src/epistemics/projection.rs crates/tracewake-core/tests/anti_regression_guards.rs` (printed zero counts; grep exits `1` on zero matches)
+4. `cargo fmt --all`
+5. `cargo test -p tracewake-core epistemics`
+6. `cargo test -p tracewake-core --test anti_regression_guards`
+7. `cargo fmt --all --check`
+8. `cargo clippy --workspace --all-targets -- -D warnings`
+9. `cargo build --workspace --all-targets --locked`
+10. `cargo test --workspace`

@@ -1473,6 +1473,27 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "actor_known_projection_policy_table_drives_record_behavior",
+        negative_id: "synthetic_policy_table_behavior_drift",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 4,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "workplace_current_place_scope_drops_other_place_from_embodied_context",
+        negative_id: "synthetic_workplace_embodied_scope_removed",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "supersede_newest_by_subject_requires_subject_extractor",
+        negative_id: "synthetic_non_workplace_supersede_subject",
+        routing: MetaLockRouting::SharedScan,
+        witness_count: 1,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_0021_fabricated_visible_local_event_id_is_retired",
         negative_id: "synthetic_fabricated_visible_local_event_id",
         routing: MetaLockRouting::SharedScan,
@@ -4665,6 +4686,18 @@ fn guard_0021_actor_known_projection_policy_table_has_production_callers() {
         "policy caller guard must fail closed when production call sites disappear"
     );
     assert_absent(EPISTEMIC_PROJECTION_RS, "CurrentPlaceLatestOnly");
+    assert_absent(
+        EPISTEMIC_PROJECTION_RS,
+        concat!(
+            "actor_known_projection_records",
+            "_dispatch_to_declared_policy_table"
+        ),
+    );
+    assert!(
+        EPISTEMIC_PROJECTION_RS
+            .contains("actor_known_projection_policy_table_drives_record_behavior"),
+        "policy-table lock must be behavioral, not a self-echo dispatch assertion"
+    );
 }
 
 #[test]
