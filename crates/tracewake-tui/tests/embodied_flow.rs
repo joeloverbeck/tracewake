@@ -18,7 +18,7 @@ fn bind_render_submit_rerender_and_show_why_not() {
     let first_view = app.current_view().unwrap();
     assert_eq!(
         first_view.holder_known_context_id.as_str(),
-        "hkc.actor_tomas.0.4"
+        "hkc.actor_tomas.0.7"
     );
     assert!(first_view
         .holder_known_context_hash
@@ -33,7 +33,8 @@ fn bind_render_submit_rerender_and_show_why_not() {
     assert_eq!(accepted.report.status, ReportStatus::Accepted);
 
     let second = app.render_current_view().unwrap();
-    assert!(second.contains("coin_stack_01"));
+    assert!(second.contains("strongbox_tomas"));
+    assert!(!second.contains("coin_stack_01"));
 
     let mut door_app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
     door_app

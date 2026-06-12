@@ -1,6 +1,6 @@
 # 0023PHA3AEMBLOC-004: Embodied-locality epistemic migration — observation events and projection-derived view
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — perception emitters (`agent/perception.rs`), epistemic projection (`epistemics/projection.rs`), embodied view builder (`projections.rs`, `location.rs`, `view_models.rs`), controller/TUI consumers, golden fixtures/logs repricing
@@ -211,3 +211,7 @@ surfaced during implementation; parent crates verified to exist).
 
 1. `cargo test -p tracewake-core && cargo test -p tracewake-content --test golden_fixtures_run`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-12

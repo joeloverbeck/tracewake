@@ -253,11 +253,15 @@ fn adversarial_gates_stale_view_token_fails_after_state_change() {
     assert_eq!(accepted.report.status, ReportStatus::Accepted);
     let before_stale_retry = app.physical_checksum();
 
-    let stale_retry = app.submit_semantic_action(&stale_open).unwrap_err();
+    let stale_retry = app.submit_semantic_action(&stale_open).unwrap();
 
-    assert!(matches!(stale_retry, AppError::SemanticActionNotFound(_)));
+    assert_eq!(stale_retry.report.status, ReportStatus::Rejected);
+    assert_eq!(
+        stale_retry.report.reason_codes,
+        vec![ReasonCode::AlreadyOpen]
+    );
     assert_eq!(app.physical_checksum(), before_stale_retry);
-    assert!(!app
+    assert!(app
         .current_view()
         .unwrap()
         .semantic_actions
@@ -271,13 +275,17 @@ fn adversarial_gates_stale_view_token_fails_after_state_change() {
         context_id: old_view.holder_known_context_id.as_str().to_string(),
         context_hash: old_view.holder_known_context_hash.as_str().to_string(),
         semantic_id: Some(stale_open.as_str().to_string()),
-        typed_reason_codes: vec!["semantic_action_not_current".to_string()],
+        typed_reason_codes: vec!["already_open".to_string()],
         provenance_refs: vec![old_view.holder_known_context_source_summary],
         debug_capability_present: old_view.debug_available,
-        actor_surfaces_checked: vec!["old_view.semantic_actions", "current_view.semantic_actions"],
+        actor_surfaces_checked: vec![
+            "old_view.semantic_actions",
+            "current_view.semantic_actions",
+            "validation_report.reason_codes",
+        ],
         debug_surfaces_checked: vec![],
-        expected_result: "stale_token_rejected_without_checksum_change",
-        contamination_failure_mode: "old_view_action_removed_after_event_frontier_change",
+        expected_result: "known_action_rejected_by_validator_without_checksum_change",
+        contamination_failure_mode: "actor_known_action_bypasses_physical_precondition",
     };
     artifact.assert_complete();
 }
@@ -308,14 +316,18 @@ fn tui_current_view_submission_rejects_stale_selection() {
     );
     let before_stale_retry = app.physical_checksum();
 
-    let stale_retry = app.submit_semantic_action(&stale_open).unwrap_err();
+    let stale_retry = app.submit_semantic_action(&stale_open).unwrap();
 
-    assert!(matches!(stale_retry, AppError::SemanticActionNotFound(_)));
+    assert_eq!(stale_retry.report.status, ReportStatus::Rejected);
+    assert_eq!(
+        stale_retry.report.reason_codes,
+        vec![ReasonCode::AlreadyOpen]
+    );
     assert_eq!(app.physical_checksum(), before_stale_retry);
     assert!(new_view
         .semantic_actions
         .iter()
-        .all(|entry| entry.semantic_action_id != stale_open));
+        .any(|entry| entry.semantic_action_id == stale_open));
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "view_model_local_actions_001",
@@ -324,17 +336,19 @@ fn tui_current_view_submission_rejects_stale_selection() {
         context_id: old_view.holder_known_context_id.as_str().to_string(),
         context_hash: old_view.holder_known_context_hash.as_str().to_string(),
         semantic_id: Some(stale_open.as_str().to_string()),
-        typed_reason_codes: vec!["semantic_action_not_current".to_string()],
+        typed_reason_codes: vec!["already_open".to_string()],
         provenance_refs: vec![old_view.holder_known_context_source_summary],
         debug_capability_present: old_view.debug_available,
         actor_surfaces_checked: vec![
             "old_view.holder_known_context",
             "new_view.holder_known_context",
             "current_view.semantic_actions",
+            "validation_report.reason_codes",
         ],
         debug_surfaces_checked: vec![],
-        expected_result: "stale_current_view_selection_rejected_without_checksum_change",
-        contamination_failure_mode: "previous_view_selection_not_rebound_to_new_context",
+        expected_result: "current_actor_known_selection_validator_rejected_without_checksum_change",
+        contamination_failure_mode:
+            "actor_known_selection_mutates_after_physical_precondition_drift",
     };
     artifact.assert_complete();
 }

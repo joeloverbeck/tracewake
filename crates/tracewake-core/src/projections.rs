@@ -5,7 +5,10 @@ use crate::actions::{
 use crate::agent::{BlockerCode, ResponsibleLayer};
 use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
 use crate::epistemics::proposition::Proposition;
-use crate::epistemics::{EpistemicProjection, KnowledgeContext, SourceRef};
+use crate::epistemics::{
+    ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+    EpistemicProjection, KnowledgeContext, SourceRef,
+};
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
@@ -13,10 +16,10 @@ use crate::ids::{
     HolderKnownContextId, ItemId, PlaceId, ProposalId, SemanticActionId, SleepAffordanceId,
     ViewModelId, WorkplaceId,
 };
-use crate::location::{visible_locality, Location};
+use crate::location::Location;
 use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use crate::state::AgentState;
-use crate::state::{ActorBody, DoorState, PhysicalState};
+use crate::state::{ActorBody, PhysicalState};
 use crate::time::SimTick;
 use crate::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
@@ -40,6 +43,30 @@ struct ActorKnownFoodSourceSurface {
     believed_servings: Option<u32>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ActorKnownDoorSurface {
+    door_id: crate::ids::DoorId,
+    endpoint_a: PlaceId,
+    endpoint_b: PlaceId,
+    is_open: bool,
+    is_locked: bool,
+    blocks_movement_when_closed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ActorKnownContainerSurface {
+    container_id: crate::ids::ContainerId,
+    is_open: bool,
+    is_locked: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ActorKnownItemSurface {
+    item_id: ItemId,
+    source: Location,
+    portable: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProjectionError {
     ActorNotFound(ActorId),
@@ -54,6 +81,10 @@ pub struct EmbodiedProjectionSource<'a> {
     actor_known_sleep_affordances: Vec<SleepAffordanceId>,
     actor_known_routes: Vec<PlaceId>,
     actor_known_workplaces: Vec<ActorKnownWorkplaceSurface>,
+    actor_known_doors: Vec<ActorKnownDoorSurface>,
+    actor_known_containers: Vec<ActorKnownContainerSurface>,
+    actor_known_items: Vec<ActorKnownItemSurface>,
+    actor_known_local_actors: Vec<ActorId>,
 }
 
 impl<'a> EmbodiedProjectionSource<'a> {
@@ -70,6 +101,10 @@ impl<'a> EmbodiedProjectionSource<'a> {
         let actor_known_sleep_affordances = actor_known_sleep_affordances_for_context(context);
         let actor_known_routes = actor_known_routes_for_context(context, current_place_id.as_ref());
         let actor_known_workplaces = actor_known_workplaces_for_context(context);
+        let actor_known_doors = actor_known_doors_for_context(context);
+        let actor_known_containers = actor_known_containers_for_context(context);
+        let actor_known_items = actor_known_items_for_context(context);
+        let actor_known_local_actors = actor_known_local_actors_for_context(context);
         Self {
             state,
             agent_state,
@@ -78,6 +113,10 @@ impl<'a> EmbodiedProjectionSource<'a> {
             actor_known_sleep_affordances,
             actor_known_routes,
             actor_known_workplaces,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
         }
     }
 }
@@ -140,6 +179,69 @@ fn actor_known_workplaces_for_context(
     workplaces.sort();
     workplaces.dedup();
     workplaces
+}
+
+fn actor_known_doors_for_context(context: &KnowledgeContext) -> Vec<ActorKnownDoorSurface> {
+    let mut doors = context
+        .actor_known_doors()
+        .iter()
+        .map(|fact: &ActorKnownDoorFact| ActorKnownDoorSurface {
+            door_id: fact.door_id().clone(),
+            endpoint_a: fact.endpoint_a().clone(),
+            endpoint_b: fact.endpoint_b().clone(),
+            is_open: fact.is_open(),
+            is_locked: fact.is_locked(),
+            blocks_movement_when_closed: fact.blocks_movement_when_closed(),
+        })
+        .collect::<Vec<_>>();
+    doors.sort();
+    doors.dedup();
+    doors
+}
+
+fn actor_known_containers_for_context(
+    context: &KnowledgeContext,
+) -> Vec<ActorKnownContainerSurface> {
+    let mut containers = context
+        .actor_known_containers()
+        .iter()
+        .map(
+            |fact: &ActorKnownContainerFact| ActorKnownContainerSurface {
+                container_id: fact.container_id().clone(),
+                is_open: fact.is_open(),
+                is_locked: fact.is_locked(),
+            },
+        )
+        .collect::<Vec<_>>();
+    containers.sort();
+    containers.dedup();
+    containers
+}
+
+fn actor_known_items_for_context(context: &KnowledgeContext) -> Vec<ActorKnownItemSurface> {
+    let mut items = context
+        .actor_known_items()
+        .iter()
+        .map(|fact: &ActorKnownItemFact| ActorKnownItemSurface {
+            item_id: fact.item_id().clone(),
+            source: fact.source().clone(),
+            portable: fact.portable(),
+        })
+        .collect::<Vec<_>>();
+    items.sort();
+    items.dedup();
+    items
+}
+
+fn actor_known_local_actors_for_context(context: &KnowledgeContext) -> Vec<ActorId> {
+    let mut actors = context
+        .actor_known_local_actors()
+        .iter()
+        .map(|fact: &ActorKnownLocalActorFact| fact.actor_id().clone())
+        .collect::<Vec<_>>();
+    actors.sort();
+    actors.dedup();
+    actors
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -356,13 +458,6 @@ pub fn build_embodied_view_model(
         .places
         .get(&actor.current_place_id)
         .ok_or_else(|| ProjectionError::PlaceNotFound(actor.current_place_id.clone()))?;
-    let visible = visible_locality(
-        actor,
-        &state.actors,
-        &state.doors,
-        &state.containers,
-        &state.items,
-    );
 
     let mut visible_exits = source
         .actor_known_routes
@@ -370,8 +465,7 @@ pub fn build_embodied_view_model(
         .cloned()
         .map(|destination_place_id| VisibleExit {
             blocker_summary: visible_exit_blocker_summary(
-                state,
-                &visible.connected_doors,
+                &source.actor_known_doors,
                 &actor.current_place_id,
                 &destination_place_id,
             ),
@@ -380,10 +474,9 @@ pub fn build_embodied_view_model(
         .collect::<Vec<_>>();
     visible_exits.sort();
 
-    let mut visible_doors = visible
-        .connected_doors
+    let mut visible_doors = source
+        .actor_known_doors
         .iter()
-        .filter_map(|door_id| state.doors.get(door_id))
         .map(|door| VisibleDoor {
             door_id: door.door_id.clone(),
             endpoint_a: door.endpoint_a.clone(),
@@ -394,10 +487,9 @@ pub fn build_embodied_view_model(
         .collect::<Vec<_>>();
     visible_doors.sort();
 
-    let mut visible_containers = visible
-        .visible_containers
+    let mut visible_containers = source
+        .actor_known_containers
         .iter()
-        .filter_map(|container_id| state.containers.get(container_id))
         .map(|container| VisibleContainer {
             container_id: container.container_id.clone(),
             is_open: container.is_open,
@@ -406,20 +498,19 @@ pub fn build_embodied_view_model(
         .collect::<Vec<_>>();
     visible_containers.sort();
 
-    let mut visible_items = visible
-        .visible_items
+    let mut visible_items = source
+        .actor_known_items
         .iter()
-        .filter_map(|item_id| state.items.get(item_id))
         .map(|item| VisibleItem {
             item_id: item.item_id.clone(),
-            source: visible_item_source(&item.location),
+            source: visible_item_source(&item.source),
             portable: item.portable,
         })
         .collect::<Vec<_>>();
     visible_items.sort();
 
-    let mut carried_items = visible
-        .carried_items
+    let mut carried_items = actor
+        .carried_item_ids
         .iter()
         .filter_map(|item_id| state.items.get(item_id))
         .map(|item| VisibleItem {
@@ -434,8 +525,8 @@ pub fn build_embodied_view_model(
         .map(|item| item.item_id.clone())
         .collect::<Vec<_>>();
 
-    let mut local_actors = visible
-        .co_located_actors
+    let mut local_actors = source
+        .actor_known_local_actors
         .iter()
         .cloned()
         .map(|actor_id| VisibleActor { actor_id })
@@ -850,14 +941,12 @@ fn visible_item_source(location: &Location) -> VisibleItemSource {
 }
 
 fn visible_exit_blocker_summary(
-    state: &PhysicalState,
-    connected_doors: &std::collections::BTreeSet<crate::ids::DoorId>,
+    connected_doors: &[ActorKnownDoorSurface],
     from_place_id: &PlaceId,
     destination_place_id: &PlaceId,
 ) -> Option<String> {
     connected_doors
         .iter()
-        .filter_map(|door_id| state.doors.get(door_id))
         .find(|door| door_connects_edge(door, from_place_id, destination_place_id))
         .and_then(|door| {
             if door.is_locked && !door.is_open {
@@ -875,7 +964,11 @@ fn visible_exit_blocker_summary(
         })
 }
 
-fn door_connects_edge(door: &DoorState, from_place_id: &PlaceId, to_place_id: &PlaceId) -> bool {
+fn door_connects_edge(
+    door: &ActorKnownDoorSurface,
+    from_place_id: &PlaceId,
+    to_place_id: &PlaceId,
+) -> bool {
     (&door.endpoint_a == from_place_id && &door.endpoint_b == to_place_id)
         || (&door.endpoint_b == from_place_id && &door.endpoint_a == to_place_id)
 }
@@ -1211,7 +1304,8 @@ mod tests {
     use super::*;
     use crate::agent::{Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState};
     use crate::epistemics::{
-        ActorKnownFoodSourceFact, ActorKnownSleepAffordanceFact, Belief, Channel, Confidence,
+        ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact,
+        ActorKnownLocalActorFact, ActorKnownSleepAffordanceFact, Belief, Channel, Confidence,
         Contradiction, ContradictionKind, HolderKind, Observation, ObservationSubject,
         ObservationTarget, Proposition, SourceRef, Stance,
     };
@@ -1291,22 +1385,126 @@ mod tests {
         state: &PhysicalState,
         destination_place_id: PlaceId,
     ) -> EmbodiedViewModel {
-        let context = KnowledgeContext::embodied_at_frontier_with_facts(
-            actor_id("actor_tomas"),
+        let viewer_actor_id = actor_id("actor_tomas");
+        let current_place_id = place_id("shop_front");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            viewer_actor_id.clone(),
             SimTick::new(1),
             0,
             Vec::new(),
             Vec::new(),
             Vec::new(),
             vec![crate::epistemics::ActorKnownRouteFact::new(
-                place_id("shop_front"),
+                current_place_id.clone(),
                 destination_place_id,
                 "visible_exit",
             )],
+            actor_known_door_facts(state, &current_place_id),
+            actor_known_container_facts(state, &current_place_id),
+            actor_known_item_facts(state, &current_place_id),
+            actor_known_local_actor_facts(state, &viewer_actor_id, &current_place_id),
         );
         let source = EmbodiedProjectionSource::from_sealed_context(&context, state, None);
         build_embodied_view_model(&context, &source, &registry(), &content_manifest_id(), None)
             .unwrap()
+    }
+
+    fn actor_known_door_facts(
+        state: &PhysicalState,
+        current_place_id: &PlaceId,
+    ) -> Vec<ActorKnownDoorFact> {
+        state
+            .doors()
+            .values()
+            .filter(|door| door.connects_place(current_place_id))
+            .map(|door| {
+                ActorKnownDoorFact::new(
+                    door.door_id.clone(),
+                    door.endpoint_a.clone(),
+                    door.endpoint_b.clone(),
+                    door.is_open,
+                    door.is_locked,
+                    door.blocks_movement_when_closed,
+                    "visible_door",
+                )
+            })
+            .collect()
+    }
+
+    fn actor_known_container_facts(
+        state: &PhysicalState,
+        current_place_id: &PlaceId,
+    ) -> Vec<ActorKnownContainerFact> {
+        state
+            .containers()
+            .values()
+            .filter(|container| {
+                matches!(&container.location, Location::AtPlace(place_id) if place_id == current_place_id)
+            })
+            .map(|container| {
+                ActorKnownContainerFact::new(
+                    container.container_id.clone(),
+                    container.is_open,
+                    container.is_locked,
+                    "visible_container",
+                )
+            })
+            .collect()
+    }
+
+    fn actor_known_item_facts(
+        state: &PhysicalState,
+        current_place_id: &PlaceId,
+    ) -> Vec<ActorKnownItemFact> {
+        state
+            .items()
+            .values()
+            .filter_map(|item| {
+                if item_is_visible_from_place(state, current_place_id, &item.location) {
+                    Some(ActorKnownItemFact::new(
+                        item.item_id.clone(),
+                        item.location.clone(),
+                        item.portable,
+                        "visible_item",
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn item_is_visible_from_place(
+        state: &PhysicalState,
+        current_place_id: &PlaceId,
+        location: &Location,
+    ) -> bool {
+        match location {
+            Location::AtPlace(place_id) => place_id == current_place_id,
+            Location::InContainer(container_id) => state
+                .containers()
+                .get(container_id)
+                .is_some_and(|container| {
+                    matches!(&container.location, Location::AtPlace(place_id) if place_id == current_place_id)
+                        && (container.is_open || container.contents_visible_when_closed)
+                }),
+            Location::CarriedBy(_) => false,
+        }
+    }
+
+    fn actor_known_local_actor_facts(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+        current_place_id: &PlaceId,
+    ) -> Vec<ActorKnownLocalActorFact> {
+        state
+            .actors()
+            .values()
+            .filter(|actor| {
+                actor.actor_id != *actor_id && actor.current_place_id == *current_place_id
+            })
+            .map(|actor| ActorKnownLocalActorFact::new(actor.actor_id.clone(), "visible_actor"))
+            .collect()
     }
 
     fn state() -> PhysicalState {
@@ -2552,17 +2750,20 @@ mod tests {
         assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
     }
 
-    fn door_between(id: &str, a: &str, b: &str) -> DoorState {
-        DoorState::new(DoorId::new(id).unwrap(), place_id(a), place_id(b))
+    fn door_between(id: &str, a: &str, b: &str) -> ActorKnownDoorSurface {
+        let door = DoorState::new(DoorId::new(id).unwrap(), place_id(a), place_id(b));
+        ActorKnownDoorSurface {
+            door_id: door.door_id,
+            endpoint_a: door.endpoint_a,
+            endpoint_b: door.endpoint_b,
+            is_open: door.is_open,
+            is_locked: door.is_locked,
+            blocks_movement_when_closed: door.blocks_movement_when_closed,
+        }
     }
 
-    fn blocker_summary_for(door: DoorState, from: &str, to: &str) -> Option<String> {
-        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
-        let door_id = door.door_id.clone();
-        state.doors.insert(door_id.clone(), door);
-        let mut connected = std::collections::BTreeSet::new();
-        connected.insert(door_id);
-        visible_exit_blocker_summary(&state, &connected, &place_id(from), &place_id(to))
+    fn blocker_summary_for(door: ActorKnownDoorSurface, from: &str, to: &str) -> Option<String> {
+        visible_exit_blocker_summary(&[door], &place_id(from), &place_id(to))
     }
 
     #[test]
@@ -2668,23 +2869,14 @@ mod tests {
 
     #[test]
     fn visible_exit_blocker_summary_uses_connected_door_set_as_colocation_gate() {
-        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let mut blocking = door_between("door_hidden_remote", "place_a", "place_b");
         blocking.is_open = false;
         blocking.is_locked = true;
-        state.doors.insert(blocking.door_id.clone(), blocking);
-
-        let connected = std::collections::BTreeSet::new();
 
         assert_eq!(
-            visible_exit_blocker_summary(
-                &state,
-                &connected,
-                &place_id("place_a"),
-                &place_id("place_b")
-            ),
+            visible_exit_blocker_summary(&[], &place_id("place_a"), &place_id("place_b")),
             None,
-            "blocker summaries are limited to doors admitted by visible locality"
+            "blocker summaries are limited to doors admitted by actor-known locality"
         );
     }
 }

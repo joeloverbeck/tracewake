@@ -453,7 +453,8 @@ mod tests {
         assert_eq!(result.report.status, ReportStatus::Accepted);
 
         let after = app.render_current_view().unwrap();
-        assert!(after.contains("coin_stack_01"));
+        assert!(after.contains("strongbox_tomas"));
+        assert!(!after.contains("coin_stack_01"));
         assert!(app.event_count() >= 2);
     }
 
