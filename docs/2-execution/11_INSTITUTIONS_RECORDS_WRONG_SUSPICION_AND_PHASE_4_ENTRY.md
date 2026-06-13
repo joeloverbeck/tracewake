@@ -68,6 +68,27 @@ Institution-known context includes:
 
 Institution procedures may not read culprit truth, missing-item truth, debug truth, or player identity to decide suspicion, enforcement, or payment.
 
+## Phase-4 provenance and freshness future-proofing
+
+Any institution-known fact, record-derived belief, norm-triggered procedure,
+wrong-suspicion inference, or artifact interpretation must prove provenance
+sufficiency and freshness through the same fail-closed mechanics as
+`04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` and the review
+artifact standards in `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+Missing, dangling, wrong-kind, ambiguous, forbidden-source, stale, or display
+text-only provenance fails closed before institution-known use.
+
+Required negative fixtures include:
+
+- an institution reacts to truth without a record;
+- a stale record is treated as fresh;
+- dangling record provenance;
+- wrong-kind provenance;
+- record display text mistaken for provenance.
+
+This obligation locks the proof contract before Phase 4 entry. It expands no
+Phase 4 scope and decides no new institution mechanics.
+
 ## Records
 
 Records are artifacts carrying claims. They are not truth.

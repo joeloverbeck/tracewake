@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-007: Phase-4 institution-known provenance and freshness future-proofing
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` (a Phase-4 provenance/freshness future-proofing obligation). No crate/code, no fixtures.
@@ -71,3 +71,37 @@ Add an obligation (final wording at enactment): any institution-known fact, reco
 1. `grep -niE "provenance sufficien|fail.closed|freshness|institution-known" docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` — confirms the future-proofing obligation landed.
 2. `grep -niE "without a record|stale record|dangling|wrong-kind|display text" docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` — confirms the five negative fixtures.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the scope-containment / invariants-alignment review against architecture 03/06.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added Phase-4 provenance and freshness future-proofing to
+  `docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`.
+- Required institution-known facts, record-derived beliefs, norm-triggered
+  procedures, wrong-suspicion inferences, and artifact interpretations to use
+  the same fail-closed provenance/freshness mechanics as `04` and `10`.
+- Added the five required negative-fixture classes and explicitly preserved
+  Phase-4 scope containment.
+
+Verification:
+
+- `grep -niE "provenance sufficien|fail.closed|freshness|institution-known" docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`
+  resolved the future-proofing obligation.
+- `grep -niE "without a record|stale record|dangling|wrong-kind|display text" docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`
+  resolved the five negative-fixture classes.
+- Scope-containment and invariants review: the obligation locks the proof
+  contract only, expands no Phase-4 scope, and designs no new institution
+  mechanics.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus scope-containment /
+  invariants review.
