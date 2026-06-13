@@ -2,8 +2,8 @@
 
 **Purpose.** The foundation-amendment audit (`reports/foundation-amendment-research-report.md`)
 evaluated seven candidate themes drawn from the `0006`–`0025` hardening campaign. Only **one**
-(emergence-as-evidence) was a foundation hole — now staged as
-`specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md`. The other six themes,
+(emergence-as-evidence) was a foundation hole — now ratified and archived as
+`archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md`. The other six themes,
 plus the *mechanism* half of the emergence theme, were judged to belong **below** the foundation
 tier. This document preserves that routing so the later, separate **tier-by-tier external-research
 sessions** (one each for `docs/1-architecture/*`, `docs/2-execution/*`, `docs/3-reference/*`, and
@@ -28,8 +28,8 @@ hardening machinery may already cover much of it.
   live `HEAD` before a later session encodes anything. Target doc paths below were verified present
   on `HEAD` at this memo's authoring.
 - **What is NOT here.** The emergence-evidence *foundation* amendment (the one Bucket-1 item) is in
-  spec `0026`, not this memo. The three "No-hole" themes need **no foundation change** — only their
-  residual lower-tier machinery is routed here.
+  archived spec `0026`, not this memo. The three "No-hole" themes need **no foundation change** —
+  only their residual lower-tier machinery is routed here.
 
 ---
 
@@ -47,7 +47,7 @@ to the per-candidate cross-index (§ "Candidate cross-index") and to the source 
 | Believed-access affordances (C) | `03`; `10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` | Affordance/menu generation consumes **holder-known context snapshots** captured at observation time; validators may read truth only to accept/reject, never to enumerate options; observation-time carrier/attribute capture. |
 | Single-charge derived accounting (D) | `00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` (conformance index); `04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`; `05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`; `09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` | Name the authoritative seams for derived need-deltas / duration lifecycle and their **single-owner** rule: one tick-regime classifier, one open/close keying authority, no double-charge, no drift across consumers. (Strong Bucket-2; foundation's causal-replay doctrine already condemns double-charged reality.) |
 | Falsifiability / anti-vacuity (F) | `13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` | Subsystem-level requirement that validation surfaces expose **enough typed observability** for execution to test them non-vacuously (so artifact-presence checks can be paired with behavior witnesses). |
-| Emergence mechanism, post-foundation (E) | `13` | After spec `0026` ratifies the principle: the observer-only emergence-evidence **data contract** at the subsystem boundary — evidence rows explainable by event-log ancestry; structurally outside the simulation (no feedback into cognition/scheduler/validators). |
+| Emergence mechanism, post-foundation (E) | `13` | After archived spec `0026` ratified the principle: the observer-only emergence-evidence **data contract** at the subsystem boundary — evidence rows explainable by event-log ancestry; structurally outside the simulation (no feedback into cognition/scheduler/validators). |
 
 ### `docs/2-execution/*` session
 
@@ -59,7 +59,7 @@ to the per-candidate cross-index (§ "Candidate cross-index") and to the source 
 | Single-charge accounting (D) | `10`; `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | Replay/ledger evidence proving no tick double-charge, no drift among consumers, and that **stable goldens encode semantically true values, not merely byte-stable ones**. |
 | Falsifiability / anti-vacuity (F) | `10` (primary) | The behavioral-proof doctrine: every lock has a **live negative that can fire**; artifact-presence checks paired with behavior witnesses; **pending evidence is never a pass**; path-under-test evidence must be produced by the path under test; mutation/metamorphic surfaces scoped and reproducible. |
 | Acceptance-evidence / fingerprint honesty (G) | `10`; (acceptance-artifact template if amended later — see `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`) | Evidence status must distinguish **pass / pending / sampled / observation-only / non-certifying**; fingerprints must cover the bytes they claim (or say what they cover); acceptance artifacts must not conflate historical implementation with certification. |
-| Emergence mechanism, post-foundation (E) | `10` | `EMERGE-OBS` stays here: observer-only ledger, allowed ratchets, **anti-Goodhart** constraints. Foundation (spec `0026`) authorizes the principle only; the table/command/counters/thresholds remain execution `10`. |
+| Emergence mechanism, post-foundation (E) | `10` | `EMERGE-OBS` stays here: observer-only ledger, allowed ratchets, **anti-Goodhart** constraints. Foundation (archived spec `0026`) authorizes the principle only; the table/command/counters/thresholds remain execution `10`. |
 
 ### `docs/3-reference/*` session
 
@@ -67,7 +67,7 @@ to the per-candidate cross-index (§ "Candidate cross-index") and to the source 
 |---|---|---|
 | Falsifiability + Acceptance-evidence honesty (F, G) | `01_DESIGN_RISK_REGISTER.md` | Connect **R-27 (acceptance-evidence reachability overstatement), R-28 (incomplete correction closure), R-29 (guard vacuity / decorative locks)** into one acceptance-evidence-honesty relapse cluster; keep R-29 as the named relapse risk. |
 | Provenance / freshness / believed-access (A, B, C) | `01`; `02_GLOSSARY.md` | These risks already exist (R-02 provenance collapse, R-09 epistemic leakage); ensure the glossary terms (`holder-known`, `actor-known`, `institution-known`, `memory`, `stale information`, `observation`, `projection`) stay sufficient — no new term required for A/B/C. |
-| Emergence term (E) | `02_GLOSSARY.md` | Coin a canonical term (e.g. `emergence evidence` / `observer-only emergence evidence`) once spec `0026` ratifies the principle — do **not** silently synonymize. (This is spec `0026`'s deliverable D4, recorded here for the reference session.) |
+| Emergence term (E) | `02_GLOSSARY.md` | Coin a canonical term (e.g. `emergence evidence` / `observer-only emergence evidence`) now that archived spec `0026` ratified the principle — do **not** silently synonymize. (This is spec `0026`'s deliverable D4, recorded here for the reference session.) |
 
 ### `docs/4-specs/*` session
 
@@ -75,8 +75,9 @@ The audit routed **no doctrine** to the `4-specs` tier — by design. `4-specs` 
 corrective/implementation specs land *under* live doctrine; it is not an amendment target. The
 relevant `4-specs` artifacts are therefore:
 
-- **`specs/0026_…` (this campaign's only foundation amendment)** — will move to a ledger row at
-  acceptance/closeout per the staged-spec convention; not yet recorded in `docs/4-specs/SPEC_LEDGER.md`.
+- **`archive/specs/0026_…` (this campaign's only foundation amendment)** — moved to a ledger row
+  at acceptance/closeout per the staged-spec convention and is recorded in
+  `docs/4-specs/SPEC_LEDGER.md`.
 - The eventual **implementation specs** that operationalize the architecture/execution decisions
   the sessions above produce would themselves be authored as `4-specs` (or `specs/`) packages —
   but only after their higher tiers are amended. Nothing to encode pre-emptively.
@@ -91,7 +92,7 @@ relevant `4-specs` artifacts are therefore:
 | B | Memory freshness / staleness epistemics | **No-hole** (already INV-026 / INV-028; doc 04) | arch 03/06; exec 04/10 — one classifier, no restamping, surface parity | §4 |
 | C | Believed-access vs truth in affordance generation | **No-hole** (already doc 14; INV-101/102/109) | arch 03/10; exec 04/07/10 — snapshot-at-observation, wallhack negatives | §5 |
 | D | Single-charge accounting for derived quantities | **Bucket 2** | arch 00/04/05/09; exec 06/10 — single-owner accounting, no double-charge | §6 |
-| E | Emergence-as-evidence (EMERGE-OBS) | **Bucket 1 → spec 0026** | arch 13; exec 10; ref 02 — observer-only mechanism *after* foundation promotion | §7 |
+| E | Emergence-as-evidence (EMERGE-OBS) | **Bucket 1 → archived spec 0026** | arch 13; exec 10; ref 02 — observer-only mechanism *after* foundation promotion | §7 |
 | F | Falsifiability / behavioral-proof / anti-vacuity | **Bucket 2** | exec 10 (primary); arch 13; ref 01 — live negatives, behavior witnesses, pending≠pass | §8 |
 | G | Acceptance-evidence / manifest-fingerprint honesty (report-added) | **Bucket 2** | exec 10; ref 01 — evidence-status taxonomy, honest fingerprints | §9 |
 
@@ -99,13 +100,13 @@ relevant `4-specs` artifacts are therefore:
 
 - **R-02** provenance collapse → A
 - **R-09** epistemic leakage → C
-- **R-16** no-human ordinary-life failure → E
+- **R-16** no-human ordinary-life failure → E (the no-human-life *dependency*: emergence evidence is gathered from no-human runs, so if ordinary life fails there is nothing to observe — **not** the Goodhart-relapse risk, which is R-27 below)
 - **R-27** acceptance-evidence reachability overstatement → E, G
 - **R-28** incomplete correction closure → G
 - **R-29** guard vacuity / decorative locks → F
 
 A risk-register entry is *not* doctrine; the audit's stance is that none of A/B/C/D/F/G warrants
-promotion to a foundation invariant — only E did, and that promotion is spec `0026`.
+promotion to a foundation invariant — only E did, and that promotion is archived spec `0026`.
 
 ## Residual open questions carried from the audit (report §11)
 
@@ -119,4 +120,4 @@ promotion to a foundation invariant — only E did, and that promotion is spec `
 3. **EMERGE-OBS thresholds** remain deliberately unresolved: execution may later choose a
    zero-floor ratchet or other measured obligation, but must keep it observer-only and avoid
    turning counters into authored drama objectives (report §11.2) — the anti-Goodhart constraint
-   spec `0026`'s principle exists to forbid.
+   archived spec `0026`'s principle exists to forbid.

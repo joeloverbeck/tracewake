@@ -32,7 +32,7 @@ constitutional edit.
    into the validation family mid-sequence would renumber the entire `INV-099`…`INV-110`
    block and every repo-wide reference to it — the placement decision (spec §R-B) is the
    constitutional process's recorded choice, made at ratification, not pre-baked here.
-2. Verified against spec 0026 (`specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md`)
+2. Verified against spec 0026 (`archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md`)
    D1–D3 and §6: D1 → new invariant in `02`; D2 → acceptance doctrine in `12` (alongside
    the mandatory proof cases); D3 → no-steering cross-reference in `09`. D4 (glossary,
    `docs/3-reference/02_GLOSSARY.md`) is explicitly out of this spec's edit scope — not in

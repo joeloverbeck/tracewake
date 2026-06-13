@@ -10,9 +10,7 @@ constitutional act and requires explicit sign-off before any `docs/0-foundation/
 > Deliverables, Invariants Alignment, Verification, Out of Scope, Risks & Open Questions) because
 > `specs/` carried no template at authoring time and this is not a hardening implementation spec.
 
-**Status:** proposed; awaiting reassess + constitutional sign-off. Not yet ledger-recorded
-(staged specs follow the sibling convention of taking a ledger row at acceptance/closeout, not at
-proposal).
+**Status:** ✅ COMPLETED. Ratified and archived on 2026-06-13.
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-amendment proposal; it
 certifies no code and performs no gate audit.
@@ -182,3 +180,37 @@ introduces no `how`-level mechanism into foundation (the execution `10` mechanis
 - **R-E — Possession-bind perception (adjacent, unrelated).** The architecture conformance index
   records an unresolved `INV-087`-adjacent decision about modeled perception on possession binding
   (report §11.3). Flagged as a separate owner-decision topic; not promoted here.
+
+## Outcome
+
+Completed: 2026-06-13
+
+Spec 0026 was implemented by archived ticket
+`archive/tickets/0026FOUEMEEVI-001.md` and commit `91cc8a4`. The amendment was ratified as a
+foundation-tier doctrine package:
+
+- `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` now carries `INV-111`, appended after the
+  `INV-099`...`INV-110` truth-firewall family to avoid renumbering existing invariant references.
+- `docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md` now requires retrospective
+  emergence evidence beside the first-playable gates.
+- `docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md` now states that observing
+  emergent phenomena after the fact is permitted and expected, while steering the world to improve
+  the observer record is forbidden authored-outcome machinery.
+
+The active implementation request supplied the constitutional owner sign-off required by R-A. V4
+remains a routed lower-tier hand-off, not part of this foundation-tier closeout.
+
+Verification:
+
+- `git diff --unified=0 -- docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md | grep -E '^\\+[^+].*(EMERGE-OBS|ratchet|\\bcounters?\\b|threshold|ledger row)'` returned no matches before the ticket commit.
+- `grep -nE 'INV-111|observer-only|emergence(-| )evidence' docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md` resolved D1, D2, and D3 before the ticket commit.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
+
+Deviations:
+
+- V3 was corrected from whole-file grep to amended-line grep because the live foundation already
+  contained unrelated ordinary-language uses of `counters` and `thresholds`.
+- No architecture, execution, reference glossary, crate, fixture, or mechanism change was made.
