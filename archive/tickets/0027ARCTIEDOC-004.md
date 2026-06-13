@@ -1,6 +1,6 @@
 # 0027ARCTIEDOC-004: State observation-time embodied affordance snapshots in architecture 10
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` (observation-time snapshot/capture rule for embodied view models + semantic-action entries). No crate/code, no fixtures.
@@ -78,3 +78,27 @@ Add to A10's embodied view-model / semantic-action sections:
 1. `grep -niE "observation-time|captured at|snapshot|live .*handle" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` — confirms D5 landed.
 2. `grep -niE "bind-time perception" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` — confirms the deferred R-E question is not silently decided.
 3. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the two greps plus the epistemic-leakage / invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Added A10's observation/preflight/perception capture rule for embodied view
+models and semantic action entries. The TUI must render observed labels,
+attributes, actor-known affordances, routes, workplace availability, food
+sources, and blockers from captured holder-known/projection records rather than
+holding a live physical-state handle or truth-refreshed data. The amendment
+also records the actor-visible/debug-only rejection split and states that
+possession is not a knowledge upgrade.
+
+The user-provided implementation goal was treated as owner approval to enact
+the tier-1 architecture amendment. No crate/code, fixture, execution,
+foundation, or reference changes were made.
+
+Verification:
+
+- `grep -niE "observation-time|captured at|snapshot|live .*handle" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md`
+- `grep -niE "bind-time perception" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` returned no matches.
+- `rg -n "0024|0025|embodied truth|carrier capture|believed-access embodied availability" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+
+Deviation: none.
