@@ -1,6 +1,6 @@
 # 0025 Phase 3A Meta-Witness Execution Proof, Perception Kill-Set Provenance, Envelope Read-Path Fail-Closed, and Manifest Fingerprint Honesty Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Target repository:** `joeloverbeck/tracewake`
 **Target baseline:** local `main` at `9e33d7a` (merge PR #32: all `0024PHA3ACONSCH` tickets landed; acceptance artifact `reports/0024_ord_life_cert_scoped_acceptance.md`). All four gates (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`) measured green at this baseline before the audit, run as separate commands with per-gate unmasked OK sentinels.
@@ -1065,3 +1065,48 @@ recording, for the implementation commits:
 - [x] Scope stays within the Phase 3A ordinary-life surface, its kernel
   envelope/serialization, manifest, controller, and CI boundaries (final blind
   sweeps, prescribed by 0024 §9), and its lock/evidence layer.
+
+## Outcome
+
+Completed: 2026-06-13
+
+Implemented the full `0025PHA3AMETWIT` ticket series and archived tickets
+`0025PHA3AMETWIT-001` through `0025PHA3AMETWIT-011`. The series repaired the
+meta-witness execution discipline, provenance-keyed perception taint, event
+envelope duplicate/version fail-closed behavior, manifest raw-byte fingerprint
+honesty, embodied observation capture, TUI debug-gate depth, census/oracle
+closures, recovery-staging record, CI workflow hygiene, and mutation phase-entry
+evidence rule. The capstone added
+`reports/0025_ord_life_cert_scoped_acceptance.md`, 0025 conformance-index rows,
+and the `acceptance_artifact_0025_maps_spec_section_7_items_to_report_anchors`
+parity guard with pending-mutation certification-wording enforcement.
+
+Implementation commits:
+
+- `617a5b1` `Complete 0025PHA3AMETWIT-001 meta-witness discipline`
+- `593658b` `Complete 0025PHA3AMETWIT-002 perception provenance guard`
+- `b75641e` `Complete 0025PHA3AMETWIT-003 envelope fail-closed read path`
+- `5841a1f` `Complete 0025PHA3AMETWIT-004 manifest fingerprint honesty`
+- `c61243d` `Complete 0025PHA3AMETWIT-005 embodied observation capture`
+- `214a42a` `Complete 0025PHA3AMETWIT-006 TUI debug gate depth`
+- `045653c` `Complete 0025PHA3AMETWIT-007 census oracle closures`
+- `5a709bd` `Complete 0025PHA3AMETWIT-008 content ID scan closure`
+- `f7b9d05` `Complete 0025PHA3AMETWIT-009 recovery staging record`
+- `133d2b1` `Complete 0025PHA3AMETWIT-010 CI workflow guards`
+- `0d834bf` `Complete 0025PHA3AMETWIT-011 capstone artifact`
+
+Verification:
+
+- `cargo test -p tracewake-core --test ci_workflow_guards`
+- `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+
+This remains scoped evidence toward `ORD-LIFE-CERT`; it is not full-project
+certification, not Phase 4 entry, and not `FIRST-PROOF-CERT`. The scheduled
+mutation baseline remains honestly recorded as pending in the local evidence
+surface; a dated green scheduled mutation run is still required before any
+readiness claim that depends on that row.
