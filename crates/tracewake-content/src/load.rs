@@ -13,7 +13,7 @@ use tracewake_core::time::SimTick;
 
 use crate::manifest::ContentManifest;
 use crate::schema::{FixtureSchema, FixtureScope, WorkplaceSchema};
-use crate::serialization::{serialize_fixture, SerializationError};
+use crate::serialization::SerializationError;
 use crate::validate::{validate_fixture_bytes, ContentValidationFailure};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,14 +63,15 @@ pub fn load_fixture_package(
     let registry = registry_for_primary_bytes(&primary.bytes);
     let accepted_world = validate_fixture_bytes(&primary.bytes, &registry)?;
     let fixture = accepted_world.fixture;
-    let canonical_bytes = serialize_fixture(&fixture);
     let mut manifest = ContentManifest::new(
         manifest_id,
         fixture.fixture_id.clone(),
         fixture.schema_version.clone(),
         content_version,
-        files.iter().map(|file| file.path.clone()).collect(),
-        &canonical_bytes,
+        files
+            .iter()
+            .map(|file| (file.path.clone(), file.bytes.clone()))
+            .collect(),
     );
     manifest.actor_roster = fixture
         .actors

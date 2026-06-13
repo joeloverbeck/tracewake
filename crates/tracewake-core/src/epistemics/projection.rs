@@ -35,6 +35,8 @@ pub struct NotebookEntry {
 pub enum ActorKnownProjectionSource {
     RoleAssignmentNotice,
     StartingBelief,
+    CurrentPlace,
+    CarriedItem,
     VisibleExit,
     VisibleFoodSupply,
     VisibleDoor,
@@ -46,6 +48,24 @@ pub enum ActorKnownProjectionSource {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ActorKnownProjectionRecord {
+    CurrentPlace {
+        actor_id: ActorId,
+        place_id: PlaceId,
+        display_label: String,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+        source_tick: SimTick,
+    },
+    CarriedItem {
+        actor_id: ActorId,
+        item_id: ItemId,
+        place_id: PlaceId,
+        source_location: Location,
+        portable: bool,
+        source: ActorKnownProjectionSource,
+        source_event_id: EventId,
+        source_tick: SimTick,
+    },
     Route {
         actor_id: ActorId,
         from_place_id: PlaceId,
@@ -708,6 +728,8 @@ impl ActorKnownProjectionSource {
         match self {
             Self::RoleAssignmentNotice => "evented_role_assignment_notice",
             Self::StartingBelief => "evented_starting_belief",
+            Self::CurrentPlace => "evented_perception:current_place",
+            Self::CarriedItem => "evented_perception:carried_item",
             Self::VisibleExit => "evented_perception:visible_exit",
             Self::VisibleFoodSupply => "evented_perception:visible_food_supply",
             Self::VisibleDoor => "evented_perception:visible_door",
@@ -722,6 +744,8 @@ impl ActorKnownProjectionSource {
         match self {
             Self::RoleAssignmentNotice => "role_assignment_notice",
             Self::StartingBelief => "starting_belief",
+            Self::CurrentPlace => "current_place",
+            Self::CarriedItem => "carried_item",
             Self::VisibleExit => "visible_exit",
             Self::VisibleFoodSupply => "visible_food_supply",
             Self::VisibleDoor => "visible_door",
@@ -736,6 +760,8 @@ impl ActorKnownProjectionSource {
 impl ActorKnownProjectionRecord {
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::CurrentPlace { .. } => "current_place",
+            Self::CarriedItem { .. } => "carried_item",
             Self::Route { .. } => "route",
             Self::FoodSource { .. } => "food_source",
             Self::LocalActor { .. } => "local_actor",
@@ -751,6 +777,8 @@ impl ActorKnownProjectionRecord {
         match self {
             Self::Workplace { workplace_id, .. } => Some(workplace_id),
             Self::Route { .. }
+            | Self::CurrentPlace { .. }
+            | Self::CarriedItem { .. }
             | Self::FoodSource { .. }
             | Self::SleepPlace { .. }
             | Self::LocalDoor { .. }
@@ -763,6 +791,8 @@ impl ActorKnownProjectionRecord {
     pub fn actor_id(&self) -> &ActorId {
         match self {
             Self::Route { actor_id, .. }
+            | Self::CurrentPlace { actor_id, .. }
+            | Self::CarriedItem { actor_id, .. }
             | Self::FoodSource { actor_id, .. }
             | Self::LocalActor { actor_id, .. }
             | Self::LocalContainer { actor_id, .. }
@@ -776,6 +806,8 @@ impl ActorKnownProjectionRecord {
     pub fn source(&self) -> &ActorKnownProjectionSource {
         match self {
             Self::Route { source, .. }
+            | Self::CurrentPlace { source, .. }
+            | Self::CarriedItem { source, .. }
             | Self::FoodSource { source, .. }
             | Self::LocalActor { source, .. }
             | Self::LocalContainer { source, .. }
@@ -789,6 +821,12 @@ impl ActorKnownProjectionRecord {
     pub fn source_event_id(&self) -> &EventId {
         match self {
             Self::Route {
+                source_event_id, ..
+            }
+            | Self::CurrentPlace {
+                source_event_id, ..
+            }
+            | Self::CarriedItem {
                 source_event_id, ..
             }
             | Self::FoodSource {
@@ -818,6 +856,8 @@ impl ActorKnownProjectionRecord {
     pub fn source_tick(&self) -> SimTick {
         match self {
             Self::Route { source_tick, .. }
+            | Self::CurrentPlace { source_tick, .. }
+            | Self::CarriedItem { source_tick, .. }
             | Self::FoodSource { source_tick, .. }
             | Self::LocalActor { source_tick, .. }
             | Self::LocalContainer { source_tick, .. }
@@ -834,6 +874,7 @@ impl ActorKnownProjectionRecord {
 
     fn relevant_place_id(&self) -> &PlaceId {
         match self {
+            Self::CurrentPlace { place_id, .. } | Self::CarriedItem { place_id, .. } => place_id,
             Self::Route { from_place_id, .. } => from_place_id,
             Self::FoodSource {
                 place_id: Some(place_id),
@@ -853,6 +894,40 @@ impl ActorKnownProjectionRecord {
 
     fn serialize_canonical(&self) -> String {
         match self {
+            Self::CurrentPlace {
+                place_id,
+                display_label,
+                source,
+                source_event_id,
+                source_tick,
+                ..
+            } => format!(
+                "current_place|place={}|label={}|source={}|event={}|tick={}",
+                place_id.as_str(),
+                display_label,
+                source.stable_id(),
+                source_event_id.as_str(),
+                source_tick.value()
+            ),
+            Self::CarriedItem {
+                item_id,
+                place_id,
+                source_location,
+                portable,
+                source,
+                source_event_id,
+                source_tick,
+                ..
+            } => format!(
+                "carried_item|id={}|place={}|location={}|portable={}|source={}|event={}|tick={}",
+                item_id.as_str(),
+                place_id.as_str(),
+                location_key(source_location),
+                portable,
+                source.stable_id(),
+                source_event_id.as_str(),
+                source_tick.value()
+            ),
             Self::Route {
                 from_place_id,
                 to_place_id,
@@ -1004,6 +1079,22 @@ pub fn actor_known_projection_policy_kinds(
 ) -> BTreeMap<&'static str, ActorKnownProjectionKindPolicy> {
     BTreeMap::from([
         (
+            "current_place",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+            },
+        ),
+        (
+            "carried_item",
+            ActorKnownProjectionKindPolicy {
+                classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
+                embodied_scope: ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly,
+                accessibility_scope: ActorKnownProjectionAccessibilityScope::None,
+            },
+        ),
+        (
             "route",
             ActorKnownProjectionKindPolicy {
                 classification: ActorKnownProjectionPolicy::ReclassifyWhenStale,
@@ -1152,6 +1243,48 @@ fn actor_known_records_from_observation(
     };
     let actor_id = observation.observer_actor_id().clone();
     match observation_payload_value(observation, "perceived_kind") {
+        Some("current_place") => {
+            let Some(place_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| PlaceId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(display_label) = observation_payload_value(observation, "display_label")
+            else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::CurrentPlace {
+                actor_id,
+                place_id,
+                display_label: display_label.to_string(),
+                source: ActorKnownProjectionSource::CurrentPlace,
+                source_event_id,
+                source_tick: observation.observed_tick(),
+            }]
+        }
+        Some("carried_item") => {
+            let Some(item_id) = observation_payload_value(observation, "target_id")
+                .and_then(|value| ItemId::new(value).ok())
+            else {
+                return Vec::new();
+            };
+            let Some(source_location) = observation_item_location(observation) else {
+                return Vec::new();
+            };
+            let Some(portable) = observation_payload_bool(observation, "portable") else {
+                return Vec::new();
+            };
+            vec![ActorKnownProjectionRecord::CarriedItem {
+                actor_id,
+                item_id,
+                place_id: observation.observer_place_id().clone(),
+                source_location,
+                portable,
+                source: ActorKnownProjectionSource::CarriedItem,
+                source_event_id,
+                source_tick: observation.observed_tick(),
+            }]
+        }
         Some("visible_exit") => {
             let Some(from_place_id) = observation_payload_value(observation, "subject_id")
                 .and_then(|value| PlaceId::new(value).ok())
@@ -1508,6 +1641,8 @@ mod tests {
         assert_eq!(
             policies.keys().copied().collect::<Vec<_>>(),
             [
+                "carried_item",
+                "current_place",
                 "food_source",
                 "local_actor",
                 "local_container",
@@ -1586,6 +1721,27 @@ mod tests {
     }
 
     #[test]
+    fn actor_known_projection_policy_truth_table_detects_predicate_inversion() {
+        let current_place = place_id("home_tomas");
+        let policies = actor_known_projection_policy_kinds();
+        let actor = actor_id("actor_tomas");
+        let projection = policy_behavior_projection(actor.clone());
+        let filter_context = KnowledgeContext::embodied(actor, SimTick::new(4));
+
+        let mismatches = inverted_embodied_predicate_mismatches(
+            &policies,
+            &projection,
+            &filter_context,
+            &current_place,
+        );
+
+        assert!(
+            !mismatches.is_empty(),
+            "synthetic inversion of includes_in_embodied_context must fail the policy oracle"
+        );
+    }
+
+    #[test]
     fn supersede_newest_by_subject_requires_subject_extractor() {
         let policy = ActorKnownProjectionKindPolicy {
             classification: ActorKnownProjectionPolicy::SupersedeNewestBySubject,
@@ -1647,6 +1803,24 @@ mod tests {
 
     fn policy_behavior_records(actor: ActorId) -> Vec<ActorKnownProjectionRecord> {
         vec![
+            ActorKnownProjectionRecord::CurrentPlace {
+                actor_id: actor.clone(),
+                place_id: place_id("home_tomas"),
+                display_label: "Tomas home".to_string(),
+                source: ActorKnownProjectionSource::CurrentPlace,
+                source_event_id: event_id("event_current_place"),
+                source_tick: SimTick::new(4),
+            },
+            ActorKnownProjectionRecord::CarriedItem {
+                actor_id: actor.clone(),
+                item_id: item_id("notebook_01"),
+                place_id: place_id("home_tomas"),
+                source_location: Location::CarriedBy(actor.clone()),
+                portable: true,
+                source: ActorKnownProjectionSource::CarriedItem,
+                source_event_id: event_id("event_carried_item"),
+                source_tick: SimTick::new(4),
+            },
             ActorKnownProjectionRecord::Route {
                 actor_id: actor.clone(),
                 from_place_id: place_id("home_tomas"),
@@ -1927,15 +2101,73 @@ mod tests {
             .iter()
             .find(|classified| classified.record().kind() == kind)
             .is_some_and(|classified| {
-                policy.includes_in_embodied_context(
+                expected_embodied_presence_from_truth_table(
+                    policy.embodied_scope(),
                     classified.is_current_place_record(),
                     classified.is_latest_current_place_record(),
                 )
             })
     }
 
+    fn expected_embodied_presence_from_truth_table(
+        embodied_scope: ActorKnownProjectionEmbodiedScope,
+        current_place_record: bool,
+        latest_current_place_record: bool,
+    ) -> bool {
+        match embodied_scope {
+            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly => {
+                latest_current_place_record
+            }
+            ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly => current_place_record,
+        }
+    }
+
+    fn inverted_embodied_predicate_mismatches(
+        policies: &BTreeMap<&'static str, ActorKnownProjectionKindPolicy>,
+        projection: &EpistemicProjection,
+        context: &KnowledgeContext,
+        current_place: &PlaceId,
+    ) -> Vec<String> {
+        let classified_records =
+            projection.classified_actor_known_records_for_context(context, current_place);
+        policies
+            .iter()
+            .filter_map(|(kind, policy)| {
+                let classified = classified_records
+                    .iter()
+                    .find(|classified| classified.record().kind() == *kind)?;
+                let expected = expected_embodied_presence_from_truth_table(
+                    policy.embodied_scope(),
+                    classified.is_current_place_record(),
+                    classified.is_latest_current_place_record(),
+                );
+                let inverted_actual = match policy.embodied_scope() {
+                    ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly => {
+                        !classified.is_latest_current_place_record()
+                    }
+                    ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly => {
+                        !classified.is_current_place_record()
+                    }
+                };
+                (expected != inverted_actual).then(|| {
+                    format!(
+                        "{kind} embodied inversion expected {expected} observed {inverted_actual}"
+                    )
+                })
+            })
+            .collect()
+    }
+
     fn embodied_surface_contains(context: &KnowledgeContext, kind: &str) -> bool {
         match kind {
+            "current_place" => context
+                .actor_known_current_places()
+                .iter()
+                .any(|fact| fact.place_id().as_str() == "home_tomas"),
+            "carried_item" => context
+                .actor_known_carried_items()
+                .iter()
+                .any(|fact| fact.item_id().as_str() == "notebook_01"),
             "route" => context
                 .actor_known_routes()
                 .iter()

@@ -185,9 +185,10 @@ mod tests {
         Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext,
     };
     use crate::actions::registry::ActionRegistry;
+    use crate::agent::{current_place_knowledge_context, current_place_perception_events};
     use crate::checksum::{compute_physical_checksum, ChecksumContext};
-    use crate::epistemics::KnowledgeContext;
-    use crate::events::apply::apply_event;
+    use crate::epistemics::{EpistemicProjection, KnowledgeContext};
+    use crate::events::apply::{apply_epistemic_event, apply_event};
     use crate::ids::{
         ActionId, ContentVersion, FixtureId, PlaceId, ProposalId, SemanticActionId, ViewModelId,
     };
@@ -221,6 +222,29 @@ mod tests {
             ActorBody::new(actor_id("actor_tomas"), place_id),
         );
         state
+    }
+
+    fn observed_context(state: &PhysicalState) -> KnowledgeContext {
+        let manifest_id = content_manifest_id();
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+        let mut frontier = 0;
+        for event in current_place_perception_events(
+            state,
+            &actor_id("actor_tomas"),
+            SimTick::ZERO,
+            &manifest_id,
+        ) {
+            apply_epistemic_event(&mut projection, &event).unwrap();
+            frontier += 1;
+        }
+        current_place_knowledge_context(
+            state,
+            Some(&projection),
+            &actor_id("actor_tomas"),
+            SimTick::ZERO,
+            &manifest_id,
+            frontier,
+        )
     }
 
     fn checksum_context() -> ChecksumContext {
@@ -391,7 +415,7 @@ mod tests {
         let state = state();
         let mut registry = ActionRegistry::new();
         registry.register_phase1_inspect_wait();
-        let context = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::ZERO);
+        let context = observed_context(&state);
         let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &state);
         let source = EmbodiedProjectionSource::from_sealed_context(&context, snapshot, None);
         let manifest_id = content_manifest_id();

@@ -510,6 +510,69 @@ fn all_fixtures_load_deterministically_and_validate() {
 }
 
 #[test]
+fn fixture_fingerprint_reprices_secondary_file_bytes() {
+    let golden = fixtures::strongbox_001();
+    let source = golden.source_file();
+    let first = load_fixture_package(
+        ContentManifestId::new("manifest_strongbox_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![
+            source.clone(),
+            tracewake_content::load::SourceFile {
+                path: "z_note.ignored".to_string(),
+                bytes: b"secondary bytes v1".to_vec(),
+            },
+        ],
+    )
+    .unwrap();
+    let second = load_fixture_package(
+        ContentManifestId::new("manifest_strongbox_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![
+            source,
+            tracewake_content::load::SourceFile {
+                path: "z_note.ignored".to_string(),
+                bytes: b"secondary bytes v2".to_vec(),
+            },
+        ],
+    )
+    .unwrap();
+
+    assert_eq!(first.canonical_world, second.canonical_world);
+    assert_ne!(
+        first.manifest.content_fingerprint,
+        second.manifest.content_fingerprint
+    );
+}
+
+#[test]
+fn fixture_fingerprint_reprices_raw_primary_bytes_with_same_parsed_fixture() {
+    let golden = fixtures::strongbox_001();
+    let source = golden.source_file();
+    let mut newline_source = source.clone();
+    newline_source.bytes.push(b'\n');
+    let first = load_fixture_package(
+        ContentManifestId::new("manifest_strongbox_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![source],
+    )
+    .unwrap();
+    let second = load_fixture_package(
+        ContentManifestId::new("manifest_strongbox_001").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![newline_source],
+    )
+    .unwrap();
+
+    assert_eq!(first.fixture, second.fixture);
+    assert_eq!(first.canonical_world, second.canonical_world);
+    assert_ne!(
+        first.manifest.content_fingerprint,
+        second.manifest.content_fingerprint
+    );
+}
+
+#[test]
 fn all_fixtures_author_explicit_need_seeds_for_every_actor() {
     for golden in fixtures::all() {
         let seeded = golden
@@ -908,6 +971,32 @@ fn fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected() {
         .collect::<BTreeSet<_>>();
     assert!(codes.contains("duplicate_id"));
     assert!(codes.contains("bad_reference"));
+}
+
+#[test]
+fn fixtures_load_location_embedded_marker_id_rejected_001() {
+    let mut fixture = phase3a_fixture();
+    fixture.food_supplies[0].location = Location::AtPlace(PlaceId::new("set_need_hunger").unwrap());
+    let bytes = serialize_fixture(&fixture);
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_location_marker_id").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/location_marker_id.twf".to_string(),
+            bytes,
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("location-embedded shortcut marker must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.code == "authored_shortcut_effect"
+            && error.path == "food_supplies[0].location.place_id"
+    }));
 }
 
 #[test]

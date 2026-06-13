@@ -41,6 +41,159 @@ use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, Sc
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 
+const FROZEN_FIXTURE_FINGERPRINTS: &[(&str, &str)] = &[
+    (
+        "aged_food_record_surfaces_as_remembered_belief_not_observation_001",
+        "twf1-5594c16c721cde82",
+    ),
+    ("container_item_move_001", "twf1-bc90d56dcf16b9d3"),
+    ("debug_attach_001", "twf1-7818100e3c7b9fd1"),
+    ("debug_omniscience_excluded_001", "twf1-87f6032bf6fbdfba"),
+    ("door_access_001", "twf1-eb38689018fcec34"),
+    (
+        "embodied_exits_require_perceived_or_known_route_001",
+        "twf1-2fd542c243164d0b",
+    ),
+    (
+        "embodied_menu_lags_truth_change_without_perception_001",
+        "twf1-645af09b6ae93a2c",
+    ),
+    (
+        "embodied_view_omits_raw_assignment_without_context_001",
+        "twf1-3513f06b88932a09",
+    ),
+    (
+        "embodied_view_omits_unknown_sleep_affordance_001",
+        "twf1-f8871d3f1313e7a6",
+    ),
+    (
+        "embodied_view_omits_unobserved_food_at_open_place_001",
+        "twf1-3f2c6b594ec18991",
+    ),
+    (
+        "embodied_workplace_availability_reflects_belief_not_truth_001",
+        "twf1-ca46cff100748efa",
+    ),
+    (
+        "embodied_workplace_believed_open_truth_closed_commit_fails_001",
+        "twf1-bb58577539f8967c",
+    ),
+    ("expectation_contradiction_001", "twf1-f3c4a068a9286fb2"),
+    ("food_unavailable_replan_001", "twf1-1fcc4fb4b016d64f"),
+    (
+        "forbidden_provenance_input_fails_closed_001",
+        "twf1-6487b387a0259f60",
+    ),
+    ("hidden_food_closed_container_001", "twf1-c08091b0fdf1f677"),
+    ("hidden_food_unknown_route_001", "twf1-bc29e64a91f1bfc8"),
+    ("hidden_route_edge_001", "twf1-935cce05feb5969c"),
+    (
+        "hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001",
+        "twf1-543763eed4a84dc6",
+    ),
+    ("knowledge_blocker_accuse_001", "twf1-df413503a3b3eb4b"),
+    (
+        "method_fallback_requires_new_trace_or_stuck_001",
+        "twf1-8b1b9fa49c3dc51e",
+    ),
+    ("no_hidden_truth_planning_001", "twf1-cd857919c1f8d27d"),
+    ("no_human_advance_001", "twf1-9f2afd3fa905f659"),
+    (
+        "no_human_current_place_without_sleep_affordance_does_not_sleep_001",
+        "twf1-5a92aa16a492fada",
+    ),
+    ("no_human_day_001", "twf1-9b8d796c5201bb66"),
+    ("no_human_epistemic_check_001", "twf1-82d3a78edaaa1eef"),
+    (
+        "no_human_known_workplace_requires_provenance_001",
+        "twf1-7e9256e156e8a091",
+    ),
+    (
+        "no_human_metrics_require_typed_responsible_layer_001",
+        "twf1-5bda1b2ce1329896",
+    ),
+    (
+        "no_human_observation_facts_cite_log_events_001",
+        "twf1-d08ba3324093602b",
+    ),
+    (
+        "no_human_sleep_knowledge_requires_observation_or_record_001",
+        "twf1-d6b80f53c7cee79a",
+    ),
+    (
+        "no_human_unseen_workplace_assignment_does_not_plan_work_001",
+        "twf1-bff52880b0b738ac",
+    ),
+    (
+        "no_human_workplace_knowledge_requires_notice_event_001",
+        "twf1-8e18a768d762d556",
+    ),
+    ("ordinary_workday_001", "twf1-9759d1e7c395df11"),
+    ("partial_food_source_knowledge_001", "twf1-db3392dae3200877"),
+    ("planner_trace_001", "twf1-f8a39fef166adb45"),
+    (
+        "possession_does_not_reset_intention_001",
+        "twf1-94b19dd69e937a66",
+    ),
+    ("possession_parity_001", "twf1-3acf525712657954"),
+    ("replay_item_location_001", "twf1-5f2d9b53aa902800"),
+    ("routine_blocked_diagnostic_001", "twf1-83b07670e067fdad"),
+    ("routine_no_teleport_001", "twf1-82ec55a58e8a4cf0"),
+    (
+        "scheduler_cannot_rewrite_wait_reason_after_transaction_001",
+        "twf1-06d98abee9bc534e",
+    ),
+    (
+        "seeded_food_source_unknown_to_all_actors_001",
+        "twf1-335eca617f0ebd12",
+    ),
+    (
+        "severe_safety_with_known_exit_produces_move_001",
+        "twf1-410c96361e4bf722",
+    ),
+    (
+        "severe_safety_without_known_exit_waits_with_knowledge_blocker_001",
+        "twf1-1d1f53cd0a6baef7",
+    ),
+    ("sleep_eat_work_001", "twf1-f77b963ad0e7de01"),
+    (
+        "sleep_interrupted_by_severe_need_prorates_recovery_001",
+        "twf1-9dc4012085bdf089",
+    ),
+    (
+        "sleep_rejects_current_place_without_sleep_affordance_001",
+        "twf1-827318a9f91a9c1c",
+    ),
+    (
+        "sleep_spanning_window_boundary_charges_each_tick_once_001",
+        "twf1-78762745528d5dd2",
+    ),
+    ("sound_uncertainty_001", "twf1-a8bcbc95e6ae13e3"),
+    (
+        "stale_workplace_notice_superseded_by_newer_001",
+        "twf1-ecb18402c595cb98",
+    ),
+    ("strongbox_001", "twf1-c89a51158996ae87"),
+    ("view_filtering_001", "twf1-02b96aa6cd71dec0"),
+    ("view_model_local_actions_001", "twf1-d1a3bea039a51232"),
+    (
+        "wait_then_window_passive_charges_each_tick_once_001",
+        "twf1-fdfca760dcde678d",
+    ),
+    (
+        "work_block_failed_then_sleep_succeeds_001",
+        "twf1-0b7637da136627bc",
+    ),
+    (
+        "work_completion_fails_when_actor_displaced_001",
+        "twf1-59dea7ebbb271d5f",
+    ),
+    (
+        "workplace_assignment_provenance_001",
+        "twf1-13bb06631b702540",
+    ),
+];
+
 fn registry() -> ActionRegistry {
     let mut registry = ActionRegistry::new();
     registry.register_phase1_movement_open_close();
@@ -52,6 +205,69 @@ fn registry() -> ActionRegistry {
     registry.register_phase3a_work();
     registry.register_phase3a_continue_routine();
     registry
+}
+
+fn frozen_fixture_fingerprint_errors(expected: &BTreeMap<&str, &str>) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut actual = BTreeMap::new();
+    for golden in fixtures::all() {
+        let fixture_id = golden.fixture.fixture_id.as_str().to_string();
+        let loaded = load_fixture_package(
+            ContentManifestId::new(format!("manifest_{fixture_id}")).unwrap(),
+            ContentVersion::new("content_v1").unwrap(),
+            vec![golden.source_file()],
+        )
+        .unwrap();
+        actual.insert(fixture_id, loaded.manifest.content_fingerprint);
+    }
+
+    for fixture_id in expected.keys() {
+        if !actual.contains_key(*fixture_id) {
+            errors.push(format!(
+                "frozen fingerprint table has unknown fixture {fixture_id}"
+            ));
+        }
+    }
+    for (fixture_id, fingerprint) in &actual {
+        match expected.get(fixture_id.as_str()) {
+            Some(expected_fingerprint) if expected_fingerprint == fingerprint => {}
+            Some(expected_fingerprint) => errors.push(format!(
+                "{fixture_id} fingerprint changed: expected {expected_fingerprint}, actual {fingerprint}"
+            )),
+            None => errors.push(format!(
+                "{fixture_id} missing frozen fingerprint {fingerprint}"
+            )),
+        }
+    }
+    errors
+}
+
+#[test]
+fn fixture_fingerprints_match_frozen_goldens() {
+    let expected = FROZEN_FIXTURE_FINGERPRINTS
+        .iter()
+        .copied()
+        .collect::<BTreeMap<_, _>>();
+    let errors = frozen_fixture_fingerprint_errors(&expected);
+    assert!(
+        errors.is_empty(),
+        "fixture fingerprint goldens diverged:\n{}",
+        errors.join("\n")
+    );
+
+    let mut mismatched = expected.clone();
+    let first_fixture_id = expected
+        .keys()
+        .next()
+        .copied()
+        .expect("frozen fingerprint table is non-empty");
+    mismatched.insert(first_fixture_id, "twf1-0000000000000000");
+    assert!(
+        frozen_fixture_fingerprint_errors(&mismatched)
+            .iter()
+            .any(|error| error.contains(first_fixture_id)),
+        "synthetic mismatched manifest fingerprint must fail the frozen seam"
+    );
 }
 
 fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId) {

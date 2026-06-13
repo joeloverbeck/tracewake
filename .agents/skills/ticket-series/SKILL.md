@@ -26,6 +26,12 @@ differences. If exactly one obvious correction exists in the live checkout,
 report the correction and use that path family. Stop and ask if there are zero
 or multiple plausible corrections.
 
+On a resumed active `/goal`, zero live ticket matches may mean the series was
+already archived in an earlier turn. Before treating that as selector failure,
+check for matching `archive/tickets/` entries, the archived reference spec, and
+the final spec-closeout commit. If those exist, route directly to the final
+completion audit instead of restarting intake.
+
 ## Startup
 
 1. Read the live checkout first. Do not rely on memory or prior runs for current
@@ -118,6 +124,13 @@ disposition in the ticket `Outcome` (done, deferred to a named follow-up
 ticket, or dropped with rationale and evidence). Silently shipping N-1 of N
 members is a failed ticket, not a completed one.
 
+After committing the final ticket in the series, stop before any final response
+or `/goal` completion. If the reference spec still exists under `specs/` or
+`docs/4-specs/`, continue directly to `## Final Spec Closeout`. A final ticket's
+local note that spec archival is out of scope, deferred, or left for later is
+not a valid stop condition unless the user explicitly instructed that the
+reference spec must remain active.
+
 ## Final Spec Closeout
 
 After all tickets in the series are complete:
@@ -205,7 +218,11 @@ rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md arch
    Treat any printed path as incomplete archive truthing; fix it before the
    final commit.
    Also grep active reports and outcomes for stale pending-state language, then
-   manually review any matches:
+   manually review any matches. Start with active reports and `## Outcome`
+   sections in archived tickets/specs, because those carry current status. Then
+   review historical-body matches only for stale current-state claims; old
+   problem statements, risk notes, and original out-of-scope sections may be
+   valid archive history unless the outcome now contradicts them:
 
 ```sh
 rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports archive/tickets archive/specs docs/4-specs
@@ -240,7 +257,9 @@ before the final response; do not rely on a prose closeout alone.
 Final responses must include:
 
 - Tickets completed and archived.
-- Spec archived or reason it remains active.
+- Spec archived, or the explicit user no-archive instruction or live blocking
+  evidence that keeps it active. A ticket-local deferred/out-of-scope note is
+  not sufficient.
 - Verification commands actually run.
 - Any checks not run and why.
 - Any enumerated-criterion members deferred or dropped, with their recorded

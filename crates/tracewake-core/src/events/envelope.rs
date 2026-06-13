@@ -734,7 +734,6 @@ pub struct EventEnvelope {
     pub payload: Vec<PayloadField>,
     pub effects_summary: String,
     pub content_manifest_id: ContentManifestId,
-    pub checksum_after: Option<String>,
 }
 
 impl EventEnvelope {
@@ -767,7 +766,6 @@ impl EventEnvelope {
             payload: Vec::new(),
             effects_summary: String::new(),
             content_manifest_id,
-            checksum_after: None,
         }
     }
 
@@ -873,7 +871,6 @@ impl EventEnvelope {
                 "content_manifest_id",
                 encode(self.content_manifest_id.as_str()),
             ),
-            ("checksum_after", encode_opt(self.checksum_after.as_deref())),
         ];
 
         fields
@@ -891,20 +888,26 @@ impl EventEnvelope {
             let (key, value) = line
                 .split_once('=')
                 .ok_or(EventEnvelopeParseError::MalformedField)?;
-            map.insert(key, value);
+            if map.insert(key, value).is_some() {
+                return Err(EventEnvelopeParseError::DuplicateField(key.to_string()));
+            }
         }
 
         let event_type = EventKind::from_stable_id(&decode(required(&map, "event_type")?)?)
             .ok_or(EventEnvelopeParseError::UnknownEventKind)?;
+        let event_schema_version =
+            SchemaVersion::new(decode(required(&map, "event_schema_version")?)?)?;
+        if event_schema_registry_entry(&event_schema_version).is_none() {
+            return Err(EventEnvelopeParseError::UnsupportedSchemaVersion(
+                event_schema_version.as_str().to_string(),
+            ));
+        }
         let ordering_key = deserialize_ordering_key(&decode(required(&map, "ordering_key")?)?)?;
 
         Ok(Self {
             event_id: EventId::new(decode(required(&map, "event_id")?)?)?,
             event_type,
-            event_schema_version: SchemaVersion::new(decode(required(
-                &map,
-                "event_schema_version",
-            )?)?)?,
+            event_schema_version,
             stream: stream_from_id(&decode(required(&map, "stream")?)?)
                 .ok_or(EventEnvelopeParseError::UnknownStream)?,
             stream_position: required(&map, "stream_position")?.parse()?,
@@ -944,7 +947,6 @@ impl EventEnvelope {
                 &map,
                 "content_manifest_id",
             )?)?)?,
-            checksum_after: decode_opt(required(&map, "checksum_after")?)?,
         })
     }
 }
@@ -958,7 +960,9 @@ pub enum EventEnvelopeBuildError {
 pub enum EventEnvelopeParseError {
     InvalidUtf8,
     MalformedField,
+    DuplicateField(String),
     MissingField(&'static str),
+    UnsupportedSchemaVersion(String),
     BadHex,
     UnknownEventKind,
     UnknownStream,

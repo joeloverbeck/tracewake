@@ -245,7 +245,9 @@ impl NoHumanActorKnownSurfaceBuilder {
                     fact_policy,
                 );
             }
-            ActorKnownProjectionRecord::LocalDoor { .. }
+            ActorKnownProjectionRecord::CurrentPlace { .. }
+            | ActorKnownProjectionRecord::CarriedItem { .. }
+            | ActorKnownProjectionRecord::LocalDoor { .. }
             | ActorKnownProjectionRecord::LocalContainer { .. }
             | ActorKnownProjectionRecord::LocalItem { .. }
             | ActorKnownProjectionRecord::LocalActor { .. } => {}

@@ -91,6 +91,59 @@ mod tests {
             round_tripped.event_schema_version.as_str(),
             "event_schema_v1"
         );
+        let canonical = String::from_utf8(bytes).unwrap();
+        assert!(
+            !canonical.contains("checksum_after="),
+            "event envelopes must not serialize a hollow checksum_after field"
+        );
+    }
+
+    #[test]
+    fn envelope_deserialization_rejects_duplicate_fields() {
+        let envelope = EventEnvelope::new_v1(
+            EventId::new("event_0001").unwrap(),
+            EventKind::ActionRejected,
+            0,
+            2,
+            SimTick::new(3),
+            ordering_key(),
+            ContentManifestId::new("phase1_manifest").unwrap(),
+        );
+        let mut canonical = String::from_utf8(envelope.serialize_canonical()).unwrap();
+        canonical.push_str("\ncontent_manifest_id=7068617365315f6d616e6966657374");
+
+        let error = EventEnvelope::deserialize_canonical(canonical.as_bytes()).unwrap_err();
+
+        assert_eq!(
+            error,
+            EventEnvelopeParseError::DuplicateField("content_manifest_id".to_string())
+        );
+    }
+
+    #[test]
+    fn envelope_direct_decode_rejects_unsupported_schema_version() {
+        let envelope = EventEnvelope::new_v1(
+            EventId::new("event_0001").unwrap(),
+            EventKind::ActionRejected,
+            0,
+            2,
+            SimTick::new(3),
+            ordering_key(),
+            ContentManifestId::new("phase1_manifest").unwrap(),
+        );
+        let canonical = String::from_utf8(envelope.serialize_canonical())
+            .unwrap()
+            .replace(
+                "event_schema_version=6576656e745f736368656d615f7631",
+                "event_schema_version=6576656e745f736368656d615f76393939",
+            );
+
+        let error = EventEnvelope::deserialize_canonical(canonical.as_bytes()).unwrap_err();
+
+        assert_eq!(
+            error,
+            EventEnvelopeParseError::UnsupportedSchemaVersion("event_schema_v999".to_string())
+        );
     }
 
     #[test]

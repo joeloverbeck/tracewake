@@ -165,6 +165,38 @@ Properties should include:
 - validator truth does not create actor knowledge without modeled events;
 - no accepted event depends on wall-clock time or unordered iteration.
 
+## Current CI Job Set
+
+The GitHub Actions workflow is part of the execution proof surface. It may be
+stricter than the local four-gate command list only when that stricter posture is
+recorded here and guarded against workflow drift.
+
+Workflow-level posture:
+
+- `permissions: contents: read` is declared at top level.
+- `RUSTFLAGS: "-D warnings"` applies to all jobs.
+- Target-bearing cargo caches key on `rust-toolchain.toml`, `**/Cargo.toml`, and
+  `**/Cargo.lock`.
+- Gate steps must not use `continue-on-error`, pipes, or `||` masking around the
+  documented cargo gate commands.
+- Third-party `uses:` actions outside `actions/*` must be pinned by full commit
+  SHA.
+
+| Job id | Required posture |
+|---|---|
+| `fmt` | Runs `cargo fmt --all --check`. |
+| `clippy` | Runs `cargo clippy --workspace --all-targets -- -D warnings`. |
+| `test` | Runs `cargo build --workspace --all-targets --locked` and `cargo test --workspace --locked`; the locked test invocation is the documented CI superset of the local `cargo test --workspace` completion gate. |
+| `lock-layer-gates` | Runs the named lock-layer integration targets with `--locked`, including anti-regression, hidden-truth, replay, content, and TUI seam gates. |
+| `mutants-in-diff` | Runs guarded-layer mutation checks for pull requests and pushes when guarded source paths changed, with accepted baseline misses normalized by file, mutation, and function. |
+| `mutants-lock-layer` | Runs the scheduled or manual guarded-layer mutation baseline and uploads `mutants.out` while failing on new misses outside the accepted baseline. |
+
+Phase-entry mutation rule: clearing a scheduled-mutation `pending` status, or
+making any `ORD-LIFE-CERT` readiness claim that depends on the lock layer,
+requires a dated green scheduled mutation run. A report may record pending
+status honestly, but pending is not a pass and does not satisfy certification
+readiness.
+
 ## Review artifact template
 
 Every certification artifact must include:

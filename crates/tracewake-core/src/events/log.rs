@@ -95,11 +95,20 @@ impl EventLog {
 
         for line in text.lines() {
             let event_bytes = decode_hex(line)?;
-            let event =
-                EventEnvelope::deserialize_canonical(&event_bytes).map_err(EventLogError::Parse)?;
+            let event = EventEnvelope::deserialize_canonical(&event_bytes)
+                .map_err(envelope_parse_error_for_log)?;
             log.append_deserialized(event)?;
         }
         Ok(log)
+    }
+}
+
+fn envelope_parse_error_for_log(error: EventEnvelopeParseError) -> EventLogError {
+    match error {
+        EventEnvelopeParseError::UnsupportedSchemaVersion(version) => {
+            EventLogError::UnsupportedSchemaVersion(version)
+        }
+        other => EventLogError::Parse(other),
     }
 }
 

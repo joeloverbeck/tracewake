@@ -11,6 +11,8 @@ use tracewake_tui::transcript::{
     capture_representative_transcript, capture_representative_transcript_sections,
 };
 
+const ACTIONS_REGISTRY_RS: &str = include_str!("../../tracewake-core/src/actions/registry.rs");
+
 #[derive(Debug)]
 struct PositiveProofArtifact {
     responsible_layer: &'static str,
@@ -153,6 +155,31 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         debug_capability_present: view.debug_available,
         surfaces_checked: vec!["embodied_view", "proposal_report", "event_ids", "checksum"],
         checksum_result: "changed_after_accepted_world_event",
+    });
+    let view = embodied.current_view().unwrap();
+    let close_action = semantic_action_for_action_id(&embodied, "close");
+    let closed = embodied.submit_semantic_action(&close_action).unwrap();
+    assert_eq!(closed.report.status, ReportStatus::Accepted);
+    assert!(!closed.report.event_ids.is_empty());
+    artifacts.push(PositiveProofArtifact {
+        responsible_layer: "tracewake-tui",
+        scenario_id: "view_model_local_actions_001",
+        actor_id: view.viewer_actor_id.as_str().to_string(),
+        context_id: view.holder_known_context_id.as_str().to_string(),
+        action_id: Some("close"),
+        semantic_id: Some(close_action.as_str().to_string()),
+        report_status: Some(closed.report.status),
+        event_ids: closed
+            .report
+            .event_ids
+            .iter()
+            .map(|event_id| event_id.as_str().to_string())
+            .collect(),
+        typed_reason_codes: Vec::new(),
+        provenance: vec![view.holder_known_context_hash.as_str().to_string()],
+        debug_capability_present: view.debug_available,
+        surfaces_checked: vec!["embodied_view", "close_semantic_action", "event_ids"],
+        checksum_result: "accepted_close_event",
     });
 
     let mut sleep = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
@@ -470,7 +497,6 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         surfaces_checked: vec!["possession_view", "semantic_actions"],
         checksum_result: "changed_after_ordinary_take",
     });
-
     let first_sections = capture_representative_transcript_sections().unwrap();
     let second_sections = capture_representative_transcript_sections().unwrap();
     assert_eq!(first_sections, second_sections);
@@ -495,7 +521,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "byte_identical_sections",
     });
 
-    assert_eq!(artifacts.len(), 11);
+    assert_eq!(artifacts.len(), 12);
     for artifact in &artifacts {
         artifact.assert_review_fields();
     }
@@ -536,6 +562,16 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .iter()
             .any(|error| error.contains("sleep")),
         "synthetic sleep-positive removal must fail the ordinary action census"
+    );
+    let synthetic_unhandled = synthetic_registry_rows_with_unhandled_effect();
+    assert!(
+        ordinary_action_positive_census_errors_for_rows(
+            &submitted_positive_action_ids,
+            &synthetic_unhandled,
+        )
+        .iter()
+        .any(|error| error.contains("synthetic_new_action")),
+        "synthetic unhandled ordinary action effect must fail the census"
     );
 }
 
@@ -601,11 +637,11 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
 #[test]
 fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
-    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let before_events = app.event_count();
 
-    let report = app.run_no_human_day();
+    let report = app.run_no_human_day().unwrap();
     let after_run_events = app.event_count();
     let embodied_view = app.current_view().unwrap();
     assert_eq!(
@@ -659,7 +695,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
 
     let mut command_app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
     command_app
-        .bind_actor(ActorId::new("actor_tomas").unwrap())
+        .bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let script = b"debug run no-human-day\ndebug no-human-day\nview\nquit\n";
     let mut output = Vec::new();
@@ -818,24 +854,123 @@ fn ordinary_action_positive_census_errors(submitted_action_ids: &BTreeSet<String
     registry.register_phase3a_eat();
     registry.register_phase3a_work();
     registry.register_phase3a_continue_routine();
-    registry
+    let rows = registry
         .definitions()
-        .filter(|definition| {
-            matches!(
-                definition.effect,
-                ActionEffect::Wait
-                    | ActionEffect::Sleep
-                    | ActionEffect::Eat
-                    | ActionEffect::Work
-                    | ActionEffect::ContinueRoutine
+        .map(|definition| {
+            (
+                definition.action_id.as_str().to_string(),
+                action_effect_variant(&definition.effect),
             )
         })
-        .filter_map(|definition| {
-            let action_id = definition.action_id.as_str();
-            (!submitted_action_ids.contains(action_id))
-                .then(|| format!("ordinary action {action_id} lacks a submitted positive"))
+        .collect::<Vec<_>>();
+    ordinary_action_positive_census_errors_for_rows(submitted_action_ids, &rows)
+}
+
+fn ordinary_action_positive_census_errors_for_rows(
+    submitted_action_ids: &BTreeSet<String>,
+    rows: &[(String, String)],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let expected_effects = action_effect_variants_from_source(ACTIONS_REGISTRY_RS);
+    for variant in expected_effects {
+        if action_effect_positive_decision(&variant).is_none() {
+            errors.push(format!("ActionEffect::{variant} has no census decision"));
+        }
+    }
+    for (action_id, variant) in rows {
+        match action_effect_positive_decision(variant) {
+            None => errors.push(format!(
+                "ordinary action {action_id} uses unhandled ActionEffect::{variant}"
+            )),
+            Some(ActionEffectPositiveDecision::RequiresPositive) => {
+                if !submitted_action_ids.contains(action_id) {
+                    errors.push(format!(
+                        "ordinary action {action_id} ({variant}) lacks a submitted positive"
+                    ));
+                }
+            }
+            Some(ActionEffectPositiveDecision::Exempt { rationale }) => {
+                if rationale.trim().is_empty() {
+                    errors.push(format!("ActionEffect::{variant} exemption lacks rationale"));
+                }
+            }
+        }
+    }
+    errors
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ActionEffectPositiveDecision {
+    RequiresPositive,
+    Exempt { rationale: &'static str },
+}
+
+fn action_effect_positive_decision(variant: &str) -> Option<ActionEffectPositiveDecision> {
+    match variant {
+        "QueryOnly" => Some(ActionEffectPositiveDecision::Exempt {
+            rationale: "query-only inspection does not emit accepted world events by design",
+        }),
+        "Place" => Some(ActionEffectPositiveDecision::Exempt {
+            rationale: "current TUI fixtures surface place only as a disabled negative until an authored enabled target exists",
+        }),
+        "Move" | "Open" | "Close" | "Take" | "Wait" | "CheckContainer" | "Sleep" | "Eat"
+        | "Work" | "ContinueRoutine" => {
+            Some(ActionEffectPositiveDecision::RequiresPositive)
+        }
+        _ => None,
+    }
+}
+
+fn action_effect_variant(effect: &ActionEffect) -> String {
+    format!("{effect:?}")
+}
+
+fn action_effect_variants_from_source(source: &str) -> BTreeSet<String> {
+    let enum_body = source
+        .split("pub enum ActionEffect")
+        .nth(1)
+        .and_then(|tail| tail.split_once('{'))
+        .and_then(|(_, tail)| tail.split_once('}'))
+        .map(|(body, _)| body)
+        .unwrap_or("");
+    enum_body
+        .lines()
+        .filter_map(|line| {
+            let name = line
+                .trim()
+                .trim_end_matches(',')
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+            (!name.is_empty()).then(|| name.to_string())
         })
         .collect()
+}
+
+fn synthetic_registry_rows_with_unhandled_effect() -> Vec<(String, String)> {
+    let mut rows = ActionRegistry::new_with_active_scopes([
+        ActionScope::Phase1,
+        ActionScope::Phase3AHistorical,
+    ]);
+    rows.register_phase1_inspect_wait();
+    rows.register_phase3a_sleep();
+    rows.register_phase3a_eat();
+    rows.register_phase3a_work();
+    rows.register_phase3a_continue_routine();
+    let mut rows = rows
+        .definitions()
+        .map(|definition| {
+            (
+                definition.action_id.as_str().to_string(),
+                action_effect_variant(&definition.effect),
+            )
+        })
+        .collect::<Vec<_>>();
+    rows.push((
+        "synthetic_new_action".to_string(),
+        "SyntheticNewEffect".to_string(),
+    ));
+    rows
 }
 
 fn phase3a_possess_continue_debug_transcript() -> String {

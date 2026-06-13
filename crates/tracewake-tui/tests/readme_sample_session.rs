@@ -9,6 +9,7 @@ fn readme_documented_commands_are_live_against_binary() {
         "help",
         "view",
         "bind <actor_id>",
+        "bind-debug <actor_id>",
         "<n>",
         "do <semantic_action_id>",
         "notebook",
@@ -44,6 +45,7 @@ fn readme_documented_commands_are_live_against_binary() {
          do wait.1_tick\n\
          wait\n\
          w\n\
+         bind-debug actor_tomas\n\
          debug log\n\
          debug bindings\n\
          debug item coin_stack_01\n\
@@ -61,6 +63,7 @@ fn readme_documented_commands_are_live_against_binary() {
     assert!(output.contains("Commands: help, view"));
     assert!(output.contains("Bound actor: actor_elena"));
     assert!(output.contains("Bound actor: actor_tomas"));
+    assert!(output.contains("Bound debug actor: actor_tomas"));
     assert!(output.contains("Accepted: open.container.strongbox_tomas"));
     assert!(output.contains("Accepted: check.container.strongbox_tomas"));
     assert!(output.contains("Notebook: actor_tomas"));

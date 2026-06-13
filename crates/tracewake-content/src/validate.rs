@@ -2017,6 +2017,11 @@ const SCANNED_ID_FIELDS: &[IdFieldScanRegistration] = &[
         rationale: "item identity is authored content and must not encode shortcut behavior",
     },
     IdFieldScanRegistration {
+        field: "ItemSchema.location",
+        policy: StringScanPolicy::Union,
+        rationale: "item location embeds stable IDs and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
         field: "ActionAffordanceSchema.action_id",
         policy: StringScanPolicy::Union,
         rationale: "action identities are authored content and must not encode shortcut behavior",
@@ -2065,6 +2070,11 @@ const SCANNED_ID_FIELDS: &[IdFieldScanRegistration] = &[
         field: "FoodSupplySchema.food_supply_id",
         policy: StringScanPolicy::Union,
         rationale: "food supply identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "FoodSupplySchema.location",
+        policy: StringScanPolicy::Union,
+        rationale: "food supply location embeds stable IDs and must not encode shortcut behavior",
     },
     IdFieldScanRegistration {
         field: "KnownFoodSourceSchema.actor_id",
@@ -2199,6 +2209,12 @@ fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<Conten
             StringScanPolicy::Union,
             errors,
         );
+        reject_location_ids_by_policy(
+            &item.location,
+            format!("items[{index}].location"),
+            StringScanPolicy::Union,
+            errors,
+        );
     }
     for (index, affordance) in fixture.affordances.iter().enumerate() {
         reject_text_by_policy(
@@ -2271,6 +2287,12 @@ fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<Conten
             StringScanPolicy::Union,
             errors,
         );
+        reject_location_ids_by_policy(
+            &food.location,
+            format!("food_supplies[{index}].location"),
+            StringScanPolicy::Union,
+            errors,
+        );
     }
     for (index, edge) in fixture.known_food_sources.iter().enumerate() {
         reject_text_by_policy(
@@ -2337,6 +2359,34 @@ fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<Conten
             StringScanPolicy::Union,
             errors,
         );
+    }
+}
+
+fn reject_location_ids_by_policy(
+    location: &Location,
+    path: String,
+    policy: StringScanPolicy,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    match location {
+        Location::AtPlace(place_id) => reject_text_by_policy(
+            place_id.as_str(),
+            format!("{path}.place_id"),
+            policy,
+            errors,
+        ),
+        Location::InContainer(container_id) => reject_text_by_policy(
+            container_id.as_str(),
+            format!("{path}.container_id"),
+            policy,
+            errors,
+        ),
+        Location::CarriedBy(actor_id) => reject_text_by_policy(
+            actor_id.as_str(),
+            format!("{path}.actor_id"),
+            policy,
+            errors,
+        ),
     }
 }
 
@@ -2834,6 +2884,7 @@ fn is_phase3a_shortcut_marker(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures;
     use crate::schema::{
         ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureScope,
         FoodSupplySchema, InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema,
@@ -3138,18 +3189,32 @@ mod tests {
 
     #[test]
     fn fixture_serialization_golden_bytes_are_pinned_001() {
-        const EXPECTED: &[u8] = b"fixture|strongbox_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|back_room|4261636b20726f6f6d|shop_front|visible\nplace|shop_front|53686f702066726f6e74|back_room|visible\ndoor|door_shop_back|shop_front|back_room|false|false\ncontainer|strongbox_tomas|shop_front|false|false|false|coin_stack_01\nitem|coin_stack_01|true|in:strongbox_tomas\naffordance|move|back_room\naffordance|open|strongbox_tomas\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+        const PHASE1_EXPECTED: &str = "fixture|strongbox_001\nschema|schema_v1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|shop_front\nplace|back_room|4261636b20726f6f6d|shop_front|visible\nplace|shop_front|53686f702066726f6e74|back_room|visible\ndoor|door_shop_back|shop_front|back_room|false|false\ncontainer|strongbox_tomas|shop_front|false|false|false|coin_stack_01\nitem|coin_stack_01|true|in:strongbox_tomas\naffordance|move|back_room\naffordance|open|strongbox_tomas\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+        const PHASE2A_EXPECTED: &str = "fixture|expectation_contradiction_001\nschema|schema_v1\nfixture_scope|phase2a_historical\nneed_model|5|3\nactor|actor_mara|street_lane\nactor|actor_tomas|house_tomas\nplace|house_tomas|546f6d617320686f757365|street_lane|visible\nplace|street_lane|537472656574206c616e65|house_tomas|visible\ndoor|door_house_street|house_tomas|street_lane|true|false\ncontainer|strongbox_tomas|house_tomas|false|false|false|\nitem|coin_stack_01|true|carried:actor_mara\naffordance|check_container|strongbox_tomas\naffordance|inspect_entity|strongbox_tomas\naffordance|inspect_place|house_tomas\naffordance|open|strongbox_tomas\naffordance|truthful_accuse_probe|actor_mara\ninitial_belief|belief_tomas_expects_coin_stack_01_in_strongbox_tomas|actor_tomas|6974656d5f6c6f63617465645f696e5f636f6e7461696e65727c636f696e5f737461636b5f30317c7374726f6e67626f785f746f6d6173|expects_true|0900|authored_prehistory|prehistory_tomas_checked_strongbox_before_start||0||actor:actor_tomas|epistemic_record_schema_v1\ninitial_need|actor_mara|hunger|100\ninitial_need|actor_mara|fatigue|100\ninitial_need|actor_mara|safety|100\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100";
+        const PHASE3A_EXPECTED_WITH_TRAILING_NEWLINE: &str =
+            include_str!("../tests/goldens/phase3a_sleep_eat_work_001.serialized");
+        let phase3a_expected = PHASE3A_EXPECTED_WITH_TRAILING_NEWLINE
+            .strip_suffix('\n')
+            .unwrap_or(PHASE3A_EXPECTED_WITH_TRAILING_NEWLINE);
 
-        let actual = serialize_fixture(&fixture());
+        let cases = [
+            ("phase1", serialize_fixture(&fixture()), PHASE1_EXPECTED),
+            (
+                "phase2a",
+                serialize_fixture(&fixtures::expectation_contradiction_001().fixture),
+                PHASE2A_EXPECTED,
+            ),
+            (
+                "phase3a",
+                serialize_fixture(&fixtures::sleep_eat_work_001().fixture),
+                phase3a_expected,
+            ),
+        ];
 
-        assert_eq!(actual, EXPECTED);
-        let mut perturbed = actual.clone();
-        let position = perturbed
-            .windows(b"initial_need".len())
-            .position(|window| window == b"initial_need")
-            .expect("golden contains initial_need rows");
-        perturbed[position] = b'I';
-        assert_ne!(perturbed, EXPECTED);
+        for (label, actual, expected) in cases {
+            let actual = String::from_utf8(actual).unwrap();
+            assert_eq!(actual, expected, "{label} serialization golden changed");
+        }
     }
 
     #[test]
@@ -3328,7 +3393,7 @@ mod tests {
     #[test]
     fn schema_id_fields_are_classified_for_script_scanning() {
         let schema = include_str!("schema.rs");
-        let discovered = discover_schema_fields(schema, is_schema_id_field_type);
+        let discovered = discover_schema_fields(schema, is_schema_id_or_location_field_type);
 
         let registered = SCANNED_ID_FIELDS
             .iter()
@@ -3349,7 +3414,7 @@ mod tests {
 
         let synthetic_schema = "pub struct SyntheticSchema {\n    pub synthetic_id: ItemId,\n}";
         let synthetic_discovered =
-            discover_schema_fields(synthetic_schema, is_schema_id_field_type);
+            discover_schema_fields(synthetic_schema, is_schema_id_or_location_field_type);
         let synthetic_errors = id_field_scan_census_errors(&synthetic_discovered, &registered);
         assert!(
             synthetic_errors
@@ -3357,6 +3422,40 @@ mod tests {
                 .any(|error| error.contains("SyntheticSchema.synthetic_id")),
             "synthetic ID field must fail the scan-registration census: {synthetic_errors:?}"
         );
+    }
+
+    #[test]
+    fn schema_id_type_recognizer_matches_schema_imports() {
+        let schema = include_str!("schema.rs");
+        let referenced = schema_referenced_id_newtypes(schema);
+        let recognized = referenced
+            .iter()
+            .filter(|id_type| is_schema_id_field_type(id_type))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(recognized, referenced);
+
+        let synthetic_schema = schema.replace(
+            "SchemaVersion, SleepAffordanceId, WorkplaceId,",
+            "SchemaVersion, SleepAffordanceId, SyntheticFutureId, WorkplaceId,",
+        );
+        let synthetic_referenced = schema_referenced_id_newtypes(&synthetic_schema);
+        let synthetic_recognized = synthetic_referenced
+            .iter()
+            .filter(|id_type| is_schema_id_field_type(id_type))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        assert!(
+            synthetic_referenced
+                .difference(&synthetic_recognized)
+                .any(|id_type| id_type == "SyntheticFutureId"),
+            "synthetic unrecognized schema ID newtype must fail recognizer parity"
+        );
+    }
+
+    fn is_schema_id_or_location_field_type(field_type: &str) -> bool {
+        field_type == "Location" || is_schema_id_field_type(field_type)
     }
 
     fn is_schema_id_field_type(field_type: &str) -> bool {
@@ -3378,7 +3477,26 @@ mod tests {
                 | "FoodSupplyId"
                 | "WorkplaceId"
                 | "RoutineTemplateId"
+                | "IntentionId"
+                | "RoutineExecutionId"
+                | "CandidateGoalId"
+                | "DecisionTraceId"
         )
+    }
+
+    fn schema_referenced_id_newtypes(schema: &str) -> BTreeSet<String> {
+        let ids_import = schema
+            .split("use tracewake_core::ids::{")
+            .nth(1)
+            .and_then(|tail| tail.split_once("};"))
+            .map(|(body, _)| body)
+            .unwrap_or("");
+        ids_import
+            .split(',')
+            .map(str::trim)
+            .filter(|name| name.ends_with("Id"))
+            .map(str::to_string)
+            .collect()
     }
 
     fn id_field_scan_census_errors(

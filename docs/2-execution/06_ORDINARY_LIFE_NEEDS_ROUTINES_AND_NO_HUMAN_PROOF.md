@@ -87,6 +87,21 @@ Accepted no-human proof evidence must include:
 - replay rebuild report;
 - debug summaries that are non-diegetic.
 
+## Canonical recovery resolution
+
+The canonical `no_human_day_001` recovery resolution is intentionally recorded as
+`fail_only_empty_food_source`. Mara's empty home food source must produce a typed
+ordinary-life failure without consuming hidden fallback food, moving to Tomas's
+food, or targeting Tomas's food through an unsupported shortcut. This is a
+fixture decision, not an implicit relaxation of the no-human proof.
+
+The success-recovery variant recommended by archived spec 0005 section 12 is
+staged until Phase 3B routine/economy work makes public food services or
+neighbor/public pantry access first-class actor-known affordances. At that
+trigger, the canonical vocabulary must be re-evaluated by adding an explicit
+supported recovery token and guard arm, or by recording a renewed staging
+decision here. Silence is drift.
+
 ## Behavioral progress
 
 Behavioral progress is one of:

@@ -14,11 +14,12 @@ pub use contradiction::{
 };
 pub use knowledge_basis::actor_has_source_backed_support;
 pub use knowledge_context::{
-    ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact,
-    ActorKnownLocalActorFact, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
-    ActorKnownWorkplaceFact, AllowedKnowledgeSource, ForbiddenKnowledgeSource, ForbiddenTruthAudit,
-    KnowledgeContext, KnowledgeContextStatus, KnowledgeProvenanceEntry, KnowledgeProvenanceKind,
-    ScopeFilter, ViewMode,
+    ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+    ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+    ActorKnownRouteFact, ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact,
+    AllowedKnowledgeSource, ForbiddenKnowledgeSource, ForbiddenTruthAudit, KnowledgeContext,
+    KnowledgeContextStatus, KnowledgeProvenanceEntry, KnowledgeProvenanceKind, ScopeFilter,
+    ViewMode,
 };
 pub use observation::{
     Channel, Confidence, ConfidenceError, Observation, ObservationSubject, ObservationTarget,

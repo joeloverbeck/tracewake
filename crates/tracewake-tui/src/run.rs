@@ -48,6 +48,11 @@ fn dispatch_command<W: Write>(
             writeln!(writer, "Bound actor: {}", actor_id.as_str())?;
             writeln!(writer, "{}", app_result(app.render_current_view())?)
         }
+        UiCommand::BindDebugActor(actor_id) => {
+            app_result(app.bind_debug_actor(actor_id.clone()))?;
+            writeln!(writer, "Bound debug actor: {}", actor_id.as_str())?;
+            writeln!(writer, "{}", app_result(app.render_current_view())?)
+        }
         UiCommand::SelectSemanticAction(semantic_action_id) => {
             submit_and_render(app, &semantic_action_id, writer)
         }
@@ -164,7 +169,7 @@ fn render_debug<W: Write>(
         DebugCommand::Stuck => writeln!(writer, "{}", app.render_debug_stuck_panel()),
         DebugCommand::NoHumanDay => writeln!(writer, "{}", app.render_debug_no_human_day_panel()),
         DebugCommand::RunNoHumanDay => {
-            app.run_no_human_day();
+            app_result(app.run_no_human_day())?;
             writeln!(writer, "{}", app.render_debug_no_human_day_panel())?;
             writeln!(writer, "{}", app_result(app.render_current_view())?)
         }
@@ -201,7 +206,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug run no-human-day, debug actor <actor_id>, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, bind-debug <actor_id>, do <semantic_action_id>, <n>, wait, w, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug run no-human-day, debug actor <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -212,7 +217,7 @@ mod tests {
     #[test]
     fn scripted_loop_dispatches_commands_and_exits_cleanly() {
         let mut app = TuiApp::load_default().unwrap();
-        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let script =
             b"view\nnotebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug rejection\nwait\ndebug overlay\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nbogus\nquit\n";
@@ -258,7 +263,7 @@ mod tests {
     #[test]
     fn wait_alias_resolves_only_from_current_view_actions() {
         let mut app = TuiApp::load_default().unwrap();
-        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let view = app.current_view().unwrap();
         let expected_wait_action = view
@@ -290,6 +295,7 @@ mod tests {
             "view",
             "notebook",
             "bind <actor_id>",
+            "bind-debug <actor_id>",
             "do <semantic_action_id>",
             "<n>",
             "wait",

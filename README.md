@@ -114,6 +114,7 @@ epistemic, and ordinary-life slices, not a graphical client.
 help                         show command help
 view                         re-render the current embodied view
 bind <actor_id>              bind the controller to an actor
+bind-debug <actor_id>        bind the controller to an actor with explicit debug availability
 <n>                          submit the action at the 1-based menu position from the current view
 do <semantic_action_id>      submit a stable semantic action ID shown in the action menu
 notebook                     show the current actor's source-backed notebook projection

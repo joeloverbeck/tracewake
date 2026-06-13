@@ -1,9 +1,9 @@
 use crate::epistemics::{
-    ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact,
-    ActorKnownLocalActorFact, ActorKnownProjectionRecord, ActorKnownRouteFact,
-    ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact, Channel, Confidence,
-    EpistemicProjection, KnowledgeContext, Observation, ObservationSubject, ObservationTarget,
-    SourceRef,
+    ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+    ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+    ActorKnownProjectionRecord, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
+    ActorKnownWorkplaceFact, Channel, Confidence, EpistemicProjection, KnowledgeContext,
+    Observation, ObservationSubject, ObservationTarget, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -61,16 +61,19 @@ pub fn current_place_perception_events(
     let current_place_id = actor.current_place_id.clone();
     let mut observations = Vec::new();
 
-    observations.push(PerceivedThing {
-        kind: "current_place",
-        subject_id: current_place_id.as_str().to_string(),
-        target_id: current_place_id.as_str().to_string(),
-        place_id: current_place_id.clone(),
-        servings: None,
-        payload: Vec::new(),
-    });
-
     if let Some(place) = state.places().get(&current_place_id) {
+        observations.push(PerceivedThing {
+            kind: "current_place",
+            subject_id: current_place_id.as_str().to_string(),
+            target_id: current_place_id.as_str().to_string(),
+            place_id: current_place_id.clone(),
+            servings: None,
+            payload: vec![PayloadField::new(
+                "display_label",
+                place.display_label.clone(),
+            )],
+        });
+
         for adjacent_place_id in &place.adjacent_place_ids {
             if !is_visible_exit_target(state, adjacent_place_id) {
                 continue;
@@ -84,6 +87,24 @@ pub fn current_place_perception_events(
                 payload: Vec::new(),
             });
         }
+    }
+
+    for item_id in &actor.carried_item_ids {
+        let Some(item) = state.items().get(item_id) else {
+            continue;
+        };
+        observations.push(PerceivedThing {
+            kind: "carried_item",
+            subject_id: current_place_id.as_str().to_string(),
+            target_id: item.item_id.as_str().to_string(),
+            place_id: current_place_id.clone(),
+            servings: None,
+            payload: vec![
+                PayloadField::new("item_source_kind", "carried"),
+                PayloadField::new("item_source_actor_id", actor.actor_id.as_str()),
+                PayloadField::new("portable", item.portable.to_string()),
+            ],
+        });
     }
 
     for door in state
@@ -214,6 +235,8 @@ pub fn current_place_knowledge_context(
     event_frontier: u64,
 ) -> KnowledgeContext {
     let mut food_sources = Vec::new();
+    let mut current_places = Vec::new();
+    let mut carried_items = Vec::new();
     let mut sleep_affordances = Vec::new();
     let mut routes = Vec::new();
     let mut workplaces = Vec::new();
@@ -279,6 +302,34 @@ pub fn current_place_knowledge_context(
                     to_place_id.clone(),
                     source_key,
                 ));
+            }
+            ActorKnownProjectionRecord::CurrentPlace {
+                place_id,
+                display_label,
+                ..
+            } => {
+                if included_by_policy {
+                    current_places.push(ActorKnownCurrentPlaceFact::new(
+                        place_id.clone(),
+                        display_label.clone(),
+                        source_key,
+                    ));
+                }
+            }
+            ActorKnownProjectionRecord::CarriedItem {
+                item_id,
+                source_location,
+                portable,
+                ..
+            } => {
+                if included_by_policy {
+                    carried_items.push(ActorKnownCarriedItemFact::new(
+                        item_id.clone(),
+                        source_location.clone(),
+                        *portable,
+                        source_key,
+                    ));
+                }
             }
             ActorKnownProjectionRecord::FoodSource {
                 food_source_id,
@@ -402,11 +453,13 @@ pub fn current_place_knowledge_context(
         }
     }
 
-    KnowledgeContext::embodied_at_frontier_with_all_facts(
+    KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
         actor_id.clone(),
         decision_tick,
         event_frontier,
         workplaces,
+        current_places,
+        carried_items,
         food_sources,
         sleep_affordances,
         routes,
