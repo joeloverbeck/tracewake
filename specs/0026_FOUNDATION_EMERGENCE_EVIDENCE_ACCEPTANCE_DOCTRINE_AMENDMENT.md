@@ -138,9 +138,11 @@ introduces no `how`-level mechanism into foundation (the execution `10` mechanis
   adds a single, falsifiable `what`-level invariant (no procedure, no fixture, no counter); D2 adds
   acceptance doctrine that names the *principle* but no `EMERGE-OBS` mechanism token; D3 adds the
   no-steering cross-reference; and no foundation text duplicates the execution-`10` mechanism.
-- **V3 — Boundary check.** Grep the amended foundation files for mechanism tokens (`EMERGE-OBS`,
-  table/row/counter/threshold/ratchet names) — foundation must contain the principle and the
-  cross-references but none of those tokens, preserving the `what`/`how` layer boundary.
+- **V3 — Boundary check.** Grep the amended foundation passages / newly added lines for mechanism
+  tokens (`EMERGE-OBS`, table/row/counter/threshold/ratchet names) — foundation must contain the
+  principle and the cross-references, and the amendment must add none of those tokens, preserving
+  the `what`/`how` layer boundary. A whole-file grep is not the proof surface because the live
+  foundation already contains unrelated ordinary-language uses of `counters` and `thresholds`.
 - **V4 — Glossary follow-through (D4, later session).** The new canonical term exists in
   `docs/3-reference/02_GLOSSARY.md` before any architecture/execution session specializes the
   principle.

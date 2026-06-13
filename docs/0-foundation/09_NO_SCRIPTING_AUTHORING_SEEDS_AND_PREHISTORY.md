@@ -292,6 +292,12 @@ Forbidden runtime causes:
 
 Diagnostic analysis may help designers revise causal machinery later. It must not mutate authoritative state at runtime.
 
+## Emergence observation is not steering
+
+Retrospective, observer-only records of emergent phenomena are permitted and expected after the fact. They may show that ordinary systems produced contradictions, replans, interruptions, stale-belief consequences, wrong suspicion, or record effects from modeled causes.
+
+They must never become prospective goals for the simulation. Steering the world to make an observer record look richer is authored-outcome machinery, even when disguised as validation, salience, or product proof.
+
 ## LLM boundary
 
 LLMs may render, paraphrase, summarize, or parse candidate speech acts behind validation. They may not author runtime facts, decide truth, repair plots, create hidden evidence, create quests, grant knowledge, plan agents, or mutate state.

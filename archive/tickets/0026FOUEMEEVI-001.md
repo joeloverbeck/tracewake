@@ -1,6 +1,6 @@
 # 0026FOUEMEEVI-001: Land the emergence-evidence acceptance amendment across foundation 02/09/12
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — constitutional/doctrine edits to `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`, `docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md`, and `docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md`. No crate/code, no fixtures.
@@ -63,6 +63,12 @@ constitutional edit.
    leakage, and no nondeterminism. The enforcement surfaces that keep the ledger
    observer-only remain the execution-`10` mechanism and any later validation work — not
    this edit; the amendment must not author wording that licenses steering.
+6. Implementation correction on the live tree (`90ac97c`): the proposed whole-file V3
+   grep already matches unrelated foundation prose before this ticket lands (`counters`
+   in INV-081 and `thresholds` in INV-103 / foundation `09`). That means the proof
+   command must check the amended passages / newly added lines, not the entire three
+   files. The acceptance intent is unchanged: this ticket must not introduce the
+   execution-`10` mechanism vocabulary into the foundation amendment.
 
 ## Architecture Check
 
@@ -87,8 +93,8 @@ constitutional edit.
    the no-steering cross-reference; no foundation text duplicates the execution-`10`
    mechanism.
 2. V3 layer-boundary (the `what`/`how` line) → codebase grep-proof: the amended foundation
-   files contain the principle and cross-references but none of `EMERGE-OBS`, `ratchet`,
-   `counter`, or table/row/threshold names.
+   passages contain the principle and cross-references but none of `EMERGE-OBS`,
+   `ratchet`, `counter`, or table/row/threshold names.
 3. Observer-only / no-steering doctrine (INV-024/INV-006/INV-060, foundation `09`) →
    manual review (epistemic-leakage / no-director audit): the new wording forbids feeding
    evidence into cognition, scheduling, authored events, or validators, and forbids
@@ -147,9 +153,10 @@ no-director constitution.
 
 ### Tests That Must Pass
 
-1. **V3 boundary grep** — `grep -riE 'EMERGE-OBS|ratchet|\bcounters?\b|threshold|ledger row' docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md`
-   returns no match in the amended passages (foundation carries the principle, not the
-   mechanism vocabulary).
+1. **V3 boundary grep** — `git diff --unified=0 -- docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md | grep -E '^\\+[^+].*(EMERGE-OBS|ratchet|\\bcounters?\\b|threshold|ledger row)'`
+   returns no match in the amended lines (foundation carries the principle, not the
+   mechanism vocabulary). After commit, use the same check against `git show --unified=0
+   HEAD -- <same paths>`.
 2. **Landing grep** — the new invariant exists in `02` with an assigned `INV-###`; the
    acceptance doctrine exists in `12`; the no-steering cross-reference exists in `09`. All
    three resolve.
@@ -158,7 +165,7 @@ no-director constitution.
 
 ### Invariants
 
-1. The amended foundation files contain the acceptance principle and the cross-references
+1. The amended foundation passages contain the acceptance principle and the cross-references
    but none of the execution-`10` mechanism tokens — the `what`/`how` layer boundary holds.
 2. The new invariant forbids the observer evidence feeding simulation behavior, authoring
    outcomes, or setting dramatic objectives (observer-only / no-steering), and ties
@@ -174,6 +181,29 @@ no-director constitution.
 
 ### Commands
 
-1. `grep -riE 'EMERGE-OBS|ratchet|\bcounters?\b|threshold|ledger row' docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md` — must show no mechanism-vocab match in the amended passages (V3).
+1. `git diff --unified=0 -- docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md | grep -E '^\\+[^+].*(EMERGE-OBS|ratchet|\\bcounters?\\b|threshold|ledger row)'` — must show no mechanism-vocab match in the amended lines (V3).
 2. `grep -nE 'INV-111|observer-only|emergence(-| )evidence' docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md` — confirms D1/D2/D3 landed across the three files.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected and is not the verification boundary for a foundation-doc edit; the boundary is the two greps above plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Implemented the constitutional amendment as a single foundation-tier package:
+
+- Added `INV-111` to `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`, appended after the `INV-099`...`INV-110` truth-firewall family to avoid renumbering existing invariant references.
+- Added first-playable acceptance doctrine to `docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md`.
+- Added the no-steering cross-reference to `docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md`.
+
+The active user goal to implement this ticket was treated as the constitutional owner sign-off required by spec 0026 R-A. During reassessment, the original whole-file V3 grep was corrected because it already matched unrelated foundation prose before this ticket landed; the verification now checks the amended lines.
+
+Verification:
+
+- `git diff --unified=0 -- docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md | grep -E '^\\+[^+].*(EMERGE-OBS|ratchet|\\bcounters?\\b|threshold|ledger row)'` returned no matches.
+- `grep -nE 'INV-111|observer-only|emergence(-| )evidence' docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md` resolved all three deliverables.
+- Manual invariants review: D1 is a single `what`-level invariant, adds no procedure/fixture/mechanism, forbids steering/behavior feedback, ties the evidence to replay ancestry, and does not weaken `INV-001`...`INV-110`.
+
+Deviations:
+
+- Corrected the ticket/spec V3 proof surface from whole-file grep to amended-line grep because the live foundation already contained unrelated ordinary-language uses of mechanism-token words.
+- No Rust crate, fixture, architecture, execution, or reference glossary changes were made; D4 remains out of scope for a later reference-tier session.
