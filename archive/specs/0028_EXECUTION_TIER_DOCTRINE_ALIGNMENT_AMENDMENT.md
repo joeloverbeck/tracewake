@@ -14,7 +14,7 @@ sibling architecture amendment `archive/specs/0027_ARCHITECTURE_TIER_DOCTRINE_AL
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Not yet enacted.
+**Status:** COMPLETED. Enacted by the `0028EXETIEDOC` ticket series.
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code, performs no gate audit, and asserts nothing about whether live crates, fixtures,
@@ -251,3 +251,43 @@ obligation/invariant identifier is coined.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/`0027`/hardening-series precedent: the ledger row lands at acceptance/
   closeout, not at proposal).
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against this spec.
+
+Enacted:
+
+- D1 by `archive/tickets/0028EXETIEDOC-001.md`: execution label taxonomy and
+  light cross-reference cleanup.
+- D7, D8, and D9 by `archive/tickets/0028EXETIEDOC-006.md`: `EMERGE-OBS`
+  realignment, anti-vacuity / behavior-witness standard, and evidence-status /
+  fingerprint-scope honesty.
+- D11 by `archive/tickets/0028EXETIEDOC-008.md`: proof-methodology source
+  notes and forbidden misreads.
+- D2 by `archive/tickets/0028EXETIEDOC-002.md`: first-proof acceptance package
+  `EMERGE-OBS` artifact requirement.
+- D3 and D4 by `archive/tickets/0028EXETIEDOC-003.md`: provenance-sufficiency
+  fail-closed proof and freshness classifier.
+- D5 by `archive/tickets/0028EXETIEDOC-004.md`: observation-time snapshot
+  proof, wallhack negatives, F04 neutrality, and embodied carrier census.
+- D6 by `archive/tickets/0028EXETIEDOC-005.md`: single-owner
+  derived-accounting seam and byte-stable-insufficient golden rule.
+- D10 by `archive/tickets/0028EXETIEDOC-007.md`: Phase-4 institution-known
+  provenance/freshness future-proofing.
+
+Verification:
+
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
+
+Deviations:
+
+- None. The spec remains `P0-CERT not applicable`: it enacted execution-tier
+  doctrine alignment only, certifies no code, and does not claim that crates,
+  fixtures, CI, or goldens already satisfy the amended execution doctrine.
