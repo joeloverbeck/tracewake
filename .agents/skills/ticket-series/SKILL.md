@@ -124,6 +124,13 @@ disposition in the ticket `Outcome` (done, deferred to a named follow-up
 ticket, or dropped with rationale and evidence). Silently shipping N-1 of N
 members is a failed ticket, not a completed one.
 
+After committing the final ticket in the series, stop before any final response
+or `/goal` completion. If the reference spec still exists under `specs/` or
+`docs/4-specs/`, continue directly to `## Final Spec Closeout`. A final ticket's
+local note that spec archival is out of scope, deferred, or left for later is
+not a valid stop condition unless the user explicitly instructed that the
+reference spec must remain active.
+
 ## Final Spec Closeout
 
 After all tickets in the series are complete:
@@ -250,7 +257,9 @@ before the final response; do not rely on a prose closeout alone.
 Final responses must include:
 
 - Tickets completed and archived.
-- Spec archived or reason it remains active.
+- Spec archived, or the explicit user no-archive instruction or live blocking
+  evidence that keeps it active. A ticket-local deferred/out-of-scope note is
+  not sufficient.
 - Verification commands actually run.
 - Any checks not run and why.
 - Any enumerated-criterion members deferred or dropped, with their recorded
