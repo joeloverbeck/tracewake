@@ -111,6 +111,10 @@ rg --files-without-match '^Completed: ' archive/tickets/<ticket-id>.md
      Do not pass the removed source file path to `git add` after `git mv`;
      stage the archive destination plus `git add -u`, or use `git add -A` on
      the relevant parent directories.
+     If a path-specific `git add -u tickets/<ticket-id>.md` fails because the
+     source path no longer exists, recover with this rename-aware staging:
+     `git add -A tickets archive/tickets`. Then inspect
+     `git diff --cached --name-status`.
      Run Git index-mutating commands serially; do not parallelize `git add`,
      `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
      appears, check for active Git processes, then retry serially.
@@ -176,6 +180,9 @@ cargo test --workspace
    Do not pass the removed source file path to `git add` after `git mv`;
    stage the archive destination plus `git add -u`, or use `git add -A` on the
    relevant parent directories.
+   If a path-specific `git add -u specs/<spec filename>` fails because the
+   source path no longer exists, recover with `git add -A specs archive/specs`
+   and then inspect `git diff --cached --name-status`.
    Run Git index-mutating commands serially; do not parallelize `git add`,
    `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
    appears, check for active Git processes, then retry serially.
@@ -227,13 +234,17 @@ rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md arch
    Treat any printed path as incomplete archive truthing; fix it before the
    final commit.
    Also grep active reports and outcomes for stale pending-state language, then
-   manually review any matches. Start with active reports and `## Outcome`
-   sections in archived tickets/specs, because those carry current status. Then
-   review historical-body matches only for stale current-state claims; old
-   problem statements, risk notes, and original out-of-scope sections may be
-   valid archive history unless the outcome now contradicts them:
+   manually review any matches. Keep this staged so broad historical archive
+   prose does not swamp the current-state audit:
+
+   - First sweep active/current-state surfaces and the current archived
+     ticket/spec outcomes for the ticket/spec prefix under closeout.
+   - Then, only if needed, run the broad historical sweep and treat old problem
+     statements, risk notes, and original out-of-scope sections as valid
+     archive history unless the outcome now contradicts them.
 
 ```sh
+rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports docs/4-specs archive/tickets/<ticket-prefix>*.md archive/specs/<spec filename>
 rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports archive/tickets archive/specs docs/4-specs
 ```
 
@@ -274,6 +285,8 @@ Final responses must include:
 - `Enumerated-criterion members deferred/dropped: <recorded dispositions, or
   None>.`
 - `Unrelated pre-existing changes left untouched: <paths/summary, or None>.`
+- `Commits made: <list or None>.` Include this when the run created
+  per-ticket or spec-closeout commits.
 
 These fields may be embedded in concise prose, but the final answer must make
 each answer explicit. For active `/goal` runs, include the goal-tool usage
