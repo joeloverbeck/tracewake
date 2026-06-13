@@ -62,6 +62,8 @@ const ACCEPTANCE_0023_REPORT: &str =
     include_str!("../../../reports/0023_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0024_REPORT: &str =
     include_str!("../../../reports/0024_ord_life_cert_scoped_acceptance.md");
+const ACCEPTANCE_0025_REPORT: &str =
+    include_str!("../../../reports/0025_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 const CI_WORKFLOW_GUARDS_RS: &str = include_str!("ci_workflow_guards.rs");
 
@@ -1555,7 +1557,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 44;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 45;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1621,6 +1623,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
         lock_id: "acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors",
         negative_id: "synthetic_0024_missing_acceptance_anchor",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "acceptance_artifact_0025_maps_spec_section_7_items_to_report_anchors",
+        negative_id: "synthetic_0025_missing_acceptance_anchor",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
@@ -2745,6 +2753,16 @@ fn meta_lock_live_witness_count(
     if entry.lock_id == "acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors" {
         return acceptance_checklist_anchor_errors(
             ACCEPTANCE_0024_REPORT,
+            &[AcceptanceChecklistAnchor {
+                item: 99,
+                anchors: &["synthetic_witness_missing_acceptance_anchor"],
+            }],
+        )
+        .len();
+    }
+    if entry.lock_id == "acceptance_artifact_0025_maps_spec_section_7_items_to_report_anchors" {
+        return acceptance_checklist_anchor_errors(
+            ACCEPTANCE_0025_REPORT,
             &[AcceptanceChecklistAnchor {
                 item: 99,
                 anchors: &["synthetic_witness_missing_acceptance_anchor"],
@@ -3963,6 +3981,113 @@ const ACCEPTANCE_0024_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
     },
 ];
 
+const ACCEPTANCE_0025_CHECKLIST_ANCHORS: &[AcceptanceChecklistAnchor] = &[
+    AcceptanceChecklistAnchor {
+        item: 1,
+        anchors: &[
+            "Executable Witness Discipline",
+            "ORD-HARD-166",
+            "ORD-HARD-175",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 2,
+        anchors: &["Provenance-True Kill Set", "ORD-HARD-167"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 3,
+        anchors: &[
+            "Envelope Fail-Closed Decisions",
+            "ORD-HARD-168",
+            "ORD-HARD-171",
+            "ORD-HARD-184",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 4,
+        anchors: &[
+            "Manifest Fingerprint Honesty",
+            "ORD-HARD-169",
+            "ORD-HARD-170",
+            "ORD-HARD-183",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 5,
+        anchors: &[
+            "Embodied Carrier Census And Staleness",
+            "ORD-HARD-172",
+            "ORD-HARD-173",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 6,
+        anchors: &[
+            "TUI Gate Depth And Mode Decision",
+            "ORD-HARD-174",
+            "ORD-HARD-176",
+            "ORD-HARD-185",
+            "ORD-HARD-186",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 7,
+        anchors: &[
+            "Census And Oracle Closures",
+            "ORD-HARD-177",
+            "ORD-HARD-178",
+            "ORD-HARD-179",
+            "ORD-HARD-180",
+            "ORD-HARD-181",
+            "ORD-HARD-182",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 8,
+        anchors: &[
+            "CI And Evidence Honesty Records",
+            "ORD-HARD-187",
+            "ORD-HARD-188",
+            "ORD-HARD-189",
+            "ORD-HARD-190",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 9,
+        anchors: &["Premise-Held Confirmations", "ORD-HARD-166", "ORD-HARD-190"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 10,
+        anchors: &[
+            "Documentation Diffs",
+            "docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md",
+            "docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md",
+            "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 11,
+        anchors: &["EMERGE-OBS Derivation", "emerge_obs_v1"],
+    },
+    AcceptanceChecklistAnchor {
+        item: 12,
+        anchors: &[
+            "Mutation Run Status",
+            "scheduled mutation still pending",
+            "dated green scheduled mutation run",
+        ],
+    },
+    AcceptanceChecklistAnchor {
+        item: 13,
+        anchors: &[
+            "Explicit Non-Certification Statement",
+            "not full-project certification",
+            "not Phase 4 entry",
+            "not `FIRST-PROOF-CERT`",
+        ],
+    },
+];
+
 fn acceptance_checklist_anchor_errors(
     report: &str,
     anchors: &[AcceptanceChecklistAnchor],
@@ -4906,6 +5031,43 @@ fn acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors() {
 }
 
 #[test]
+fn acceptance_artifact_0025_maps_spec_section_7_items_to_report_anchors() {
+    let mut errors = acceptance_checklist_anchor_errors(
+        ACCEPTANCE_0025_REPORT,
+        ACCEPTANCE_0025_CHECKLIST_ANCHORS,
+    );
+    errors.extend(mutation_pending_certification_wording_errors(
+        ACCEPTANCE_0025_REPORT,
+    ));
+    assert!(
+        errors.is_empty(),
+        "0025 acceptance artifact checklist anchors are missing or overstated: {errors:#?}"
+    );
+
+    let mut synthetic = ACCEPTANCE_0025_CHECKLIST_ANCHORS.to_vec();
+    synthetic.push(AcceptanceChecklistAnchor {
+        item: 99,
+        anchors: &["synthetic_0025_missing_acceptance_anchor"],
+    });
+    let synthetic_errors = acceptance_checklist_anchor_errors(ACCEPTANCE_0025_REPORT, &synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("item 99")),
+        "synthetic_0025_missing_acceptance_anchor must fail through the real checker"
+    );
+
+    let overstated_pending_report =
+        ACCEPTANCE_0025_REPORT.replace("Pending is not a pass", "ORD-LIFE-CERT readiness: clear");
+    assert!(
+        mutation_pending_certification_wording_errors(&overstated_pending_report)
+            .iter()
+            .any(|error| error.contains("certification wording")),
+        "synthetic pending mutation certification claim must fail"
+    );
+}
+
+#[test]
 fn workspace_source_classification_census_matches_production_tree() {
     let actual = production_sources()
         .into_iter()
@@ -5101,6 +5263,39 @@ fn state_kind_checksum_parity_errors(
         }
     }
 
+    errors
+}
+
+fn mutation_pending_certification_wording_errors(report: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let pending = report.contains("scheduled mutation still pending")
+        || report.contains("pending mutation status")
+        || report.contains("still pending");
+    if !pending {
+        return errors;
+    }
+    for forbidden in [
+        "ORD-LIFE-CERT readiness: clear",
+        "ORD-LIFE-CERT passed",
+        "Phase 4 entry approved",
+        "FIRST-PROOF-CERT passed",
+    ] {
+        if report.contains(forbidden) {
+            errors.push(format!(
+                "pending mutation status coexists with certification wording: {forbidden}"
+            ));
+        }
+    }
+    for required in [
+        "Pending is not a pass",
+        "dated green scheduled mutation run",
+    ] {
+        if !report.contains(required) {
+            errors.push(format!(
+                "pending mutation status lacks required caveat: {required}"
+            ));
+        }
+    }
     errors
 }
 

@@ -145,3 +145,32 @@ Extend the series with the 0025 guard + missing-anchor synthetic + the
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Added `reports/0025_ord_life_cert_scoped_acceptance.md` with the spec section 7
+evidence map, anchored report sections, current `emerge_obs_v1` derivation,
+honest scheduled-mutation pending status under the `ORD-HARD-190` rule, and an
+explicit non-certification statement. Added 0025 conformance-index rows in
+`docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` for executable
+meta-witness discipline, provenance-true perception taint, envelope fail-closed
+decisions, manifest fingerprint honesty, embodied carrier census and observation
+capture, TUI gate depth and `ControllerMode` decision, census/oracle closures,
+and CI evidence-honesty closure.
+
+Extended `crates/tracewake-core/tests/anti_regression_guards.rs` with the
+`acceptance_artifact_0025_maps_spec_section_7_items_to_report_anchors` parity
+guard, a missing-anchor synthetic, and the pending-mutation/certification-wording
+synthetic. The meta-lock registry now enrolls the 0025 artifact guard.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test emergence_ledger -- --nocapture`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. conformance-symbol grep sweep over the added row symbols
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`
