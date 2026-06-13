@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-004: Manifest fingerprint honesty — raw-bytes payload, frozen golden fingerprints, per-scope golden bytes
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-content` (`manifest.rs`, `load.rs`, `validate.rs`) and content test suites; no core/tui code.
@@ -155,3 +155,46 @@ tautology.
 
 1. `cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Files changed:
+
+- `crates/tracewake-content/src/manifest.rs`
+- `crates/tracewake-content/src/load.rs`
+- `crates/tracewake-content/src/validate.rs`
+- `crates/tracewake-content/tests/fixtures_load.rs`
+- `crates/tracewake-content/tests/golden_fixtures_run.rs`
+- `crates/tracewake-content/tests/goldens/phase3a_sleep_eat_work_001.serialized`
+
+Decisions:
+
+- Redefined the content manifest fingerprint payload to hash ordered raw loaded source files as `(path, bytes)` entries, covering the primary fixture bytes and secondary-file bytes.
+- Added a frozen `fixture_id -> twf1-...` table for every committed fixture, plus a synthetic mismatch negative proving the comparison seam fails closed.
+- Added secondary-file mutation and raw-primary-byte-with-identical-parsed-struct repricing negatives.
+- Replaced the tautological perturbation assertion with Phase-1, Phase-2A, and Phase-3A serialized golden byte pins. The Phase-3A pin lives in a committed golden text file so source-token guards do not falsely match serialized hex payloads.
+
+Deviations: none.
+
+Enumerated dispositions:
+
+- Every committed fixture fingerprint: completed via frozen table and mismatch negative.
+- Secondary file byte mutation repricing: completed.
+- Raw primary byte difference with identical parsed fixture repricing: completed.
+- Per-scope serialization golden bytes: completed for Phase 1, Phase 2A, and Phase 3A.
+- Tautological perturbation assert: deleted.
+- Deferred/dropped members: none.
+
+Verification:
+
+- `cargo test -p tracewake-content --test golden_fixtures_run fixture_fingerprints_match_frozen_goldens`
+- `cargo test -p tracewake-content --test fixtures_load fixture_fingerprint_reprices`
+- `cargo test -p tracewake-content validate::tests::fixture_serialization_golden_bytes_are_pinned_001 --lib`
+- `cargo test -p tracewake-core --test hidden_truth_gates epistemic_confidence_paths_do_not_use_raw_floats_or_hash_ordering`
+- `cargo test -p tracewake-content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

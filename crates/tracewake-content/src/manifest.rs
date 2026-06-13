@@ -18,13 +18,14 @@ impl ContentManifest {
         fixture_id: FixtureId,
         schema_version: SchemaVersion,
         content_version: ContentVersion,
-        mut canonical_paths: Vec<String>,
-        canonical_payload: &[u8],
+        mut source_files: Vec<(String, Vec<u8>)>,
     ) -> Self {
-        canonical_paths.sort();
-        let mut fingerprint_input = canonical_paths.join("\n").into_bytes();
-        fingerprint_input.extend_from_slice(b"\n--payload--\n");
-        fingerprint_input.extend_from_slice(canonical_payload);
+        source_files.sort_by(|left, right| left.0.cmp(&right.0));
+        let canonical_paths = source_files
+            .iter()
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
+        let fingerprint_input = fingerprint_payload(&source_files);
         Self {
             manifest_id,
             fixture_id,
@@ -36,6 +37,18 @@ impl ContentManifest {
             content_fingerprint: stable_fingerprint(&fingerprint_input),
         }
     }
+}
+
+fn fingerprint_payload(source_files: &[(String, Vec<u8>)]) -> Vec<u8> {
+    let mut payload = Vec::new();
+    for (path, bytes) in source_files {
+        payload.extend_from_slice(b"--path--\n");
+        payload.extend_from_slice(path.as_bytes());
+        payload.extend_from_slice(b"\n--bytes--\n");
+        payload.extend_from_slice(bytes);
+        payload.extend_from_slice(b"\n");
+    }
+    payload
 }
 
 pub fn stable_fingerprint(bytes: &[u8]) -> String {
@@ -58,8 +71,10 @@ mod tests {
             FixtureId::new("strongbox_001").unwrap(),
             SchemaVersion::new("schema_v1").unwrap(),
             ContentVersion::new("content_v1").unwrap(),
-            vec!["z.fixture".to_string(), "a.fixture".to_string()],
-            b"payload",
+            vec![
+                ("z.fixture".to_string(), b"z payload".to_vec()),
+                ("a.fixture".to_string(), b"a payload".to_vec()),
+            ],
         );
 
         assert_eq!(manifest.fixture_id.as_str(), "strongbox_001");
@@ -69,5 +84,25 @@ mod tests {
         assert!(manifest.actor_roster.is_empty());
         assert!(manifest.no_human_day_windows.is_empty());
         assert!(manifest.content_fingerprint.starts_with("twf1-"));
+    }
+
+    #[test]
+    fn manifest_fingerprint_reprices_raw_file_bytes() {
+        let first = ContentManifest::new(
+            ContentManifestId::new("manifest_strongbox").unwrap(),
+            FixtureId::new("strongbox_001").unwrap(),
+            SchemaVersion::new("schema_v1").unwrap(),
+            ContentVersion::new("content_v1").unwrap(),
+            vec![("fixture.twf".to_string(), b"payload".to_vec())],
+        );
+        let second = ContentManifest::new(
+            ContentManifestId::new("manifest_strongbox").unwrap(),
+            FixtureId::new("strongbox_001").unwrap(),
+            SchemaVersion::new("schema_v1").unwrap(),
+            ContentVersion::new("content_v1").unwrap(),
+            vec![("fixture.twf".to_string(), b"payload\n".to_vec())],
+        );
+
+        assert_ne!(first.content_fingerprint, second.content_fingerprint);
     }
 }
