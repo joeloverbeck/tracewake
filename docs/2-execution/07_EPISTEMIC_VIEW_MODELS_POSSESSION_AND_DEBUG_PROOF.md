@@ -96,6 +96,10 @@ The implementation must store these fields separately. A display string is not a
 
 ## Epistemic certification gate `EPI-CERT`
 
+`EPI-CERT` is a phase-certification artifact label from the execution
+sequence. It consumes canonical gate evidence; it is not a new canonical gate
+code beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
+
 `EPI-CERT` passes only when:
 
 1. Observations, beliefs, contradictions, memories, records, and notebooks carry provenance.

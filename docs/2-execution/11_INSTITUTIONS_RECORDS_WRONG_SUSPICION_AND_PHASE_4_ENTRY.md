@@ -18,6 +18,10 @@ This document owns the entry criteria and execution contract for institutions, h
 
 ## Entry rule
 
+`PHASE-4-ENTRY` is a phase-certification artifact label for this entry
+contract. It composes the listed prerequisites; it is not a new canonical gate
+code beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
+
 Phase 4 may not proceed until these gates pass:
 
 - `P0-CERT`;

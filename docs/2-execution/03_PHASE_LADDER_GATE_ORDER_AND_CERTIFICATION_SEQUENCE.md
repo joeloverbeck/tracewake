@@ -23,6 +23,10 @@ Execution order is proof order, not ambition order. A feature cannot proceed bec
 
 ## Certification sequence
 
+The sequence below uses phase-certification artifact labels. These labels
+compose the canonical gates and review artifacts from `00`; they are not new
+canonical gate codes unless `00` separately names them as such.
+
 | Sequence | Gate | Purpose | Entry from current repository |
 |---|---|---|---|
 | 0 | `P0-DOC` | Confirm replacement foundation, architecture, and execution authority are the live basis. | Must be true for every future spec. |

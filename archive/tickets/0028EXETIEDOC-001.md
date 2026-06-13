@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-001: Reconcile gate / certification / observation-obligation vocabulary in execution 00
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md` (a vocabulary-reconciliation note) plus light cross-reference cleanup in `02`, `03`, `06`, `07`, `08`, `09`, `10`, `11`. No crate/code, no fixtures.
@@ -90,3 +90,36 @@ Apply minimal cleanup in `02`, `03`, `06`, `07`, `08`, `09`, `10`, `11` so each 
 1. `grep -niE "observation obligation|canonical gate|phase-cert|informal" docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md` — confirms the four-class note landed.
 2. `for l in P0-CERT TFW PIPE NO-DIRECT NO-HUMAN POS-PARITY REPLAY FIXTURE DIAG EMERGE-OBS SPINE-CERT EPI-CERT ORD-LIFE-CERT FIRST-PROOF-CERT DATA-CERT FIXTURE-CERT DIAG-CERT PHASE-4-ENTRY SECOND-PROOF-ENTRY; do n=$(grep -rl "$l" docs/2-execution/ | wc -l); echo "$l: $n"; done` — every label resolves to ≥1 existing doc (no invented code).
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected and is not the verification boundary for an execution-doc edit; the boundary is the greps above plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added the four-class label taxonomy to
+  `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`: canonical gates,
+  observation obligations, phase-certification artifact labels, and informal
+  shorthand.
+- Added light cross-reference cleanup to execution docs `02`, `03`, `06`,
+  `07`, `08`, `09`, `10`, and `11` so first/primary label uses are visibly
+  classified without renaming labels or changing gate semantics.
+
+Verification:
+
+- `grep -niE "observation obligation|canonical gate|phase-cert|informal" docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`
+  confirmed the four-class note.
+- `for l in P0-CERT TFW PIPE NO-DIRECT NO-HUMAN POS-PARITY REPLAY FIXTURE DIAG EMERGE-OBS SPINE-CERT EPI-CERT ORD-LIFE-CERT FIRST-PROOF-CERT DATA-CERT FIXTURE-CERT DIAG-CERT PHASE-4-ENTRY SECOND-PROOF-ENTRY; do n=$(grep -rl "$l" docs/2-execution/ | wc -l); echo "$l: $n"; done`
+  returned at least one execution-doc hit for every named label.
+- Invariants alignment review: `EMERGE-OBS` remains a non-certifying
+  observation obligation, no new label code was coined, and no existing label
+  was renamed.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus invariants review.

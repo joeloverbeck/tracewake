@@ -216,6 +216,10 @@ Every certification artifact must include:
 
 ## Central conformance gate `DIAG-CERT`
 
+`DIAG-CERT` is a phase-certification artifact label from the execution
+sequence. It consumes the canonical diagnostic gate evidence; it is not a new
+canonical gate code beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
+
 No phase or feature gate passes unless `DIAG-CERT` passes. This prevents tests from becoming shallow smoke checks.
 
 `DIAG-CERT` passes only when failure reports are specific enough that a future implementation session can identify the layer to inspect without guessing.

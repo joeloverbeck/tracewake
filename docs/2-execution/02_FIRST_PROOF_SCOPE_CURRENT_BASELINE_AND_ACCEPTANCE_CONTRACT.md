@@ -33,6 +33,8 @@ The first-proof baseline remains open until `P0-CERT` proves that current implem
 ## The acceptance contract
 
 A first-proof candidate must satisfy all of these gates in one coherent artifact set.
+The local `Gate` headings below are first-proof acceptance-contract labels.
+They do not add canonical gate codes beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
 
 ### Gate `EVENT`
 

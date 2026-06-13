@@ -101,6 +101,10 @@ Each fixture contract must record:
 
 ## Golden certification gate `FIXTURE-CERT`
 
+`FIXTURE-CERT` is a phase-certification artifact label from the execution
+sequence. It consumes canonical gate evidence; it is not a new canonical gate
+code beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
+
 `FIXTURE-CERT` passes only when:
 
 1. Every live gate has at least one positive fixture and one negative fixture.

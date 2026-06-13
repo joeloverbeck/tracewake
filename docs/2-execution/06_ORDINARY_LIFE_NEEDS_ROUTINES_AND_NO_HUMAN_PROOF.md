@@ -136,6 +136,10 @@ The certification suite must include these fixture families, regardless of exact
 
 ## Certification gate `ORD-LIFE-CERT`
 
+`ORD-LIFE-CERT` is a phase-certification artifact label from the execution
+sequence. It consumes canonical gate evidence; it is not a new canonical gate
+code beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
+
 `ORD-LIFE-CERT` passes only when:
 
 1. Needs, intentions, routines, and stuck state are event-sourced or replay-reconstructable.
