@@ -1,6 +1,6 @@
 # 0027ARCTIEDOC-001: Land the observer-only emergence-evidence record and typed non-vacuous observability in architecture 13
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` (a new observer-only emergence-evidence artifact family + a typed-observability requirement). No crate/code, no fixtures.
@@ -84,3 +84,27 @@ Add to A13's required-artifact-families / review checklist: for every validation
 1. `grep -niE "observer-only|emergence|behavior.witness|path-under-test" docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` — confirms D1 + D7 landed.
 2. `git diff --unified=0 -- docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md | grep -E '^\+[^+].*(EMERGE-OBS|ratchet|\bcounters?\b|threshold|ledger row|pass status)'` — must show no mechanism-vocab match in the added lines (V3).
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected and is not the verification boundary for an architecture-doc edit; the boundary is the two greps above plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Implemented the A13 observer-only emergence-evidence artifact family and typed
+path-under-test observability requirement in
+`docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`.
+The added architecture prose keeps the emergence-evidence path retrospective,
+one-way, non-diegetic, and event-log-ancestry-bound, and adds invalid-pass
+conditions for leakage back into simulation behavior or artifact-only proof.
+
+The user-provided implementation goal was treated as owner approval to enact
+the tier-1 architecture amendment. No crate/code, fixture, execution,
+foundation, or reference changes were made.
+
+Verification:
+
+- `grep -niE "observer-only|emergence|behavior.witness|path-under-test" docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
+- `git diff --unified=0 -- docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md | grep -E '^\+[^+].*(EMERGE-OBS|ratchet|\bcounters?\b|threshold|ledger row|pass status)'` returned no matches.
+
+Deviation: the invalid-pass wording uses "review measurements" instead of
+"counters" so the architecture tier does not introduce execution-mechanism
+vocabulary while preserving the anti-steering rule.
