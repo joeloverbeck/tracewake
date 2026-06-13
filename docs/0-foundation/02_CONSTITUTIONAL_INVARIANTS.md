@@ -454,6 +454,10 @@ These invariants are added because implementation work on needs, routines, no-hu
 
 **INV-110 — LOD and summary processes must preserve the firewall.** Lower-detail simulation may summarize action and cognition, but summary events must retain enough causal and epistemic ancestry to explain what the actor, group, institution, or region could know and why later promoted simulation is not contaminated by hidden truth.
 
+### Emergence acceptance
+
+**INV-111 — Living-world acceptance requires observer-only emergence evidence.** Tracewake's living-world claim is not accepted merely by proving that ordinary-life phenomena are statically reachable. Acceptance must include replayable, observer-only evidence that unscripted ordinary-life phenomena actually arise from modeled causes in no-human or normal-controller runs. That evidence must be retrospective, explainable through event-log ancestry, and unable to feed simulation behavior, author outcomes, or set dramatic objectives.
+
 ## Enforcement reading
 
 Any implementation that produces plausible behavior by reading hidden truth has failed even if the test passes. Tests must be corrected when they reward:

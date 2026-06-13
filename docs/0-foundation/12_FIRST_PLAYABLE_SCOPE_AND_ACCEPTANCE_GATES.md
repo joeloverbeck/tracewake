@@ -362,6 +362,12 @@ Every runnable phase must include gates for:
 - LLM-disabled operation;
 - automated regression tests.
 
+## Emergence evidence as acceptance evidence
+
+First-playable proof must include a retrospective emergence-evidence record beside the mandatory gates. The record is accepted only as observer-only evidence that ordinary-life phenomena actually arose from modeled causes during no-human or normal-controller runs, with causal ancestry available through replay.
+
+This evidence does not certify by itself, does not create a reason for anything to happen, and does not license authored outcomes. It is a positive living-world demonstration that complements the no-script and reachability gates.
+
 ## No-human simulation gate
 
 Every runnable phase must run with no human controller bound.
