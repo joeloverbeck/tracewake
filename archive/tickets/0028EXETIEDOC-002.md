@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-002: First-proof acceptance package carries observer-only emergence evidence
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` (an acceptance-package obligation) plus cross-reference support in `03` and `09`. No crate/code, no fixtures.
@@ -78,3 +78,37 @@ Add (final wording at enactment): any first-proof acceptance packet that claims 
 1. `grep -niE "emergence|observer-only|EMERGE-OBS" docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` — confirms the acceptance-package obligation landed.
 2. `grep -niE "emergence|observer-only|artifact dependency" docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md` — confirms the `03` artifact-dependency (non-gate) cross-reference.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added the first-proof observer-only emergence-evidence artifact obligation to
+  `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md`.
+- Added `03` artifact-dependency wording that keeps `EMERGE-OBS` beside gates,
+  not inside the phase gate sequence.
+- Added `09` fixture-contract support language so relevant fixture families can
+  supply semantic support for retrospective `EMERGE-OBS` extraction without
+  making it a fixture pass threshold.
+
+Verification:
+
+- `grep -niE "emergence|observer-only|EMERGE-OBS" docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md`
+  resolved the acceptance-package obligation.
+- `grep -niE "emergence|observer-only|artifact dependency" docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md`
+  resolved the artifact-dependency cross-reference.
+- `grep -niE "emergence|observer-only|EMERGE-OBS|semantic support" docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`
+  resolved the fixture semantic-support note.
+- Invariants alignment review: `EMERGE-OBS` remains retrospective,
+  observer-only, non-certifying, and outside the blocking gate list.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus invariants review.

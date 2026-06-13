@@ -74,6 +74,15 @@ Replay from the fixture plus ordered events rebuilds authoritative projections a
 
 Golden fixtures include success and forbidden paths. At minimum, they must prove no hidden-truth planning, no direct dispatch, no human special case, no debug leakage, no quest/culprit data, no marker-only ordinary life, and no replay drift.
 
+## Observer-only emergence evidence artifact
+
+Any first-proof acceptance packet that claims living-world acceptance must also
+include the observer-only emergence-evidence artifact produced under
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` (`EMERGE-OBS`).
+This artifact is required beside the blocking gate list above, not inside it.
+It is retrospective, observer-only, event-log-ancestry-backed, and never a
+pass/fail threshold or certification gate.
+
 ## First-proof scenario families
 
 The first proof may use several fixtures, but acceptance is for the combined contract, not for individual fixtures in isolation.

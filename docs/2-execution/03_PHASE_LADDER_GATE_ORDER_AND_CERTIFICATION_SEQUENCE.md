@@ -63,6 +63,9 @@ Every gate artifact must include:
 
 - exact files and seams audited;
 - foundation and architecture dependencies;
+- artifact dependencies that are required beside gates, including the
+  observer-only `EMERGE-OBS` artifact where the verified corpus exercises
+  first-proof living-world acceptance;
 - positive fixtures and negative fixtures;
 - event/replay/projection evidence;
 - actor-known provenance evidence;
@@ -70,6 +73,11 @@ Every gate artifact must include:
 - failure diagnostics by responsible layer;
 - a statement that archived specs/tickets were used only as historical evidence;
 - a list of tolerated deferrals tied to named gates.
+
+Artifact dependencies are evidence package members, not additional phase gates.
+`EMERGE-OBS` remains an observer-only observation obligation under document
+`10`; it never becomes a phase gate or pass/fail threshold by appearing in a
+gate artifact.
 
 ## Gate failure handling
 

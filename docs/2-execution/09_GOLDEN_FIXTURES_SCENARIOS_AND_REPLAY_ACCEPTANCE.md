@@ -99,6 +99,12 @@ Each fixture contract must record:
 - forbidden shortcuts being tested;
 - gate names satisfied.
 
+Where a fixture family exercises first-proof living-world acceptance or the
+canonical no-human corpus, the fixture contract may supply semantic support for
+the observer-only `EMERGE-OBS` artifact by naming the events, projections, and
+phenomenon families available for retrospective extraction. That support is not
+a fixture pass threshold and does not convert `EMERGE-OBS` into a gate.
+
 ## Golden certification gate `FIXTURE-CERT`
 
 `FIXTURE-CERT` is a phase-certification artifact label from the execution
