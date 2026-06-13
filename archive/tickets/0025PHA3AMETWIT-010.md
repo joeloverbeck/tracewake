@@ -161,3 +161,32 @@ hand the artifact-wording enforcement spec to ticket `0025PHA3AMETWIT-011`.
 
 1. `cargo test -p tracewake-core --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Added top-level `permissions: contents: read` to CI and tightened every
+target-bearing cargo cache key to include `rust-toolchain.toml`,
+`**/Cargo.toml`, and `**/Cargo.lock`. Added
+`crates/tracewake-core/tests/ci_workflow_guards.rs`, a zero-dependency workflow
+guard covering verbatim gate commands, gate masking, top-level permissions,
+third-party action SHA pinning, target cache-key hygiene, and doc/workflow job
+parity, with synthetic negatives for each violation class.
+
+Recorded the current CI job set, `RUSTFLAGS: "-D warnings"`, locked CI test
+posture, `lock-layer-gates`, and the mutation phase-entry conversion rule in
+`docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+Registered the new guard target in the anti-regression meta-lock registry with
+a live witness count tied to its six synthetic negatives.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test ci_workflow_guards`
+2. `cargo test -p tracewake-core --test anti_regression_guards`
+3. `grep -n "RUSTFLAGS\|--locked\|lock-layer-gates\|dated green scheduled mutation run" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+4. `grep -n "rust-toolchain.toml\|permissions:\|hashFiles" .github/workflows/ci.yml`
+5. `cargo fmt --all --check`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `cargo build --workspace --all-targets --locked`
+8. `cargo test --workspace`

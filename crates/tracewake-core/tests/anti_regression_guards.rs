@@ -63,6 +63,7 @@ const ACCEPTANCE_0023_REPORT: &str =
 const ACCEPTANCE_0024_REPORT: &str =
     include_str!("../../../reports/0024_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
+const CI_WORKFLOW_GUARDS_RS: &str = include_str!("ci_workflow_guards.rs");
 
 struct BannedApiToken {
     token: &'static str,
@@ -1554,7 +1555,7 @@ const RECORDED_GENERATIVE_MULTI_SEED_CONTRIBUTORS: &[(&str, usize)] = &[
     ("work_completed", 4),
     ("work_failed", 3),
 ];
-const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 43;
+const META_LOCK_REGISTRY_MIN_ENTRIES: usize = 44;
 
 const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
     MetaLockRegistryEntry {
@@ -1580,6 +1581,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         negative_id: "synthetic_unledgered_non_empty_mutation_baseline",
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "ci_workflow_guards_cover_workflow_integrity",
+        negative_id: "synthetic_ci_workflow_guard_removed",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 6,
     },
     MetaLockRegistryEntry {
         lock_id: "generative_lock_two_sided_floor_ratchets",
@@ -2605,6 +2612,19 @@ fn meta_lock_live_witness_count(
             MUTANTS_BASELINE_LEDGER,
         )
         .len();
+    }
+    if entry.lock_id == "ci_workflow_guards_cover_workflow_integrity" {
+        return [
+            "synthetic masked gate step must fail",
+            "synthetic unpinned third-party action must fail",
+            "synthetic missing permissions must fail",
+            "synthetic target cache key without toolchain/manifests must fail",
+            "synthetic missing verbatim gate command must fail",
+            "synthetic undocumented workflow job must fail",
+        ]
+        .iter()
+        .filter(|needle| CI_WORKFLOW_GUARDS_RS.contains(**needle))
+        .count();
     }
     if entry.lock_id == "hidden_truth_context_discrimination_witness" {
         return hidden_truth_context_discrimination_witness_count();
