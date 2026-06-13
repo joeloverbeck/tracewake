@@ -1,6 +1,7 @@
 mod support;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 
 use support::{AgentSeed, PhysicalSeed};
 
@@ -8498,6 +8499,21 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
         errors.is_empty(),
         "generative duration-terminal fabricator ban failed: {errors:#?}"
     );
+    let support_sources = support_event_envelope_scan_sources();
+    let parity_errors =
+        support_directory_parity_errors(&support_sources, &support_directory_files());
+    assert!(
+        parity_errors.is_empty(),
+        "support EventEnvelope scan list must match tests/support directory: {parity_errors:#?}"
+    );
+    let mut synthetic_support_files = support_directory_files();
+    synthetic_support_files.insert("support/synthetic.rs".to_string());
+    assert!(
+        support_directory_parity_errors(&support_sources, &synthetic_support_files)
+            .iter()
+            .any(|error| error.contains("support/synthetic.rs")),
+        "synthetic third support file must fail support scan parity"
+    );
 
     let support_fabricator = [(
         "support/generative.rs",
@@ -8559,6 +8575,50 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
             .any(|error| error.contains("directly constructs")),
         "direct terminal envelope construction synthetic must fail"
     );
+}
+
+fn support_event_envelope_scan_sources() -> BTreeSet<String> {
+    [
+        ("support/generative.rs", SUPPORT_GENERATIVE_RS),
+        ("support/mod.rs", SUPPORT_MOD_RS),
+    ]
+    .into_iter()
+    .map(|(path, _)| path.to_string())
+    .collect()
+}
+
+fn support_directory_files() -> BTreeSet<String> {
+    let support_dir = format!("{}/tests/support", env!("CARGO_MANIFEST_DIR"));
+    fs::read_dir(support_dir)
+        .expect("tests/support directory is readable")
+        .map(|entry| {
+            let entry = entry.expect("tests/support entry is readable");
+            let file_name = entry
+                .file_name()
+                .into_string()
+                .expect("support file names are UTF-8");
+            format!("support/{file_name}")
+        })
+        .filter(|path| path.ends_with(".rs"))
+        .collect()
+}
+
+fn support_directory_parity_errors(
+    scanned_support_files: &BTreeSet<String>,
+    directory_files: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for missing in directory_files.difference(scanned_support_files) {
+        errors.push(format!(
+            "{missing} exists in tests/support but is absent from EventEnvelope scan list"
+        ));
+    }
+    for stale in scanned_support_files.difference(directory_files) {
+        errors.push(format!(
+            "{stale} is enrolled in EventEnvelope scan list but no longer exists"
+        ));
+    }
+    errors
 }
 
 fn generative_duration_terminal_fabricator_errors(sources: &[(&str, &str)]) -> Vec<String> {

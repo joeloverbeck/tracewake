@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-007: Core/TUI census-oracle closures — effect-complete positive census, truth-table policy oracle, support-directory parity
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — test guards only (`tracewake-tui` acceptance suite, `tracewake-core` epistemics test oracle and anti-regression guards); no production crate code.
@@ -149,3 +149,48 @@ directory contents (parity census), so new support files auto-enroll or fail.
 
 1. `cargo test -p tracewake-tui && cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+### Files Changed
+
+- `crates/tracewake-tui/tests/tui_acceptance.rs`
+- `crates/tracewake-core/src/epistemics/projection.rs`
+- `crates/tracewake-core/tests/anti_regression_guards.rs`
+
+### Decisions
+
+- Replaced the TUI positive census hand-picked effect filter with an
+  `ActionEffect` variant-derived census and an explicit per-effect decision
+  table.
+- Added a real accepted `close` positive; kept `Place` as a
+  rationale-bearing exemption because current TUI fixtures surface it only as a
+  disabled negative until an authored enabled target exists.
+- Replaced the projection generic expected-value oracle with a truth table over
+  `ActorKnownProjectionEmbodiedScope` and classified-record flags, independent
+  of `includes_in_embodied_context`.
+- Added support-directory parity for the EventEnvelope support-file scan list.
+
+### Acceptance Disposition
+
+- Effect-complete census: completed; variants are read from the enum source and
+  every variant requires either a positive or an exemption rationale.
+- Sleep-positive-removal negative: completed.
+- Unhandled-effect synthetic: completed with a synthetic
+  `SyntheticNewEffect` row.
+- Predicate-inversion synthetic: completed in the projection policy tests.
+- Support-directory parity synthetic: completed with a synthetic third support
+  file.
+- Deferred or dropped work: no production registry flag or new fixture was added.
+
+### Verification
+
+- `cargo test -p tracewake-tui`
+- `cargo test -p tracewake-core --lib epistemics::projection::tests`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

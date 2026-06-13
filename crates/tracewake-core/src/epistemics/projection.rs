@@ -1721,6 +1721,27 @@ mod tests {
     }
 
     #[test]
+    fn actor_known_projection_policy_truth_table_detects_predicate_inversion() {
+        let current_place = place_id("home_tomas");
+        let policies = actor_known_projection_policy_kinds();
+        let actor = actor_id("actor_tomas");
+        let projection = policy_behavior_projection(actor.clone());
+        let filter_context = KnowledgeContext::embodied(actor, SimTick::new(4));
+
+        let mismatches = inverted_embodied_predicate_mismatches(
+            &policies,
+            &projection,
+            &filter_context,
+            &current_place,
+        );
+
+        assert!(
+            !mismatches.is_empty(),
+            "synthetic inversion of includes_in_embodied_context must fail the policy oracle"
+        );
+    }
+
+    #[test]
     fn supersede_newest_by_subject_requires_subject_extractor() {
         let policy = ActorKnownProjectionKindPolicy {
             classification: ActorKnownProjectionPolicy::SupersedeNewestBySubject,
@@ -2080,11 +2101,61 @@ mod tests {
             .iter()
             .find(|classified| classified.record().kind() == kind)
             .is_some_and(|classified| {
-                policy.includes_in_embodied_context(
+                expected_embodied_presence_from_truth_table(
+                    policy.embodied_scope(),
                     classified.is_current_place_record(),
                     classified.is_latest_current_place_record(),
                 )
             })
+    }
+
+    fn expected_embodied_presence_from_truth_table(
+        embodied_scope: ActorKnownProjectionEmbodiedScope,
+        current_place_record: bool,
+        latest_current_place_record: bool,
+    ) -> bool {
+        match embodied_scope {
+            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly => {
+                latest_current_place_record
+            }
+            ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly => current_place_record,
+        }
+    }
+
+    fn inverted_embodied_predicate_mismatches(
+        policies: &BTreeMap<&'static str, ActorKnownProjectionKindPolicy>,
+        projection: &EpistemicProjection,
+        context: &KnowledgeContext,
+        current_place: &PlaceId,
+    ) -> Vec<String> {
+        let classified_records =
+            projection.classified_actor_known_records_for_context(context, current_place);
+        policies
+            .iter()
+            .filter_map(|(kind, policy)| {
+                let classified = classified_records
+                    .iter()
+                    .find(|classified| classified.record().kind() == *kind)?;
+                let expected = expected_embodied_presence_from_truth_table(
+                    policy.embodied_scope(),
+                    classified.is_current_place_record(),
+                    classified.is_latest_current_place_record(),
+                );
+                let inverted_actual = match policy.embodied_scope() {
+                    ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly => {
+                        !classified.is_latest_current_place_record()
+                    }
+                    ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly => {
+                        !classified.is_current_place_record()
+                    }
+                };
+                (expected != inverted_actual).then(|| {
+                    format!(
+                        "{kind} embodied inversion expected {expected} observed {inverted_actual}"
+                    )
+                })
+            })
+            .collect()
     }
 
     fn embodied_surface_contains(context: &KnowledgeContext, kind: &str) -> bool {
