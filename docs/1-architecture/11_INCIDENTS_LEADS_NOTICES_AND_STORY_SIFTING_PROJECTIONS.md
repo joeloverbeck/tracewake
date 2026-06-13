@@ -92,7 +92,16 @@ Story sifting may not:
 - reveal hidden truth in embodied mode;
 - mark quest completion;
 - distribute rewards;
-- create evidence.
+- create diegetic evidence, clues, proof, records, sanctions, rewards, or
+  action reasons.
+
+Story sifting may produce observer-only retrospective review evidence under
+the one-way artifact contract in
+`13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`: reproducible
+from event/projection input, carrying event-log ancestry, and structurally
+quarantined from cognition, schedulers, validators, and world mutation. That
+observer-only evidence is not a holder-known or institution-known artifact and
+does not weaken the ban on sifter-created in-world evidence.
 
 ### Missing-property first proof
 
@@ -112,7 +121,7 @@ Road threats, regional notices, bounties, expeditions, monsters, travel parties,
 
 ## Acceptance implications
 
-A test fails if an incident creates a clue, culprit, reward, or next action without events and holder-known provenance. A story summary that sounds correct cannot substitute for typed event and claim evidence.
+A test fails if an incident creates a clue, culprit, reward, or next action without events and holder-known provenance. A story summary that sounds correct cannot substitute for typed event and claim evidence. Observer-only review evidence may support acceptance only under document 13's one-way ancestry-bound contract; it may not become diegetic evidence, a validator input, a scheduler input, or an action reason.
 
 ## Anti-patterns
 

@@ -1,6 +1,6 @@
 # 0027ARCTIEDOC-002: Scope architecture 11 story-sifting "may not create evidence" to diegetic-only
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` (scope one bullet + the acceptance-implications wording). No crate/code, no fixtures.
@@ -75,3 +75,23 @@ Author the final wording at enactment; preserve the questless / no-director doct
 1. `grep -niE "observer-only|diegetic|create evidence" docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` — confirms the scoped wording landed.
 2. `git diff -- docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` — review that the scope correction preserves the forbidden list.
 3. `Documentation-only: the Rust pipeline is unaffected and is not the verification boundary for an architecture-doc edit; the boundary is the landing grep plus the no-director review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Scoped A11's story-sifting evidence prohibition so it still forbids
+sifter-created diegetic evidence, clues, proof, records, sanctions, rewards, and
+action reasons, while explicitly allowing observer-only retrospective review
+evidence under A13's one-way ancestry-bound artifact contract.
+
+The user-provided implementation goal was treated as owner approval to enact
+the tier-1 architecture amendment. No crate/code, fixture, execution,
+foundation, or reference changes were made.
+
+Verification:
+
+- `grep -niE "observer-only|diegetic|create evidence" docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`
+- `git diff -- docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` was reviewed for no-director preservation.
+
+Deviation: none.
