@@ -402,7 +402,6 @@ pub struct DebugEventSummary {
     pub event_type: String,
     pub actor_or_process: Option<String>,
     pub participants: Vec<String>,
-    pub checksum_after: Option<String>,
 }
 
 impl From<&EventEnvelope> for DebugEventSummary {
@@ -418,7 +417,6 @@ impl From<&EventEnvelope> for DebugEventSummary {
                 .map(ToString::to_string)
                 .or_else(|| event.process_id.as_ref().map(ToString::to_string)),
             participants: event.participants.clone(),
-            checksum_after: event.checksum_after.clone(),
         }
     }
 }

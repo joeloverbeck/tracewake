@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-003: Envelope read path fail-closed — duplicate-key rejection, decode-entry posture, checksum_after decision
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` kernel event log (`crates/tracewake-core/src/events/envelope.rs`, `crates/tracewake-core/src/events/log.rs`) and test guards.
@@ -163,3 +163,55 @@ the meta-lock registry.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Implemented in `crates/tracewake-core/src/events/envelope.rs`,
+`crates/tracewake-core/src/events/log.rs`, `crates/tracewake-core/src/events/mod.rs`,
+`crates/tracewake-core/src/view_models.rs`, and
+`crates/tracewake-core/tests/anti_regression_guards.rs`.
+
+- Added typed duplicate-key rejection to `EventEnvelope::deserialize_canonical`
+  via `EventEnvelopeParseError::DuplicateField`, with a direct decode negative
+  for a duplicated `content_manifest_id` field.
+- Chose the decode-entry posture of gating `deserialize_canonical` itself against
+  the event schema registry. Direct envelope decode now rejects
+  `event_schema_v999` with `EventEnvelopeParseError::UnsupportedSchemaVersion`;
+  the log read path maps that parse variant back to
+  `EventLogError::UnsupportedSchemaVersion` to preserve the existing log-layer
+  error contract.
+- Chose the `checksum_after` deletion posture for `EventEnvelope`. The envelope
+  struct and canonical serialization no longer carry the hollow field; the debug
+  event summary no longer mirrors it. The distinct `checksum_after` fields on
+  validation/debug report structs were left untouched.
+- Enrolled the duplicate-field, direct-decode unsupported-schema, and
+  envelope-checksum deletion proofs in `META_LOCK_REGISTRY` with measured witness
+  counts.
+
+Deviations:
+
+- The recorded-decision home is this archived ticket outcome. A separate kernel
+  conformance-row document was not present for this narrow envelope decision in
+  the live docs; the implementation evidence is carried by the named tests and
+  meta-lock registry rows.
+
+Enumerated-criterion dispositions:
+
+- Duplicate-key rejection: completed.
+- Decode-entry posture: completed with direct decode schema gating.
+- `checksum_after` decision: completed by deleting the envelope field and
+  repricing the canonical round trip.
+- Meta-lock enrollment: completed.
+- Deferred or dropped members: none.
+
+Verification:
+
+- `cargo test -p tracewake-core events::tests::envelope --lib` — passed (3).
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed (79).
+- `cargo test -p tracewake-core --test event_schema_replay_gates unsupported_event_schema_replay_rejected` — passed after preserving the log-layer error contract.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

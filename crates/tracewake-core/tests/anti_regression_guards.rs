@@ -1920,6 +1920,24 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "event_envelope_duplicate_fields_reject_loudly",
+        negative_id: "synthetic_duplicate_content_manifest_id_field",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "event_envelope_direct_decode_rejects_unsupported_schema_version",
+        negative_id: "synthetic_direct_decode_event_schema_v999",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "event_envelope_has_no_hollow_checksum_after_field",
+        negative_id: "synthetic_envelope_checksum_after_field",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "non_world_stream_cannot_change_physical_checksum",
         negative_id: "synthetic_non_world_physical_checksum_change",
         routing: MetaLockRouting::BehaviorAssertion,
@@ -2610,6 +2628,22 @@ fn meta_lock_live_witness_count(
         return usize::from(
             body_after_marker(EVENTS_ENVELOPE_RS, "const fn cause_required").contains("match self"),
         );
+    }
+    if entry.lock_id == "event_envelope_duplicate_fields_reject_loudly" {
+        return usize::from(EVENTS_ENVELOPE_RS.contains("DuplicateField"))
+            + usize::from(
+                EVENTS_MOD_RS.contains("fn envelope_deserialization_rejects_duplicate_fields"),
+            );
+    }
+    if entry.lock_id == "event_envelope_direct_decode_rejects_unsupported_schema_version" {
+        return usize::from(EVENTS_ENVELOPE_RS.contains("UnsupportedSchemaVersion"))
+            + usize::from(
+                EVENTS_MOD_RS
+                    .contains("fn envelope_direct_decode_rejects_unsupported_schema_version"),
+            );
+    }
+    if entry.lock_id == "event_envelope_has_no_hollow_checksum_after_field" {
+        return usize::from(!EVENTS_ENVELOPE_RS.contains("checksum_after"));
     }
     if entry.lock_id == "guard_014_perception_visibility_detects_display_label_binding_laundering" {
         return perception_visibility_prose_branch_violations(
