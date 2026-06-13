@@ -105,6 +105,12 @@ the observer-only `EMERGE-OBS` artifact by naming the events, projections, and
 phenomenon families available for retrospective extraction. That support is not
 a fixture pass threshold and does not convert `EMERGE-OBS` into a gate.
 
+A golden's byte stability is insufficient when the semantic single-charge
+ledger drifts, double-counts, or omits a duration terminal. Fixture acceptance
+must include semantic single-charge evidence for need/duration accounting when
+the fixture exercises ordinary-life ticks, passive windows, duration actions,
+or work completion/failure.
+
 ## Golden certification gate `FIXTURE-CERT`
 
 `FIXTURE-CERT` is a phase-certification artifact label from the execution

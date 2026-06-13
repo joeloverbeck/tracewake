@@ -36,6 +36,20 @@ passive window from charging the same actor/need/tick again. Duration
 `elapsed_ticks` payloads expand to per-tick ledger coverage before the
 single-charge check runs.
 
+## Single-owner derived-accounting seam
+
+The single-owner seam for need and duration deltas is the
+action-pipeline/ordinary-life boundary. It is the only layer permitted to emit
+need deltas, duration ticks, work completion/failure accounting, passive-window
+charges, or duration terminals.
+
+The scheduler, routine planner, candidate generation, projection, replay, and
+golden-output normalization may consume accounting evidence. They must not
+independently charge, reconcile, synthesize, or normalize the same tick/window.
+Every need delta, duration tick, work completion/failure, modeled wait, and
+passive window is charged exactly once by the owning seam and then replayed or
+reported from that event-backed ledger.
+
 ## Intentions
 
 Intentions are durable commitments. They prevent jitter and make action history explainable.

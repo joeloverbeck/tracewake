@@ -210,6 +210,12 @@ view. For each datum, the census records the carrier, holder, modeled capture
 boundary, provenance, freshness classification, source event/projection/context
 IDs, and whether a live-truth handle is absent from the generation path.
 
+Single-charge review artifacts must identify the owning seam that emitted each
+need/duration delta and prove that scheduler, routine planner, projection,
+replay, and golden normalization consumed rather than independently charged the
+same tick/window. A golden's byte stability is insufficient if the semantic
+single-charge ledger drifts, double-counts, or omits a duration terminal.
+
 ## Evidence status and fingerprint scope honesty
 
 Every review packet must label each evidence item by status:

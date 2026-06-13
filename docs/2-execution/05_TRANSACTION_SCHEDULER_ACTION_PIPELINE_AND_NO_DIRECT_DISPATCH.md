@@ -57,6 +57,8 @@ Schedulers may not:
 
 - emit movement, eating, sleeping, work, search, accusation, report, travel, sanction, or container actions from raw state;
 - turn hunger, fatigue, safety, routine label, work window, or fixture table directly into primitive actions;
+- mint need deltas, charge durations, supply proposal-side current-need values
+  as authority, or let routine labels charge time;
 - choose targets from true world location, true route graph, true workplace, true food source, true suspect, true record, or true clue;
 - treat marker actions as behavioral progress;
 - repair plans using debug reports or validator rejection truth;

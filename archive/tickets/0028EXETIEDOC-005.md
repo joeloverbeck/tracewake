@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-005: Single-owner derived-accounting proof across scheduler, pipeline, replay, and goldens
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` (single-owner derived-accounting proof) plus cross-reference in `05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` and a byte-stable-insufficient artifact rule in `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` + `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`. No crate/code, no fixtures.
@@ -81,3 +81,38 @@ Add an artifact rule (referencing the D8 standard in ticket 006): a golden's byt
 1. `grep -niE "single-owner|owning seam|may not.*charge|charge.*once" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` — confirms the single-owner seam proof.
 2. `grep -niE "byte.stable|semantic.*single.charge|double-count|duration terminal" docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` — confirms the byte-stable-insufficient rule.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the invariants-alignment review against architecture 04/05/09.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added the single-owner derived-accounting seam to
+  `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`.
+- Added scheduler/proposal non-ownership wording to
+  `docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`.
+- Added byte-stable-insufficient golden acceptance language to
+  `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`
+  and `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
+Verification:
+
+- `grep -niE "single-owner|owning seam|emit need|charge.*once|may not.*charge" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+  resolved the single-owner seam proof.
+- `grep -niE "mint need|charge durations|current-need values|routine labels charge" docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`
+  resolved the scheduler/proposal non-ownership wording.
+- `grep -niE "byte.stable|byte stability|semantic.*single.charge|double-count|duration terminal" docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  resolved the byte-stable-insufficient artifact rule.
+- Invariants alignment review: only the action-pipeline/ordinary-life boundary
+  emits need/duration deltas, and byte-stable goldens cannot certify drifted,
+  double-counted, or missing duration-terminal semantics.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus invariants review.
