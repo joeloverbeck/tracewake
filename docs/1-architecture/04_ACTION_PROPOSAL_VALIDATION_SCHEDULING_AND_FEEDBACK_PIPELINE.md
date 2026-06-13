@@ -151,6 +151,14 @@ Feedback becomes future knowledge only through events/projections:
 
 Long actions such as sleeping, work blocks, travel, procedures, hearings, searches, and regional operations require event-sourced starts/completions/interruptions and resource reservation semantics. A body-exclusive action cannot be overlapped by a second body-exclusive action without an interruption/resolution event.
 
+Derived need-deltas, elapsed-time effects, duration completion/interruption,
+and body-exclusive open/close state flow through one authoritative accounting
+seam. Schedulers, validators, action definitions, and projections may consume
+that seam, but they may not independently charge the same tick/window,
+duplicate terminal handling, or silently reconcile conflicting duration
+terminals. Stable replay is insufficient if two consumers causally charge the
+same actor/time window twice.
+
 ## Required diagnostics / replay / TUI hooks
 
 - Validation reports must be typed and replayable.

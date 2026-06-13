@@ -1,6 +1,6 @@
 # 0027ARCTIEDOC-005: Name the single-charge derived-accounting seam across A04/A05/A09 (+A00 pointer)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`, `05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`, `09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md`, and a one-line index pointer in `00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`. No crate/code, no fixtures.
@@ -77,3 +77,29 @@ D6 (report A04/A05/A09-D). Event-sourced causality and deterministic replay (fou
 1. `grep -niE "accounting seam|single.charge|double.charge|charge the same tick" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` — confirms D6 landed across the four files.
 2. `git diff -- docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` — review the A05 cognition-consumes-not-mints wording.
 3. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the invariants-alignment review and the A00 accounting-row cross-check.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Named the single-charge derived-accounting seam across A04, A05, and A09, and
+added the A00 navigation pointer. A04 now owns the authoritative accounting
+seam for derived need-deltas, elapsed-time effects, duration
+completion/interruption, and body-exclusive open/close state. A05 states that
+actor cognition consumes live event-sourced pressures and must not mint
+need-deltas, proposal-side need authority, routine-label time charges, or
+duration terminal reconciliation. A09 binds food, sleep, work, fatigue, hunger,
+wages, and local-economy effects to the same event-sourced accounting seam and
+duration lifecycle.
+
+The user-provided implementation goal was treated as owner approval to enact
+the tier-1 architecture amendment. No crate/code, fixture, execution,
+foundation, or reference changes were made.
+
+Verification:
+
+- `grep -niE "accounting seam|single.charge|double.charge|charge the same tick" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md`
+- `git diff -- docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` was reviewed for cognition-consumes-not-mints wording.
+- `rg -n "0017 tick-charge attribution authority|0017 shared open-duration authority|0022 shared need-delta emitter perimeter|single-regime need accounting" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+
+Deviation: none.

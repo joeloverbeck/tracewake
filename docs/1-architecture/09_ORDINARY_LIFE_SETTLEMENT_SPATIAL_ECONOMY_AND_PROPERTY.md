@@ -85,6 +85,14 @@ Work uses workplace facts, access, assignment, schedule/routine, output placehol
 
 First-slice economy is small: property, custody, service/work placeholders, food supply, access norms, simple value tokens, and records. It must be event-sourced and actor-known. Do not introduce market abstractions that erase provenance before the missing-property proof is stable.
 
+Food, sleep, work, fatigue, hunger, wages, and local-economy effects share the
+same event-sourced accounting seam and duration lifecycle. Ordinary-life
+systems may consume charged effects and lifecycle state, but they may not
+double-charge the same tick/window, mint independent need-deltas, or silently
+repair duplicate body-exclusive terminals. Byte-stable goldens do not prove the
+ordinary-life contract if two consumers causally charge the same actor/time
+window twice.
+
 ### Routines and ordinary schedules
 
 Routines provide recurring opportunities and expectations. They are defeasible. They cannot dispatch primitive actions. A routine window triggers the actor decision transaction.

@@ -68,6 +68,13 @@ Required context classes for ordinary life include:
 
 Needs are pressures, not scripts. Hunger, fatigue, safety, social obligation, duty, curiosity, fear, or role pressure may produce candidate goals. A need cannot name the true target. “Hungry” may produce “eat known food,” “search known surfaces,” “ask someone,” or “wait/replan.” It may not produce “walk to hidden pantry because food exists there.”
 
+Actor decision transactions consume live need pressures from event-sourced
+agent state. Candidate generation may explain why a pressure matters, but it
+must not mint need-deltas, supply proposal-side current-need values as
+authority, let routine labels charge time, or reconcile duration terminals.
+Need accounting and body-exclusive duration lifecycle effects belong to the
+single accounting seam owned at the action pipeline / ordinary-life boundary.
+
 ### Candidate generation
 
 Candidates must carry:
