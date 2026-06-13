@@ -91,6 +91,32 @@ must never appear in the phase ladder as gates.
 |---|---|
 | `EMERGE-OBS` | Emergence-evidence ledger over the canonical seeded no-human corpus, produced with every subsequent acceptance artifact that exercises that corpus; defined in `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`. Observer-only; never a simulation input; never a pass/fail threshold without a dedicated future spec. |
 
+## Label vocabulary reconciliation
+
+Execution documents use several label classes. A reader must not treat one
+class as another:
+
+- **Canonical gates** are the blocking execution gates named above:
+  `P0-CERT`, `TFW`, `PIPE`, `NO-DIRECT`, `NO-HUMAN`, `POS-PARITY`,
+  `REPLAY`, `FIXTURE`, and `DIAG`.
+- **Observation obligations** are required-to-produce evidence artifacts, not
+  gates. `EMERGE-OBS` is the current observation obligation: observer-only,
+  non-certifying, never a simulation input, and never a pass/fail threshold
+  without a dedicated future spec.
+- **Phase-certification artifact labels** name phase-scoped certification or
+  entry artifacts that compose canonical gates and review evidence without
+  becoming new canonical gates: `SPINE-CERT`, `EPI-CERT`, `ORD-LIFE-CERT`,
+  `FIRST-PROOF-CERT`, `DATA-CERT`, `FIXTURE-CERT`, `DIAG-CERT`,
+  `PHASE-4-ENTRY`, and `SECOND-PROOF-ENTRY`.
+- **Informal shorthand** is descriptive prose for a proof area or historical
+  phase. It is neither a gate nor an observation obligation unless this index
+  names it as one.
+
+An observation obligation must not be read as a blocking certification gate.
+A phase-certification artifact label must not be read as a new canonical gate.
+This reconciliation classifies existing labels only; it invents no code,
+renames no established label, and changes no gate semantics.
+
 ## Maintenance rule
 
 Execution documents may be radical about stale sequencing and conservative about authority. They may rename, merge, split, or retire old execution docs. They may not soften foundation or architecture to fit current implementation.

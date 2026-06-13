@@ -54,6 +54,43 @@ Every cognition input must say how the holder can know it:
 
 Routine-template presence is not an information channel; it may organize intent and method selection only after the holder-known context already contains an independently sourced observation, notice, record, memory, or explicit unknown.
 
+## Provenance sufficiency and fail-closed proof
+
+Every actor-known and institution-known action-relevant fact must have a
+fact-kind-appropriate provenance route. Missing, empty, dangling, wrong-kind,
+ambiguous, forbidden-source, or harness-fabricated provenance must fail closed
+on the real proposal/validation path under test. A table entry or fixture label
+is not enough.
+
+Harness-produced provenance must be real event, projection, or sealed-context
+ancestry. Decorative metadata, schema labels, and fixture-only annotations are
+forbidden substitutes for provenance when cognition, procedure, affordance
+selection, or validation feedback can depend on the fact.
+
+## Freshness classifier proof
+
+The same freshness classifier applies to actor-known and institution-known
+facts: only current modeled perception, contact, or search may be classified as
+`observed_now`. Older facts remain remembered, believed, stale,
+contradicted, hearsay, record-derived, or unknown according to their source.
+Each classified fact preserves source event, acquisition time, last-verified
+time, and provenance.
+
+Replay, possession, debug attach, display rendering, notebook display, and
+harness extraction must not restamp stale information as `observed_now`. A fact
+becomes current again only through a modeled perception/contact/search channel
+that creates the corresponding ancestry.
+
+## Actor-visible capture support
+
+Any actor-visible action, affordance, menu option, preflight, or embodied view
+must be formed from a holder-known capture made at a modeled observation,
+bind/preflight, perception, contact, or search boundary. The capture must carry
+the holder, captured facts, provenance, freshness classification, and source
+ancestry needed by downstream view/proposal evidence. Live truth may validate
+after proposal, but it must not be held as a live handle by view generation or
+affordance enumeration.
+
 ## Anti-contamination gate `TFW`
 
 Every future spec and audit must include a `TFW` section with these checks:

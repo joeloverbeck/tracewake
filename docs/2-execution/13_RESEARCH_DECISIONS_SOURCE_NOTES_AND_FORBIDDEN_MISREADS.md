@@ -55,6 +55,33 @@ Decision: Replayable simulation requires deterministic ordering, scoped random s
 
 Forbidden misread: a single global seed is enough.
 
+## Proof methodology, observability, and oracle limits
+
+Source anchors:
+
+- Stryker Mutator, "What is mutation testing?" — https://stryker-mutator.io/docs/
+- Segura et al., "A Survey on Metamorphic Testing" — https://eprints.whiterose.ac.uk/id/eprint/110335/1/segura16-tse.pdf
+- Barr et al., "The Oracle Problem in Software Testing: A Survey" — https://discovery.ucl.ac.uk/id/eprint/1471263/
+- Hypothesis documentation — https://hypothesis.readthedocs.io/en/latest/
+- ZIO Test, "Shrinking" — https://zio.dev/reference/test/property-testing/shrinking/
+- ApprovalTests.cpp documentation — https://approvaltestscpp.readthedocs.io/en/latest/
+- Antithesis, "Deterministic simulation testing" — https://antithesis.com/docs/resources/deterministic_simulation_testing/
+- OpenTelemetry semantic conventions for logs — https://opentelemetry.io/docs/specs/semconv/general/logs/
+- OpenTelemetry semantic conventions for events — https://opentelemetry.io/docs/specs/semconv/general/events/
+
+Decision: Mutation testing, metamorphic testing, property-based testing with
+shrinking, approval/golden testing, deterministic-simulation testing,
+structured observability, and the test-oracle problem sharpen execution proof
+discipline. Tracewake uses them to demand behavior-sensitive witnesses, live
+negatives, reproducible failure artifacts, typed event/proposal/context IDs,
+honest evidence status, and explicit fingerprint scope.
+
+Forbidden misread: mutation testing coverage is not certification by itself. A
+surviving mutant is not harmless without disposition. A golden's byte stability
+is not semantic truth. Deterministic replay is reproducibility, not correctness.
+Structured-log existence is not behavior evidence. Observer-only emergence
+evidence is not a pass/fail gate.
+
 ## BDI, HTN, and bounded planning
 
 Source anchors:

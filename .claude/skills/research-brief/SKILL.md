@@ -58,6 +58,7 @@ The point of authoring here is that Claude can read the repo directly — so the
 - the **authority-ordered read list** (`docs/0-foundation` → `1-architecture` → `2-execution` → `3-reference` → `4-specs`, then relevant `reports/`, `specs/`, `archive/`), each with a one-line reason it is load-bearing for *this* target;
 - the **relevant code seams** Session 2 should inspect (name files/modules, don't paste them — Session 2 reads them itself);
 - any **prior report / spec / archived work** that already bears on the target, so the brief frames the task as a delta rather than a cold start. When the target is one pass of a multi-block campaign or a follow-up to an earlier brief, name the predecessor `reports/<...>-research-brief.md` explicitly and state what it already delivered (see `references/brief-template.md` §1) so Session 2 does not re-commission completed work.
+- for a **cascade pass** (a lower tier realigned to an already-amended upstream tier — see `references/brief-template.md` §B *downward-cascade realignment*), establish the **amendment timeline** before drafting: confirm via `git log -1 -- <tier>` that the target tier predates the upstream amendment, and check whether it is *already partially aligned* (carries tokens, dependencies, or doctrine the upstream change introduced). If partially current, make "validate what is already present and close it with evidence — do not assume every routed item is a gap" an explicit settled intention.
 
 Launch Explore agents for broad surveys. Verify any repo claim in `research_target` or `reference_path` against the actual tree; flag contradictions prominently.
 
@@ -108,7 +109,7 @@ Report:
 - the two written files (brief + refreshed manifest) — the **upload bundle** for ChatGPT-Pro Session 2;
 - a one-line reminder that Session 2 is **locked / no-questions**: paste the brief, upload the manifest, and ChatGPT-Pro should produce the deliverable directly;
 - any labeled assumptions carried from an early exit, so the user can correct them before pasting.
-- if a predecessor brief's manifest was deleted or renamed this session (e.g. it shows in `git status` as `D`/`R`), note that the predecessor brief's own §1 manifest pointer is now dangling — its upload bundle no longer resolves — so the user can reconcile or re-run it; this is distinct from the new manifest you just wrote.
+- if a predecessor brief's manifest shows as deleted or renamed (`D`/`R`) in `git status` — whenever the deletion happened, not only this session — note that the predecessor brief's own §1 manifest pointer is now dangling: its upload bundle no longer resolves locally, so the user can reconcile (e.g. `git checkout <path>` to restore it) or re-run that brief. Clarify the provenance (deleted this session vs. pre-existing working-tree state, confirmable via `git cat-file -e HEAD:<path>`) so the user knows whether your run caused it; this is distinct from the new manifest you just wrote.
 
 This is an inline-completion deliverable — no next-steps menu. Surface any adjacent improvement spotted during exploration as a flagged note with a concrete trigger, not as scope creep.
 

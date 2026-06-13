@@ -103,6 +103,10 @@ Silent migration is forbidden.
 
 ## Data certification gate `DATA-CERT`
 
+`DATA-CERT` is a phase-certification artifact label from the execution
+sequence. It consumes canonical gate evidence; it is not a new canonical gate
+code beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
+
 `DATA-CERT` passes only when:
 
 1. Content validation rejects forbidden fields and outcome-chain structures.

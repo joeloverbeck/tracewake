@@ -36,6 +36,8 @@ Each triage item has:
 2. **rationale** — 1-2 sentences naming the invariant / codebase / contract grounds.
 3. a **conditional sub-field** — `modification scope` (for accept-with-modification) / `alternative path` (for reject) / `deferred_to` (for defer) / `verification source` (for refuted-by-verification). Absent for accept / already-resolved.
 
+**Rationale compression:** when every accept item maps 1:1 to a deliverable in a *single* template-structured spec written the same turn, the accept bucket may list one-line summaries and defer the per-item rationale to the spec's Deliverables table / Problem Statement, rather than duplicating it in the triage. The grounds must still land somewhere the user can review before approval — this allowance moves them into the deliverable, it does not drop them. (For multi-deliverable triages, keep the per-item rationale + finding→deliverable map per §Closing structure.)
+
 ### Verdict types
 
 | Verdict | Sub-field | Use when |
@@ -47,7 +49,7 @@ Each triage item has:
 | `already-resolved` | none | re-triage case: the item was actioned between the original pass and this one; cite the resolving artifact + date |
 | `refuted-by-verification` | `verification source` | the item's claimed gap or premise is disproved by codebase/contract verification at triage time; quote the file:line evidence |
 
-The six-verdict vocabulary is closed — don't coin new verdicts. A user-elected skip ("skip the polish for now") is a `defer` whose trigger is the user's batch-scoping choice. An item whose premise is refuted but carries a valid residual best folded into another finding uses the dominant verdict plus a rationale cross-reference to the absorbing item's ID.
+The six-verdict vocabulary is closed — don't coin new verdicts. When a source report ships its **own** verdict taxonomy (the tracewake deep-research reports recurringly do — e.g. `belongs-in-<tier>` / `already-owned-close` / `route-forward`), map each report label onto this closed set rather than carrying the report's labels into the triage: a `belongs-in-X` / actionable verdict → `accept` (or `accept-with-modification`); a `route-forward` → `defer` with the forward target as `deferred_to`; an `already-owned` / `no-change-needed` verdict → the **validated — no action** subsection (§No-source-report diagnostic case), **not** the `already-resolved` verdict, which is reserved for items actioned *between* triage passes. A user-elected skip ("skip the polish for now") is a `defer` whose trigger is the user's batch-scoping choice. An item whose premise is refuted but carries a valid residual best folded into another finding uses the dominant verdict plus a rationale cross-reference to the absorbing item's ID.
 
 ### Per-item identifiers
 
