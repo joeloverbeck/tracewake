@@ -69,6 +69,29 @@ available only as remembered belief carrying the original source timing and
 provenance. A consumer may not restamp an aged projection record as a current
 observation merely because it is selected for a later decision.
 
+### Provenance sufficiency
+
+An input to cognition, procedure selection, view-model affordance selection,
+lead interpretation, or LOD promotion is provenance-sufficient only when it
+cites at least one modeled acquisition or derivation route appropriate to the
+asserted fact kind. Valid routes include direct observation, contact/search
+events, absence observations, memory of a prior modeled source,
+speech/testimony, records or public artifacts, routine or role assignment,
+institutional-procedure state, LOD summary events with ancestry, or an explicit
+unknown/unverified placeholder.
+
+A source label, boolean, display sentence, fixture name, branch name, test name,
+debug comparison, validator detail, or raw physical-truth lookup is not
+provenance. Derived facts preserve lineage: the cited source must be enough to
+replay and debug why this holder, institution, or projection may use the fact
+now.
+
+Missing, empty, dangling, wrong-kind, ambiguous, or forbidden-source provenance
+fails closed before action-relevant use. The failure may be exposed to debug as
+a non-diegetic artifact, but it may not become holder-known or
+institution-known justification. Institution-known contexts are not exempt from
+this rule.
+
 ### Provenance classes
 
 Allowed provenance classes include:

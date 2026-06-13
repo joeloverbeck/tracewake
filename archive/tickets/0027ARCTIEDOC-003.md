@@ -1,6 +1,6 @@
 # 0027ARCTIEDOC-003: Consolidate provenance-sufficiency (A03) and the memory-freshness classifier (A06)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` (new provenance-sufficiency subsection) and `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md` (cross-link to it + the observed-now/remembered freshness classifier). No crate/code, no fixtures.
@@ -93,3 +93,27 @@ Add the freshness classifier to `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATI
 1. `grep -niE "sufficien|fails? closed" docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` — confirms D3 landed.
 2. `grep -niE "observed_now|remembered|stale|restamp" docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md` — confirms D4 landed.
 3. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the two landing greps plus the invariants-alignment review and the A00-0017 freshness cross-check.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Added a compact provenance-sufficiency contract to A03 and linked A06 to it,
+including the fail-closed rule for missing, empty, dangling, wrong-kind,
+ambiguous, or forbidden-source provenance. Added A06's own observed-now versus
+remembered/stale freshness classifier, including no-restamp behavior and parity
+across no-human cognition, embodied TUI view models, notebooks, and
+holder-known contexts.
+
+The user-provided implementation goal was treated as owner approval to enact
+the tier-1 architecture amendment. No crate/code, fixture, execution,
+foundation, or reference changes were made.
+
+Verification:
+
+- `grep -niE "sufficien|fails? closed" docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`
+- `grep -niE "sufficien|fails? closed" docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`
+- `grep -niE "observed_now|remembered|stale|restamp" docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`
+- `rg -n "0017 projection freshness rule|0017 provenance-class audit|aged_food_record_surfaces_as_remembered|guard_018_actor_known_facts_require_source_event_witness" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+
+Deviation: none.
