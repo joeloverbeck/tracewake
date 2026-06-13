@@ -125,3 +125,25 @@ that instead.
 1. `grep -n "fail_only\|staged" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
 2. `cargo test -p tracewake-content`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Recorded the canonical `no_human_day_001` recovery resolution in
+`docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` as
+`fail_only_empty_food_source`, with Mara's fail-only empty-food-source behavior
+called out as a fixture decision rather than an implicit proof relaxation. Also
+recorded the 0005 section 12 success-recovery variant as staged until Phase 3B
+routine/economy work makes public food services or neighbor/public pantry access
+first-class actor-known affordances, requiring either an explicit future recovery
+token/guard arm or a renewed staging record.
+
+Verification:
+
+1. `grep -n "fail_only\|staged" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+2. `cargo test -p tracewake-content`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
