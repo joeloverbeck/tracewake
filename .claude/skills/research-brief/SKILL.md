@@ -108,6 +108,7 @@ Report:
 - the two written files (brief + refreshed manifest) — the **upload bundle** for ChatGPT-Pro Session 2;
 - a one-line reminder that Session 2 is **locked / no-questions**: paste the brief, upload the manifest, and ChatGPT-Pro should produce the deliverable directly;
 - any labeled assumptions carried from an early exit, so the user can correct them before pasting.
+- if a predecessor brief's manifest was deleted or renamed this session (e.g. it shows in `git status` as `D`/`R`), note that the predecessor brief's own §1 manifest pointer is now dangling — its upload bundle no longer resolves — so the user can reconcile or re-run it; this is distinct from the new manifest you just wrote.
 
 This is an inline-completion deliverable — no next-steps menu. Surface any adjacent improvement spotted during exploration as a flagged note with a concrete trigger, not as scope creep.
 

@@ -155,6 +155,22 @@ the evidence-complete determination and author no file). For
 mode (iii), the brief's deliverable spec (§7) must define **both** artifact shapes (a Branch A / Branch B
 specification) so Session 2 commits to one without asking.
 
+**Analysis / recommendation report (not a numbered spec).** When the deliverable is a consolidated
+report of *recommended changes* to a doc tier rather than a ratified artifact — the recurring output
+of a **downward-cascade realignment** (§B) and of doc-overhaul passes generally — say so explicitly,
+and **do not** apply the numbered-spec numbering/ledger/epoch rules above (they are N/A; this is not a
+`docs/4-specs/` artifact). Specify: one consolidated downloadable markdown report, by filename (e.g.
+`reports/<tier>-alignment-research-report.md`), **new** (not a replacement). Direct Session 2 to
+deliver **substance + home, not ratified text** — for each finding, *what doctrine the target doc must
+own* (Session 2's own prose, at the right altitude for that tier) and *which file* it lands in (new
+section / addition / correction) — explicitly **without** final paste-ready wording or invented
+identifiers (`INV-###`, gate codes), which remain the repo's own reassess/amend process. The canonical
+report shape this campaign reuses: a **disposition table** (one row per finding → target doc → verdict
+→ one-line basis) → method/provenance ledger → per-finding sections (driver → current coverage →
+tier-fit verdict → recommendation) → a **forward-routing appendix** (findings belonging to tiers below
+the target, handed off to their later sessions) → open questions → references. Carry a labeled
+`assumption:` line if the report's filename or placement is not pinned in the interview.
+
 ### 8. Self-check
 
 A short acceptance checklist Session 2 runs against its own output before returning —
@@ -174,5 +190,5 @@ and `docs/README.md` are load-bearing for every type.
 | **new-spec** | `docs/1-architecture/**` for the touched subsystem; the relevant `docs/2-execution/**` phase + gates; `docs/4-specs/SPEC_LEDGER.md` and sibling specs; `tickets/README.md` if decomposition follows. |
 | **thorny-fix** | the architecture contract for the affected subsystem; the relevant code seams; any `reports/**` or `archive/reports/**` audit touching the defect; the execution doc whose gate the fix must still satisfy. |
 | **hardening / anti-contamination** | `docs/0-foundation/14_ACTOR_KNOWN_COGNITION_TRANSACTION_AND_TRUTH_FIREWALL.md` and the firewall/provenance architecture (`docs/1-architecture/03_*`); the subsystem's foundation + architecture docs; prior hardening specs in `archive/specs/**`; the validation/observability docs. |
-| **foundational / doc-overhaul** | the full tier being overhauled plus every tier above it (authority flows downward); `docs/README.md` for the authority table; the staleness/downstream report(s) in `reports/**`; cross-references in lower tiers that the overhaul will invalidate. **Top-tier (`0-foundation`) overhauls:** there is no tier above, so read the tiers *below* as **boundary-awareness** reads (mark them per §2) to run the tier-fit test — what genuinely belongs in the constitution vs. a lower tier — and route lower-tier-bound findings *forward* to later per-tier sessions rather than amending them here. |
+| **foundational / doc-overhaul** | the full tier being overhauled plus every tier above it (authority flows downward); `docs/README.md` for the authority table; the staleness/downstream report(s) in `reports/**`; cross-references in lower tiers that the overhaul will invalidate. **Top-tier (`0-foundation`) overhauls:** there is no tier above, so read the tiers *below* as **boundary-awareness** reads (mark them per §2) to run the tier-fit test — what genuinely belongs in the constitution vs. a lower tier — and route lower-tier-bound findings *forward* to later per-tier sessions rather than amending them here. **Downward-cascade realignment** (a *lower* tier re-aligned to an *already-amended* upstream tier — e.g. realigning `1-architecture/` after a ratified `0-foundation/` amendment, often one of several sibling per-tier sessions a routing memo schedules): read the amended upstream tier(s) in full as the **immutable governing reference** (the authority you measure against — never an amendment target), the realigned tier as the **amendment target**, and the tiers *below* it as **forward-routing** boundary-awareness (mark per §2) — flag and hand off findings that belong further down (their own later per-tier session) rather than encoding them in the target tier. This is the mirror of the top-tier case: there you route findings *down* out of the constitution; here the governing tier is *above* and you route surplus findings *further down*. Pair with the §7 *analysis / recommendation report* deliverable archetype. |
 | **other** | derive entirely from exploration; default to the universal two plus whatever the target names. |
