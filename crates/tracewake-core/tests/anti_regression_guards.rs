@@ -6874,7 +6874,11 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
     assert!(
         renamed_parameter_helper_violations
             .iter()
-            .any(|violation| violation.contains("label_blocks_visibility(place.display_label")),
+            .any(
+                |violation| violation.contains("label_blocks_visibility(place.display_label")
+                    && violation
+                        .contains("rule_family=line_calls_sensitive_helper_with_tainted_argument")
+            ),
         "synthetic renamed-parameter display-label helper laundering must fail"
     );
 
@@ -6893,14 +6897,58 @@ fn guard_014_perception_visibility_uses_typed_place_visibility() {
     assert!(
         payload_value_relay_violations
             .iter()
-            .any(|violation| violation.contains("label_value.contains")),
+            .any(|violation| violation.contains("label_value.contains")
+                && violation.contains("rule_family=branches_on_tainted_binding")),
         "synthetic payload-value relay branch must fail after the typed payload sink"
+    );
+
+    let provenance_only_helper_synthetic = r#"
+        fn gate(candidate: &str) -> bool {
+            candidate.starts_with("vault")
+        }
+
+        fn is_visible_exit_target(place: &PlaceState) -> bool {
+            let label = place.display_label.as_str();
+            !gate(label)
+        }
+    "#;
+    let provenance_only_violations =
+        perception_visibility_prose_branch_violations(provenance_only_helper_synthetic);
+    assert!(
+        provenance_only_violations
+            .iter()
+            .any(|violation| violation.contains("gate(label)")
+                && violation
+                    .contains("rule_family=line_calls_sensitive_helper_with_tainted_argument")),
+        "provenance-only helper laundering must fail through the tainted-argument rule"
+    );
+    assert!(
+        perception_visibility_prose_branch_violations_without_provenance(
+            provenance_only_helper_synthetic
+        )
+        .is_empty(),
+        "disabling provenance must make the provenance-only helper synthetic pass"
     );
 }
 
 fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
+    perception_visibility_prose_branch_violations_with_options(source, true)
+}
+
+fn perception_visibility_prose_branch_violations_without_provenance(source: &str) -> Vec<String> {
+    perception_visibility_prose_branch_violations_with_options(source, false)
+}
+
+fn perception_visibility_prose_branch_violations_with_options(
+    source: &str,
+    provenance_enabled: bool,
+) -> Vec<String> {
     let stripped = source_without_comments(source);
-    let sensitive_params = perception_sensitive_helper_params(&stripped);
+    let sensitive_params = if provenance_enabled {
+        perception_sensitive_helper_params(&stripped)
+    } else {
+        BTreeMap::new()
+    };
     let mut violations = Vec::new();
     let mut current_fn = "module";
     let mut tainted_bindings_by_fn = BTreeMap::<String, BTreeSet<String>>::new();
@@ -6920,7 +6968,8 @@ fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
         if perception_line_is_typed_label_payload_write(line) {
             continue;
         }
-        let branches_on_display_label = line.contains("display_label");
+        let branches_on_display_label =
+            line.contains("display_label") && !line_is_plain_perception_identity_alias(line);
         let branches_on_id_substring = branches_on_identity_substring(line);
         let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
             || line.contains(".to_lowercase()")
@@ -6932,13 +6981,21 @@ fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
             current_taints,
             &sensitive_params,
         );
-        if branches_on_display_label
-            || branches_on_id_substring
-            || branches_on_hidden_prose
-            || branches_on_tainted_binding
-            || launders_into_sensitive_helper
-        {
-            violations.push(format!("{current_fn}: {line}"));
+        let rule_family = if launders_into_sensitive_helper {
+            Some("line_calls_sensitive_helper_with_tainted_argument")
+        } else if branches_on_tainted_binding {
+            Some("branches_on_tainted_binding")
+        } else if branches_on_display_label {
+            Some("branches_on_display_label")
+        } else if branches_on_id_substring {
+            Some("branches_on_identity_substring")
+        } else if branches_on_hidden_prose {
+            Some("branches_on_hidden_prose")
+        } else {
+            None
+        };
+        if let Some(rule_family) = rule_family {
+            violations.push(format!("{current_fn}: {line} [rule_family={rule_family}]"));
         }
     }
     violations
@@ -6946,6 +7003,32 @@ fn perception_visibility_prose_branch_violations(source: &str) -> Vec<String> {
 
 fn perception_line_is_typed_label_payload_write(line: &str) -> bool {
     line.contains("PayloadField") && line.contains("display_label")
+}
+
+fn line_is_plain_perception_identity_alias(line: &str) -> bool {
+    let Some(let_index) = line.find("let ") else {
+        return false;
+    };
+    let rest = &line[let_index + "let ".len()..];
+    let Some((left, right)) = rest.split_once('=') else {
+        return false;
+    };
+    if let_binding_name(left).is_none() {
+        return false;
+    }
+    let rhs = right.trim().trim_end_matches(';').trim();
+    rhs_contains_perception_identity_source(rhs)
+        && ![
+            "==",
+            "!=",
+            ".contains(",
+            ".starts_with(",
+            ".ends_with(",
+            ".to_lowercase()",
+            ".to_ascii_lowercase()",
+        ]
+        .iter()
+        .any(|branch_token| rhs.contains(branch_token))
 }
 
 fn branches_on_identity_substring(line: &str) -> bool {
@@ -7012,29 +7095,79 @@ fn token_appears(line: &str, token: &str) -> bool {
 }
 
 fn perception_sensitive_helper_params(source: &str) -> BTreeMap<String, BTreeSet<String>> {
-    let mut sensitive = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut function_params = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut branching_params = BTreeMap::<String, BTreeSet<String>>::new();
     let mut current_fn = "module";
     let mut current_params = BTreeSet::<String>::new();
     for line in source.lines().map(str::trim) {
         if let Some(function_name) = function_name_from_line(line) {
             current_fn = function_name;
             current_params = function_param_names_from_line(line);
+            function_params.insert(current_fn.to_string(), current_params.clone());
         }
-        let branches_on_hidden_prose = line.contains(".contains(\"hidden\")")
-            || line.contains(".to_lowercase()")
-            || line.contains(".to_ascii_lowercase()");
-        if branches_on_hidden_prose {
-            for param in &current_params {
-                if token_appears(line, param) {
-                    sensitive
-                        .entry(current_fn.to_string())
-                        .or_default()
-                        .insert(param.clone());
-                }
+        if line_has_branching_string_discriminator(line) {
+            for param in current_params
+                .iter()
+                .filter(|param| token_appears(line, param))
+            {
+                branching_params
+                    .entry(current_fn.to_string())
+                    .or_default()
+                    .insert(param.clone());
+            }
+        }
+    }
+
+    let mut sensitive = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut current_fn = "module";
+    let mut tainted_bindings_by_fn = BTreeMap::<String, BTreeSet<String>>::new();
+    for line in source.lines().map(str::trim) {
+        if let Some(function_name) = function_name_from_line(line) {
+            current_fn = function_name;
+        }
+        let current_taints = tainted_bindings_by_fn
+            .entry(current_fn.to_string())
+            .or_default();
+        if let Some(alias) = perception_tainted_let_alias(line, current_taints) {
+            current_taints.insert(alias);
+        }
+        for (helper_name, helper_branching_params) in &branching_params {
+            let call_start = format!("{helper_name}(");
+            let Some(start) = line.find(&call_start) else {
+                continue;
+            };
+            let args = &line[start + call_start.len()..];
+            if rhs_contains_perception_identity_source(args)
+                || line_mentions_any_binding(args, current_taints)
+            {
+                let params = function_params
+                    .get(helper_name)
+                    .cloned()
+                    .unwrap_or_default();
+                let selected = if params.is_empty() {
+                    helper_branching_params.clone()
+                } else {
+                    helper_branching_params
+                        .intersection(&params)
+                        .cloned()
+                        .collect()
+                };
+                sensitive
+                    .entry(helper_name.clone())
+                    .or_default()
+                    .extend(selected);
             }
         }
     }
     sensitive
+}
+
+fn line_has_branching_string_discriminator(line: &str) -> bool {
+    line.contains(".contains(")
+        || line.contains(".starts_with(")
+        || line.contains(".ends_with(")
+        || line.contains(".to_lowercase()")
+        || line.contains(".to_ascii_lowercase()")
 }
 
 fn line_calls_sensitive_helper_with_tainted_argument(

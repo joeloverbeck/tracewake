@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-002: Provenance-keyed perception kill set — taint by argument derivation, not helper-body prose
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` test guards (`crates/tracewake-core/tests/anti_regression_guards.rs`); no production crate code.
@@ -151,3 +151,43 @@ shift a provenance proof onto a raw-token co-match.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Implemented in `crates/tracewake-core/tests/anti_regression_guards.rs`.
+
+- Reworked `perception_sensitive_helper_params` so helper sensitivity is derived
+  from tainted same-file call-site arguments plus branch-shaped helper parameters,
+  not from `.contains("hidden")` / lowercase tokens in the helper body.
+- Added rule-family attribution to
+  `perception_visibility_prose_branch_violations`; the kill-set assertions now
+  prove whether a failure came from
+  `line_calls_sensitive_helper_with_tainted_argument`,
+  `branches_on_tainted_binding`, or the raw branch families.
+- Added the spec-cited provenance-only `gate(label)` synthetic, where the helper
+  branches with `starts_with("vault")` and the call argument is a relayed
+  `display_label` alias. The synthetic fails through the tainted-argument rule
+  and passes when the provenance rule is disabled.
+- Narrowed the raw `display_label` branch detector so plain provenance aliases
+  are not themselves treated as violations, while direct comparisons and string
+  branch methods remain rejected.
+
+Deviations: none.
+
+Enumerated-criterion dispositions:
+
+- Provenance-only kill-set member: completed.
+- Existing renamed-parameter and payload-relay kill-set members: completed with
+  explicit rule-family assertions.
+- Provenance-rule-disabled discriminating negative: completed.
+- Deferred or dropped members: none.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed (79).
+- `cargo fmt --all --check` — passed after applying formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
