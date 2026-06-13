@@ -57,6 +57,25 @@ Belief stances include believes true, believes false, expects true, plausible, d
 
 Memory is not a perfect database. It is a modeled source of claims. Memories can decay, become stale, conflict, be misremembered, or be shaped by role/relationship. Memory still requires provenance: original observation, testimony, record, institution procedure, or prehistory seed.
 
+### Provenance and freshness
+
+Epistemic data that can feed cognition, procedures, leads, notebooks, or
+embodied view models must satisfy the provenance-sufficiency rule in
+`03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`: labels, booleans,
+display prose, debug comparisons, validator details, fixture names, and raw
+truth are not provenance.
+
+`observed_now` is limited to the holder's current modeled perception, contact,
+or search window. Older usable facts remain planning-available only as memory,
+belief, or stale information, preserving the source event, acquisition time,
+last verification, and provenance class. Selecting an old fact for a new
+decision does not restamp it as a current observation; neither validation truth
+nor debug comparison refreshes it.
+
+No-human cognition, embodied TUI view models, notebooks, and holder-known
+contexts use the same freshness classifier. Possession and UI surfaces do not
+receive a fresher epistemic path than autonomous actors.
+
 ### Records and artifacts
 
 Records, notices, ledgers, letters, marks, contracts, role rosters, posted warnings, and institutional forms are artifacts carrying typed claims. A record can be forged, stale, incomplete, lost, hidden, private, public, or disputed.

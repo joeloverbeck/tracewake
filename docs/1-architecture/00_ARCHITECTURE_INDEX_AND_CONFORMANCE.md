@@ -71,6 +71,12 @@ Every feature, subsystem, fixture, test, view model, and report must answer thes
 
 A feature that cannot answer these questions is not architecture-conformant.
 
+Single-charge derived accounting is owned as a compact seam across documents
+04, 05, and 09: action/duration accounting owns derived deltas and terminal
+lifecycle, actor cognition consumes pressures rather than minting them, and
+ordinary-life food/sleep/work/economy share that one event-sourced charge path.
+The hardening rows below remain conformance evidence for this seam.
+
 ## Phase 3A evented cognition conformance
 
 | Surface | Required allowed source | Required evidence |

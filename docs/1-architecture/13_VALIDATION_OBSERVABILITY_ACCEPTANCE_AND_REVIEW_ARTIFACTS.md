@@ -34,6 +34,38 @@ Acceptance may not rely on display strings, manual inspection alone, “looks ri
 | Debug report | Non-diegetic truth/belief/procedure comparison that cannot feed embodied surfaces |
 | Content validation report | Source tags, schema versions, forbidden content patterns, fixture provenance, no outcome scripts |
 | Anti-regression/static guard | Detection of scheduler shortcuts, string-as-proof, player privilege, debug leakage, quest ontology, LLM authority |
+| Observer-only emergence-evidence record | Retrospective review evidence, not world state or holder-known/institution-known context; source run, seed/random provenance where applicable, controller mode, phenomenon family, source event/causal-chain references, extraction time, review/projection version, and enough event-log ancestry to replay and explain the phenomenon |
+
+An observer-only emergence-evidence record is a review artifact over events and
+projections. It is not validation input, scheduler input, cognition input,
+authoring objective, holder-known context, institution-known context, or world
+state. Its path is one-way: authoritative simulation produces events and
+projections; an observer/review process may classify phenomenon families such
+as contradictions, replans, interruptions, stale-belief consequences,
+modeled-channel corrections, belief/truth divergence, wrong suspicion, and
+record effects; the resulting review artifact never feeds cognition,
+validation, scheduling, candidate generation, LOD promotion, event-spawning
+story sifting, or authoring objectives. It must not name required story beats,
+dramatic objectives, or numeric floors. Story sifting may contribute to this
+observer-only review path only under the incident/lead boundary in
+`11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`; it may not mint
+diegetic evidence.
+
+An emergence-evidence artifact is invalid if it is fabricated from debug output
+or fixture-only shortcuts instead of path-under-test ancestry, if its review
+measurements are used to steer simulation behavior, or if any row is
+untraceable to modeled causes.
+
+For every validation, anti-contamination, replay, projection, or diagnostic
+guarantee, the architecture surface must expose typed, path-under-test
+observability: the responsible layer, source event/proposal/context IDs,
+checked facts, behavior-witness fields, accepted/rejected stage, and enough
+ancestry to distinguish production-path behavior from fixture or harness
+fabrication. An artifact's existence, shape, count, checksum, or display text
+is insufficient unless paired with typed behavior evidence appropriate to the
+protected claim. Architecture defines this observability contract so execution
+can attach live negative and mutation/metamorphic checks; execution owns the
+procedures and acceptance mechanics.
 
 ### Acceptance gate groups
 
@@ -80,6 +112,13 @@ A test does not pass if:
 - a TUI why-not reveals validation/debug truth;
 - a debug panel shares embodied view data without quarantine;
 - a story/projection spawns events or drives decisions;
+- observer-only review evidence feeds cognition, validation, scheduling,
+  authoring, LOD promotion, event-spawning story sifting, or any other
+  simulation behavior;
+- emergence evidence lacks event-log ancestry to replay and explain the
+  reviewed phenomenon;
+- an acceptance artifact exists without typed, path-under-test behavior
+  evidence for the protected claim;
 - a display string is the only proof;
 - replay matches final state but decision ancestry is missing;
 - an LLM output is required to make the test pass.

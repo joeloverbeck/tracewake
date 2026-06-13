@@ -57,6 +57,7 @@ archive/specs/0022_PHASE_3A_BASELINE_TRIAGE_INTEGRITY_EMBODIED_DEBUG_QUARANTINE_
 archive/specs/0023_PHASE_3A_EMBODIED_LOCALITY_TRUTH_FIREWALL_META_LOCK_WITNESS_INTEGRITY_AND_GUARD_EVASION_CLOSURE_HARDENING_SPEC.md
 archive/specs/0024_PHASE_3A_CONTENT_SCHEMA_VERSION_GATE_META_WITNESS_RESIDUE_MUTATION_PERIMETER_DERIVATION_AND_TUI_TIME_DEBUG_QUARANTINE_HARDENING_SPEC.md
 archive/specs/0025_PHASE_3A_META_WITNESS_EXECUTION_PROOF_PERCEPTION_KILL_SET_PROVENANCE_ENVELOPE_READ_PATH_FAIL_CLOSED_AND_MANIFEST_FINGERPRINT_HONESTY_HARDENING_SPEC.md
+archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md
 archive/tickets/0002PHA1KERTUI-001.md
 archive/tickets/0002PHA1KERTUI-002.md
 archive/tickets/0002PHA1KERTUI-003.md
@@ -365,6 +366,7 @@ archive/tickets/0025PHA3AMETWIT-008.md
 archive/tickets/0025PHA3AMETWIT-009.md
 archive/tickets/0025PHA3AMETWIT-010.md
 archive/tickets/0025PHA3AMETWIT-011.md
+archive/tickets/0026FOUEMEEVI-001.md
 clippy.toml
 crates/tracewake-content/Cargo.toml
 crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs
@@ -600,7 +602,10 @@ reports/0022_ord_life_cert_scoped_acceptance.md
 reports/0023_ord_life_cert_scoped_acceptance.md
 reports/0024_ord_life_cert_scoped_acceptance.md
 reports/0025_ord_life_cert_scoped_acceptance.md
-reports/manifest_2026-06-09_461308a.txt
+reports/foundation-amendment-lower-tier-routing.md
+reports/foundation-amendment-research-brief.md
+reports/foundation-amendment-research-report.md
+reports/manifest_2026-06-13_f7adc01.txt
 reports/phase1-doc-code-alignment-research-brief.md
 reports/phase1-third-hardening-research-brief.md
 reports/phase2a-epistemic-substrate-hardening-research-brief.md

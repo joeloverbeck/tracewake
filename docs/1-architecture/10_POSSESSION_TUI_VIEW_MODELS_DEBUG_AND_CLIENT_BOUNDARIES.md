@@ -60,6 +60,23 @@ embodied_view_model:
 
 Every semantic action entry must have a stable semantic action ID. Menu positions are presentation-only.
 
+Embodied view models and semantic action entries consume holder-known context
+plus permitted projection records whose visible-place, carried-item,
+container, current-place, and relevant attribute facts were captured at a
+modeled observation, bind/preflight, or perception boundary. The TUI renders
+observed labels, attributes, and actor-known affordances from those captured
+records. It may not hold a live physical-state handle or re-read truth to
+freshen labels, carried-item attributes, routes, workplace availability, food
+sources, or hidden blockers.
+
+Authoritative validators may still reject a selected semantic action using
+truth, but rejection feedback must split actor-visible modeled feedback from
+debug-only detail. The same snapshot/capture rule applies to no-human parity
+surfaces and embodied possession: possession is not a knowledge upgrade. This
+rule consumes the sealed holder-known context defined by
+`03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` and does not decide
+whether a future possession boundary emits a modeled perception.
+
 ### Semantic action selection
 
 The TUI may parse commands such as selecting a semantic action, waiting, binding a different actor, viewing notebook, running no-human time controls, or opening debug panels. World-affecting commands produce ordinary proposals through the shared pipeline.
