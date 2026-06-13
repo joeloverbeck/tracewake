@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-008: Content-crate census closures — ID-recognizer parity and Location-embedded ID scanning
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-content` validation (`validate.rs`) and content tests; no core/tui code.
@@ -136,3 +136,41 @@ unrecognized-newtype synthetic.
 
 1. `cargo test -p tracewake-content`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+### Files Changed
+
+- `crates/tracewake-content/src/validate.rs`
+- `crates/tracewake-content/tests/fixtures_load.rs`
+
+### Decisions
+
+- Added `ItemSchema.location` and `FoodSupplySchema.location` to the ID scan
+  registration census because `Location` embeds stable actor/place/container
+  IDs.
+- Reused the existing `reject_text_by_policy` path through a new
+  `reject_location_ids_by_policy` helper for all `Location` variants.
+- Kept the ID-newtype recognizer separate from `Location` field discovery and
+  added parity against the `*Id` imports referenced by `schema.rs`.
+
+### Acceptance Disposition
+
+- ID-recognizer parity: completed; current schema-referenced `*Id` imports are
+  recognized, and a synthetic `SyntheticFutureId` import fails the parity check.
+- Location-embedded ID scanning: completed for item and food-supply locations.
+- Marker-in-location negative: completed through `load_fixture_package` with
+  `ValidationPhase::NoScript` and `authored_shortcut_effect` at the location ID
+  path.
+- Existing ID-scan negatives and content suites: passed.
+- Deferred or dropped work: none.
+
+### Verification
+
+- `cargo test -p tracewake-content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

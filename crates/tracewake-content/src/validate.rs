@@ -2017,6 +2017,11 @@ const SCANNED_ID_FIELDS: &[IdFieldScanRegistration] = &[
         rationale: "item identity is authored content and must not encode shortcut behavior",
     },
     IdFieldScanRegistration {
+        field: "ItemSchema.location",
+        policy: StringScanPolicy::Union,
+        rationale: "item location embeds stable IDs and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
         field: "ActionAffordanceSchema.action_id",
         policy: StringScanPolicy::Union,
         rationale: "action identities are authored content and must not encode shortcut behavior",
@@ -2065,6 +2070,11 @@ const SCANNED_ID_FIELDS: &[IdFieldScanRegistration] = &[
         field: "FoodSupplySchema.food_supply_id",
         policy: StringScanPolicy::Union,
         rationale: "food supply identity is authored content and must not encode shortcut behavior",
+    },
+    IdFieldScanRegistration {
+        field: "FoodSupplySchema.location",
+        policy: StringScanPolicy::Union,
+        rationale: "food supply location embeds stable IDs and must not encode shortcut behavior",
     },
     IdFieldScanRegistration {
         field: "KnownFoodSourceSchema.actor_id",
@@ -2199,6 +2209,12 @@ fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<Conten
             StringScanPolicy::Union,
             errors,
         );
+        reject_location_ids_by_policy(
+            &item.location,
+            format!("items[{index}].location"),
+            StringScanPolicy::Union,
+            errors,
+        );
     }
     for (index, affordance) in fixture.affordances.iter().enumerate() {
         reject_text_by_policy(
@@ -2271,6 +2287,12 @@ fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<Conten
             StringScanPolicy::Union,
             errors,
         );
+        reject_location_ids_by_policy(
+            &food.location,
+            format!("food_supplies[{index}].location"),
+            StringScanPolicy::Union,
+            errors,
+        );
     }
     for (index, edge) in fixture.known_food_sources.iter().enumerate() {
         reject_text_by_policy(
@@ -2337,6 +2359,34 @@ fn validate_id_shortcut_markers(fixture: &FixtureSchema, errors: &mut Vec<Conten
             StringScanPolicy::Union,
             errors,
         );
+    }
+}
+
+fn reject_location_ids_by_policy(
+    location: &Location,
+    path: String,
+    policy: StringScanPolicy,
+    errors: &mut Vec<ContentValidationError>,
+) {
+    match location {
+        Location::AtPlace(place_id) => reject_text_by_policy(
+            place_id.as_str(),
+            format!("{path}.place_id"),
+            policy,
+            errors,
+        ),
+        Location::InContainer(container_id) => reject_text_by_policy(
+            container_id.as_str(),
+            format!("{path}.container_id"),
+            policy,
+            errors,
+        ),
+        Location::CarriedBy(actor_id) => reject_text_by_policy(
+            actor_id.as_str(),
+            format!("{path}.actor_id"),
+            policy,
+            errors,
+        ),
     }
 }
 
@@ -3343,7 +3393,7 @@ mod tests {
     #[test]
     fn schema_id_fields_are_classified_for_script_scanning() {
         let schema = include_str!("schema.rs");
-        let discovered = discover_schema_fields(schema, is_schema_id_field_type);
+        let discovered = discover_schema_fields(schema, is_schema_id_or_location_field_type);
 
         let registered = SCANNED_ID_FIELDS
             .iter()
@@ -3364,7 +3414,7 @@ mod tests {
 
         let synthetic_schema = "pub struct SyntheticSchema {\n    pub synthetic_id: ItemId,\n}";
         let synthetic_discovered =
-            discover_schema_fields(synthetic_schema, is_schema_id_field_type);
+            discover_schema_fields(synthetic_schema, is_schema_id_or_location_field_type);
         let synthetic_errors = id_field_scan_census_errors(&synthetic_discovered, &registered);
         assert!(
             synthetic_errors
@@ -3372,6 +3422,40 @@ mod tests {
                 .any(|error| error.contains("SyntheticSchema.synthetic_id")),
             "synthetic ID field must fail the scan-registration census: {synthetic_errors:?}"
         );
+    }
+
+    #[test]
+    fn schema_id_type_recognizer_matches_schema_imports() {
+        let schema = include_str!("schema.rs");
+        let referenced = schema_referenced_id_newtypes(schema);
+        let recognized = referenced
+            .iter()
+            .filter(|id_type| is_schema_id_field_type(id_type))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(recognized, referenced);
+
+        let synthetic_schema = schema.replace(
+            "SchemaVersion, SleepAffordanceId, WorkplaceId,",
+            "SchemaVersion, SleepAffordanceId, SyntheticFutureId, WorkplaceId,",
+        );
+        let synthetic_referenced = schema_referenced_id_newtypes(&synthetic_schema);
+        let synthetic_recognized = synthetic_referenced
+            .iter()
+            .filter(|id_type| is_schema_id_field_type(id_type))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        assert!(
+            synthetic_referenced
+                .difference(&synthetic_recognized)
+                .any(|id_type| id_type == "SyntheticFutureId"),
+            "synthetic unrecognized schema ID newtype must fail recognizer parity"
+        );
+    }
+
+    fn is_schema_id_or_location_field_type(field_type: &str) -> bool {
+        field_type == "Location" || is_schema_id_field_type(field_type)
     }
 
     fn is_schema_id_field_type(field_type: &str) -> bool {
@@ -3393,7 +3477,26 @@ mod tests {
                 | "FoodSupplyId"
                 | "WorkplaceId"
                 | "RoutineTemplateId"
+                | "IntentionId"
+                | "RoutineExecutionId"
+                | "CandidateGoalId"
+                | "DecisionTraceId"
         )
+    }
+
+    fn schema_referenced_id_newtypes(schema: &str) -> BTreeSet<String> {
+        let ids_import = schema
+            .split("use tracewake_core::ids::{")
+            .nth(1)
+            .and_then(|tail| tail.split_once("};"))
+            .map(|(body, _)| body)
+            .unwrap_or("");
+        ids_import
+            .split(',')
+            .map(str::trim)
+            .filter(|name| name.ends_with("Id"))
+            .map(str::to_string)
+            .collect()
     }
 
     fn id_field_scan_census_errors(

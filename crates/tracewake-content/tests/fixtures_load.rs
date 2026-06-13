@@ -974,6 +974,32 @@ fn fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected() {
 }
 
 #[test]
+fn fixtures_load_location_embedded_marker_id_rejected_001() {
+    let mut fixture = phase3a_fixture();
+    fixture.food_supplies[0].location = Location::AtPlace(PlaceId::new("set_need_hunger").unwrap());
+    let bytes = serialize_fixture(&fixture);
+
+    let error = load_fixture_package(
+        ContentManifestId::new("manifest_location_marker_id").unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: "fixtures/location_marker_id.twf".to_string(),
+            bytes,
+        }],
+    )
+    .unwrap_err();
+
+    let LoadError::Validation(failure) = error else {
+        panic!("location-embedded shortcut marker must fail validation, got {error:?}");
+    };
+    assert!(failure.report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.code == "authored_shortcut_effect"
+            && error.path == "food_supplies[0].location.place_id"
+    }));
+}
+
+#[test]
 fn fixtures_load_phase3a_unknown_fields_are_rejected_by_default() {
     let raw = b"fixture|phase3a_unknown\nschema|schema_v1\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\nunknown_phase3a_section|actor_tomas|workshop";
     let report = validate_fixture_bytes(raw, &registry()).unwrap_err().report;
