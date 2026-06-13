@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-008: Execution proof-method research notes and forbidden misreads
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md` (a proof-methodology source-notes section + forbidden misreads). No crate/code, no fixtures.
@@ -73,3 +73,38 @@ Add forbidden misreads: mutation coverage is not certification by itself; a surv
 1. `grep -niE "mutation testing|metamorphic|approval|deterministic.simulation|observability|oracle" docs/2-execution/13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md` — confirms the proof-method source notes landed.
 2. `grep -niE "not certification|surviving mutant|byte stability|reproducibility, not correctness|not a pass/fail" docs/2-execution/13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md` — confirms the forbidden misreads.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the non-authority manual review.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added a proof-methodology source-notes section to
+  `docs/2-execution/13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md`
+  covering mutation testing, metamorphic testing, property-based testing with
+  shrinking, approval/golden testing, deterministic-simulation testing,
+  structured observability, and the test-oracle problem.
+- Added forbidden misreads stating that mutation coverage is not certification,
+  surviving mutants need disposition, byte-stable goldens are not semantic
+  truth, deterministic replay is reproducibility rather than correctness,
+  structured-log existence is not behavior evidence, and observer-only
+  emergence evidence is not a pass/fail gate.
+
+Verification:
+
+- `grep -niE "mutation testing|metamorphic|approval|golden|deterministic.simulation|observability|oracle" docs/2-execution/13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md`
+  resolved the proof-method source-notes section.
+- `grep -niE "not certification|surviving mutant|byte stability|reproducibility, not correctness|not behavior evidence|not a pass/fail" docs/2-execution/13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md`
+  resolved the forbidden-misreads language.
+- Non-authority review: the section records research support only and creates no
+  new gate, product doctrine, or implementation design.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus non-authority review.
