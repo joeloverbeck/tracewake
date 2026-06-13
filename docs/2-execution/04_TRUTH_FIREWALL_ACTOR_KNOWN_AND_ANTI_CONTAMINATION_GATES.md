@@ -81,6 +81,16 @@ harness extraction must not restamp stale information as `observed_now`. A fact
 becomes current again only through a modeled perception/contact/search channel
 that creates the corresponding ancestry.
 
+## Actor-visible capture support
+
+Any actor-visible action, affordance, menu option, preflight, or embodied view
+must be formed from a holder-known capture made at a modeled observation,
+bind/preflight, perception, contact, or search boundary. The capture must carry
+the holder, captured facts, provenance, freshness classification, and source
+ancestry needed by downstream view/proposal evidence. Live truth may validate
+after proposal, but it must not be held as a live handle by view generation or
+affordance enumeration.
+
 ## Anti-contamination gate `TFW`
 
 Every future spec and audit must include a `TFW` section with these checks:

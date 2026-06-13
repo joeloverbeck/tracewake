@@ -204,6 +204,12 @@ source event/provenance, and freshness classification for the checked facts.
 They must include a live negative where an old fact stays old despite a later
 replay, possession bind, debug attach, notebook display, or no-human review.
 
+Embodied carrier census artifacts must list every actor-visible datum exposed
+by an action menu, possession preflight, notebook, why-not surface, or embodied
+view. For each datum, the census records the carrier, holder, modeled capture
+boundary, provenance, freshness classification, source event/projection/context
+IDs, and whether a live-truth handle is absent from the generation path.
+
 ## Evidence status and fingerprint scope honesty
 
 Every review packet must label each evidence item by status:

@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-004: Observation-time snapshot proof, wallhack negatives, and embodied carrier census
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` (observation-time snapshot proof + wallhack negatives) plus support in `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` and `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` (embodied carrier census). No crate/code, no fixtures.
@@ -86,3 +86,40 @@ Record (per spec §7 R-E) that whether possession *bind* itself counts as modele
 1. `grep -niE "snapshot|carrier|observation.time|live.truth" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` — confirms the observation-time snapshot proof.
 2. `grep -niE "wallhack|true-but-unknown|sleep affordance|container content|routine opportunity" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` — confirms the wallhack negative classes.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the no-leak / invariants-alignment review against architecture 10.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added actor-visible capture support to
+  `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`.
+- Added observation-time snapshot proof, wallhack negatives, and possession-bind
+  perception neutrality to
+  `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`.
+- Added the embodied carrier census requirement to
+  `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
+Verification:
+
+- `grep -niE "snapshot|carrier|observation.time|captured.*boundary|live.truth handle" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  resolved the snapshot proof.
+- `grep -niE "wallhack|true-but-unknown|route|workplace|sleep affordance|container content|item location|routine opportunity" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  resolved the six wallhack negative classes.
+- `grep -niE "possession-bind|owner decision|bind-time perception|no perception|no freshening" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  resolved the F04 neutrality language.
+- `grep -niE "carrier census|actor-visible datum|capture boundary|live-truth handle" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+  resolved the carrier/capture support.
+- Invariants alignment review: actor-visible affordances are tied to captured
+  holder-known carriers, hidden truth stays out of view generation, and
+  possession remains cognition-neutral.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus no-leak / invariants review.

@@ -69,6 +69,32 @@ harness extraction is a fresher epistemic surface than autonomous actor
 cognition. Possession and UI rendering may not restamp stale knowledge by
 re-reading truth.
 
+## Observation-time snapshot proof
+
+For any actor-visible action, menu option, possession preflight, or embodied
+view, evidence must show the holder, the modeled observation/bind/preflight/
+perception boundary, the captured facts, their provenance and freshness, and
+the absence of live-truth handles in the view-generation path. The proof is
+capture sufficiency at formation time, not merely a final rendered-output check
+that hidden facts are absent.
+
+Wallhack negatives must fail when a datum is true in the world but not
+known/perceived by the holder. Required negative classes include:
+
+- true-but-unknown routes;
+- true-but-unknown workplaces;
+- true-but-unknown sleep affordances;
+- true-but-unknown container contents;
+- true-but-unknown item locations;
+- true-but-unknown routine opportunities.
+
+Possession-bind perception remains an owner decision. This document asserts
+neither policy: a future owner decision may choose bounded bind-time perception
+with modeled provenance/freshness, or no perception and no freshening. Either
+policy must be proved with the same snapshot and parity discipline, and any
+bind-time perception must be a modeled channel for the actor, never a human
+knowledge transfer.
+
 ## Debug surface
 
 Debug output may expose truth only if it is clearly non-diegetic and structurally quarantined. Debug output must not be reused as actor-visible prose, acceptance truth, planner input, institution input, or content authoring source.
