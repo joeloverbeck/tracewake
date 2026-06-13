@@ -2349,7 +2349,7 @@ fn meta_lock_census_exemption_errors(
     if !test_body_has_structural_scan_shape(body) {
         return errors;
     }
-    if rationale.contains("Historical acceptance-artifact anchor audit") {
+    if historical_acceptance_anchor_audit_exemption(test_name) {
         if !body.contains("acceptance_checklist_anchor_errors(") {
             errors.push(format!(
                 "historical-audit exemption {test_name} does not run the acceptance checklist anchor checker"
@@ -2374,6 +2374,14 @@ fn meta_lock_census_exemption_errors(
         ));
     }
     errors
+}
+
+fn historical_acceptance_anchor_audit_exemption(test_name: &str) -> bool {
+    matches!(
+        test_name,
+        "acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors"
+            | "acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors"
+    )
 }
 
 fn test_body_has_structural_scan_shape(body: &str) -> bool {
@@ -4580,6 +4588,18 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
         .iter()
         .any(|error| error.contains("covering lock_id")),
         "synthetic inline-scan exemption without covering lock_id must fail the broadened detector"
+    );
+
+    assert!(
+        meta_lock_census_exemption_errors(
+            "synthetic_inline_scan_exemption",
+            "Historical acceptance-artifact anchor audit; not a standing structural lock family.",
+            &BTreeSet::from(["synthetic_inline_scan_exemption"]),
+            &inline_scan_exemption_source,
+        )
+        .iter()
+        .any(|error| error.contains("covering lock_id")),
+        "historical-audit rationale text must not bypass covering-lock validation"
     );
 
     let anchorless_source = ANTI_REGRESSION_GUARDS_RS.replace(

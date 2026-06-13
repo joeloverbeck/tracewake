@@ -200,6 +200,8 @@ before its anchor is adjusted (Assumption item 6).
 
 Completed: 2026-06-12
 
+Outcome amended: 2026-06-13
+
 Implemented in `crates/tracewake-core/tests/anti_regression_guards.rs` and
 `docs/3-reference/01_DESIGN_RISK_REGISTER.md`.
 
@@ -241,7 +243,11 @@ Implemented in `crates/tracewake-core/tests/anti_regression_guards.rs` and
   derivation (`_count(`, `.filter(`+`.count()`, `.matches(`+`).count()`) and
   replaced the `"Historical acceptance-artifact anchor audit"` literal-rationale
   bypass with a structural assertion (the exempted body must run
-  `acceptance_checklist_anchor_errors`). Honest-failure triage under the
+  `acceptance_checklist_anchor_errors`). The 2026-06-13 amendment removed the
+  remaining prose-rationale conditional and replaced it with an explicit
+  test-name classifier for the two historical acceptance-artifact audit
+  exemptions; a synthetic inline-scan exemption carrying the historical rationale
+  text now still fails unless it names a covering `lock_id`. Honest-failure triage under the
   broadened detector: `workspace_dependency_posture_matches_allowlist` was a
   genuine parity census parked in an exemption — it is now enrolled in
   `META_LOCK_REGISTRY` (negative `synthetic_unlisted_workspace_dependency`,
@@ -257,6 +263,16 @@ Implemented in `crates/tracewake-core/tests/anti_regression_guards.rs` and
 - Extended R-29 with the *assertion-token-count witness* and *prose-keyed taint*
   shapes and R-28's Watch note with the *fingerprint-payload pitfall* and
   *positional guard* shapes (spec 0025 §6).
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards` — passed on
+  2026-06-13 after the literal-rationale bypass repair.
+- Grep-proof on 2026-06-13: no `matches("assert!")` /
+  `matches("assert_eq!")` witness-helper token counting, no
+  `shared_scan_function_witness_count`, no `behavior_assertion_live_witness_count`,
+  and no rationale-prose branch for the historical acceptance-artifact audit
+  exemption remain in `anti_regression_guards.rs`.
 
 Deviations: none. One witness anchor premise (`supersede_newest_by_subject` as a
 production token) was refuted during implementation and corrected to the real
