@@ -54,6 +54,21 @@ An embodied view model must be derived from the possessed actor's holder-known c
 
 It must not show hidden item locations, culprit truth, debug rejection details, true unseen route graph, true contents of closed/unknown containers, authoring-only flags, or player-only memory.
 
+## Freshness parity across embodied surfaces
+
+Possession, embodied TUI view models, notebooks, and no-human review surfaces
+use the same freshness classifier as actor-known and institution-known
+contexts in `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`.
+Only current modeled perception, contact, or search may be `observed_now`;
+older facts remain remembered, believed, stale, contradicted, hearsay,
+record-derived, or unknown with source event, acquisition time, last-verified
+time, and provenance preserved.
+
+No possessed view, notebook, debug attachment, replay, display refresh, or
+harness extraction is a fresher epistemic surface than autonomous actor
+cognition. Possession and UI rendering may not restamp stale knowledge by
+re-reading truth.
+
 ## Debug surface
 
 Debug output may expose truth only if it is clearly non-diegetic and structurally quarantined. Debug output must not be reused as actor-visible prose, acceptance truth, planner input, institution input, or content authoring source.

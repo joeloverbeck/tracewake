@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-003: Provenance-sufficiency fail-closed proof and one-classifier memory-freshness proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` (provenance-sufficiency proof + actor-known freshness proof), `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` (possession/view freshness parity), and `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` (review-artifact evidence requirements). No crate/code, no fixtures.
@@ -85,3 +85,41 @@ Add (referencing the D8 general standard in ticket 006): provenance-gate evidenc
 1. `grep -niE "fail.closed|wrong-kind|dangling|ambiguous|forbidden-source|harness-fabricated|institution-known" docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` — confirms the provenance-sufficiency subsection with all failure modes.
 2. `grep -niE "observed_now|restamp|freshness|last.verified" docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` — confirms the freshness classifier in `04` and parity in `07`.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the invariants-alignment review against architecture 03/06.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Added provenance-sufficiency fail-closed proof language to
+  `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`,
+  covering actor-known and institution-known action-relevant facts and the
+  required failure modes: missing, empty, dangling, wrong-kind, ambiguous,
+  forbidden-source, and harness-fabricated provenance.
+- Added the actor-known / institution-known freshness classifier to `04`.
+- Added possession/view/notebook/no-human freshness parity to
+  `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`.
+- Added provenance-gate and freshness review-artifact requirements to
+  `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
+Verification:
+
+- `grep -niE "fail.closed|wrong-kind|dangling|ambiguous|forbidden-source|harness-fabricated|institution-known" docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+  resolved the provenance-sufficiency subsection and named failure modes.
+- `grep -niE "observed_now|restamp|freshness|last.verified" docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  resolved the freshness classifier in `04` and parity in `07`.
+- `grep -niE "provenance.gate|wrong-kind|freshness review|last.verified|possession bind|no-human review" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  resolved the concrete review-artifact requirements.
+- Invariants alignment review: unbacked provenance now fails closed on the real
+  path under test, and stale facts cannot be restamped as `observed_now` by
+  replay, possession, debug, display, notebook, or harness extraction.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus invariants review.

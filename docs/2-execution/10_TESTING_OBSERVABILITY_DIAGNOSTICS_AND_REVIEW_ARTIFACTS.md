@@ -193,6 +193,17 @@ document `09` cannot pass on stable bytes alone when the semantic behavior
 witness is missing or contradictory. The mutation-only "pending is not a pass"
 rule below is an instance of this general evidence rule, not an exception to it.
 
+Provenance-gate review artifacts must identify the source event, projection, or
+sealed context for each action-relevant fact and include at least one live
+negative where missing, empty, dangling, wrong-kind, ambiguous,
+forbidden-source, or harness-fabricated provenance fails closed on the path
+under test. If no live negative can exist, the artifact must state why.
+
+Freshness review artifacts must show acquisition time, last-verified time,
+source event/provenance, and freshness classification for the checked facts.
+They must include a live negative where an old fact stays old despite a later
+replay, possession bind, debug attach, notebook display, or no-human review.
+
 ## Evidence status and fingerprint scope honesty
 
 Every review packet must label each evidence item by status:
