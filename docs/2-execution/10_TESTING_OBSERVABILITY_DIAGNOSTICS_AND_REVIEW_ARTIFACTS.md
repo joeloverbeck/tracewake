@@ -98,13 +98,16 @@ Debug output must be structurally separated from actor-visible output.
 ## Emergence-evidence ledger `EMERGE-OBS`
 
 `EMERGE-OBS` is an observation obligation, not a certification gate. It blocks
-nothing and passes/fails nothing. It exists so the emergence axis — whether
-ordinary causal life actually produces incidents, wrong beliefs, and recoveries
-worth investigating — accumulates measured data instead of remaining the only
-foundational goal with none. It operationalizes INV-040 and INV-098 under the
-artifact authority of
-`docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`.
-It amends no doctrine.
+nothing and passes/fails nothing. It exists so the emergence axis - whether
+ordinary causal life actually produces incidents, wrong beliefs, stale-record
+effects, wrong suspicions, and modeled recoveries worth investigating -
+accumulates measured data instead of remaining the only foundational goal with
+none. It realizes `INV-111`, the observer-only authoring boundary in
+`docs/0-foundation/09_NO_SCRIPTING_AUTHORING_SEEDS_AND_PREHISTORY.md`, the
+first-playable acceptance doctrine in
+`docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md`, and the
+observer-only emergence-evidence artifact contract in architecture 13
+(`docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`).
 
 Definition:
 
@@ -120,9 +123,15 @@ Definition:
   - intention switches with recorded causes;
   - stuck diagnostics by blocker category;
   - beliefs diverged from truth (debug-only truth/belief comparison,
-    INV-107-quarantined);
+    observer-only and non-diegetic);
   - diverged beliefs later corrected through modeled channels;
+  - wrong suspicions or stale-record consequences where the corpus produces
+    them through modeled channels;
   - distinct event kinds reached.
+- Row contract: every row records source run, seed/randomness provenance where
+  applicable, controller mode, phenomenon family, source events or causal-chain
+  references, extraction time, review/projection version, and replay ancestry
+  sufficient to replay and explain the phenomenon.
 - Output: a ledger section — per-seed rows plus corpus totals — in every
   subsequent phase or scoped acceptance artifact whose verification exercises
   the canonical no-human corpus.
@@ -131,13 +140,17 @@ Definition:
   `docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md`.
   Stuck/failure outcomes are counted per the no-human metrics constraint in
   `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`.
+- Extraction discipline: rows are extracted retrospectively from actual run
+  events and projections with event-log ancestry. They must not be fabricated
+  by fixtures, debug panels, display text, or harness insertion.
 
 Quarantine (hard rules):
 
 - The ledger is an observer-only projection. It must never become a simulation
-  input, scheduler input, content-selection input, or difficulty/pacing input.
-  A ledger that feeds back into the world is a boredom detector and violates
-  INV-060 and INV-087.
+  input, scheduler input, validator input, content-selection input,
+  seed/scenario/objective picker, LOD-promotion input, or difficulty/pacing
+  input. A ledger that feeds back into the world is a boredom detector and
+  violates the no-scripting and human-focus boundaries.
 - Ledger counters are not pass/fail thresholds. No CI gate, test, or
   certification artifact may fail on a ledger value without a future spec that
   justifies the specific threshold against INV-060 (no manufactured drama) and
@@ -146,9 +159,65 @@ Quarantine (hard rules):
   exist across phases, a spec may assert that canonical-corpus counters do not
   silently collapse to zero (a dead-world regression guard). Demanding more
   drama than baseline is never a valid ratchet direction.
+- Invalid-pass examples include: evidence feeding cognition, scheduling,
+  validation, authoring, or scenario choice; evidence lacking replay ancestry;
+  rows based only on debug truth or display text; rows with no source event or
+  causal-chain reference; and treating the observer-only ledger as a blocking
+  gate or numeric dramatic-quality threshold.
 
 `DIAG-CERT` interaction: none. `EMERGE-OBS` produces evidence; it certifies
 nothing and blocks nothing.
+
+## General anti-vacuity and behavior witnesses
+
+Every lock, gate, and proof obligation must identify at least one live negative
+that would fail if the protected shortcut were reintroduced, or state why no
+live negative can exist for that claim.
+
+Artifact-presence checks are insufficient on their own. Each protected claim
+must pair artifacts with a typed behavior witness from the path under test. A
+behavior witness identifies:
+
+- responsible layer;
+- source event, proposal, projection, or context IDs;
+- checked facts and their source status;
+- accepted or rejected stage;
+- replay/projection ancestry sufficient to distinguish production-path behavior
+  from fixture labels, harness fabrication, or display-only evidence.
+
+This standard applies across the truth firewall, provenance, freshness,
+possession, derived accounting, emergence observation, replay, fixture, and
+diagnostic surfaces. Provenance gates in document `04` cannot pass on schema
+shape, fixture labels, or decorative metadata alone. Golden fixtures in
+document `09` cannot pass on stable bytes alone when the semantic behavior
+witness is missing or contradictory. The mutation-only "pending is not a pass"
+rule below is an instance of this general evidence rule, not an exception to it.
+
+## Evidence status and fingerprint scope honesty
+
+Every review packet must label each evidence item by status:
+
+- `pass` or `fail` only where the packet actually certifies the checked claim;
+- `pending` where a required check has not yet produced certifying evidence;
+- `sampled` where evidence is representative but not exhaustive;
+- `observer-only` where evidence can inform review but cannot certify behavior;
+- `historical` where archive/spec evidence is context rather than current
+  certification.
+
+Every review packet must also label fingerprint scope when it cites a
+fingerprint or stable artifact:
+
+- raw bytes;
+- normalized serialization;
+- parsed semantic content;
+- command transcript;
+- run seed;
+- replay artifact.
+
+A fingerprint must not be cited as proof beyond its scope. Pending, sampled,
+observer-only, and historical evidence must never be silently counted as a
+pass. Byte stability is not semantic truth unless the relevant behavior
+witness, replay ancestry, and checked facts prove the semantic claim.
 
 ## Property and random testing
 

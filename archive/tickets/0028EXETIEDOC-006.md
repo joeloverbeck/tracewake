@@ -1,6 +1,6 @@
 # 0028EXETIEDOC-006: Execution 10 testing/observability/review-artifact amendments — EMERGE-OBS realignment, anti-vacuity standard, evidence honesty
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Large
 **Engine Changes**: Yes — doctrine edits to `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` (EMERGE-OBS mechanism realignment + a general anti-vacuity / behavior-witness standard + an evidence-status / fingerprint-scope honesty rule). No crate/code, no fixtures.
@@ -88,3 +88,45 @@ Add an evidence-honesty section: every review packet labels evidence by **status
 1. `grep -niE "INV-111|controller mode|phenomenon famil|extraction time|replay ancestry" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md && ! grep -q "amends no doctrine" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` — confirms D7 realignment landed and the stale line is gone.
 2. `grep -niE "live negative|behavior witness|evidence status|sampled|observer-only|fingerprint scope" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` — confirms D8 (anti-vacuity) + D9 (evidence honesty) landed.
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for an execution-doc edit is the greps above plus the non-certifying-preservation / invariants-alignment review against architecture 13.`
+
+## Outcome
+
+Completed: 2026-06-13
+
+Owner approval precondition: satisfied by the user's active `$ticket-series`
+goal to implement `tickets/0028EXETIEDOC*` against
+`specs/0028_EXECUTION*`.
+
+Changed:
+
+- Realigned `EMERGE-OBS` in
+  `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  to `INV-111`, foundation `09`/`12`, and architecture 13.
+- Added the observer-only emergence-evidence row contract: source run,
+  seed/randomness provenance, controller mode, phenomenon family, source events
+  or causal-chain references, extraction time, review/projection version, and
+  replay ancestry.
+- Added retrospective extraction discipline and invalid-pass examples that keep
+  `EMERGE-OBS` from feeding cognition, scheduling, validation, authoring, or
+  scenario choice.
+- Added the general anti-vacuity / behavior-witness standard and the evidence
+  status / fingerprint scope honesty rule.
+
+Verification:
+
+- `grep -niE "INV-111|architecture 13|controller mode|phenomenon famil|extraction time|replay ancestry" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  resolved the realigned references and artifact fields.
+- `grep -n "amends no doctrine" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  returned no matches.
+- `grep -niE "live negative|behavior witness|anti-vacuity|path-under-test" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  resolved the general anti-vacuity / behavior-witness standard.
+- `grep -niE "evidence status|sampled|observer-only|fingerprint scope|historical" docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  resolved the evidence-status and fingerprint-scope honesty rule.
+- Invariants alignment review: `EMERGE-OBS` remains observer-only and
+  non-certifying, no numeric dramatic-quality threshold was introduced, and no
+  blocking gate was created.
+
+Deviations:
+
+- None. The Rust gate pipeline was not run for this ticket because the accepted
+  verification boundary is documentation grep plus invariants review.
