@@ -157,6 +157,98 @@ impl KnowledgeProvenanceEntry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownCurrentPlaceFact {
+    place_id: PlaceId,
+    display_label: String,
+    source_key: String,
+}
+
+impl ActorKnownCurrentPlaceFact {
+    pub fn new(
+        place_id: PlaceId,
+        display_label: impl Into<String>,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            place_id,
+            display_label: display_label.into(),
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn place_id(&self) -> &PlaceId {
+        &self.place_id
+    }
+
+    pub fn display_label(&self) -> &str {
+        &self.display_label
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}:label={}:{}",
+            self.place_id.as_str(),
+            self.display_label,
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActorKnownCarriedItemFact {
+    item_id: ItemId,
+    source: Location,
+    portable: bool,
+    source_key: String,
+}
+
+impl ActorKnownCarriedItemFact {
+    pub fn new(
+        item_id: ItemId,
+        source: Location,
+        portable: bool,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            item_id,
+            source,
+            portable,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn item_id(&self) -> &ItemId {
+        &self.item_id
+    }
+
+    pub fn source(&self) -> &Location {
+        &self.source
+    }
+
+    pub fn portable(&self) -> bool {
+        self.portable
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+
+    fn canonical_key(&self) -> String {
+        format!(
+            "{}:{}:portable={}:{}",
+            self.item_id.as_str(),
+            location_key(&self.source),
+            self.portable,
+            self.source_key
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ActorKnownWorkplaceFact {
     workplace_id: WorkplaceId,
     place_id: PlaceId,
@@ -621,6 +713,8 @@ pub struct KnowledgeContext {
     holder_known_context_hash: HolderKnownContextHash,
     provenance_entries: Vec<KnowledgeProvenanceEntry>,
     actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+    actor_known_current_places: Vec<ActorKnownCurrentPlaceFact>,
+    actor_known_carried_items: Vec<ActorKnownCarriedItemFact>,
     actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
     actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
     actor_known_routes: Vec<ActorKnownRouteFact>,
@@ -708,6 +802,39 @@ impl KnowledgeContext {
         actor_known_items: Vec<ActorKnownItemFact>,
         actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
     ) -> Self {
+        Self::embodied_at_frontier_with_all_facts_and_observations(
+            viewer_actor_id,
+            current_tick,
+            event_frontier,
+            actor_known_workplaces,
+            Vec::new(),
+            Vec::new(),
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn embodied_at_frontier_with_all_facts_and_observations(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        actor_known_current_places: Vec<ActorKnownCurrentPlaceFact>,
+        actor_known_carried_items: Vec<ActorKnownCarriedItemFact>,
+        actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        actor_known_routes: Vec<ActorKnownRouteFact>,
+        actor_known_doors: Vec<ActorKnownDoorFact>,
+        actor_known_containers: Vec<ActorKnownContainerFact>,
+        actor_known_items: Vec<ActorKnownItemFact>,
+        actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
+    ) -> Self {
         let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
         Self::seal(
             viewer_actor_id.clone(),
@@ -723,6 +850,8 @@ impl KnowledgeContext {
             false,
             baseline_embodied_provenance(),
             actor_known_workplaces,
+            actor_known_current_places,
+            actor_known_carried_items,
             actor_known_food_sources,
             actor_known_sleep_affordances,
             actor_known_routes,
@@ -748,6 +877,8 @@ impl KnowledgeContext {
         debug_non_diegetic: bool,
         mut provenance_entries: Vec<KnowledgeProvenanceEntry>,
         mut actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        mut actor_known_current_places: Vec<ActorKnownCurrentPlaceFact>,
+        mut actor_known_carried_items: Vec<ActorKnownCarriedItemFact>,
         mut actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
         mut actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
         mut actor_known_routes: Vec<ActorKnownRouteFact>,
@@ -760,6 +891,10 @@ impl KnowledgeContext {
         provenance_entries.dedup();
         actor_known_workplaces.sort();
         actor_known_workplaces.dedup();
+        actor_known_current_places.sort();
+        actor_known_current_places.dedup();
+        actor_known_carried_items.sort();
+        actor_known_carried_items.dedup();
         actor_known_food_sources.sort();
         actor_known_food_sources.dedup();
         actor_known_sleep_affordances.sort();
@@ -801,6 +936,8 @@ impl KnowledgeContext {
             debug_non_diegetic,
             &provenance_entries,
             &actor_known_workplaces,
+            &actor_known_current_places,
+            &actor_known_carried_items,
             &actor_known_food_sources,
             &actor_known_sleep_affordances,
             &actor_known_routes,
@@ -830,6 +967,8 @@ impl KnowledgeContext {
             holder_known_context_hash,
             provenance_entries,
             actor_known_workplaces,
+            actor_known_current_places,
+            actor_known_carried_items,
             actor_known_food_sources,
             actor_known_sleep_affordances,
             actor_known_routes,
@@ -860,6 +999,8 @@ impl KnowledgeContext {
             ScopeFilter::DebugAll,
             true,
             baseline_embodied_provenance(),
+            Vec::new(),
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -944,6 +1085,14 @@ impl KnowledgeContext {
 
     pub fn actor_known_workplaces(&self) -> &[ActorKnownWorkplaceFact] {
         &self.actor_known_workplaces
+    }
+
+    pub fn actor_known_current_places(&self) -> &[ActorKnownCurrentPlaceFact] {
+        &self.actor_known_current_places
+    }
+
+    pub fn actor_known_carried_items(&self) -> &[ActorKnownCarriedItemFact] {
+        &self.actor_known_carried_items
     }
 
     pub fn actor_known_food_sources(&self) -> &[ActorKnownFoodSourceFact] {
@@ -1050,6 +1199,8 @@ fn canonical_hash_inputs(
     debug_non_diegetic: bool,
     provenance_entries: &[KnowledgeProvenanceEntry],
     actor_known_workplaces: &[ActorKnownWorkplaceFact],
+    actor_known_current_places: &[ActorKnownCurrentPlaceFact],
+    actor_known_carried_items: &[ActorKnownCarriedItemFact],
     actor_known_food_sources: &[ActorKnownFoodSourceFact],
     actor_known_sleep_affordances: &[ActorKnownSleepAffordanceFact],
     actor_known_routes: &[ActorKnownRouteFact],
@@ -1101,6 +1252,16 @@ fn canonical_hash_inputs(
         actor_known_workplaces
             .iter()
             .map(|fact| format!("actor_known_workplace={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_current_places
+            .iter()
+            .map(|fact| format!("actor_known_current_place={}", fact.canonical_key())),
+    );
+    lines.extend(
+        actor_known_carried_items
+            .iter()
+            .map(|fact| format!("actor_known_carried_item={}", fact.canonical_key())),
     );
     lines.extend(
         actor_known_food_sources

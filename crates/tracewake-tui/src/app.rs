@@ -276,6 +276,17 @@ impl TuiApp {
             if let Some(last_event) = result.appended_events.last() {
                 self.scheduler.current_tick = last_event.sim_tick;
             }
+            if let Some(actor_id) = self.bound_actor_id.clone() {
+                record_current_place_perception_and_project(
+                    &mut self.log,
+                    &mut self.state,
+                    &mut self.agent_state,
+                    &mut self.epistemic_projection,
+                    &actor_id,
+                    self.scheduler.current_tick,
+                    &self.content_manifest_id,
+                );
+            }
         }
         Ok(result)
     }
@@ -297,6 +308,14 @@ impl TuiApp {
                 windows,
             },
         );
+        self.epistemic_projection = rebuild_projection(
+            &self.initial_state,
+            &self.initial_agent_state,
+            &self.log,
+            &self.checksum_context(),
+            Some(&self.state),
+        )
+        .final_epistemic_projection;
         self.scheduler.current_tick = report.final_tick;
         self.last_rejection = None;
         report
@@ -468,7 +487,7 @@ mod tests {
 
         let after = app.render_current_view().unwrap();
         assert!(after.contains("strongbox_tomas"));
-        assert!(!after.contains("coin_stack_01"));
+        assert!(after.contains("coin_stack_01"));
         assert!(app.event_count() >= 2);
     }
 

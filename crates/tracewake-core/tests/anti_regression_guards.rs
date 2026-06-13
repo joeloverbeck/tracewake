@@ -6472,6 +6472,8 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             .unwrap_or("");
         let sealed_source_builder = body_after_marker(source, "pub fn from_sealed_context");
         let view_builder = body_after_marker(source, "pub fn build_embodied_view_model");
+        let semantic_actions = body_after_marker(source, "fn semantic_actions");
+        let phase3a_semantic_actions = body_after_marker(source, "fn phase3a_semantic_actions");
         let mut errors = Vec::new();
         let has_state_field = source_struct
             .lines()
@@ -6490,10 +6492,38 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             || view_builder.contains("state.items")
             || view_builder.contains("state.places")
             || view_builder.contains("state.actors")
+            || semantic_actions.contains("preflight.state.items")
+            || semantic_actions.contains("preflight.state.places")
+            || semantic_actions.contains("preflight.state.actors")
+            || phase3a_semantic_actions.contains("preflight.state.items")
+            || phase3a_semantic_actions.contains("preflight.state.places")
+            || phase3a_semantic_actions.contains("preflight.state.actors")
         {
             errors.push(
                 "embodied projection builders must not read raw PhysicalState truth".to_string(),
             );
+        }
+        let carrier_snippets = [
+            "pub fn from_physical_state(context: &KnowledgeContext, state: &PhysicalState)",
+            "pub struct EmbodiedPreflightSource<'a> {\n    state: &'a PhysicalState,",
+            "struct SemanticActionPreflightContext<'a> {\n    state: &'a PhysicalState,",
+        ];
+        for snippet in carrier_snippets {
+            if !source.contains(snippet) {
+                errors.push(format!("missing enrolled PhysicalState carrier: {snippet}"));
+            }
+        }
+        let carrier_count = source
+            .matches(
+                "pub fn from_physical_state(context: &KnowledgeContext, state: &PhysicalState)",
+            )
+            .count()
+            + source.matches("{\n    state: &'a PhysicalState,").count();
+        if carrier_count != carrier_snippets.len() {
+            errors.push(format!(
+                "PhysicalState carrier census drifted: expected {} enrolled snippets, found {carrier_count}",
+                carrier_snippets.len()
+            ));
         }
         errors
     }
@@ -6524,6 +6554,30 @@ fn guard_014_embodied_projection_source_has_no_physical_state_field() {
             .iter()
             .any(|error| error.contains("raw PhysicalState truth")),
         "synthetic_embodied_view_builder_state_items_read did not trigger: {synthetic_builder_errors:?}"
+    );
+
+    let synthetic_semantic_read = projection.replace(
+        "let mut actions = Vec::new();\n    actions.push(with_validator_availability(",
+        "let _synthetic_items = preflight.state.items.values().count();\n    let mut actions = Vec::new();\n    actions.push(with_validator_availability(",
+    );
+    let synthetic_semantic_errors = source_shape_errors(&synthetic_semantic_read);
+    assert!(
+        synthetic_semantic_errors
+            .iter()
+            .any(|error| error.contains("raw PhysicalState truth")),
+        "synthetic_semantic_actions_preflight_state_items_read did not trigger: {synthetic_semantic_errors:?}"
+    );
+
+    let synthetic_carrier = projection.replace(
+        "pub struct EmbodiedTruthSnapshot {",
+        "struct SyntheticTruthCarrier<'a> {\n    state: &'a PhysicalState,\n}\n\npub struct EmbodiedTruthSnapshot {",
+    );
+    let synthetic_carrier_errors = source_shape_errors(&synthetic_carrier);
+    assert!(
+        synthetic_carrier_errors
+            .iter()
+            .any(|error| error.contains("carrier census drifted")),
+        "synthetic_new_physical_state_carrier did not trigger: {synthetic_carrier_errors:?}"
     );
 }
 
@@ -7002,6 +7056,9 @@ fn perception_visibility_prose_branch_violations_with_options(
         if perception_line_is_typed_label_payload_write(line) {
             continue;
         }
+        if perception_line_is_current_place_label_recording(line) {
+            continue;
+        }
         let branches_on_display_label =
             line.contains("display_label") && !line_is_plain_perception_identity_alias(line);
         let branches_on_id_substring = branches_on_identity_substring(line);
@@ -7037,6 +7094,16 @@ fn perception_visibility_prose_branch_violations_with_options(
 
 fn perception_line_is_typed_label_payload_write(line: &str) -> bool {
     line.contains("PayloadField") && line.contains("display_label")
+}
+
+fn perception_line_is_current_place_label_recording(line: &str) -> bool {
+    matches!(
+        line,
+        "display_label,"
+            | "\"display_label\","
+            | "display_label.clone(),"
+            | "place.display_label.clone(),"
+    )
 }
 
 fn line_is_plain_perception_identity_alias(line: &str) -> bool {

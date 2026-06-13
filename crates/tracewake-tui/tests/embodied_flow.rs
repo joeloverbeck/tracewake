@@ -34,7 +34,7 @@ fn bind_render_submit_rerender_and_show_why_not() {
 
     let second = app.render_current_view().unwrap();
     assert!(second.contains("strongbox_tomas"));
-    assert!(!second.contains("coin_stack_01"));
+    assert!(second.contains("coin_stack_01"));
 
     let mut door_app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
     door_app

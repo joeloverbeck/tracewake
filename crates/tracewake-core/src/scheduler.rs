@@ -4518,6 +4518,10 @@ pub mod no_human {
                 actor_id.clone(),
                 ActorBody::new(actor_id.clone(), workshop.clone()),
             );
+            state.places.insert(
+                workshop.clone(),
+                PlaceState::new(workshop.clone(), "Workshop"),
+            );
             let mut workplace = WorkplaceState::new(
                 workplace_id.clone(),
                 workshop,

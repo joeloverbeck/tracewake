@@ -6,8 +6,9 @@ use crate::agent::{BlockerCode, ResponsibleLayer};
 use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
 use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{
-    ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownItemFact, ActorKnownLocalActorFact,
-    EpistemicProjection, KnowledgeContext, SourceRef,
+    ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+    ActorKnownDoorFact, ActorKnownItemFact, ActorKnownLocalActorFact, EpistemicProjection,
+    KnowledgeContext, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
@@ -102,20 +103,18 @@ impl EmbodiedTruthSnapshot {
             .get(context.viewer_actor_id())
             .expect("sealed embodied source requires an existing viewer actor");
         let current_place_id = actor.current_place_id.clone();
-        let place_label = state
-            .places
-            .get(&current_place_id)
-            .expect("sealed embodied source requires an existing current place")
-            .display_label
-            .clone();
+        let place_label = actor_known_current_place_label(context, &current_place_id)
+            .expect("sealed embodied source requires observed current-place label")
+            .to_string();
         let mut carried_items = actor
             .carried_item_ids
             .iter()
-            .filter_map(|item_id| state.items.get(item_id))
-            .map(|item| VisibleItem {
-                item_id: item.item_id.clone(),
-                source: visible_item_source(&item.location),
-                portable: item.portable,
+            .filter_map(|item_id| {
+                actor_known_carried_item(context, item_id).map(|item| VisibleItem {
+                    item_id: item.item_id().clone(),
+                    source: visible_item_source(item.source()),
+                    portable: item.portable(),
+                })
             })
             .collect::<Vec<_>>();
         carried_items.sort();
@@ -125,6 +124,27 @@ impl EmbodiedTruthSnapshot {
             carried_items,
         }
     }
+}
+
+fn actor_known_current_place_label<'a>(
+    context: &'a KnowledgeContext,
+    current_place_id: &PlaceId,
+) -> Option<&'a str> {
+    context
+        .actor_known_current_places()
+        .iter()
+        .find(|fact| fact.place_id() == current_place_id)
+        .map(ActorKnownCurrentPlaceFact::display_label)
+}
+
+fn actor_known_carried_item<'a>(
+    context: &'a KnowledgeContext,
+    item_id: &ItemId,
+) -> Option<&'a ActorKnownCarriedItemFact> {
+    context
+        .actor_known_carried_items()
+        .iter()
+        .find(|fact| fact.item_id() == item_id)
 }
 
 pub struct EmbodiedPreflightSource<'a> {
@@ -1358,10 +1378,11 @@ mod tests {
     use super::*;
     use crate::agent::{Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState};
     use crate::epistemics::{
-        ActorKnownContainerFact, ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact,
-        ActorKnownLocalActorFact, ActorKnownSleepAffordanceFact, Belief, Channel, Confidence,
-        Contradiction, ContradictionKind, HolderKind, Observation, ObservationSubject,
-        ObservationTarget, Proposition, SourceRef, Stance,
+        ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+        ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+        ActorKnownSleepAffordanceFact, Belief, Channel, Confidence, Contradiction,
+        ContradictionKind, HolderKind, Observation, ObservationSubject, ObservationTarget,
+        Proposition, SourceRef, Stance,
     };
     use crate::events::PayloadField;
     use crate::ids::{
@@ -1436,8 +1457,41 @@ mod tests {
         state: &PhysicalState,
         agent_state: Option<&'a AgentState>,
     ) -> EmbodiedProjectionSource<'a> {
-        let snapshot = EmbodiedTruthSnapshot::from_physical_state(context, state);
+        let snapshot = test_snapshot_from_context_or_state(context, state);
         EmbodiedProjectionSource::from_sealed_context(context, snapshot, agent_state)
+    }
+
+    fn test_snapshot_from_context_or_state(
+        context: &KnowledgeContext,
+        state: &PhysicalState,
+    ) -> EmbodiedTruthSnapshot {
+        if !context.actor_known_current_places().is_empty() {
+            return EmbodiedTruthSnapshot::from_physical_state(context, state);
+        }
+        let actor = state.actors().get(context.viewer_actor_id()).unwrap();
+        let current_place_id = actor.current_place_id.clone();
+        let place_label = state
+            .places()
+            .get(&current_place_id)
+            .unwrap()
+            .display_label
+            .clone();
+        let mut carried_items = actor
+            .carried_item_ids
+            .iter()
+            .filter_map(|item_id| state.items().get(item_id))
+            .map(|item| VisibleItem {
+                item_id: item.item_id.clone(),
+                source: visible_item_source(&item.location),
+                portable: item.portable,
+            })
+            .collect::<Vec<_>>();
+        carried_items.sort();
+        EmbodiedTruthSnapshot {
+            current_place_id,
+            place_label,
+            carried_items,
+        }
     }
 
     fn view_from_source(
@@ -1462,11 +1516,13 @@ mod tests {
     ) -> EmbodiedViewModel {
         let viewer_actor_id = actor_id("actor_tomas");
         let current_place_id = place_id("shop_front");
-        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
             viewer_actor_id.clone(),
             SimTick::new(1),
             0,
             Vec::new(),
+            actor_known_current_place_facts(state, &current_place_id),
+            actor_known_carried_item_facts(state, &viewer_actor_id),
             Vec::new(),
             Vec::new(),
             vec![crate::epistemics::ActorKnownRouteFact::new(
@@ -1504,6 +1560,46 @@ mod tests {
                     door.is_locked,
                     door.blocks_movement_when_closed,
                     "visible_door",
+                )
+            })
+            .collect()
+    }
+
+    fn actor_known_current_place_facts(
+        state: &PhysicalState,
+        current_place_id: &PlaceId,
+    ) -> Vec<ActorKnownCurrentPlaceFact> {
+        state
+            .places()
+            .get(current_place_id)
+            .map(|place| {
+                ActorKnownCurrentPlaceFact::new(
+                    current_place_id.clone(),
+                    place.display_label.clone(),
+                    "current_place",
+                )
+            })
+            .into_iter()
+            .collect()
+    }
+
+    fn actor_known_carried_item_facts(
+        state: &PhysicalState,
+        actor_id: &ActorId,
+    ) -> Vec<ActorKnownCarriedItemFact> {
+        let Some(actor) = state.actors().get(actor_id) else {
+            return Vec::new();
+        };
+        actor
+            .carried_item_ids
+            .iter()
+            .filter_map(|item_id| state.items().get(item_id))
+            .map(|item| {
+                ActorKnownCarriedItemFact::new(
+                    item.item_id.clone(),
+                    item.location.clone(),
+                    item.portable,
+                    "carried_item",
                 )
             })
             .collect()
@@ -1937,15 +2033,18 @@ mod tests {
             .get_mut(&item_id("loose_coin_01"))
             .unwrap()
             .location = Location::AtPlace(place_id("back_room"));
-        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+        let current_place_id = place_id("shop_front");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
             actor_id("actor_tomas"),
             SimTick::new(1),
             0,
             Vec::new(),
+            actor_known_current_place_facts(&state, &current_place_id),
+            actor_known_carried_item_facts(&state, &actor_id("actor_tomas")),
             Vec::new(),
             Vec::new(),
             vec![crate::epistemics::ActorKnownRouteFact::new(
-                place_id("shop_front"),
+                current_place_id,
                 place_id("back_room"),
                 "visible_exit",
             )],
@@ -1968,6 +2067,86 @@ mod tests {
             .find(|item| item.item_id == item_id("loose_coin_01"))
             .expect("stale actor-known item should render from projected observation");
         assert_eq!(stale_item.source, VisibleItemSource::Place);
+    }
+
+    #[test]
+    fn embodied_projection_renders_observed_place_label_not_live_truth() {
+        let mut observed_state = state();
+        let current_place_id = place_id("shop_front");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            actor_known_current_place_facts(&observed_state, &current_place_id),
+            actor_known_carried_item_facts(&observed_state, &actor_id("actor_tomas")),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        observed_state
+            .places
+            .get_mut(&current_place_id)
+            .unwrap()
+            .display_label = "Mutated truth label".to_string();
+        let source = source_for(&context, &observed_state, None);
+        let view = view_from_source(&context, &source, &observed_state, None);
+
+        assert_eq!(view.place_label, "Shop front");
+        assert_ne!(view.place_label, "Mutated truth label");
+    }
+
+    #[test]
+    fn embodied_projection_renders_observed_carried_item_attributes_not_live_truth() {
+        let mut observed_state = state();
+        let actor = actor_id("actor_tomas");
+        let carried_item = item_id("notebook_01");
+        observed_state.items.insert(
+            carried_item.clone(),
+            ItemState::new(carried_item.clone(), Location::CarriedBy(actor.clone())),
+        );
+        observed_state
+            .actors
+            .get_mut(&actor)
+            .unwrap()
+            .carried_item_ids
+            .insert(carried_item.clone());
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+            actor.clone(),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            actor_known_current_place_facts(&observed_state, &place_id("shop_front")),
+            actor_known_carried_item_facts(&observed_state, &actor),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        observed_state
+            .items
+            .get_mut(&carried_item)
+            .unwrap()
+            .portable = false;
+        let source = source_for(&context, &observed_state, None);
+        let view = view_from_source(&context, &source, &observed_state, None);
+
+        let rendered_carried = view
+            .carried_items
+            .iter()
+            .find(|item| item.item_id == carried_item)
+            .expect("observed carried item renders from actor-known fact");
+        assert_eq!(rendered_carried.source, VisibleItemSource::Carried);
+        assert!(rendered_carried.portable);
     }
 
     #[test]

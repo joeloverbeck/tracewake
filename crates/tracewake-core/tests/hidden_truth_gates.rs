@@ -5,14 +5,15 @@ mod support;
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
-    plan_local_actions, ActorDecisionTransaction, ActorDecisionTransactionInput,
-    ActorDecisionTransactionOutcome, ActorKnownFact, LocalPlanRequest, NeedChangeCause, NeedKind,
-    NeedState, NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, PlannerGoal,
-    RoutineFamily, RoutineStep,
+    current_place_knowledge_context, current_place_perception_events, plan_local_actions,
+    ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
+    ActorKnownFact, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState,
+    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, PlannerGoal, RoutineFamily,
+    RoutineStep,
 };
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::debug_reports::item_location_report;
-use tracewake_core::epistemics::{ActorKnownFoodSourceFact, EpistemicProjection, KnowledgeContext};
+use tracewake_core::epistemics::{EpistemicProjection, KnowledgeContext};
 use tracewake_core::events::apply::apply_epistemic_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -134,6 +135,25 @@ fn embodied_view(
         None,
     )
     .unwrap()
+}
+
+fn observed_current_place_context(world: &PhysicalState) -> KnowledgeContext {
+    let manifest_id = content_manifest_id();
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id.clone());
+    let mut event_frontier = 0;
+    for event in current_place_perception_events(world, &actor_id(), SimTick::ZERO, &manifest_id) {
+        append_epistemic_event(&mut log, &mut projection, event);
+        event_frontier += 1;
+    }
+    current_place_knowledge_context(
+        world,
+        Some(&projection),
+        &actor_id(),
+        SimTick::ZERO,
+        &manifest_id,
+        event_frontier,
+    )
 }
 
 fn helper_process_id(value: &str) -> ProcessId {
@@ -798,19 +818,7 @@ fn embodied_affordances_exclude_hidden_food_in_closed_container() {
     );
     let world = world.build();
 
-    let knowledge_context = KnowledgeContext::embodied_at_frontier_with_facts(
-        actor_id(),
-        SimTick::ZERO,
-        0,
-        Vec::new(),
-        vec![ActorKnownFoodSourceFact::with_believed_servings(
-            food_supply_id("food_empty_pantry_mara"),
-            Some(0),
-            "visible_food_supply",
-        )],
-        Vec::new(),
-        Vec::new(),
-    );
+    let knowledge_context = observed_current_place_context(&world);
     let view = embodied_view(&knowledge_context, &world);
 
     assert!(view
@@ -1128,7 +1136,7 @@ fn debug_truth_never_enters_holder_known_context_hash() {
         ),
     );
     let world = world.build();
-    let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let knowledge_context = observed_current_place_context(&world);
     let before_view = embodied_view(&knowledge_context, &world);
 
     let debug_report = item_location_report(
@@ -1176,7 +1184,7 @@ fn embodied_place_label_is_captured_before_truth_preflight() {
         ActorBody::new(actor_id(), place_id("home_mara")),
     );
     let original_world = seed.build();
-    let knowledge_context = KnowledgeContext::embodied(actor_id(), SimTick::ZERO);
+    let knowledge_context = observed_current_place_context(&original_world);
     let snapshot = EmbodiedTruthSnapshot::from_physical_state(&knowledge_context, &original_world);
     let projection_source =
         EmbodiedProjectionSource::from_sealed_context(&knowledge_context, snapshot, None);

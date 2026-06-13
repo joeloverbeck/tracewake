@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-005: Embodied observation-time capture and truth-carrier census
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` projections and perception
@@ -171,3 +171,61 @@ synthetic; enroll under the repaired witness routing.
 
 1. `cargo test -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+### Files Changed
+
+- `crates/tracewake-core/src/epistemics/knowledge_context.rs`
+- `crates/tracewake-core/src/epistemics/mod.rs`
+- `crates/tracewake-core/src/epistemics/projection.rs`
+- `crates/tracewake-core/src/agent/perception.rs`
+- `crates/tracewake-core/src/agent/no_human_surface.rs`
+- `crates/tracewake-core/src/controller.rs`
+- `crates/tracewake-core/src/scheduler.rs`
+- `crates/tracewake-core/tests/anti_regression_guards.rs`
+- `crates/tracewake-core/tests/hidden_truth_gates.rs`
+- `crates/tracewake-tui/src/app.rs`
+- `crates/tracewake-tui/tests/embodied_flow.rs`
+
+### Decisions
+
+- Captured current-place labels and carried-item attributes as actor-known
+  projection records at the perception boundary, then sealed them into
+  `KnowledgeContext`.
+- Kept embodied snapshot construction from live `PhysicalState` limited to
+  lawful actor body-state membership; rendered labels and item attributes now
+  come from observed actor-known facts.
+- Refreshed TUI perception after accepted semantic submissions and rebuilt
+  no-human-day projection from the event log, avoiding direct TUI event
+  application while keeping the view observation-timed.
+- Extended the `PhysicalState` carrier census and guard synthetics to cover the
+  embodied builder cluster, including `semantic_actions` truth-injection checks.
+
+### Acceptance Disposition
+
+- Place-label staleness positive: completed; post-observation truth mutation
+  renders the recorded label.
+- Carried-item attribute staleness positive: completed; post-observation
+  `portable` mutation renders the recorded value.
+- Carrier parity census: completed; synthetic new carrier fails enrollment.
+- `semantic_actions` truth-injection synthetic: completed and firing.
+- Existing INV-093 negatives: passed in projection, hidden-truth, TUI, and
+  workspace regression lanes.
+- Deferred or dropped work: none.
+
+### Verification
+
+- `cargo test -p tracewake-core --lib projections::tests::embodied_projection_renders_stale_projected_item_not_live_truth`
+- `cargo test -p tracewake-core --lib projections::tests`
+- `cargo test -p tracewake-core --lib agent::perception::tests`
+- `cargo test -p tracewake-core --test hidden_truth_gates`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
