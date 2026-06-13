@@ -1,6 +1,6 @@
 # 0025PHA3AMETWIT-006: TUI gate depth — intrinsic method gate, arm-complete dispatch census, local lock registry, ControllerMode decision
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` (`app.rs`, `run.rs`) and, per the recorded `ControllerMode` decision, `tracewake-core` (`state.rs`).
@@ -171,3 +171,57 @@ three-arm pin either way (Assumption item 6 carries the per-branch blast radius)
 
 1. `cargo test -p tracewake-tui`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-13
+
+### Files Changed
+
+- `crates/tracewake-tui/src/app.rs`
+- `crates/tracewake-tui/src/input.rs`
+- `crates/tracewake-tui/src/main.rs`
+- `crates/tracewake-tui/src/run.rs`
+- `crates/tracewake-tui/tests/adversarial_gates.rs`
+- `crates/tracewake-tui/tests/readme_sample_session.rs`
+- `crates/tracewake-tui/tests/tui_acceptance.rs`
+- `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+- `README.md`
+
+### Decisions
+
+- Chose and recorded the strict `ControllerMode` policy: debug availability
+  requires `ControllerMode::Debug`; ordinary `ControllerMode::Embodied` binding
+  does not grant debug.
+- Added explicit TUI debug binding via `TuiApp::bind_debug_actor` and
+  `bind-debug <actor_id>` so operator debug remains reachable without making
+  normal embodied play debug-capable.
+- Made `TuiApp::run_no_human_day` intrinsically gated and changed it to return
+  `Result<NoHumanDayReport, AppError>`, with `AppError::DebugUnavailable` when
+  debug availability is absent.
+- Replaced the positional debug-dispatch guard with an enum-derived arm census
+  plus early-return and unrouted-variant synthetics.
+- Added a TUI-local guard registry and a world-advancing mutable-method census
+  with a rationale-bearing exemption for ordinary embodied submission.
+
+### Acceptance Disposition
+
+- Unbound method refusal: completed; no-human-day refuses with
+  `DebugUnavailable` and leaves `event_count` unchanged.
+- World-advancing public-method guard: completed; synthetic ungated method fails
+  the census.
+- Derived debug dispatch census: completed; unrouted variant and early-return
+  synthetics fire.
+- TUI local guard registry: completed; synthetic removed-member check fires.
+- `ControllerMode` three-arm pin and recorded decision: completed in TUI tests
+  and `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`.
+- Deferred or dropped work: none.
+
+### Verification
+
+- `cargo test -p tracewake-tui`
+- `cargo test -p tracewake-core`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -35,7 +35,7 @@ use tracewake_core::scheduler::no_human::{
 use tracewake_core::scheduler::{
     DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId,
 };
-use tracewake_core::state::{AgentState, PhysicalState};
+use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
     DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel, NotebookView,
@@ -54,6 +54,7 @@ pub enum AppError {
     Load(LoadError),
     ActorNotFound(ActorId),
     ActorNotBound,
+    DebugUnavailable,
     Projection(ProjectionError),
     SemanticActionNotFound(String),
 }
@@ -130,13 +131,25 @@ impl TuiApp {
     }
 
     pub fn bind_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
+        self.bind_actor_with_mode(actor_id, ControllerMode::Embodied)
+    }
+
+    pub fn bind_debug_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
+        self.bind_actor_with_mode(actor_id, ControllerMode::Debug)
+    }
+
+    fn bind_actor_with_mode(
+        &mut self,
+        actor_id: ActorId,
+        mode: ControllerMode,
+    ) -> Result<(), AppError> {
         if !self.state.actors().contains_key(&actor_id) {
             return Err(AppError::ActorNotFound(actor_id));
         }
         self.controller_bindings.attach(
             self.controller_id.clone(),
             actor_id.clone(),
-            tracewake_core::state::ControllerMode::Embodied,
+            mode,
             self.scheduler.current_tick,
             &mut self.log,
             self.content_manifest_id.clone(),
@@ -182,10 +195,7 @@ impl TuiApp {
             .binding(&self.controller_id)
             .is_some_and(|binding| {
                 binding.binding.bound_actor_id.as_ref() == Some(actor_id)
-                    && !matches!(
-                        binding.binding.mode,
-                        tracewake_core::state::ControllerMode::Detached
-                    )
+                    && matches!(binding.binding.mode, ControllerMode::Debug)
             })
     }
 
@@ -295,7 +305,10 @@ impl TuiApp {
         self.log.events().len()
     }
 
-    pub fn run_no_human_day(&mut self) -> NoHumanDayReport {
+    pub fn run_no_human_day(&mut self) -> Result<NoHumanDayReport, AppError> {
+        if !self.debug_available() {
+            return Err(AppError::DebugUnavailable);
+        }
         let windows = default_day_windows(self.scheduler.current_tick);
         let report = run_no_human_day(
             &mut self.state,
@@ -318,7 +331,7 @@ impl TuiApp {
         .final_epistemic_projection;
         self.scheduler.current_tick = report.final_tick;
         self.last_rejection = None;
-        report
+        Ok(report)
     }
 
     pub fn physical_checksum(&self) -> PhysicalChecksum {
@@ -464,7 +477,7 @@ mod tests {
         let mut app = TuiApp::load_default().unwrap();
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
-        assert!(app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available);
         let before = app.render_current_view().unwrap();
         assert!(before.contains("strongbox_tomas"));
         assert!(!before.contains("Debug: available=true"));
@@ -492,9 +505,9 @@ mod tests {
     }
 
     #[test]
-    fn app_debug_overlay_renders_only_for_bound_embodied_controller() {
+    fn app_debug_overlay_renders_only_for_bound_debug_controller() {
         let mut app = TuiApp::load_default().unwrap();
-        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
 
         let rendered = app.render_debug_embodied_overlay().unwrap().unwrap();
@@ -561,17 +574,40 @@ mod tests {
     #[test]
     fn debug_dispatch_routes_every_arm_through_availability_gate() {
         let run_source = production_source(include_str!("run.rs"));
+        let input_source = production_source(include_str!("input.rs"));
 
-        assert!(debug_command_gating_errors(run_source).is_empty());
+        assert!(debug_command_gating_errors(run_source, input_source).is_empty());
 
         let synthetic_ungated = run_source.replace(
             "    if !app.debug_available() {\n        return writeln!(writer, \"Error: debug unavailable\");\n    }\n",
             "",
         );
-        let errors = debug_command_gating_errors(&synthetic_ungated);
+        let errors = debug_command_gating_errors(&synthetic_ungated, input_source);
         assert!(
             errors.iter().any(|error| error.contains("debug_available")),
             "synthetic_ungated_debug_command_arm did not trigger: {errors:?}"
+        );
+
+        let synthetic_unrouted = input_source.replace(
+            "    Actor(ActorId),\n",
+            "    Actor(ActorId),\n    SyntheticUnrouted,\n",
+        );
+        let errors = debug_command_gating_errors(run_source, &synthetic_unrouted);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("SyntheticUnrouted")),
+            "synthetic_unrouted_debug_command_variant did not trigger: {errors:?}"
+        );
+
+        let synthetic_early_return = run_source.replace(
+            "fn render_debug<W: Write>(\n    app: &mut TuiApp,\n    debug_command: DebugCommand,\n    writer: &mut W,\n) -> std::io::Result<()> {\n",
+            "fn render_debug<W: Write>(\n    app: &mut TuiApp,\n    debug_command: DebugCommand,\n    writer: &mut W,\n) -> std::io::Result<()> {\n    return Ok(());\n",
+        );
+        let errors = debug_command_gating_errors(&synthetic_early_return, input_source);
+        assert!(
+            errors.iter().any(|error| error.contains("early return")),
+            "synthetic_early_return_before_gate did not trigger: {errors:?}"
         );
     }
 
@@ -593,14 +629,96 @@ mod tests {
     #[test]
     fn app_runs_no_human_day_into_real_log_metrics() {
         let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
         let before_events = app.event_count();
 
-        let report = app.run_no_human_day();
+        let report = app.run_no_human_day().unwrap();
 
         assert!(report.ordinary_pipeline_events > 0);
         assert!(app.event_count() > before_events);
         assert!(app.render_debug_no_human_day_panel().contains("events="));
         assert!(app.render_debug_no_human_day_panel().contains("canonical="));
+    }
+
+    #[test]
+    fn run_no_human_day_refuses_intrinsically_without_debug_availability() {
+        let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+        let before_events = app.event_count();
+
+        let result = app.run_no_human_day();
+
+        assert!(matches!(result, Err(AppError::DebugUnavailable)));
+        assert_eq!(app.event_count(), before_events);
+    }
+
+    #[test]
+    fn world_advancing_tui_methods_are_intrinsically_debug_gated_or_exempt() {
+        let app_source = production_source(include_str!("app.rs"));
+
+        let errors = world_advancing_method_gate_errors(app_source);
+        assert!(errors.is_empty(), "{errors:?}");
+
+        let synthetic = app_source.replace(
+            "    pub fn event_count(&self) -> usize {\n",
+            "    pub fn synthetic_advance_without_gate(&mut self) {\n        self.log.append;\n    }\n\n    pub fn event_count(&self) -> usize {\n",
+        );
+        let errors = world_advancing_method_gate_errors(&synthetic);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("synthetic_advance_without_gate")),
+            "synthetic ungated world advancer did not trigger: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn tui_local_guard_registry_covers_structural_guards() {
+        let app_source = include_str!("app.rs");
+
+        assert!(tui_local_guard_registry_errors(app_source).is_empty());
+
+        let synthetic_removed = app_source.replace(
+            "fn debug_dispatch_routes_every_arm_through_availability_gate()",
+            "fn debug_dispatch_routes_every_arm_through_availability_gate_removed()",
+        );
+        let errors = tui_local_guard_registry_errors(&synthetic_removed);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error
+                    .contains("debug_dispatch_routes_every_arm_through_availability_gate")),
+            "synthetic removed guard did not trigger: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn controller_mode_debug_availability_decision_is_explicit() {
+        let mut app = TuiApp::load_default().unwrap();
+        let actor_id = ActorId::new("actor_tomas").unwrap();
+
+        app.bind_actor(actor_id.clone()).unwrap();
+        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.debug_available());
+
+        app.bind_debug_actor(actor_id.clone()).unwrap();
+        assert!(app.current_view().unwrap().debug_available);
+        assert!(app.debug_available());
+
+        app.controller_bindings.detach(
+            &app.controller_id,
+            app.scheduler.current_tick,
+            &mut app.log,
+            app.content_manifest_id.clone(),
+        );
+        assert!(!app.current_view().unwrap().debug_available);
+
+        let docs = include_str!(
+            "../../../docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md"
+        );
+        assert!(docs.contains(
+            "ControllerMode decision: debug availability requires ControllerMode::Debug"
+        ));
     }
 
     fn render_reachability_errors(render_sources: &[&str], caller_sources: &[&str]) -> Vec<String> {
@@ -640,8 +758,9 @@ mod tests {
         }
     }
 
-    fn debug_command_gating_errors(run_source: &str) -> Vec<String> {
+    fn debug_command_gating_errors(run_source: &str, input_source: &str) -> Vec<String> {
         let render_debug = run_source.split("fn render_debug").nth(1).unwrap_or("");
+        let render_debug_body = function_body_if_present(run_source, "render_debug").unwrap_or("");
         let gate_position = render_debug.find("if !app.debug_available()");
         let match_position = render_debug.find("match debug_command");
         let mut errors = Vec::new();
@@ -651,7 +770,142 @@ mod tests {
                 "render_debug must check debug_available before matching DebugCommand".to_string(),
             ),
         }
+        if let Some(gate) = gate_position {
+            if render_debug[..gate].contains("return ") {
+                errors.push("render_debug has an early return before debug_available".to_string());
+            }
+        }
+        let variants = debug_command_variants(input_source);
+        let dispatch_body = match_arm_body(render_debug_body, "match debug_command").unwrap_or("");
+        for variant in variants {
+            let token = format!("DebugCommand::{variant}");
+            let count = dispatch_body.matches(&token).count();
+            if count != 1 {
+                errors.push(format!("{variant} dispatch count must be 1, got {count}"));
+            }
+        }
         errors
+    }
+
+    fn debug_command_variants(input_source: &str) -> Vec<String> {
+        let enum_body = input_source
+            .split("pub enum DebugCommand")
+            .nth(1)
+            .and_then(|tail| tail.split_once('{'))
+            .and_then(|(_, tail)| tail.split_once('}'))
+            .map(|(body, _)| body)
+            .unwrap_or("");
+        enum_body
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    return None;
+                }
+                let name = trimmed.split(['(', ',']).next().unwrap_or("").trim();
+                (!name.is_empty()).then(|| name.to_string())
+            })
+            .collect()
+    }
+
+    fn world_advancing_method_gate_errors(app_source: &str) -> Vec<String> {
+        pub const EXEMPT_WORLD_ADVANCING_METHODS: &[(&str, &str)] = &[(
+            "submit_semantic_action",
+            "ordinary embodied player command; authorization comes from current view source context",
+        )];
+        public_mut_methods(app_source)
+            .into_iter()
+            .filter(|(_, body)| {
+                method_body_advances_world(body) && !body.contains("debug_available()")
+            })
+            .filter(|(name, _)| {
+                !EXEMPT_WORLD_ADVANCING_METHODS
+                    .iter()
+                    .any(|(exempt_name, rationale)| exempt_name == name && !rationale.is_empty())
+            })
+            .map(|(name, _)| {
+                format!("{name} advances world state without intrinsic debug_available gate")
+            })
+            .collect()
+    }
+
+    fn method_body_advances_world(body: &str) -> bool {
+        body.contains("self.log")
+            || body.contains("&mut self.log")
+            || body.contains("self.state")
+            || body.contains("&mut self.state")
+    }
+
+    fn public_mut_methods(source: &str) -> Vec<(String, &str)> {
+        let mut methods = Vec::new();
+        let mut remaining = source;
+        while let Some(position) = remaining.find("pub fn ") {
+            remaining = &remaining[position + "pub fn ".len()..];
+            let Some((name, after_name)) = remaining.split_once('(') else {
+                break;
+            };
+            let name = name.trim().to_string();
+            let Some(body_start) = after_name.find('{') else {
+                break;
+            };
+            let signature = &after_name[..body_start];
+            let Some(body) = function_body_after_signature(after_name) else {
+                break;
+            };
+            if signature.contains("&mut self") {
+                methods.push((name, body));
+            }
+            let consumed = body_start + body.len();
+            remaining = &after_name[consumed.min(after_name.len())..];
+        }
+        methods
+    }
+
+    fn tui_local_guard_registry_errors(app_source: &str) -> Vec<String> {
+        const REQUIRED_TUI_GUARDS: &[&str] = &[
+            "render_functions_have_production_callers_or_documented_allowlist",
+            "render_reachability_guard_fires_on_synthetic_uncalled_renderer",
+            "debug_dispatch_routes_every_arm_through_availability_gate",
+            "run_no_human_day_refuses_intrinsically_without_debug_availability",
+            "world_advancing_tui_methods_are_intrinsically_debug_gated_or_exempt",
+            "tui_local_guard_registry_covers_structural_guards",
+            "controller_mode_debug_availability_decision_is_explicit",
+        ];
+        REQUIRED_TUI_GUARDS
+            .iter()
+            .filter(|guard| !app_source.contains(&format!("fn {guard}(")))
+            .map(|guard| format!("missing TUI local guard registry member {guard}"))
+            .collect()
+    }
+
+    fn function_body_if_present<'a>(source: &'a str, name: &str) -> Option<&'a str> {
+        let marker = format!("fn {name}");
+        let tail = source.split(&marker).nth(1)?;
+        function_body_after_signature(tail)
+    }
+
+    fn function_body_after_signature(source: &str) -> Option<&str> {
+        let body_start = source.find('{')?;
+        let body = &source[body_start..];
+        let mut depth = 0usize;
+        for (index, ch) in body.char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return Some(&body[..=index]);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    fn match_arm_body<'a>(source: &'a str, marker: &str) -> Option<&'a str> {
+        let tail = source.split(marker).nth(1)?;
+        function_body_after_signature(tail)
     }
 
     fn production_source(source: &str) -> &str {

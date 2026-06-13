@@ -601,11 +601,11 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
 #[test]
 fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
-    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let before_events = app.event_count();
 
-    let report = app.run_no_human_day();
+    let report = app.run_no_human_day().unwrap();
     let after_run_events = app.event_count();
     let embodied_view = app.current_view().unwrap();
     assert_eq!(
@@ -659,7 +659,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
 
     let mut command_app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
     command_app
-        .bind_actor(ActorId::new("actor_tomas").unwrap())
+        .bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let script = b"debug run no-human-day\ndebug no-human-day\nview\nquit\n";
     let mut output = Vec::new();

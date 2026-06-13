@@ -59,6 +59,11 @@ It must not show hidden item locations, culprit truth, debug rejection details, 
 Debug output may expose truth only if it is clearly non-diegetic and structurally quarantined. Debug output must not be reused as actor-visible prose, acceptance truth, planner input, institution input, or content authoring source.
 
 All debug commands are gated by the current possessed actor's derived debug availability.
+ControllerMode decision: debug availability requires ControllerMode::Debug.
+ControllerMode::Embodied possession is ordinary embodied play and does not grant
+debug availability; TUI callers that need operator debug surfaces must bind the
+actor explicitly in debug mode. ControllerMode::Detached grants neither embodied
+control nor debug.
 The `debug run no-human-day` command is an operator-proof command, not an embodied
 play verb: it may advance the loaded fixture through the no-human day scheduler only
 after the debug gate is available, and its output remains a non-diegetic debug

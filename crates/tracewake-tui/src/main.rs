@@ -22,7 +22,8 @@ fn main() {
     };
 
     let mut app = tracewake_tui::app::TuiApp::from_golden(*golden).expect("fixture loads");
-    app.bind_actor(actor_id).expect("selected actor exists");
+    app.bind_debug_actor(actor_id)
+        .expect("selected actor exists");
     println!("{}", tracewake_tui::startup_message());
     tracewake_tui::run::run_command_loop(
         &mut app,
