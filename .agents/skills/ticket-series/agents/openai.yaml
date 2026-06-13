@@ -1,4 +1,4 @@
 interface:
   display_name: "Ticket Series"
   short_description: "Implement ticket series with archives."
-  default_prompt: "$ticket-series Implement the ticket series TICKETS_GLOB in dependency order. Rely on SPEC_GLOB for reference, including per-ticket archives and final spec archival/truthing."
+  default_prompt: "$ticket-series Implement the ticket series TICKETS_GLOB in dependency order. Rely on SPEC_GLOB for reference, including per-ticket archives, final spec archival/truthing, resumed-goal audit, and goal completion."

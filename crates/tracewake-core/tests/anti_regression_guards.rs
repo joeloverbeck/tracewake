@@ -2033,6 +2033,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         routing: MetaLockRouting::SharedScan,
         witness_min: 1,
     },
+    MetaLockRegistryEntry {
+        lock_id: "workspace_dependency_posture_matches_allowlist",
+        negative_id: "synthetic_unlisted_workspace_dependency",
+        routing: MetaLockRouting::SharedScan,
+        witness_min: 1,
+    },
 ];
 
 const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
@@ -2071,10 +2077,6 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     MetaLockCensusExemption {
         test_name: "workspace_source_classification_census_matches_production_tree",
         rationale: "Workspace inventory parity test, not a structural anti-regression lock with its own negative.",
-    },
-    MetaLockCensusExemption {
-        test_name: "workspace_dependency_posture_matches_allowlist",
-        rationale: "Dependency posture assertion over Cargo manifests; not part of the structural lock registry.",
     },
     MetaLockCensusExemption {
         test_name: "guarded_layer_entries_are_exactly_the_workspace_guarded_classifications",
@@ -2348,6 +2350,11 @@ fn meta_lock_census_exemption_errors(
         return errors;
     }
     if rationale.contains("Historical acceptance-artifact anchor audit") {
+        if !body.contains("acceptance_checklist_anchor_errors(") {
+            errors.push(format!(
+                "historical-audit exemption {test_name} does not run the acceptance checklist anchor checker"
+            ));
+        }
         return errors;
     }
     let Some(covering_lock_id) = rationale
@@ -2370,7 +2377,11 @@ fn meta_lock_census_exemption_errors(
 }
 
 fn test_body_has_structural_scan_shape(body: &str) -> bool {
-    body.contains("_errors(") || body.contains("_violations(")
+    body.contains("_errors(")
+        || body.contains("_violations(")
+        || body.contains("_count(")
+        || (body.contains(".filter(") && body.contains(".count()"))
+        || (body.contains(".matches(") && body.contains(").count()"))
 }
 
 fn function_body_if_present<'a>(source: &'a str, marker: &str) -> Option<&'a str> {
@@ -2413,15 +2424,10 @@ fn meta_lock_live_witness_count(
         return apply_mutator_live_witness_count(&core_production_sources());
     }
     if entry.lock_id == "guard_014_embodied_projection_source_has_no_physical_state_field" {
-        return usize::from(anti_regression_source.contains("synthetic_dead_field"))
-            + usize::from(anti_regression_source.contains("PhysicalState"));
-    }
-    if entry.lock_id == "typed_column_closure_payload_alias_helper_calls" {
-        return usize::from(anti_regression_source.contains("synthetic_payload_alias_source"));
+        return non_empty_production_sites(&[production(PROJECTIONS_RS).as_str()]);
     }
     if entry.lock_id == "typed_column_closure_exemptions_are_rationale_bearing_and_live" {
-        return usize::from(anti_regression_source.contains("synthetic_payload_fields_source"))
-            + usize::from(anti_regression_source.contains("synthetic_oblique_helper_source"));
+        return TYPED_COLUMN_CLOSURE_EXEMPTIONS.len();
     }
     if entry.lock_id == "materialized_agent_payload_records_keep_payload_fields" {
         return usize::from(STATE_RS.contains("pub payload_fields: Vec<(String, String)>"))
@@ -2429,11 +2435,11 @@ fn meta_lock_live_witness_count(
                 .matches("payload_fields: payload_fields(event)")
                 .count();
     }
-    if matches!(entry.routing, MetaLockRouting::BehaviorAssertion) {
-        return behavior_assertion_live_witness_count(entry, anti_regression_source);
-    }
-    if let MetaLockRouting::TicketOwnedDebt { .. } = entry.routing {
-        return ticket_owned_debt_live_witness_count(entry, anti_regression_source);
+    if matches!(
+        entry.routing,
+        MetaLockRouting::BehaviorAssertion | MetaLockRouting::TicketOwnedDebt { .. }
+    ) {
+        return behavior_assertion_inspected_site_count(entry);
     }
     if entry.lock_id == "meta_lock_registry_census" {
         return anti_regression_test_names(anti_regression_source).len();
@@ -2515,14 +2521,10 @@ fn meta_lock_live_witness_count(
     if entry.lock_id == "embodied_view_option_and_collection_fields_have_reachable_producers" {
         return embodied_surface_fields(&production(VIEW_MODELS_RS)).len();
     }
-    if entry.lock_id == "guard_014_perception_visibility_uses_typed_place_visibility" {
-        return PERCEPTION_RS
-            .lines()
-            .filter(|line| line.contains("visibility_default"))
-            .count();
-    }
-    if entry.lock_id == "guard_014_perception_visibility_other_emission_paths" {
-        return perception_visibility_other_emission_inspected_site_count(PERCEPTION_RS);
+    if entry.lock_id == "guard_014_perception_visibility_uses_typed_place_visibility"
+        || entry.lock_id == "guard_014_perception_visibility_other_emission_paths"
+    {
+        return perception_prose_scan_inspected_line_count(PERCEPTION_RS);
     }
     if entry.lock_id == "typed_column_closure_oblique_payload_helper_calls" {
         return typed_column_closure_oblique_inspected_site_count(
@@ -2638,72 +2640,245 @@ fn meta_lock_live_witness_count(
         });
     }
     if entry.lock_id == "actor_known_projection_policy_table_drives_record_behavior" {
-        return function_body_if_present(
-            EPISTEMIC_PROJECTION_RS,
-            "fn actor_known_projection_policy_table_drives_record_behavior",
-        )
-        .map_or(0, |body| body.matches("assert!").count());
+        return production(EPISTEMIC_PROJECTION_RS)
+            .matches("includes_in_embodied_context(")
+            .count();
     }
     if entry.lock_id == "workplace_current_place_scope_drops_other_place_from_embodied_context" {
-        return function_body_if_present(
-            EPISTEMIC_PROJECTION_RS,
-            "fn workplace_current_place_scope_drops_other_place_from_embodied_context",
-        )
-        .map_or(0, |body| body.matches("assert!").count());
+        return production(EPISTEMIC_PROJECTION_RS)
+            .matches("is_latest_current_place_record")
+            .count();
     }
     if entry.lock_id == "supersede_newest_by_subject_requires_subject_extractor" {
-        return function_body_if_present(
-            EPISTEMIC_PROJECTION_RS,
-            "fn supersede_newest_by_subject_requires_subject_extractor",
-        )
-        .map_or(0, |body| body.matches("assert!").count());
+        return production(EPISTEMIC_PROJECTION_RS)
+            .matches("supersede_workplace_subject")
+            .count();
     }
-    shared_scan_function_witness_count(entry, anti_regression_source)
+    if entry.lock_id == "workspace_dependency_posture_matches_allowlist" {
+        return WORKSPACE_DEPENDENCY_ALLOWLIST.len();
+    }
+    if entry.lock_id == "checksum_coverage_is_total_for_authoritative_state" {
+        return tracewake_core::checksum::PHYSICAL_STATE_CHECKSUM_COVERAGE.len()
+            + tracewake_core::checksum::AGENT_STATE_CHECKSUM_COVERAGE.len();
+    }
+    if entry.lock_id == "guard_006_duration_need_deltas_route_through_shared_emitter" {
+        return direct_duration_need_delta_construction_violations(&[(
+            "crates/tracewake-core/src/actions/defs/work.rs".to_string(),
+            "fn build_synthetic_delta() { EventEnvelope::new_caused_v1(event_id, EventKind::NeedDeltaApplied, 0, 0, tick, ordering_key, content_manifest_id, causes); }"
+                .to_string(),
+        )])
+        .len();
+    }
+    if entry.lock_id == "acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors" {
+        return acceptance_checklist_anchor_errors(
+            ACCEPTANCE_0023_REPORT,
+            &[AcceptanceChecklistAnchor {
+                item: 99,
+                anchors: &["synthetic_witness_missing_acceptance_anchor"],
+            }],
+        )
+        .len();
+    }
+    if entry.lock_id == "acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors" {
+        return acceptance_checklist_anchor_errors(
+            ACCEPTANCE_0024_REPORT,
+            &[AcceptanceChecklistAnchor {
+                item: 99,
+                anchors: &["synthetic_witness_missing_acceptance_anchor"],
+            }],
+        )
+        .len();
+    }
+    0
 }
 
-fn behavior_assertion_live_witness_count(
-    entry: &MetaLockRegistryEntry,
-    anti_regression_source: &str,
-) -> usize {
-    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id)).map_or(
-        0,
-        |body| {
-            let assertion_count = body.matches("assert!").count()
-                + body.matches("assert_eq!").count()
-                + body.matches("assert_ne!").count()
-                + body.matches("assert_absent(").count()
-                + body.matches("assert_absent_from_sources(").count();
-            usize::from(assertion_count > 0)
-        },
-    )
+fn non_empty_production_sites(sources: &[&str]) -> usize {
+    sources
+        .iter()
+        .filter(|source| !source.trim().is_empty())
+        .count()
 }
 
-fn ticket_owned_debt_live_witness_count(
-    entry: &MetaLockRegistryEntry,
-    anti_regression_source: &str,
-) -> usize {
-    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id))
-        .map_or(0, |body| {
-            usize::from(body.contains(entry.negative_id) || body.contains("assert!"))
-        })
+fn witness_kind_arm_inspected_sites(transaction_source: &str) -> usize {
+    function_body_if_present(transaction_source, "fn witness_kind_allowed")
+        .map_or(0, |body| usize::from(!body.trim().is_empty()))
+        * NO_HUMAN_SURFACE_FACT_STABLE_IDS.len()
 }
 
-fn shared_scan_function_witness_count(
-    entry: &MetaLockRegistryEntry,
-    anti_regression_source: &str,
-) -> usize {
-    function_body_if_present(anti_regression_source, &format!("fn {}", entry.lock_id)).map_or(
-        0,
-        |body| {
-            body.matches("assert!").count()
-                + body.matches("assert_eq!").count()
-                + body.matches("assert_ne!").count()
-                + body.matches("assert_absent(").count()
-                + body.matches("assert_absent_from_sources(").count()
-                + body.matches("_errors(").count()
-                + body.matches("_violations(").count()
-        },
-    )
+fn perception_prose_scan_inspected_line_count(source: &str) -> usize {
+    source_without_comments(source)
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .count()
+}
+
+fn witness_shape_ban_errors(witness_body: &str) -> Vec<String> {
+    [
+        "test_names.contains(entry.lock_id)",
+        "anti_regression_source.contains(entry.negative_id)",
+        "matches(\"assert",
+    ]
+    .iter()
+    .filter(|fragment| witness_body.contains(*fragment))
+    .map(|fragment| format!("banned witness shape: {fragment}"))
+    .collect()
+}
+
+fn behavior_assertion_inspected_site_count(entry: &MetaLockRegistryEntry) -> usize {
+    use tracewake_core::checksum::{
+        AGENT_STATE_CHECKSUM_COVERAGE, PHYSICAL_STATE_CHECKSUM_COVERAGE,
+    };
+
+    match entry.lock_id {
+        "scheduler_never_direct_dispatches_primitive_action"
+        | "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch"
+        | "guard_006_continue_routine_marker_alone_is_not_behavioral_progress" => {
+            non_empty_production_sites(&[production(SCHEDULER_RS).as_str()])
+        }
+        "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass" => {
+            guarded_sources_for(GuardedLayer::Scheduler).len()
+        }
+        "guard_006_scheduler_does_not_fabricate_empty_epistemic_projection" => {
+            non_empty_production_sites(&[guarded_source("src/scheduler.rs").as_str()])
+        }
+        "guard_018_actor_known_facts_require_source_event_witness" => {
+            non_empty_production_sites(&[
+                production(ACTOR_KNOWN_RS).as_str(),
+                production(NO_HUMAN_SURFACE_RS).as_str(),
+                production(TRANSACTION_RS).as_str(),
+            ])
+        }
+        "guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms" => {
+            witness_kind_arm_inspected_sites(&production(TRANSACTION_RS))
+        }
+        "guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth" => {
+            guarded_sources_for(GuardedLayer::Scheduler).len()
+                + non_empty_production_sites(&[
+                    guarded_source("src/agent/no_human_surface.rs").as_str()
+                ])
+        }
+        "guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed" => {
+            guarded_sources_for(GuardedLayer::Scheduler).len()
+                + guarded_sources_for(GuardedLayer::Agent).len()
+        }
+        "guard_014_embodied_projection_workplaces_are_context_backed"
+        | "guard_014_no_human_metrics_do_not_scan_display_text" => {
+            guarded_sources_for(GuardedLayer::Projections).len()
+        }
+        "guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability" => {
+            non_empty_production_sites(&[production(PROJECTIONS_RS).as_str()])
+        }
+        "guard_014_sleep_validation_requires_modeled_affordance" => non_empty_production_sites(&[
+            production(SLEEP_RS).as_str(),
+            production(PROJECTIONS_RS).as_str(),
+            production(TRANSACTION_RS).as_str(),
+            production(NO_HUMAN_SURFACE_RS).as_str(),
+        ]),
+        "guard_0021_actor_known_projection_policy_table_has_production_callers" => {
+            production(EPISTEMIC_PROJECTION_RS)
+                .matches(".policy()")
+                .count()
+        }
+        "guard_015_ordinary_life_tuning_comes_from_authored_state" => non_empty_production_sites(
+            &[production(SLEEP_RS).as_str(), production(TIME_RS).as_str()],
+        ),
+        "guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition" => {
+            non_empty_production_sites(&[
+                production(SCHEDULER_RS).as_str(),
+                production(TRANSACTION_RS).as_str(),
+            ])
+        }
+        "guard_014_transaction_has_no_silent_method_fallback_scan" => {
+            non_empty_production_sites(&[production(TRANSACTION_RS).as_str()])
+        }
+        "guard_015_hidden_truth_audit_fails_closed_in_transaction" => non_empty_production_sites(
+            &[
+                production(TRANSACTION_RS).as_str(),
+                production(PIPELINE_RS).as_str(),
+            ],
+        ),
+        "guard_014_decision_hidden_truth_audit_uses_typed_input_refs" => {
+            non_empty_production_sites(&[production(DECISION_RS).as_str()])
+        }
+        "guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters" => {
+            non_empty_production_sites(&[
+                production(EAT_RS).as_str(),
+                production(SLEEP_RS).as_str(),
+                production(WORK_RS).as_str(),
+            ])
+        }
+        "agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state" => {
+            tracewake_core::events::apply::AGENT_WORLD_NOOP_ALLOWLIST.len()
+        }
+        "materialized_agent_apply_arms_require_payload_schema_version" => {
+            AGENT_STATE_CHECKSUM_COVERAGE.len()
+        }
+        "guard_002_agent_state_keeps_typed_trace_and_diagnostic_records" => {
+            non_empty_production_sites(&[STATE_RS])
+        }
+        "guard_001_authoritative_state_fields_are_not_publicly_mutable" => {
+            PHYSICAL_STATE_CHECKSUM_COVERAGE.len() + AGENT_STATE_CHECKSUM_COVERAGE.len()
+        }
+        "guard_001_mutation_capability_is_private_to_event_application" => {
+            non_empty_production_sites(&[EVENTS_MOD_RS, EVENTS_MUTATION_RS, EVENTS_APPLY_RS])
+        }
+        "guard_001_no_production_seed_mutation_outside_state_definition"
+        | "guard_001_no_direct_state_collection_insert_outside_event_application" => {
+            core_production_sources().len()
+        }
+        "guard_001_actor_known_context_has_no_public_arbitrary_constructor" => {
+            non_empty_production_sites(&[production(ACTOR_KNOWN_RS).as_str()])
+        }
+        "adding_event_schema_version_requires_migrator_registration" => {
+            tracewake_core::events::event_schema_registry().len()
+        }
+        "non_world_stream_cannot_change_physical_checksum" => {
+            tracewake_core::events::EventKind::all()
+                .iter()
+                .filter(|kind| {
+                    kind.metadata().stream != tracewake_core::events::EventStream::World
+                })
+                .count()
+        }
+        "new_authoritative_field_without_checksum_registry_fails"
+        | "new_authoritative_field_without_canonical_checksum_line_fails" => {
+            checksum_parity_errors(
+                "pub struct PhysicalState {\n    pub(crate) actors: BTreeMap<ActorId, ActorBody>,\n    pub(crate) places: BTreeMap<PlaceId, PlaceState>,\n}\n\npub struct AgentState {\n    pub(crate) needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,\n}\n",
+                "lines.push(format!(\"actor|id={}\", actor_id.as_str()));\nlines.push(format!(\"need|actor={}\", actor_id.as_str()));\n",
+                &[("actors", "actor")],
+                &[("needs_by_actor", "need")],
+            )
+            .len()
+        }
+        "guard_001_hidden_truth_audit_is_derived_from_provenance_not_tags" => {
+            non_empty_production_sites(&[
+                production(ACTOR_KNOWN_RS).as_str(),
+                production(DECISION_RS).as_str(),
+                production(HTN_RS).as_str(),
+                production(PLANNER_RS).as_str(),
+            ])
+        }
+        "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts" => META_LOCK_REGISTRY
+            .iter()
+            .filter(|registered| {
+                [
+                    "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch",
+                    "guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters",
+                    "guard_002_agent_state_keeps_typed_trace_and_diagnostic_records",
+                ]
+                .contains(&registered.lock_id)
+            })
+            .count(),
+        "guard_008_action_registry_uses_typed_scopes_not_phase1_boolean" => {
+            non_empty_production_sites(&[production(ACTIONS_REGISTRY_RS).as_str()])
+        }
+        "embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance" => {
+            production(PROJECTIONS_RS)
+                .matches("report.actor_visible_facts.iter()")
+                .count()
+        }
+        _ => 0,
+    }
 }
 
 fn typed_column_closure_oblique_inspected_site_count(
@@ -2783,17 +2958,6 @@ fn no_human_day_runner_only_inspected_site_count(source: &str) -> usize {
                 || line.contains("\"actor_mara\"")
         })
         .count()
-}
-
-fn perception_visibility_other_emission_inspected_site_count(source: &str) -> usize {
-    [
-        "fn current_place_perception_events",
-        "fn observation_event",
-        "fn is_visible_exit_target",
-    ]
-    .iter()
-    .filter(|marker| function_body_if_present(source, marker).is_some())
-    .count()
 }
 
 fn meta_lock_registry_errors(
@@ -4403,6 +4567,21 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
         "synthetic scan-shaped exemption without covering lock_id must fail"
     );
 
+    let inline_scan_exemption_source = format!(
+        "{ANTI_REGRESSION_GUARDS_RS}\n#[test]\nfn synthetic_inline_scan_exemption() {{ let violations = sources.iter().filter(|line| line.contains(\"bad\")).count(); assert_eq!(violations, 0); }}\n"
+    );
+    assert!(
+        meta_lock_census_exemption_errors(
+            "synthetic_inline_scan_exemption",
+            "synthetic inline-scan rationale without covering lock",
+            &BTreeSet::from(["synthetic_inline_scan_exemption"]),
+            &inline_scan_exemption_source,
+        )
+        .iter()
+        .any(|error| error.contains("covering lock_id")),
+        "synthetic inline-scan exemption without covering lock_id must fail the broadened detector"
+    );
+
     let anchorless_source = ANTI_REGRESSION_GUARDS_RS.replace(
         "fn apply_event_with_capability",
         "fn stale_apply_event_with_capability",
@@ -4414,22 +4593,42 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
         "synthetic anchor-miss scan must fail the live nonzero-witness rule"
     );
 
-    let formerly_presence_fallback_entry = META_LOCK_REGISTRY
+    let witness_kind_entry = META_LOCK_REGISTRY
         .iter()
-        .find(|entry| entry.lock_id == "checksum_coverage_is_total_for_authoritative_state")
+        .find(|entry| {
+            entry.lock_id == "guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms"
+        })
         .unwrap();
+    let vacuated_transaction = production(TRANSACTION_RS)
+        .replace("fn witness_kind_allowed", "fn stale_witness_kind_allowed");
     assert!(
-        meta_lock_live_witness_count(formerly_presence_fallback_entry, "")
-            < formerly_presence_fallback_entry.witness_min,
-        "formerly default-routed scan must fail when its measured witness body is absent"
+        witness_kind_arm_inspected_sites(&vacuated_transaction) < witness_kind_entry.witness_min,
+        "present-but-vacuous behavior-assertion witness must drop below minimum when its inspected population empties"
     );
     let live_witness_body =
         function_body_if_present(ANTI_REGRESSION_GUARDS_RS, "fn meta_lock_live_witness_count")
             .unwrap();
+    let behavior_witness_body = function_body_if_present(
+        ANTI_REGRESSION_GUARDS_RS,
+        "fn behavior_assertion_inspected_site_count",
+    )
+    .unwrap();
+    for (witness_fn, witness_body) in [
+        ("meta_lock_live_witness_count", live_witness_body),
+        (
+            "behavior_assertion_inspected_site_count",
+            behavior_witness_body,
+        ),
+    ] {
+        let ban_errors = witness_shape_ban_errors(witness_body);
+        assert!(
+            ban_errors.is_empty(),
+            "{witness_fn} carries a banned witness shape: {ban_errors:?}"
+        );
+    }
     assert!(
-        !live_witness_body.contains("test_names.contains(entry.lock_id)")
-            && !live_witness_body.contains("anti_regression_source.contains(entry.negative_id)"),
-        "meta-lock live witnesses must not use registry/test-name presence as a fallback"
+        !witness_shape_ban_errors("let count = body.matches(\"assert!\").count();").is_empty(),
+        "synthetic assertion-token-count witness shape must trip the ban"
     );
 
     let oblique_entry = META_LOCK_REGISTRY
@@ -4463,21 +4662,15 @@ fn meta_lock_registry_covers_structural_locks_and_negatives() {
         .iter()
         .find(|entry| entry.lock_id == "guard_014_perception_visibility_other_emission_paths")
         .unwrap();
-    let perception_without_other_emission_sites = PERCEPTION_RS
-        .replace(
-            "fn current_place_perception_events",
-            "fn stale_current_place_perception_events",
-        )
-        .replace("fn observation_event", "fn stale_observation_event")
-        .replace(
-            "fn is_visible_exit_target",
-            "fn stale_is_visible_exit_target",
-        );
+    let comment_only_perception = PERCEPTION_RS
+        .lines()
+        .map(|line| format!("// {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(
-        perception_visibility_other_emission_inspected_site_count(
-            &perception_without_other_emission_sites
-        ) < other_emission_entry.witness_min,
-        "synthetic perception inspected-site removal must fail the repaired live witness"
+        perception_prose_scan_inspected_line_count(&comment_only_perception)
+            < other_emission_entry.witness_min,
+        "synthetic inspected-line removal must fail the repaired perception witnesses while anchors stay textually present"
     );
 
     let unregistered_guard_source = format!(
@@ -4693,6 +4886,17 @@ fn workspace_dependency_posture_matches_allowlist() {
     assert_eq!(
         actual, expected,
         "workspace dependency posture changed; review crate ownership before updating the allowlist"
+    );
+
+    let mut synthetic_unlisted_workspace_dependency = actual;
+    synthetic_unlisted_workspace_dependency.insert(DependencyEntry {
+        manifest_path: "crates/tracewake-core/Cargo.toml".to_string(),
+        section: "dependencies".to_string(),
+        dependency: "synthetic_unlisted_dependency".to_string(),
+    });
+    assert_ne!(
+        synthetic_unlisted_workspace_dependency, expected,
+        "synthetic_unlisted_workspace_dependency must fail the allowlist parity census"
     );
 }
 
