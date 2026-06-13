@@ -12,7 +12,8 @@ amendment demands (cf. `archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTA
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Staged in `specs/`; not yet enacted into `docs/1-architecture/*`.
+**Status:** COMPLETED. Enacted into `docs/1-architecture/*` by the `0027ARCTIEDOC`
+ticket series and archived as historical provenance.
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code and performs no gate audit.
@@ -198,3 +199,41 @@ architecture.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/hardening-series precedent: the ledger row lands at acceptance/closeout,
   not at proposal).
+
+## Outcome
+
+Completed: 2026-06-13
+
+The architecture-tier amendment package was enacted through the
+`0027ARCTIEDOC` ticket series:
+
+- D1/D7: A13 now defines observer-only emergence-evidence records and typed
+  path-under-test observability.
+- D2: A11 now scopes story-sifting evidence creation to forbid diegetic
+  evidence while allowing A13-governed observer-only review evidence.
+- D3/D4: A03 now states provenance sufficiency and fail-closed provenance; A06
+  now owns the observed-now versus remembered/stale freshness classifier.
+- D5: A10 now states the observation/preflight/perception capture rule for
+  embodied view models and semantic action entries.
+- D6: A04/A05/A09 now name the single-charge derived-accounting seam, with an
+  A00 pointer to the compact contract.
+
+The user-provided implementation goal was treated as owner approval to enact
+the tier-1 architecture amendments. No crate/code, fixture, foundation,
+execution, or reference changes were made; the work was documentation-only
+architecture doctrine.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+
+All gates passed on 2026-06-13. Ticket-specific landing greps and boundary
+reviews are recorded in `archive/tickets/0027ARCTIEDOC-001.md` through
+`archive/tickets/0027ARCTIEDOC-005.md`.
+
+Deviations: D1's invalid-pass wording uses "review measurements" rather than
+"counters" to preserve the spec's architecture/execution boundary while
+retaining the anti-steering rule. No deliverable was deferred or dropped.
