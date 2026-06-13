@@ -57,6 +57,10 @@ For each ticket:
 1. Reassess assumptions against current code, docs, and crate ownership.
    If the ticket/spec diverges from current truth, correct the ticket/spec first
    and commit that correction separately when it is material.
+   Identify explicit preconditions, approvals, or "do not proceed until" clauses
+   before editing. If the user's current request clearly satisfies a
+   precondition, record that in the ticket/spec `Outcome`; otherwise ask before
+   crossing it.
    If acceptance criteria contain an un-expanded quantifier ("every …",
    "both …", "all …", a named defect class) or an unresolved conditional
    ("if nontrivial", "where applicable"), treat that as ticket divergence:
@@ -194,6 +198,11 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    Update active references that should point to `archive/specs/` or
    `archive/tickets/`. Leave intentionally historical archive references alone
    unless they describe current location or current status.
+   When sweeping archived files for stale live paths, distinguish historical
+   body prose from active/current-state claims. If needed, use archive-excluding
+   patterns such as `(?<!archive/)tickets/<ticket prefix>` or
+   `(?<!archive/)specs/<spec filename>` to avoid treating expected archived
+   provenance as a live-path defect.
    Check active reports and acceptance artifacts for recorded deferrals, live
    ticket paths, live spec paths, and target-commit claims that became stale
    after the last ticket or spec archive.
@@ -256,15 +265,19 @@ before the final response; do not rely on a prose closeout alone.
 
 Final responses must include:
 
-- Tickets completed and archived.
-- Spec archived, or the explicit user no-archive instruction or live blocking
-  evidence that keeps it active. A ticket-local deferred/out-of-scope note is
-  not sufficient.
-- Verification commands actually run.
-- Any checks not run and why.
-- Any enumerated-criterion members deferred or dropped, with their recorded
-  dispositions, or explicitly `None`.
-- Any unrelated pre-existing changes left untouched, or explicitly `None`.
+- `Tickets completed and archived: <list or None>.`
+- `Spec archived: <archive path, explicit user no-archive instruction, or live
+  blocking evidence>.` A ticket-local deferred/out-of-scope note is not
+  sufficient.
+- `Verification commands run: <commands>.`
+- `Checks not run: <commands and why, or None>.`
+- `Enumerated-criterion members deferred/dropped: <recorded dispositions, or
+  None>.`
+- `Unrelated pre-existing changes left untouched: <paths/summary, or None>.`
+
+These fields may be embedded in concise prose, but the final answer must make
+each answer explicit. For active `/goal` runs, include the goal-tool usage
+summary after marking the goal complete.
 
 ## Maintenance
 

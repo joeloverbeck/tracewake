@@ -30,7 +30,11 @@ contains the §2 read-list):
 If this brief **continues a prior one** (a multi-block campaign, or a follow-up to earlier
 research), name the predecessor `reports/<...>-research-brief.md` and state what it already
 delivered, so Session 2 treats this as a *delta* — not a cold start — and does not re-commission
-completed work.
+completed work. When the campaign chains **several** prior sessions (e.g. a foundation determination,
+then a routing memo, then an upstream-tier report), name each, state what each delivered, and identify
+which is the **freshest / most-specific seed** for this pass — later predecessors often supersede
+earlier ones as the primary input (a successor report's forward-routing appendix usually outranks the
+original routing memo it descends from).
 
 ### 2. Read in full (authority order)
 
