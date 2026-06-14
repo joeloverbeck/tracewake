@@ -17,7 +17,7 @@ amendment `archive/specs/0029_REFERENCE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`).
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Awaiting owner approval to enact via the reassess / ticket process.
+**Status**: COMPLETED
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code, performs no gate audit, and asserts nothing about whether live crates, fixtures,
@@ -268,3 +268,41 @@ re-decided, and no new code/obligation/invariant/status identifier is coined.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/`0027`/`0028`/hardening-series precedent: the ledger row lands at
   acceptance/closeout, not at proposal).
+
+## Outcome
+
+Completed: 2026-06-14
+
+Spec 0030 was enacted by `0030SPETIEDOC-001`, which amended
+`docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` with a companion evidence
+item ledger and mandatory per-evidence-item honesty fields. The enacted fields
+make evidence status, fingerprint scope, path-under-test behavior witnesses,
+replay/provenance ancestry, sampling/exhaustiveness scope, pending/historical
+handling, and certification use visible in acceptance packets while pointing to
+execution `10` for the governing evidence-honesty rule.
+
+The owner-approval precondition in §R-A was satisfied by the explicit user
+request to implement the `0030SPETIEDOC` series. No foundation, architecture,
+execution, crate, fixture, specs `README`, or `0001` ontology edits were made.
+`EMERGE-OBS` remains observer-only and non-certifying; the template bars
+observer-only rows from becoming certification, gate pass/fail thresholds,
+scheduler objectives, scenario goals, or code-quality substitutes unless a
+future upstream spec changes that doctrine.
+
+Verification recorded by the ticket included the status-vocabulary,
+fingerprint-scope, behavior-witness/provenance, observer-only, and
+scoped-certification/forbidden-wording greps against
+`docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, plus manual review against
+execution `10` and `INV-097`/`INV-098`/`INV-111`. Final closeout gates are run
+after spec archive/truthing edits so the gate evidence covers the final
+committed closeout state.
+
+Final closeout verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- Archive/reference audits found no active live `specs/0030...` or
+  `tickets/0030SPETIEDOC...` references, and the archived ticket/spec both
+  carry `## Outcome` and `Completed:`.
