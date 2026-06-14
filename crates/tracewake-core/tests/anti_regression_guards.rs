@@ -53,17 +53,17 @@ const TUI_RENDER_RS: &str = include_str!("../../tracewake-tui/src/render.rs");
 const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
 const MUTANTS_BASELINE_MISSES: &str = include_str!("../../../.cargo/mutants-baseline-misses.txt");
 const MUTANTS_BASELINE_LEDGER: &str =
-    include_str!("../../../reports/0020_mutants_baseline_disposition.md");
+    include_str!("../../../archive/reports/0020_mutants_baseline_disposition.md");
 const ACCEPTANCE_0021_REPORT: &str =
-    include_str!("../../../reports/0021_ord_life_cert_scoped_acceptance.md");
+    include_str!("../../../archive/reports/0021_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0022_REPORT: &str =
-    include_str!("../../../reports/0022_ord_life_cert_scoped_acceptance.md");
+    include_str!("../../../archive/reports/0022_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0023_REPORT: &str =
-    include_str!("../../../reports/0023_ord_life_cert_scoped_acceptance.md");
+    include_str!("../../../archive/reports/0023_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0024_REPORT: &str =
-    include_str!("../../../reports/0024_ord_life_cert_scoped_acceptance.md");
+    include_str!("../../../archive/reports/0024_ord_life_cert_scoped_acceptance.md");
 const ACCEPTANCE_0025_REPORT: &str =
-    include_str!("../../../reports/0025_ord_life_cert_scoped_acceptance.md");
+    include_str!("../../../archive/reports/0025_ord_life_cert_scoped_acceptance.md");
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
 const CI_WORKFLOW_GUARDS_RS: &str = include_str!("ci_workflow_guards.rs");
 
