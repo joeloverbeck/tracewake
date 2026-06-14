@@ -37,7 +37,8 @@ anti-overclaiming posture. Once authored, the final wording is specs-tier templa
 spec becomes historical provenance.
 
 **Provenance:** derived from `reports/specs-tier-alignment-research-report.md` (external deep
-research, pinned to commit `36b40823fb07752987531ecd142c78505b8f56da` = current `HEAD` `36b4082`)
+research, pinned to commit `36b40823fb07752987531ecd142c78505b8f56da` — the then-current `HEAD`, now an
+ancestor of `HEAD` `5e053f2`)
 and the shared brief `reports/reference-and-specs-tier-alignment-research-brief.md`. The report is
 the planned `docs/4-specs/*` session that follows the foundation (`0026`), architecture (`0027`),
 and execution (`0028`) alignments and the routing backlog
@@ -179,6 +180,9 @@ re-decided, and no new code/obligation/invariant/status identifier is coined.
   `Result` cells — no evidence status, fingerprint scope, sampling/exhaustiveness, observer-only,
   pending, historical, behavior-witness, or replay/provenance fields (F03 real). Execution `10`
   (ratified, `0028` D9) supplies the status and fingerprint-scope rule the template must point to.
+  Re-confirmed at reassessment time against current `HEAD` `5e053f2`: `0003` is byte-identical to its
+  state at the pinned commit (`git diff 36b4082 -- docs/4-specs/0003` empty), so the coverage gap is
+  unaffected by the commits that advanced `HEAD` past the pin.
 - **V2 — Enactment acceptance (on implementation).** The deliverable is accepted only when its
   substance is authored into `0003` as packet-structure requirements that point to execution `10`
   (not a doctrine restatement), the existing scoped-certification / residual-convention / forbidden-
@@ -253,7 +257,9 @@ re-decided, and no new code/obligation/invariant/status identifier is coined.
 ## 8. Provenance & Source Discipline
 
 - The source report is pinned to `36b40823fb07752987531ecd142c78505b8f56da` and was re-verified
-  against that same live `HEAD` `36b4082`; no intervening commit drift applies.
+  against that same live `HEAD` `36b4082` at authoring. Subsequent commits (the `0029` reference-tier
+  archival, PR #37) advanced `HEAD` to `5e053f2`, but `docs/4-specs/0003` is byte-identical since the
+  pin (`git diff 36b4082 -- docs/4-specs/0003` empty), so no drift affects the V1 coverage claim.
 - Commit hashes named here are audit/spec provenance only.
 - The report's external proof-methodology references (its §10 — testing-oracle, metamorphic,
   property-based, mutation, approval/golden, deterministic-simulation, structured-observability
