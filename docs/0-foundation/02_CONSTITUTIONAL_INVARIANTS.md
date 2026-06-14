@@ -458,6 +458,10 @@ These invariants are added because implementation work on needs, routines, no-hu
 
 **INV-111 — Living-world acceptance requires observer-only emergence evidence.** Tracewake's living-world claim is not accepted merely by proving that ordinary-life phenomena are statically reachable. Acceptance must include replayable, observer-only evidence that unscripted ordinary-life phenomena actually arise from modeled causes in no-human or normal-controller runs. That evidence must be retrospective, explainable through event-log ancestry, and unable to feed simulation behavior, author outcomes, or set dramatic objectives.
 
+### Temporal authority
+
+**INV-112 — Time may validate, but holder-known time must plan.** This temporal authority invariant makes authoritative simulation time, event order, intervals, durations, and due effects available to validate replay, ordering, action legality, scheduled consequences, and causal explanation. Cognition, routine selection, institutional procedure, embodied view models, speech interpretation, leads, and LOD promotion may use temporal facts only when those facts are available to the relevant actor, household, institution, group, or region through modeled channels. Deadline, lateness, staleness, expected-by-now, yesterday, and office-closed states are claims, procedure states, or holder/institution-known interpretations with provenance, not free truth labels. The scheduler and replay clock may order and validate; they must not become cognition authority.
+
 ## Enforcement reading
 
 Any implementation that produces plausible behavior by reading hidden truth has failed even if the test passes. Tests must be corrected when they reward:

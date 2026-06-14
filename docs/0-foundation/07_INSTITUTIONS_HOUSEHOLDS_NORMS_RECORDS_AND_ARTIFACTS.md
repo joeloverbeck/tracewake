@@ -250,6 +250,8 @@ Records can be true, false, partial, stale, forged, misfiled, lost, unread, igno
 
 Record creation, copying, reading, filing, loss, destruction, forgery, correction, and erasure are events.
 
+The procedural time case is institution-known or artifact-backed: office hours, filing windows, due dates, lateness, queue aging, record expiration, notice lifecycle, wage/payment periods, case delays, sanction windows, and procedural aging. A procedure may validate against authoritative time, but an institution's conclusion or action arises from records, reports, role knowledge, office procedure, evidence thresholds, observed absence, or modeled delay. A debt becomes late only under a due rule, clock validation, and a holder-facing or institution-facing record/procedure state with provenance.
+
 ## Runtime artifact rule
 
 After simulation start, a record-like artifact exists only through modeled cause.

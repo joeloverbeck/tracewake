@@ -25,7 +25,10 @@ contains the §2 read-list):
 > `0-foundation` → `1-architecture` → `2-execution` → `3-reference` → `4-specs`; earlier
 > tiers govern later ones. Fetch every file from commit `<HEAD>` — the manifest reflects that
 > tree. (If a referenced report cites a different "commit of record," note the divergence here
-> and use the verified HEAD, not the report's string.)
+> and use the verified HEAD, not the report's string. If you then reassure Session 2 that the
+> predecessor's findings carry forward *because the target files are unchanged between the
+> report's commit and the new baseline*, that is a factual claim — verify it before writing it,
+> per the Step 6 baseline-commit rule, never assert it from memory.)
 
 If this brief **continues a prior one** (a multi-block campaign, or a follow-up to earlier
 research), name the predecessor `reports/<...>-research-brief.md` and state what it already
@@ -168,7 +171,11 @@ consolidated `reports/<tier>-alignment-research-report.md`, **or** — when a si
 multiple tiers — one report per tier (`reports/<tier-a>-alignment-research-report.md`,
 `reports/<tier-b>-…`). Resolve the count in the Step 4 interview; default to the per-tier split when the
 tiers carry distinct authority boundaries (the campaign's architecture- and execution-tier passes each
-produced their own report). Direct Session 2 to
+produced their own report). **For a top-tier (`0-foundation`) pass** the report is an *amendment*
+recommendation, not a realignment to anything upstream; prior precedent named it
+`foundation-amendment-research-report.md`. Choosing `-alignment-` for cross-campaign per-tier symmetry
+vs. `-amendment-` for precision is a labeled decision — surface it as a bounded interview question or
+carry an `assumption:` line, do not silently default. Direct Session 2 to
 deliver **substance + home, not ratified text** — for each finding, *what doctrine the target doc must
 own* (Session 2's own prose, at the right altitude for that tier) and *which file* it lands in (new
 section / addition / correction) — explicitly **without** final paste-ready wording or invented

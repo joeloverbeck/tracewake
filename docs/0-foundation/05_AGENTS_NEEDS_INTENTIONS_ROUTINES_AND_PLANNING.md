@@ -282,6 +282,8 @@ Hunger, debt, rain, locked doors, gossip, or a suspicious guard may interrupt.
 Failure produces consequences.
 ```
 
+The temporal firewall applies to routines: jobs, duties, social appointments, and schedule-following consume only actor-known, holder-known, or institution-known temporal premises such as believed work time, remembered assignment, read notice, heard bell, inferred lateness from darkness, observed queue, or held role obligation. An actor may not act because the scheduler read true office hours or a global calendar row said work. A scheduler trigger may create a decision opportunity, but candidate generation and routine continuation still pass through the actor-known transaction and ordinary validation.
+
 ## Social action and speech
 
 Initial conversation must use structured speech acts with deterministic templates. Freeform text may be added later only as candidate generation behind validation.

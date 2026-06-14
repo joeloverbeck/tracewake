@@ -114,6 +114,8 @@ Lore: many people came from the north because times were hard.
 
 Summary events may be coarse. They must still have source, inputs, outputs, provenance, fidelity limits, and replay/debug visibility.
 
+The temporal authority rule for LOD is that every boundary summary that later affects actor, institution, household, regional, or embodied behavior must preserve both temporal ancestry and information ancestry: interval covered, cadence or trigger, known-to-whom claims, public records/notices, rumor chains, role assignments, last-verification or staleness risk, and fidelity limits. A promoted actor or institution inherits only temporal knowledge explicitly attributed through preserved ancestry, never the aggregate truth used to maintain the low-detail simulation.
+
 ## Promotion and demotion
 
 LOD promotion/demotion must be explicit and logged.

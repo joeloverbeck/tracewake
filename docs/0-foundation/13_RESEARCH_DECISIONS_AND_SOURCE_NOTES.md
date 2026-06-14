@@ -501,6 +501,12 @@ Limited/rejected: Tracewake does not need to adopt RDF/OWL or enterprise CQRS ar
 
 Changed documents: `03`, `04`, `07`, `10`, `12`, `14`.
 
+### Temporal authority
+
+Accepted: temporal-modeling and simulation-reporting sources support naming instants, intervals, durations, simulation time, wall-clock time, and scheduling resolution as separate concerns. That supports Tracewake's temporal authority split: authoritative event/replay time validates ordering and consequences, while holder-known and institution-known temporal claims require provenance before they can guide cognition, procedures, embodied views, or promotion.
+
+Limited/rejected: these sources do not ratify a tick size, calendar syntax, duration unit, scheduler implementation, UI clock rendering, or stale-after threshold for foundation. Those choices belong to lower-tier model and execution work.
+
 ## Material source list
 
 - Anand Rao and Michael Georgeff, "BDI Agents: From Theory to Practice" — https://cdn.aaai.org/ICMAS/1995/ICMAS95-042.pdf
@@ -517,5 +523,7 @@ Changed documents: `03`, `04`, `07`, `10`, `12`, `14`.
 - Martin Fowler, "Event Sourcing" — https://martinfowler.com/eaaDev/EventSourcing.html
 - W3C PROV-DM — https://www.w3.org/TR/prov-dm/
 - W3C PROV-O — https://www.w3.org/TR/prov-o/
+- Jerry Banks et al., "Discrete-Event System Simulation" — simulation time and event scheduling terminology.
+- Michael J. North and Charles M. Macal, "Managing Business Complexity" — agent-based modeling time and scheduling choices as model-design decisions.
 
-These sources are not imported wholesale. They justify specific constraints: actor-known BDI-style cognition, HTN-like procedures, bounded local planning, plan repair, social belief provenance, non-director emergence, LLM non-authority, event-sourced replay, and provenance-bearing information flow.
+These sources are not imported wholesale. They justify specific constraints: actor-known BDI-style cognition, HTN-like procedures, bounded local planning, plan repair, social belief provenance, non-director emergence, LLM non-authority, event-sourced replay, provenance-bearing information flow, and temporal authority separation.
