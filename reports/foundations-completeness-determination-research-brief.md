@@ -9,33 +9,33 @@
 
 ## 1. Context
 
-The uploaded manifest (`reports/manifest_2026-06-14_68e3266.txt`) is the path inventory of the
+The uploaded manifest (`reports/manifest_2026-06-14_d7fc746.txt`) is the path inventory of the
 `joeloverbeck/tracewake` repository — a causality-first living-world simulation in Rust
 (event-sourced kernel, subjective epistemics, fallible institutions, TUI-first; agents act from
 partial belief and every event leaves a replayable trace). Docs are layered authority:
 `0-foundation` → `1-architecture` → `2-execution` → `3-reference` → `4-specs`; **earlier tiers
-govern later ones.** Fetch every file from commit **`68e3266`** (verified repo `HEAD`) — the
+govern later ones.** Fetch every file from commit **`d7fc746`** (verified repo `HEAD`) — the
 manifest reflects exactly that tree.
 
-**One seed file is reproduced inline, not fetchable.** The document that triggered this task,
-`reports/verdict-on-foundations.md`, is *untracked* at `68e3266` and therefore absent from the
-manifest. Its full text is reproduced verbatim in **Appendix A** of this brief — treat Appendix A
-as the authoritative seed; do not expect to fetch it.
+**The seed is both fetchable and reproduced inline.** The document that triggered this task,
+`reports/verdict-on-foundations.md`, is tracked at `d7fc746` and present in the manifest; it is also
+reproduced verbatim in **Appendix A** for convenience. Read either — they are identical; Appendix A
+is authoritative if they ever diverge.
 
 **This brief is a delta, not a cold start.** A prior, structurally identical campaign already ran:
 
-- `reports/foundation-amendment-research-brief.md` + `reports/foundation-amendment-research-report.md`
+- `archive/reports/foundation-amendment-research-brief.md` + `archive/reports/foundation-amendment-research-report.md`
   — a determination that evaluated **seven** candidate themes drawn from the `0006`–`0025`
   *hardening / anti-contamination* campaign (provenance sufficiency, memory freshness,
   believed-access affordances, single-charge derived accounting, emergence-as-evidence,
   falsifiability/anti-vacuity, acceptance-evidence/fingerprint honesty).
-- `reports/foundation-amendment-lower-tier-routing.md` — the routing memo that recorded where each
+- `archive/reports/foundation-amendment-lower-tier-routing.md` — the routing memo that recorded where each
   non-foundation theme was handed off.
 - That determination promoted **exactly one** theme to the constitution (emergence-as-evidence,
   ratified as `archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md`),
   routed the other six below the foundation, and drove the **now-complete** lower-tier realignment
   specs `0027` (architecture), `0028` (execution), `0029` (reference), `0030` (specs). Their
-  research outputs are the four `reports/*-tier-alignment-research-report.md` files.
+  research outputs are the four `archive/reports/*-tier-alignment-research-report.md` files.
 
 This pass is the **parallel determination** seeded by a *different* input. `verdict-on-foundations.md`
 raises **nine design-completeness themes** (play legibility, time/calendar/social rhythm,
@@ -69,17 +69,18 @@ docs/0-foundation/11_LLM_SPEECH_ACTS_AND_LANGUAGE_BOUNDARY.md — language bound
 docs/0-foundation/12_FIRST_PLAYABLE_SCOPE_AND_ACCEPTANCE_GATES.md — first-proof scope; current home of any staged-incompleteness language.
 docs/0-foundation/13_RESEARCH_DECISIONS_AND_SOURCE_NOTES.md — how foundation decisions were sourced (the precedent for citing research).
 docs/0-foundation/14_ACTOR_KNOWN_COGNITION_TRANSACTION_AND_TRUTH_FIREWALL.md — the truth firewall; every theme must be tested against "truth may validate, never plan."
+reports/verdict-on-foundations.md — the SEED; the nine themes this determination triages (also reproduced verbatim in Appendix A).
 ```
 
 **Delta / current-coverage (read so this pass is a delta and respects settled work):**
 
 ```
-reports/foundation-amendment-research-report.md — the SEVEN already-adjudicated themes and the method to reuse; do NOT re-open these.
-reports/foundation-amendment-lower-tier-routing.md — the routing precedent (target-doc mapping, open questions) your forward-routing appendix should mirror.
-reports/architecture-tier-alignment-research-report.md — what the architecture tier just absorbed (current coverage signal).
-reports/execution-tier-alignment-research-report.md — what the execution tier just absorbed.
-reports/reference-tier-alignment-research-report.md — what the reference tier just absorbed.
-reports/specs-tier-alignment-research-report.md — what the specs tier just absorbed; note the specs tier is NOT an amendment target.
+archive/reports/foundation-amendment-research-report.md — the SEVEN already-adjudicated themes and the method to reuse; do NOT re-open these.
+archive/reports/foundation-amendment-lower-tier-routing.md — the routing precedent (target-doc mapping, open questions) your forward-routing appendix should mirror.
+archive/reports/architecture-tier-alignment-research-report.md — what the architecture tier just absorbed (current coverage signal).
+archive/reports/execution-tier-alignment-research-report.md — what the execution tier just absorbed.
+archive/reports/reference-tier-alignment-research-report.md — what the reference tier just absorbed.
+archive/reports/specs-tier-alignment-research-report.md — what the specs tier just absorbed; note the specs tier is NOT an amendment target.
 archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md — the FORM a successful foundation promotion takes (use as a shape model, not as scope).
 ```
 
@@ -92,7 +93,7 @@ docs/3-reference/01_DESIGN_RISK_REGISTER.md and docs/3-reference/02_GLOSSARY.md 
 docs/4-specs/SPEC_LEDGER.md — the specs-tier posture; confirms specs is not an amendment target.
 ```
 
-(Appendix A — `verdict-on-foundations.md` — is reproduced at the end of this brief; read it as a primary seed.)
+(Appendix A reproduces `reports/verdict-on-foundations.md` verbatim at the end of this brief; it is also fetchable at the path above.)
 
 ## 3. Settled intentions (final — these are decisions, not options)
 
@@ -127,7 +128,7 @@ docs/4-specs/SPEC_LEDGER.md — the specs-tier posture; confirms specs is not an
 8. **This determination feeds later per-tier sessions.** The user will run separate per-tier
    research sessions afterward (one each for any tier that receives findings). Your forward-routing
    appendix is the hand-off they inherit — make it ordered and specific (target doc(s) + the lesson
-   to encode), mirroring `foundation-amendment-lower-tier-routing.md`.
+   to encode), mirroring `archive/reports/foundation-amendment-lower-tier-routing.md`.
 
 > assumption: the deliverable filename is
 > `reports/foundations-completeness-determination-research-report.md` and the brief filename is
@@ -187,8 +188,8 @@ Required structure:
    themes; list newly-surfaced candidates in their own block within the same table or a sibling
    table, clearly labeled.
 2. **Method & provenance ledger** — how you evaluated (tier-fit test, current-coverage check,
-   research sources consulted), pinned to commit `68e3266`; note that the seed is Appendix A of the
-   brief (untracked at baseline).
+   research sources consulted), pinned to commit `d7fc746`; the seed is `reports/verdict-on-foundations.md`
+   (also reproduced as Appendix A of the brief).
 3. **Per-theme sections** — one per theme, in this shape: *driver* (what the verdict/research
    argues) → *current coverage* (what live docs already own, with file references) → *tier-fit
    verdict* (which tier its nature requires, and why — derived from the authority definitions) →
@@ -198,7 +199,7 @@ Required structure:
    *not from the verdict*.
 5. **Forward-routing appendix** — for every promoted/routed theme, the ordered hand-off to the
    later per-tier session that will encode it (target tier → target doc(s) → lesson to encode),
-   mirroring `reports/foundation-amendment-lower-tier-routing.md`. Note any theme whose proper home
+   mirroring `archive/reports/foundation-amendment-lower-tier-routing.md`. Note any theme whose proper home
    is a *future implementation spec* rather than a tier amendment.
 6. **Open questions** — owner decisions you cannot settle from the docs (carry, don't invent).
 7. **References** — every external source cited.
@@ -229,15 +230,16 @@ The value survives a negative verdict because it locks the reasoning for the mai
 - [ ] Every external claim that shaped a decision is cited.
 - [ ] The forward-routing appendix gives an ordered, specific hand-off per accepted theme.
 - [ ] The deliverable set matches §7 exactly (one new report).
-- [ ] Commit `68e3266` contains every file named in §2 (the seed `verdict-on-foundations.md` is the
-      exception — it is reproduced in Appendix A).
+- [ ] Commit `d7fc746` contains every file named in §2 (including the seed
+      `reports/verdict-on-foundations.md`, also reproduced in Appendix A).
 
 ---
 
 ## Appendix A — `verdict-on-foundations.md` (verbatim seed)
 
-> Reproduced because this file is untracked at `68e3266` and not in the manifest. This is the seed
-> document the determination triages. The nine numbered themes below are the primary subjects of §3.
+> This is the seed document the determination triages, reproduced verbatim for convenience; it is
+> also fetchable at `reports/verdict-on-foundations.md` (commit `d7fc746`). The nine numbered themes
+> below are the primary subjects of §3.
 
 ---
 

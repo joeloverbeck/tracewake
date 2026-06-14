@@ -6,7 +6,7 @@ Detailed rules for two SKILL.md branches: the triage recommendation (Step 3 §Tr
 
 ## Triage recommendation structure
 
-Used when the brainstorm evaluates a report, finding-set, or diagnostic question and produces work items, instead of proposing approaches.
+Used when the brainstorm evaluates a report, finding-set, or diagnostic question and produces work items, instead of proposing approaches. This replaces the findings-*discovery* framing only: when the triage's remediation has more than one viable fix with real tradeoffs, that resolution fork may still be presented as a compact approaches block or as `AskUserQuestion` options (recommendation first) — see SKILL.md Step 3 §Triage brainstorms.
 
 ### Audit fan-out (delegated deep review)
 
