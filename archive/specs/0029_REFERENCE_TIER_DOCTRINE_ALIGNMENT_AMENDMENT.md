@@ -15,7 +15,7 @@ amendment demands (cf. `archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTA
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Awaiting owner approval to enact via the reassess / ticket process.
+**Status:** COMPLETED.
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code, performs no gate audit, and asserts nothing about whether live crates, fixtures,
@@ -219,3 +219,44 @@ code/obligation/invariant/risk identifier is coined.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/`0027`/`0028`/hardening-series precedent: the ledger row lands at
   acceptance/closeout, not at proposal).
+
+## Outcome
+
+Completed: 2026-06-14
+
+Spec 0029 was enacted by the `0029REFTIEDOC` ticket series and is now historical provenance for the
+reference-tier amendments.
+
+Delivered:
+
+- D1 (`0029REFTIEDOC-001`) added `Observer-only emergence evidence` as the canonical context-bound
+  glossary term and added `EMERGE-OBS` as an execution-label lookup in
+  `docs/3-reference/02_GLOSSARY.md`.
+- D2 (`0029REFTIEDOC-002`) realigned the existing R-27/R-28/R-29 acceptance-evidence cluster in
+  `docs/3-reference/01_DESIGN_RISK_REGISTER.md`, cross-linked R-26 for archive/history
+  certification risk, and added one anti-Goodhart watch note without creating a new `R-##`.
+
+Boundary result:
+
+- No foundation, architecture, execution, crate, fixture, schema, gate, observation-obligation,
+  invariant number, or risk identifier was changed.
+- Reference index/checklist changes remained out of scope.
+- Specs-tier template work remains owned by sibling spec `0030`.
+- The possession-bind perception question remains a deferred owner decision and was not silently
+  amended.
+
+Verification run:
+
+- `grep -niE "observer-only emergence evidence|retrospective|non-certifying|ancestry-backed|non-steering|structurally non-input" docs/3-reference/02_GLOSSARY.md`
+- `grep -nE "EMERGE-OBS" docs/3-reference/02_GLOSSARY.md`
+- `grep -niE "pending|sampled|observer-only|byte|fingerprint|archive|artifact-presence|behavior" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -niE "raw bytes|normalized serialization|parsed semantic|command transcript|run seed|replay artifact" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -niE "status row|ledger|checksum|template table|EMERGE-OBS|archived spec|fixture artifact" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -niE "goodhart|seed selector|scheduler input|scenario objective|pacing|difficulty|LOD|pass/fail threshold" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -oE "R-[0-9]+" docs/3-reference/01_DESIGN_RISK_REGISTER.md | sort -t- -k2 -n | tail -1` returned `R-29`.
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+
+All checks passed.

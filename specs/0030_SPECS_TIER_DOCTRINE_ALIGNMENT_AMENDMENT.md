@@ -10,7 +10,7 @@ enactment requires ordinary owner approval rather than the constitutional sign-o
 amendment demands (cf. `archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md`,
 `archive/specs/0027_ARCHITECTURE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`,
 `archive/specs/0028_EXECUTION_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`, and the sibling reference-tier
-amendment `specs/0029_REFERENCE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`).
+amendment `archive/specs/0029_REFERENCE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`).
 
 > Section set: this file uses the canonical `specs/` section set (Problem Statement, Approach,
 > Deliverables, Invariants Alignment, Verification, Out of Scope, Risks & Open Questions) because
@@ -75,7 +75,8 @@ with an explicit forbidden-wording list, and reviewer sign-off. The gap is conce
 This is not a foundation, architecture, or execution hole — those tiers state the doctrine, own the
 observability contract, and define the evidence-honesty rule, and they are already aligned (`0028` D9
 owns the execution rule; sibling spec `0029` preserves the reference-tier risk-memory and glossary
-term). It is a **specs-tier packet-structure** gap: the template must carry the fields that let a
+term in `archive/specs/0029_REFERENCE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`). It is a
+**specs-tier packet-structure** gap: the template must carry the fields that let a
 reviewer apply execution `10`. The specs-tier alignment report dispositioned the items: one warrants
 a template amendment (F03); the `SPEC_LEDGER`, specs `README`, and `0001` ontology need no change
 (boundary-awareness); and the possession-bind perception question (F04) and any future certification
