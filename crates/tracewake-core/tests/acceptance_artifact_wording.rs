@@ -1,5 +1,6 @@
 const TEMPLATE: &str = include_str!("../../../docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md");
-const PHASE2A_ARTIFACT: &str = include_str!("../../../reports/0006PHA2A_ACCEPTANCE_ARTIFACT.md");
+const PHASE2A_ARTIFACT: &str =
+    include_str!("../../../archive/reports/0006PHA2A_ACCEPTANCE_ARTIFACT.md");
 
 const REQUIRED_PHASE1_SCOPED_WORDING: &str =
     "Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit";
