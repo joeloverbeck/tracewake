@@ -1,6 +1,6 @@
 # 0030SPETIEDOC-001: Acceptance-artifact template — evidence-status & fingerprint-scope honesty fields
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` (specs-tier acceptance-artifact template: per-evidence-item honesty fields, structured per the eight points below, on the per-requirement table and/or a companion evidence-item ledger). No crate/code, no fixtures.
@@ -92,3 +92,31 @@ Preserve every existing section unchanged in force: exact commit under test, gat
 2. `grep -niE "raw bytes|normalized serialization|parsed semantic|command transcript|run seed|replay artifact" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` — confirms the six-scope fingerprint taxonomy landed.
 3. `grep -nE "Forbidden wording|Scoped certification|EMERGE-OBS|observer-only" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` — confirms the existing anti-overclaiming sections persist and observer-only handling landed.
 4. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for a specs-tier template edit is the greps above plus the invariants-alignment / points-to-execution-10 review against execution 10 and INV-097/098/111.`
+
+## Outcome
+
+Completed: 2026-06-14
+
+Implemented the specs-tier acceptance-artifact template amendment in
+`docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`. The per-requirement table
+now points to an evidence item ledger and computes each requirement result only
+from certifying evidence. The new ledger fields make evidence status,
+fingerprint scope, path-under-test behavior witnesses, replay/provenance
+ancestry, sampling/exhaustiveness scope, pending/historical handling, and
+certification use mandatory for cited evidence items.
+
+The user request to implement the `0030SPETIEDOC` series supplied the tier-4
+owner approval required by spec 0030 §R-A. No foundation, architecture,
+execution, crate, fixture, `SPEC_LEDGER`, specs `README`, or `0001` ontology
+edits were made by this ticket. `EMERGE-OBS` remains `status =
+observer-only`; the template bars observer-only rows from becoming
+certification, gate pass/fail thresholds, scheduler objectives, scenario goals,
+or code-quality substitutes unless a future upstream spec changes the doctrine.
+
+Verification run:
+
+- `grep -niE "pending|sampled|observer-only|historical" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`
+- `grep -niE "raw bytes|normalized serialization|parsed semantic|command transcript|run seed|replay artifact" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`
+- `grep -nE "path under test|behavior witness|responsible layer|event-log segment|replay artifact|provenance" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`
+- `grep -nE "Forbidden wording|Scoped certification|EMERGE-OBS|observer-only" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`
+- Manual review against `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` §`Evidence status and fingerprint scope honesty` and `INV-097`/`INV-098`/`INV-111`: the edit points to execution `10`, preserves observer-only non-certifying posture, and coins no new gate code, observation-obligation code, invariant number, or evidence-status token beyond execution `10`.

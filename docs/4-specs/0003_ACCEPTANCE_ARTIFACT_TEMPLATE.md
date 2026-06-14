@@ -24,23 +24,69 @@ unrelated local worktree changes.
 
 ## Per-requirement acceptance evidence
 
-| Requirement | Responsible layer | Evidence | Result |
+Each requirement row must cite one or more evidence item IDs from the evidence
+item ledger below. Compute the requirement result only from certifying evidence
+items. A row may carry useful pending, sampled, observer-only, or historical
+evidence while the requirement result remains pending or failed.
+
+| Requirement | Responsible layer | Evidence item IDs | Result from certifying evidence |
 |---|---|---|---|
-| `SPINE-AC-001` | `core/state`, `core/events` | private authoritative fields, mutation capability guards, named tests | `<pass/fail>` |
-| `SPINE-AC-002` | `core/replay`, `core/events` | schema-version registry and loud unknown-version replay test | `<pass/fail>` |
-| `SPINE-AC-003` | `core/events`, `core/replay` | total event-kind metadata and non-world checksum guard | `<pass/fail>` |
-| `SPINE-AC-004` | `core/replay` | authoritative checksum coverage manifest test | `<pass/fail>` |
-| `SPINE-AC-005` | `workspace/ci` | nondeterminism banned-API source scan and clippy gate | `<pass/fail>` |
-| `SPINE-AC-006` | `core/scheduler` | no-direct-dispatch scheduler source/runtime guards | `<pass/fail>` |
-| `SPINE-AC-007` | `core/actions` | source-context binding adversarial tests | `<pass/fail>` |
-| `SPINE-AC-008` | `core/actions`, `core/events` | append-before-apply and no alternate accepted mutation path tests | `<pass/fail>` |
-| `SPINE-AC-009` | `core/agent`, `tui/debug` | actor-known/debug capability unforgeability and TUI debug quarantine tests | `<pass/fail>` |
-| `SPINE-AC-010` | `content/schema`, `content/validation` | content field registry, canonical serialization, and prose-born fact rejection tests | `<pass/fail>` |
-| `SPINE-AC-011` | `core/actions` | typed diagnostic and actor/debug provenance tests | `<pass/fail>` |
-| `SPINE-AC-012` | `tui/view-model`, `tui/debug` | stale-view, debug command, direct-apply, and transcript snapshot tests | `<pass/fail>` |
-| `SPINE-AC-013` | `workspace/ci` | named spine/content/TUI conformance suites map every requirement to named evidence | `<pass/fail>` |
-| `SPINE-AC-014` | `workspace/ci` | doc/invariant reference linter under `cargo test` | `<pass/fail>` |
-| `SPINE-AC-015` | `workspace/ci` | this scoped acceptance artifact with file/line evidence | `<pass/fail>` |
+| `SPINE-AC-001` | `core/state`, `core/events` | private authoritative fields, mutation capability guards, named tests | `<pass/fail/pending>` |
+| `SPINE-AC-002` | `core/replay`, `core/events` | schema-version registry and loud unknown-version replay test | `<pass/fail/pending>` |
+| `SPINE-AC-003` | `core/events`, `core/replay` | total event-kind metadata and non-world checksum guard | `<pass/fail/pending>` |
+| `SPINE-AC-004` | `core/replay` | authoritative checksum coverage manifest test | `<pass/fail/pending>` |
+| `SPINE-AC-005` | `workspace/ci` | nondeterminism banned-API source scan and clippy gate | `<pass/fail/pending>` |
+| `SPINE-AC-006` | `core/scheduler` | no-direct-dispatch scheduler source/runtime guards | `<pass/fail/pending>` |
+| `SPINE-AC-007` | `core/actions` | source-context binding adversarial tests | `<pass/fail/pending>` |
+| `SPINE-AC-008` | `core/actions`, `core/events` | append-before-apply and no alternate accepted mutation path tests | `<pass/fail/pending>` |
+| `SPINE-AC-009` | `core/agent`, `tui/debug` | actor-known/debug capability unforgeability and TUI debug quarantine tests | `<pass/fail/pending>` |
+| `SPINE-AC-010` | `content/schema`, `content/validation` | content field registry, canonical serialization, and prose-born fact rejection tests | `<pass/fail/pending>` |
+| `SPINE-AC-011` | `core/actions` | typed diagnostic and actor/debug provenance tests | `<pass/fail/pending>` |
+| `SPINE-AC-012` | `tui/view-model`, `tui/debug` | stale-view, debug command, direct-apply, and transcript snapshot tests | `<pass/fail/pending>` |
+| `SPINE-AC-013` | `workspace/ci` | named spine/content/TUI conformance suites map every requirement to named evidence | `<pass/fail/pending>` |
+| `SPINE-AC-014` | `workspace/ci` | doc/invariant reference linter under `cargo test` | `<pass/fail/pending>` |
+| `SPINE-AC-015` | `workspace/ci` | this scoped acceptance artifact with file/line evidence | `<pass/fail/pending>` |
+
+## Evidence item ledger
+
+For every cited evidence item, add a row or block with the fields below. These
+fields make execution `10`'s evidence-status and fingerprint-scope honesty rule
+visible in this packet; they do not define a new gate, obligation, invariant,
+or status vocabulary.
+
+- Evidence item ID: `<stable local ID>`
+- Requirement IDs: `<requirements supported>`
+- Evidence status: `<pass|fail|pending|sampled|observer-only|historical>`
+- Fingerprint scope, when a fingerprint/checksum/snapshot is cited:
+  `<raw bytes|normalized serialization|parsed semantic content|command transcript|run seed|replay artifact|not applicable>`
+- Evidence summary: `<command, artifact, file/line, report section, or replay reference>`
+- Path under test and behavior witness, for behavioral pass claims:
+  - path under test;
+  - command, event, trigger, emitter, or scheduler entry that exercised it;
+  - responsible layer;
+  - accepted/rejected action or validation stage witnessed;
+  - live negative, mutation-style failure, or reason no negative is applicable;
+  - checked facts or invariants the witness supports.
+- Replay/provenance ancestry, for behavioral or derived claims:
+  - event-log segment or event identifiers;
+  - replay artifact or serialized-log reference;
+  - seed, randomness, content version, or ruleset version where applicable;
+  - extraction/projection version for derived evidence;
+  - source provenance for any claim crossing from artifact to semantic behavior.
+- Sampling/exhaustiveness scope:
+  `<exhaustive perimeter>` or `<sampled population, sample basis, omitted cases, and why representative>`.
+- Pending or historical handling:
+  pending rows name the missing proof and owner/blocker; historical rows state
+  whether the artifact is context, lineage, or archived precedent.
+- Certification use:
+  `<counted as certifying pass|counted as certifying fail|not counted as certifying evidence>`.
+
+Pending, sampled, observer-only, and historical evidence cannot be silently
+counted as a pass. A fingerprint must not be cited beyond its actual scope.
+`EMERGE-OBS` and other observer-only emergence evidence must be labeled
+`status = observer-only`; those rows may inform review but must not become
+certification, gate pass/fail thresholds, scheduler objectives, scenario goals,
+or code-quality substitutes unless a future upstream spec changes that doctrine.
 
 ## Residual convention-only items
 
