@@ -1,6 +1,6 @@
 # 0029REFTIEDOC-002: Risk register — acceptance-evidence cluster realignment + anti-Goodhart watch note
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edits to `docs/3-reference/01_DESIGN_RISK_REGISTER.md` (a compact realignment of the existing R-27/R-28/R-29 cluster, an R-26 cross-link, and one watch note). No new `R-##`. No crate/code, no fixtures.
@@ -87,3 +87,28 @@ Cross-link R-26 (archive ≠ certification, L316) where useful. Add **one** anti
 1. `grep -niE "raw bytes|normalized serialization|parsed semantic|command transcript|run seed|replay artifact" docs/3-reference/01_DESIGN_RISK_REGISTER.md` — confirms R-28's six-scope fingerprint taxonomy landed.
 2. `grep -oE "R-[0-9]+" docs/3-reference/01_DESIGN_RISK_REGISTER.md | sort -t- -k2 -n | tail -1` — confirms the highest risk identifier remains `R-29` (no new `R-##`).
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for a reference-doc edit is the greps above plus the invariants-alignment review against execution 10.`
+
+## Outcome
+
+Completed: 2026-06-14
+
+Implemented D2 in `docs/3-reference/01_DESIGN_RISK_REGISTER.md`:
+
+- Extended R-27 with the evidence-status mistakes: pending counted as pass, sampled evidence described as exhaustive certification, and observer-only / `EMERGE-OBS` evidence treated as a gate or behavior certificate.
+- Extended R-28 with the execution `10` fingerprint-scope taxonomy: raw bytes, normalized serialization, parsed semantic content, command transcript, run seed, and replay artifact, plus the warning that fingerprints prove only their covered scope.
+- Extended R-29 with status rows, ledgers, checksums, template tables, `EMERGE-OBS` rows, archived spec/report references, and fixture artifacts as presence-only symptoms when behavior witnesses are absent.
+- Added one anti-Goodhart watch note under the existing cluster, linked to R-22/R-16/R-27/R-29 and execution `10`, without creating a new `R-##`.
+- Cross-linked archive/history certification risk through R-26 in the R-27 evidence watch.
+
+The active goal request to implement the `0029REFTIEDOC*` series was treated as the owner approval required by the ticket precondition and spec 0029 R-A.
+
+Verification run:
+
+- `grep -niE "pending|sampled|observer-only|byte|fingerprint|archive|artifact-presence|behavior" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -niE "raw bytes|normalized serialization|parsed semantic|command transcript|run seed|replay artifact" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -niE "status row|ledger|checksum|template table|EMERGE-OBS|archived spec|fixture artifact" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -niE "goodhart|seed selector|scheduler input|scenario objective|pacing|difficulty|LOD|pass/fail threshold" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `grep -oE "R-[0-9]+" docs/3-reference/01_DESIGN_RISK_REGISTER.md | sort -t- -k2 -n | tail -1` returned `R-29`.
+- Manual review confirmed execution `10` is cross-referenced rather than restated as a local reference-tier rule.
+
+No Rust gates were run for this ticket because the accepted scope was documentation-only reference risk memory and no crate, fixture, schema, or executable surface changed.
