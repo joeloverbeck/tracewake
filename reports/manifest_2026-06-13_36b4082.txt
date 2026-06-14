@@ -59,6 +59,7 @@ archive/specs/0024_PHASE_3A_CONTENT_SCHEMA_VERSION_GATE_META_WITNESS_RESIDUE_MUT
 archive/specs/0025_PHASE_3A_META_WITNESS_EXECUTION_PROOF_PERCEPTION_KILL_SET_PROVENANCE_ENVELOPE_READ_PATH_FAIL_CLOSED_AND_MANIFEST_FINGERPRINT_HONESTY_HARDENING_SPEC.md
 archive/specs/0026_FOUNDATION_EMERGENCE_EVIDENCE_ACCEPTANCE_DOCTRINE_AMENDMENT.md
 archive/specs/0027_ARCHITECTURE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md
+archive/specs/0028_EXECUTION_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md
 archive/tickets/0002PHA1KERTUI-001.md
 archive/tickets/0002PHA1KERTUI-002.md
 archive/tickets/0002PHA1KERTUI-003.md
@@ -373,6 +374,14 @@ archive/tickets/0027ARCTIEDOC-002.md
 archive/tickets/0027ARCTIEDOC-003.md
 archive/tickets/0027ARCTIEDOC-004.md
 archive/tickets/0027ARCTIEDOC-005.md
+archive/tickets/0028EXETIEDOC-001.md
+archive/tickets/0028EXETIEDOC-002.md
+archive/tickets/0028EXETIEDOC-003.md
+archive/tickets/0028EXETIEDOC-004.md
+archive/tickets/0028EXETIEDOC-005.md
+archive/tickets/0028EXETIEDOC-006.md
+archive/tickets/0028EXETIEDOC-007.md
+archive/tickets/0028EXETIEDOC-008.md
 clippy.toml
 crates/tracewake-content/Cargo.toml
 crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs
@@ -610,10 +619,12 @@ reports/0024_ord_life_cert_scoped_acceptance.md
 reports/0025_ord_life_cert_scoped_acceptance.md
 reports/architecture-tier-alignment-research-brief.md
 reports/architecture-tier-alignment-research-report.md
+reports/execution-tier-alignment-research-brief.md
+reports/execution-tier-alignment-research-report.md
 reports/foundation-amendment-lower-tier-routing.md
 reports/foundation-amendment-research-brief.md
 reports/foundation-amendment-research-report.md
-reports/manifest_2026-06-13_fdfd0b9.txt
+reports/manifest_2026-06-13_64a8367.txt
 reports/phase1-doc-code-alignment-research-brief.md
 reports/phase1-third-hardening-research-brief.md
 reports/phase2a-epistemic-substrate-hardening-research-brief.md

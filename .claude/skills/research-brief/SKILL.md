@@ -64,7 +64,7 @@ Launch Explore agents for broad surveys. Verify any repo claim in `research_targ
 
 ## Step 3: Light online research (optional)
 
-Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. If skipped, announce it in-session as a one-liner (e.g., "Online research: skipped — repo-internal realignment") so the audit trail is visible independent of the brief body. **The research is optional; the run-or-skip announcement is not** — emit it either way, as a peer of the Step 1 `Classification:` line.
+Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. If skipped, announce it in-session as a one-liner (e.g., "Online research: skipped — repo-internal realignment") so the audit trail is visible independent of the brief body. **The research is optional; the run-or-skip announcement is not** — emit it either way, as a peer of the Step 1 `Classification:` line. Commit to a binary **run** or **skip** at emit time; do not defer with a non-committal "will decide after exploration" (a later sharpening lookup, if one happens, gets its own one-liner).
 
 ## Step 4: Interview to 95% confidence
 
