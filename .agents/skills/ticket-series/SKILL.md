@@ -100,6 +100,10 @@ rg --files-without-match '^## Outcome' archive/tickets/<ticket-id>.md
 rg --files-without-match '^Completed: ' archive/tickets/<ticket-id>.md
 ```
 
+   For `rg --files-without-match`, success means no paths are printed. Exit
+   code `1` can be expected when every checked file contains the required
+   pattern.
+
 6. Archive the ticket:
    - Create `archive/tickets/` if absent.
    - Prefer `git mv` for tracked tickets.
@@ -164,6 +168,11 @@ cargo build --workspace --all-targets --locked
 cargo test --workspace
 ```
 
+   The final gate evidence must cover the final committed closeout state. If
+   you run these gates before editing the spec outcome, archiving the spec,
+   repairing ledgers, or updating references, treat that run as an early
+   confirmation and rerun the exact required gates after the last closeout edit
+   that the repo checks could cover.
    If any required final gate is not run, or is run with different flags, record
    which gate was skipped or changed and why in both the spec `Outcome` and the
    final response.
@@ -231,6 +240,9 @@ rg --files-without-match '^## Outcome' archive/tickets/<ticket-prefix>*.md archi
 rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md archive/specs/<spec filename>
 ```
 
+   For `rg --files-without-match`, success means no paths are printed. Exit
+   code `1` can be expected when every checked file contains the required
+   pattern.
    Treat any printed path as incomplete archive truthing; fix it before the
    final commit.
    Also grep active reports and outcomes for stale pending-state language, then
