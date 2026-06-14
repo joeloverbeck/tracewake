@@ -17,7 +17,7 @@ amendment `archive/specs/0029_REFERENCE_TIER_DOCTRINE_ALIGNMENT_AMENDMENT.md`).
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Awaiting owner approval to enact via the reassess / ticket process.
+**Status**: COMPLETED
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code, performs no gate audit, and asserts nothing about whether live crates, fixtures,
@@ -37,7 +37,8 @@ anti-overclaiming posture. Once authored, the final wording is specs-tier templa
 spec becomes historical provenance.
 
 **Provenance:** derived from `reports/specs-tier-alignment-research-report.md` (external deep
-research, pinned to commit `36b40823fb07752987531ecd142c78505b8f56da` = current `HEAD` `36b4082`)
+research, pinned to commit `36b40823fb07752987531ecd142c78505b8f56da` — the then-current `HEAD`, now an
+ancestor of `HEAD` `5e053f2`)
 and the shared brief `reports/reference-and-specs-tier-alignment-research-brief.md`. The report is
 the planned `docs/4-specs/*` session that follows the foundation (`0026`), architecture (`0027`),
 and execution (`0028`) alignments and the routing backlog
@@ -179,6 +180,9 @@ re-decided, and no new code/obligation/invariant/status identifier is coined.
   `Result` cells — no evidence status, fingerprint scope, sampling/exhaustiveness, observer-only,
   pending, historical, behavior-witness, or replay/provenance fields (F03 real). Execution `10`
   (ratified, `0028` D9) supplies the status and fingerprint-scope rule the template must point to.
+  Re-confirmed at reassessment time against current `HEAD` `5e053f2`: `0003` is byte-identical to its
+  state at the pinned commit (`git diff 36b4082 -- docs/4-specs/0003` empty), so the coverage gap is
+  unaffected by the commits that advanced `HEAD` past the pin.
 - **V2 — Enactment acceptance (on implementation).** The deliverable is accepted only when its
   substance is authored into `0003` as packet-structure requirements that point to execution `10`
   (not a doctrine restatement), the existing scoped-certification / residual-convention / forbidden-
@@ -253,7 +257,9 @@ re-decided, and no new code/obligation/invariant/status identifier is coined.
 ## 8. Provenance & Source Discipline
 
 - The source report is pinned to `36b40823fb07752987531ecd142c78505b8f56da` and was re-verified
-  against that same live `HEAD` `36b4082`; no intervening commit drift applies.
+  against that same live `HEAD` `36b4082` at authoring. Subsequent commits (the `0029` reference-tier
+  archival, PR #37) advanced `HEAD` to `5e053f2`, but `docs/4-specs/0003` is byte-identical since the
+  pin (`git diff 36b4082 -- docs/4-specs/0003` empty), so no drift affects the V1 coverage claim.
 - Commit hashes named here are audit/spec provenance only.
 - The report's external proof-methodology references (its §10 — testing-oracle, metamorphic,
   property-based, mutation, approval/golden, deterministic-simulation, structured-observability
@@ -262,3 +268,41 @@ re-decided, and no new code/obligation/invariant/status identifier is coined.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/`0027`/`0028`/hardening-series precedent: the ledger row lands at
   acceptance/closeout, not at proposal).
+
+## Outcome
+
+Completed: 2026-06-14
+
+Spec 0030 was enacted by `0030SPETIEDOC-001`, which amended
+`docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` with a companion evidence
+item ledger and mandatory per-evidence-item honesty fields. The enacted fields
+make evidence status, fingerprint scope, path-under-test behavior witnesses,
+replay/provenance ancestry, sampling/exhaustiveness scope, pending/historical
+handling, and certification use visible in acceptance packets while pointing to
+execution `10` for the governing evidence-honesty rule.
+
+The owner-approval precondition in §R-A was satisfied by the explicit user
+request to implement the `0030SPETIEDOC` series. No foundation, architecture,
+execution, crate, fixture, specs `README`, or `0001` ontology edits were made.
+`EMERGE-OBS` remains observer-only and non-certifying; the template bars
+observer-only rows from becoming certification, gate pass/fail thresholds,
+scheduler objectives, scenario goals, or code-quality substitutes unless a
+future upstream spec changes that doctrine.
+
+Verification recorded by the ticket included the status-vocabulary,
+fingerprint-scope, behavior-witness/provenance, observer-only, and
+scoped-certification/forbidden-wording greps against
+`docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, plus manual review against
+execution `10` and `INV-097`/`INV-098`/`INV-111`. Final closeout gates are run
+after spec archive/truthing edits so the gate evidence covers the final
+committed closeout state.
+
+Final closeout verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- Archive/reference audits found no active live `specs/0030...` or
+  `tickets/0030SPETIEDOC...` references, and the archived ticket/spec both
+  carry `## Outcome` and `Completed:`.
