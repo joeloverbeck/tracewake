@@ -273,6 +273,8 @@ The TUI should support staged versions of:
 
 A sleeping actor does not receive omniscient summaries. They learn what reached them through modeled channels or what they perceive later.
 
+Time controls follow temporal authority: they may advance authoritative event/replay time, but embodied views may render temporal facts only when the possessed actor could know or infer them through modeled channels. Debug may show exact simulation time, event order, hidden due effects, or omitted truth, but must be visibly non-diegetic. Summaries such as slept until morning, office closed, payment late, or many events happened while away must be actor-known summaries, record-derived conclusions, or debug-only labels, not hidden-truth leakage.
+
 ## Debug inspection surfaces
 
 Minimum permanent debug surfaces should include:

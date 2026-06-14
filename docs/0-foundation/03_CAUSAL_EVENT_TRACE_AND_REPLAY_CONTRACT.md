@@ -227,6 +227,21 @@ Replay must be able to reconstruct significant state from:
 
 Replay is required for debugging causality, inspecting wrong beliefs, verifying no player privilege, reproducing no-human simulations, accepting first miracle scenarios, auditing institutions, rebuilding projections, checking actor filters, and explaining LOD summary ancestry.
 
+## Temporal authority
+
+Simulation time is authoritative for event order, replay, validation, intervals, scheduled consequences, and causal explanation. It is not automatically authoritative for cognition. Tracewake distinguishes:
+
+- authoritative event/replay time: the ordered substrate used to validate actions, reconstruct history, apply due consequences, and explain causality;
+- holder-known temporal claims: what an actor, household, institution, group, or region believes, remembers, reads, hears, infers, or expects about when something happened or should happen;
+- institution-known procedural time: office windows, filing windows, due states, queue aging, notice lifecycle, payment periods, case delay, and sanctions as record-backed or procedure-backed states;
+- routine and social rhythm: work, sleep, meals, patrols, appointments, and market patterns as defeasible premises known through assignment, memory, observation, public cues, or institutional context;
+- freshness and staleness authority: temporal risk attached to claims, memories, records, leads, and notices, not automatic truth correction;
+- LOD and regional temporal summaries: interval and cadence summaries that preserve both temporal ancestry and information ancestry for later promotion.
+
+The temporal firewall is the truth firewall applied to time: the truth clock may validate; holder-known or institution-known time may plan. A scheduler trigger may open a decision window, but proposal generation, routine continuation, institutional conclusion, embodied rendering, speech interpretation, lead projection, and LOD promotion must consume temporal facts only when those facts have reached the relevant holder through modeled channels.
+
+Foundation deliberately does not choose a tick size, calendar/date syntax, duration unit, scheduler queue structure, UI clock display, exact stale-after value, or first-playable calendar vocabulary. Those choices belong below foundation.
+
 ## Randomness
 
 Randomness is allowed for uncertainty, variation, and domain processes. It is forbidden as hidden drama direction.

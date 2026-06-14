@@ -99,6 +99,8 @@ speakability/admissibility/action implications where relevant
 
 A proposition is not a global flag. `MaraTookCoins` may be true in ground truth, disbelieved by Mara's neighbor, suspected by Tomas, recorded weakly by Anna, distorted by gossip, and unknown to Elias.
 
+The temporal authority doctrine treats temporal expressions and freshness/lateness labels as claims or claim qualifiers, not free truth labels. Where temporal facts matter, the model must distinguish claimed event time, acquisition or last-verification time, record create/amend/read time, and remaining staleness risk. The world clock cannot silently update a memory, record, lead, or notebook merely because time passed; change requires a modeled update, contradiction, verification, decay, or procedure.
+
 ## Observations and interpretation
 
 Observation and interpretation are separate.
@@ -395,6 +397,7 @@ The following distinctions are constitutional. Architecture may refine schemas, 
 | Rumor | Hearsay that may propagate, mutate, lose source quality, gain salience, or contradict other accounts. |
 | Lie | A validated speech act where the speaker intentionally asserts something contrary to the speaker's belief or withholds relevant truth under modeled motive/context. A false statement is not automatically a lie. |
 | Stale belief | A belief whose source may once have been accurate but may no longer match current truth. It requires time/source tracking and possible verification. |
+| Holder-known temporal claim | A source-backed claim or interpretation about when something happened, when it was learned, whether it is late or stale, or what time-like expectation now matters. |
 | Expectation | A belief-like predicted or normative state an actor or institution uses to notice absence, delay, failure, breach, or contradiction. |
 | Contradiction | A detected mismatch between belief/expectation/claim/record and observation, report, or later information. It belongs to a holder or procedure. |
 | Debug-only omniscience | Non-diegetic inspection of truth and mismatches. It is forbidden as actor/institution cognition input. |

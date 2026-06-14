@@ -368,6 +368,10 @@ First-playable proof must include a retrospective emergence-evidence record besi
 
 This evidence does not certify by itself, does not create a reason for anything to happen, and does not license authored outcomes. It is a positive living-world demonstration that complements the no-script and reachability gates.
 
+## Temporal firewall proof
+
+First playable is not complete unless temporal features demonstrate the temporal firewall: a worker acts from believed work time or assignment rather than a true global schedule; a closed, late, or stale institutional state arises from procedure, record, attempt, or notice; sleep, wait, and travel advance event time without granting omniscient knowledge; a stale record remains stale until modeled update; and replay can show the difference between validator time and actor/institution-known temporal premises. This is doctrine only and does not specify tick size, UI time display, exact day-part labels, or stale-after durations.
+
 ## No-human simulation gate
 
 Every runnable phase must run with no human controller bound.

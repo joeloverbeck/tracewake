@@ -153,6 +153,8 @@ The scheduler must not:
 - create post-hoc explanations for choices made from truth;
 - count continuation labels as behavioral progress without ordinary action ancestry.
 
+Temporal authority follows the same boundary. Raw simulation time, exact event order beyond what a holder can know, future scheduled completions, true office windows, true due states, and exact summary intervals are validator/debug truth unless source-backed for the holder. The holder-known version may be a perceived day-part, remembered appointment, read timestamp, routine assignment, public bell, posted hours, institutional queue state, due notice, stale record, or summary knowledge with ancestry. See foundation doc 03's temporal authority section and `INV-112`.
+
 ## Institutions and records under the firewall
 
 Institutions have institution-known contexts. They are subject to the same firewall.

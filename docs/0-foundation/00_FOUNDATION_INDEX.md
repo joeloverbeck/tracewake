@@ -37,7 +37,7 @@ Read these documents as a single foundation, in order:
 1. `00_FOUNDATION_INDEX.md` — map, authority, reading order, and anti-drift rules.
 2. `01_PROJECT_CHARTER.md` — identity, product priorities, first village, long-term posture, and hard direction.
 3. `02_CONSTITUTIONAL_INVARIANTS.md` — compact non-negotiable rules later layers must satisfy.
-4. `03_CAUSAL_EVENT_TRACE_AND_REPLAY_CONTRACT.md` — event authority, traces, replay, snapshots, compaction, boundary inputs, and forensic causality.
+4. `03_CAUSAL_EVENT_TRACE_AND_REPLAY_CONTRACT.md` — event authority, temporal authority doctrine, traces, replay, snapshots, compaction, boundary inputs, and forensic causality.
 5. `04_CLAIMS_BELIEFS_MEMORY_AND_INFORMATION_FLOW.md` — subjective epistemics, propositions, memory, rumor, testimony, records, lies, stale beliefs, and absence-as-evidence.
 6. `05_AGENTS_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` — ordinary agents, needs, routines, intentions, local planning, interruption, recovery, and transparent cognition.
 7. `06_ACTIONS_AFFORDANCES_ORDINARY_LIFE_AND_SURVIVAL.md` — action authority, affordances, ordinary-life verbs, survival needs, property, access, and anti-adventure discipline.
@@ -229,14 +229,15 @@ This document exists because the earlier foundation was directionally correct bu
 
 ## Updated foundation spine
 
-The foundation now has four inseparable authority boundaries:
+The foundation now has five inseparable authority boundaries:
 
 1. **Event authority** — meaningful mutation enters through events and replay must rebuild it.
 2. **Epistemic authority** — actor and institutional knowledge must be holder-specific, source-backed, and fallible.
 3. **Action authority** — proposals are validated by shared world rules and ordinary action affordances.
 4. **Cognition authority** — action proposal, goal selection, planning, routine selection, speech interpretation, and embodied view rendering must be fed only by sealed actor-known context.
+5. **Temporal authority** — `03` owns the event/replay-time model and temporal firewall, with supporting applications in `02`, `04`, `05`, `07`, `08`, `10`, `12`, and `14`.
 
-The fourth boundary is now explicit because no-human ordinary life and future regional simulation will otherwise reward convenient shortcuts: choosing true food locations, true jobs, true culprits, true routes, true threats, or true institutional outcomes from state that the actor has not observed, remembered, inferred, been told, read, or been assigned through modeled provenance.
+The cognition and temporal authority boundaries are now explicit because no-human ordinary life and future regional simulation will otherwise reward convenient shortcuts: choosing true food locations, true jobs, true culprits, true routes, true threats, true schedules, or true institutional outcomes from state that the actor has not observed, remembered, inferred, been told, read, or been assigned through modeled provenance.
 
 ## Updated review questions
 
