@@ -1,6 +1,6 @@
 # 0029REFTIEDOC-001: Glossary canonical term — observer-only emergence evidence + EMERGE-OBS lookup
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edits to `docs/3-reference/02_GLOSSARY.md` (one canonical context-bound term plus a compact execution-label lookup entry). No crate/code, no fixtures.
@@ -86,3 +86,23 @@ Add a compact **`EMERGE-OBS`** entry as an *execution-label lookup only*: it nam
 1. `grep -niE "observer-only emergence evidence|retrospective|non-certifying|ancestry-backed|non-steering|structurally non-input" docs/3-reference/02_GLOSSARY.md` — confirms the canonical term and its five properties landed.
 2. `grep -nE "EMERGE-OBS" docs/3-reference/02_GLOSSARY.md` — confirms the execution-label lookup entry landed (was 0 matches pre-edit).
 3. `Documentation-only: the four-gate Rust pipeline (fmt/clippy/build/test) is unaffected; the verification boundary for a reference-doc edit is the greps above plus the upward-cross-reference / naming-boundary / invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-14
+
+Implemented D1 in `docs/3-reference/02_GLOSSARY.md`:
+
+- Added `Observer-only emergence evidence` to the canonical context-bound and deferred terms table with the required retrospective, non-certifying, ancestry-backed, non-steering, and structurally non-input properties.
+- Added `EMERGE-OBS` as an execution-label lookup that points to execution `00`/`10` and defines no reference-tier gate.
+- Kept the edit within the glossary naming boundary: no foundation, architecture, execution, crate, fixture, invariant, risk identifier, gate, or observation-obligation definition was changed.
+
+The active goal request to implement the `0029REFTIEDOC*` series was treated as the owner approval required by the ticket precondition and spec 0029 R-A.
+
+Verification run:
+
+- `grep -niE "observer-only emergence evidence|retrospective|non-certifying|ancestry-backed|non-steering|structurally non-input" docs/3-reference/02_GLOSSARY.md`
+- `grep -nE "EMERGE-OBS" docs/3-reference/02_GLOSSARY.md`
+- Manual review of the diff confirmed upward-only references to foundation `02`/`09`/`12`, architecture `13`, and execution `00`/`10`, with no local restatement of `INV-111` or `EMERGE-OBS` gate semantics.
+
+No Rust gates were run for this ticket because the accepted scope was documentation-only reference terminology and no crate, fixture, schema, or executable surface changed.
