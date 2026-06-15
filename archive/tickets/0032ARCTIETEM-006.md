@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-006: A07/A11 temporal speech expressions + lead/staleness cross-references
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — cross-reference doctrine edits to `docs/1-architecture/07_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` and `docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`. No crate/code, no fixtures.
@@ -75,3 +75,19 @@ Add a short cross-reference to `docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_A
 
 1. `grep -niE "temporal|yesterday|holder-known" docs/1-architecture/07_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` — confirms the A07 cross-reference landed.
 2. `grep -niE "stale|overdue|observer-only|temporal claim" docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` — confirms the A11 cross-reference landed.
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T8 as cross-reference text in `docs/1-architecture/07_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md` and `docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`. A07 now states that temporal utterances are structured claims interpreted through speaker/listener holder-known temporal context, provenance, and ambiguity under documents 03 and 06. A11 now states that stale/urgent/overdue/recently-seen/old-report/no-longer-useful lead and notebook labels are source-bound projections over holder-known temporal claims and records, while story-sifting temporal summaries remain observer-only and cannot create actor-known urgency, quest priority, or diegetic proof.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "temporal|yesterday|holder-known|A03|06_" docs/1-architecture/07_SPEECH_ACTS_LANGUAGE_SURFACES_AND_LLM_BOUNDARY.md`
+- `grep -niE "stale|overdue|observer-only|temporal claim" docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`
+- Manual invariants alignment review: the A07 cross-reference preserves `INV-112`; the A11 cross-reference preserves `INV-112` and the `INV-111` observer-only story-sifting carve-out with no actor-known urgency or quest-priority path.
+
+No crate/code or fixture changes were made for this documentation-only architecture cross-reference ticket.
