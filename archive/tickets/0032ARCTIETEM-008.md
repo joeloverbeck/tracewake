@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-008: A10/A11 embodied temporal rendering, time controls, and play legibility
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` (temporal rendering / time-control contract + embodied play loop) and `docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` (lead-usefulness projection). No crate/code, no fixtures.
@@ -76,3 +76,22 @@ Add to A10: name the embodied play loop — the player forms plans from actor-kn
 
 1. `grep -niE "time control|temporal|missed event|non-diegetic|why-not" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` — confirms D-T7 + the play loop landed.
 2. `grep -niE "lead|stale|ambiguous|marker|quest|projection" docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md` — confirms D-R1's A11 rule landed.
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T7 and D-R1 in `docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` and `docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`. A10 now has a `Temporal rendering and embodied play loop` subsection stating that world-advancing controls advance authoritative event/replay time through the ordinary pipeline, actor-facing temporal displays and labels derive from holder-known context or modeled channels, debug/operator temporal views are structurally non-diegetic, and rejection/why-not output preserves the actor-visible/debug split. A10 also names the embodied play loop and requires transcript evidence to rely on stable IDs/source references rather than display prose as authority.
+
+A11 now states that lead usefulness is a source-bound projection concern: leads may be stale, ambiguous, partial, contradictory, or actionable for a holder, but they do not become objective markers, quest stages, hidden priority, or director-chosen next steps.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "time control|temporal|missed event|non-diegetic|why-not" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md`
+- `grep -niE "lead|stale|ambiguous|marker|quest|projection" docs/1-architecture/11_INCIDENTS_LEADS_NOTICES_AND_STORY_SIFTING_PROJECTIONS.md`
+- Manual invariants alignment review: the A10 addition preserves `INV-112`, `INV-024`, `INV-006`, and `INV-108`; the A11 addition preserves no-director/no-quest doctrine.
+- Manual mechanism-token boundary review: no UI clock format, time-acceleration speed, wait-command vocabulary, missed-summary threshold, drama objective, or director control was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.
