@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-002: A03/A06 holder-known temporal claims, provenance, and freshness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` (temporal-claim subsection) and `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md` (parallel epistemic-data-flow rule + cross-link). No crate/code, no fixtures.
@@ -75,3 +75,20 @@ Add to `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFO
 
 1. `grep -niE "temporal claim|source-backed|provenance" docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` — confirms D-T3 landed in A03.
 2. `grep -niE "temporal claim|acquisition time|stale risk|lineage" docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md` — confirms D-T3 landed in A06.
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T3 in `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` and `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`. A03 now has a `Temporal claims in holder-known contexts` subsection requiring temporal cognition/procedure/affordance/speech/lead/view-model/LOD inputs to be addressable inside holder-known or institution-known context with fact-kind-appropriate provenance. A06 now cross-links that holder-known context rule and records the parallel epistemic data-flow shape for event, acquisition, verification, record/procedure, due/validity, stale-risk, contradiction, and lineage timing.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "temporal claim|source-backed|provenance" docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`
+- `grep -niE "temporal claim|acquisition time|stale risk|lineage" docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`
+- Manual invariants alignment review: both additions preserve `INV-112` by requiring temporal facts to be source-backed claims or procedure states rather than raw truth-clock reads, display labels, or debug comparisons.
+- Manual mechanism-token boundary review: no struct names, field names, stale-after numbers, day-part vocabulary, calendar syntax, or claim-decay policy were introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.

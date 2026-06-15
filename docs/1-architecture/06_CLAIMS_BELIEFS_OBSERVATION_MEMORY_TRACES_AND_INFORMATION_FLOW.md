@@ -76,6 +76,15 @@ No-human cognition, embodied TUI view models, notebooks, and holder-known
 contexts use the same freshness classifier. Possession and UI surfaces do not
 receive a fresher epistemic path than autonomous actors.
 
+Temporal claims follow the same provenance rule and the holder-known context
+requirements in `03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`.
+Where relevant, epistemic records preserve distinct temporal slots: asserted or
+inferred event time, acquisition time, last verification, record or procedure
+time, valid or due window, stale risk, contradiction status, and source
+lineage. A temporal claim is planning-eligible only as a source-backed claim or
+procedure state; it is not planning-eligible merely because the authoritative
+clock, a display label, or debug truth says the temporal status is true.
+
 ### Records and artifacts
 
 Records, notices, ledgers, letters, marks, contracts, role rosters, posted warnings, and institutional forms are artifacts carrying typed claims. A record can be forged, stale, incomplete, lost, hidden, private, public, or disputed.
