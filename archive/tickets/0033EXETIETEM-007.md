@@ -1,6 +1,6 @@
 # 0033EXETIETEM-007: exec 11 procedural-time & practical-bias Phase-4 proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` (additive Phase-4 procedural-time evidence and practical-bias/social-harm proof over the existing Phase-4 institution entry locks). No crate/code, no fixtures.
@@ -75,3 +75,32 @@ Require Phase-4 practical-bias evidence where institutional outcomes may be shap
 
 1. `grep -niE 'procedural.time|due/late|practical bias|social harm|misfiling' docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` — confirms D-T6/D-R4 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing greps plus the no-oracle and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the exec `11` procedural-time and practical-bias Phase-4 proof
+obligations in
+`docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`.
+The edit requires record/procedure-backed institution-known time semantics,
+adversarial institution fixtures for unsupported true-time labels and
+stale/mistaken records, practical bias and social harm evidence through modeled
+institutional mechanics, and wrong-suspicion proof without hidden culprit truth.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'procedural.time|institution.*(record|procedure).*time|due/late' docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`
+- `grep -niE 'practical bias|social harm|misfiling|credibility' docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`
+- `rg -n 'office-hour|legal deadline|payment period|status enum|morality oracle|objective social harm|new gate|08_DATA|10_TESTING|Phase-4' docs/2-execution/11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md`
+- `git diff --check`
+
+Manual review confirmed the additions uphold `INV-112`/`INV-111` and the
+fallible-institution doctrine, preserve the Phase-4 entry locks without rename
+or weakening, correctly cross-reference exec `08` and exec `10`, and introduce
+no office-hour vocabulary, legal/procedural deadline, payment period, status
+enum, morality oracle, objective social-harm quest condition, or new gate code.

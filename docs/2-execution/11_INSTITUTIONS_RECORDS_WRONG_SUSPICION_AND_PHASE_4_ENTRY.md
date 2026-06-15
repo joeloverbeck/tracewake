@@ -89,6 +89,32 @@ Required negative fixtures include:
 This obligation locks the proof contract before Phase 4 entry. It expands no
 Phase 4 scope and decides no new institution mechanics.
 
+## Procedural-Time and Practical-Bias Proof
+
+Phase-4 evidence must include procedural-time proof for any institution label
+with time semantics, including open/closed, due/late, expired/current,
+pending/resolved, queued/aged, notified/served, paid/unpaid, sanctioned, and
+appealed. Each status must be backed by a modeled institution-known source such
+as a record, schedule artifact, notice, ledger entry, procedure state, testimony
+accepted by procedure, inspection, or modeled staff action.
+
+Adversarial institution fixtures must cover cases where true time would justify
+a label but records or procedures do not yet support it, and cases where stale
+or mistaken records cause plausible institutional error. Content packs may not
+author omniscient procedural-time conclusions; that validation obligation is
+owned by `08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md`. Per-cause
+diagnostics are owned by
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
+Phase-4 practical bias and social harm evidence must show institutional outcomes shaped by
+modeled testimony quality, unequal credibility, access barriers, underfunding,
+refusal, delay, misfiling, contradictory records, stale records,
+suppressed/ignored records, or staff procedure. Wrong-suspicion proof must show
+the actor-known or institution-known path that made suspicion plausible without
+consulting hidden culprit truth. The kernel remains genre-neutral: no morality
+oracle, no objective social harm quest condition, and no hidden-truth correction
+because the player arrives.
+
 ## Records
 
 Records are artifacts carrying claims. They are not truth.
