@@ -1,6 +1,6 @@
 # 0033EXETIETEM-002: exec 05 scheduler temporal authority & budget evidence
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` (additive scheduler temporal-authority statement and deterministic budget evidence over the existing `PIPE`/`NO-DIRECT` posture). No crate/code, no fixtures.
@@ -75,3 +75,32 @@ Require scheduler-budget evidence for deterministic candidate ordering, budget e
 
 1. `grep -niE 'temporal authority|true time|budget|fairness|invisible director' docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` — confirms D-T2/D-R3 landed and the exec `10` cross-reference is present.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing greps plus the mechanism-token-boundary and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the exec `05` scheduler temporal-authority and scheduler-budget
+evidence obligations in
+`docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`.
+The edit states that true time may trigger scheduler review but may not select
+intentions, invent reasons, rewrite wait causes, or conclude routines, and it
+requires deterministic scheduler-budget evidence with the budget/fairness
+diagnostics cross-referenced to exec `10` as the single consolidated home.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'temporal authority|true time' docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`
+- `grep -niE 'budget|fairness|invisible director' docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`
+- `rg -n 'formula|window size|numeric budget|algorithm|threshold|new gate|PIPE|NO-DIRECT|10_TESTING' docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`
+- `git diff --check`
+
+Manual review confirmed the additions uphold `INV-103`/`INV-105`, preserve the
+existing `PIPE`/`NO-DIRECT` posture without rename or weakening, keep the
+budget/fairness contract stated once in exec `10`, and introduce no fairness
+formula, window size, numeric budget, scheduler algorithm, threshold, or new
+gate code.
