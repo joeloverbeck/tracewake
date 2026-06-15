@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-010: A05/A06 bounded affect + learning/adaptation seams
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` (affect as bounded decision influence + learned-expectation seam) and `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md` (affect-memory effects + learned-vs-remembered distinction). No crate/code, no fixtures.
@@ -76,3 +76,23 @@ Add: a learned expectation is derived state from remembered experiences, modeled
 
 1. `grep -niE "affect|salience|pressure" docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` — confirms D-R3 (A05) landed.
 2. `grep -niE "learned expectation|reliability|trust|skill|derived state" docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` — confirms D-R4 (A05) landed; the A06 affect/learning greps confirm the A06 half.
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-R3 and D-R4 in `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` and `docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`. A05 now defines affect as a source-bearing salience/pressure modifier over candidate generation, method selection, interruption, concealment/confession/accusation/repair tendencies, and routine disruption, with explicit prohibitions on revealing truth, selecting hidden targets, bypassing planning, overwriting beliefs without events, or forcing dramatic actions. A05 also defines learned expectations as provenance-bearing derived state that can influence candidate ordering, method applicability, trust/reliability, risk aversion, skill confidence, route preference, and routine adaptation.
+
+A06 now defines affect-memory effects as provenance-bearing changes to salience, durability, recall priority, or belief uptake, and distinguishes learned expectations from remembered facts, truth caches, or unscoped probability tables while preserving source events, scope, holder, confidence/uncertainty, contradiction/staleness status, and reset/decay/override provenance.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "affect|salience|pressure" docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`
+- `grep -niE "affect|salience|recall|durability" docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`
+- `grep -niE "learned expectation|reliability|trust|skill|derived state" docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md docs/1-architecture/06_CLAIMS_BELIEFS_OBSERVATION_MEMORY_TRACES_AND_INFORMATION_FLOW.md`
+- Manual invariants alignment review: the additions preserve `INV-112` by keeping affect and learned expectations source-bearing and holder-known rather than truth-revealing, planning-bypassing, or truth-cache mechanisms.
+- Manual mechanism-token boundary review: no affect/learning depth, update rule, decay rule, threshold, or fixture was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.

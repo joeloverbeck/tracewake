@@ -75,6 +75,23 @@ authority, let routine labels charge time, or reconcile duration terminals.
 Need accounting and body-exclusive duration lifecycle effects belong to the
 single accounting seam owned at the action pipeline / ordinary-life boundary.
 
+### Affect and learned expectations
+
+Affect is a bounded decision influence: a source-bearing salience or pressure
+modifier over candidate generation, method selection, interruption,
+concealment, confession, accusation, repair tendencies, or routine disruption.
+It may explain why a holder prioritizes or avoids an option; it may not reveal
+truth, select hidden targets, bypass planning, overwrite beliefs without
+events, or force dramatic actions.
+
+A learned expectation is provenance-bearing derived state from remembered
+experiences, modeled instruction, records, testimony, repeated failures or
+successes, or institution-procedure outcomes. It is not a raw memory, truth
+cache, or global probability table unless its source and scope are modeled. It
+can influence candidate ordering, method applicability, trust or reliability
+judgment, risk aversion, skill confidence, route preference, and routine
+adaptation within the same holder-known boundary.
+
 ### Candidate generation
 
 Candidates must carry:
