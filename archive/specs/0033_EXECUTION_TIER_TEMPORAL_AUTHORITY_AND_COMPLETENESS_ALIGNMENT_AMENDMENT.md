@@ -15,7 +15,8 @@ approval rather than the constitutional sign-off that a foundation amendment dem
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Stages additive amendments to `docs/2-execution/*`; not yet enacted.
+**Status:** COMPLETED. Additive amendments to `docs/2-execution/*` enacted by the
+`0033EXETIETEM` ticket series.
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code and performs no gate audit.
@@ -307,3 +308,44 @@ patched in execution.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/`0027`/`0031`/`0032` precedent: the ledger row lands at acceptance/closeout,
   not at proposal).
+
+## Outcome
+
+Completed: 2026-06-15
+
+The `0033EXETIETEM` ticket series enacted the execution-tier temporal-authority,
+Block-R completeness, and staged-incompleteness amendments as compact,
+additive doctrine across `docs/2-execution/00`, `02`, `03`, `04`, `05`, `06`,
+`07`, `08`, `09`, `10`, `11`, and `12`. The series preserved existing gate
+names and observation-obligation vocabulary, minted no fixture names, and kept
+concrete temporal values, scheduler algorithms, fairness formulas, schemas,
+thresholds, denominations, status enums, and fixture files routed to lower-tier
+reference/spec sessions.
+
+The execution-blocking owner-approval precondition in risk R-A was satisfied by
+the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Tickets completed and archived:
+
+- `archive/tickets/0033EXETIETEM-001.md`
+- `archive/tickets/0033EXETIETEM-002.md`
+- `archive/tickets/0033EXETIETEM-003.md`
+- `archive/tickets/0033EXETIETEM-004.md`
+- `archive/tickets/0033EXETIETEM-005.md`
+- `archive/tickets/0033EXETIETEM-006.md`
+- `archive/tickets/0033EXETIETEM-007.md`
+- `archive/tickets/0033EXETIETEM-008.md`
+- `archive/tickets/0033EXETIETEM-009.md`
+- `archive/tickets/0033EXETIETEM-010.md`
+- `archive/tickets/0033EXETIETEM-011.md`
+- `archive/tickets/0033EXETIETEM-012.md`
+
+Verification before spec archival:
+
+- Per-ticket landing greps and boundary reviews recorded in each archived ticket
+  outcome.
+- `git diff --check`
+
+Final AGENTS gate verification is run as part of this spec archive closeout and
+recorded in the final response for the goal.
