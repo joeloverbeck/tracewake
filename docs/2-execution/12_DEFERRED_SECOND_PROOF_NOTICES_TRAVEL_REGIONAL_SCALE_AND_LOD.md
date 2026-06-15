@@ -61,6 +61,22 @@ Travel may not spawn danger because the human needs stakes. Route threats arise 
 
 LOD is replay-visible ontology, not a performance-only collapse. Promotion and demotion require events and ancestry. A promoted actor or institution receives modeled knowledge, records, memories, and summary ancestry, not filled-in truth.
 
+Future LOD and time-acceleration proof must declare temporal ancestry,
+interval, cadence, resolution, fidelity, event ancestry, information ancestry,
+and known-to-whom status for every summary or promoted state. Any accelerated
+or regional divergence from full-resolution processing must be declared,
+bounded, and tested against fairness and epistemic constraints.
+
+Promotion and demotion proof must show that actors, institutions, leads, and
+views gain no omniscient temporal facts during LOD transitions. Future
+time-accelerated or regional processes must include skipped or deferred
+cognition accounting so acceleration cannot invisibly starve actor classes or
+silently script outcomes. Deferred-scale fairness declarations cross-reference
+the consolidated diagnostics home in
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`; this document
+does not define fairness formulas, windows, thresholds, regional cadence
+values, LOD tolerances, or promotion algorithms.
+
 ## Story-sifting doctrine
 
 Story sifting is observer/projection work after events occur. It may cluster, summarize, highlight, and explain. It may not cause events, repair pacing, select culprits, spawn clues, or expose hidden truth in embodied mode.

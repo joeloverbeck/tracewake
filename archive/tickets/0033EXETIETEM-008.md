@@ -1,6 +1,6 @@
 # 0033EXETIETEM-008: exec 12 deferred LOD temporal ancestry & fairness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md` (additive deferred LOD/time-acceleration temporal-ancestry and fairness proof obligations; the deferral itself is kept intact). No crate/code, no fixtures.
@@ -75,3 +75,32 @@ Require deferred-scale fairness declarations for any future LOD/time-accelerated
 
 1. `grep -niE 'temporal ancestry|information ancestry|known-to-whom|fairness|divergence' docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md` — confirms D-T7/D-R3 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing greps plus the deferral-intact and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the exec `12` deferred LOD/time-acceleration temporal-ancestry and
+fairness proof obligations in
+`docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md`.
+The edit requires future LOD/time-acceleration proof to declare temporal,
+event, and information ancestry plus known-to-whom status; to declare and bound
+accelerated/regional divergence; to prove no omniscient temporal facts enter
+promotion/demotion; and to account for skipped/deferred cognition so
+acceleration cannot silently starve actor classes or script outcomes.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'temporal ancestry|information ancestry|known-to-whom|promotion' docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md`
+- `grep -niE 'fairness|divergence|starv' docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md`
+- `rg -n 'locked-deferral|blocked until|does not authorize implementation|formula|window|threshold|regional cadence|LOD tolerance|promotion algorithm|new gate|10_TESTING' docs/2-execution/12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md`
+- `git diff --check`
+
+Manual review confirmed the additions uphold `INV-110`, preserve the deferred
+second-proof lock without rename or weakening, correctly cross-reference exec
+`10`, and introduce no LOD threshold, cadence value, promotion algorithm,
+fairness formula, window, threshold, or new gate code.
