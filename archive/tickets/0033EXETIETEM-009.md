@@ -1,6 +1,6 @@
 # 0033EXETIETEM-009: exec 02 first-proof acceptance temporal cross-reference
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` (a narrow first-proof acceptance cross-reference; no broad rewrite). No crate/code, no fixtures.
@@ -69,3 +69,31 @@ Add to exec `02` a narrow cross-reference (no broad rewrite) recording that firs
 
 1. `grep -niE 'temporal' docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md` — confirms D-T8 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the pointer-integrity and no-rewrite review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the narrow first-proof temporal acceptance cross-reference in
+`docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md`.
+The edit points first-playable acceptance to the landed temporal evidence homes
+in exec `04`, `06`, `07`, `09`, and `10` without rewriting the first-proof
+scope or duplicating those homes' obligations.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'temporal.*(evidence|firewall)|temporal' docs/2-execution/02_FIRST_PROOF_SCOPE_CURRENT_BASELINE_AND_ACCEPTANCE_CONTRACT.md`
+- `grep -niE 'temporal[- ]firewall|temporal premise|temporal claim' docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+- `grep -niE 'temporal premise|adaptation|expectation' docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+- `grep -niE 'temporal (label|render)|time control' docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+- `grep -niE 'temporal.*fixture|fixture famil' docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`
+- `grep -niE 'temporal[- ]divergence|validator time|temporal.*render|LOD.*ancestry' docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+- `git diff --check`
+
+Manual review confirmed every pointed-to home carries its sibling ticket's
+landed temporal obligation, the `02` edit is only a narrow cross-reference, and
+no new gate code was minted.
