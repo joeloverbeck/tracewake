@@ -115,6 +115,12 @@ Examples:
 
 A selected method emits trace evidence. Rejected methods emit typed rejection reasons.
 
+### Routine and social-rhythm temporal premises
+
+Work, sleep, meals, patrols, appointments, market patterns, household obligations, and institutional appointments are defeasible temporal premises inside actor-known context. Candidate generation and method selection may use those premises only when they arrive through modeled assignment, memory, observation, public cues, records, testimony, institutional context, or modeled inference.
+
+Routine templates may organize method families and expected rhythms, but a template's presence is not itself an information channel. Affect and learning may tune salience or method preference only after the same holder-known premise is available; they cannot create hidden temporal facts.
+
 ### Bounded local planning
 
 Local planning converts a selected method and actor-known context into a short proposal sequence or a typed failure. It is bounded by budget, scope, and knowledge. It may use known routes, known doors, known containers, known items, known reservations, and known local affordances. It may not pathfind through undiscovered truth or fetch true targets from global state.

@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-004: A05 routine/social-rhythm temporal premises
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` (routine/social-rhythm temporal-premise subsection). No crate/code, no fixtures.
@@ -69,3 +69,20 @@ Add to `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTI
 
 1. `grep -niE "temporal premise|routine|work time|information channel" docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` — confirms D-T5 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T5 in `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md` as a `Routine and social-rhythm temporal premises` subsection after the HTN/routine method-selection contract. The new text defines work, sleep, meals, patrols, appointments, market patterns, household obligations, and institutional appointments as defeasible temporal premises inside actor-known context, usable only through modeled assignment, memory, observation, public cues, records, testimony, institutional context, or modeled inference. It also states that routine templates organize method families and expected rhythms but are not information channels, and that affect/learning cannot create hidden temporal facts.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "temporal premise|routine|work time|information channel" docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`
+- Manual source-route review: the added subsection names assignment, memory, observation, public cues, records, testimony, institutional context, and modeled inference, and states that a template's presence is not a channel.
+- Manual invariants alignment review: the addition preserves `INV-112` by requiring routine/social-rhythm temporal facts to be holder-known before routine candidate generation or method selection can use them.
+- Manual mechanism-token boundary review: no first-playable schedule vocabulary, concrete routine windows, or interruption policy was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.
