@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-001: A02 authoritative event/replay-time contract
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md` (new authoritative event/replay-time contract near the event-envelope and replay sections). No crate/code, no fixtures.
@@ -77,3 +77,19 @@ The doc names the seam and data-flow obligations only. It must not choose calend
 
 1. `grep -niE "event/replay time|temporal ancestry|temporal divergence" docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md` — confirms D-T2 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T2 in `docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md` as a compact `Authoritative event/replay time` contract near the event-envelope section. The new architecture text names event/replay time as the ordered substrate for validation, scheduled due effects, duration accounting, replay, projection rebuild, and causal explanation; requires temporal facts to reach holder-facing surfaces only through modeled ancestry; requires projection/snapshot/compaction temporal ancestry preservation; and names temporal-divergence replay diagnostics.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "event/replay time|temporal ancestry|temporal divergence" docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md`
+- Manual mechanism-token boundary review of the added passage: no calendar/date syntax, tick size, duration unit, priority-queue structure, or stable field names were introduced.
+- Manual invariants alignment review: the passage preserves `INV-112` by separating validation/ordering time from holder-known planning inputs, and preserves `INV-018` by requiring replay/projection/snapshot temporal ancestry rather than current-time replacement.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.
