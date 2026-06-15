@@ -83,6 +83,31 @@ A routine template must state:
 
 A routine without failure modes is invalid.
 
+## Routine Temporal Premises and Adaptation Proof
+
+Each routine or social-rhythm proof must identify the temporal premise source
+category it used. The proof is that a modeled channel supplied the premise, not
+that a vocabulary token exists. Valid source categories include assignment,
+memory, observation, public cue, record, testimony, institutional context, and
+source-backed inference.
+
+No-human scenarios must include routine behavior that succeeds from modeled
+temporal premises and waits or fails when only ground-truth time would justify
+action. A routine that would be correct under true schedule time must not be
+selected when the actor lacks the source-backed premise. Scheduler awakenings
+and elapsed-time accounting in
+`05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` do not
+count as routine-premise evidence.
+
+Positive adaptation proof must show repeated modeled experience,
+contradiction, interruption, notice, or changed routine outcome altering later
+routine, method, or trust selection through holder-known memory or expectation
+channels. Routine-failure diagnostics must classify missing knowledge, stale
+knowledge, budget exhaustion, blocked affordance, and validation failure through
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`. This section
+defines no temporal vocabulary, learning update rule, decay, trust-update
+semantics, or threshold.
+
 ## No-human proof
 
 The no-human proof must advance an authored fixture through ordinary actor transactions. It must show actors waking, needing, moving, eating, working, waiting, failing, replanning, sleeping, or becoming stuck through the same pipeline used by a possessed actor.

@@ -171,11 +171,18 @@ consolidated `reports/<tier>-alignment-research-report.md`, **or** — when a si
 multiple tiers — one report per tier (`reports/<tier-a>-alignment-research-report.md`,
 `reports/<tier-b>-…`). Resolve the count in the Step 4 interview; default to the per-tier split when the
 tiers carry distinct authority boundaries (the campaign's architecture- and execution-tier passes each
-produced their own report). **For a top-tier (`0-foundation`) pass** the report is an *amendment*
+produced their own report). **A live report slug may match an archived report of the same name**
+from an earlier cascade epoch — this campaign reuses per-tier slugs (e.g.
+`architecture-tier-alignment-research-report.md`) across epochs, disambiguated by `reports/` (live)
+vs. `archive/reports/` (prior epoch). An archived namesake is **expected**: it is neither a
+replacement nor a collision — confirm the live `reports/<slug>` path is absent (per the §2-completeness
+check) and proceed. **For a top-tier (`0-foundation`) pass** the report is an *amendment*
 recommendation, not a realignment to anything upstream; prior precedent named it
 `foundation-amendment-research-report.md`. Choosing `-alignment-` for cross-campaign per-tier symmetry
 vs. `-amendment-` for precision is a labeled decision — surface it as a bounded interview question or
-carry an `assumption:` line, do not silently default. Direct Session 2 to
+carry an `assumption:` line, do not silently default. For a **non-top-tier cascade pass**
+(`1-architecture` / `2-execution` / `3-reference` / `4-specs` realigned to an upstream amendment),
+`-alignment-` is the cross-campaign-symmetry default; reserve `-amendment-` for the top-tier case above. Direct Session 2 to
 deliver **substance + home, not ratified text** — for each finding, *what doctrine the target doc must
 own* (Session 2's own prose, at the right altitude for that tier) and *which file* it lands in (new
 section / addition / correction) — explicitly **without** final paste-ready wording or invented

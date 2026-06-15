@@ -38,6 +38,27 @@ canonical gate codes unless `00` separately names them as such.
 | 6 | `PHASE-4-ENTRY` | Permit institutions, records, wrong suspicion, reports, and local procedures. | Blocked until `FIRST-PROOF-CERT` or a narrowly scoped remediation spec says otherwise. |
 | 7 | `SECOND-PROOF-ENTRY` | Permit notices, travel, regional scale, LOD expansion, and story-sifting projections. | Blocked until document `12` entry gates pass. |
 
+## Temporal Cascade and Staged-Declaration Placement
+
+Temporal evidence is part of the existing certification sequence, not a new
+gate code. First-proof acceptance must include temporal-firewall evidence from
+`04`, routine temporal proof from `06`, embodied temporal rendering proof from
+`07`, temporal fixture-family evidence from `09`, and temporal diagnostics from
+`10` before `FIRST-PROOF-CERT` is treated as complete.
+
+Phase-4 procedural-time evidence enters at `PHASE-4-ENTRY` through `11`.
+Second-proof LOD and time-acceleration temporal-ancestry evidence remains
+deferred under `12` and must be declared before `SECOND-PROOF-ENTRY` can accept
+the future work. Budget and fairness evidence is coordinated through the single
+diagnostic home in `10` and is referenced by scheduler and deferred-scale homes
+without restating a competing contract.
+
+Staged-declaration review must occur before acceptance evidence is treated as
+sufficient for any stage. The declaration must identify the staged abstraction,
+the proof currently provided, the behavior intentionally abstracted, and the
+future feature or tier it must not certify by implication. This placement mints
+no gate label or observation-obligation code.
+
 ## Historical phase mapping
 
 The repository history uses Phase 1, Phase 2A, Phase 3A, and planned Phase 4 language. That language is useful for historical location. It is not gate certification.

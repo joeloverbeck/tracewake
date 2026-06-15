@@ -81,6 +81,47 @@ harness extraction must not restamp stale information as `observed_now`. A fact
 becomes current again only through a modeled perception/contact/search channel
 that creates the corresponding ancestry.
 
+## Temporal-firewall proof
+
+Time follows the same truth-firewall rule as every other authority surface:
+authoritative time may validate ordering, legality, replay, and effects, but
+holder-known time must plan. Every certification touching time must produce
+temporal-firewall evidence naming the modeled source of each temporal premise
+consumed by actor-known or institution-known code. Acceptable sources include
+observation, memory, record, notice, testimony, public cue, artifact, modeled
+procedure, and source-backed inference.
+
+The same evidence must include adversarial paths showing that raw scheduler
+time, replay order, debug panels, event timestamps, sorted queues, and
+validator-known future or due states cannot become holder knowledge through
+type shortcuts, cached truth, renamed fields, derived convenience helpers, or
+prompt/context prose. Scheduler altitude is owned by
+`05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`; temporal
+divergence diagnostics are owned by
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
+## Holder-known temporal claims
+
+When a decision depends on time, holder-known context checks must carry temporal
+claim slots with source ancestry: event source, acquisition source,
+verification source, or procedure source as applicable; the holder-known
+valid/expired/stale status; and explicit uncertainty where the holder lacks a
+source-backed temporal conclusion. These slots do not define vocabulary,
+calendar syntax, or freshness thresholds; they require that whatever temporal
+status a future scoped spec introduces remains a sourced claim rather than a
+free truth label.
+
+## Anti-truth-cache learning proof
+
+Learning and adaptation evidence must fail closed against hidden-truth cache
+updates. Failed actions, scheduler denials, debug facts, true object locations,
+true schedules, true institutional status, and replay-only diagnostics must not
+become future actor belief or expectation unless a modeled experience or
+communication channel emitted a claim, memory, contradiction, observation,
+notice, or record. Positive adaptation proof belongs with ordinary-life routine
+evidence in `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`; this
+document owns the prohibited-source negative.
+
 ## Actor-visible capture support
 
 Any actor-visible action, affordance, menu option, preflight, or embodied view

@@ -69,6 +69,27 @@ harness extraction is a fresher epistemic surface than autonomous actor
 cognition. Possession and UI rendering may not restamp stale knowledge by
 re-reading truth.
 
+## Temporal Rendering and Time-Control Proof
+
+Embodied temporal labels such as late, stale, closed, due, soon, recently, or
+missed must cite modeled sources, not a readable clock, raw queue, replay
+timestamp, or validator-only state. The source must be available to the viewed
+actor through holder-known context, modeled perception, record, notice,
+testimony, memory, or another source-backed channel.
+
+Possession-parity evidence must show that possessing an actor does not refresh,
+reveal, or reinterpret temporal facts beyond what that actor would know.
+Possession, notebook display, transcript rendering, and embodied refreshes must
+not convert stale or unknown temporal claims into current knowledge.
+
+Future player-facing time control proof must show that advancing time produces
+events, observations, waits, interruptions, or missed-event summaries through
+modeled channels. Any missed-event summary must carry source and holder
+visibility. Debug exact time, raw queues, replay timestamps, and acceleration
+internals remain non-diegetic and excluded from actor-known context. Per-surface
+temporal rendering diagnostics are owned by
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
 ## Observation-time snapshot proof
 
 For any actor-visible action, menu option, possession preflight, or embodied

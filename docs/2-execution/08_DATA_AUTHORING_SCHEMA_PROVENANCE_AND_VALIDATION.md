@@ -42,6 +42,30 @@ Content must pass these gates before runtime:
 
 Validation failures are deliverables. They must name the field, rule, layer, and reason.
 
+## Quantity, Custody, Bias, and Proof-Bearing Content Validation
+
+Content validation for quantity-bearing, fungible, and partly fungible entities
+must preserve identity, quantity, custody, ownership or control, provenance,
+split/merge lineage, transformation, spoilage or consumption, reservation,
+transfer, concealment or discovery, and institution-visible record effects as
+appropriate to the authored domain. Validation must fail closed on ambiguous
+fungibility, implicit global pools, untracked disappearance or creation,
+balance edits without ledger ancestry, and authored facts that make an actor or
+institution know quantity or custody without a modeled channel.
+
+Domain-pack assumptions about practical bias or social harm must be explicit,
+validated, and reviewable rather than implied by prose. They may define modeled
+institutional conditions and source-bearing assumptions; they may not author an
+omniscient outcome, objective quest condition, or morality oracle.
+
+Temporal claims, procedural-time records, quantity/custody records,
+bias/social-harm assumption packets, and staged-abstraction declarations are
+proof-bearing authored content. They must be structurally validated and must
+fail closed on malformed provenance, missing source channels, ambiguous
+authority category, hidden-truth labels in prose fields, restamped freshness,
+implicit global state, and unreviewable assumptions. This section defines no
+unit vocabulary, schema field, denomination, rule language, or error format.
+
 ## Provenance contract
 
 Any data that can affect cognition, procedure, or view must carry source status:

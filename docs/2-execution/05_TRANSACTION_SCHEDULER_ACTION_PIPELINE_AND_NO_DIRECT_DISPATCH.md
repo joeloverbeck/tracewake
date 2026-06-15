@@ -64,6 +64,24 @@ Schedulers may not:
 - repair plans using debug reports or validator rejection truth;
 - special-case possessed actors except for input binding.
 
+## Scheduler Temporal Authority and Budget Evidence
+
+Schedulers may awaken candidates, order transactions, validate temporal
+preconditions and effects through the shared action pipeline, and account for
+budget exhaustion. They may not select intentions, invent reasons, rewrite wait
+causes, or conclude routines by consulting true time alone. True time may
+trigger review; it is not a holder-known premise unless the transaction receives
+that premise through a modeled source in its sealed context.
+
+Scheduler-budget evidence must prove deterministic candidate ordering, budget
+exhaustion, deferred or skipped cognition, and no-direct-dispatch behavior under
+load. Budget pressure may not become an invisible director choosing outcomes
+without typed evidence. Cross-cutting budget and fairness diagnostics are owned
+once by `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`; this
+document records the scheduler-side proof obligation and points there for
+starvation, repeated-deferral, actor-class, region-class, time-acceleration,
+and replay-determinism review.
+
 ## Proposal ancestry
 
 A proposal must carry enough ancestry to reconstruct why it exists:

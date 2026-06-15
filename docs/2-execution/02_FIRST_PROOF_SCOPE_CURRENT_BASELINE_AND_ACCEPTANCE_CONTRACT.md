@@ -36,6 +36,16 @@ A first-proof candidate must satisfy all of these gates in one coherent artifact
 The local `Gate` headings below are first-proof acceptance-contract labels.
 They do not add canonical gate codes beyond `00_EXECUTION_INDEX_AND_AUTHORITY.md`.
 
+First-playable acceptance now includes temporal evidence through the execution
+homes that own it: temporal-firewall evidence in
+`04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`, routine
+temporal proof in `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`,
+embodied temporal rendering in
+`07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`, temporal fixture
+families in `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md`, and
+diagnostics/review artifacts in
+`10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
+
 ### Gate `EVENT`
 
 Every meaningful world change is represented by an event with stable identity, causal ancestry, schema/version information, deterministic ordering, and replay effect.

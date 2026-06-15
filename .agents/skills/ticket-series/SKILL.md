@@ -168,11 +168,13 @@ cargo build --workspace --all-targets --locked
 cargo test --workspace
 ```
 
-   The final gate evidence must cover the final committed closeout state. If
-   you run these gates before editing the spec outcome, archiving the spec,
-   repairing ledgers, or updating references, treat that run as an early
-   confirmation and rerun the exact required gates after the last closeout edit
-   that the repo checks could cover.
+   The final gate evidence must cover the exact closeout tree that is committed.
+   It is acceptable to run the gates after the last closeout edit and before the
+   final commit, as long as no tracked or generated content changes before that
+   commit. If any content changes after the gates, or if you run the gates before
+   editing the spec outcome, archiving the spec, repairing ledgers, or updating
+   references, treat that run as an early confirmation and rerun the exact
+   required gates after the last closeout edit that the repo checks could cover.
    If any required final gate is not run, or is run with different flags, record
    which gate was skipped or changed and why in both the spec `Outcome` and the
    final response.
@@ -272,6 +274,8 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
      or documented unrelated pre-existing changes that were deliberately left
      untouched;
    - the spec archive/truthing commit exists.
+   - if the final gates ran before that commit, no content changed between the
+     final gate run and the committed tree; otherwise rerun the required gates.
    - the final response has been checked against the `## Reporting` bullets
      below.
 9. If a `/goal` is active, mark it complete only after implementation,

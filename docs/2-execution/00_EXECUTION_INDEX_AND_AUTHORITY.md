@@ -49,6 +49,37 @@ The retired old set included phase-local documents that treated Phase 3A hardeni
 | `12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md` | Locked deferral contract for notices, travel, regional scale, LOD, and second proof. |
 | `13_RESEARCH_DECISIONS_SOURCE_NOTES_AND_FORBIDDEN_MISREADS.md` | Execution-level research decisions and forbidden misreads. |
 
+## Temporal, Block-R, and Staged-Proof Routing
+
+Execution operationalizes `INV-112` and the related completeness routes through
+the existing document homes. This routing map points to owners; it does not
+make this index the sole home, mint a new gate code, or choose concrete
+temporal terminology.
+
+| Proof surface | Execution home |
+|---|---|
+| Temporal firewall and holder-known time | `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` |
+| Scheduler trigger-vs-plan and scheduler-budget evidence | `05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` |
+| Routine temporal premises and ordinary-life adaptation | `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` |
+| TUI temporal rendering, possession parity, and time controls | `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` |
+| Proof-bearing authoring validation, quantity/custody, and bias assumptions | `08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` |
+| Temporal and quantity fixture families | `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` |
+| Diagnostics, review artifacts, and consolidated budget/fairness evidence | `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` |
+| Institutions and procedural time | `11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` |
+| Deferred LOD and time-acceleration proof | `12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md` |
+
+Concrete temporal values, day-part or lateness vocabulary, calendar/date
+syntax, duration units, stale-after thresholds, scheduler algorithms, fairness
+formulas, UI clock formats, status enums, fixture names, unit vocabularies,
+denominations, and schema fields remain lower-tier decisions for reference or
+future scoped specs.
+
+Staged proof is allowed only when the staged abstraction is declared and
+bounded. A staged proof must state what it proves now, what behavior it
+intentionally abstracts, what falsehoods it must not fake, and what future
+feature or tier it must not block. Staged proof must not certify an
+unimplemented future feature by implication.
+
 ## Universal execution posture
 
 Every future spec, audit, fixture, or code change must answer the following before being accepted:

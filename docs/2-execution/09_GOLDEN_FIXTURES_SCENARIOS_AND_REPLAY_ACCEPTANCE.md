@@ -57,6 +57,27 @@ The exact filenames may change only with an execution-index update. The fixture 
 | Debug omniscience excluded | Debug truth cannot feed actor affordances, cognition, or tests claiming actor knowledge. |
 | Forbidden content | Quest/player/culprit/outcome fields are rejected. |
 
+## Temporal and Quantity Fixture-Family Obligations
+
+First-proof acceptance must include a temporal-firewall fixture family. Friendly
+coverage must exercise holder-known work or routine timing, stale-but-believed
+notices, institutional records, and interruption or wait effects. Adversarial
+coverage must exercise raw-clock leakage, debug-panel leakage, omniscient
+due/closed labels, and attempts to restamp old knowledge as fresh. These are
+fixture-family obligations, not concrete fixture names.
+
+Quantity and economy behavior require a separate fixture family. Positive
+coverage must exercise transfer, consumption, split/merge, and custody behavior.
+Adversarial coverage must exercise hidden stock, hidden ledger, and hidden
+procedure shortcuts. The temporal-firewall package and quantity/economy package
+must remain separable unless a single gameplay feature genuinely needs both
+proof burdens together.
+
+Validation-bypass adversarial fixtures must attempt to evade authoring checks
+through renamed fields, nested prose, stale strings, generated content, fixture
+metadata, or review-artifact text. Passing evidence must show the intended
+failure layer and responsible diagnostic, not only that a file was rejected.
+
 ## Replay acceptance
 
 A golden fixture passes replay only when:
