@@ -76,6 +76,53 @@ Use these layer names consistently:
 - `tui_input_binding`;
 - `test_oracle`.
 
+## Temporal, Completeness, Fairness, and Staged-Abstraction Diagnostics
+
+The execution tier's temporal-authority and completeness additions use this
+document as their consolidated diagnostic and review-artifact home. The
+diagnostics remain typed, responsible-layer-attributed evidence; they are not
+display strings, player-facing hints, simulation objectives, or actor-known
+urgency.
+
+Temporal diagnostics must identify temporal-divergence causes by responsible
+layer, including candidate generation, sealed-context assembly, scheduler
+dispatch, action validation, projection or view rendering, fixture authoring,
+and review-artifact construction. Review artifacts must distinguish validator time
+used to validate from holder-known temporal premises used to plan, and must show
+both accepted and fail-closed paths where time is material. Temporal rendering
+evidence must separate embodied, possession, debug, transcript, and observer-only
+surfaces. LOD temporal-ancestry and time-acceleration review must expose temporal
+ancestry, information ancestry, known-to-whom status, and fairness implications
+without letting summary evidence become cognition input.
+
+Completeness diagnostics must identify representation errors, custody-lineage
+errors, procedure-visibility errors, and replay divergence for quantity and
+economy evidence. Learning and adaptation diagnostics must distinguish learned
+expectations, remembered events, direct observations, testimony,
+record-derived beliefs, and prohibited truth-cache updates. Practical-bias and
+social-harm diagnostics must identify the modeled source of the outcome and
+distinguish it from hidden-truth leakage or arbitrary author fiat. Static
+validation review must record that proof-bearing authored content was checked,
+that negative fixtures failed for the intended reason, and that diagnostics
+named the responsible layer.
+
+Budget and fairness diagnostics are consolidated here. Scheduler, LOD,
+time-acceleration, and Block-T proof homes may cross-reference this contract,
+but must not restate it as separate competing standards. Review evidence must
+cover starvation risk, repeated deferral, actor-class or region-class
+imbalance, time-acceleration effects, replay determinism, and absence of
+human-proximity or possessed-actor priority bias unless that bias is explicitly
+non-diegetic input routing. This section defines no fairness formula, window,
+budget, priority algorithm, or threshold.
+
+Staged-abstraction review artifacts must state the proof currently provided,
+the behavior intentionally abstracted, the falsehoods the stage must not fake,
+the future feature or tier it must not block, the evidence preventing
+overclaiming, and the diagnostics that would fail if the abstraction leaked
+into certification. These fields are observer-only and non-certifying unless a
+future scoped spec promotes a specific check through the normal authority
+chain. They do not mint a new gate code or observation-obligation code.
+
 ## Observability requirements
 
 Debug and review artifacts must expose enough structure to audit without becoming gameplay authority:
