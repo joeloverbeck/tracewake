@@ -1,6 +1,6 @@
 # 0033EXETIETEM-005: exec 08 quantity/custody, bias & compiler-discipline validation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` (additive quantity/custody validation, domain-pack bias-assumption review, and compiler-like proof-bearing-content discipline over the existing `DATA-CERT` posture). No crate/code, no fixtures.
@@ -80,3 +80,31 @@ State explicitly that temporal claims, procedural-time records, quantity/custody
 
 1. `grep -niE 'fungib|custody|quantity|bias|proof-bearing|fail[- ]closed' docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md` — confirms D-R1/D-R4/D-R5 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing greps plus the mechanism-token-boundary and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the exec `08` quantity/custody, practical-bias, and
+proof-bearing-content validation obligations in
+`docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md`. The
+edit adds fail-closed validation for quantity-bearing and fungible/partly
+fungible content, explicit reviewability for domain-pack bias/social-harm
+assumptions, and structural validation for temporal, procedural-time,
+quantity/custody, bias/social-harm, and staged-abstraction authored payloads.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'fungib|custody|quantity|ledger ancestry' docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md`
+- `grep -niE 'bias|proof-bearing|fail[- ]closed' docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md`
+- `rg -n 'unit vocabulary|schema field|denomination|rule language|error format|new gate|DATA-CERT|outcome|quest|morality oracle' docs/2-execution/08_DATA_AUTHORING_SCHEMA_PROVENANCE_AND_VALIDATION.md`
+- `git diff --check`
+
+Manual review confirmed the additions uphold `INV-102` and no-scripting
+doctrine, preserve `DATA-CERT` without rename or weakening, and introduce no
+unit vocabulary, schema field, denomination, rule language, error format, or
+new gate code.
