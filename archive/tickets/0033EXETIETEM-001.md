@@ -1,6 +1,6 @@
 # 0033EXETIETEM-001: exec 04 temporal-firewall, temporal-claim & anti-truth-cache gates
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` (additive temporal-firewall proof obligations, temporal-claim slots, and anti-hidden-truth-learning evidence over the existing `TFW` gate). No crate/code, no fixtures.
@@ -82,3 +82,30 @@ Require negative evidence that none of failed actions, scheduler denials, debug 
 
 1. `grep -niE 'temporal[- ]firewall|temporal premise|temporal claim|hidden[- ]truth|truth[- ]cache' docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` — confirms D-T2/D-T3/D-R2 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing greps plus the mechanism-token-boundary and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the exec `04` temporal-firewall specialization in
+`docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`.
+The edit adds temporal-firewall proof, holder-known temporal-claim slots, and
+anti-truth-cache learning proof over the existing `TFW` posture, with
+cross-references to exec `05`, exec `06`, and exec `10` for scheduler altitude,
+positive routine adaptation, and temporal-divergence diagnostics.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'temporal[- ]firewall|temporal premise' docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+- `grep -niE 'temporal claim|hidden[- ]truth|truth[- ]cache' docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+- `rg -n 'threshold|calendar|day-part|lateness|learning update|decay|new gate|TFW|truth may validate|holder-known time must plan' docs/2-execution/04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md`
+- `git diff --check`
+
+Manual review confirmed the additions uphold `INV-112`/`INV-099`/`INV-102`,
+preserve the existing `TFW` gate without rename or weakening, and introduce no
+stale-after threshold, day-part/lateness vocabulary, calendar syntax, learning
+update rule, or new gate code.
