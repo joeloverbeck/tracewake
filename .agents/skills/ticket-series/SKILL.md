@@ -158,33 +158,9 @@ deviations in the ticket and spec outcomes.
    - If the final ticket says spec archival is out of scope, deferred, or left
      for later, treat that as ticket-local scope only. This final closeout still
      controls unless the user explicitly says not to archive the reference spec.
-2. Run the relevant final gates. For full completion, use the exact commands
-   named by repository guidance such as `AGENTS.md`. In this repo, those are:
-
-```sh
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo build --workspace --all-targets --locked
-cargo test --workspace
-```
-
-   The final gate evidence must cover the exact closeout tree that is committed.
-   It is acceptable to run the gates after the last closeout edit and before the
-   final commit, as long as no tracked or generated content changes before that
-   commit. If any content changes after the gates, or if you run the gates before
-   editing the spec outcome, archiving the spec, repairing ledgers, or updating
-   references, treat that run as an early confirmation and rerun the exact
-   required gates after the last closeout edit that the repo checks could cover.
-   If any required final gate is not run, or is run with different flags, record
-   which gate was skipped or changed and why in both the spec `Outcome` and the
-   final response.
-   If a required gate produces too much output to retain after compaction, first
-   run the exact required gate when possible. Then rerun a lower-output
-   equivalent only as supplemental confirmation, and record both the exact gate
-   and the supplemental command truthfully.
-3. Update the spec with final status and an `Outcome` section following
+2. Update the spec with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
-4. Archive the spec to `archive/specs/`, using `git mv` when tracked.
+3. Archive the spec to `archive/specs/`, using `git mv` when tracked.
    After `git mv`, stage the move with rename-aware staging such as
    `git add -A specs archive/specs` or by staging the relevant old and archive
    parent directories, rather than only the now-removed live path.
@@ -197,7 +173,7 @@ cargo test --workspace
    Run Git index-mutating commands serially; do not parallelize `git add`,
    `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
    appears, check for active Git processes, then retry serially.
-5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
+4. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
    Use separate concrete sweeps for stale live paths and expected archive
    provenance. First run a strict stale-live-path sweep for the exact live spec
@@ -229,6 +205,27 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    format, and refresh the committed baseline when that file is the intended
    truth source. Leave transient output directories untracked unless the
    ticket/spec explicitly requires archiving them.
+5. Run the relevant final gates after the last tracked closeout edit and before
+   the final commit. For full completion, use the exact commands named by
+   repository guidance such as `AGENTS.md`. In this repo, those are:
+
+```sh
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo build --workspace --all-targets --locked
+cargo test --workspace
+```
+
+   The final gate evidence must cover the exact closeout tree that is committed.
+   If any tracked or generated content changes after the gates, treat that run
+   as an early confirmation and rerun the exact required gates after the last
+   closeout edit that the repo checks could cover. If any required final gate is
+   not run, or is run with different flags, record which gate was skipped or
+   changed and why in both the spec `Outcome` and the final response.
+   If a required gate produces too much output to retain after compaction, first
+   run the exact required gate when possible. Then rerun a lower-output
+   equivalent only as supplemental confirmation, and record both the exact gate
+   and the supplemental command truthfully.
 6. Re-read updated ticket/spec outcomes and reports after the final verification
    run. Confirm the recorded commands, paths, statuses, and skipped/deviated
    checks match what actually happened. If a report originally recorded a
@@ -261,6 +258,13 @@ rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md arch
 rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports docs/4-specs archive/tickets/<ticket-prefix>*.md archive/specs/<spec filename>
 rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports archive/tickets archive/specs docs/4-specs
 ```
+
+   Keep final audit output small enough to inspect. Prefer focused commands for
+   status, staged diff, archive-format checks, stale-live-path checks, and
+   archive-reference checks. Do not bundle broad historical sweeps with large
+   diffs or status checks in one parallel batch. If an audit output is truncated
+   or too noisy to verify, rerun smaller untruncated checks before committing or
+   marking the goal complete.
 
 7. Run a final status/diff check and commit the spec archive/truthing work.
 8. Before sending the final response or marking a `/goal` complete, confirm:
