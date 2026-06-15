@@ -77,6 +77,16 @@ lifecycle, actor cognition consumes pressures rather than minting them, and
 ordinary-life food/sleep/work/economy share that one event-sourced charge path.
 The hardening rows below remain conformance evidence for this seam.
 
+Temporal authority is translated from `INV-112` by subsystem owners, not by
+this index alone. Document 02 owns authoritative event/replay time; documents
+03 and 06 own holder-known temporal claims, provenance, and freshness; document
+04 owns the scheduler/validation temporal boundary; document 05 owns routine
+and social-rhythm temporal premises; document 08 owns institutional procedural
+time; documents 10, 11, and 07 own temporal rendering, lead labels, and speech
+expressions; document 12 owns LOD temporal ancestry; and document 13 owns
+temporal observability and review evidence. This entry is a pointer to those
+contracts and does not define temporal mechanisms.
+
 ## Phase 3A evented cognition conformance
 
 | Surface | Required allowed source | Required evidence |

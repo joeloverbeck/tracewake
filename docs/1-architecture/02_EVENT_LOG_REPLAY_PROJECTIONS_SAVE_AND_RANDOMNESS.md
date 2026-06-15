@@ -54,6 +54,16 @@ event_envelope:
 
 Events are immutable after commit. If a historical event was wrong, correction is another event, not mutation of history.
 
+### Authoritative event/replay time
+
+Event/replay time is the ordered substrate for validation, scheduling due effects, duration accounting, replay, projection rebuild, and causal explanation. It may prove ordering and consequence legality; it is not itself evidence that an actor, household, institution, group, or region knew the temporal fact.
+
+Temporal facts leave this substrate for holder-facing cognition, procedure, affordance selection, speech interpretation, lead interpretation, view models, or LOD promotion only through events, records, procedures, or projections that preserve modeled acquisition ancestry. A projection may summarize temporal facts, but the summary must remain traceable to the event, record, procedure, or observation channel by which the holder could know it.
+
+Projection rebuilds, snapshots, and compaction certificates must preserve temporal ancestry. They may not replace event time, duration boundaries, record/procedure timing, or holder acquisition timing with a raw current-time label that erases why the temporal state exists or who could know it.
+
+Replay diagnostics must distinguish temporal divergence classes, including wrong event ordering, missing duration terminals, due-effect drift, unrecorded wall-clock input, and unsupported temporal migration. Those diagnostics are replay/debug evidence unless a modeled channel separately makes a temporal fact holder-known.
+
 ### Event streams
 
 Tracewake may have distinct streams such as world, agent, epistemic, institution, controller, diagnostic, debug, content-load, LOD, and save-manifest. Stream separation is for authority and replay discipline, not for hiding causality. Cross-stream causes must be explicit.

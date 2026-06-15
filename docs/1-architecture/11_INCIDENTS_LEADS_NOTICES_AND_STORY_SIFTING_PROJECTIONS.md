@@ -61,6 +61,18 @@ lead:
 
 A lead must not name the true solution unless the holder has modeled provenance for that claim.
 
+Lead and notebook labels such as stale, urgent, overdue, recently seen, old
+report, or no longer useful are source-bound projections over holder-known
+temporal claims and records. Story-sifting may compute observer-only temporal
+summaries for review, but it may not create actor-known urgency, quest
+priority, or diegetic proof.
+
+Lead usefulness is a source-bound projection concern. A lead can be stale,
+ambiguous, partial, contradictory, or actionable for a holder, but it does not
+become an objective marker, quest stage, hidden priority, or director-chosen
+next step. Transcript evidence may demonstrate the embodied play loop around
+leads, but it must not parse display prose as authority.
+
 ### Notice
 
 A notice is a public or targeted artifact. It has author/issuer, posting event, surface text, typed claims, visibility, expiry/staleness, and procedure source. Notices may be missed, stale, false, forged, or contested.

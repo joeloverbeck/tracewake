@@ -56,6 +56,21 @@ summary_event:
   confidence_or_abstraction_limit
 ```
 
+### Temporal summaries and time acceleration
+
+Every regional or LOD summary that compresses time must declare its source interval, cadence, affected processes, temporal resolution or fidelity limits, and whether it includes scheduled consequences, absence of events, delayed records, or stale claims.
+
+The summary must preserve information ancestry separately from event-time ancestry: what the aggregate could know, what it summarized as replay truth, and what later promoted holders may know are distinct payload concerns. Time acceleration is a declared simulation mode or projection policy with replay/debug visibility, not a silent performance optimization.
+
+Promotion may create holder-known temporal claims only through modeled summary events or records that are valid information channels for the promoted holder. Aggregate temporal truth cannot fill in personal memory, institutional knowledge, lead urgency, or embodied temporal labels by promotion alone.
+
+LOD and time acceleration are declared fidelity modes with fairness constraints.
+Lower detail may summarize, but it may not erase active claims, procedures,
+leads, obligations, or starvation caused by persistent under-scheduling.
+Human-proximity or possessed-actor priority is not a diegetic fairness rule
+unless explicitly modeled as non-diegetic input routing and quarantined from
+holder knowledge.
+
 ### Promotion
 
 Promotion turns a low-detail entity/process into a higher-detail actor/institution/place/incident.

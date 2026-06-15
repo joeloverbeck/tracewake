@@ -91,6 +91,14 @@ Schedulers may not:
 - count markers such as “continue routine” as behavioral progress unless an ordinary follow-on action or explicit modeled wait/failure is committed;
 - repair behavior using debug or validator truth.
 
+### Temporal firewall for scheduling
+
+Scheduler and replay time may order decision opportunities and process windows, detect due effects and duration terminals, invoke holder-known transaction construction, validate temporal legality or due-consequence applicability, and emit typed temporal diagnostics.
+
+Scheduler and replay time may not turn raw temporal truth into selected actions, routes, targets, institutional conclusions, or actor-visible reasons unless the premise is present in the relevant holder-known or institution-known context. They may not repair plans using true lateness or hidden schedule truth, and may not leak exact future or due timing through actor-visible feedback unless a modeled channel exposes that timing to the holder.
+
+Budget exhaustion is a typed scheduling or decision outcome. Scheduler budgets and ordering policies must be deterministic and diagnosed. When budget limits prevent full cognition or procedure execution, the outcome is typed as deferred, skipped, summarized, degraded, or blocked, with responsible layer and replay ancestry; the consolidated budget/fairness seam in D-R5 owns the cross-cutting fairness contract.
+
 ### Affordances
 
 Objects, places, records, doors, containers, beds, tools, workplaces, notice boards, and people expose typed affordances. Affordances advertise possible proposals; they do not guarantee success.

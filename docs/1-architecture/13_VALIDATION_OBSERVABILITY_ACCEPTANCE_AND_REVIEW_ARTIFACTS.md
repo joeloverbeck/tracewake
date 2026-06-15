@@ -67,6 +67,38 @@ protected claim. Architecture defines this observability contract so execution
 can attach live negative and mutation/metamorphic checks; execution owns the
 procedures and acceptance mechanics.
 
+Temporal observability is part of that typed evidence shape. Decision traces
+must identify temporal premises used by candidate generation or method
+selection and the provenance for those premises. Validation reports must
+separate temporal truth checks from actor-visible temporal reasons. Scheduler
+diagnostics must record due effects, deferred or skipped cognition, budget
+exhaustion, starvation or fairness symptoms, and responsible layer attribution.
+TUI and view-model reports must prove temporal display labels came from
+holder-known sources rather than raw clock or debug truth. LOD and replay
+artifacts must preserve temporal ancestry and information ancestry. Acceptance
+artifacts reject display-string-only proof of temporal correctness.
+
+Fairness and starvation review artifacts record which holders or processes were
+deferred, skipped, summarized, degraded, or blocked; why; for how long or
+across what source interval; the responsible layer; and what replay ancestry
+supports the outcome. They must include evidence that human-proximity or
+possessed-actor priority bias did not influence scheduling, LOD fidelity, or
+review classification unless the bias is explicitly non-diegetic input routing
+and structurally quarantined from holder knowledge.
+
+Content/schema validators, static guards, manifest checks, and review
+artifacts are architecture-protecting boundaries. They reject impossible or
+forbidden authoring forms before runtime instead of relying on runtime filters
+to clean contaminated data. Their outputs must be structured and
+layer-attributed: field, path, or authored element; violated doctrine;
+responsible layer; provenance or source status; and author-actionable failure
+reason. The validation surface protects against aliases, nested forbidden
+concepts, display-string-only proof, hidden-truth cognition fields,
+player/human privilege, silent migrations, incompatible content versions, and
+outcome chains. Architecture requires this seam and evidence shape; execution
+and specs choose schemas, rule languages, commands, compatibility policies, and
+error formats.
+
 ### Acceptance gate groups
 
 #### No-human ordinary-life gate

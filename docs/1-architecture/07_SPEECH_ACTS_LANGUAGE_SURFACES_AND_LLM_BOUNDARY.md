@@ -76,6 +76,11 @@ Listener updates must preserve:
 - privacy/public scope;
 - any contradiction with prior beliefs.
 
+Temporal utterances are structured claims. Expressions such as yesterday, late,
+due, before a market closure, or after a bell are interpreted through speaker
+and listener holder-known temporal context, provenance, and ambiguity under
+documents 03 and 06; the surface phrase is not itself temporal authority.
+
 ### Institutional speech
 
 Reports, complaints, testimony, notices, orders, warrants, contracts, verdicts, sanctions, and role commands are speech/record acts with institutional authority only when issued by modeled roles through modeled procedures and resources. A town watch does not know a theft because a report exists; it knows that a report was made.

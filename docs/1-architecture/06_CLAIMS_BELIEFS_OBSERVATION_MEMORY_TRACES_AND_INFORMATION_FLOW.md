@@ -57,6 +57,20 @@ Belief stances include believes true, believes false, expects true, plausible, d
 
 Memory is not a perfect database. It is a modeled source of claims. Memories can decay, become stale, conflict, be misremembered, or be shaped by role/relationship. Memory still requires provenance: original observation, testimony, record, institution procedure, or prehistory seed.
 
+### Affect memory and learned expectations
+
+Affect-memory effects are provenance-bearing changes to salience, durability,
+recall priority, or belief uptake. They may shape how a holder remembers,
+retrieves, weighs, or resists a claim, but they do not reveal truth or overwrite
+beliefs without modeled events.
+
+A learned expectation is derived state, distinct from a remembered fact. It may
+come from remembered experiences, modeled instruction, records, testimony,
+repeated outcomes, or institution-procedure outcomes, and must preserve source
+events, scope, holder, confidence or uncertainty when represented,
+contradiction and staleness status, and reset, decay, or override provenance.
+It is not a truth cache or unscoped probability table.
+
 ### Provenance and freshness
 
 Epistemic data that can feed cognition, procedures, leads, notebooks, or
@@ -75,6 +89,15 @@ nor debug comparison refreshes it.
 No-human cognition, embodied TUI view models, notebooks, and holder-known
 contexts use the same freshness classifier. Possession and UI surfaces do not
 receive a fresher epistemic path than autonomous actors.
+
+Temporal claims follow the same provenance rule and the holder-known context
+requirements in `03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`.
+Where relevant, epistemic records preserve distinct temporal slots: asserted or
+inferred event time, acquisition time, last verification, record or procedure
+time, valid or due window, stale risk, contradiction status, and source
+lineage. A temporal claim is planning-eligible only as a source-backed claim or
+procedure state; it is not planning-eligible merely because the authoritative
+clock, a display label, or debug truth says the temporal status is true.
 
 ### Records and artifacts
 

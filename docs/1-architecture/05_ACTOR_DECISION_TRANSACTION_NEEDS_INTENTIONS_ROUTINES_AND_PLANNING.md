@@ -75,6 +75,28 @@ authority, let routine labels charge time, or reconcile duration terminals.
 Need accounting and body-exclusive duration lifecycle effects belong to the
 single accounting seam owned at the action pipeline / ordinary-life boundary.
 
+### Affect and learned expectations
+
+Affect is a bounded decision influence: a source-bearing salience or pressure
+modifier over candidate generation, method selection, interruption,
+concealment, confession, accusation, repair tendencies, or routine disruption.
+It may explain why a holder prioritizes or avoids an option; it may not reveal
+truth, select hidden targets, bypass planning, overwrite beliefs without
+events, or force dramatic actions.
+
+A learned expectation is provenance-bearing derived state from remembered
+experiences, modeled instruction, records, testimony, repeated failures or
+successes, or institution-procedure outcomes. It is not a raw memory, truth
+cache, or global probability table unless its source and scope are modeled. It
+can influence candidate ordering, method applicability, trust or reliability
+judgment, risk aversion, skill confidence, route preference, and routine
+adaptation within the same holder-known boundary.
+
+Budget-limited planning may fail or degrade only through typed decision
+diagnostics. A bounded planner must not silently choose omniscient shortcuts,
+substitute marker actions as progress, or treat budget exhaustion as evidence
+that a hidden target, route, method, or social conclusion is available.
+
 ### Candidate generation
 
 Candidates must carry:
@@ -114,6 +136,12 @@ Examples:
 - `ContinueCurrentIntention` may require active intention and next step known.
 
 A selected method emits trace evidence. Rejected methods emit typed rejection reasons.
+
+### Routine and social-rhythm temporal premises
+
+Work, sleep, meals, patrols, appointments, market patterns, household obligations, and institutional appointments are defeasible temporal premises inside actor-known context. Candidate generation and method selection may use those premises only when they arrive through modeled assignment, memory, observation, public cues, records, testimony, institutional context, or modeled inference.
+
+Routine templates may organize method families and expected rhythms, but a template's presence is not itself an information channel. Affect and learning may tune salience or method preference only after the same holder-known premise is available; they cannot create hidden temporal facts.
 
 ### Bounded local planning
 

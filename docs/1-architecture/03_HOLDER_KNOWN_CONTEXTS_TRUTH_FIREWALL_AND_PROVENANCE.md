@@ -60,6 +60,12 @@ holder_known_context:
 
 Every item used by candidate generation, method selection, local planning, speech interpretation, institutional procedure, view-model affordance selection, lead interpretation, or LOD promotion must be addressable inside this packet.
 
+### Temporal claims in holder-known contexts
+
+Any temporal input used by cognition, procedure selection, affordance selection, speech interpretation, lead interpretation, view-model construction, or LOD promotion must be addressable inside the holder-known or institution-known context with fact-kind-appropriate provenance. Temporal status is a source-backed claim or procedure state, not a display label, raw truth-clock read, or debug comparison.
+
+Temporal claims may concern asserted or inferred event timing, acquisition timing, last verification, record or procedure timing, validity or due windows, stale risk, contradiction status, or source lineage. The packet must preserve enough ancestry to replay why the holder may use the temporal premise now, and must fail closed when the premise is missing, forbidden-source, dangling, or only available as validator/debug truth.
+
 ### Projection freshness
 
 Projection-backed holder knowledge uses one freshness rule across no-human

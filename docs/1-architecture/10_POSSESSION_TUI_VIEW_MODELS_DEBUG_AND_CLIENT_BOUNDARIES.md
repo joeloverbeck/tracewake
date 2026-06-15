@@ -77,6 +77,14 @@ rule consumes the sealed holder-known context defined by
 `03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md` and does not decide
 whether a future possession boundary emits a modeled perception.
 
+### Temporal rendering and embodied play loop
+
+World-advancing controls are commands that advance authoritative event/replay time through the ordinary proposal, validation, event, and projection pipeline. They are not actor cognition and do not grant temporal knowledge to the possessed actor.
+
+Actor-facing time displays, missed-event summaries, time-to-work cues, waiting or sleeping summaries, closed-service messages, and lateness or expectation labels derive from the possessed actor's holder-known context or from modeled observations, records, public cues, or other source-bearing projections. Debug and operator panels may show exact event/replay time, due queues, and hidden temporal comparisons, but those fields are structurally non-diegetic and cannot feed embodied affordances or actor-visible reasons. Rejection and why-not output preserve the actor-visible/debug split.
+
+The embodied play loop is: form plans from actor-known view models, attempt semantic actions, receive actor-visible failure or why-not feedback, inspect source-bound notebook and lead surfaces, and use debug only as non-diegetic review. Transcript evidence demonstrates this loop through stable IDs and source references, not by treating display prose as authority.
+
 ### Semantic action selection
 
 The TUI may parse commands such as selecting a semantic action, waiting, binding a different actor, viewing notebook, running no-human time controls, or opening debug panels. World-affecting commands produce ordinary proposals through the shared pipeline.
