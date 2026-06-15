@@ -13,7 +13,7 @@ amendment demands (cf. `archive/specs/0031_FOUNDATION_TEMPORAL_AUTHORITY_DOCTRIN
 > `specs/` carries no template at authoring time and this is not a hardening implementation spec.
 > It deliberately does **not** copy the foundation-pack docs' narrative house style.
 
-**Status:** PROPOSED. Not yet enacted into `docs/1-architecture/*`.
+**Status:** COMPLETED. Enacted into `docs/1-architecture/*` by the `0032ARCTIETEM` ticket series.
 
 **Admissibility posture:** `P0-CERT not applicable`. This is a doctrine-alignment proposal; it
 certifies no code and performs no gate audit.
@@ -255,3 +255,40 @@ constitutional tension.
 - This spec adds **no** `docs/4-specs/SPEC_LEDGER.md` row at proposal time, per the staged-spec
   convention (the `0026`/`0027`/`0031` precedent: the ledger row lands at acceptance/closeout, not
   at proposal).
+
+## Outcome
+
+Completed: 2026-06-15
+
+The `0032ARCTIETEM` ticket series enacted the architecture-tier temporal-authority and completeness-alignment amendment across `docs/1-architecture/*`.
+
+Implemented deliverables:
+
+- D-T2 in A02: authoritative event/replay time, holder export ancestry, temporal ancestry preservation, and temporal-divergence diagnostics.
+- D-T3 in A03/A06: holder-known temporal claims, temporal claim slots, provenance, freshness, and no raw-clock/display-label planning eligibility.
+- D-T4 in A04: scheduler trigger-versus-cognition temporal firewall and budget-exhaustion hook.
+- D-T5 in A05: routine/social-rhythm temporal premises and modeled source routes.
+- D-T6 and D-R6 in A08: institutional procedural time and practical-bias discipline.
+- D-T8 in A07/A11: temporal utterance and lead/staleness cross-references.
+- D-T9 in A12: LOD temporal summaries, time-acceleration declaration, and temporal/information ancestry separation.
+- D-T7 and D-R1 in A10/A11: temporal rendering, time controls, embodied play loop, and lead usefulness.
+- D-R2 in A09: quantity/granularity/fungibility representation seam.
+- D-R3 and D-R4 in A05/A06: bounded affect and learned-expectation seams.
+- D-T10 and D-R7 in A13: temporal observability and authoring/compiler-discipline evidence shape.
+- D-R5 in A04/A05/A12/A13: consolidated budget/fairness/starvation seam.
+- D-T1 in A00: temporal-authority conformance pointer entry mapping `INV-112` to owner docs.
+
+No crate/code, fixture, foundation, execution, or reference edits were made. The owner-approval precondition from §R-A was satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- Per-ticket landing greps and manual invariants/mechanism-boundary reviews were run before each ticket archive commit.
+- Final full repository gates were run after the spec/ledger archive closeout edits:
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace`
+
+Mechanism-boundary review: the closeout kept architecture at authority/data-flow/evidence-shape altitude and did not introduce tick sizes, calendar syntax, duration values, numeric budgets, scheduling algorithms, fairness formulas, queue structures, UI clock formats, schemas, rule languages, thresholds, fixture names, command names, status enums, unit vocabularies, money denominations, inventory schemas, or economy formulas.
+
+P0-CERT remains not applicable: this was a doctrine-alignment amendment and certifies no code or acceptance gate.
