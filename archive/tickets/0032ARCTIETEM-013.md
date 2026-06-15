@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-013: A00 temporal-authority conformance index entry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: LOW
 **Effort**: Small
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` (compact temporal-authority conformance entry pointing to the cascade owners). No crate/code, no fixtures.
@@ -68,3 +68,20 @@ Add a compact entry/subsection to `docs/1-architecture/00_ARCHITECTURE_INDEX_AND
 
 1. `grep -niE "temporal authority|INV-112" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` — confirms D-T1 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the pointer-integrity and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T1 in `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` as a compact temporal-authority pointer entry. The new text records that architecture translates `INV-112` through subsystem owners: A02 for authoritative event/replay time; A03/A06 for holder-known temporal claims, provenance, and freshness; A04 for the scheduler/validation temporal boundary; A05 for routine/social-rhythm temporal premises; A08 for institutional procedural time; A10/A11/A07 for temporal rendering, lead labels, and speech expressions; A12 for LOD temporal ancestry; and A13 for temporal observability and review evidence. The entry is explicitly a pointer and does not make A00 the sole home of temporal authority.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "temporal authority|INV-112" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- Pointer-integrity greps across A02/A03/A06/A04/A05/A08/A10/A11/A07/A12/A13 confirmed the referenced owner contracts are present.
+- Manual invariants alignment review: the entry records architecture's `INV-112` translation map without restating foundation doctrine, becoming the sole home, or defining temporal mechanisms.
+- Manual mechanism-token boundary review: no tick size, calendar syntax, or duration value was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.
