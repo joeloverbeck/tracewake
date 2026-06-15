@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-007: A12 LOD/regional temporal summaries + time-acceleration declarations
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md` (LOD temporal-summary contract + time-acceleration declaration). No crate/code, no fixtures.
@@ -77,3 +77,20 @@ Do not choose LOD equivalence thresholds, promotion algorithms, regional cadence
 
 1. `grep -niE "source interval|cadence|temporal ancestry|information ancestry|time acceleration" docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md` — confirms D-T9 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T9 in `docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md` as a `Temporal summaries and time acceleration` subsection after the summary-event minimum. The new text requires regional or LOD summaries that compress time to declare source interval, cadence, affected processes, temporal resolution/fidelity limits, and whether scheduled consequences, absence of events, delayed records, or stale claims are included. It separates information ancestry from event-time ancestry, makes time acceleration a declared replay/debug-visible simulation mode or projection policy, and requires promotion to create holder-known temporal claims only through valid modeled summary events or records.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "source interval|cadence|temporal ancestry|information ancestry|time acceleration" docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md`
+- Manual ancestry-separation review: the contract distinguishes what the aggregate could know, what it summarized as replay truth, and what later promoted holders may know.
+- Manual invariants alignment review: the addition preserves `INV-110` and `INV-112` by preventing hidden temporal fill-in during LOD summary and promotion.
+- Manual mechanism-token boundary review: no LOD equivalence threshold, promotion algorithm, regional cadence value, or performance budget was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.
