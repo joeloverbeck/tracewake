@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-003: A04 scheduler trigger-versus-cognition temporal firewall
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md` (temporal-firewall language near scheduler limits + validation boundary; budget-exhaustion-as-typed-outcome note). No crate/code, no fixtures.
@@ -74,3 +74,22 @@ State that if a scheduler cannot process all due cognition, it must defer, skip,
 
 1. `grep -niE "temporal|may not|budget exhaust|deferred|skipped" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md` — confirms D-T4 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T4 in `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md` as a `Temporal firewall for scheduling` subsection beside the scheduler-limit contract. The new text permits scheduler/replay time to order decision windows, detect due effects and duration terminals, invoke holder-known transaction construction, validate temporal legality or due consequences, and emit typed temporal diagnostics. It forbids raw temporal truth from selecting actions, routes, targets, institutional conclusions, actor-visible reasons, plan repairs, or exact due/future timing unless the relevant holder-known or institution-known context has a modeled premise.
+
+The budget-exhaustion hook was added only as a typed scheduling/decision outcome that points to D-R5 for the later consolidated budget/fairness seam; it does not restate the full fairness contract.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "temporal|may not|budget exhaust|deferred|skipped" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`
+- Manual cross-reference check: the budget-exhaustion note points to D-R5 and does not define or duplicate the full fairness/starvation seam.
+- Manual invariants alignment review: the addition preserves `INV-103` and `INV-112` by keeping scheduler/replay time to ordering, validation, due detection, and diagnostics, not cognition authority.
+- Manual mechanism-token boundary review: no queue/data structure, scheduling algorithm, budget threshold, or fairness formula was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.
