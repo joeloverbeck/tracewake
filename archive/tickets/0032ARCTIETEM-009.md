@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-009: A09 quantity/granularity/fungibility seam
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` (quantity/granularity/fungibility representation seam). No crate/code, no fixtures.
@@ -77,3 +77,20 @@ Do not choose data structures, unit vocabularies, money denominations, inventory
 
 1. `grep -niE "unique|lot|stock|capacity|ledger|fungible|split|merge|lineage" docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` — confirms D-R2 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing grep plus the invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-R2 in `docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md` inside the local-economy contract. A09 now distinguishes unique objects, countable lots, divisible stocks, capacities, debts, wages, and ledgers as separate representation classes with different identity/provenance/custody/procedure constraints. It also requires split, merge, consume, spoil, reserve, share, transfer, hide, discover, pay, refuse, and reimburse operations to preserve event ancestry, custody/ownership/procedure context, and holder-known visibility, while allowing fungible aggregation only when it does not erase validation/provenance/replay/wrong-belief/lead/record/promotion information.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "unique|lot|stock|capacity|ledger|fungible|split|merge|lineage" docs/1-architecture/09_ORDINARY_LIFE_SETTLEMENT_SPATIAL_ECONOMY_AND_PROPERTY.md`
+- Manual lineage-preservation review: operations preserve event ancestry, custody/procedure context, and holder-known visibility; aggregation cannot erase replay/validation/provenance information.
+- Manual invariants alignment review: the addition preserves `INV-009`, `INV-010`, and `INV-013` by making quantity operations eventful, cause-bearing, and trace-preserving rather than numeric overwrites.
+- Manual mechanism-token boundary review: no data structure, unit vocabulary, money denomination, inventory schema, or economy formula was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.

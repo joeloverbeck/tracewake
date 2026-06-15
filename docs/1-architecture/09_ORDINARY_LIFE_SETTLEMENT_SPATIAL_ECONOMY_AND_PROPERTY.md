@@ -93,6 +93,19 @@ repair duplicate body-exclusive terminals. Byte-stable goldens do not prove the
 ordinary-life contract if two consumers causally charge the same actor/time
 window twice.
 
+Unique objects, countable lots, divisible stocks, capacities, debts, wages, and
+ledgers are separate representation classes because they preserve different
+identity, provenance, custody, and procedure constraints. Split, merge,
+consume, spoil, reserve, share, transfer, hide, discover, pay, refuse, and
+reimburse operations must preserve event ancestry, custody or ownership or
+procedure context, and holder-known visibility.
+
+Fungible aggregation is allowed only when it does not erase information needed
+for action validation, provenance, replay, wrong belief, lead interpretation,
+institutional record, or later promotion. Projections may summarize quantities
+for UI or debug, but the authoritative lineage needed for replay and disputes
+cannot be replaced by a display total.
+
 ### Routines and ordinary schedules
 
 Routines provide recurring opportunities and expectations. They are defeasible. They cannot dispatch primitive actions. A routine window triggers the actor decision transaction.
