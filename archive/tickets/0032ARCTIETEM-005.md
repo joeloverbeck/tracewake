@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-005: A08 institutional procedural time + practical-bias discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md` (institutional/procedural-time contract + practical-bias discipline). No crate/code, no fixtures.
@@ -74,3 +74,22 @@ Add: bias and social harm are modeled as inspectable inputs / social-position ef
 
 1. `grep -niE "procedural time|institution-known|due|queue|provenance" docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md` — confirms D-T6 landed.
 2. `grep -niE "bias|inspectable|assumption|genre-neutral|social harm" docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md` — confirms D-R6 landed.
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-T6 and D-R6 in `docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md`. A08 now has a `Procedural time authority` subsection requiring due/late/open/closed/pending/delayed/filed/expired/paid/sanctioned/queue-aged procedure states to be event-, record-, or procedure-backed institution-known state, with lifecycle authority limited to recorded rules and events and no hidden world-truth grant. It also now states that procedure outputs preserve provenance and access context, and that bias, misfiling, delay, underfunding, and stale records are modeled procedure effects.
+
+The practical-bias discipline was added under `Bias, error, and corruption`: bias/social harm are inspectable modeled inputs or procedure effects; the kernel stays genre-neutral with no omniscient moral truth; domain packs own reviewable cultural/legal/institutional assumptions; and wrong suspicion/refusal/delay/sanction/misfiling/unequal treatment must arise from holder- or institution-known evidence and procedure state.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "procedural time|institution-known|due|queue|provenance" docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md`
+- `grep -niE "bias|inspectable|assumption|genre-neutral|social harm" docs/1-architecture/08_INSTITUTIONS_HOUSEHOLDS_NORMS_RECORDS_AND_PROCEDURES.md`
+- Manual invariants alignment review: D-T6 preserves `INV-112` by making procedural time record/procedure-backed institution-known state rather than world truth; D-R6 preserves genre-neutral/no-director doctrine by refusing a morality oracle or objective social-harm quest condition.
+- Manual mechanism-token boundary review: no office-hour vocabulary, legal deadline, payment-period value, concrete status enum, or queue-aging value was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.

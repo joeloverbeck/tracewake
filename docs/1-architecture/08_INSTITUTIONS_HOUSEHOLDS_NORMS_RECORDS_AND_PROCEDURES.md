@@ -98,6 +98,12 @@ feedback: receipt notice to reporter, institution memory update
 
 Later stages may include review, interview, search request, watch notice, arbitration, restitution order, or closure. None is automatic.
 
+### Procedural time authority
+
+Procedures may maintain due, late, open, closed, pending, delayed, filed, expired, paid, sanctioned, or queue-aged states only as event-, record-, or procedure-backed institution-known state. Procedure time is authoritative for the procedure's own lifecycle through recorded rules and events; it does not grant hidden truth about the underlying world.
+
+Procedure outputs that become actor knowledge, notices, reports, sanctions, payments, refusals, or records must preserve provenance and access context. Bias, misfiling, delay, underfunding, and stale records remain modeled procedure effects, not hidden moral labels.
+
 ### Records
 
 Records are typed claim carriers. They include author/source, holder, visibility, creation event, amendment history, stale/expiry rules, and custody. A record can be false. Record correction requires events; it cannot silently mutate history.
@@ -117,6 +123,10 @@ Households are small institutions with memory, expectations, possessions, routin
 ### Bias, error, and corruption
 
 Institutions and households may misinterpret, ignore, overreact, discriminate, lose records, protect insiders, lack staff, or use stale rules. These are modeled states and procedures, not director choices.
+
+Bias and social harm are modeled as inspectable inputs, social-position effects, resource constraints, procedure rules, testimony-credibility patterns, record-access patterns, institutional memory, staff/resource availability, or prior decisions. The kernel remains genre-neutral and asserts no omniscient moral truth; domain packs own cultural, legal, and institutional assumptions and must make them reviewable.
+
+Wrong suspicion, refusal, delay, sanction, misfiling, or unequal treatment must arise from holder- or institution-known evidence and procedure state, including biased or stale inputs when modeled. Diagnostics expose modeled assumptions and procedure steps without granting actors hidden truth or turning social harm into an objective quest condition.
 
 ## Data examples
 
