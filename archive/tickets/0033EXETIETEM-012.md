@@ -1,6 +1,6 @@
 # 0033EXETIETEM-012: exec 00 index routing map & staged-incompleteness authority (capstone)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edit to `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md` (additive temporal / Block-R / staged-declaration routing subsection and the staged-incompleteness authority rule; mints no new gate code). No crate/code, no fixtures.
@@ -77,3 +77,31 @@ Add the authority-level rule that staged proof is allowed only when the staged a
 
 1. `grep -niE 'temporal.*(routing|home|INV-112)|Block-R|staged' docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md` — confirms D-T1/D-S1 landed.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the landing greps plus the pointer-integrity and invariants-alignment review.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented the exec `00` temporal/Block-R/staged-proof routing capstone in
+`docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`. The edit adds a compact
+routing map from each proof surface to its execution home, records that
+concrete temporal/mechanism values remain lower-tier decisions, and adds the
+authority-level staged-proof rule that staged abstractions must be declared,
+bounded, and must not certify unimplemented future features by implication.
+
+The execution-blocking owner-approval precondition in spec 0033 was satisfied
+by the user's explicit request to implement the `0033EXETIETEM` ticket series.
+No crate/code or fixture files were changed.
+
+Verification:
+
+- `grep -niE 'temporal.*(routing|home|INV-112)|Block-R|staged' docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`
+- `grep -niE 'staged.*(proof|abstraction|declared|bounded)' docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`
+- `rg -n 'new gate|gate code|observation-obligation|concrete temporal|lower-tier|04_TRUTH|05_TRANSACTION|06_ORDINARY|07_EPISTEMIC|08_DATA|09_GOLDEN|10_TESTING|11_INSTITUTIONS|12_DEFERRED' docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`
+- Pointer integrity greps across exec `04` through `12` confirmed every routed
+  home carries the sibling ticket's landed obligation.
+- `git diff --check`
+
+Manual review confirmed the route map is a pointer to execution homes rather
+than a sole-home restatement, concrete values remain lower-tier, and no new
+gate code, gate label, or observation-obligation code was minted.
