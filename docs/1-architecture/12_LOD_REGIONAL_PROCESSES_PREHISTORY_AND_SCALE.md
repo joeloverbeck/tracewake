@@ -64,6 +64,13 @@ The summary must preserve information ancestry separately from event-time ancest
 
 Promotion may create holder-known temporal claims only through modeled summary events or records that are valid information channels for the promoted holder. Aggregate temporal truth cannot fill in personal memory, institutional knowledge, lead urgency, or embodied temporal labels by promotion alone.
 
+LOD and time acceleration are declared fidelity modes with fairness constraints.
+Lower detail may summarize, but it may not erase active claims, procedures,
+leads, obligations, or starvation caused by persistent under-scheduling.
+Human-proximity or possessed-actor priority is not a diegetic fairness rule
+unless explicitly modeled as non-diegetic input routing and quarantined from
+holder knowledge.
+
 ### Promotion
 
 Promotion turns a low-detail entity/process into a higher-detail actor/institution/place/incident.

@@ -92,6 +92,11 @@ can influence candidate ordering, method applicability, trust or reliability
 judgment, risk aversion, skill confidence, route preference, and routine
 adaptation within the same holder-known boundary.
 
+Budget-limited planning may fail or degrade only through typed decision
+diagnostics. A bounded planner must not silently choose omniscient shortcuts,
+substitute marker actions as progress, or treat budget exhaustion as evidence
+that a hidden target, route, method, or social conclusion is available.
+
 ### Candidate generation
 
 Candidates must carry:

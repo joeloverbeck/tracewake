@@ -1,6 +1,6 @@
 # 0032ARCTIETEM-012: Cross-cutting budget-exhaustion & fairness/starvation seam (A04/A05/A12/A13)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — doctrine edits to `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`, `05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`, `12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md`, and `13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` (one consolidated deterministic-performance / fairness-budget seam). No crate/code, no fixtures.
@@ -81,3 +81,20 @@ Do not choose numeric budgets, scheduling algorithms, fairness formulas, queues,
 
 1. `grep -niE "budget|deferred|skipped|degraded|fairness|starvation" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` — confirms D-R5 landed in all four docs.
 2. `Documentation-only: the Rust pipeline is unaffected; the verification boundary is the four-doc landing grep plus the invariants-alignment review and the Risk-R-D consolidation check.`
+
+## Outcome
+
+Completed: 2026-06-15
+
+Implemented D-R5 across `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`, `docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md`, `docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md`, and `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`. A04 now states deterministic, diagnosed scheduler budgets and typed deferred/skipped/summarized/degraded/blocked outcomes with responsible layer and replay ancestry, while still pointing to D-R5 as the consolidated seam. A05 now states that budget-limited planning may fail/degrade only through typed diagnostics and cannot substitute omniscient shortcuts or marker actions. A12 now states that LOD/time acceleration fidelity may not erase active claims, procedures, leads, obligations, or starvation caused by persistent under-scheduling. A13 now defines fairness/starvation review artifact shape, including holders/processes affected, reason, source interval, responsible layer, replay ancestry, and evidence against human-proximity or possessed-actor priority bias unless explicitly non-diegetic and quarantined.
+
+The execution-blocking owner-approval precondition from spec 0032 §R-A is satisfied by the user's explicit `$ticket-series implement the series tickets/0032ARCTIETEM*` request for this architecture-tier amendment series.
+
+Verification:
+
+- `grep -niE "budget|deferred|skipped|degraded|fairness|starvation" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md docs/1-architecture/05_ACTOR_DECISION_TRANSACTION_NEEDS_INTENTIONS_ROUTINES_AND_PLANNING.md docs/1-architecture/12_LOD_REGIONAL_PROCESSES_PREHISTORY_AND_SCALE.md docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
+- Manual consolidation check: A04 keeps the D-R5 pointer and A13 carries the fairness/starvation artifact shape, avoiding a divergent restatement of the cross-cutting seam.
+- Manual invariants alignment review: the additions preserve `INV-087` by requiring no human-proximity/possessed-actor priority bias evidence, and `INV-105` by requiring typed budget outcomes and diagnostics.
+- Manual mechanism-token boundary review: no numeric budget, scheduling algorithm, fairness formula, queue, acceptance threshold, or sampling/starvation policy was introduced.
+
+No crate/code or fixture changes were made for this documentation-only architecture ticket.

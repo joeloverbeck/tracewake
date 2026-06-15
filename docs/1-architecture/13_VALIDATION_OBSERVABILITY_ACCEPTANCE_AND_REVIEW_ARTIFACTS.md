@@ -78,6 +78,14 @@ holder-known sources rather than raw clock or debug truth. LOD and replay
 artifacts must preserve temporal ancestry and information ancestry. Acceptance
 artifacts reject display-string-only proof of temporal correctness.
 
+Fairness and starvation review artifacts record which holders or processes were
+deferred, skipped, summarized, degraded, or blocked; why; for how long or
+across what source interval; the responsible layer; and what replay ancestry
+supports the outcome. They must include evidence that human-proximity or
+possessed-actor priority bias did not influence scheduling, LOD fidelity, or
+review classification unless the bias is explicitly non-diegetic input routing
+and structurally quarantined from holder knowledge.
+
 Content/schema validators, static guards, manifest checks, and review
 artifacts are architecture-protecting boundaries. They reject impossible or
 forbidden authoring forms before runtime instead of relying on runtime filters
