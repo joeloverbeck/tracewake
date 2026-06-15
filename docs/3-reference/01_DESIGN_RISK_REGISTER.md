@@ -236,9 +236,9 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 ### R-18 — Schema and Authoring Drift
 
 - **Why it matters:** Tracewake depends on authored possibility space. If schemas drift, writers and programmers will smuggle in scripts, synonyms, hidden truth, and non-replayable facts.
-- **Symptoms:** Inconsistent names for the same concept; records without author/provenance; beliefs without sources; content packages bypass validation; fixture setup forces outcomes; data fields encode player identity, true culprit for institutions, objective completion, or hidden planner targets.
-- **Mitigation / guardrails:** Keep logical contracts ahead of syntax. Validate stable IDs, references, source-backed beliefs, sealed-context provenance inputs, record artifacts, action-registry parity, no human-controller fields in world logic, no quest fields, no outcome chains, and content-version compatibility.
-- **Evidence to watch:** Schema migrations without old fixtures, content examples containing forbidden core terms, direct inventory mutation in fixtures, author confusion around canonical terms, missing provenance fields.
+- **Symptoms:** Inconsistent names for the same concept; records without author/provenance; beliefs without sources; content packages bypass validation; fixture setup forces outcomes; data fields encode player identity, true culprit for institutions, objective completion, or hidden planner targets; fixture labels become holder knowledge; display totals become custody truth; domain-pack assumptions hide in prose; compiler defaults select temporal or quantity semantics; staged-abstraction fields certify omitted behavior; schemas permit ambiguous representation where execution requires fail-closed proof.
+- **Mitigation / guardrails:** Keep logical contracts ahead of syntax. Validate stable IDs, references, source-backed beliefs, sealed-context provenance inputs, record artifacts, action-registry parity, no human-controller fields in world logic, no quest fields, no outcome chains, content-version compatibility, explicit temporal and quantity authority, staged-abstraction honesty, and fail-closed schema representation where execution requires proof.
+- **Evidence to watch:** Schema migrations without old fixtures, content examples containing forbidden core terms, direct inventory mutation in fixtures, author confusion around canonical terms, missing provenance fields, smuggling channels through fixture labels, display totals, domain-pack prose, compiler defaults, staged-abstraction fields, and ambiguous schemas.
 - **Escalation trigger:** A schema or fixture can encode hidden truth, forced outcome, or privileged human involvement as ordinary play.
 - **Retirement criteria:** Validation rejects forbidden ontology and fixtures prove canonical alternatives.
 - **Status / review cadence:** Active during data-authoring design; Watch afterward.
@@ -359,6 +359,33 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 - **Status / review cadence:** Watch. Review during lock-layer, mutation, census, conformance-row, and acceptance-artifact work.
 
 **Anti-Goodhart watch note:** Observer-only emergence counters, phenomenon families, story-sifted rows, and emergence ledgers must not become seed selectors, scheduler inputs, scenario objectives, pacing knobs, difficulty targets, LOD inputs, or pass/fail thresholds. Review this relapse through R-22 (observation becomes direction), R-16 (no-human proof pressure), R-27 (evidence overstatement), R-29 (artifact-presence without behavior-witness), and execution `10` for the non-input rule.
+
+## Epoch-2 Temporal and Completeness Relapse Notes
+
+These notes extend existing risk memory without creating new risk identifiers. They name review triggers introduced by temporal authority, completeness routing, and staged-abstraction evidence honesty. Use the glossary terms in `02_GLOSSARY.md`; future scoped specs own concrete fixture names, thresholds, schemas, formulas, denominations, and category taxonomies.
+
+### Temporal authority relapse cluster
+
+- **Clock-oracle leakage:** scheduler time, event/replay time, or validator time becomes a planning premise, procedure conclusion, lead urgency, embodied-view label, speech meaning, or LOD promotion fact without holder-known or institution-known temporal claims.
+- **Raw wall-clock contamination:** host time, filesystem time, transcript time, debug-panel time, or environment time is treated as simulation fact, actor knowledge, institution knowledge, or replay evidence.
+- **Omniscient lateness / office-closed labels:** availability or deadline labels reflect authoritative truth rather than source-backed holder-known or institution-known procedural time.
+- **UI time-acceleration leaks:** time acceleration or skip controls reveal facts, pending outcomes, schedule shape, or urgency that the possessed holder could not know through modeled channels.
+- **Debug-time becoming diegetic:** validation/debug temporal panels, transcripts, and forensic timing summaries bleed into embodied views, speech, leads, records, or procedure state.
+- **Silent LOD temporal fill-in:** summaries, promotion, demotion, snapshots, or compaction generate temporal claims without temporal ancestry plus information ancestry.
+
+### Completeness relapse cluster
+
+- **Lineage collapse:** inventory, economy, payment, debt, storage, or record convenience replaces custody lineage with a display total, losing split/merge/transfer/consume/spoil/pay/owe/store/disclose/hide/discover ancestry or actor/institution knowledge.
+- **Affect as hidden-truth / decorative-meter affect:** affect values are derived from true outcomes, fixture labels, or author intent rather than modeled experience; or emotional UI flavor is prose-only and cannot explain replayable priority without selecting hidden targets.
+- **Truth-cache learning:** learned expectations store fixture labels, debug outcomes, validation failures, global success rates, or omniscient classifier outputs as actor expectations without modeled observation, memory, testimony, record, or routine experience.
+- **Performance pressure as invisible director:** budgets silently suppress uninteresting, remote, inconvenient, or non-player-adjacent cognition for drama or speed.
+- **Budget starvation hidden by aggregate success:** aggregate success masks repeated deferral, skipped cognition, or degraded cognition for particular actors, regions, institutions, or LOD classes.
+- **Emergent injustice as author prejudice:** content packs or procedures encode social harm, credibility, access, or practical bias as author verdict or hidden moral truth instead of explicit assumptions, modeled evidence paths, partial/wrong knowledge, credibility/access/procedure, and domain-pack-bound premises.
+- **Play-legibility dual relapse:** one failure mode is a correct-but-unplayable audit machine; the opposite is play-legibility achieved by leaking truth, objectives, quest markers, debug labels, or omniscient summaries. Review whether play remains understandable through holder-known surfaces, leads, notices, and explainable procedure without replacing play with audit-only source inspection.
+
+### Staged-abstraction evidence-honesty note
+
+Acceptance artifacts can falsely certify staged work when staged abstraction is buried, omitted behavior is unnamed, future blockers are obscured, evidence scope is not tied to the abstraction, or failure diagnostics cannot distinguish "not implemented yet" from "implemented and broken." This note is additive to the existing acceptance-evidence cluster; it does not reopen, rename, or strengthen R-27, R-28, or R-29.
 
 ## Maintenance rule
 
