@@ -89,7 +89,7 @@ computed only from certifying evidence items.
 | `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | `0036-P0-07-CARRIER-CENSUS`, `0036-P0-07-DEBUG-QUARANTINE-NEGATIVES`, `0036-P0-07-OBSERVER-ONLY-ROWS` | pass |
 | `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | `0036-P0-08-POSITIVE-SEMANTIC-WITNESSES`, `0036-P0-08-NEGATIVE-INTENDED-LAYERS`, `0036-P0-08-REPLAY-SCHEMA-CONTENT` | pass |
 | `P0-09` failure diagnostics name responsible layer | `doctrine`, `content_schema`, `content_validation`, `fixture_contract`, `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle` | `0036-P0-09-TYPED-DIAGNOSTIC-SUBSTRATE`, `0036-P0-09-REPLAY-CONTENT-LAYER-DIAGNOSTICS`, `0036-P0-09-HIDDEN-TRUTH-SOURCE-DIAGNOSTICS` | pass |
-| `P0-10` archived specs and tickets are cited only as history | `doctrine`, `documentation status`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-011` | pending |
+| `P0-10` archived specs and tickets are cited only as history | `doctrine`, `documentation status`, `test_oracle` | `0036-P0-10-WORDING-LINTERS`, `0036-P0-10-ARCHIVE-STATUS-AUDIT`, `0036-P0-10-LIVE-REPRODUCTION-DISCIPLINE` | pass |
 
 ## Gate Evidence Sections
 
@@ -640,9 +640,58 @@ Certification use: counted as certifying pass for `P0-09` hidden-truth/source di
 
 ### P0-10 - Historical-Only Archive Use
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-011`.
+Evidence item ID: `0036-P0-10-WORDING-LINTERS`
+Requirement IDs: `P0-10`
+Evidence status: pass
+Fingerprint scope: documentation status
+Evidence summary: Wording and documentation-reference guards passed. `cargo test -p tracewake-core --test acceptance_artifact_wording` passed 4 tests, including forbidden overclaim and missing scoped-phrase negatives. `cargo test -p tracewake-core --test doc_invariant_references` passed 4 tests, including live invariant-reference resolution and stale/undefined invariant negatives.
+Path under test and behavior witness:
+- path under test: acceptance artifact wording guard, doc/invariant reference linter, spec-ledger wording constraints, and exact-commit/scoped acceptance phrasing.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test acceptance_artifact_wording`; `cargo test -p tracewake-core --test doc_invariant_references`.
+- responsible layer: `doctrine`, `documentation status`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: stale gate-code wording, undefined invariant references, and overclaim phrasing are rejected by doc/test guards.
+- live negative, mutation-style failure, or reason no negative is applicable: the wording tests include negative samples that fail if archived/scoped artifacts are treated as broader live certification.
+- checked facts or invariants the witness supports: accepted specs/tickets in archive cannot become live `P0-CERT` pass claims by wording alone.
+Replay/provenance ancestry: current test execution against the live checkout and the current acceptance artifact wording discipline.
+Sampling/exhaustiveness scope: wording and doc-reference guard layer; manual archive-status scan recorded below covers artifact-specific usage.
+Pending or historical handling: no archived artifact is counted as this evidence item's proof.
+Certification use: counted as certifying pass for `P0-10` wording-linter evidence.
+
+Evidence item ID: `0036-P0-10-ARCHIVE-STATUS-AUDIT`
+Requirement IDs: `P0-10`
+Evidence status: pass
+Fingerprint scope: parsed semantic content
+Evidence summary: Manual review confirmed archive/spec/ticket evidence is classified as historical-only in this artifact and in governing reference surfaces. The acceptance artifact declares `Archived evidence posture: historical only`, defines `historical` as archive/spec/ticket context only, and states that `pending`, `sampled`, `observer-only`, and `historical` are not counted as pass. The `Pending And Historical Evidence` and `Certification Use` sections state that archived specs, tickets, and reports do not supply live P0-CERT pass evidence and that no later spec may cite archived specs or tickets as live certification.
+Path under test and behavior witness:
+- path under test: `archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`, `docs/4-specs/SPEC_LEDGER.md`, `docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md`, and `docs/3-reference/01_DESIGN_RISK_REGISTER.md`.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `grep -nE "0005|0006|0007|0008" archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`; `rg` archive/history/status scans over the acceptance artifact, spec ledger, reference checklist, and design risk register.
+- responsible layer: `doctrine`, `documentation status`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: historical references may explain lineage, but the artifact's per-requirement pass rows cite only live evidence item IDs produced by current acceptance commands.
+- live negative, mutation-style failure, or reason no negative is applicable: manual scan would record a fail if any archived spec/ticket/report reference substituted for event/replay/provenance/debug/diagnostic evidence or appeared as certifying pass evidence.
+- checked facts or invariants the witness supports: archived specs `0005` through `0008`, later archived specs, archived tickets, and archived reports remain historical lineage, not live gate passes.
+Replay/provenance ancestry: current grep/rg scan output plus current acceptance artifact status legend and certification-use sections.
+Sampling/exhaustiveness scope: acceptance artifact and named ledger/reference surfaces from ticket `0036P0CERPOS0008-011`.
+Pending or historical handling: archive history remains `historical`; this row certifies only the current artifact/status wording discipline.
+Certification use: counted as certifying pass for `P0-10` archive-status evidence.
+
+Evidence item ID: `0036-P0-10-LIVE-REPRODUCTION-DISCIPLINE`
+Requirement IDs: `P0-10`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Every P0-01 through P0-09 pass row in this artifact cites live current-checkout commands, tests, scans, or direct report evidence rather than archived tickets/specs as gate proof. Historical references, where present, are placed in `Pending or historical handling` text and explicitly not counted as pass. The command transcript includes live exact-session executions for the full gate families already recorded in this artifact, while the verdict remains `<pending>` until the capstone ticket renders the final outcome.
+Path under test and behavior witness:
+- path under test: per-requirement rows P0-01 through P0-09, command transcript, global fingerprint rows, pending/historical section, and certification-use section.
+- command, event, trigger, emitter, or scheduler entry that exercised it: the current-session cargo and scan commands recorded in this artifact, including `acceptance_artifact_wording`, `doc_invariant_references`, and the per-gate commands cited above.
+- responsible layer: `doctrine`, `documentation status`, `test_oracle`, plus the underlying implementation layer named by each live gate row.
+- accepted/rejected action or validation stage witnessed: pass claims require current live witnesses; archive-derived behavior must be reproduced by current code and cited through live commands before it can support a gate.
+- live negative, mutation-style failure, or reason no negative is applicable: any row using archived acceptance status as a substitute for live proof would fail P0-10 and require scoped remediation.
+- checked facts or invariants the witness supports: `INV-022` prose/history is not authoritative state or behavior proof; live proof derives from current code and current acceptance commands.
+Replay/provenance ancestry: command transcript and per-gate evidence IDs in the current artifact.
+Sampling/exhaustiveness scope: all P0-01 through P0-09 pass rows in this artifact plus P0-10 status surfaces.
+Pending or historical handling: the full mutation baseline remains pending from `0036P0CERPOS0008-001` and is not converted to pass by archived history.
+Certification use: counted as certifying pass for `P0-10` live-reproduction discipline.
 
 ## Sampling And Exhaustiveness
 
