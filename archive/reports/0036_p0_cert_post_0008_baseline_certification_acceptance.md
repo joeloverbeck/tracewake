@@ -82,7 +82,7 @@ computed only from certifying evidence items.
 |---|---|---|---|
 | `P0-01` world-affecting behavior enters through proposal -> validation -> event -> application -> projection -> replay | `proposal_construction`, `action_validation`, `event_append`, `event_application`, `projection`, `replay` | `0036-P0-01-PIPELINE-WITNESS`, `0036-P0-01-REPLAY-CHECKSUM`, `0036-P0-01-NO-DIRECT-NEGATIVES` | pass |
 | `P0-02` autonomous decisions use sealed actor-known contexts with provenance | `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction` | `0036-P0-02-ACTOR-KNOWN-PROVENANCE`, `0036-P0-02-HIDDEN-TRUTH-NEGATIVES`, `0036-P0-02-CONTEXT-HASH-REPLAY` | pass |
-| `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | pending gate evidence from `0036P0CERPOS0008-004` | pending |
+| `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | `0036-P0-03-HUMAN-AUTONOMOUS-PARITY`, `0036-P0-03-TUI-BINDING-VIEWMODEL`, `0036-P0-03-DEBUG-PRIVILEGE-NEGATIVES` | pass |
 | `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | pending gate evidence from `0036P0CERPOS0008-005` | pending |
 | `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | pending gate evidence from `0036P0CERPOS0008-006` | pending |
 | `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | pending gate evidence from `0036P0CERPOS0008-007` | pending |
@@ -230,9 +230,63 @@ Certification use: counted as certifying pass for `P0-02` context hash/replay ev
 
 ### P0-03 - Human-Origin Ordinary Actor Rules
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-004`.
+Evidence item ID: `0036-P0-03-HUMAN-AUTONOMOUS-PARITY`
+Requirement IDs: `P0-03`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Human-origin and autonomous-origin ordinary action witnesses share the same proposal validation and event append path. `cargo test -p tracewake-core --test acceptance_gates` passed 12 tests, including `human_and_nonhuman_proposals_share_validation_path`, `sleep_proposals_share_pipeline_across_human_and_nonhuman_origins`, and `no_human_day_runner_smoke_uses_no_controller_and_pipeline_events`. The named witnesses compare human/test and scheduler-origin proposals for accepted status, action IDs, target IDs, appended-event counts, and sleep event kind; the no-human smoke confirms autonomous execution emits pipeline events without a controller.
+Path under test and behavior witness:
+- path under test: `actions::Proposal`, `actions::run_pipeline`, action validation, `EventLog::append`, no-human scheduler runner.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test acceptance_gates`.
+- responsible layer: `proposal_construction`, `action_validation`, `event_append`, `scheduler`.
+- accepted/rejected action or validation stage witnessed: ordinary take and sleep proposals accept through the same pipeline whether produced by a human/test origin or scheduler origin; no-human run produces ordinary pipeline events without controller authority.
+- live negative, mutation-style failure, or reason no negative is applicable: direct-dispatch negatives remain under `0036-P0-01-NO-DIRECT-NEGATIVES`; P0-03 adds origin-parity witnesses for human/autonomous action rules.
+- checked facts or invariants the witness supports: `INV-005`, `INV-007`, `INV-008`, and `INV-043`.
+Replay/provenance ancestry: command transcript and event append comparisons from `acceptance_gates`; replay coverage is counted under P0-01 and P0-02 rather than duplicated here.
+Sampling/exhaustiveness scope: sampled ordinary take/sleep/no-human action witnesses, paired with TUI and fixture coverage below.
+Pending or historical handling: mutation baseline remains pending under ticket `-001`; no mutation result is counted for P0-03.
+Certification use: counted as certifying pass for `P0-03` origin-parity evidence.
+
+Evidence item ID: `0036-P0-03-TUI-BINDING-VIEWMODEL`
+Requirement IDs: `P0-03`
+Evidence status: pass
+Fingerprint scope: parsed semantic content
+Evidence summary: TUI-origin commands bind to the current embodied actor and current view model before proposal construction. `proposal_from_semantic_action_entry` rejects human semantic-action construction without a current embodied view source context, and records the source view model ID, holder-known context ID/hash/frontier, actor ID, semantic action ID, and provenance ancestry on the proposal. `cargo test -p tracewake-tui --test tui_acceptance` passed 11 tests, `cargo test -p tracewake-tui --test tui_seam_conformance` passed 2 tests, `cargo test -p tracewake-tui --test command_loop_session` passed 7 tests, `cargo test -p tracewake-tui --test embodied_flow` passed 6 tests, and `cargo test -p tracewake-content --test golden_fixtures_run` passed 40 tests.
+Path under test and behavior witness:
+- path under test: `tracewake-tui` binding/render/submit loop, `build_embodied_view_model`, `proposal_from_current_view_semantic_action`, `proposal_from_semantic_action_entry`, possession and view-model fixtures.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `tui_selects_semantic_action_id_not_menu_index`, `numeric_selection_executes_stable_semantic_action_id`, `wait_command_executes_current_view_wait_action`, `bind_render_submit_rerender_and_show_why_not`, `phase3a_possess_continue_and_debug_transcript_is_deterministic`, `positive_proof_fixtures_emit_typed_artifacts_first`, and `possession_fixture_preserves_intention_needs_and_can_continue`.
+- responsible layer: `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append`.
+- accepted/rejected action or validation stage witnessed: numeric selection and typed `wait` resolve to current-view semantic IDs; possessed `actor_mara` executes an ordinary `take` through a semantic action and later sees ordinary follow-up actions; continue-routine possession fixture preserves ordinary actor state and event ancestry.
+- live negative, mutation-style failure, or reason no negative is applicable: stale current-view and direct-dispatch negatives are recorded in `0036-P0-03-DEBUG-PRIVILEGE-NEGATIVES`.
+- checked facts or invariants the witness supports: the human command can only act through the possessed actor's current embodied view and holder-known context; display ordering and menu indices are not semantic authority.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: TUI acceptance artifacts record non-empty event IDs for ordinary accepted semantic actions.
+- replay artifact or serialized-log reference: `golden_fixtures_run` replay fixtures for possession/non-reset and no-human context; checksum-specific rows remain owned by P0-01/P0-02/P0-04.
+- seed, randomness, content version, or ruleset version where applicable: deterministic fixture manifest and frozen golden fixture fingerprints.
+- extraction/projection version for derived evidence: current `tracewake-core` embodied view-model and TUI submit code.
+- source provenance for any claim crossing from artifact to semantic behavior: inspected source plus passing commands listed above.
+Sampling/exhaustiveness scope: sampled fixture and TUI transcript coverage over possession parity, current-view semantic actions, wait/open/take/continue, and embodied why-not rendering.
+Pending or historical handling: none for this P0-03 evidence item.
+Certification use: counted as certifying pass for `P0-03` TUI binding and view-model evidence.
+
+Evidence item ID: `0036-P0-03-DEBUG-PRIVILEGE-NEGATIVES`
+Requirement IDs: `P0-03`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Debug/player authority remains quarantined from possessed actor affordances and human command semantics. `cargo test -p tracewake-tui --test adversarial_gates` passed 15 tests, including `adversarial_gates_debug_truth_does_not_enter_actor_surfaces`, `debug_panel_does_not_change_embodied_affordances`, `adversarial_gates_forged_privileged_semantic_id_is_not_current_action`, `adversarial_gates_public_tui_boundary_rejects_direct_dispatch_shape`, `debug_command_strings_are_not_embodied_commands`, `adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth`, and `tui_current_view_submission_rejects_stale_selection`. `tui_acceptance` also passed `leakage_debug_truth_does_not_enter_embodied_view`, `debug_truth_does_not_enter_embodied_view`, and `phase3a_debug_surfaces_render_deterministically_and_read_only`.
+Path under test and behavior witness:
+- path under test: debug panel rendering, TUI command loop, current-view semantic action submission, possession rebind.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-tui --test adversarial_gates`; `cargo test -p tracewake-tui --test tui_acceptance`; `cargo test -p tracewake-tui --test command_loop_session`.
+- responsible layer: `debug_quarantine`, `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`.
+- accepted/rejected action or validation stage witnessed: forged privileged semantic IDs, stale semantic IDs, direct dispatch shapes, hidden-food semantic IDs, and debug command strings fail as non-current/non-embodied commands; debug panel reads leave current view, checksums, event counts, and embodied affordance sets unchanged.
+- live negative, mutation-style failure, or reason no negative is applicable: live adversarial negative suite passed.
+- checked facts or invariants the witness supports: possession imports no player/debug omniscience, no fixture truth, and no direct event-append authority into the possessed actor.
+Replay/provenance ancestry: command transcript and current-view/checksum comparisons; non-diegetic debug panels are observer-only and not counted as world-state proof.
+Sampling/exhaustiveness scope: sampled debug, possession-rebind, direct-dispatch, stale-view, forged-semantic, and command-loop negatives.
+Pending or historical handling: debug observer rows remain non-diegetic; full debug carrier census is owned by P0-07 and remains pending outside this P0-03 evidence item.
+Certification use: counted as certifying pass for `P0-03` debug/player privilege negative evidence.
 
 ### P0-04 - Possession Non-Reset
 
