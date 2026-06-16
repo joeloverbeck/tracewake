@@ -13,7 +13,7 @@ arguments:
 
 # Spec to Tickets
 
-Break a Tracewake spec into small, actionable implementation tickets a reviewer can merge one at a time, each validated against the current codebase and aligned with the foundation doc pack — `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (the constitution, `INV-001`…`INV-110` — the `## 2026 hardening invariants` block adds the truth-firewall / cognition-authority set INV-099–110) atop the architecture / execution / reference authority tiers.
+Break a Tracewake spec into small, actionable implementation tickets a reviewer can merge one at a time, each validated against the current codebase and aligned with the foundation doc pack — `docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md` (the constitution, `INV-001`…`INV-112` — the `## 2026 hardening invariants` block adds the truth-firewall / cognition-authority set INV-099–110, `INV-111` the observer-only emergence-acceptance invariant, and `INV-112` temporal authority) atop the architecture / execution / reference authority tiers.
 
 <HARD-GATE>
 Do NOT Write any ticket file at `tickets/<PREFIX>-<NNN>.md` until ALL of the following hold:
@@ -114,7 +114,7 @@ Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority or
 
 ## Step 2: Codebase Validation
 
-**Load `references/codebase-validation.md`.** Validate the spec's assumptions against the current codebase and doctrine, surface Issues, and obtain a per-Issue disposition before Step 3. A spec that was reassessed via `/reassess-spec` earlier this session with all findings resolved qualifies for the abbreviated spot-check path documented in the reference.
+**Load `references/codebase-validation.md`.** Validate the spec's assumptions against the current codebase and doctrine, surface Issues, and obtain a per-Issue disposition before Step 3. A spec that was reassessed via `/reassess-spec` earlier this session with all findings resolved qualifies for the abbreviated spot-check path documented in the reference — which abbreviates the validation *work*, not the reference read or its output: still load `references/codebase-validation.md`, run its (a)–(g) spot-checks, and emit the compact `Spot-checks: (a) ✓, (b) ✓, … (g) ✓` inline list before Step 3. Naming the abbreviated path is not a license to skip the reference.
 
 ## Step 3: Decompose the Spec
 
