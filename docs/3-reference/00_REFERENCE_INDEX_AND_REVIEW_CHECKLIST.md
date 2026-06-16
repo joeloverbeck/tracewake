@@ -111,6 +111,15 @@ Reject or escalate a proposal, schema, fixture, test, prompt, UI surface, or cod
 - Does possession change control and viewpoint only, not identity, memory, guilt, privilege, or knowledge?
 - Is `TFW` satisfied by reference to live execution evidence rather than plausible behavior?
 
+### Temporal authority
+
+Use this block as a pointer to foundation `03` / `INV-112`, the architecture temporal and holder-known contracts, and the execution truth-firewall / scheduler / view-model proof homes. It is not new doctrine.
+
+- Does every planning, procedure, embodied-view, speech, lead, or LOD temporal premise have a holder-known or institution-known source rather than raw validator, replay, or scheduler time?
+- Is validator, replay, and scheduler time separated from diegetic cognition, procedure conclusions, embodied surface wording, speech interpretation, lead urgency, and institution-known procedural time?
+- Are time acceleration and debug temporal panels quarantined from embodied surfaces and ordinary speech, records, leads, and procedure state?
+- When summaries, snapshots, projections, compaction, promotion, or demotion carry temporal claims forward, is temporal ancestry preserved with enough information ancestry to explain who could know what?
+
 ### Ordinary-life play
 
 - Can the scenario run without a human controller and still produce ordinary life, needs, routines, interruptions, and consequences under `NO-HUMAN`?

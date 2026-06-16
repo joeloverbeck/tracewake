@@ -88,6 +88,27 @@ counted as a pass. A fingerprint must not be cited beyond its actual scope.
 certification, gate pass/fail thresholds, scheduler objectives, scenario goals,
 or code-quality substitutes unless a future upstream spec changes that doctrine.
 
+## Staged-abstraction declaration
+
+When an acceptance artifact relies on a bounded staged abstraction, add a
+declaration that states:
+
+- what the artifact proves now;
+- what the artifact deliberately abstracts;
+- what the implementation or proof must not fake while using that abstraction;
+- what future feature or doctrine tier the abstraction must not block;
+- what evidence prevents overclaiming from the current artifact; and
+- what failure diagnostics distinguish "not implemented yet",
+  "intentionally abstracted", "implemented but broken", and "overclaimed".
+
+This declaration certifies nothing by itself. Its fields are observer-only and
+non-certifying unless a future scoped spec promotes a specific check through the
+normal authority chain. The declaration remains subordinate to
+`docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+and the reference staged-abstraction terms and risk memory enacted by archived
+spec `0034`; it does not define a gate, obligation, status enum, fingerprint
+scope, temporal value, schema, threshold, or fixture name.
+
 ## Residual convention-only items
 
 List any remaining item that cannot be structurally or mechanically enforced in
