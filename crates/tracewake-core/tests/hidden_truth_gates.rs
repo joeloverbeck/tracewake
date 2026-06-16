@@ -13,7 +13,9 @@ use tracewake_core::agent::{
 };
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::debug_reports::item_location_report;
-use tracewake_core::epistemics::{EpistemicProjection, KnowledgeContext};
+use tracewake_core::epistemics::{
+    ActorKnownCurrentPlaceFact, ActorKnownLocalActorFact, EpistemicProjection, KnowledgeContext,
+};
 use tracewake_core::events::apply::apply_epistemic_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -1210,4 +1212,77 @@ fn embodied_place_label_is_captured_before_truth_preflight() {
 
     assert_eq!(view.place_label, "Mara home");
     assert_ne!(view.place_label, "Mutated truth label");
+}
+
+#[test]
+fn actor_known_local_actor_reaches_embodied_view_model_with_context_provenance() {
+    let known_actor = ActorId::new("actor_elias").unwrap();
+    let hidden_actor = ActorId::new("actor_hidden_neighbor").unwrap();
+    let mut seed = PhysicalSeed::default();
+    seed.places_mut().insert(
+        place_id("home_mara"),
+        PlaceState::new(place_id("home_mara"), "Mara home"),
+    );
+    seed.actors_mut().insert(
+        actor_id(),
+        ActorBody::new(actor_id(), place_id("home_mara")),
+    );
+    seed.actors_mut().insert(
+        known_actor.clone(),
+        ActorBody::new(known_actor.clone(), place_id("home_mara")),
+    );
+    seed.actors_mut().insert(
+        hidden_actor.clone(),
+        ActorBody::new(hidden_actor.clone(), place_id("home_mara")),
+    );
+    let world = seed.build();
+    let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+        actor_id(),
+        SimTick::new(3),
+        7,
+        Vec::new(),
+        vec![ActorKnownCurrentPlaceFact::new(
+            place_id("home_mara"),
+            "Mara home",
+            "event_visible_place_home_mara",
+        )],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![ActorKnownLocalActorFact::new(
+            known_actor.clone(),
+            "event_visible_actor_elias",
+        )],
+    );
+
+    assert_eq!(context.event_frontier(), 7);
+    assert!(context.actor_known_local_actors().iter().any(|fact| {
+        fact.actor_id() == &known_actor && fact.source_key() == "event_visible_actor_elias"
+    }));
+
+    let view = embodied_view(&context, &world);
+
+    assert!(view
+        .local_actors
+        .iter()
+        .any(|actor| actor.actor_id == known_actor));
+    assert!(!view
+        .local_actors
+        .iter()
+        .any(|actor| actor.actor_id == hidden_actor));
+    assert_eq!(
+        view.holder_known_context_id,
+        context.holder_known_context_id().clone()
+    );
+    assert_eq!(
+        view.holder_known_context_hash,
+        context.holder_known_context_hash().clone()
+    );
+    assert_eq!(view.holder_known_context_frontier, context.event_frontier());
+    assert!(!view.debug_available);
+    assert!(!view.holder_known_context_source_summary.contains("debug"));
 }
