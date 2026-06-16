@@ -80,7 +80,7 @@ computed only from certifying evidence items.
 
 | Requirement | Responsible layer | Evidence item IDs | Result from certifying evidence |
 |---|---|---|---|
-| `P0-01` world-affecting behavior enters through proposal -> validation -> event -> application -> projection -> replay | `proposal_construction`, `action_validation`, `event_append`, `event_application`, `projection`, `replay` | pending gate evidence from `0036P0CERPOS0008-002` | pending |
+| `P0-01` world-affecting behavior enters through proposal -> validation -> event -> application -> projection -> replay | `proposal_construction`, `action_validation`, `event_append`, `event_application`, `projection`, `replay` | `0036-P0-01-PIPELINE-WITNESS`, `0036-P0-01-REPLAY-CHECKSUM`, `0036-P0-01-NO-DIRECT-NEGATIVES` | pass |
 | `P0-02` autonomous decisions use sealed actor-known contexts with provenance | `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction` | pending gate evidence from `0036P0CERPOS0008-003` | pending |
 | `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | pending gate evidence from `0036P0CERPOS0008-004` | pending |
 | `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | pending gate evidence from `0036P0CERPOS0008-005` | pending |
@@ -95,9 +95,68 @@ computed only from certifying evidence items.
 
 ### P0-01 - Proposal, Validation, Event, Projection, Replay
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-002`.
+Evidence item ID: `0036-P0-01-PIPELINE-WITNESS`
+Requirement IDs: `P0-01`
+Evidence status: pass
+Fingerprint scope: parsed semantic content
+Evidence summary: Production action pipeline witness in `crates/tracewake-core/src/actions/pipeline.rs` appends candidate events to the append-only log, applies the appended event stream through `EventApplicationContext`, and rejects at typed stages `event_append` / `event_application` if append or application fails. Positive behavior coverage came from `cargo test -p tracewake-core --test golden_scenarios` (16 passed), `cargo test -p tracewake-content --test golden_fixtures_run` (40 passed), and `cargo test -p tracewake-core --test acceptance_gates` (12 passed).
+Path under test and behavior witness:
+- path under test: `actions::run_pipeline`, `EventLog::append`, `apply_event_stream`, `replay::run_replay`, `replay::rebuild_projection`.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `accepted_actions_append_versioned_events`, `sleep_eat_work_fixture_logs_need_effects_and_replays`, `ordinary_workday_fixture_moves_before_work_completion`, `no_human_day_real_run_replays_metrics_and_trace_projection`, and `no_human_day_runner_smoke_uses_no_controller_and_pipeline_events`.
+- responsible layer: `proposal_construction`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`.
+- accepted/rejected action or validation stage witnessed: accepted take/place/sleep/eat/work/no-human ordinary actions append versioned events before application; rejected direct/invalid cases return structured rejection reports.
+- live negative, mutation-style failure, or reason no negative is applicable: direct-dispatch and append/application bypass negatives passed through `acceptance_gates`, `anti_regression_guards`, and `event_schema_replay_gates`.
+- checked facts or invariants the witness supports: `INV-009`, `INV-011`, and `INV-018`.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: test-created `EventLog` sequences for take/place, no-human day, and fixture runs.
+- replay artifact or serialized-log reference: canonical event-log serialization and replay rebuild in `golden_scenarios::replay_checksum_matches`, `golden_scenarios::replay_detects_missing_or_reordered_event`, and `golden_fixtures_run::no_human_day_real_run_replays_metrics_and_trace_projection`.
+- seed, randomness, content version, or ruleset version where applicable: fixture manifest IDs and content fingerprints from `tracewake-content` fixture loading; no unscoped random source used by these deterministic witnesses.
+- extraction/projection version for derived evidence: projection and agent-state rebuilds from the event log under current crate code.
+- source provenance for any claim crossing from artifact to semantic behavior: commands above plus source seams read in this ticket.
+Sampling/exhaustiveness scope: sampled production-path witness across golden/core/content/no-human paths plus exhaustive lock-layer scans from `anti_regression_guards` for direct dispatch / event append bypass classes.
+Pending or historical handling: historical tickets/specs not used for this pass claim.
+Certification use: counted as certifying pass for `P0-01` only.
+
+Evidence item ID: `0036-P0-01-REPLAY-CHECKSUM`
+Requirement IDs: `P0-01`
+Evidence status: pass
+Fingerprint scope: projection checksum
+Evidence summary: `cargo test -p tracewake-core --test event_schema_replay_gates` passed 17 tests and `cargo test -p tracewake-core --test golden_scenarios` passed replay checksum tests. `golden_scenarios::replay_checksum_matches` computes the live physical checksum after a world action, replays from the serialized log, and asserts `matches_expected`; `replay_detects_missing_or_reordered_event` proves a missing/reordered event fails. `golden_fixtures_run::no_human_day_real_run_replays_metrics_and_trace_projection` computes live physical/agent checksums, rebuilds projection, serializes/deserializes the log, and compares no-human metrics from live and replayed logs.
+Path under test and behavior witness:
+- path under test: `tracewake_core::replay::{run_replay, rebuild_projection}`, `compute_physical_checksum`, `compute_agent_state_checksum`.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test event_schema_replay_gates`; `cargo test -p tracewake-core --test golden_scenarios`; `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `replay`, `projection`, `event_application`.
+- accepted/rejected action or validation stage witnessed: live/replay checksum matches accepted for valid logs; missing/reordered/tampered logs rejected.
+- live negative, mutation-style failure, or reason no negative is applicable: tamper and missing-event tests fail closed.
+- checked facts or invariants the witness supports: deterministic replay (`INV-018`) and no current-state-only authority (`INV-011`).
+Replay/provenance ancestry:
+- event-log segment or event identifiers: canonical logs produced by action/no-human/fixture runs.
+- replay artifact or serialized-log reference: `EventLog::serialize_canonical` and `EventLog::deserialize_canonical` in fixture replay tests.
+- seed, randomness, content version, or ruleset version where applicable: fixture manifest and content fingerprint evidence from `golden_fixtures_run`.
+- extraction/projection version for derived evidence: current replay/projection code under `crates/tracewake-core/src/replay` and `crates/tracewake-core/src/projections.rs`.
+- source provenance for any claim crossing from artifact to semantic behavior: test source lines inspected for live checksum, replay checksum, and tamper assertions.
+Sampling/exhaustiveness scope: sampled behavior witness plus replay lock-layer suite.
+Pending or historical handling: no divergence recorded for positive witnesses; tamper negatives deliberately diverge.
+Certification use: counted as certifying pass for `P0-01` only.
+
+Evidence item ID: `0036-P0-01-NO-DIRECT-NEGATIVES`
+Requirement IDs: `P0-01`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Direct-dispatch and bypass negatives passed: `cargo test -p tracewake-core --test acceptance_gates` (12 passed), `cargo test -p tracewake-core --test hidden_truth_gates` (13 passed), and `cargo test -p tracewake-core --test anti_regression_guards` (80 passed). Relevant named tests include `human_and_nonhuman_proposals_share_validation_path`, `sleep_proposals_share_pipeline_across_human_and_nonhuman_origins`, `no_human_day_runner_smoke_uses_no_controller_and_pipeline_events`, `scheduler_never_direct_dispatches_primitive_action`, `event_apply_remains_only_post_seed_mutation_path`, and `no_direct_apply_event_outside_event_replay_or_pipeline`.
+Path under test and behavior witness:
+- path under test: controller/proposal/pipeline/action registry/scheduler guard seams.
+- command, event, trigger, emitter, or scheduler entry that exercised it: acceptance/hidden-truth/anti-regression guard tests listed above.
+- responsible layer: `proposal_construction`, `action_validation`, `event_append`, `event_application`, `scheduler`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: direct-dispatch shapes and bypasses fail at guard/validation layers; ordinary human/nonhuman actions share validation.
+- live negative, mutation-style failure, or reason no negative is applicable: static and runtime lock-layer negatives passed.
+- checked facts or invariants the witness supports: every world mutation counted for this line has proposal/pipeline/event/replay ancestry.
+Replay/provenance ancestry: command transcript only for this negative row; positive replay ancestry is in `0036-P0-01-REPLAY-CHECKSUM`.
+Sampling/exhaustiveness scope: static guard coverage is broad over production source classes; runtime behavior remains sampled by named tests.
+Pending or historical handling: mutation baseline remains pending under ticket `-001`; this row does not claim mutation completion.
+Certification use: counted as certifying pass for `P0-01` direct-dispatch negative evidence.
 
 ### P0-02 - Actor-Known Contexts And Provenance
 
