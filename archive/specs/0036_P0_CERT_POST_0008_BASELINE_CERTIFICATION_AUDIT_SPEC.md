@@ -1,6 +1,7 @@
 # 0036 — P0-CERT Post-0008 Baseline Certification Audit Spec
 
-**Spec path:** `specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md`  
+**Status**: COMPLETED  
+**Spec path:** `archive/specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md`  
 **Target repository:** `joeloverbeck/tracewake`  
 **Target commit:** `9f1622244c91c5952bd735da76f29fbe58f39f4b`  
 **Posture:** Certification  
@@ -990,7 +991,7 @@ The exact path may follow repo closeout convention, but the artifact must includ
 ```markdown
 # P0-CERT post-0008 baseline certification acceptance artifact
 
-Spec: specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md
+Spec: archive/specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md
 Repository: joeloverbeck/tracewake
 Target commit: 9f1622244c91c5952bd735da76f29fbe58f39f4b
 Freshness claim: user-supplied target commit only; not independently verified as latest main
@@ -1208,3 +1209,43 @@ Before closing this spec, the implementing session must confirm:
 - [ ] Archived specs/tickets/reports are labeled historical only.
 - [ ] Deferrals are tied to `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, or observer-only obligations as appropriate.
 - [ ] No pass/fail result relies on this spec's existence rather than the generated acceptance artifact.
+
+## Outcome
+
+Completed: 2026-06-16
+
+This spec produced
+`archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`
+and the ticket series `0036P0CERPOS0008-001` through
+`0036P0CERPOS0008-012`. The acceptance artifact renders the verdict
+`P0-CERT scoped remediation`, not `P0-CERT passed`, scoped to the post-0008
+baseline only.
+
+What changed:
+
+1. The artifact now contains evidence-status rows for all ten P0-CERT proof
+   requirements, replay/provenance and sampling sections, pending/historical
+   classification, certification-use rules, staged-abstraction declarations,
+   tolerated deferrals, and a completed implementer self-check.
+2. All tickets in the series were closed and moved to `archive/tickets/`.
+3. The artifact records remediation finding `0036-MUTATION-REMEDIATION-001` for
+   the untriaged missed mutant emitted by the configured mutation attempt:
+   `crates/tracewake-core/src/projections.rs:336:5 replace actor_known_local_actors_for_context -> Vec<ActorId> with vec![]`.
+
+Deviation from original plan:
+
+The gate evidence rows P0-01 through P0-10 passed, and
+`cargo test --workspace --locked` passed, but the configured mutation posture did
+not produce certifying pass evidence. The artifact therefore chose the spec's
+allowed `P0-CERT scoped remediation` verdict and blocks later specs from citing
+this artifact as `P0-CERT passed` until a replacement certification artifact
+passes after remediation or equivalent/non-critical triage.
+
+Verification:
+
+1. `cargo test --workspace --locked` passed on 2026-06-16.
+2. The capstone gate enumeration found no missing P0-01 through P0-10 markers.
+3. The rendered verdict grep returned exactly
+   `7:Verdict: P0-CERT scoped remediation`.
+4. Archive format checks confirmed the completed tickets include `## Outcome`
+   and `Completed:` markers.

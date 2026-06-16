@@ -1,6 +1,6 @@
 # P0-CERT post-0008 baseline certification acceptance artifact
 
-Spec: specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md
+Spec: archive/specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md
 Repository: joeloverbeck/tracewake
 Target commit: 9f1622244c91c5952bd735da76f29fbe58f39f4b
 Freshness claim: user-supplied target commit only; not independently verified as latest main
