@@ -1,6 +1,6 @@
 # 0037P0CERTMUTREM-001: Kill 0036-MUTATION-REMEDIATION-001 with actor-known local-actor provenance witness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new core gate/regression test in `tracewake-core` (no production logic change expected; test-only Arm A disposition). If the final checkout proves the field unreachable by certified behavior, Arm B (proven-equivalent) is recorded instead per spec §6.4.
@@ -82,3 +82,35 @@ The helper already returns the correct value; expected scope is test-only. If th
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates` (or `--test acceptance_gates`, per chosen home)
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked`
 3. Targeted kill proof: `cargo mutants --workspace -f 'crates/tracewake-core/src/projections*' --no-shuffle` (with `.cargo/mutants.toml` in effect) — confirm the `actor_known_local_actors_for_context -> vec![]` line is `caught`. The full posture is -002's scope.
+
+## Outcome
+
+Completed: 2026-06-16
+
+Arm A was chosen. Added the core-only public behavior witness
+`actor_known_local_actor_reaches_embodied_view_model_with_context_provenance`
+in `crates/tracewake-core/tests/hidden_truth_gates.rs`. The test builds a
+sealed embodied `KnowledgeContext` with source-keyed current-place and
+actor-known-local-actor facts, drives the real
+`EmbodiedProjectionSource::from_sealed_context` ->
+`build_embodied_view_model` path, asserts the source-backed actor reaches
+`EmbodiedViewModel.local_actors`, and asserts a physically co-located but
+not actor-known actor stays absent. It also asserts the view carries the sealed
+holder-known context ID, hash, frontier, and no debug availability.
+
+No production logic changed. The helper remained reachable through the
+certified projection/view-model path, so Arm B was not used.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates actor_known_local_actor_reaches_embodied_view_model_with_context_provenance` — passed.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace --locked` — passed.
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/projections*' --no-shuffle` — passed targeted posture: 123 mutants tested in 8m, 95 caught, 28 unviable, 0 missed, 0 timeout. `mutants.out/caught.txt` records `crates/tracewake-core/src/projections.rs:336:5: replace actor_known_local_actors_for_context -> Vec<ActorId> with vec![]`.
+
+Deferred to dependent tickets: the full configured guarded-layer mutation
+posture and triage register remain `0037P0CERTMUTREM-002`; the live P0-01
+through P0-10 replacement certification artifact remains
+`0037P0CERTMUTREM-003`.
