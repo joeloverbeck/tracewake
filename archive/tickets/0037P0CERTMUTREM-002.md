@@ -1,6 +1,6 @@
 # 0037P0CERTMUTREM-002: Run full configured mutation posture to completion + survivor triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — runs the existing configured mutation posture and produces an evidence/triage artifact; any code fix for a newly-discovered critical survivor is routed to a reserved follow-up ticket.
@@ -80,3 +80,46 @@ Any newly-discovered critical survivor that needs a code fix becomes its own rem
 1. `cargo install cargo-mutants --version 27.1.0 --locked`
 2. `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle` (with `.cargo/mutants.toml` in effect)
 3. Inspect `mutants.out/missed.txt`, `mutants.out/timeout.txt`, `mutants.out/outcomes.json` — every entry maps to a triage-register disposition; no entry is left untriaged.
+
+## Outcome
+
+Completed: 2026-06-16
+
+Ran the full configured guarded-layer mutation posture unsharded, using the
+CI/spec filter set and `.cargo/mutants.toml` with `--workspace --locked`
+additional cargo args. `cargo-mutants 27.1.0` was already installed, so no
+install command was needed in this ticket turn.
+
+The full run completed:
+
+```text
+Found 1128 mutants to test
+ok       Unmutated baseline in 9s build + 29s test
+INFO     Auto-set test timeout to 150s
+1128 mutants tested in 66m: 896 caught, 232 unviable
+```
+
+Final output inspection:
+
+- `mutants.out/caught.txt` — 896 entries.
+- `mutants.out/missed.txt` — 0 entries.
+- `mutants.out/timeout.txt` — 0 entries.
+- `mutants.out/unviable.txt` — 232 entries.
+- `mutants.out/outcomes.json` — records `"missed": 0` and `"timeout": 0`.
+
+The named `0036-MUTATION-REMEDIATION-001`
+`actor_known_local_actors_for_context -> vec![]` mutant is recorded in
+`mutants.out/caught.txt` during the full configured run. The
+`vec![Default::default()]` sibling mutant is tool-classified unviable.
+
+Created `reports/0037_mutation_triage_register.md` as the mutation triage
+register. Because the completed configured run produced no missed or timeout
+survivors, there were no survivor rows to disposition and no
+`0037P0CERTMUTREM-004` follow-up ticket was required.
+
+Verification run:
+
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle` — completed with 1128 mutants tested, 896 caught, 232 unviable, 0 missed, 0 timeout.
+
+Deferred to dependent ticket: live P0-01 through P0-10 re-proof and the
+replacement P0-CERT acceptance artifact remain `0037P0CERTMUTREM-003`.
