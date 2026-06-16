@@ -84,7 +84,7 @@ computed only from certifying evidence items.
 | `P0-02` autonomous decisions use sealed actor-known contexts with provenance | `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction` | `0036-P0-02-ACTOR-KNOWN-PROVENANCE`, `0036-P0-02-HIDDEN-TRUTH-NEGATIVES`, `0036-P0-02-CONTEXT-HASH-REPLAY` | pass |
 | `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | `0036-P0-03-HUMAN-AUTONOMOUS-PARITY`, `0036-P0-03-TUI-BINDING-VIEWMODEL`, `0036-P0-03-DEBUG-PRIVILEGE-NEGATIVES` | pass |
 | `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | `0036-P0-04-PREPOST-STATE-FINGERPRINTS`, `0036-P0-04-HOLDER-KNOWN-VIEW-FILTERING`, `0036-P0-04-DEBUG-REBIND-NEGATIVES` | pass |
-| `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | pending gate evidence from `0036P0CERPOS0008-006` | pending |
+| `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | `0036-P0-05-NOHUMAN-CAPSTONE-ANCESTRY`, `0036-P0-05-PASSIVE-ACCOUNTING-SINGLE-CHARGE`, `0036-P0-05-SCHEDULER-SHORTCUT-NEGATIVES` | pass |
 | `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | pending gate evidence from `0036P0CERPOS0008-007` | pending |
 | `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-008` | pending |
 | `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | pending gate evidence from `0036P0CERPOS0008-009` | pending |
@@ -350,9 +350,68 @@ Certification use: counted as certifying pass for `P0-04` debug/rebind negative 
 
 ### P0-05 - Scheduler And No-Human Boundaries
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-006`.
+Evidence item ID: `0036-P0-05-NOHUMAN-CAPSTONE-ANCESTRY`
+Requirement IDs: `P0-05`
+Evidence status: pass
+Fingerprint scope: replay artifact / parsed semantic content
+Evidence summary: The no-human capstone proves scheduler order, ordinary actor decision ancestry, event append ancestry, and replay equivalence for the no-human ordinary-life interval. `cargo test -p tracewake-core --test no_human_capstone` passed 1 test. The capstone asserts roster/window order, `ordinary_pipeline_events > initial_actor_count`, required events including no-human markers, need deltas, sleep/eat/move/work/wait, intentions/routine steps, and decision traces. It then asserts ordinary no-human events with process and proposal IDs carry `EventCause::Proposal`, validates decision trace/intention/routine ancestry, rejects controller/hidden-truth leakage, rebuilds physical and agent projections from the log, and compares no-human metrics after canonical log serialization/deserialization.
+Path under test and behavior witness:
+- path under test: `scheduler.rs::no_human::run_no_human_day`, actor decision transaction, shared action pipeline, event log, replay rebuild, no-human metrics.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test no_human_capstone`.
+- responsible layer: `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay`.
+- accepted/rejected action or validation stage witnessed: no-human ordinary actions appear only as transaction/pipeline outputs with proposal/process ancestry; no-human markers are diagnostic/agent no-op markers, not primitive world actions.
+- live negative, mutation-style failure, or reason no negative is applicable: controller/hidden-truth leakage assertions and replay/context-hash failure checks fail closed in the capstone.
+- checked facts or invariants the witness supports: `INV-103`, `INV-104`, and deterministic replay (`INV-018`).
+Replay/provenance ancestry:
+- event-log segment or event identifiers: no-human day start/completion, ordinary action events, decision trace events, routine/intention events, and proposal/process-caused ordinary events from the capstone log.
+- replay artifact or serialized-log reference: `rebuild_projection` over initial world/agent state and canonical log serialization/deserialization.
+- seed, randomness, content version, or ruleset version where applicable: deterministic capstone world/agent setup, `phase3a_capstone_manifest`, `content_v1`.
+- extraction/projection version for derived evidence: current no-human scheduler, replay, checksum, and metrics code.
+- source provenance for any claim crossing from artifact to semantic behavior: inspected capstone test source plus passing command transcript.
+Sampling/exhaustiveness scope: sampled capstone over one no-human ordinary-life interval; broader fixture and guard coverage below covers additional named corpus and shortcut classes.
+Pending or historical handling: mutation baseline remains pending under ticket `-001`; no mutation result is counted for P0-05.
+Certification use: counted as certifying pass for `P0-05` no-human ancestry/replay evidence.
+
+Evidence item ID: `0036-P0-05-PASSIVE-ACCOUNTING-SINGLE-CHARGE`
+Requirement IDs: `P0-05`
+Evidence status: pass
+Fingerprint scope: parsed semantic content
+Evidence summary: Passive accounting is typed, replayable, and charged once per tick rather than used as a primitive action shortcut. `cargo test -p tracewake-content --test golden_fixtures_run` passed 40 tests, including `no_human_day_fixture_has_roster_activity_and_metrics_envelope`, `no_human_day_real_run_replays_metrics_and_trace_projection`, `wait_then_window_passive_charges_each_tick_once`, `sleep_spanning_window_boundary_charges_each_tick_once`, and `no_human_need_ledger_has_no_duplicate_regime_charges`.
+Path under test and behavior witness:
+- path under test: no-human fixture runner, passive need accounting, wait/sleep window handling, no-human metrics, replay checksums.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `scheduler`, `event_append`, `event_application`, `projection`, `replay`.
+- accepted/rejected action or validation stage witnessed: passive `NeedDeltaApplied` / `NeedThresholdCrossed` rows carry typed causes and are checked for duplicate charges; sleep spanning a no-human window does not receive passive awake deltas for slept ticks.
+- live negative, mutation-style failure, or reason no negative is applicable: duplicate regime charges and tampered replay/context hashes fail closed.
+- checked facts or invariants the witness supports: passive scheduler accounting is non-cognitive and does not become an actor decision or primitive action.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: no-human fixture logs containing no-human markers, ordinary action events, need deltas, threshold crossings, and metrics rows.
+- replay artifact or serialized-log reference: `no_human_day_real_run_replays_metrics_and_trace_projection` and fixture checksum/replay assertions.
+- seed, randomness, content version, or ruleset version where applicable: deterministic golden fixture corpus and frozen fixture fingerprints.
+- extraction/projection version for derived evidence: current no-human metrics and need-accounting code.
+- source provenance for any claim crossing from artifact to semantic behavior: inspected fixture-run test source plus passing command transcript.
+Sampling/exhaustiveness scope: sampled no-human/day, wait-window, sleep-window, and need-ledger fixture coverage from the golden corpus.
+Pending or historical handling: no-human metrics remain derived observer evidence unless explicitly cited here for replay/accounting shape; they are not actor cognition or scheduler input.
+Certification use: counted as certifying pass for `P0-05` passive-accounting evidence.
+
+Evidence item ID: `0036-P0-05-SCHEDULER-SHORTCUT-NEGATIVES`
+Requirement IDs: `P0-05`
+Evidence status: pass
+Fingerprint scope: command transcript / static seam scan
+Evidence summary: Scheduler shortcut negatives and static guards passed. `cargo test -p tracewake-core --test anti_regression_guards` passed 80 tests, including `scheduler_never_direct_dispatches_primitive_action`, `guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass`, `guard_006_scheduler_has_no_routine_family_to_primitive_dispatch`, `guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition`, `guard_006_scheduler_does_not_fabricate_empty_epistemic_projection`, `guard_006_duration_need_deltas_route_through_shared_emitter`, `guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth`, `guard_014_no_human_metrics_do_not_scan_display_text`, and `guard_011_no_human_day_runner_only_evidence`. `golden_fixtures_run` also passed the named scheduler negatives for unseen workplace assignment, workplace notice/provenance, severe safety blocker, method fallback, and scheduler wait-reason rewrite fixtures. TUI/adversarial no-human debug-only checks passed in earlier P0-03/P0-04 evidence and are not double-counted here.
+Path under test and behavior witness:
+- path under test: `crates/tracewake-core/src/scheduler.rs`, no-human actor-known surface builder, actor decision transaction sealed proposal handoff, need delta emitter, no-human metrics, golden fixture runner.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test anti_regression_guards`; `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: scheduler source must contain `ActorDecisionTransaction::run` and `run_pipeline(&mut context, &proposal)` for ordinary proposals; source guards reject routine-family-to-action mappings, direct primitive action IDs, direct need/routine proposal bypasses, fabricated empty epistemic projections, direct duration need-delta construction, and post-cognition proposal rewriting.
+- live negative, mutation-style failure, or reason no negative is applicable: synthetic guard insertions fail the static scans; golden negative fixtures fail closed for hidden workplace/assignment/provenance and fallback shortcut classes.
+- checked facts or invariants the witness supports: no scheduler path emits primitive actions directly from raw truth, routine labels, need thresholds, or fixture tables.
+Replay/provenance ancestry: primarily static guard and command transcript; behavior replay ancestry comes from the capstone and golden fixture rows above.
+Sampling/exhaustiveness scope: broad static source guards over scheduler and action-def surfaces plus sampled behavior negatives.
+Pending or historical handling: mutation baseline remains pending; no survived/incomplete mutation evidence is counted as pass.
+Certification use: counted as certifying pass for `P0-05` scheduler shortcut negative evidence.
 
 ### P0-06 - Validation Truth Boundary
 
