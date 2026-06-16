@@ -87,7 +87,7 @@ computed only from certifying evidence items.
 | `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | `0036-P0-05-NOHUMAN-CAPSTONE-ANCESTRY`, `0036-P0-05-PASSIVE-ACCOUNTING-SINGLE-CHARGE`, `0036-P0-05-SCHEDULER-SHORTCUT-NEGATIVES` | pass |
 | `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | `0036-P0-06-ACCEPT-REJECT-EVENT-PATH`, `0036-P0-06-HOLDER-KNOWN-NO-FALLBACK`, `0036-P0-06-ACTOR-VISIBLE-DEBUG-NEGATIVES` | pass |
 | `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | `0036-P0-07-CARRIER-CENSUS`, `0036-P0-07-DEBUG-QUARANTINE-NEGATIVES`, `0036-P0-07-OBSERVER-ONLY-ROWS` | pass |
-| `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | pending gate evidence from `0036P0CERPOS0008-009` | pending |
+| `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | `0036-P0-08-POSITIVE-SEMANTIC-WITNESSES`, `0036-P0-08-NEGATIVE-INTENDED-LAYERS`, `0036-P0-08-REPLAY-SCHEMA-CONTENT` | pass |
 | `P0-09` failure diagnostics name responsible layer | `doctrine`, `content_schema`, `content_validation`, `fixture_contract`, `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-010` | pending |
 | `P0-10` archived specs and tickets are cited only as history | `doctrine`, `documentation status`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-011` | pending |
 
@@ -530,9 +530,58 @@ Certification use: counted as certifying pass for `P0-07` observer-only quaranti
 
 ### P0-08 - Golden And Adversarial Fixture Corpus
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-009`.
+Evidence item ID: `0036-P0-08-POSITIVE-SEMANTIC-WITNESSES`
+Requirement IDs: `P0-08`
+Evidence status: pass
+Fingerprint scope: semantic behavior witness plus fixture fingerprint
+Evidence summary: Positive golden families ran with semantic witnesses rather than byte fixtures alone. `cargo test -p tracewake-content` passed content unit tests, `fixtures_load` (32), `golden_fixtures_run` (40), `schema_conformance` (2), forbidden-content tests (20), and doctests (3). `cargo test -p tracewake-core --test golden_scenarios` passed 16 tests. The passing corpus covers hidden-truth resistance (`no_hidden_truth_planning_001`, `seeded_food_source_unknown_to_all_actors_001`), no-human ordinary life (`no_human_day_001`, `ordinary_workday_001`, `sleep_eat_work_001`), possession parity/non-reset (`possession_parity_001`, `possession_does_not_reset_intention_001`), replay (`replay_item_location_001` and replay checksum/projection tests), view-model filtering (`view_filtering_001`, `view_model_local_actions_001`), content validation, and direct-dispatch rejection behavior.
+Path under test and behavior witness:
+- path under test: fixture registration/loading, fixture contract validation, golden fixture runner, golden core scenarios, holder-known projection, action pipeline, no-human runner, possession binding, view model, and replay projection.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-content` and `cargo test -p tracewake-core --test golden_scenarios`.
+- responsible layer: `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `view_model`, `replay`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: ordinary hidden-truth, no-human, possession, view-model, and replay fixtures execute production behavior and assert modeled semantic outcomes, context hashes, provenance, replay/projection checksums, and stable fixture fingerprints.
+- live negative, mutation-style failure, or reason no negative is applicable: paired hostile-family rows below cover the negative side; this item counts only positive semantic witnesses.
+- checked facts or invariants the witness supports: certification goldens are not counted merely because serialized bytes match; each counted positive has an observed semantic behavior assertion.
+Replay/provenance ancestry: fixture manifest fingerprints, golden fixture fingerprints, event-log replay checksums, and live/replay projection comparisons.
+Sampling/exhaustiveness scope: representative positive families named by spec section 7.8 and ticket `0036P0CERPOS0008-009`; deeper per-gate semantics remain in P0-01 through P0-07 rows.
+Pending or historical handling: mutation baseline remains pending from `0036P0CERPOS0008-001` and is not counted as P0-08 pass evidence.
+Certification use: counted as certifying pass for `P0-08` positive semantic witness coverage.
+
+Evidence item ID: `0036-P0-08-NEGATIVE-INTENDED-LAYERS`
+Requirement IDs: `P0-08`
+Evidence status: pass
+Fingerprint scope: intended responsible-layer failure
+Evidence summary: Hostile families fail closed for their intended layers rather than incidental parse, panic, or display-string behavior. `cargo test -p tracewake-core --test negative_fixture_runner` passed 5 tests, proving registered negative fixture census, clippy-ban proving fixtures, loader registration mutation guard, debug-report capability compile-fail coverage, and banned-API lints. `cargo test -p tracewake-tui --test adversarial_gates` passed 15 tests, including public TUI direct-dispatch rejection, forged/stale semantic-action rejection, hidden-food target rejection, debug command-string rejection, and typed diagnostics independent of display text. The content crate lane also passed forbidden-content and fixture-load negatives for prose-born facts, shortcut truth fields, player/script markers, malformed epistemic seeds, unknown fields, unsupported schema versions, bad references, and canonical ordering hazards.
+Path under test and behavior witness:
+- path under test: negative fixture registry, forbidden content validator, schema conformance, TUI adversarial boundary, direct-dispatch rejection, debug capability guard, and banned API negative fixtures.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test negative_fixture_runner`, `cargo test -p tracewake-tui --test adversarial_gates`, and `cargo test -p tracewake-content`.
+- responsible layer: `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `debug_quarantine`, `view_model`, `tui_input_binding`, `test_oracle`, `replay`, plus the action/scheduler layer under test.
+- accepted/rejected action or validation stage witnessed: hidden food, hidden routes, unproven facts, forbidden provenance, prose-born facts, debug omniscience, embodied-view omissions, scheduler wait-reason rewrite, direct dispatch, and forbidden API uses reject at typed boundaries.
+- live negative, mutation-style failure, or reason no negative is applicable: each named negative has a proving test or fixture-run assertion that would fail if the protected shortcut were accepted.
+- checked facts or invariants the witness supports: the corpus is not friendly-only and adversarial cases fail for responsible-layer reasons that match the shortcut under test.
+Replay/provenance ancestry: negative fixture registry census, TUI source-context checks, content validation diagnostics, and compile/lint negative fixture outputs.
+Sampling/exhaustiveness scope: representative hostile families named by spec section 7.8, including hidden-truth, no-human, possession/view-model, direct-dispatch, content-validation, debug-quarantine, scheduler, and forbidden-API classes.
+Pending or historical handling: this row does not claim exhaustive mutation coverage; it records live intended-layer hostile corpus coverage.
+Certification use: counted as certifying pass for `P0-08` negative intended-layer coverage.
+
+Evidence item ID: `0036-P0-08-REPLAY-SCHEMA-CONTENT`
+Requirement IDs: `P0-08`
+Evidence status: pass
+Fingerprint scope: replay/schema/content validation
+Evidence summary: Replay, schema, and content-validation coverage paired byte stability with semantic checks. `cargo test -p tracewake-core --test event_schema_replay_gates` passed 17 tests, including duplicate need tick, duplicate duration terminal, malformed elapsed ticks, missing access/routine/intention events, unsupported schema versions, forged payload schema versions, non-world checksum protection, stream mismatch rejection, typed no-human metrics rebuild, and no-human replay checksum equivalence. `cargo test -p tracewake-content` passed schema conformance and canonical serialization/load tests.
+Path under test and behavior witness:
+- path under test: event schema registry, append/replay validation, replay projection rebuild, fixture manifest/load/serialization, schema conformance, and content validation.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test event_schema_replay_gates` and `cargo test -p tracewake-content`.
+- responsible layer: `content_schema`, `content_validation`, `fixture_contract`, `replay`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: live and replay paths reject malformed/missing/unsupported event payloads; content loading rejects unsupported schemas, bad references, unknown fields, script/player/prose-born shortcuts, and nondeterministic ordering hazards.
+- live negative, mutation-style failure, or reason no negative is applicable: event-schema replay gates and content conformance tests would fail if golden bytes were accepted without corresponding semantic replay or validation behavior.
+- checked facts or invariants the witness supports: stable serialization and fixture fingerprints are paired with replay/projection and validation semantics.
+Replay/provenance ancestry: event-log replay rebuild checksums, manifest fingerprints, fixture fingerprints, canonical serialization round trips, and schema conformance maps.
+Sampling/exhaustiveness scope: replay/schema/content-validation subset of the P0-08 corpus, complementing the positive and hostile family rows above.
+Pending or historical handling: no historical-only evidence is counted; archived fixture/spec history remains lineage only.
+Certification use: counted as certifying pass for `P0-08` replay/schema/content evidence.
 
 ### P0-09 - Responsible-Layer Diagnostics
 
