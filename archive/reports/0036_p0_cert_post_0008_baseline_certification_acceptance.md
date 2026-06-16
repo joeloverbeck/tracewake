@@ -88,7 +88,7 @@ computed only from certifying evidence items.
 | `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | `0036-P0-06-ACCEPT-REJECT-EVENT-PATH`, `0036-P0-06-HOLDER-KNOWN-NO-FALLBACK`, `0036-P0-06-ACTOR-VISIBLE-DEBUG-NEGATIVES` | pass |
 | `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | `0036-P0-07-CARRIER-CENSUS`, `0036-P0-07-DEBUG-QUARANTINE-NEGATIVES`, `0036-P0-07-OBSERVER-ONLY-ROWS` | pass |
 | `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | `0036-P0-08-POSITIVE-SEMANTIC-WITNESSES`, `0036-P0-08-NEGATIVE-INTENDED-LAYERS`, `0036-P0-08-REPLAY-SCHEMA-CONTENT` | pass |
-| `P0-09` failure diagnostics name responsible layer | `doctrine`, `content_schema`, `content_validation`, `fixture_contract`, `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-010` | pending |
+| `P0-09` failure diagnostics name responsible layer | `doctrine`, `content_schema`, `content_validation`, `fixture_contract`, `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle` | `0036-P0-09-TYPED-DIAGNOSTIC-SUBSTRATE`, `0036-P0-09-REPLAY-CONTENT-LAYER-DIAGNOSTICS`, `0036-P0-09-HIDDEN-TRUTH-SOURCE-DIAGNOSTICS` | pass |
 | `P0-10` archived specs and tickets are cited only as history | `doctrine`, `documentation status`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-011` | pending |
 
 ## Gate Evidence Sections
@@ -585,9 +585,58 @@ Certification use: counted as certifying pass for `P0-08` replay/schema/content 
 
 ### P0-09 - Responsible-Layer Diagnostics
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-010`.
+Evidence item ID: `0036-P0-09-TYPED-DIAGNOSTIC-SUBSTRATE`
+Requirement IDs: `P0-09`
+Evidence status: pass
+Fingerprint scope: typed diagnostic records and responsible-layer names
+Evidence summary: Failure diagnostics use typed/structurally inspectable records and live responsible-layer names rather than display strings as authority. `cargo test -p tracewake-content --test golden_fixtures_run` passed 40 tests, including `routine_blocked_fixture_records_access_failure_without_silent_loop`, `work_block_failed_then_sleep_succeeds_fixture_closes_reservation`, `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, and `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`. `cargo test -p tracewake-core --test no_human_capstone` passed the typed ancestry/replay capstone.
+Path under test and behavior witness:
+- path under test: actor decision traces, stuck/blocker diagnostics, action reports, no-human metrics, fixture assertions, scheduler/transaction handoff, and acceptance report layer vocabulary.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-content --test golden_fixtures_run`; `cargo test -p tracewake-core --test no_human_capstone`.
+- responsible layer: `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: pre-proposal failures record context/candidate/planning/source-data identifiers; post-proposal and replay failures carry proposal/event/projection/checksum/replay identifiers where available.
+- live negative, mutation-style failure, or reason no negative is applicable: diagnostic fixture and no-human capstone assertions would fail if typed records were replaced by display labels, unlayered strings, or missing provenance.
+- checked facts or invariants the witness supports: the artifact's layer names are the live doctrine vocabulary already used by report rows, not new labels minted by this certification spec.
+Replay/provenance ancestry: typed decision trace records, source event IDs, context hashes/frontiers, no-human diagnostic fields, and replay/projection checksums.
+Sampling/exhaustiveness scope: sampled stuck/blocker/fallback/work-failure/no-human diagnostics plus report-wide layer vocabulary audit.
+Pending or historical handling: per-gate failure witness details remain in P0-01 through P0-08 rows; this row certifies the diagnostic substrate and layer naming.
+Certification use: counted as certifying pass for `P0-09` typed diagnostic substrate.
+
+Evidence item ID: `0036-P0-09-REPLAY-CONTENT-LAYER-DIAGNOSTICS`
+Requirement IDs: `P0-09`
+Evidence status: pass
+Fingerprint scope: content validation and replay divergence diagnostics
+Evidence summary: Content-validation and replay-divergence failures name their layer with typed records. `cargo test -p tracewake-content --test forbidden_content` passed 20 tests covering prose-born fact rejection, acceptance-gaming/debug labels, hidden-truth source seeding, no-human/manual ambiguity, shortcut truth fields, outcome-chain routine markers, malformed epistemic seeds, player/script constructs, and planner intended initial facts requiring provenance. `cargo test -p tracewake-core --test event_schema_replay_gates` passed 17 tests covering malformed/missing/unsupported event payloads, forged trace and payload schema versions, stream mismatch, non-world checksum protection, no-human metrics typed rebuild, and replay checksum equivalence.
+Path under test and behavior witness:
+- path under test: content schema/validation, fixture contract validator, event schema registry, append/replay validators, replay report/checksum surfaces, and no-human metrics rebuild.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-content --test forbidden_content`; `cargo test -p tracewake-core --test event_schema_replay_gates`.
+- responsible layer: `content_schema`, `content_validation`, `fixture_contract`, `event_append`, `event_application`, `projection`, `replay`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: invalid content is rejected before it can seed actor-known facts; unsupported/malformed/forged event streams are rejected at append or replay boundaries with typed divergence context.
+- live negative, mutation-style failure, or reason no negative is applicable: content and replay tests would fail if validators accepted prose/display/debug labels as authority or if replay divergence lacked typed schema/checksum context.
+- checked facts or invariants the witness supports: content and replay failure artifacts do more than say a test failed; they identify the responsible validation or replay layer and the malformed source.
+Replay/provenance ancestry: schema version records, event payload schema versions, typed diagnostic fields, replay stream IDs, and live/replay checksum comparisons.
+Sampling/exhaustiveness scope: content-validation and replay-divergence diagnostic classes named by P0-09.
+Pending or historical handling: no archived or historical diagnostic row is counted as live proof.
+Certification use: counted as certifying pass for `P0-09` replay/content diagnostics.
+
+Evidence item ID: `0036-P0-09-HIDDEN-TRUTH-SOURCE-DIAGNOSTICS`
+Requirement IDs: `P0-09`
+Evidence status: pass
+Fingerprint scope: actor-known provenance and banned-word-independent negatives
+Evidence summary: Actor-known and hidden-truth diagnostics name expected/actual sources and do not depend on display strings or banned-word substrings. `cargo test -p tracewake-core --test hidden_truth_gates` passed 13 tests, including `actor_known_context_unforgeable_from_truth`, `context_rejects_hidden_counterpart_injection`, `debug_omniscience_facts_are_excluded_from_planner_context`, `hidden_food_closed_container_is_not_actor_known_food_source`, `hidden_route_edge_absent_from_actor_context_blocks_route_plan`, `hidden_food_unknown_route_does_not_become_transaction_target`, and `workplace_requires_assignment_or_observation_provenance`. `golden_fixtures_run` also passed `forbidden_provenance_input_fails_closed_001` and `hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001` coverage.
+Path under test and behavior witness:
+- path under test: actor-known context construction, hidden-truth audit, planner transaction, workplace/route/food provenance, debug omniscience exclusion, and fixture contract assertions.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test hidden_truth_gates`; `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `debug_quarantine`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: hidden counterpart injection, unproven typed facts, hidden food/route/workplace facts, and debug omniscience are rejected or excluded before they become actor-known context, candidate targets, or planner/proposal inputs.
+- live negative, mutation-style failure, or reason no negative is applicable: hidden-truth audit and forbidden-provenance negatives would fail if diagnostics used display text or banned words instead of typed provenance/source records.
+- checked facts or invariants the witness supports: diagnostics distinguish hidden truth excluded from hidden truth leaked, name source/provenance failures, and keep debug-only output separate from actor-visible output.
+Replay/provenance ancestry: holder-known context IDs, hashes, frontiers, source summaries, expected/prohibited fixture contract facts, and actor-visible output checks.
+Sampling/exhaustiveness scope: hidden-food, hidden-route, workplace, debug-omniscience, unproven-fact, and forbidden-provenance diagnostic classes.
+Pending or historical handling: mutation baseline remains pending from `0036P0CERPOS0008-001` and is not counted as P0-09 pass evidence.
+Certification use: counted as certifying pass for `P0-09` hidden-truth/source diagnostic evidence.
 
 ### P0-10 - Historical-Only Archive Use
 
