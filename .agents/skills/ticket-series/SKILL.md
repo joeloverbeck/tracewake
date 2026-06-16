@@ -160,7 +160,11 @@ deviations in the ticket and spec outcomes.
      controls unless the user explicitly says not to archive the reference spec.
 2. Update the spec with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
-3. Archive the spec to `archive/specs/`, using `git mv` when tracked.
+3. Archive the spec to `archive/specs/`.
+   - Create `archive/specs/` if absent.
+   - Prefer `git mv` for tracked specs.
+   - Use plain `mv` only for untracked specs.
+   - Confirm the original `specs/` or `docs/4-specs/` path is gone.
    After `git mv`, stage the move with rename-aware staging such as
    `git add -A specs archive/specs` or by staging the relevant old and archive
    parent directories, rather than only the now-removed live path.
@@ -196,7 +200,9 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    body prose from active/current-state claims. If needed, use archive-excluding
    patterns such as `(?<!archive/)tickets/<ticket prefix>` or
    `(?<!archive/)specs/<spec filename>` to avoid treating expected archived
-   provenance as a live-path defect.
+   provenance as a live-path defect. Quoted user instructions inside archived
+   `Outcome` sections are historical provenance unless they claim a current live
+   location.
    Check active reports and acceptance artifacts for recorded deferrals, live
    ticket paths, live spec paths, and target-commit claims that became stale
    after the last ticket or spec archive.
