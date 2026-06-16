@@ -83,7 +83,7 @@ computed only from certifying evidence items.
 | `P0-01` world-affecting behavior enters through proposal -> validation -> event -> application -> projection -> replay | `proposal_construction`, `action_validation`, `event_append`, `event_application`, `projection`, `replay` | `0036-P0-01-PIPELINE-WITNESS`, `0036-P0-01-REPLAY-CHECKSUM`, `0036-P0-01-NO-DIRECT-NEGATIVES` | pass |
 | `P0-02` autonomous decisions use sealed actor-known contexts with provenance | `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction` | `0036-P0-02-ACTOR-KNOWN-PROVENANCE`, `0036-P0-02-HIDDEN-TRUTH-NEGATIVES`, `0036-P0-02-CONTEXT-HASH-REPLAY` | pass |
 | `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | `0036-P0-03-HUMAN-AUTONOMOUS-PARITY`, `0036-P0-03-TUI-BINDING-VIEWMODEL`, `0036-P0-03-DEBUG-PRIVILEGE-NEGATIVES` | pass |
-| `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | pending gate evidence from `0036P0CERPOS0008-005` | pending |
+| `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | `0036-P0-04-PREPOST-STATE-FINGERPRINTS`, `0036-P0-04-HOLDER-KNOWN-VIEW-FILTERING`, `0036-P0-04-DEBUG-REBIND-NEGATIVES` | pass |
 | `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | pending gate evidence from `0036P0CERPOS0008-006` | pending |
 | `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | pending gate evidence from `0036P0CERPOS0008-007` | pending |
 | `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-008` | pending |
@@ -290,9 +290,63 @@ Certification use: counted as certifying pass for `P0-03` debug/player privilege
 
 ### P0-04 - Possession Non-Reset
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-005`.
+Evidence item ID: `0036-P0-04-PREPOST-STATE-FINGERPRINTS`
+Requirement IDs: `P0-04`
+Evidence status: pass
+Fingerprint scope: agent-state checksum / parsed semantic content
+Evidence summary: Possession bind/detach changes control routing and emits controller events, but does not rewrite the possessed actor's needs, intentions, routines, or agent-state carriers. `cargo test -p tracewake-content --test golden_fixtures_run` passed 40 tests, including `possession_fixture_preserves_intention_needs_and_can_continue`, `continue_routine_tamper_kind_flip_poisons_replay`, and `continue_routine_tamper_reason_rewrite_poisons_replay`. The possession fixture asserts `actor_mara` starts with active intention `intention_mara_work` and routine execution `routine_exec_mara_work`, snapshots `AgentState`, attaches and detaches `controller_human`, then asserts agent state is unchanged. The subsequent ordinary `continue_routine` proposal emits `ContinueRoutineProposed` and leaves intentions, routine executions, and needs equal to the pre-action snapshot while recording one continue-routine arbitration.
+Path under test and behavior witness:
+- path under test: `ControllerBindings::attach`, `ControllerBindings::detach`, `continue_routine` action path, `AgentState` needs/intentions/routine executions, replay checksums for possession continuation.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `tui_input_binding`, `intention_lifecycle`, `projection`, `event_append`, `replay`.
+- accepted/rejected action or validation stage witnessed: bind/detach emits controller attachment events without agent-state mutation; continuation proceeds as an ordinary eventful action with replay-detectable ancestry.
+- live negative, mutation-style failure, or reason no negative is applicable: tampering the continue-routine event kind or reason poisons replay and agent checksums.
+- checked facts or invariants the witness supports: `INV-006`, `INV-108`, and `INV-094`.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: `ControllerAttached`, `ControllerDetached`, and `ContinueRoutineProposed` in the possession fixture.
+- replay artifact or serialized-log reference: `continue_routine_tamper_kind_flip_poisons_replay` and `continue_routine_tamper_reason_rewrite_poisons_replay` compare live physical/agent checksums against tampered replay.
+- seed, randomness, content version, or ruleset version where applicable: deterministic `possession_does_not_reset_intention_001` fixture package under `content_v1`.
+- extraction/projection version for derived evidence: current core agent-state and replay code.
+- source provenance for any claim crossing from artifact to semantic behavior: inspected fixture-run test source plus passing command transcript.
+Sampling/exhaustiveness scope: sampled possession non-reset fixture over needs, active intention, routine execution, controller bind/detach, ordinary continuation, and replay tamper negatives.
+Pending or historical handling: mutation baseline remains pending under ticket `-001`; no mutation result is counted for P0-04.
+Certification use: counted as certifying pass for `P0-04` pre/post state evidence.
+
+Evidence item ID: `0036-P0-04-HOLDER-KNOWN-VIEW-FILTERING`
+Requirement IDs: `P0-04`
+Evidence status: pass
+Fingerprint scope: context hash/frontier
+Evidence summary: Actor-visible view and holder-known context stay actor-filtered across possession and do not refresh hidden world facts. `cargo test -p tracewake-content --test fixtures_load` passed 32 tests, including deterministic load/validation coverage for `possession_parity_001`, `view_filtering_001`, and all registered fixtures. `cargo test -p tracewake-core --test hidden_truth_gates` passed 13 tests, including `debug_truth_never_enters_holder_known_context_hash`, `embodied_affordances_exclude_hidden_food_in_closed_container`, and `epistemic_context_projection_and_records_remain_sealed`. `cargo test -p tracewake-tui --test tui_acceptance` passed 11 tests, including `phase3a_possess_continue_and_debug_transcript_is_deterministic` and `positive_proof_fixtures_emit_typed_artifacts_first`.
+Path under test and behavior witness:
+- path under test: `current_place_knowledge_context`, `build_embodied_view_model`, holder-known context hash/source summary, notebook view, fixture load validation.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-content --test fixtures_load`; `cargo test -p tracewake-core --test hidden_truth_gates`; `cargo test -p tracewake-tui --test tui_acceptance`.
+- responsible layer: `holder_known_context`, `view_model`, `projection`, `tui_input_binding`.
+- accepted/rejected action or validation stage witnessed: possessed actor context and actor-visible affordances derive from holder-known source IDs/frontier; hidden food/debug facts do not become semantic action targets or context source summaries.
+- live negative, mutation-style failure, or reason no negative is applicable: debug truth report leaves holder-known context hash/source summary unchanged and excludes hidden food from semantic action targets.
+- checked facts or invariants the witness supports: possession may change control routing only; it may not create, refresh, delete, or reclassify beliefs, known facts, or affordances.
+Replay/provenance ancestry: holder-known context hash/source summary and fixture fingerprint evidence; detailed decision-context replay rows remain counted under P0-02.
+Sampling/exhaustiveness scope: sampled fixture corpus plus hidden-truth lock-layer and TUI proof artifacts over possession, view filtering, hidden food omission, raw assignment omission, and deterministic transcripts.
+Pending or historical handling: none for this P0-04 evidence item.
+Certification use: counted as certifying pass for `P0-04` holder-known and view-filtering evidence.
+
+Evidence item ID: `0036-P0-04-DEBUG-REBIND-NEGATIVES`
+Requirement IDs: `P0-04`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Debug attach/rebind remains non-diegetic and does not transfer one actor's notebook, rejection, needs, intention, or debug truth into another actor's possessed view. `cargo test -p tracewake-tui --test adversarial_gates` passed 15 tests, including `adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth`, `adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not`, `debug_panel_does_not_change_embodied_affordances`, and `adversarial_gates_debug_truth_does_not_enter_actor_surfaces`. `cargo test -p tracewake-tui --test tui_acceptance` passed debug panel determinism and possession transcript tests.
+Path under test and behavior witness:
+- path under test: `TuiApp::bind_actor`, `TuiApp::bind_debug_actor`, current embodied view, notebook view, debug panels, holder-known context fields.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-tui --test adversarial_gates`; `cargo test -p tracewake-tui --test tui_acceptance`.
+- responsible layer: `debug_quarantine`, `tui_input_binding`, `holder_known_context`, `view_model`.
+- accepted/rejected action or validation stage witnessed: after rebinding from `actor_tomas` to `actor_mara`, the new actor view has `actor_mara` context, empty notebook/source-bound beliefs where expected, no transferred rejection why-not, no debug text, and unchanged physical checksum.
+- live negative, mutation-style failure, or reason no negative is applicable: debug item panels are explicitly non-diegetic; current actor surfaces reject debug/non-current contamination.
+- checked facts or invariants the witness supports: debug attach alters no actor-visible carrier or holder-known context (`INV-107`) and possession remains cognition-neutral.
+Replay/provenance ancestry: command transcript and checksum/current-view comparisons; debug rows remain observer-only and non-certifying for world-state facts.
+Sampling/exhaustiveness scope: sampled possession rebind, debug panel, rejection why-not, notebook, needs/intention, context ID/hash, and semantic action contamination negatives.
+Pending or historical handling: broad debug carrier census is owned by P0-07; this item counts only the P0-04 possession-boundary negatives.
+Certification use: counted as certifying pass for `P0-04` debug/rebind negative evidence.
 
 ### P0-05 - Scheduler And No-Human Boundaries
 
