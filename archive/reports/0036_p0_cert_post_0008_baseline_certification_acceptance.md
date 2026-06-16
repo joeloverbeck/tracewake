@@ -81,7 +81,7 @@ computed only from certifying evidence items.
 | Requirement | Responsible layer | Evidence item IDs | Result from certifying evidence |
 |---|---|---|---|
 | `P0-01` world-affecting behavior enters through proposal -> validation -> event -> application -> projection -> replay | `proposal_construction`, `action_validation`, `event_append`, `event_application`, `projection`, `replay` | `0036-P0-01-PIPELINE-WITNESS`, `0036-P0-01-REPLAY-CHECKSUM`, `0036-P0-01-NO-DIRECT-NEGATIVES` | pass |
-| `P0-02` autonomous decisions use sealed actor-known contexts with provenance | `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction` | pending gate evidence from `0036P0CERPOS0008-003` | pending |
+| `P0-02` autonomous decisions use sealed actor-known contexts with provenance | `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction` | `0036-P0-02-ACTOR-KNOWN-PROVENANCE`, `0036-P0-02-HIDDEN-TRUTH-NEGATIVES`, `0036-P0-02-CONTEXT-HASH-REPLAY` | pass |
 | `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | pending gate evidence from `0036P0CERPOS0008-004` | pending |
 | `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | pending gate evidence from `0036P0CERPOS0008-005` | pending |
 | `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | pending gate evidence from `0036P0CERPOS0008-006` | pending |
@@ -160,9 +160,73 @@ Certification use: counted as certifying pass for `P0-01` direct-dispatch negati
 
 ### P0-02 - Actor-Known Contexts And Provenance
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-003`.
+Evidence item ID: `0036-P0-02-ACTOR-KNOWN-PROVENANCE`
+Requirement IDs: `P0-02`
+Evidence status: pass
+Fingerprint scope: context hash/frontier
+Evidence summary: `ActorKnownPlanningContext` derives hidden-truth audit from actor-known facts rather than stored booleans, and `ActorDecisionTransaction::run` returns a typed stuck diagnostic before method selection when `selection.trace.hidden_truth_audit_result.actor_known_only` is false. `cargo test -p tracewake-core --test hidden_truth_gates` passed 13 tests, including `actor_known_context_unforgeable_from_truth`, `debug_truth_never_enters_holder_known_context_hash`, and `epistemic_context_projection_and_records_remain_sealed`.
+Path under test and behavior witness:
+- path under test: `agent/actor_known.rs`, `agent/transaction.rs`, `agent/decision.rs`, `agent/planner.rs`, `agent/htn.rs`, `agent/no_human_surface.rs`.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test hidden_truth_gates`; `cargo test -p tracewake-content --test golden_fixtures_run`; focused fixture loader test `seeded_food_source_unknown_to_all_actors_omits_seed_belief_and_actor_known_food`.
+- responsible layer: `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`.
+- accepted/rejected action or validation stage witnessed: autonomous proposals proceed only from actor-known context; unproven hidden facts fail as context/provenance errors before becoming proposal targets.
+- live negative, mutation-style failure, or reason no negative is applicable: unproven facts, debug omniscience, hidden food, hidden route, and missing workplace provenance negatives passed.
+- checked facts or invariants the witness supports: `INV-024`, `INV-099`, `INV-100`, `INV-101`, and `INV-102`.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: no-human observation and workplace fixtures cite log events for actor-known facts.
+- replay artifact or serialized-log reference: `golden_fixtures_run::no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash` rebuilds decision context hashes from the log.
+- seed, randomness, content version, or ruleset version where applicable: deterministic fixture manifest load; no random source used for this evidence.
+- extraction/projection version for derived evidence: actor-known contexts are built from `EpistemicProjection` / no-human surface builders in current source.
+- source provenance for any claim crossing from artifact to semantic behavior: source snippets inspected for hidden-truth audit and transaction rejection path.
+Sampling/exhaustiveness scope: sampled golden/no-human/hidden-truth fixtures plus hidden-truth lock-layer suite.
+Pending or historical handling: mutation baseline remains pending; no historical evidence counted as pass.
+Certification use: counted as certifying pass for `P0-02` only.
+
+Evidence item ID: `0036-P0-02-HIDDEN-TRUTH-NEGATIVES`
+Requirement IDs: `P0-02`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Hidden-truth and provenance negatives passed. `hidden_truth_gates` proved hidden closed-container food is absent from actor-known food sources, hidden route edges are absent from route planning, debug truth does not enter context hashes, and workplace planning requires assignment/observation provenance. `golden_fixtures_run` passed the frozen fixture corpus containing `forbidden_provenance_input_fails_closed_001`, `hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001`, `hidden_food_closed_container_001`, `hidden_route_edge_001`, `no_human_known_workplace_requires_provenance_001`, `no_human_observation_facts_cite_log_events_001`, and `no_human_unseen_workplace_assignment_does_not_plan_work_001`.
+Path under test and behavior witness:
+- path under test: planner/local planning, actor-known context derivation, no-human actor-known surface construction.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test hidden_truth_gates`; `cargo test -p tracewake-content --test golden_fixtures_run`; `cargo test -p tracewake-core --test negative_fixture_runner`.
+- responsible layer: `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: planner accepts visible actor-known food but rejects hidden food with `food source is not actor-known`; route planning rejects hidden edge; workplace planning rejects hidden workplace without provenance.
+- live negative, mutation-style failure, or reason no negative is applicable: banned-word-independent hidden-truth audit, forbidden provenance inputs, and fixture negative registration all passed.
+- checked facts or invariants the witness supports: autonomous decisions do not use validation truth, raw fixture truth, debug panels, display strings, or hidden-truth comparison rows.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: no-human observation/workplace fixture tests require log-event evidence for actor-known inputs.
+- replay artifact or serialized-log reference: context hash replay row below.
+- seed, randomness, content version, or ruleset version where applicable: deterministic fixtures only.
+- extraction/projection version for derived evidence: current `EpistemicProjection` and `ActorKnownPlanningContext` source.
+- source provenance for any claim crossing from artifact to semantic behavior: fixture/test names and inspected source.
+Sampling/exhaustiveness scope: fixture corpus is sampled by behavior but covers all named P0-02 positive and negative fixture families from the ticket.
+Pending or historical handling: no archive history used as certification evidence.
+Certification use: counted as certifying pass for `P0-02` hidden-truth negative evidence.
+
+Evidence item ID: `0036-P0-02-CONTEXT-HASH-REPLAY`
+Requirement IDs: `P0-02`
+Evidence status: pass
+Fingerprint scope: context hash/frontier
+Evidence summary: `cargo test -p tracewake-content --test golden_fixtures_run` passed `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`, which runs a no-human fixture, gathers decision trace records, and asserts `rebuild_decision_context_hashes` has no failures. `fixtures_load::stale_workplace_notice_superseded_by_newer_001` passed, adding the spec's hedged freshness check.
+Path under test and behavior witness:
+- path under test: decision trace records, context hash rebuild, actor-known projection freshness.
+- command, event, trigger, emitter, or scheduler entry that exercised it: full `golden_fixtures_run` plus focused `stale_workplace_notice_superseded_by_newer_001` loader test.
+- responsible layer: `holder_known_context`, `projection`, `replay`.
+- accepted/rejected action or validation stage witnessed: decision traces retain actor-known inputs and replay-rebuildable context hashes; stale workplace notice handling remains load-validated.
+- live negative, mutation-style failure, or reason no negative is applicable: context hash tamper/failure checks in the golden suite passed.
+- checked facts or invariants the witness supports: replay-sufficient provenance for selected goals/plans and freshness/staleness handling.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: no-human fixture log events are collected into a `BTreeSet` and checked against decision trace actor-known inputs.
+- replay artifact or serialized-log reference: `rebuild_decision_context_hashes` over initial state, initial agent state, and log.
+- seed, randomness, content version, or ruleset version where applicable: fixture manifest deterministic load.
+- extraction/projection version for derived evidence: current context-hash rebuild path.
+- source provenance for any claim crossing from artifact to semantic behavior: inspected test source and passing command transcript.
+Sampling/exhaustiveness scope: sampled no-human/provenance fixtures plus load-time freshness check.
+Pending or historical handling: none.
+Certification use: counted as certifying pass for `P0-02` context hash/replay evidence.
 
 ### P0-03 - Human-Origin Ordinary Actor Rules
 
