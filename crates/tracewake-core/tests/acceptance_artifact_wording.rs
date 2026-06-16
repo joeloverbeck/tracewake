@@ -1,11 +1,16 @@
 const TEMPLATE: &str = include_str!("../../../docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md");
 const PHASE2A_ARTIFACT: &str =
     include_str!("../../../archive/reports/0006PHA2A_ACCEPTANCE_ARTIFACT.md");
+const P0_CERT_0037_ARTIFACT: &str = include_str!(
+    "../../../archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md"
+);
 
 const REQUIRED_PHASE1_SCOPED_WORDING: &str =
     "Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit";
 const REQUIRED_PHASE2A_SCOPED_WORDING: &str =
     "Phase 2A epistemic substrate hardening remediation accepted for exact commit";
+const REQUIRED_P0_CERT_SCOPED_WORDING: &str =
+    "P0-CERT post-0008 baseline mutation remediation accepted for exact commit";
 
 const FORBIDDEN_WORDING_HEADING: &str = "Forbidden wording:";
 
@@ -36,6 +41,15 @@ fn phase2a_acceptance_artifact_uses_scoped_exact_commit_wording() {
 }
 
 #[test]
+fn p0_cert_0037_acceptance_artifact_uses_scoped_exact_commit_wording() {
+    validate_acceptance_artifact_wording(P0_CERT_0037_ARTIFACT)
+        .expect("0037 P0-CERT artifact wording is scoped");
+    assert!(P0_CERT_0037_ARTIFACT.contains("Exact implementation commit under test"));
+    assert!(P0_CERT_0037_ARTIFACT.contains("a3b5e3c9e896d09ed9f5b6591fb6cd7a4edd0441"));
+    assert!(P0_CERT_0037_ARTIFACT.contains("Verdict: P0-CERT passed"));
+}
+
+#[test]
 fn acceptance_artifact_forbidden_overclaim_phrase_fails() {
     let artifact =
         format!("{REQUIRED_PHASE1_SCOPED_WORDING} `<commit>`.\n\nTracewake is fully certified.");
@@ -57,6 +71,7 @@ fn acceptance_artifact_missing_scoped_phrase_fails() {
 fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
     if !text.contains(REQUIRED_PHASE1_SCOPED_WORDING)
         && !text.contains(REQUIRED_PHASE2A_SCOPED_WORDING)
+        && !text.contains(REQUIRED_P0_CERT_SCOPED_WORDING)
     {
         return Err("missing scoped exact-commit wording".to_string());
     }

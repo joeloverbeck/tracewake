@@ -1,6 +1,6 @@
 # 0037P0CERTMUTREM-003: Capstone — live P0-01..P0-10 re-proof + replacement P0-CERT acceptance artifact
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — verification/evidence-only; produces the replacement acceptance artifact and renders the verdict.
@@ -76,3 +76,51 @@ Author `archive/reports/0037_p0_cert_mutation_remediation_replacement_certificat
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace --locked`
 2. Lock-layer gate set (§4.2): `cargo test --locked -p tracewake-core --test negative_fixture_runner` … `--test doc_invariant_references` … `--test spine_conformance` … `--test acceptance_gates` … `--test anti_regression_guards` … `--test event_schema_replay_gates` … `--test hidden_truth_gates` … `--test acceptance_artifact_wording`; `cargo test --locked -p tracewake-content --test schema_conformance` / `--test forbidden_content` / `--test golden_fixtures_run`; `cargo test --locked -p tracewake-tui --test adversarial_gates` / `--test tui_seam_conformance`.
 3. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` — confirms the replacement artifact's wording/verdict discipline.
+
+## Outcome
+
+Completed: 2026-06-16
+
+Produced
+`archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md`.
+The artifact explicitly supersedes
+`archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`,
+renders `P0-CERT passed` for the scoped post-0008 baseline mutation remediation
+line, keeps archived 0036 evidence historical-only, and links the full mutation
+register at `reports/0037_mutation_triage_register.md`.
+
+The capstone consumed:
+
+- `0037P0CERTMUTREM-001` / commit `2abfce9`: the
+  `actor_known_local_actor_reaches_embodied_view_model_with_context_provenance`
+  behavior/provenance witness and targeted mutation kill.
+- `0037P0CERTMUTREM-002` / commit `a3b5e3c`: the full unsharded configured
+  mutation posture, 1128 mutants tested, 896 caught, 232 unviable, 0 missed,
+  0 timeout.
+
+Because the pre-existing `acceptance_artifact_wording` test did not include new
+acceptance artifacts, this ticket also added scoped P0-CERT wording coverage for
+the new replacement artifact. No production logic changed.
+
+Verification run:
+
+- `cargo fmt --all --check` — passed before and after the artifact/test update.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed after the artifact/test update.
+- `cargo build --workspace --all-targets --locked` — passed after the artifact/test update.
+- `cargo test --workspace --locked` — passed after the artifact/test update; includes `acceptance_artifact_wording` with 5 tests and `hidden_truth_gates` with 14 tests.
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` — passed, 5 tests.
+- `cargo test --locked -p tracewake-core --test doc_invariant_references` — passed, 4 tests.
+- `cargo test --locked -p tracewake-core --test spine_conformance` — passed, 6 tests.
+- `cargo test --locked -p tracewake-core --test acceptance_gates` — passed, 12 tests.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards` — passed, 80 tests.
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed, 17 tests.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates` — passed, 14 tests.
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` — passed post-artifact, 5 tests.
+- `cargo test --locked -p tracewake-content --test schema_conformance` — passed, 2 tests.
+- `cargo test --locked -p tracewake-content --test forbidden_content` — passed, 20 tests.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed, 40 tests.
+- `cargo test --locked -p tracewake-tui --test adversarial_gates` — passed, 15 tests.
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance` — passed, 2 tests.
+
+No P0-CERT obligation was deferred. Spec archival and final ledger/reference
+truthing remain the ticket-series final spec closeout step.
