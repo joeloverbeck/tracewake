@@ -162,6 +162,21 @@ the evidence-complete determination and author no file). For
 mode (iii), the brief's deliverable spec (§7) must define **both** artifact shapes (a Branch A / Branch B
 specification) so Session 2 commits to one without asking.
 
+**Non-executable deliverables (audit / certification specs).** When the deliverable is an artifact
+the external researcher **structurally cannot execute** — a certification or code-audit spec whose
+authoritative result requires running `cargo test`, mutation testing, replay, or other live-code
+execution Session 2 has no way to perform — do not commission an impossible "certified result."
+Scope the deliverable to the **audit plan**: the seam inventory, each gate's required evidence, the
+positive and adversarial fixture families, the failure-diagnostic-by-layer obligations, and the
+acceptance-artifact shape — i.e. *what the implementing session will prove and how*, not a rendered
+pass/fail. State this as a settled intention: (a) the spec specifies the audit, it does not render
+the verdict; (b) Session 2 MAY include a clearly-labeled **preliminary static survey** (what reading
+the code at the baseline suggests about likely gate satisfaction/risk) as *informative,
+non-certifying* evidence — explicitly marked "preliminary, not certification" — or omit it; and (c)
+authoritative pass/fail belongs to the implementing session that executes the gates. This pattern
+recurs across a gate sequence (e.g. a `P0-CERT → SPINE-CERT → EPI-CERT → …` certification ladder),
+so it is worth pinning explicitly rather than re-deriving each pass.
+
 **Analysis / recommendation report (not a numbered spec).** When the deliverable is a consolidated
 report of *recommended changes* to a doc tier rather than a ratified artifact — the recurring output
 of a **downward-cascade realignment** (§B) and of doc-overhaul passes generally — say so explicitly,
