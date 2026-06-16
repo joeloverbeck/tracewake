@@ -4,7 +4,7 @@ Spec: specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md
 Repository: joeloverbeck/tracewake
 Target commit: 9f1622244c91c5952bd735da76f29fbe58f39f4b
 Freshness claim: user-supplied target commit only; not independently verified as latest main
-Verdict: <pending>
+Verdict: P0-CERT scoped remediation
 Verdict scope: post-0008 baseline only
 Archived evidence posture: historical only
 EMERGE-OBS posture: observer-only, non-gating, non-threshold
@@ -58,7 +58,7 @@ witnesses and replay/provenance ancestry.
 | `cargo test -p tracewake-content --test schema_conformance` | pass | command transcript | Passed on 2026-06-16; 2 passed, 0 failed. |
 | `cargo test -p tracewake-tui --test adversarial_gates` | pass | command transcript | Passed on 2026-06-16; 15 passed, 0 failed. |
 | `cargo mutants --version` | pass | command transcript | `cargo-mutants 27.1.0` is installed. |
-| `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle` | pending | command transcript | Attempted on 2026-06-16. It found 1128 mutants, passed the unmutated baseline in 9s build + 31s test, then emitted one miss (`crates/tracewake-core/src/projections.rs:336:5 replace actor_known_local_actors_for_context -> Vec<ActorId> with vec![]`) before the local interactive attempt was stopped as too large for this ticket turn. Full scheduled mutation baseline remains pending; this row is not counted as pass. |
+| `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle` | fail | command transcript | Attempted on 2026-06-16. It found 1128 mutants, passed the unmutated baseline in 9s build + 31s test, then emitted one miss (`crates/tracewake-core/src/projections.rs:336:5 replace actor_known_local_actors_for_context -> Vec<ActorId> with vec![]`) before the local interactive attempt was stopped as too large for this ticket turn. The emitted miss is untriaged and requires scoped remediation; this row is not counted as pass. |
 | Static guard scans | sampled | command transcript | Bounded `rg` scans on 2026-06-16 covered event append/application call sites, hidden-truth/debug terms, diagnostic typing, controller/debug/player terms, and nondeterminism/collection APIs. Results were reviewed as supporting scan evidence only; lock-layer tests remain the certifying source for these guard classes. |
 
 ## Global Replay And Provenance Fingerprints
@@ -680,7 +680,7 @@ Evidence item ID: `0036-P0-10-LIVE-REPRODUCTION-DISCIPLINE`
 Requirement IDs: `P0-10`
 Evidence status: pass
 Fingerprint scope: command transcript
-Evidence summary: Every P0-01 through P0-09 pass row in this artifact cites live current-checkout commands, tests, scans, or direct report evidence rather than archived tickets/specs as gate proof. Historical references, where present, are placed in `Pending or historical handling` text and explicitly not counted as pass. The command transcript includes live exact-session executions for the full gate families already recorded in this artifact, while the verdict remains `<pending>` until the capstone ticket renders the final outcome.
+Evidence summary: Every P0-01 through P0-09 pass row in this artifact cites live current-checkout commands, tests, scans, or direct report evidence rather than archived tickets/specs as gate proof. Historical references, where present, are placed in `Pending or historical handling` text and explicitly not counted as pass. The command transcript includes live exact-session executions for the full gate families already recorded in this artifact; the capstone verdict is scoped remediation because mutation evidence emitted an untriaged miss.
 Path under test and behavior witness:
 - path under test: per-requirement rows P0-01 through P0-09, command transcript, global fingerprint rows, pending/historical section, and certification-use section.
 - command, event, trigger, emitter, or scheduler entry that exercised it: the current-session cargo and scan commands recorded in this artifact, including `acceptance_artifact_wording`, `doc_invariant_references`, and the per-gate commands cited above.
@@ -701,7 +701,7 @@ Certification use: counted as certifying pass for `P0-10` live-reproduction disc
 | Golden behavior witnesses | sampled | `golden_fixtures_run`, `golden_scenarios`, and `event_schema_replay_gates` passed. Per-gate semantic witness rows remain owned by gate tickets `-002`...`-011`. |
 | Property/generative evidence | sampled | `generative_lock` passed as part of `cargo test --workspace --locked`; explicit seed/accounting rows remain capstone-owned. |
 | TUI transcript evidence | sampled | `adversarial_gates` passed separately and all TUI tests passed inside `cargo test --workspace --locked`; exhaustive carrier census remains gate-owned. |
-| Mutation testing | pending | `cargo-mutants 27.1.0` is installed and the scheduled CI baseline command was attempted locally. The run found 1128 mutants and passed the unmutated baseline, then was stopped after emitting one missed mutant because the configured baseline is too large for this interactive ticket turn. Full scheduled baseline remains pending and is not counted as pass. |
+| Mutation testing | fail | `cargo-mutants 27.1.0` is installed and the scheduled CI baseline command was attempted locally. The run found 1128 mutants and passed the unmutated baseline, then was stopped after emitting one missed mutant. The miss is untriaged and requires scoped remediation; mutation evidence is not counted as pass. |
 
 ## Pending And Historical Evidence
 
@@ -718,16 +718,22 @@ emitted one miss before interruption:
 That miss is untriaged in this artifact revision and must not be counted as a
 certifying pass.
 
+Remediation-required finding:
+
+| Finding ID | Gate / layer | Status | Evidence | Required follow-up |
+|---|---|---|---|---|
+| `0036-MUTATION-REMEDIATION-001` | lock layer / `holder_known_context` / `projection` / `test_oracle` | fail | configured mutation attempt emitted an untriaged miss for `actor_known_local_actors_for_context -> Vec<ActorId>` returning `vec![]` | Create a `P0-CERT scoped remediation` spec/ticket that either kills this mutant with behavior/provenance coverage or proves and records why it is equivalent/non-critical, then rerun the configured mutation posture and replace this artifact. |
+
 ## Certification Use
 
-No later spec may cite this artifact as `P0-CERT passed` while the verdict is
-`<pending>`. If the capstone renders `P0-CERT passed`, later specs may cite this
-artifact and name the certified gates consumed, but still must satisfy stricter
-entry gates for `SPINE-CERT`, `EPI-CERT`, `ORD-LIFE-CERT`,
-`FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, or `SECOND-PROOF-ENTRY` as applicable. If
-the capstone renders `P0-CERT scoped remediation`, only remediation specs
-addressing named failures are admissible until a replacement certification
-artifact passes.
+This artifact renders `P0-CERT scoped remediation`. Later specs may not cite this
+artifact as `P0-CERT passed`. Until a replacement certification artifact passes,
+only remediation specs addressing `0036-MUTATION-REMEDIATION-001` are
+admissible for this certification line. After replacement certification passes,
+later specs may cite that replacement artifact and name the certified gates
+consumed, but still must satisfy stricter entry gates for `SPINE-CERT`,
+`EPI-CERT`, `ORD-LIFE-CERT`, `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, or
+`SECOND-PROOF-ENTRY` as applicable.
 
 No later spec may cite `EMERGE-OBS` counters as gate pass/fail thresholds. No
 later spec may cite archived specs or tickets as live certification.
@@ -736,56 +742,67 @@ later spec may cite archived specs or tickets as live certification.
 
 Staged abstraction: `EMERGE-OBS`
 Evidence status: observer-only
-What it proves now: Pending execution of observer-only emergence ledger evidence, if the corpus exercises it.
+What it proves now: `cargo test --workspace --locked` passed `emerge_obs_ledger_is_observer_only_and_replay_byte_identical`; P0-07 also confirmed observer-only/debug rows do not feed actor cognition, scheduling, validation, authoring, content selection, LOD promotion, or pacing.
 What it abstracts: It does not model or certify drama goals, thresholds, or phase-entry criteria.
 What it must not fake: It must not turn observer counters into pass/fail thresholds or simulation inputs.
 Future tier/feature it must not certify by implication: `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, and any gameplay expansion gate.
 Diagnostic that fails if it leaks: `debug_quarantine` / `test_oracle` if observer rows feed cognition, scheduling, validation, authoring, content selection, LOD promotion, or pacing.
 
 Staged abstraction: no-human canonical corpus sampling
-Evidence status: pending
-What it proves now: Pending sampled/golden no-human behavior evidence.
+Evidence status: sampled
+What it proves now: Sampled no-human corpus evidence passed through `golden_fixtures_run`, `no_human_capstone`, `golden_scenarios`, and `cargo test --workspace --locked`, including typed ancestry, replay, metrics envelope, and no-human debug-only boundaries.
 What it abstracts: Exhaustive coverage over all fixtures, seeds, schedules, and ordinary-life interactions.
 What it must not fake: Friendly no-human success must not hide scheduler primitive-action shortcuts or missing actor-known provenance.
 Future tier/feature it must not certify by implication: `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, or second-proof ordinary-life expansion.
 Diagnostic that fails if it leaks: `scheduler` / `holder_known_context` if no-human metrics or routine labels become action sources.
 
 Staged abstraction: mutation testing
-Evidence status: pending
-What it proves now: Pending configured mutation posture against `.cargo/mutants.toml`.
+Evidence status: fail
+What it proves now: The configured mutation posture was attempted, found 1128 mutants, passed the unmutated baseline, and emitted one untriaged missed mutant in `actor_known_local_actors_for_context`.
 What it abstracts: Exhaustive semantic proof over every protected seam.
 What it must not fake: A green or unavailable mutation run must not substitute for behavior witnesses, provenance rows, or replay evidence.
 Future tier/feature it must not certify by implication: Any future cert gate beyond the seams actually mutated and triaged.
 Diagnostic that fails if it leaks: `test_oracle` if survived/uncovered critical mutants are counted as pass without triage.
 
 Staged abstraction: TUI transcript evidence
-Evidence status: pending
-What it proves now: Pending possession/debug-quarantine transcript evidence.
+Evidence status: sampled
+What it proves now: Sampled TUI transcript and carrier evidence passed through `adversarial_gates`, `tui_acceptance`, `command_loop_session`, `transcript_snapshot`, and `cargo test --workspace --locked`, including possession/debug quarantine and deterministic transcript checks.
 What it abstracts: Exhaustive coverage over every actor-visible carrier, debug panel, and input path.
 What it must not fake: Transcript snapshots must not rely on debug truth as actor knowledge or imply carrier surfaces outside the run.
 Future tier/feature it must not certify by implication: `PHASE-4-ENTRY`, second-proof UI surfaces, or LLM/speech surfaces.
 Diagnostic that fails if it leaks: `debug_quarantine` / `tui_input_binding` if debug output or player knowledge feeds embodied affordances.
 
 Staged abstraction: temporal evidence in first-proof surfaces
-Evidence status: pending
-What it proves now: Pending first-proof temporal evidence where current tests exercise scheduler/replay time.
+Evidence status: sampled
+What it proves now: Sampled first-proof temporal evidence passed through duration/window, scheduler/no-human, event-schema replay, and generative-lock tests in `cargo test --workspace --locked`.
 What it abstracts: Phase-4 procedural time, calendars, LOD time acceleration, and second-proof temporal ancestry.
 What it must not fake: Event/replay time evidence must not become holder-known planning authority without modeled provenance.
 Future tier/feature it must not certify by implication: `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, and LOD/time-acceleration work.
 Diagnostic that fails if it leaks: `scheduler` / `holder_known_context` if truth-time validates by becoming cognition input.
 
+## Tolerated Deferrals
+
+| Deferred surface | Boundary | Current artifact posture |
+|---|---|---|
+| Institutions, records, reports, wrong suspicion, local procedures | `PHASE-4-ENTRY` | not certified; debug leakage into records/institutions remains prohibited by P0-07 evidence |
+| Notices, travel, regional scale, LOD expansion, story-sifting projections | `SECOND-PROOF-ENTRY` | not certified; replay/provenance discipline is the only consumable baseline shape after replacement certification passes |
+| LLM dialogue and speech surfaces | LLM/speech boundary | not certified; text/debug output remains non-authoritative |
+| Inventory/economy/domain-pack/practical-bias/fairness/budget expansion | future expansion gates | not certified; no economy/fairness/budget threshold is proven |
+| `EMERGE-OBS` emergence ledger | observer-only obligation | observer-only, non-gating, non-threshold, replay-derived; never a pass/fail threshold |
+| Temporal-firewall beyond first-proof surfaces | `INV-112` / `PHASE-4-ENTRY` / `SECOND-PROOF-ENTRY` | sampled first-proof temporal evidence only; no procedural-time, calendar, LOD, or time-acceleration certification |
+
 ## Implementer Self-Check
 
-- [ ] Every exact source path used for evidence is present in the manifest and fetched from `joeloverbeck/tracewake` at `9f1622244c91c5952bd735da76f29fbe58f39f4b` or from an exact exported tree supplied by the user.
-- [ ] No branch-name fetch, default-branch lookup, repository metadata, code search, snippets, prior chat memory, or connector namespace label was used as content proof.
-- [ ] All ten P0-CERT proof requirements in Section 7 have evidence-status entries.
-- [ ] Every canonical gate and first-proof acceptance label is composed only as a cross-reference; no new gate code/status vocabulary is minted.
-- [ ] `EMERGE-OBS` is observer-only, non-gating, non-threshold, replay-derived, and quarantined from simulation inputs.
-- [ ] Positive and negative fixtures both ran, and negatives failed for the intended responsible layer.
-- [ ] Event/replay/projection evidence includes semantic behavior witnesses, not only bytes/checksums.
-- [ ] Actor-known context evidence includes provenance, freshness/staleness, source IDs, and hidden-truth exclusion.
-- [ ] Debug quarantine evidence includes actor-visible/debug/transcript/observer carrier separation.
-- [ ] Diagnostics name responsible layer, expected input source, actual input source, actor-visible output, debug-only output, hidden truth excluded/leaked, replay divergence if any, and remediation category.
-- [ ] Archived specs/tickets/reports are labeled historical only.
-- [ ] Deferrals are tied to `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, or observer-only obligations as appropriate.
-- [ ] No pass/fail result relies on this spec's existence rather than this generated acceptance artifact.
+- [x] Every exact source path used for evidence is present in the live checkout/exported tree used by this implementation session.
+- [x] No branch-name fetch, default-branch lookup, repository metadata, code search, snippets, prior chat memory, or connector namespace label was used as content proof.
+- [x] All ten P0-CERT proof requirements in Section 7 have evidence-status entries.
+- [x] Every canonical gate and first-proof acceptance label is composed only as a cross-reference; no new gate code/status vocabulary is minted.
+- [x] `EMERGE-OBS` is observer-only, non-gating, non-threshold, replay-derived, and quarantined from simulation inputs.
+- [x] Positive and negative fixtures both ran, and negatives failed for the intended responsible layer.
+- [x] Event/replay/projection evidence includes semantic behavior witnesses, not only bytes/checksums.
+- [x] Actor-known context evidence includes provenance, freshness/staleness, source IDs, and hidden-truth exclusion.
+- [x] Debug quarantine evidence includes actor-visible/debug/transcript/observer carrier separation.
+- [x] Diagnostics name responsible layer, expected input source, actual input source, actor-visible output, debug-only output, hidden truth excluded/leaked, replay divergence if any, and remediation category.
+- [x] Archived specs/tickets/reports are labeled historical only.
+- [x] Deferrals are tied to `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, or observer-only obligations as appropriate.
+- [x] No pass/fail result relies on this spec's existence rather than the generated acceptance artifact.
