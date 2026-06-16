@@ -237,9 +237,9 @@ Diagnostics by layer:             crates/tracewake-core/src/agent/trace.rs, acti
     `SECOND-PROOF-ENTRY`); the spec names them only as deferrals, never as remediation or audit targets.
 
 > `assumption`: the spec is authored at
-> **`specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`** — the
-> implementation-spec staging series (`specs/NNNN_*`), which is archived to `archive/specs/` on
-> acceptance and not promoted into live `docs/4-specs/`. Number `0037` is the next free number across
+> **`archive/specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`** — the
+> accepted implementation-spec artifact, originally staged under the `specs/NNNN_*` series before
+> archive closeout and not promoted into live `docs/4-specs/`. Number `0037` was the next free number across
 > `specs/`, `docs/4-specs/`, and `archive/specs/` (highest existing is `0036`, now archived; the
 > series is contiguous with no recent renumbering — confirmed against `SPEC_LEDGER.md` and git
 > history). If you judge a clearer title slug, you may adjust the title words but keep the `0037_`
@@ -310,9 +310,8 @@ Produce **one** downloadable markdown document — a **numbered implementation s
 `specs/`-tier artifact; the numbering/placement assumption in §3 applies). There is no paired
 `-research-report.md`.
 
-- **`specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`** — **new** file.
-  (If you determine a clearly-better title slug, adjust the title words but keep the `0037_` prefix
-  and the `specs/` staging path unless §3's placement assumption is wrong.)
+- **`archive/specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`** — accepted file.
+  (It was authored under the `0037_` prefix and staged before archive closeout.)
 
 **This deliverable is non-executable.** You cannot run `cargo fmt/clippy/build/test`, `cargo mutants`,
 or replay against live code from this session. The spec therefore specifies *what the implementing

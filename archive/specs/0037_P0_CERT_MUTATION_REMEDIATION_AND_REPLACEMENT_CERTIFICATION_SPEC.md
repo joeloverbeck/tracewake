@@ -4,7 +4,7 @@
 **Target repository:** `joeloverbeck/tracewake`  
 **Target commit:** `c54caff24596f32104c4b83a1c4c6e0489636be6`  
 **Spec series:** numbered implementation spec, staged under `specs/`, to be archived under `archive/specs/` on acceptance.  
-**Status:** implementation-plan specification; not an acceptance artifact and not a certification result.  
+**Status:** COMPLETED implementation specification; archived after acceptance.
 **Work posture:** `Remediation`.  
 **P0-CERT admissibility posture of this spec:** `P0-CERT scoped remediation`.  
 **Certification-line effect:** successful execution of this spec must produce a replacement P0-CERT acceptance artifact that renders `P0-CERT passed` for the post-0008 baseline and explicitly supersedes `archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`. Until that replacement artifact exists and passes, later specs may not cite `P0-CERT passed`.
@@ -681,3 +681,57 @@ These sources shaped the mutation-run and triage method. They are not Tracewake 
 [^papadakis-survey]: Papadakis et al., “Mutation Testing Advances: An Analysis and Survey,” notes that equivalent/redundant mutants inflate mutation-score interpretation and that identifying equivalence/redundancy is undecidable in general. <https://mutationtesting.uni.lu/survey.pdf>
 
 [^nguyen-madeyski]: Nguyen and Madeyski, “Problems of Mutation Testing and Higher Order Mutation Testing,” summarizes mutation-testing cost, equivalent mutants with same behavior as the original program, and the need for human effort in equivalence assessment. <https://madeyski.e-informatyka.pl/download/NguyenMadeyski14.pdf>
+
+## Outcome
+
+Completed: 2026-06-16
+
+The `0037P0CERTMUTREM` ticket series completed the scoped remediation demanded
+by the 0036 P0-CERT artifact.
+
+Implemented and verified:
+
+- `0037P0CERTMUTREM-001` added
+  `hidden_truth_gates::actor_known_local_actor_reaches_embodied_view_model_with_context_provenance`,
+  a public behavior/provenance witness proving a source-backed
+  actor-known local actor reaches `EmbodiedViewModel.local_actors` while a
+  physically co-located but not actor-known actor stays absent. The targeted
+  projection mutation posture caught
+  `actor_known_local_actors_for_context -> vec![]`.
+- `0037P0CERTMUTREM-002` ran the full configured guarded-layer mutation posture
+  unsharded: 1128 mutants tested in 66m, 896 caught, 232 unviable, 0 missed,
+  0 timeout. The triage register is
+  `reports/0037_mutation_triage_register.md`.
+- `0037P0CERTMUTREM-003` produced
+  `archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md`,
+  which supersedes
+  `archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`
+  and renders `P0-CERT passed` for the scoped post-0008 baseline mutation
+  remediation line.
+
+Verification run during the series included:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-core --test doc_invariant_references`
+- `cargo test --locked -p tracewake-core --test spine_conformance`
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test anti_regression_guards`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
+- `cargo test --locked -p tracewake-content --test schema_conformance`
+- `cargo test --locked -p tracewake-content --test forbidden_content`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+- `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle`
+
+No P0-CERT obligation in this spec was deferred. Future certification or
+feature work remains governed by the live foundation, architecture, execution,
+reference, and spec ledgers; this spec does not advance Phase-4 entry, second
+proof, institutions, notices, travel, LOD, LLM/speech surfaces, SPINE-CERT,
+EPI-CERT, or ORD-LIFE-CERT.

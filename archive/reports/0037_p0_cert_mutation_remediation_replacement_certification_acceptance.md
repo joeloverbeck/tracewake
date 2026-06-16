@@ -1,6 +1,6 @@
 # 0037 P0-CERT mutation remediation replacement certification acceptance artifact
 
-Spec: `specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`
+Spec: `archive/specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`
 Supersedes: `archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`
 Supersession condition: this artifact renders P0-CERT passed after completing mutation remediation and live P0-01..P0-10 re-proof.
 Repository: `joeloverbeck/tracewake`
