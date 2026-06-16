@@ -85,7 +85,7 @@ computed only from certifying evidence items.
 | `P0-03` human-origin commands bind to ordinary actors and share action rules | `tui_input_binding`, `view_model`, `proposal_construction`, `action_validation`, `event_append` | `0036-P0-03-HUMAN-AUTONOMOUS-PARITY`, `0036-P0-03-TUI-BINDING-VIEWMODEL`, `0036-P0-03-DEBUG-PRIVILEGE-NEGATIVES` | pass |
 | `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | `0036-P0-04-PREPOST-STATE-FINGERPRINTS`, `0036-P0-04-HOLDER-KNOWN-VIEW-FILTERING`, `0036-P0-04-DEBUG-REBIND-NEGATIVES` | pass |
 | `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | `0036-P0-05-NOHUMAN-CAPSTONE-ANCESTRY`, `0036-P0-05-PASSIVE-ACCOUNTING-SINGLE-CHARGE`, `0036-P0-05-SCHEDULER-SHORTCUT-NEGATIVES` | pass |
-| `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | pending gate evidence from `0036P0CERPOS0008-007` | pending |
+| `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | `0036-P0-06-ACCEPT-REJECT-EVENT-PATH`, `0036-P0-06-HOLDER-KNOWN-NO-FALLBACK`, `0036-P0-06-ACTOR-VISIBLE-DEBUG-NEGATIVES` | pass |
 | `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-008` | pending |
 | `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | pending gate evidence from `0036P0CERPOS0008-009` | pending |
 | `P0-09` failure diagnostics name responsible layer | `doctrine`, `content_schema`, `content_validation`, `fixture_contract`, `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-010` | pending |
@@ -415,9 +415,63 @@ Certification use: counted as certifying pass for `P0-05` scheduler shortcut neg
 
 ### P0-06 - Validation Truth Boundary
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-007`.
+Evidence item ID: `0036-P0-06-ACCEPT-REJECT-EVENT-PATH`
+Requirement IDs: `P0-06`
+Evidence status: pass
+Fingerprint scope: command transcript / replay artifact
+Evidence summary: Validation accepts, rejects, and mutates only through the proposal/pipeline/event path. `cargo test -p tracewake-core --test acceptance_gates` passed 12 tests, including structured rejection, event append ordering, phase-boundary rejection, human/scheduler shared validation, sleep shared pipeline, and live/replay agent checksum coverage. `cargo test -p tracewake-content --test golden_fixtures_run` passed 40 tests, including workplace rejection, displacement validation, interrupted sleep duration, routine blocked diagnostics, severe-safety blockers, and replay/tamper checks.
+Path under test and behavior witness:
+- path under test: `validate_proposal`, action defs for movement/take/place/sleep/eat/work/wait/continue-routine, `run_pipeline`, event append/application, replay rebuild.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test acceptance_gates`; `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `action_validation`, `event_append`, `event_application`, `projection`, `replay`.
+- accepted/rejected action or validation stage witnessed: accepted world-affecting actions append events before authoritative application; rejected/out-of-scope/blocked actions return typed reports and do not become fallback plans; interrupted duration and displacement cases replay through event/application checks.
+- live negative, mutation-style failure, or reason no negative is applicable: replay tamper and checksum negatives fail when accepted/rejected outcomes are changed.
+- checked facts or invariants the witness supports: validation truth can accept/reject/mutate through events but cannot be an independent cognition or planning source.
+Replay/provenance ancestry:
+- event-log segment or event identifiers: accepted/rejected action events, routine/need events, and fixture replay logs from `golden_fixtures_run`.
+- replay artifact or serialized-log reference: live/replay agent checksum assertions and golden fixture replay/tamper checks.
+- seed, randomness, content version, or ruleset version where applicable: deterministic golden fixture corpus and current content manifests.
+- extraction/projection version for derived evidence: current action pipeline, event application, projection, and replay code.
+- source provenance for any claim crossing from artifact to semantic behavior: inspected tests/source plus passing command transcripts.
+Sampling/exhaustiveness scope: sampled action validation positives/negatives across core acceptance gates and golden fixtures.
+Pending or historical handling: mutation baseline remains pending under ticket `-001`; no mutation result is counted for P0-06.
+Certification use: counted as certifying pass for `P0-06` accept/reject/event-path evidence.
+
+Evidence item ID: `0036-P0-06-HOLDER-KNOWN-NO-FALLBACK`
+Requirement IDs: `P0-06`
+Evidence status: pass
+Fingerprint scope: context hash/frontier
+Evidence summary: Selected actions and fallback/stuck outcomes are justified by pre-validation holder-known context; validator truth does not add candidate goals, route hints, food targets, workplace facts, or hidden facts to actor-known context. `cargo test -p tracewake-core --test hidden_truth_gates` passed 13 tests, including `hidden_food_closed_container_is_not_actor_known_food_source`, `hidden_route_edge_absent_from_actor_context_blocks_route_plan`, `hidden_food_unknown_route_does_not_become_transaction_target`, `workplace_requires_assignment_or_observation_provenance`, and `debug_omniscience_facts_are_excluded_from_planner_context`. `golden_fixtures_run` passed `no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`, `phase2a_validation_rejects_shortcut_truth_fields`, `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, and the scheduler/fallback negative fixtures.
+Path under test and behavior witness:
+- path under test: actor-known context derivation, candidate generation, goal selection trace, local planning, hidden-truth audit, validation preflight.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-core --test hidden_truth_gates`; `cargo test -p tracewake-content --test golden_fixtures_run`.
+- responsible layer: `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`.
+- accepted/rejected action or validation stage witnessed: hidden food remains absent from known food sources and semantic/planner targets; hidden route edges are absent from route planning; planner failures report actor-known blockers rather than validation-truth fallback targets.
+- live negative, mutation-style failure, or reason no negative is applicable: forbidden provenance, hidden route/food, shortcut truth fields, and method-fallback shortcut fixtures fail closed.
+- checked facts or invariants the witness supports: validator truth inspects after proposal construction and never updates cognition or selected targets.
+Replay/provenance ancestry: actor-known context hash/frontier and decision-trace proof rows; detailed context-hash replay is counted under P0-02.
+Sampling/exhaustiveness scope: sampled hidden-food, hidden-route, workplace-provenance, shortcut-field, and fallback-negative fixtures plus hidden-truth lock-layer suite.
+Pending or historical handling: none for this P0-06 evidence item.
+Certification use: counted as certifying pass for `P0-06` no-fallback/no-hidden-target evidence.
+
+Evidence item ID: `0036-P0-06-ACTOR-VISIBLE-DEBUG-NEGATIVES`
+Requirement IDs: `P0-06`
+Evidence status: pass
+Fingerprint scope: command transcript
+Evidence summary: Actor-visible validation failures expose typed, non-leaking reasons, while debug truth remains quarantined. `cargo test -p tracewake-tui --test adversarial_gates` passed 15 tests, including `adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts`, `adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target`, `adversarial_gates_debug_truth_does_not_enter_actor_surfaces`, and `debug_panel_does_not_change_embodied_affordances`. Source review of embodied semantic-action preflight shows validation reports become disabled action availability through reason codes, actor-visible summary, and explicit provenance refs to holder-known context, validation report, and actor-visible facts; they do not add hidden facts to the actor context.
+Path under test and behavior witness:
+- path under test: embodied semantic-action preflight, `ActionAvailability`, current-view why-not rendering, debug reports/panels, TUI submit.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `cargo test -p tracewake-tui --test adversarial_gates`; `cargo test -p tracewake-core --test hidden_truth_gates`.
+- responsible layer: `action_validation`, `view_model`, `debug_quarantine`, `tui_input_binding`.
+- accepted/rejected action or validation stage witnessed: actor-visible why-not contains typed reason codes and non-leaking facts; hidden food semantic IDs are not current actions and do not change checksums; debug facts do not enter holder-known context hashes or semantic action targets.
+- live negative, mutation-style failure, or reason no negative is applicable: forged/hidden semantic actions fail as non-current; debug reports are debug-only and leave actor surfaces unchanged.
+- checked facts or invariants the witness supports: validation/debug truth never becomes actor-visible hidden target, clue, suspect, workplace fact, or belief without modeled information flow.
+Replay/provenance ancestry: command transcript and checksum/current-view comparisons; debug rows are observer-only and not counted as world-state facts.
+Sampling/exhaustiveness scope: sampled TUI validation why-not, hidden target, debug quarantine, and current-view contamination negatives.
+Pending or historical handling: broad debug carrier census is owned by P0-07; this row counts only validation-boundary debug/actor-visible negatives.
+Certification use: counted as certifying pass for `P0-06` actor-visible/debug negative evidence.
 
 ### P0-07 - Debug Quarantine
 
