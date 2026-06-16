@@ -185,6 +185,7 @@ deviations in the ticket and spec outcomes.
 
 ```sh
 rg -n '(^|[^/A-Za-z0-9_-])(specs/<spec filename>|tickets/<ticket prefix>)' docs reports specs tickets
+rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)tickets/<ticket prefix>' docs reports specs tickets archive/reports
 ```
 
    Then run an archive-reference audit for expected archived paths, for example:
@@ -271,6 +272,9 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    diffs or status checks in one parallel batch. If an audit output is truncated
    or too noisy to verify, rerun smaller untruncated checks before committing or
    marking the goal complete.
+   If compaction interrupts or obscures a required gate, do not infer success
+   from prior intent. Check whether the process is still running, then rerun the
+   exact required gate if completion evidence is unavailable.
 
 7. Run a final status/diff check and commit the spec archive/truthing work.
 8. Before sending the final response or marking a `/goal` complete, confirm:
@@ -286,6 +290,9 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    - the spec archive/truthing commit exists.
    - if the final gates ran before that commit, no content changed between the
      final gate run and the committed tree; otherwise rerun the required gates.
+   - each required final gate from `AGENTS.md` or other repository guidance has
+     a literal matching command in the run evidence, or any flag/command
+     difference is recorded in the spec `Outcome` and final response.
    - the final response has been checked against the `## Reporting` bullets
      below.
 9. If a `/goal` is active, mark it complete only after implementation,
@@ -308,6 +315,8 @@ Final responses must include:
   sufficient.
 - `Verification commands run: <commands>.`
 - `Checks not run: <commands and why, or None>.`
+- `Required AGENTS gate deviations: <command/flag differences and why, or
+  None>.`
 - `Enumerated-criterion members deferred/dropped: <recorded dispositions, or
   None>.`
 - `Unrelated pre-existing changes left untouched: <paths/summary, or None>.`
