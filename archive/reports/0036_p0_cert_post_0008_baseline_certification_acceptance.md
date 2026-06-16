@@ -86,7 +86,7 @@ computed only from certifying evidence items.
 | `P0-04` possession never resets needs, intentions, memories, routines, or world-fact access | `tui_input_binding`, `holder_known_context`, `intention_lifecycle`, `view_model`, `projection` | `0036-P0-04-PREPOST-STATE-FINGERPRINTS`, `0036-P0-04-HOLDER-KNOWN-VIEW-FILTERING`, `0036-P0-04-DEBUG-REBIND-NEGATIVES` | pass |
 | `P0-05` scheduler paths cannot emit primitive world actions from raw truth, routine labels, need thresholds, or fixture tables | `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`, `local_planning`, `proposal_construction`, `action_validation`, `event_append`, `replay` | `0036-P0-05-NOHUMAN-CAPSTONE-ANCESTRY`, `0036-P0-05-PASSIVE-ACCOUNTING-SINGLE-CHARGE`, `0036-P0-05-SCHEDULER-SHORTCUT-NEGATIVES` | pass |
 | `P0-06` validation truth may accept/reject/mutate through events but may not propose fallback plans or actor-visible hidden facts | `action_validation`, `event_application`, `holder_known_context`, `candidate_generation`, `local_planning`, `proposal_construction`, `debug_quarantine` | `0036-P0-06-ACCEPT-REJECT-EVENT-PATH`, `0036-P0-06-HOLDER-KNOWN-NO-FALLBACK`, `0036-P0-06-ACTOR-VISIBLE-DEBUG-NEGATIVES` | pass |
-| `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-008` | pending |
+| `P0-07` debug surfaces are non-diegetic and cannot feed embodied/world surfaces | `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle` | `0036-P0-07-CARRIER-CENSUS`, `0036-P0-07-DEBUG-QUARANTINE-NEGATIVES`, `0036-P0-07-OBSERVER-ONLY-ROWS` | pass |
 | `P0-08` golden fixtures include adversarial hidden-truth, no-human, possession, replay, view-model, content-validation, and direct-dispatch rejection cases | `fixture_contract`, `content_schema`, `content_validation`, `holder_known_context`, `test_oracle`, `view_model`, `debug_quarantine`, `replay` | pending gate evidence from `0036P0CERPOS0008-009` | pending |
 | `P0-09` failure diagnostics name responsible layer | `doctrine`, `content_schema`, `content_validation`, `fixture_contract`, `holder_known_context`, `candidate_generation`, `intention_lifecycle`, `method_selection`, `local_planning`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `projection`, `replay`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-010` | pending |
 | `P0-10` archived specs and tickets are cited only as history | `doctrine`, `documentation status`, `test_oracle` | pending gate evidence from `0036P0CERPOS0008-011` | pending |
@@ -475,9 +475,58 @@ Certification use: counted as certifying pass for `P0-06` actor-visible/debug ne
 
 ### P0-07 - Debug Quarantine
 
-Status: pending
+Status: pass
 
-Evidence will be filled by `0036P0CERPOS0008-008`.
+Evidence item ID: `0036-P0-07-CARRIER-CENSUS`
+Requirement IDs: `P0-07`
+Evidence status: pass
+Fingerprint scope: parsed semantic content and typed surface boundaries
+Evidence summary: The debug/embodied-view corpus keeps actor-visible surfaces separate from debug-only and observer-only surfaces. `cargo test -p tracewake-content --test golden_fixtures_run` passed 40 tests, including the registered `debug_attach_001`, `debug_omniscience_excluded_001`, `view_filtering_001`, `view_model_local_actions_001`, `embodied_view_omits_raw_assignment_without_context_001`, `embodied_view_omits_unobserved_food_at_open_place_001`, and `embodied_view_omits_unknown_sleep_affordance_001` fixture coverage. `cargo test -p tracewake-tui --test adversarial_gates` passed 15 tests, including `adversarial_gates_debug_truth_does_not_enter_actor_surfaces`, `debug_panel_does_not_change_embodied_affordances`, `tui_transcript_marks_debug_sections_non_diegetic`, and `adversarial_gates_no_human_operator_output_stays_debug_only`.
+Path under test and behavior witness:
+- path under test: debug capability/fixture attachment, embodied projection/view-model construction, current-view action submission, debug panels, and no-human/debug transcript rendering.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `debug_attach_001`, `debug_omniscience_excluded_001`, `view_filtering_001`, `view_model_local_actions_001`, and the embodied-view omission fixtures through `golden_fixtures_run`; adversarial TUI gates through `TuiApp::from_golden`.
+- responsible layer: `debug_quarantine`, `view_model`, `holder_known_context`, `tui_input_binding`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: debug capability attaches as a quarantined capability; actor-visible view-model/action rows are derived from embodied state and current source context; debug panel rows are rendered as non-diegetic observer information.
+- live negative, mutation-style failure, or reason no negative is applicable: core and TUI negatives fail closed when debug truth, stale source contexts, raw assignment truth, unobserved food, unknown sleep affordances, or command strings attempt to masquerade as actor-visible knowledge or embodied commands.
+- checked facts or invariants the witness supports: actor-visible rows are holder-known/context-backed; debug-only rows may have replay ancestry but are labeled observer-only and are not accepted as actor cognition, affordances, validator/scheduler/content-selection inputs, records, or institutional state.
+Replay/provenance ancestry: golden fixture fingerprints and adversarial TUI current-view/source-context checks; debug rows remain observer-only and separate from modeled knowledge.
+Sampling/exhaustiveness scope: representative debug attach, debug omniscience, view filtering, local action, omitted assignment, omitted hidden food, and omitted sleep-affordance fixtures plus TUI adversarial debug gates.
+Pending or historical handling: this item certifies the P0-07 debug carrier boundary only; it does not certify the capstone `EMERGE-OBS` staged-abstraction declaration owned by `0036P0CERPOS0008-012`.
+Certification use: counted as certifying pass for `P0-07` carrier census evidence.
+
+Evidence item ID: `0036-P0-07-DEBUG-QUARANTINE-NEGATIVES`
+Requirement IDs: `P0-07`
+Evidence status: pass
+Fingerprint scope: typed negative guards
+Evidence summary: `cargo test -p tracewake-core --test anti_regression_guards` passed 80 tests, including `embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance`, `diagnostics_never_assert_display_label_as_authority`, `privileged_tui_proposal_requires_current_view_source_context`, `guard_014_no_human_metrics_do_not_scan_display_text`, `guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth`, and `validation_report_keeps_typed_provenance_and_actor_debug_split`. `adversarial_gates` also passed the direct debug negatives: debug truth does not enter actor surfaces, the debug panel does not alter embodied affordances, possession rebind does not transfer notebook/debug truth, no-human operator output stays debug-only, and debug command strings are not embodied commands.
+Path under test and behavior witness:
+- path under test: actor-known projection, embodied projection, validation report provenance, TUI privileged proposal/current-view source context, no-human metrics, debug panel rendering, and adversarial TUI input binding.
+- command, event, trigger, emitter, or scheduler entry that exercised it: `anti_regression_guards` static/semantic guards and `adversarial_gates` TUI flows.
+- responsible layer: `holder_known_context`, `view_model`, `debug_quarantine`, `tui_input_binding`, `test_oracle`.
+- accepted/rejected action or validation stage witnessed: stale/forged source contexts and direct debug command strings are rejected; hidden/debug facts are not accepted as semantic targets or actor-surface proof.
+- live negative, mutation-style failure, or reason no negative is applicable: the named guards would fail if debug reports, display labels, no-human metrics, raw assignment/sleep truth, or debug panel output were used as actor provenance or test-oracle authority.
+- checked facts or invariants the witness supports: debug-derived facts do not become actor cognition, embodied affordances, validators, scheduler inputs, content selectors, records, institutions, or actor-knowledge test oracles.
+Replay/provenance ancestry: anti-regression source classification/provenance guards and adversarial TUI typed source-context checks.
+Sampling/exhaustiveness scope: targeted carrier and oracle negatives for the debug/actor-visible split.
+Pending or historical handling: mutation baseline remains pending from `0036P0CERPOS0008-001` and is not counted as P0-07 pass evidence.
+Certification use: counted as certifying pass for `P0-07` debug quarantine negatives.
+
+Evidence item ID: `0036-P0-07-OBSERVER-ONLY-ROWS`
+Requirement IDs: `P0-07`
+Evidence status: pass
+Fingerprint scope: observer-only artifact boundary
+Evidence summary: No-human metrics, debug reports, hidden-truth comparison displays, transcript debug sections, and `EMERGE-OBS` rows are treated as observer-only review artifacts rather than simulation inputs. The passing `adversarial_gates_no_human_operator_output_stays_debug_only`, `tui_transcript_marks_debug_sections_non_diegetic`, `guard_014_no_human_metrics_do_not_scan_display_text`, and `validation_report_keeps_typed_provenance_and_actor_debug_split` checks cover this boundary.
+Path under test and behavior witness:
+- path under test: no-human metrics/debug transcript output, validation report provenance, debug panels, and observer-only report rows.
+- command, event, trigger, emitter, or scheduler entry that exercised it: adversarial TUI no-human/debug transcript gates and core anti-regression diagnostics guards.
+- responsible layer: `debug_quarantine`, `test_oracle`, `holder_known_context`.
+- accepted/rejected action or validation stage witnessed: observer-only rows may explain or review replay-derived behavior but do not become pass/fail thresholds, actor-visible facts, cognition inputs, scheduler inputs, validators, or content selectors.
+- live negative, mutation-style failure, or reason no negative is applicable: no-human/display-text and validation/debug split guards fail if observer-only data is used as authority for modeled actor knowledge.
+- checked facts or invariants the witness supports: `EMERGE-OBS` remains observer-only, non-gating, non-threshold, and quarantined from simulation inputs for the P0-07 surfaces.
+Replay/provenance ancestry: observer-only rows are replay/report artifacts; actor-facing rows must still cite holder-known/source-context provenance.
+Sampling/exhaustiveness scope: observer-only boundary for debug, no-human metrics, transcript debug sections, hidden-truth comparison displays, and `EMERGE-OBS` posture.
+Pending or historical handling: full `EMERGE-OBS` capstone declaration remains owned by `0036P0CERPOS0008-012`; this row certifies only that P0-07 debug/observer evidence is non-diegetic.
+Certification use: counted as certifying pass for `P0-07` observer-only quarantine evidence.
 
 ### P0-08 - Golden And Adversarial Fixture Corpus
 
