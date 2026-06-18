@@ -671,17 +671,21 @@ mod tests {
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
     use crate::actions::proposal::{Proposal, ProposalOrigin};
     use crate::actions::registry::ActionRegistry;
+    use crate::actions::report::ReportStatus;
     use crate::agent::{
         Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
         RoutineFamily,
     };
+    use crate::events::PayloadField;
     use crate::ids::{
         ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
-        DecisionTraceId, FixtureId, IntentionId, PlaceId, ProposalId, RoutineExecutionId,
-        RoutineTemplateId, SemanticActionId, StuckDiagnosticId,
+        ControllerId, DecisionTraceId, FixtureId, IntentionId, PlaceId, ProposalId,
+        RoutineExecutionId, RoutineTemplateId, SemanticActionId, StuckDiagnosticId,
     };
+    use crate::replay::{rebuild_projection, run_replay};
+    use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
     use crate::state::{
-        ActorBody, AgentState, ContainerState, ItemState, PhysicalState, PlaceState,
+        ActorBody, AgentState, ContainerState, ControllerMode, ItemState, PhysicalState, PlaceState,
     };
     use crate::time::SimTick;
 
@@ -710,6 +714,32 @@ mod tests {
         }
     }
 
+    fn ordering_key(action: &str) -> OrderingKey {
+        OrderingKey::new(
+            SimTick::ZERO,
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id()),
+            ProposalSequence::new(0),
+            ActionId::new(action).unwrap(),
+            Vec::new(),
+            "debug-report-test",
+        )
+    }
+
+    fn event(id: &str, kind: EventKind, payload: Vec<PayloadField>) -> EventEnvelope {
+        let mut event = EventEnvelope::new_v1(
+            EventId::new(id).unwrap(),
+            kind,
+            99,
+            99,
+            SimTick::ZERO,
+            ordering_key("debug_event"),
+            content_manifest_id(),
+        );
+        event.payload = payload;
+        event
+    }
+
     fn state() -> PhysicalState {
         let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
         let place_id = PlaceId::new("shop_front").unwrap();
@@ -729,6 +759,142 @@ mod tests {
             ItemState::new(item_id(), Location::InContainer(container_id())),
         );
         state
+    }
+
+    #[test]
+    fn debug_report_channel_routing_rejects_forged_non_debug_capability() {
+        let state = state();
+        let log = EventLog::new();
+        let agent_state = AgentState::default();
+        let rebuild = rebuild_projection(&state, &agent_state, &log, &checksum_context(), None);
+        let replay = run_replay(
+            &state,
+            &agent_state,
+            &log,
+            &checksum_context(),
+            Some(&state),
+            Some(compute_physical_checksum(&state, &checksum_context()).checksum),
+            None,
+        );
+        let mut bindings = ControllerBindings::new();
+        bindings.attach(
+            ControllerId::new("controller_human").unwrap(),
+            actor_id(),
+            ControllerMode::Embodied,
+            SimTick::ZERO,
+            &mut EventLog::new(),
+            content_manifest_id(),
+        );
+
+        let routed = vec![
+            debug_report_channel(&DebugReportRoute::ItemLocation(item_location_report(
+                &state,
+                &log,
+                &item_id(),
+                &checksum_context(),
+            ))),
+            debug_report_channel(&DebugReportRoute::ActionRejection(action_rejection_report(
+                &ValidationReport {
+                    validation_report_id: ValidationReportId::new("report_route").unwrap(),
+                    proposal_id: ProposalId::new("proposal_route").unwrap(),
+                    actor_id: Some(actor_id()),
+                    action_id: ActionId::new("wait").unwrap(),
+                    target_ids: Vec::new(),
+                    status: ReportStatus::Rejected,
+                    failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
+                    reason_codes: vec![ReasonCode::WorldStateMismatch],
+                    checked_facts: Vec::new(),
+                    actor_visible_summary: "Action rejected.".to_string(),
+                    debug_summary: "debug-only validator fact".to_string(),
+                    actor_visible_facts: vec![CheckedFact::new("actor_id", actor_id().as_str())],
+                    debug_only_facts: vec![CheckedFact::new("debug_only", "validator_fact")],
+                    would_mutate: false,
+                    event_ids: Vec::new(),
+                    checksum_before: None,
+                    checksum_after: None,
+                },
+                &state,
+                &checksum_context(),
+            ))),
+            debug_report_channel(&DebugReportRoute::ProjectionRebuild(Box::new(
+                projection_rebuild_debug_report(
+                    DebugReportId::new("debug.rebuild.route").unwrap(),
+                    rebuild,
+                ),
+            ))),
+            debug_report_channel(&DebugReportRoute::Replay(Box::new(replay_debug_report(
+                DebugReportId::new("debug.replay.route").unwrap(),
+                replay,
+            )))),
+            debug_report_channel(&DebugReportRoute::ControllerBinding(
+                controller_binding_report(
+                    DebugReportId::new("debug.controller.route").unwrap(),
+                    &bindings,
+                ),
+            )),
+            debug_report_channel(&DebugReportRoute::Phase3A(phase3a_needs_report(
+                &agent_state,
+            ))),
+            debug_report_channel(&DebugReportRoute::NoHumanDay(no_human_day_debug_report(
+                &log,
+            ))),
+        ];
+        assert_eq!(
+            routed,
+            vec![
+                Some("debug:item_location"),
+                Some("debug:action_rejection"),
+                Some("debug:projection_rebuild"),
+                Some("debug:replay"),
+                Some("debug:controller_binding"),
+                Some("debug:phase3a"),
+                Some("debug:no_human_day"),
+            ]
+        );
+
+        for forged in forged_non_debug_reports(&state, &agent_state, &log) {
+            assert_eq!(
+                debug_report_channel(&forged),
+                None,
+                "forged non-debug report must not route: {forged:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn item_location_report_filters_exact_item_location_events() {
+        let state = state();
+        let mut log = EventLog::new();
+        log.append(event(
+            "event_unrelated_wait",
+            EventKind::ActorWaited,
+            vec![PayloadField::new("item_id", item_id().as_str())],
+        ))
+        .unwrap();
+        log.append(event(
+            "event_wrong_item_take",
+            EventKind::ItemTakenFromPlace,
+            vec![PayloadField::new("item_id", "coin_stack_02")],
+        ))
+        .unwrap();
+        log.append(event(
+            "event_right_item_take",
+            EventKind::ItemTakenFromPlace,
+            vec![PayloadField::new("item_id", item_id().as_str())],
+        ))
+        .unwrap();
+
+        let report = item_location_report(&state, &log, &item_id(), &checksum_context());
+
+        assert_eq!(
+            item_location_event_route(&report),
+            vec!["item_event:event_right_item_take:ItemTakenFromPlace"]
+        );
+        assert_eq!(
+            report.last_location_event_id.unwrap().as_str(),
+            "event_right_item_take"
+        );
+        assert_eq!(report.current_projection_position, Some(2));
     }
 
     #[test]
@@ -940,6 +1106,7 @@ mod tests {
         let planner = phase3a_planner_report(&agent_state, &actor_mara);
         let stuck = phase3a_stuck_report(&agent_state);
         let actor = phase3a_actor_report(&agent_state, &actor_mara);
+        let actor_tomas = phase3a_actor_report(&agent_state, &actor_id());
 
         for report in [&needs, &routines, &planner, &stuck, &actor] {
             assert!(report.debug_only());
@@ -982,6 +1149,39 @@ mod tests {
             .rows
             .iter()
             .any(|row| row.contains("actor=actor_mara")));
+        assert_eq!(
+            actor_debug_route(&actor),
+            vec![
+                "row:actor=actor_mara".to_string(),
+                "trace:trace_mara_food:actor_mara:failed:2:true:candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only".to_string(),
+                "stuck:stuck_mara_food:actor_mara:resource:replanning:empty_pantry:Mara knows no reachable food:blocked precondition: no actor-known serving".to_string(),
+            ]
+        );
+        assert!(actor.rows.iter().any(|row| {
+            row == "trace=trace_mara_food actor=actor_mara outcome=failed candidates=2 actor_known_only=true hidden_truth_notes=candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only"
+        }));
+        assert!(actor.rows.iter().any(|row| {
+            row == "routine=routine_exec_mara_eat template=routine_mara_food_unavailable status=NotStarted"
+        }));
+        assert!(actor_tomas
+            .rows
+            .iter()
+            .any(|row| row == "actor=actor_tomas"));
+        assert!(
+            actor_debug_route(&actor_tomas)
+                .iter()
+                .all(|row| !row.contains("trace_mara_food") && !row.contains("stuck_mara_food")),
+            "actor report for Tomas must exclude Mara-only trace/stuck diagnostics: {actor_tomas:?}"
+        );
+        assert!(
+            actor_tomas
+                .rows
+                .iter()
+                .all(|row| !row.contains("routine_exec_mara_eat")),
+            "actor report for Tomas must exclude Mara-only routine rows: {actor_tomas:?}"
+        );
+        assert!(actor_tomas.decision_traces.is_empty());
+        assert!(actor_tomas.stuck_diagnostics.is_empty());
         assert_eq!(agent_state, before);
         assert_eq!(phase3a_planner_report(&agent_state, &actor_mara), planner);
 
@@ -1014,5 +1214,167 @@ mod tests {
         assert_eq!(report.metrics.projection_version, "no_human_day_metrics_v1");
         assert!(report.canonical_summary.contains("no_human_day_metrics_v1"));
         assert_eq!(log, before);
+    }
+
+    #[derive(Debug)]
+    enum DebugReportRoute {
+        ItemLocation(ItemLocationDebugReport),
+        ActionRejection(ActionRejectionDebugReport),
+        ProjectionRebuild(Box<ProjectionRebuildDebugReport>),
+        Replay(Box<ReplayDebugReport>),
+        ControllerBinding(ControllerBindingDebugReport),
+        Phase3A(Phase3ADebugReport),
+        NoHumanDay(NoHumanDayDebugReport),
+    }
+
+    fn debug_report_channel(report: &DebugReportRoute) -> Option<&'static str> {
+        match report {
+            DebugReportRoute::ItemLocation(report) if report.debug_only() => {
+                Some("debug:item_location")
+            }
+            DebugReportRoute::ActionRejection(report) if report.debug_only() => {
+                Some("debug:action_rejection")
+            }
+            DebugReportRoute::ProjectionRebuild(report) if report.debug_only() => {
+                Some("debug:projection_rebuild")
+            }
+            DebugReportRoute::Replay(report) if report.debug_only() => Some("debug:replay"),
+            DebugReportRoute::ControllerBinding(report) if report.debug_only() => {
+                Some("debug:controller_binding")
+            }
+            DebugReportRoute::Phase3A(report) if report.debug_only() => Some("debug:phase3a"),
+            DebugReportRoute::NoHumanDay(report) if report.debug_only() => {
+                Some("debug:no_human_day")
+            }
+            _ => None,
+        }
+    }
+
+    fn forged_non_debug_reports(
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        log: &EventLog,
+    ) -> Vec<DebugReportRoute> {
+        let non_debug = DebugCapability::test_non_debug;
+        let checksum = compute_physical_checksum(state, &checksum_context()).checksum;
+        let rebuild = rebuild_projection(state, agent_state, log, &checksum_context(), None);
+        let replay = run_replay(
+            state,
+            agent_state,
+            log,
+            &checksum_context(),
+            Some(state),
+            Some(checksum.clone()),
+            None,
+        );
+        vec![
+            DebugReportRoute::ItemLocation(ItemLocationDebugReport {
+                report_id: DebugReportId::new("debug.item_location.forged").unwrap(),
+                item_id: item_id(),
+                exists: true,
+                current_location: Some("container:strongbox_tomas".to_string()),
+                location_chain: Vec::new(),
+                current_projection_position: None,
+                last_location_event_id: None,
+                location_event_chain: Vec::new(),
+                relevant_events: Vec::new(),
+                inconsistencies: Vec::new(),
+                physical_checksum: checksum.clone(),
+                debug_capability: non_debug(),
+            }),
+            DebugReportRoute::ActionRejection(ActionRejectionDebugReport {
+                report_id: DebugReportId::new("debug.action_rejection.forged").unwrap(),
+                proposal_id: ProposalId::new("proposal_forged").unwrap(),
+                validation_report_id: ValidationReportId::new("report_forged").unwrap(),
+                failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
+                reason_codes: vec![ReasonCode::WorldStateMismatch],
+                actor_visible_summary: "forged".to_string(),
+                debug_summary: "forged".to_string(),
+                actor_visible_facts: Vec::new(),
+                debug_only_facts: Vec::new(),
+                precondition_trace: Vec::new(),
+                events_created: Vec::new(),
+                mutation_attempted: false,
+                checksum_before: checksum.clone(),
+                checksum_after: checksum.clone(),
+                debug_capability: non_debug(),
+            }),
+            DebugReportRoute::ProjectionRebuild(Box::new(ProjectionRebuildDebugReport {
+                report_id: DebugReportId::new("debug.rebuild.forged").unwrap(),
+                rebuild,
+                debug_capability: non_debug(),
+            })),
+            DebugReportRoute::Replay(Box::new(ReplayDebugReport {
+                report_id: DebugReportId::new("debug.replay.forged").unwrap(),
+                replay,
+                debug_capability: non_debug(),
+            })),
+            DebugReportRoute::ControllerBinding(ControllerBindingDebugReport {
+                report_id: DebugReportId::new("debug.controller.forged").unwrap(),
+                bindings: vec!["controller_human->actor_tomas@0".to_string()],
+                debug_capability: non_debug(),
+            }),
+            DebugReportRoute::Phase3A(Phase3ADebugReport {
+                report_id: DebugReportId::new("debug.phase3a.forged").unwrap(),
+                title: "Forged".to_string(),
+                rows: vec!["forged".to_string()],
+                decision_traces: Vec::new(),
+                stuck_diagnostics: Vec::new(),
+                debug_capability: non_debug(),
+            }),
+            DebugReportRoute::NoHumanDay(NoHumanDayDebugReport {
+                report_id: DebugReportId::new("debug.no_human_day.forged").unwrap(),
+                metrics: no_human_day_metrics(log),
+                canonical_summary: "forged".to_string(),
+                debug_capability: non_debug(),
+            }),
+        ]
+    }
+
+    fn item_location_event_route(report: &ItemLocationDebugReport) -> Vec<String> {
+        report
+            .relevant_events
+            .iter()
+            .map(|event| {
+                format!(
+                    "item_event:{}:{:?}",
+                    event.event_id.as_str(),
+                    event.event_type
+                )
+            })
+            .collect()
+    }
+
+    fn actor_debug_route(report: &Phase3ADebugReport) -> Vec<String> {
+        let mut routed = report
+            .rows
+            .iter()
+            .filter(|row| row.starts_with("actor="))
+            .map(|row| format!("row:{row}"))
+            .collect::<Vec<_>>();
+        routed.extend(report.decision_traces.iter().map(|trace| {
+            format!(
+                "trace:{}:{}:{}:{}:{}:{}",
+                trace.trace_id,
+                trace.actor_id.as_str(),
+                trace.outcome,
+                trace.candidate_goal_count,
+                trace.hidden_truth_actor_known_only,
+                trace.hidden_truth_notes
+            )
+        }));
+        routed.extend(report.stuck_diagnostics.iter().map(|diagnostic| {
+            format!(
+                "stuck:{}:{}:{}:{}:{}:{}:{}",
+                diagnostic.diagnostic_id,
+                diagnostic.actor_id.as_str(),
+                diagnostic.blocker_category,
+                diagnostic.resulting_status,
+                diagnostic.concrete_blocker,
+                diagnostic.actor_known_explanation,
+                diagnostic.debug_only_details
+            )
+        }));
+        routed
     }
 }

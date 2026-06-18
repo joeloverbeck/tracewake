@@ -1,6 +1,6 @@
 # 0039SPICERMUT-017: Kill `debug_reports.rs` SPINE survivors with debug-quarantine + noninterference witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `debug_reports.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -49,6 +49,12 @@ Map all 19 historical mutants (plus any new run survivor in this file) to a conc
 - `crates/tracewake-core/tests/spine_conformance.rs` (modify)
 - `crates/tracewake-core/src/debug_reports.rs` (modify — only if a survivor reveals a real defect; default is test-only)
 
+## Implementation Disposition (2026-06-18)
+
+Current-code reassessment confirmed the 19 historical `debug_reports.rs` survivors remained after ticket 016. The implemented witnesses are test-only additions in `crates/tracewake-core/src/debug_reports.rs`; no production report construction changed.
+
+The witnesses live in the `debug_reports.rs` unit-test module rather than modifying `hidden_truth_gates.rs` and `spine_conformance.rs` because the member-specific quarantine proof needs private report fields and forged non-debug capabilities without widening production constructors. The ticket's named integration suites still pass unchanged as the broader hidden-truth/conformance proof surface.
+
 ## Out of Scope
 
 - View-model presentation (ticket 016) and TUI rendering (ticket 018).
@@ -79,3 +85,24 @@ Map all 19 historical mutants (plus any new run survivor in this file) to a conc
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/debug_reports.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added `debug_reports.rs` behavior-witness tests that route every report type through a debug-channel consumer, reject forged non-debug report variants, filter item-location reports by exact event kind and exact `item_id`, preserve Phase 3A actor-specific routine/trace/stuck rows, and prove excluded actors do not receive another actor's debug diagnostics. Existing read-only/noninterference assertions remain in the same module.
+
+Deviations from the original plan:
+
+- The new witnesses live in `debug_reports.rs` unit tests, with existing `hidden_truth_gates.rs` and `spine_conformance.rs` retained as integration proof suites. This avoided production-only constructors or compatibility shims for forged report variants.
+- The mutation command used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/debug_reports.rs --no-shuffle` instead of the ticket's bare command, because ticket 001 installed the standing `.cargo/mutants.toml`; `--no-config` preserves this ticket's per-file Wave B proof boundary.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --lib debug_reports::tests` — passed, 7 tests.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance` — passed, 16 hidden-truth tests and 6 spine-conformance tests.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/debug_reports.rs --no-shuffle` — passed with 53 mutants tested, 36 caught, 17 unviable, 0 missed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
