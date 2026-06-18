@@ -1,6 +1,6 @@
 # 0038SPICEREVE-005: SPINE-04 evidence — randomness and random-stream discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: None — fills the SPINE-04 section of the acceptance artifact from existing tests/static scans.
@@ -73,3 +73,22 @@ Record the loud-failure witnesses for the banned RNG/time/env/process entry poin
 1. `grep -rniE '\brng\b|rand::|Lcg' crates/*/src` (branch-resolution static scan — expected: zero matches at this commit)
 2. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
 3. `cargo test --locked -p tracewake-core --test anti_regression_guards`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-04 section of the acceptance report with explicit branch-1
+evidence: not exercised because no state-affecting random draw site exists at
+this commit. Recorded the zero-match production-source scan, the event-envelope
+random draw reference surface for future branch-2 records, the
+`banned_rand_entry_points` negative fixture, production nondeterminism guards,
+and the test-support-only `Lcg` caveat.
+
+Verification:
+
+1. `grep -rniE '\brng\b|rand::|Lcg' crates/*/src` returned zero matches.
+2. `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed.
+3. `cargo test --locked -p tracewake-core --test anti_regression_guards` passed.
+4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` passed.
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed.

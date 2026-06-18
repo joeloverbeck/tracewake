@@ -252,7 +252,48 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-04 Randomness And Random-Stream Discipline
 
-Status: pending. Owned by `0038SPICEREVE-005`.
+Status: evidence captured by `0038SPICEREVE-005`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-04 Evidence Summary
+
+SPINE-04 resolves to the spec's no-state-affecting-RNG branch at this commit:
+not exercised because no state-affecting random draw site exists at this
+commit. This is an explicit certified absence, not a pass-by-silence. Production
+source does include replay-visible event-envelope random draw reference fields
+for future random-stream records, but the production source scan found no RNG
+entry point or production `Lcg` draw site to exercise.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE04-NO-RNG-SOURCE-SCAN | SPINE-04 | static review | production source text under `crates/*/src` | `grep -rniE '\brng\b|rand::|Lcg' crates/*/src` returns zero matches | current checkout source tree | exhaustive over production crate source files matched by `crates/*/src` | none | counted as branch-1 certified absence of state-affecting RNG draw sites | comments about non-random stable IDs and event-envelope random draw references are not RNG entry points | command run during `0038SPICEREVE-005` closeout |
+| SPINE04-ENVELOPE-DRAW-REF-SURFACE | SPINE-04 | static review | event-envelope schema fields | `RandomDrawRef` and `EventEnvelope::random_draws` are present for replay-visible draw records | `crates/tracewake-core/src/events/envelope.rs` | exhaustive over current event-envelope random-draw surface | no exercised random stream exists at this commit | counted as support for future branch-2 replay-visible draw records, not as an exercised RNG witness | no production state-affecting draw site currently populates the field | `crates/tracewake-core/src/events/envelope.rs` |
+| SPINE04-RANDOMNESS-BAN-FIXTURES | SPINE-04 | negative fixture | command transcript | `negative_fixture_runner` proves `banned_rand_entry_points` fails under the configured lint/negative-fixture harness, alongside banned env/fs/process/time/network entry points | clippy ban proof table and negative fixture stderr assertions | registered negative fixture census | none | counted as certifying fail-closed hidden random and host-input entry points | none | `archive/reports/0038_spine_cert_command_transcripts/core_negative_fixture_runner.txt` |
+| SPINE04-NONDETERMINISM-SOURCE-GUARDS | SPINE-04 | observed run | command transcript | `anti_regression_guards` rejects `HashMap`, `HashSet`, `SystemTime`, `Instant`, `rand::`, environment variables, and thread spawning in guarded production sources | banned nondeterminism token census in `crates/tracewake-core/tests/anti_regression_guards.rs` | guarded production-source census | none | counted as certifying deterministic source discipline under branch 1 | none | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| SPINE04-DETERMINISTIC-REPLAY-CORPUS | SPINE-04 | observed run | command transcript | `event_schema_replay_gates` and `golden_fixtures_run` replay the current event corpus deterministically with no random divergence | replay reports, checksums, fixture logs, and tamper checks inside the core/content test suites | spec-required replay/golden evidence for the current no-RNG corpus | no random-stream perturbation witness exists because branch 1 applies | counted as supporting deterministic replay evidence; SPINE-02 owns the full replay seam | none | `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+
+The only seeded generator found at this commit is the test-support `Lcg` in
+`crates/tracewake-core/tests/support/generative.rs`. It synthesizes generated
+test inputs for `generative_lock`; it is not production simulation state,
+scheduling, validation, or view-visible randomness.
+
+Adversarial and loud-failure evidence:
+
+| Adversarial case | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| Direct `rand::random`/ambient RNG entry point | negative fixture | `banned_rand_entry_points` in `negative_fixture_runner` | negative fixture / clippy disallowed-method guard | counted as certifying pass |
+| OS entropy, wall-clock time, environment, filesystem, network, process, or thread scheduling input | negative fixture + observed run | `negative_fixture_runner` fixtures and `anti_regression_guards` nondeterminism token census | negative fixture / production-source guard | counted as certifying pass |
+| Nondeterministic hash iteration in outcome paths | observed run | `anti_regression_guards` bans `HashMap` and `HashSet` in guarded production sources | production-source guard | counted as certifying pass |
+| Event with random effect but missing draw reference | not applicable under branch 1 | no production state-affecting random draw site exists at this commit | event application / replay | recorded as not exercised because no state-affecting random draw site exists at this commit |
+| Replay random draw record differs from event log | not applicable under branch 1 | no production random-stream record is emitted at this commit | projection/replay | recorded as not exercised because no state-affecting random draw site exists at this commit |
+
+Sampling/exhaustiveness claim: the source scan is exhaustive over production
+crate sources matched by `crates/*/src`; negative fixtures are the registered
+fixture census for banned random and host-input entry points; replay/golden
+commands exercise the current no-RNG corpus.
+
+Pending/historical caveat: none for SPINE-04 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-05 Save Package, Manifest Integrity, Schema Versioning, And Upcast/Read Discipline
 
