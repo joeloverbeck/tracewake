@@ -9,20 +9,23 @@ use tracewake_core::agent::{
     ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
     ActorKnownFact, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState,
     NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, PlannerGoal, RoutineFamily,
-    RoutineStep,
+    RoutineStep, SourceEventIds,
 };
-use tracewake_core::checksum::ChecksumContext;
+use tracewake_core::checksum::{compute_holder_known_context_hash, ChecksumContext};
 use tracewake_core::debug_reports::item_location_report;
 use tracewake_core::epistemics::{
-    ActorKnownCurrentPlaceFact, ActorKnownLocalActorFact, Channel, EpistemicProjection,
-    KnowledgeContext, SourceRef, Stance,
+    ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+    ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+    ActorKnownRouteFact, ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact, Channel,
+    EpistemicProjection, KnowledgeContext, SourceRef, Stance,
 };
 use tracewake_core::events::apply::apply_epistemic_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ContradictionId,
-    EventId, FixtureId, FoodSupplyId, ItemId, ObservationId, PlaceId, ProcessId, WorkplaceId,
+    DoorId, EventId, FixtureId, FoodSupplyId, ItemId, ObservationId, PlaceId, ProcessId,
+    SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{
@@ -157,6 +160,251 @@ fn observed_current_place_context(world: &PhysicalState) -> KnowledgeContext {
         &manifest_id,
         event_frontier,
     )
+}
+
+fn source_events(values: &[&str]) -> SourceEventIds {
+    SourceEventIds::checked(
+        values
+            .iter()
+            .map(|value| EventId::new(*value).unwrap())
+            .collect(),
+    )
+    .unwrap()
+}
+
+fn fact_family_context() -> KnowledgeContext {
+    KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+        actor_id(),
+        SimTick::new(7),
+        42,
+        vec![
+            ActorKnownWorkplaceFact::new(
+                workplace_id("workplace_mara"),
+                place_id("market_square"),
+                true,
+                "evt.workplace.notice.1",
+                source_events(&["event_workplace_notice_1"]),
+                SimTick::new(5),
+            ),
+            ActorKnownWorkplaceFact::new(
+                workplace_id("workplace_closed"),
+                place_id("market_square"),
+                false,
+                "evt.workplace.notice.closed",
+                source_events(&["event_workplace_notice_closed"]),
+                SimTick::new(6),
+            ),
+        ],
+        vec![ActorKnownCurrentPlaceFact::new(
+            place_id("home_mara"),
+            "Mara's home",
+            "evt.current_place.1",
+        )],
+        vec![ActorKnownCarriedItemFact::new(
+            ItemId::new("basket_mara").unwrap(),
+            Location::CarriedBy(actor_id()),
+            false,
+            "evt.carried_item.1",
+        )],
+        vec![ActorKnownFoodSourceFact::with_believed_servings(
+            food_supply_id("bread_pantry"),
+            Some(2),
+            "evt.food_source.1",
+        )],
+        vec![ActorKnownSleepAffordanceFact::new(
+            SleepAffordanceId::new("bed_mara").unwrap(),
+            place_id("home_mara"),
+            "evt.sleep_place.1",
+        )],
+        vec![ActorKnownRouteFact::new(
+            place_id("home_mara"),
+            place_id("market_square"),
+            "evt.route.1",
+        )],
+        vec![
+            ActorKnownDoorFact::new(
+                DoorId::new("door_home_market").unwrap(),
+                place_id("home_mara"),
+                place_id("market_square"),
+                true,
+                false,
+                true,
+                "evt.door.1",
+            ),
+            ActorKnownDoorFact::new(
+                DoorId::new("door_home_lane").unwrap(),
+                place_id("home_mara"),
+                place_id("lane_mara"),
+                true,
+                false,
+                false,
+                "evt.door.open_nonblocking",
+            ),
+        ],
+        vec![
+            ActorKnownContainerFact::new(
+                container_id("basket_mara"),
+                false,
+                true,
+                "evt.container.1",
+            ),
+            ActorKnownContainerFact::new(
+                container_id("open_box_mara"),
+                true,
+                false,
+                "evt.container.open",
+            ),
+        ],
+        vec![
+            ActorKnownItemFact::new(
+                ItemId::new("coin_mara").unwrap(),
+                Location::InContainer(container_id("basket_mara")),
+                false,
+                "evt.item.1",
+            ),
+            ActorKnownItemFact::new(
+                ItemId::new("needle_mara").unwrap(),
+                Location::AtPlace(place_id("home_mara")),
+                true,
+                "evt.item.portable",
+            ),
+        ],
+        vec![ActorKnownLocalActorFact::new(
+            ActorId::new("actor_elena").unwrap(),
+            "evt.local_actor.1",
+        )],
+    )
+}
+
+fn location_report_key(location: &Location) -> String {
+    match location {
+        Location::AtPlace(place_id) => format!("place:{}", place_id.as_str()),
+        Location::InContainer(container_id) => format!("container:{}", container_id.as_str()),
+        Location::CarriedBy(actor_id) => format!("carried:{}", actor_id.as_str()),
+    }
+}
+
+fn knowledge_context_report_fingerprint(context: &KnowledgeContext) -> Vec<String> {
+    let mut rows = vec![
+        format!("context_id={}", context.holder_known_context_id().as_str()),
+        format!(
+            "context_hash={}",
+            context.holder_known_context_hash().as_str()
+        ),
+        format!("mode={}", context.mode().stable_id()),
+        format!("status={}", context.status().stable_id()),
+        format!("frontier={}", context.event_frontier()),
+        format!("debug={}", context.debug_non_diegetic()),
+        format!("audit_passed={}", context.forbidden_truth_audit().passed()),
+    ];
+    rows.extend(
+        context
+            .allowed_sources()
+            .iter()
+            .map(|source| format!("allowed={}", source.stable_id())),
+    );
+    rows.extend(
+        context
+            .forbidden_sources()
+            .iter()
+            .map(|source| format!("forbidden={}", source.stable_id())),
+    );
+    rows.extend(context.provenance_entries().iter().map(|entry| {
+        format!(
+            "provenance={}:{}:{}",
+            entry.kind().stable_id(),
+            entry.source().stable_id(),
+            entry.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_current_places().iter().map(|fact| {
+        format!(
+            "current_place={}:{}:{}",
+            fact.place_id().as_str(),
+            fact.display_label(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_carried_items().iter().map(|fact| {
+        format!(
+            "carried_item={}:source={}:portable={}:{}",
+            fact.item_id().as_str(),
+            location_report_key(fact.source()),
+            fact.portable(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_workplaces().iter().map(|fact| {
+        format!(
+            "workplace={}@{}:open={}:events={}:tick={}:{}",
+            fact.workplace_id().as_str(),
+            fact.place_id().as_str(),
+            fact.believed_access_open(),
+            fact.source_event_ids()
+                .as_slice()
+                .iter()
+                .map(EventId::as_str)
+                .collect::<Vec<_>>()
+                .join(","),
+            fact.acquired_tick().value(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_sleep_affordances().iter().map(|fact| {
+        format!(
+            "sleep_affordance={}@{}:{}",
+            fact.sleep_affordance_id().as_str(),
+            fact.place_id().as_str(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_routes().iter().map(|fact| {
+        format!(
+            "route={}->{}:{}",
+            fact.from_place_id().as_str(),
+            fact.to_place_id().as_str(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_doors().iter().map(|fact| {
+        format!(
+            "door={}:{}->{}:open={}:locked={}:blocks={}:{}",
+            fact.door_id().as_str(),
+            fact.endpoint_a().as_str(),
+            fact.endpoint_b().as_str(),
+            fact.is_open(),
+            fact.is_locked(),
+            fact.blocks_movement_when_closed(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_containers().iter().map(|fact| {
+        format!(
+            "container={}:open={}:locked={}:{}",
+            fact.container_id().as_str(),
+            fact.is_open(),
+            fact.is_locked(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_items().iter().map(|fact| {
+        format!(
+            "item={}:source={}:portable={}:{}",
+            fact.item_id().as_str(),
+            location_report_key(fact.source()),
+            fact.portable(),
+            fact.source_key()
+        )
+    }));
+    rows.extend(context.actor_known_local_actors().iter().map(|fact| {
+        format!(
+            "local_actor={}:{}",
+            fact.actor_id().as_str(),
+            fact.source_key()
+        )
+    }));
+    rows.sort();
+    rows
 }
 
 fn helper_process_id(value: &str) -> ProcessId {
@@ -659,6 +907,57 @@ fn proof_sources_are_actor_known(context: &tracewake_core::agent::ActorKnownPlan
         .proof_sources()
         .iter()
         .any(|source| source.contains("debug_omniscience") || source.contains("unproven")));
+}
+
+#[test]
+fn holder_known_fact_family_report_fingerprint_covers_keys_fields_and_audit() {
+    let context = fact_family_context();
+    let rows = knowledge_context_report_fingerprint(&context);
+    let report_hash = compute_holder_known_context_hash(rows.clone()).hash;
+
+    assert!(context.forbidden_truth_audit().passed());
+    assert_eq!(
+        context.holder_known_context_hash().as_str(),
+        "hkc1-f1a06ad6077dcb76"
+    );
+    assert_eq!(report_hash.as_str(), "hkc1-8ad1ae1b01750844");
+    for expected in [
+        "mode=embodied",
+        "status=current",
+        "frontier=42",
+        "debug=false",
+        "audit_passed=true",
+        "allowed=own_direct_observation",
+        "allowed=own_search_or_touch_observation",
+        "allowed=own_sound_observation",
+        "allowed=own_absence_marker",
+        "allowed=own_source_backed_belief",
+        "forbidden=unobserved_event_log_truth",
+        "forbidden=hidden_item_location",
+        "forbidden=other_actors_private_beliefs",
+        "forbidden=human_debug_notes",
+        "forbidden=previous_possessed_actor_knowledge",
+        "provenance=perception:own_direct_observation:context_source_policy",
+        "provenance=observation:own_search_or_touch_observation:context_source_policy",
+        "provenance=observation:own_sound_observation:context_source_policy",
+        "provenance=record:own_absence_marker:context_source_policy",
+        "provenance=belief:own_source_backed_belief:context_source_policy",
+        "current_place=home_mara:Mara's home:evt.current_place.1",
+        "carried_item=basket_mara:source=carried:actor_mara:portable=false:evt.carried_item.1",
+        "workplace=workplace_mara@market_square:open=true:events=event_workplace_notice_1:tick=5:evt.workplace.notice.1",
+        "workplace=workplace_closed@market_square:open=false:events=event_workplace_notice_closed:tick=6:evt.workplace.notice.closed",
+        "sleep_affordance=bed_mara@home_mara:evt.sleep_place.1",
+        "route=home_mara->market_square:evt.route.1",
+        "door=door_home_market:home_mara->market_square:open=true:locked=false:blocks=true:evt.door.1",
+        "door=door_home_lane:home_mara->lane_mara:open=true:locked=false:blocks=false:evt.door.open_nonblocking",
+        "container=basket_mara:open=false:locked=true:evt.container.1",
+        "container=open_box_mara:open=true:locked=false:evt.container.open",
+        "item=coin_mara:source=container:basket_mara:portable=false:evt.item.1",
+        "item=needle_mara:source=place:home_mara:portable=true:evt.item.portable",
+        "local_actor=actor_elena:evt.local_actor.1",
+    ] {
+        assert!(rows.iter().any(|row| row == expected), "{expected}\n{rows:?}");
+    }
 }
 
 #[test]

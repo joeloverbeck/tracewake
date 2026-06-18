@@ -1392,6 +1392,36 @@ mod tests {
     }
 
     #[test]
+    fn forbidden_truth_audit_passed_is_false_for_unproven_forbidden_context() {
+        let audit = ForbiddenTruthAudit {
+            excluded_sources: BTreeSet::from([ForbiddenKnowledgeSource::HiddenItemLocation]),
+            passed: false,
+        };
+
+        assert!(!audit.passed());
+        assert!(audit
+            .excluded_sources()
+            .contains(&ForbiddenKnowledgeSource::HiddenItemLocation));
+    }
+
+    #[test]
+    fn food_source_fact_accessors_preserve_source_and_serving_identity() {
+        let fact = ActorKnownFoodSourceFact::with_believed_servings(
+            FoodSupplyId::new("bread_pantry").unwrap(),
+            Some(2),
+            "evt.food_source.1",
+        );
+
+        assert_eq!(fact.food_supply_id().as_str(), "bread_pantry");
+        assert_eq!(fact.believed_servings(), Some(2));
+        assert_eq!(fact.source_key(), "evt.food_source.1");
+        assert_eq!(
+            fact.canonical_key(),
+            "bread_pantry:servings=2:evt.food_source.1"
+        );
+    }
+
+    #[test]
     fn embodied_context_can_seal_actor_known_workplace_facts() {
         let context = KnowledgeContext::embodied_at_frontier_with_workplaces(
             actor_id("actor_tomas"),

@@ -1,6 +1,6 @@
 # 0039SPICERMUT-011: Kill `epistemics/knowledge_context.rs` SPINE survivors with a fact-family + noninterference harness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `epistemics/knowledge_context.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -80,3 +80,19 @@ Map all 67 historical mutants (plus any new run survivor in this file) to a para
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/epistemics/knowledge_context.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+- Added a sealed holder-known fact-family fingerprint harness in `crates/tracewake-core/tests/hidden_truth_gates.rs`. It builds a `KnowledgeContext` through the public sealed context API with current-place, carried-item, workplace, food-source, sleep-affordance, route, door, container, item, and local-actor facts, then pins both the sealed context hash and a report-style fingerprint over public fact accessors.
+- Covered one-sided boolean fact mutants by including paired true/false rows for workplace access, door blocking, container open/locked, and item portability.
+- Added test-only unit coverage in `crates/tracewake-core/src/epistemics/knowledge_context.rs` for a failed `ForbiddenTruthAudit::passed()` state and food-source fact accessor/canonical identity. No production behavior change was needed.
+- Because ticket 001 converted `.cargo/mutants.toml` into the standing SPINE perimeter, the per-file acceptance run used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/epistemics/knowledge_context.rs --no-shuffle` to preserve this ticket's exact target. Final result: 169 mutants tested, 110 caught, 59 unviable, 0 missed.
+- Verification passed:
+  - `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance`
+  - `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/epistemics/knowledge_context.rs --no-shuffle`
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace --locked`
