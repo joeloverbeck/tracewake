@@ -5,7 +5,7 @@ Staging path: specs/0038_SPINE_CERT_EVENT_LOG_REPLAY_PROJECTION_PIPELINE_AND_NO_
 Target repository: joeloverbeck/tracewake
 Target commit: b03ceedc5360d30894f297e40efcbddcc4fd0a7f
 Spec series: numbered staging spec 0038; archived to archive/specs/ on acceptance
-Status: Draft certification spec; non-executable audit plan and acceptance contract
+Status: COMPLETED
 Work posture: Certification
 P0-CERT admissibility posture: P0-CERT passed; consumes the 0037 P0-CERT mutation-remediation replacement acceptance artifact and the P0-CERT gate it supersedes
 Phase-certification label: SPINE-CERT, as defined by the execution ladder; this document mints no new gate code, invariant ID, status enum, or obligation code
@@ -995,3 +995,26 @@ These sources are used only for general audit-method design, not for repository 
 - Archived specs are history except for the 0037 admissibility fact.
 - The acceptance-artifact contract instantiates the evidence-status, fingerprint-scope, behavior-witness, replay/provenance, sampling/exhaustiveness, pending/historical, certification-use, and staged-abstraction fields.
 - EMERGE-OBS remains observer-only.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented by the `0038SPICEREVE` ticket series and rendered by
+`archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md`.
+The acceptance artifact verdict is `SPINE-CERT scoped remediation`, not
+`SPINE-CERT passed`, because Wave B mutation expansion found 296 missed mutants
+across SPINE-CERT files. The survivor triage register is
+`reports/0038_spine_cert_mutation_triage_register.md`.
+
+The series captured evidence for SPINE-01 through SPINE-08, packaged replay and
+provenance evidence, packaged EMERGE-OBS as observer-only/non-gating evidence,
+and explicitly blocked later ladder progression until scoped remediation handles
+the Wave B survivors. No production remediation for those survivors was included
+in this spec series.
+
+Verification at closeout included:
+
+- `cargo test --workspace --locked`
+- `cargo test --locked -p tracewake-core --test emergence_ledger`
+- `cargo test --locked -p tracewake-core --test spine_conformance`

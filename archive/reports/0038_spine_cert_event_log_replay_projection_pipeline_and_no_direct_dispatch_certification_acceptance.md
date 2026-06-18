@@ -2,7 +2,7 @@
 
 ```text
 Title: 0038 SPINE-CERT event-log, replay, projection, pipeline, and no-direct-dispatch certification acceptance report
-Spec under execution: specs/0038_SPINE_CERT_EVENT_LOG_REPLAY_PROJECTION_PIPELINE_AND_NO_DIRECT_DISPATCH_CERTIFICATION_SPEC.md
+Spec under execution: archive/specs/0038_SPINE_CERT_EVENT_LOG_REPLAY_PROJECTION_PIPELINE_AND_NO_DIRECT_DISPATCH_CERTIFICATION_SPEC.md
 Implementation repository: joeloverbeck/tracewake
 Implementation commit: 0ce59ad78e466fa77301b85ce9bef6c3a30b1eb2
 Commit freshness claim: local checkout HEAD after `0038SPICEREVE-010`; capstone `0038SPICEREVE-011` is report-only and changes no production logic
