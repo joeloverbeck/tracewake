@@ -1,6 +1,6 @@
 # 0039SPICERMUT-016: Kill `view_models.rs` SPINE survivors with channel-quarantine + provenance witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `view_models.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -49,6 +49,12 @@ Map all 24 historical mutants (plus any new run survivor in this file) to a conc
 - `crates/tracewake-core/tests/spine_conformance.rs` (modify)
 - `crates/tracewake-core/src/view_models.rs` (modify — only if a survivor reveals a real defect; default is test-only)
 
+## Implementation Disposition (2026-06-18)
+
+Current-code reassessment found the surviving `debug_only() -> true` mutants were not meaningfully killable while `DebugCapability::debug_only()` itself returned unconditional `true`. The implemented seam therefore makes `DebugCapability::debug_only()` compare the private marker to `DEBUG_NON_DIEGETIC_MARKER` and adds a `#[cfg(test)]` forged non-debug capability constructor so negative channel-routing witnesses can reject non-minted debug views.
+
+The behavior witnesses landed in `crates/tracewake-core/src/view_models.rs` unit tests instead of modifying `hidden_truth_gates.rs` and `spine_conformance.rs`: this keeps the tests next to the private debug view fields required to forge non-debug instances without expanding production constructors or adding compatibility shims. The named integration suites still passed unchanged and remain the broader hidden-truth/conformance proof surface.
+
 ## Out of Scope
 
 - Debug-report construction internals (ticket 017) and TUI rendering (ticket 018).
@@ -79,3 +85,28 @@ Map all 24 historical mutants (plus any new run survivor in this file) to a conc
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/view_models.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Changed `crates/tracewake-core/src/debug_capability.rs` so `DebugCapability::debug_only()` is true only for the private non-diegetic marker, and added a test-only forged non-debug constructor for negative quarantine witnesses.
+
+Added `crates/tracewake-core/src/view_models.rs` behavior-witness tests that route every minted debug view through a typed debug channel, reject forged non-debug variants for each grouped `debug_only` survivor, preserve the truth-belief mismatch non-diegetic marker in routing, and snapshot typed why-not/provenance/diagnostic values through consumer-style routing rather than literal getter assertions.
+
+Deviations from the original plan:
+
+- The new witnesses live in `view_models.rs` unit tests, with existing `hidden_truth_gates.rs` and `spine_conformance.rs` retained as integration proof suites. This was necessary to forge private debug view fields without widening production APIs.
+- `debug_capability.rs` received a narrow production correction because an unconditional `debug_only() == true` made the `debug_only -> true` mutants semantically live.
+- The mutation command used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/view_models.rs --no-shuffle` instead of the ticket's bare command, because ticket 001 installed the standing `.cargo/mutants.toml`; `--no-config` preserves this ticket's per-file Wave B proof boundary.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --lib view_models::tests` — passed, 11 tests.
+- `cargo test --locked -p tracewake-core --lib debug_capability::tests` — passed, 1 test.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance` — passed, 16 hidden-truth tests and 6 spine-conformance tests.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/view_models.rs --no-shuffle` — passed with 50 mutants tested, 42 caught, 8 unviable, 0 missed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.

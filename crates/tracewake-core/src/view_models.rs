@@ -940,6 +940,92 @@ mod tests {
     }
 
     #[test]
+    fn debug_view_channel_routing_rejects_forged_non_debug_capability() {
+        let routed = minted_debug_views()
+            .iter()
+            .map(debug_channel_route)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            routed,
+            vec![
+                Some("debug:controller_binding"),
+                Some("debug:event_log"),
+                Some("debug:item_location"),
+                Some("debug:action_rejection"),
+                Some("debug:projection_rebuild"),
+                Some("debug:replay_report"),
+                Some("debug:epistemics"),
+                Some("debug:beliefs"),
+                Some("debug:observations"),
+                Some("debug:truth_belief_mismatch"),
+            ]
+        );
+
+        for forged in forged_non_debug_views() {
+            assert_eq!(
+                debug_channel_route(&forged),
+                None,
+                "forged non-debug view must not route: {forged:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn availability_and_why_not_snapshots_preserve_typed_debug_values() {
+        let availability = ActionAvailability::disabled(
+            vec![ReasonCode::TargetNotReachable],
+            "That target is not reachable.",
+            vec![
+                ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    "hkc.actor_tomas.7",
+                ),
+                ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::SourceEvent,
+                    "event_visible_route",
+                ),
+                ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::ValidationReport,
+                    "report.move.back_room",
+                ),
+                ActionAvailabilityProvenance::new(
+                    ActionAvailabilityProvenanceKind::ValidatorFact,
+                    "door_id=door_shop_back",
+                ),
+            ],
+            vec![
+                "validator_fact:door_id=door_shop_back".to_string(),
+                "debug_only:blocked_by_closed_door".to_string(),
+            ],
+        );
+
+        let route_snapshot = disabled_action_debug_route(&availability);
+        assert_eq!(
+            route_snapshot,
+            vec![
+                "reason:target_not_reachable".to_string(),
+                "provenance:holder_known_context:hkc.actor_tomas.7".to_string(),
+                "provenance:source_event:event_visible_route".to_string(),
+                "provenance:validation_report:report.move.back_room".to_string(),
+                "provenance:validator_fact:door_id=door_shop_back".to_string(),
+                "diagnostic:validator_fact:door_id=door_shop_back".to_string(),
+                "diagnostic:debug_only:blocked_by_closed_door".to_string(),
+            ]
+        );
+
+        let report = validation_report(
+            "proposal_actor_known_route",
+            "You do not know a reachable route.",
+            vec![ReasonCode::TargetNotReachable],
+        );
+        let why_not = WhyNotView::from(&report);
+        assert_eq!(
+            why_not_channel_route(&why_not),
+            "why_not:actor_known_uncertainty:target_not_reachable"
+        );
+    }
+
+    #[test]
     fn why_not_view_distinguishes_actor_known_from_ground_truth_failures() {
         let actor_known = validation_report(
             "proposal_actor_known",
@@ -997,5 +1083,189 @@ mod tests {
             checksum_before: None,
             checksum_after: None,
         }
+    }
+
+    fn debug_channel_route(view: &DebugViewModel) -> Option<&'static str> {
+        match view {
+            DebugViewModel::ControllerBinding(view) if view.debug_only() => {
+                Some("debug:controller_binding")
+            }
+            DebugViewModel::EventLog(view) if view.debug_only() => Some("debug:event_log"),
+            DebugViewModel::ItemLocation(view) if view.debug_only() => Some("debug:item_location"),
+            DebugViewModel::ActionRejection(view) if view.debug_only() => {
+                Some("debug:action_rejection")
+            }
+            DebugViewModel::ProjectionRebuild(view) if view.debug_only() => {
+                Some("debug:projection_rebuild")
+            }
+            DebugViewModel::ReplayReport(view) if view.debug_only() => Some("debug:replay_report"),
+            DebugViewModel::Epistemics(view)
+                if view.debug_only() && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER =>
+            {
+                Some("debug:epistemics")
+            }
+            DebugViewModel::Beliefs(view)
+                if view.debug_only() && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER =>
+            {
+                Some("debug:beliefs")
+            }
+            DebugViewModel::Observations(view)
+                if view.debug_only() && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER =>
+            {
+                Some("debug:observations")
+            }
+            DebugViewModel::TruthBeliefMismatch(view)
+                if view.debug_only() && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER =>
+            {
+                Some("debug:truth_belief_mismatch")
+            }
+            _ => None,
+        }
+    }
+
+    fn minted_debug_views() -> Vec<DebugViewModel> {
+        vec![
+            DebugViewModel::ControllerBinding(DebugControllerBindingView::new(
+                Some("controller_human->actor_tomas".to_string()),
+                vec!["bound@0".to_string()],
+            )),
+            DebugViewModel::EventLog(DebugEventLogView::new(vec![DebugEventSummary {
+                stream: EventStream::World,
+                stream_position: 0,
+                global_order: 0,
+                event_type: "actor_waited".to_string(),
+                actor_or_process: Some("actor_tomas".to_string()),
+                participants: vec!["actor_tomas".to_string()],
+            }])),
+            DebugViewModel::ItemLocation(DebugItemLocationView::new(
+                ItemId::new("coin_stack_01").unwrap(),
+                "container:strongbox_tomas",
+            )),
+            DebugViewModel::ActionRejection(Box::new(DebugActionRejectionView::new(
+                validation_report(
+                    "proposal_debug_rejection",
+                    "The door is closed.",
+                    vec![ReasonCode::DoorClosedBlocksMovement],
+                ),
+            ))),
+            DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new(
+                "projection rebuild matched",
+            )),
+            DebugViewModel::ReplayReport(DebugReplayReportView::new("replay matched")),
+            DebugViewModel::Epistemics(DebugEpistemicsView::new(
+                "debug",
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                vec!["controller_human->actor_tomas@2".to_string()],
+                "epistemic_projection_v1",
+            )),
+            DebugViewModel::Beliefs(DebugBeliefsView::new(
+                ActorId::new("actor_tomas").unwrap(),
+                Vec::new(),
+            )),
+            DebugViewModel::Observations(DebugObservationsView::new(
+                ActorId::new("actor_tomas").unwrap(),
+                Vec::new(),
+            )),
+            DebugViewModel::TruthBeliefMismatch(DebugTruthBeliefMismatchView::new(
+                ItemId::new("coin_stack_01").unwrap(),
+                "container:strongbox_tomas",
+                "holder believes coin is missing",
+                "truth and belief diverge",
+            )),
+        ]
+    }
+
+    fn forged_non_debug_views() -> Vec<DebugViewModel> {
+        let non_debug = DebugCapability::test_non_debug;
+        vec![
+            DebugViewModel::ControllerBinding(DebugControllerBindingView {
+                debug_capability: non_debug(),
+                current_binding: None,
+                binding_history: Vec::new(),
+            }),
+            DebugViewModel::EventLog(DebugEventLogView {
+                debug_capability: non_debug(),
+                events: Vec::new(),
+            }),
+            DebugViewModel::ItemLocation(DebugItemLocationView {
+                debug_capability: non_debug(),
+                item_id: ItemId::new("coin_stack_01").unwrap(),
+                location_summary: "hidden".to_string(),
+            }),
+            DebugViewModel::ActionRejection(Box::new(DebugActionRejectionView {
+                debug_capability: non_debug(),
+                report: validation_report(
+                    "proposal_forged_debug_rejection",
+                    "debug only",
+                    vec![ReasonCode::WorldStateMismatch],
+                ),
+            })),
+            DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView {
+                debug_capability: non_debug(),
+                summary: "forged".to_string(),
+            }),
+            DebugViewModel::ReplayReport(DebugReplayReportView {
+                debug_capability: non_debug(),
+                summary: "forged".to_string(),
+            }),
+            DebugViewModel::Epistemics(DebugEpistemicsView {
+                debug_capability: non_debug(),
+                context_mode: "debug".to_string(),
+                observations: Vec::new(),
+                beliefs_by_holder: Vec::new(),
+                contradictions: Vec::new(),
+                possession_metadata: Vec::new(),
+                projection_summary: "forged".to_string(),
+            }),
+            DebugViewModel::Beliefs(DebugBeliefsView {
+                debug_capability: non_debug(),
+                holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+                beliefs: Vec::new(),
+            }),
+            DebugViewModel::Observations(DebugObservationsView {
+                debug_capability: non_debug(),
+                observer_actor_id: ActorId::new("actor_tomas").unwrap(),
+                observations: Vec::new(),
+            }),
+            DebugViewModel::TruthBeliefMismatch(DebugTruthBeliefMismatchView {
+                debug_capability: non_debug(),
+                item_id: ItemId::new("coin_stack_01").unwrap(),
+                ground_truth_location: "container:strongbox_tomas".to_string(),
+                held_belief_summary: "holder believes coin is missing".to_string(),
+                mismatch_summary: "truth and belief diverge".to_string(),
+            }),
+        ]
+    }
+
+    fn disabled_action_debug_route(availability: &ActionAvailability) -> Vec<String> {
+        let mut routed = availability
+            .reason_codes()
+            .iter()
+            .map(|reason| format!("reason:{}", reason.stable_id()))
+            .collect::<Vec<_>>();
+        routed.extend(availability.provenance_refs().iter().map(|provenance| {
+            format!(
+                "provenance:{}:{}",
+                provenance.kind.stable_id(),
+                provenance.reference
+            )
+        }));
+        routed.extend(
+            availability
+                .debug_only_diagnostics()
+                .iter()
+                .map(|diagnostic| format!("diagnostic:{diagnostic}")),
+        );
+        routed
+    }
+
+    fn why_not_channel_route(why_not: &WhyNotView) -> String {
+        format!(
+            "why_not:{}:{}",
+            why_not.failure_kind.stable_id(),
+            why_not.reason_codes.join(",")
+        )
     }
 }
