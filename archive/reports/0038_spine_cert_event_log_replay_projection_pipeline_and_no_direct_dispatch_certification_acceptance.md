@@ -531,7 +531,69 @@ Status: pending. Owned by `0038SPICEREVE-011` after seam evidence lands.
 
 ## Mutation Package
 
-Status: pending. Owned by `0038SPICEREVE-010`.
+Status: evidence captured by `0038SPICEREVE-010`; per-seam verdict remains
+blocked pending scoped remediation because Wave B found SPINE-seam survivors.
+
+Preflight:
+
+- `cargo mutants --version` returned `cargo-mutants 27.1.0`; the pinned tool
+  was already installed.
+- `cargo test --workspace --locked` passed before mutation runs.
+
+Wave A guarded continuity command:
+
+```sh
+cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle
+```
+
+Wave A result: exit 0; 1128 mutants tested; 896 caught, 0 missed, 0 timeout,
+232 unviable. Artifact snapshot:
+`/tmp/tracewake-0038-mutants-wave-a/`.
+
+Wave B SPINE-seam expansion used `--no-config` to avoid the broad exclusions in
+`.cargo/mutants.toml`:
+
+```sh
+cargo mutants --no-config --workspace -C=--locked \
+  -f 'crates/tracewake-core/src/events/**' \
+  -f 'crates/tracewake-core/src/replay/**' \
+  -f 'crates/tracewake-core/src/projections.rs' \
+  -f 'crates/tracewake-core/src/checksum.rs' \
+  -f 'crates/tracewake-core/src/actions/pipeline.rs' \
+  -f 'crates/tracewake-core/src/actions/proposal.rs' \
+  -f 'crates/tracewake-core/src/actions/report.rs' \
+  -f 'crates/tracewake-core/src/scheduler.rs' \
+  -f 'crates/tracewake-core/src/view_models.rs' \
+  -f 'crates/tracewake-core/src/debug_capability.rs' \
+  -f 'crates/tracewake-core/src/debug_reports.rs' \
+  -f 'crates/tracewake-core/src/epistemics/knowledge_context.rs' \
+  -f 'crates/tracewake-content/src/manifest.rs' \
+  -f 'crates/tracewake-content/src/load.rs' \
+  -f 'crates/tracewake-content/src/schema.rs' \
+  -f 'crates/tracewake-content/src/serialization.rs' \
+  -f 'crates/tracewake-content/src/validate.rs' \
+  -f 'crates/tracewake-tui/src/app.rs' \
+  -f 'crates/tracewake-tui/src/debug_panels.rs' \
+  -f 'crates/tracewake-tui/src/render.rs' \
+  -f 'crates/tracewake-tui/src/transcript.rs' \
+  --no-shuffle
+```
+
+Wave B result: exit 2; 1679 mutants tested; 1057 caught, 296 missed, 0 timeout,
+326 unviable. Exit 2 is the cargo-mutants survivor signal. Artifact snapshot:
+`/tmp/tracewake-0038-mutants-wave-b/`.
+
+No-silent-exclusion statement: the Wave B `--list-files` preflight with the
+same `--no-config` and `-f` inclusion set listed every SPINE-CERT Wave B file,
+plus `crates/tracewake-core/src/events/mod.rs` and
+`crates/tracewake-core/src/replay/mod.rs`. No Wave B seam file was silently
+excluded by the configured mutation exclusions.
+
+Register: `reports/0038_spine_cert_mutation_triage_register.md`.
+
+Certification posture: no SPINE-CERT pass is claimable while the 296 Wave B
+survivors remain. The register records all survivors as scoped remediation
+required; no equivalent-mutant claim is made.
 
 ## EMERGE-OBS Handling
 

@@ -1,6 +1,6 @@
 # 0038SPICEREVE-010: Mutation posture — Wave A continuity + Wave B SPINE-seam expansion + survivor triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — creates the SPINE-CERT mutation triage register and runs cargo-mutants; changes no engine code (any production remediation a survivor demands is routed out).
@@ -75,3 +75,28 @@ Create `reports/0038_spine_cert_mutation_triage_register.md` using the §7.2 / 0
 1. `cargo install cargo-mutants --version 27.1.0 --locked` (version-pin install — dry-run-resolvable; matches CI)
 2. `cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' -f 'crates/tracewake-core/src/scheduler*' -f 'crates/tracewake-core/src/projections*' -f 'crates/tracewake-core/src/actions/pipeline.rs' -f 'crates/tracewake-core/src/actions/defs/eat.rs' -f 'crates/tracewake-core/src/actions/defs/sleep.rs' -f 'crates/tracewake-core/src/actions/defs/work.rs' --no-shuffle` (Wave A — full mutation run, not cheaply dry-runnable; command resolve-verified verbatim against `.github/workflows/ci.yml`)
 3. `cargo mutants --workspace <SPINE-CERT Wave B inclusion list per spec §7.1> --no-shuffle` (Wave B — full mutation run; inclusion files resolve-verified to exist)
+
+## Outcome
+
+Completed: 2026-06-18
+
+Created `reports/0038_spine_cert_mutation_triage_register.md` and filled the
+acceptance report's mutation package section. `cargo mutants --version`
+returned `cargo-mutants 27.1.0`, so no reinstall was needed. `cargo test
+--workspace --locked` passed before mutation runs.
+
+Wave A ran the guarded continuity command verbatim and exited 0: 1128 mutants
+tested; 896 caught, 0 missed, 0 timeout, 232 unviable. The finished artifact
+snapshot is `/tmp/tracewake-0038-mutants-wave-a/`.
+
+Wave B ran with `--no-config --workspace -C=--locked` and the SPINE-CERT
+inclusion list. The matching `--list-files` preflight listed every Wave B seam
+file plus the `events/mod.rs` and `replay/mod.rs` module files, so no Wave B
+file was silently excluded by `.cargo/mutants.toml`. The mutation run exited 2
+with 1679 mutants tested: 1057 caught, 296 missed, 0 timeout, 326 unviable. The
+finished artifact snapshot is `/tmp/tracewake-0038-mutants-wave-b/`.
+
+All 296 Wave B survivors are recorded in the register as scoped remediation
+required. No equivalent-mutant claim is made, and no SPINE-CERT pass is
+claimable until these survivors are remediated or proven equivalent with
+behavioral and doctrine evidence.
