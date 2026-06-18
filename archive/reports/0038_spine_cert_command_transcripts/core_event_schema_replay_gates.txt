@@ -1,0 +1,28 @@
+COMMAND: cargo test --locked -p tracewake-core --test event_schema_replay_gates
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/event_schema_replay_gates.rs (target/debug/deps/event_schema_replay_gates-8c5811824ca46a92)
+
+running 17 tests
+test every_epistemic_event_kind_is_registered_and_replay_routed ... ok
+test duplicate_need_tick_charge_rejects_live_and_replay_001 ... ok
+test forged_trace_and_diagnostic_schema_versions_are_rejected_for_materialized_agent_replay_001 ... ok
+test duplicate_duration_terminal_poisons_rebuild_001 ... ok
+test malformed_elapsed_ticks_rejects_live_and_replay_001 ... ok
+test missing_role_assignment_access_open_rejects_live_and_replay_001 ... ok
+test missing_intention_continued_current_step_rejects_live_and_replay_001 ... ok
+test missing_routine_step_progress_tick_rejects_live_and_replay_001 ... ok
+test non_world_event_cannot_change_physical_checksum ... ok
+test stream_mismatch_replay_rejected ... ok
+test unsupported_event_schema_append_rejected ... ok
+test unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied ... ok
+test forged_payload_schema_version_rejected_for_every_materialized_agent_kind_001 ... ok
+test unsupported_event_schema_replay_rejected ... ok
+test legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults ... ok
+test no_human_metrics_rebuild_from_typed_diagnostic_fields ... ok
+test replay_rebuild_checksum_matches_original_after_no_human_day ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+EXIT_STATUS: 0

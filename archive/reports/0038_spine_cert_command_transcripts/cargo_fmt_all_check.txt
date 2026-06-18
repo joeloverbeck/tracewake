@@ -1,0 +1,4 @@
+COMMAND: cargo fmt --all --check
+
+
+EXIT_STATUS: 0

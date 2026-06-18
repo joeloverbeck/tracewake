@@ -1,0 +1,13 @@
+COMMAND: cargo test --locked -p tracewake-content --test schema_conformance
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/schema_conformance.rs (target/debug/deps/schema_conformance-ee205ba5b312c3a8)
+
+running 2 tests
+test schema_conformance_maps_content_spine_requirements_to_named_tests ... ok
+test fixture_scope_is_registered_and_canonicalized ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+EXIT_STATUS: 0

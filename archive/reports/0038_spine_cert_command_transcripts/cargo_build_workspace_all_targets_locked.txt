@@ -1,0 +1,5 @@
+COMMAND: cargo build --workspace --all-targets --locked
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+
+EXIT_STATUS: 0

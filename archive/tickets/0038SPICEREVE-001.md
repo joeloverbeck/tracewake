@@ -1,6 +1,6 @@
 # 0038SPICEREVE-001: Acceptance-artifact scaffold + full §4 command transcript and environment
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — creates the `archive/reports/` SPINE-CERT acceptance artifact and captures the §4 command transcript; runs existing tests only, changes no engine code.
@@ -82,3 +82,21 @@ Run and capture, with exit status and output-artifact location for each: `cargo 
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace --locked`
 3. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` (replay lock layer — narrower boundary for the global replay/fingerprint capture)
+
+## Outcome
+
+Completed: 2026-06-18
+
+Created `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md` with the required §9.1 header, §9.2 evidence-status ledger fields, §9.3 command transcript/environment section, empty SPINE-01 through SPINE-08 sections, §9.4 per-seam verdict table, §9.5 replay/provenance package placeholder, §9.6 mutation package placeholder, and §9.7 EMERGE-OBS placeholder.
+
+Captured the §4 command transcript and environment in `archive/reports/0038_spine_cert_command_transcripts/` for implementation commit `b4b59c92d126692c9f2fa4c986695b9f2e20db2c`. The artifact records `cargo mutants --version` as the available Cargo subcommand form; standalone `cargo-mutants --version` is not available in this environment and exits through Cargo argument parsing.
+
+Verification run:
+
+- `cargo fmt --all --check` — passed, transcript captured.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed, transcript captured.
+- `cargo build --workspace --all-targets --locked` — passed, transcript captured.
+- `cargo test --workspace --locked` — passed, transcript captured.
+- All §4 targeted gate commands listed in the scaffold artifact — passed, transcripts captured.
+
+Deviations: none for this ticket's scope. The report verdict and SPINE seam sections remain intentionally pending for `0038SPICEREVE-002` through `0038SPICEREVE-011`.
