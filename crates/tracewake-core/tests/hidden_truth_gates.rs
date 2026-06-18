@@ -14,14 +14,15 @@ use tracewake_core::agent::{
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::debug_reports::item_location_report;
 use tracewake_core::epistemics::{
-    ActorKnownCurrentPlaceFact, ActorKnownLocalActorFact, EpistemicProjection, KnowledgeContext,
+    ActorKnownCurrentPlaceFact, ActorKnownLocalActorFact, Channel, EpistemicProjection,
+    KnowledgeContext, SourceRef, Stance,
 };
 use tracewake_core::events::apply::apply_epistemic_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
-    FoodSupplyId, ItemId, PlaceId, ProcessId, WorkplaceId,
+    ActionId, ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, ContradictionId,
+    EventId, FixtureId, FoodSupplyId, ItemId, ObservationId, PlaceId, ProcessId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::{
@@ -265,6 +266,79 @@ fn role_notice_event(
         PayloadField::new("workplace_id", workplace_id.as_str()),
         PayloadField::new("place_id", workplace_place_id.as_str()),
         PayloadField::new("access_open", "true"),
+    ];
+    event
+}
+
+fn belief_event(
+    event_id: &str,
+    belief_id: &str,
+    tick: SimTick,
+    source_event_id: &str,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(event_id).unwrap(),
+        EventKind::BeliefUpdated,
+        0,
+        0,
+        tick,
+        ordering_key(tick, "belief"),
+        content_manifest_id(),
+        vec![EventCause::Event(EventId::new(source_event_id).unwrap())],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id());
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("belief_id", belief_id),
+        PayloadField::new("holder_actor_id", actor_id().as_str()),
+        PayloadField::new(
+            "proposition",
+            "item_located_in_container|food_visible_table|hidden_pantry",
+        ),
+        PayloadField::new("stance", "expects_true"),
+        PayloadField::new("confidence", "0880"),
+        PayloadField::new("source_event_id", source_event_id),
+        PayloadField::new("acquired_tick", tick.value().to_string()),
+        PayloadField::new("channel", "reading_placeholder_schema_only"),
+    ];
+    event
+}
+
+fn contradiction_event(
+    event_id: &str,
+    contradiction_id: &str,
+    belief_id: &str,
+    observation_id: &str,
+    tick: SimTick,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(event_id).unwrap(),
+        EventKind::ExpectationContradicted,
+        0,
+        0,
+        tick,
+        ordering_key(tick, "contradiction"),
+        content_manifest_id(),
+        vec![EventCause::Event(EventId::new(observation_id).unwrap())],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id());
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("contradiction_id", contradiction_id),
+        PayloadField::new("holder_actor_id", actor_id().as_str()),
+        PayloadField::new("prior_expectation_belief_id", belief_id),
+        PayloadField::new("contradicting_observation_id", observation_id),
+        PayloadField::new(
+            "expected_proposition",
+            "item_located_in_container|food_visible_table|hidden_pantry",
+        ),
+        PayloadField::new(
+            "observed_proposition",
+            "item_missing_from_expected_location|food_visible_table|in_container:hidden_pantry",
+        ),
+        PayloadField::new("detected_tick", tick.value().to_string()),
     ];
     event
 }
@@ -1285,4 +1359,86 @@ fn actor_known_local_actor_reaches_embodied_view_model_with_context_provenance()
     assert_eq!(view.holder_known_context_frontier, context.event_frontier());
     assert!(!view.debug_available);
     assert!(!view.holder_known_context_source_summary.contains("debug"));
+}
+
+#[test]
+fn epistemic_event_fields_survive_into_sealed_context_and_replay() {
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(content_manifest_id());
+    let observation_id = "obs_event_hidden_truth_survival_observation";
+    let observation = observation_event("event_hidden_truth_survival_observation", SimTick::new(5));
+    append_epistemic_event(&mut log, &mut projection, observation.clone());
+    let belief = belief_event(
+        "event_hidden_truth_survival_belief",
+        "belief_hidden_truth_survival",
+        SimTick::new(6),
+        "event_hidden_truth_survival_observation",
+    );
+    append_epistemic_event(&mut log, &mut projection, belief);
+    let contradiction = contradiction_event(
+        "event_hidden_truth_survival_contradiction",
+        "contradiction_hidden_truth_survival",
+        "belief_hidden_truth_survival",
+        observation_id,
+        SimTick::new(7),
+    );
+    append_epistemic_event(&mut log, &mut projection, contradiction);
+
+    let context = KnowledgeContext::embodied(actor_id(), SimTick::new(8));
+    let belief = projection
+        .beliefs_for_context(&context)
+        .into_iter()
+        .find(|belief| {
+            belief.belief_id() == &BeliefId::new("belief_hidden_truth_survival").unwrap()
+        })
+        .expect("belief event applied");
+    assert_eq!(belief.stance(), Stance::ExpectsTrue);
+    assert_eq!(
+        belief.channel(),
+        Some(Channel::ReadingPlaceholderSchemaOnly)
+    );
+    assert_eq!(
+        belief.source(),
+        &SourceRef::Event(EventId::new("event_hidden_truth_survival_observation").unwrap())
+    );
+
+    let observation = projection
+        .observations_for_context(&context)
+        .into_iter()
+        .find(|observation| {
+            observation.observation_id() == &ObservationId::new(observation_id).unwrap()
+        })
+        .expect("observation event applied");
+    assert_eq!(observation.channel(), Channel::DirectSight);
+    assert_eq!(
+        observation.source(),
+        &SourceRef::Event(EventId::new("event_hidden_truth_survival_observation").unwrap())
+    );
+
+    let contradiction = projection
+        .contradictions_for_context(&context)
+        .into_iter()
+        .find(|contradiction| {
+            contradiction.contradiction_id()
+                == &ContradictionId::new("contradiction_hidden_truth_survival").unwrap()
+        })
+        .expect("contradiction event applied");
+    assert_eq!(
+        contradiction.prior_expectation_belief_id(),
+        &BeliefId::new("belief_hidden_truth_survival").unwrap()
+    );
+    assert_eq!(
+        contradiction.contradicting_observation_id(),
+        &ObservationId::new(observation_id).unwrap()
+    );
+
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let mut replayed_projection = EpistemicProjection::new(content_manifest_id());
+    for event in replayed_log.events() {
+        apply_epistemic_event(&mut replayed_projection, event).unwrap();
+    }
+    assert_eq!(
+        replayed_projection.compute_checksum().checksum,
+        projection.compute_checksum().checksum
+    );
 }

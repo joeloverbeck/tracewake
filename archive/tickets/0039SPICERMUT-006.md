@@ -1,6 +1,6 @@
 # 0039SPICERMUT-006: Kill `events/apply.rs` SPINE survivors with an event-kind apply/replay matrix
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `events/apply.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -80,3 +80,22 @@ Map all 44 historical mutants (plus any new run survivor in this file) to a conc
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test hidden_truth_gates`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/events/apply.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented the `events/apply.rs` SPINE survivor witnesses as test-only coverage:
+
+- Added event-kind apply/replay matrix rows in `crates/tracewake-core/tests/event_schema_replay_gates.rs` for epistemic stance/channel parser arms, starting-belief/observation/contradiction source survival, safety/routine need deltas, intention source and status transitions, routine step progress/fallback counters, caused-event IDs, typed diagnostic hidden-truth boolean validation, narrow agent no-op allowlist behavior, item take/place application, actor/item precondition rejection, and door/container boolean precondition rejection.
+- Added an epistemic survival witness in `crates/tracewake-core/tests/hidden_truth_gates.rs` proving belief, observation, contradiction, channel, stance, and source-event-ID fields survive application and canonical log replay into sealed-context-visible projection records.
+- No production correction in `crates/tracewake-core/src/events/apply.rs` was required; the survivors closed through behavior witnesses. The only source-shape assertion added is paired with behavior for the currently unreachable agent no-op fallback guard, whose non-allowlisted branch has no live agent event kind to exercise directly.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test hidden_truth_gates` — passed.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/events/apply.rs --no-shuffle` — passed with 198 mutants tested, 158 caught, 40 unviable, 0 missed. The `--no-config` deviation was required because ticket 001 made `.cargo/mutants.toml` the standing SPINE perimeter; using the literal ticket command with config would enumerate the full perimeter instead of only `events/apply.rs`.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
