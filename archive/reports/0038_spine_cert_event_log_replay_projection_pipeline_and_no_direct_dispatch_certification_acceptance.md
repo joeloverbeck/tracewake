@@ -409,7 +409,52 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-07 TUI, Embodied View Models, Transcript Surface, And Debug Split
 
-Status: pending. Owned by `0038SPICEREVE-008`.
+Status: evidence captured by `0038SPICEREVE-008`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-07 Evidence Summary
+
+SPINE-07 evidence is drawn from TUI seam conformance, adversarial TUI gates,
+the real command-loop session tests, transcript snapshots, TUI acceptance
+tests, hidden-truth gates, and negative fixture guards. The TUI remains a
+client/proof surface: it renders embodied view models from holder-known
+contexts, submits semantic actions through the shared proposal pipeline, and
+renders debug panels only through non-diegetic debug capability gates.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE07-TRANSCRIPT-SNAPSHOTS | SPINE-07 | observed run | command transcript | `transcript_snapshot` proves representative transcript sections are byte-identical across runs, include embodied `view`/`notebook` sections, and separately include `DEBUG NON-DIEGETIC` event-log, replay, epistemics, beliefs, observations, needs, routines, planner, stuck, and no-human-day sections | captured transcript sections and rendered transcript bytes | representative embodied/debug transcript corpus | none | counted as certifying pass for paired embodied/debug channel evidence | none | `archive/reports/0038_spine_cert_command_transcripts/tui_transcript_snapshot.txt` |
+| SPINE07-SEMANTIC-ACTION-PATH | SPINE-07 | observed run + static review | real binary command loop and TUI app path | `command_loop_session` drives the `tracewake-tui` binary, executes `do <semantic_action_id>`, numeric selection, and wait aliases; `TuiApp::submit_semantic_action` builds `proposal_from_current_view_semantic_action`, calls `run_pipeline`, records appended events, and refreshes from the current event frontier | proposal source context, validation report, event log, refreshed view | representative TUI input paths plus static path review | none | counted as certifying pass for input -> semantic proposal -> pipeline -> appended event -> refreshed view | none | `archive/reports/0038_spine_cert_command_transcripts/tui_command_loop_session.txt`; `crates/tracewake-tui/src/app.rs` |
+| SPINE07-DEBUG-QUARANTINE | SPINE-07 | observed run | command transcript | `adversarial_gates_debug_truth_does_not_enter_actor_surfaces` renders debug item/projection/epistemics/planner/replay panels, verifies `debug_only`, checks physical checksum is unchanged, and proves actor view/notebook/semantic actions omit `food_hidden_pantry`, `debug_omniscience`, and debug markers | adversarial review artifact with context ID/hash, provenance refs, actor/debug surfaces, and contamination failure mode | spec-required debug omniscience adversarial fixture | none | counted as certifying pass for debug-only quarantine | none | `archive/reports/0038_spine_cert_command_transcripts/tui_adversarial_gates.txt` |
+| SPINE07-DEBUG-CAPABILITY | SPINE-07 | static review + negative fixture | debug capability API and compile-fail docs | `DebugCapability::mint` is `pub(crate)`, `debug_only()` returns true, marker is `DEBUG NON-DIEGETIC`, and compile-fail examples prevent external construction or minting | `crates/tracewake-core/src/debug_capability.rs`; negative fixture transcript | exhaustive over current capability constructor surface | none | counted as certifying support for debug capability quarantine | none | `archive/reports/0038_spine_cert_command_transcripts/core_negative_fixture_runner.txt`; `crates/tracewake-core/src/debug_capability.rs` |
+| SPINE07-EMBODIED-FILTERING-CORPUS | SPINE-07 | observed run | command transcript | `golden_fixtures_run`, `hidden_truth_gates`, and TUI seam tests cover `view_model_local_actions_001`, raw-assignment omission, menu lag without perception, possession parity, `debug_attach_001`, hidden-truth render omissions, and actor-known context provenance | holder-known context IDs/hashes/frontiers, notebook entries, semantic actions, and debug-only diagnostics | spec-mandated embodied filtering fixtures plus hidden-truth gates | none | counted as certifying pass for actor-known embodied view construction | SPINE-03 owns projection-level non-truth-writer quarantine | `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_hidden_truth_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/tui_tui_seam_conformance.txt` |
+| SPINE07-TUI-NO-AUTHORITY-GUARDS | SPINE-07 | observed run + static review | command transcript and source guard | `tui_acceptance` and `adversarial_gates` prove TUI sources do not call event application directly, debug panels do not mutate checksums or embodied affordances, debug commands refuse without debug availability, and top-level no-human-day is not a play verb | TUI command outputs, physical checksums, and static source guard results | focused TUI bypass/leak corpus | none | counted as certifying pass for TUI client-not-authority posture | SPINE-08 owns full mutation-path closure | `archive/reports/0038_spine_cert_command_transcripts/tui_tui_acceptance.txt`; `archive/reports/0038_spine_cert_command_transcripts/tui_adversarial_gates.txt` |
+
+Paired channel witness:
+
+| Channel | Evidence |
+|---|---|
+| Embodied | representative transcript contains `== view.initial ==`, `== notebook.actor_sena ==`, and why-not lines derived from actor-visible context |
+| Debug | representative transcript and phase3a debug snapshot contain `DEBUG NON-DIEGETIC` panels for event log, replay, epistemics, beliefs, observations, needs, routines, planner, stuck, and no-human-day |
+| Separation | adversarial debug panels leave physical checksum unchanged and do not add debug markers, hidden pantry IDs, or debug omniscience tokens to embodied view/notebook/semantic actions |
+
+Adversarial and loud-failure evidence:
+
+| Adversarial case | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| Debug omniscience enters embodied view | observed run | `adversarial_gates_debug_truth_does_not_enter_actor_surfaces` over `debug_omniscience_excluded_001` | debug quarantine / view-model rendering | counted as certifying pass |
+| Hidden truth rendered without holder-known provenance | observed run | `hidden_truth_gates`, `golden_fixtures_run`, and TUI adversarial surfaces omit hidden truth from actor view/notebook/semantic actions | actor-known context construction / view-model rendering | counted as certifying pass |
+| TUI mutates state or bypasses validation | observed run + static review | `tui_sources_do_not_call_event_application_directly`, debug checksum checks, and `submit_semantic_action` path through `run_pipeline` | proposal construction / action validation | counted as SPINE-07 representative pass; exhaustive closure remains SPINE-08 |
+| Debug-only tokens in ordinary embodied transcript | observed run | transcript/adversarial gates assert debug markers appear only in debug sections and not in actor surfaces | debug quarantine | counted as certifying pass |
+| External crate/content constructs debug capability | negative fixture + static review | `DebugCapability` compile-fail examples and `negative_fixture_runner` guards | debug quarantine / tests/fixtures | counted as certifying pass |
+
+Sampling/exhaustiveness claim: transcript snapshots are representative paired
+channel outputs; command-loop tests exercise real binary input paths; TUI seam
+conformance maps SPINE-07 requirements to named evidence; adversarial gates
+cover the spec-mandated debug omniscience and TUI contamination cases.
+
+Pending/historical caveat: none for SPINE-07 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-08 No Direct Dispatch And Full Mutation-Path Closure
 

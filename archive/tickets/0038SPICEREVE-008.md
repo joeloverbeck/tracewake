@@ -1,6 +1,6 @@
 # 0038SPICEREVE-008: SPINE-07 evidence — TUI, embodied view models, transcript surface, and debug split
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — fills the SPINE-07 section of the acceptance artifact from existing tests/fixtures.
@@ -74,3 +74,24 @@ For the adversarial corpus (debug omniscience into embodied views, hidden-truth 
 1. `cargo test --locked -p tracewake-tui --test tui_seam_conformance && cargo test --locked -p tracewake-tui --test transcript_snapshot`
 2. `cargo test --locked -p tracewake-tui --test command_loop_session && cargo test --locked -p tracewake-tui --test adversarial_gates`
 3. `cargo test --locked -p tracewake-tui --test tui_acceptance && cargo test --locked -p tracewake-core --test hidden_truth_gates`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-07 section of the acceptance report with paired
+embodied/debug transcript evidence, the semantic-action submission path,
+debug-capability quarantine evidence, embodied filtering evidence, and TUI
+client-not-authority guards. Recorded the debug omniscience adversarial
+witness, ordinary transcript/debug token separation, and the TUI-scoped
+direct-mutation/bypass evidence while leaving full mutation closure to SPINE-08.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-tui --test tui_seam_conformance` passed.
+2. `cargo test --locked -p tracewake-tui --test transcript_snapshot` passed.
+3. `cargo test --locked -p tracewake-tui --test command_loop_session` passed.
+4. `cargo test --locked -p tracewake-tui --test adversarial_gates` passed.
+5. `cargo test --locked -p tracewake-tui --test tui_acceptance` passed.
+6. `cargo test --locked -p tracewake-core --test hidden_truth_gates` passed.
+7. `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed.
