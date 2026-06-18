@@ -1,6 +1,6 @@
 # 0038SPICEREVE-009: SPINE-08 evidence — no direct dispatch and full mutation-path closure
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — fills the SPINE-08 section of the acceptance artifact from existing tests/negative fixtures.
@@ -75,3 +75,22 @@ For each illegal path (direct mutation from TUI/content/action-def/scheduler-rew
 1. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
 2. `cargo test --locked -p tracewake-core --test spine_conformance && cargo test --locked -p tracewake-core --test ci_workflow_guards`
 3. `cargo test --locked -p tracewake-tui --test tui_seam_conformance && cargo test --locked -p tracewake-tui --test adversarial_gates`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-08 section of the acceptance report with legal mutation-path
+traces, private mutation-capability boundary evidence, external-crate
+compile-fail closure, direct-apply/source-perimeter guards, scheduler and TUI
+bypass closure, replay application evidence, and dependency-boundary evidence.
+Recorded the full named SPINE-08 external-crate closure set and the legal actor,
+TUI, scheduler, and replay mutation paths.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed.
+2. `cargo test --locked -p tracewake-core --test spine_conformance` passed.
+3. `cargo test --locked -p tracewake-core --test ci_workflow_guards` passed.
+4. `cargo test --locked -p tracewake-tui --test tui_seam_conformance` passed.
+5. `cargo test --locked -p tracewake-tui --test adversarial_gates` passed.

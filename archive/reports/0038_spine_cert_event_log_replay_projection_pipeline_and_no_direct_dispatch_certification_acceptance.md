@@ -458,7 +458,57 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-08 No Direct Dispatch And Full Mutation-Path Closure
 
-Status: pending. Owned by `0038SPICEREVE-009`.
+Status: evidence captured by `0038SPICEREVE-009`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-08 Evidence Summary
+
+SPINE-08 evidence is drawn from mutation capability visibility, event
+application source guards, external-crate negative fixtures, spine conformance,
+CI workflow/dependency guards, and TUI seam/adversarial suites. This seam owns
+the cross-caller closure: TUI, content, scheduler, debug, projection, tests, and
+external crates cannot bypass the canonical proposal/validation/scheduler/event
+append/application path for world-affecting behavior.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE08-MUTATION-CAPABILITY-PRIVATE | SPINE-08 | static review + negative fixture | capability constructor/API surface | `events::mutation` is a private module; `WorldMutationCapability` and `AgentMutationCapability` have private fields and `pub(in crate::events)` mint functions; `external_crate_cannot_forge_mutation_capability` fails with private-module evidence | `crates/tracewake-core/src/events/mutation.rs`; negative fixture stderr assertions | exhaustive over current mutation capability constructors | none | counted as certifying pass for kernel-owned mutation authority | none | `archive/reports/0038_spine_cert_command_transcripts/core_negative_fixture_runner.txt` |
+| SPINE08-EXTERNAL-FORGERY-CLOSURE | SPINE-08 | negative fixture | command transcript | `negative_fixture_runner` proves external crates cannot call post-load seed mutators, mutate agent seed maps, forge mutation capability, read raw epistemic projection maps, or insert raw epistemic records | registered negative fixture census and stderr assertions | full named SPINE-08 external-crate fixture set | none | counted as certifying pass for external boundary closure | none | `archive/reports/0038_spine_cert_command_transcripts/core_negative_fixture_runner.txt` |
+| SPINE08-APPLY-MUTATOR-PERIMETER | SPINE-08 | observed run + static review | production-source scan and synthetic negatives | `no_direct_apply_event_outside_event_replay_or_pipeline` derives all public apply mutator tokens and proves direct apply calls are confined to allowlisted event/replay/pipeline seams; synthetic view-model and unscanned-mutator injections fail the guard | apply mutator allowlist and live witness count | guarded production source census for apply mutator calls | none | counted as certifying pass for direct event-apply closure | none | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_spine_conformance.txt` |
+| SPINE08-LEGAL-ACTOR-PIPELINE-PATH | SPINE-08 | observed run | command transcript | `accepted_action_appends_before_authoritative_apply` records accepted `proposal_open_strongbox`, proves log append before authoritative apply, physical checksum change only after pipeline run, and validation dry-run rejection leaves log/checksum unchanged | proposal ID, ordering key, event log length, physical checksum | representative accepted actor proposal | none | counted as certifying legal actor mutation path | SPINE-06 owns the within-pipeline happy-path evidence; SPINE-08 uses it as one legal-path trace | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| SPINE08-LEGAL-TUI-PATH | SPINE-08 | observed run + static review | TUI source guard and command transcript | `tui_sources_do_not_call_event_application_directly` proves TUI sources contain no direct apply imports/calls and retain `run_pipeline(&mut context, &proposal)`; command-loop/adversarial suites prove semantic actions and debug commands do not mutate outside the pipeline | TUI command outputs, physical checksums, validation reports | representative accepted TUI semantic action plus TUI bypass guards | none | counted as certifying legal TUI mutation path and TUI bypass closure | none | `archive/reports/0038_spine_cert_command_transcripts/tui_tui_seam_conformance.txt`; `archive/reports/0038_spine_cert_command_transcripts/tui_adversarial_gates.txt` |
+| SPINE08-LEGAL-SCHEDULER-PATH | SPINE-08 | observed run + static review | scheduler source guard and no-human event log | `scheduler_never_direct_dispatches_primitive_action` and `guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass` prove scheduler ordinary proposals route through `run_pipeline`, autonomous proposals come from `ActorDecisionTransaction::run`, and only documented marker/completion event builders are allowlisted | no-human capstone proposal ancestry, scheduler ordering keys, routine/need diagnostics | representative scheduled passive/completion path plus guarded scheduler census | none | counted as certifying scheduler no-direct-dispatch closure | none | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_spine_conformance.txt` |
+| SPINE08-LEGAL-REPLAY-PATH | SPINE-08 | observed run + static review | replay application seam | replay rebuild uses `EventApplicationContext` and `apply_event_stream`; event-schema/golden replay tests rebuild state from logged events and reject schema/stream divergence | replay reports, checksums, event log deserialization | representative replay-applied event sequence | none | counted as certifying legal replay mutation path | none | `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+| SPINE08-DEPENDENCY-BOUNDARY | SPINE-08 | observed run | command transcript | `ci_workflow_guards` and conformance tests preserve workspace dependency posture and guard workflow; core remains independent of content/TUI authority and content/TUI cannot import internal mutation constructors | workspace dependency/CI guard assertions | workspace guard suite | none | counted as certifying dependency-boundary posture | none | `archive/reports/0038_spine_cert_command_transcripts/core_ci_workflow_guards.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_spine_conformance.txt` |
+
+Legal mutation path matrix:
+
+| Legal path | Evidence |
+|---|---|
+| Accepted actor proposal | `proposal_open_strongbox` through `run_pipeline`, event appended before authoritative apply, physical checksum changes after accepted pipeline run |
+| Accepted TUI semantic action | real TUI command loop and current-view semantic proposal path through `proposal_from_current_view_semantic_action` then `run_pipeline` |
+| Scheduled passive/completion event | scheduler no-human path assigns deterministic ordering, uses actor transaction handoff, routes ordinary proposals through `run_pipeline`, and only appends documented marker/completion events |
+| Replay-applied event sequence | replay rebuild applies logged events through `EventApplicationContext` / `apply_event_stream` and rejects corrupted schema/stream/order cases |
+
+Bypass-closure evidence:
+
+| Illegal path | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| External crate forges mutation capability | negative fixture | `external_crate_cannot_forge_mutation_capability` | tests/fixtures / event application | counted as certifying pass |
+| External crate calls seed mutators or mutates seed maps | negative fixture | `external_crate_cannot_call_seed_mutators_after_load`, `external_crate_cannot_mutate_agent_state_seed_maps` | tests/fixtures / content load | counted as certifying pass |
+| External crate reads raw projection maps or inserts raw epistemic records | negative fixture | `external_crate_cannot_read_raw_epistemic_projection_maps`, `external_crate_cannot_insert_raw_epistemic_records` | tests/fixtures / projection/replay | counted as certifying pass |
+| TUI/debug directly applies events or mutates state | observed run + static review | `tui_sources_do_not_call_event_application_directly`, debug checksum checks, and adversarial gates | view-model rendering / debug quarantine | counted as certifying pass |
+| Scheduler bypasses proposal validation or rewrites actor decision | observed run + static review | `scheduler_never_direct_dispatches_primitive_action`, `guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass`, and `guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition` | scheduler ordering | counted as certifying pass |
+| Projection/view/test helper directly applies mutators | observed run + static review | `no_direct_apply_event_outside_event_replay_or_pipeline` synthetic injection guards | projection/replay / tests/fixtures | counted as certifying pass |
+| Validation rejection fallback-plans from hidden truth | observed run | hidden-truth transaction and pipeline guards emit rejection/diagnostic evidence rather than alternate hidden-truth actions | action validation / planning | counted as certifying pass |
+
+Sampling/exhaustiveness claim: external-crate negative fixtures cover the full
+SPINE-08 named closure set; source guards derive apply mutator tokens from the
+current public apply API and scan guarded production sources; legal paths are
+representative examples for each allowed mutation category.
+
+Pending/historical caveat: none for SPINE-08 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## Per-Seam Verdict Table
 
