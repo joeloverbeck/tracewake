@@ -1,6 +1,6 @@
 # 0039SPICERMUT-014: Kill `actions/report.rs` SPINE survivors with a checked-fact-key + pipeline-consequence matrix
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `actions/report.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -77,3 +77,23 @@ Map each of the 13 deleted-arm mutants (plus any new run survivor in this file) 
 1. `cargo test --locked -p tracewake-core --test spine_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/actions/report.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added `actions::report::tests::checked_fact_key_matrix_survives_validation_report_consumption` in `crates/tracewake-core/src/actions/report.rs`. The witness builds accepted and rejected `ValidationReport`s containing every supported checked-fact stable key, then verifies each consumed `CheckedFact` retains the exact typed `CheckedFactKey`, stable key, render pair, and validation source.
+
+The test also covers duplicate typed `reason` facts and misspelled/unsupported keys (`tick`, `target`, `container`, `holder_known_context_hash`) to prove they remain `Unsupported(...)` instead of falling into another stable fact.
+
+Deviation from the original plan: the witness landed in the `actions/report.rs` unit-test module instead of `spine_conformance.rs`, because the survivor behavior is the report module's typed key classification. No production correction or schema shape change was needed. Because ticket 001 installed the standing SPINE mutation perimeter in `.cargo/mutants.toml`, the per-file ticket proof used `--no-config` so the command measured only this ticket's target file.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --lib actions::report::tests` — passed.
+- `cargo test --locked -p tracewake-core --test spine_conformance` — passed.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/actions/report.rs --no-shuffle` — passed; 31 mutants tested, 28 caught, 3 unviable, 0 missed.
+- `cargo fmt --all --check` — passed after formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.

@@ -282,4 +282,152 @@ mod tests {
             &CheckedFactKey::Unsupported("holder_known_context_hash".to_string())
         );
     }
+
+    #[test]
+    fn checked_fact_key_matrix_survives_validation_report_consumption() {
+        let cases = [
+            ("action_id", CheckedFactKey::ActionId),
+            ("actor_id", CheckedFactKey::ActorId),
+            ("body_exclusive", CheckedFactKey::BodyExclusive),
+            ("container_id", CheckedFactKey::ContainerId),
+            ("door_id", CheckedFactKey::DoorId),
+            ("duration_ticks", CheckedFactKey::DurationTicks),
+            ("from_place_id", CheckedFactKey::FromPlaceId),
+            ("item_id", CheckedFactKey::ItemId),
+            ("need_kind", CheckedFactKey::NeedKind),
+            ("pipeline_slots_9_11", CheckedFactKey::PipelineSlot),
+            ("place_id", CheckedFactKey::PlaceId),
+            ("reason", CheckedFactKey::Reason),
+            ("sleep_affordance_id", CheckedFactKey::SleepAffordanceId),
+            ("target_id", CheckedFactKey::TargetId),
+            ("ticks", CheckedFactKey::TickCount),
+            ("to_place_id", CheckedFactKey::ToPlaceId),
+        ];
+        let checked_facts = cases
+            .iter()
+            .map(|(stable_key, _)| CheckedFact::new(*stable_key, format!("value_for_{stable_key}")))
+            .collect::<Vec<_>>();
+        let actor_visible_facts = checked_facts
+            .iter()
+            .filter(|fact| {
+                matches!(
+                    fact.key(),
+                    CheckedFactKey::ActionId
+                        | CheckedFactKey::ActorId
+                        | CheckedFactKey::Reason
+                        | CheckedFactKey::TickCount
+                )
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let debug_only_facts = checked_facts
+            .iter()
+            .filter(|fact| {
+                !matches!(
+                    fact.key(),
+                    CheckedFactKey::ActionId
+                        | CheckedFactKey::ActorId
+                        | CheckedFactKey::Reason
+                        | CheckedFactKey::TickCount
+                )
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let accepted = ValidationReport {
+            validation_report_id: ValidationReportId::new("report_checked_fact_accepted").unwrap(),
+            proposal_id: ProposalId::new("proposal_checked_fact_accepted").unwrap(),
+            actor_id: Some(ActorId::new("actor_tomas").unwrap()),
+            action_id: ActionId::new("wait").unwrap(),
+            target_ids: Vec::new(),
+            status: ReportStatus::Accepted,
+            failed_stage: None,
+            reason_codes: Vec::new(),
+            checked_facts: checked_facts.clone(),
+            actor_visible_facts: actor_visible_facts.clone(),
+            debug_only_facts: debug_only_facts.clone(),
+            actor_visible_summary: "Accepted.".to_string(),
+            debug_summary: "accepted report consumed checked facts".to_string(),
+            would_mutate: true,
+            event_ids: vec![EventId::new("event_checked_fact_accepted").unwrap()],
+            checksum_before: None,
+            checksum_after: None,
+        };
+        let rejected = ValidationReport {
+            validation_report_id: ValidationReportId::new("report_checked_fact_rejected").unwrap(),
+            proposal_id: ProposalId::new("proposal_checked_fact_rejected").unwrap(),
+            actor_id: Some(ActorId::new("actor_tomas").unwrap()),
+            action_id: ActionId::new("wait").unwrap(),
+            target_ids: Vec::new(),
+            status: ReportStatus::Rejected,
+            failed_stage: Some(crate::actions::pipeline::PipelineStage::SourceContextValidation),
+            reason_codes: vec![ReasonCode::ProposalSourceStale],
+            checked_facts,
+            actor_visible_facts,
+            debug_only_facts,
+            actor_visible_summary: "Rejected.".to_string(),
+            debug_summary: "rejected report consumed checked facts".to_string(),
+            would_mutate: false,
+            event_ids: vec![EventId::new("event_checked_fact_rejected").unwrap()],
+            checksum_before: None,
+            checksum_after: None,
+        };
+
+        for report in [&accepted, &rejected] {
+            assert_eq!(report.checked_facts.len(), cases.len());
+            assert_eq!(
+                report.actor_visible_facts.len() + report.debug_only_facts.len(),
+                report.checked_facts.len()
+            );
+            for ((stable_key, expected_key), fact) in cases.iter().zip(&report.checked_facts) {
+                assert_eq!(fact.key(), expected_key, "{stable_key}");
+                assert_eq!(fact.stable_key(), *stable_key);
+                assert_eq!(
+                    fact.render_pair(),
+                    format!("{stable_key}=value_for_{stable_key}")
+                );
+                assert_eq!(fact.source(), CheckedFactSource::Validation);
+            }
+        }
+
+        let duplicate_reason_report = ValidationReport {
+            validation_report_id: ValidationReportId::new("report_duplicate_reason").unwrap(),
+            proposal_id: ProposalId::new("proposal_duplicate_reason").unwrap(),
+            actor_id: Some(ActorId::new("actor_tomas").unwrap()),
+            action_id: ActionId::new("wait").unwrap(),
+            target_ids: Vec::new(),
+            status: ReportStatus::Rejected,
+            failed_stage: Some(crate::actions::pipeline::PipelineStage::CostDurationCheck),
+            reason_codes: vec![ReasonCode::InvalidParameter],
+            checked_facts: vec![
+                CheckedFact::new("reason", "first"),
+                CheckedFact::new("reason", "second"),
+            ],
+            actor_visible_facts: vec![
+                CheckedFact::new("reason", "first"),
+                CheckedFact::new("reason", "second"),
+            ],
+            debug_only_facts: Vec::new(),
+            actor_visible_summary: "Rejected.".to_string(),
+            debug_summary: "duplicate reasons stay typed and ordered".to_string(),
+            would_mutate: false,
+            event_ids: vec![EventId::new("event_duplicate_reason").unwrap()],
+            checksum_before: None,
+            checksum_after: None,
+        };
+        assert!(duplicate_reason_report
+            .checked_facts
+            .iter()
+            .all(|fact| fact.key() == &CheckedFactKey::Reason));
+
+        for misspelled_key in ["tick", "target", "container", "holder_known_context_hash"] {
+            let fact = CheckedFact::new(misspelled_key, "unsupported");
+            assert_eq!(
+                fact.key(),
+                &CheckedFactKey::Unsupported(misspelled_key.to_string()),
+                "{misspelled_key}"
+            );
+            assert_eq!(fact.render_pair(), format!("{misspelled_key}=unsupported"));
+        }
+    }
 }
