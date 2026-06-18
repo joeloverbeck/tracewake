@@ -1,6 +1,6 @@
 # 0039SPICERMUT-015: Kill `scheduler.rs` SPINE survivors with tick-boundary + routine-completion witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `scheduler.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -79,3 +79,24 @@ Map all 8 historical mutants (plus any new run survivor in this file) to a concr
 1. `cargo test --locked -p tracewake-core --test no_human_capstone --test spine_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/scheduler.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added scheduler unit witnesses in `crates/tracewake-core/src/scheduler.rs`:
+
+- `duration_completion_appends_exact_matching_routine_step_once` exercises `SleepCompleted` and `WorkBlockCompleted` duration terminals through `append_routine_step_completed_after_duration_completion`, proving the scheduler appends exactly one `RoutineStepCompleted` event with deterministic ordering, completion-event ancestry, the correct ordinary action ID, and the exact matching in-progress execution. The matrix includes decoy executions for wrong actor, wrong family, future start tick, and already-completed status so the historical filter mutants select the wrong execution and fail.
+- `work_move_starts_but_non_move_progress_completes_routine_step` proves a work-family `move` ordinary event starts but does not complete routine progress, while a non-move work-family ordinary event appends/applies `RoutineStepCompleted` and updates routine state to completed.
+
+Deviation from the original plan: the witnesses landed in the private scheduler unit-test module rather than `no_human_capstone.rs` / `spine_conformance.rs`, because the surviving mutants were all private helper branches. The tests still observe appended/applied events and routine lifecycle state, not predicate return values. No production correction or schema shape change was needed. Because ticket 001 installed the standing SPINE mutation perimeter in `.cargo/mutants.toml`, the per-file ticket proof used `--no-config` so the command measured only this ticket's target file.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --lib scheduler::no_human::tests` — passed.
+- `cargo test --locked -p tracewake-core --test no_human_capstone --test spine_conformance` — passed.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/scheduler.rs --no-shuffle` — passed; 203 mutants tested, 170 caught, 33 unviable, 0 missed.
+- `cargo fmt --all --check` — passed after formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
