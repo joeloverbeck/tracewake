@@ -197,7 +197,58 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-03 Projection Rebuild And Non-Truth-Writer Quarantine
 
-Status: pending. Owned by `0038SPICEREVE-004`.
+Status: evidence captured by `0038SPICEREVE-004`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-03 Evidence Summary
+
+Projection evidence is drawn from `KnowledgeContext` sealing,
+`EpistemicProjection`/view-model construction, golden fixture runtime tests, and
+TUI debug-quarantine adversarial gates. `KnowledgeContext` records holder-known
+context ID, event frontier, source scopes, provenance entries, debug flag, and
+holder-known context hash. `EmbodiedViewModel` carries the sealed context ID,
+hash, frontier, source summary, actor-scoped notebook, and debug availability
+without exposing raw projection storage.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE03-CONTEXT-SEAL | SPINE-03 | static review + observed run | parsed semantic content | `KnowledgeContext` seals `holder_known_context_id`, `event_frontier`, `holder_known_context_hash`, `provenance_entries`, and `debug_non_diegetic`; unit tests include `embodied_context_seals_id_hash_provenance_frontier_and_audit` and hash-change checks | `crates/tracewake-core/src/epistemics/knowledge_context.rs`; `hidden_truth_gates` and `anti_regression_guards` transcripts | exhaustive over context seal fields at this commit | none | counted as certifying support with observed tests below | none | `archive/reports/0038_spine_cert_command_transcripts/core_hidden_truth_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| SPINE03-PROJECTION-FIELDS | SPINE-03 | static review + observed run | parsed semantic content | `EmbodiedProjectionSource::from_sealed_context` derives actor-known food, sleep, route, workplace, door, container, item, and local-actor surfaces from sealed context rather than raw truth | `crates/tracewake-core/src/projections.rs`; `crates/tracewake-core/src/view_models.rs` | exhaustive over the embodied projection source fields used by current view construction | none | counted as certifying support with observed tests below | none | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| SPINE03-HIDDEN-TRUTH-GATES | SPINE-03 | observed run | command transcript | `hidden_truth_gates` exercises actor-known filtering and forbidden-truth audit paths using real applied epistemic events | hidden-truth harness provenance checked by `guard_0021_hidden_truth_gates_use_event_log_provenance` | focused hidden-truth gate suite | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/core_hidden_truth_gates.txt` |
+| SPINE03-GOLDEN-PROJECTION-CORPUS | SPINE-03 | observed run | command transcript | `golden_fixtures_run` covers `view_filtering_001`, `view_model_local_actions_001`, `possession_parity_001`, `no_human_observation_facts_cite_log_events_001`, `workplace_assignment_provenance_001`, and `stale_workplace_notice_superseded_by_newer_001` plus replay/tamper checks | fixture logs, context hashes, actor-known inputs, and projection-derived assertions inside the test suite | spec-mandated positive projection fixture corpus plus full golden fixture run | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+| SPINE03-SPINE-CONFORMANCE | SPINE-03 | observed run | command transcript | conformance matrix maps high-risk projection/debug requirements to named positive and negative evidence | `spine_conformance` matrix includes `core/agent`, `tui/view-model`, and `tui/debug` layers | full conformance matrix at this commit | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/core_spine_conformance.txt` |
+| SPINE03-NON-TRUTH-WRITER-GUARDS | SPINE-03 | observed run | command transcript | `anti_regression_guards` proves actor-known context producers are projection-backed, fabricated visible-local event IDs are retired, hidden-truth audit derives from provenance, and direct state mutation remains confined to event application | source guards and synthetic negative mutations in `anti_regression_guards` | guarded production-source census and synthetic negatives | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| SPINE03-TUI-DEBUG-QUARANTINE | SPINE-03 | observed run | command transcript | `tui_seam_conformance` and TUI adversarial gates prove debug epistemics use the core debug builder, debug command strings are not embodied commands, and debug panels do not change embodied affordances/context | holder-known context IDs/hashes/frontiers and debug-only views in TUI tests | TUI seam conformance matrix plus adversarial debug fixture | none | counted as certifying pass for projection-level quarantine; SPINE-07 owns full TUI render/transcript seam | none | `archive/reports/0038_spine_cert_command_transcripts/tui_tui_seam_conformance.txt`; `archive/reports/0038_spine_cert_command_transcripts/tui_adversarial_gates.txt` |
+
+Required positive fixtures are covered by observed tests:
+
+| Fixture | Evidence status | Behavior witness | Projection/provenance record | Certification use |
+|---|---|---|---|---|
+| `view_filtering_001` | observed run | `golden_fixtures_run` fixture corpus and view filtering assertions | actor-visible view filtered through holder-known facts | counted as certifying pass |
+| `view_model_local_actions_001` | observed run | `golden_fixtures_run` and TUI stale/current-view tests | semantic actions include holder-known context ID/hash/frontier provenance | counted as certifying pass |
+| `possession_parity_001` | observed run | `golden_fixtures_run` possession fixture and TUI possession adversarial gates | possession does not transfer notebook/debug truth across actor contexts | counted as certifying pass |
+| `no_human_observation_facts_cite_log_events_001` | observed run | `golden_fixtures_run` no-human provenance tests | actor-known inputs cite source event IDs and recompute context hashes | counted as certifying pass |
+| `workplace_assignment_provenance_001` | observed run | `golden_fixtures_run` workplace provenance fixture | workplace availability carries source-event-backed provenance | counted as certifying pass |
+| `stale_workplace_notice_superseded_by_newer_001` | observed run | `fixtures_load`/`golden_fixtures_run` stale-notice tests | newer source event supersedes stale workplace notice | counted as certifying pass |
+
+Required adversarial failures are covered by observed tests:
+
+| Failure family | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| Projection writes authoritative state or appends events | observed run | `event_apply_remains_only_post_seed_mutation_path`, `guard_001_no_direct_state_collection_insert_outside_event_application`, and TUI source direct-apply guards | `projection/replay` / `view-model rendering` | counted as certifying pass |
+| Hidden facts absent from holder-known context enter actor-visible projection | observed run | `hidden_truth_gates`; `no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`; TUI `adversarial_gates_debug_truth_does_not_enter_actor_surfaces` | `actor-known context construction` / `view-model rendering` | counted as certifying pass |
+| Actor-visible fact lacks provenance | observed run | holder-known context provenance fields, `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`, and availability provenance tests | `actor-known context construction` | counted as certifying pass |
+| Provenance gap silently falls back to plan | observed run | `method_fallback_requires_new_trace_or_stuck_001`, hidden-truth audit gates, and no-human workplace/food provenance fixtures | `planning/method selection` / `candidate generation` | counted as certifying pass |
+| Debug projection content enters embodied view | observed run | `debug_panel_does_not_change_embodied_affordances`, `debug_command_strings_are_not_embodied_commands`, and `tui_epistemic_debug_uses_core_builder_not_raw_projection_storage` | `debug quarantine` / `view-model rendering` | counted as certifying pass |
+
+Sampling/exhaustiveness claim: projection seal and view-model field coverage are
+static over the current source fields, while behavior evidence covers the
+spec-mandated fixture set plus TUI/debug adversarial fixtures. SPINE-03 cites
+TUI debug quarantine only to prove projection-level non-contamination; SPINE-07
+owns the full TUI embodied/debug split.
+
+Pending/historical caveat: none for SPINE-03 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-04 Randomness And Random-Stream Discipline
 

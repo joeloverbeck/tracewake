@@ -1,6 +1,6 @@
 # 0038SPICEREVE-004: SPINE-03 evidence — projection rebuild and non-truth-writer quarantine
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — fills the SPINE-03 section of the acceptance artifact from existing tests/fixtures.
@@ -74,3 +74,20 @@ For the adversarial families (illegal state write / event append from a projecti
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
 2. `cargo test --locked -p tracewake-core --test spine_conformance && cargo test --locked -p tracewake-tui --test tui_seam_conformance`
 3. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-03 section of `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md` with projection rebuild, holder-known context sealing, actor-visible provenance, non-truth-writer source guard, positive projection fixture, and debug-quarantine evidence.
+
+Verification run after report edits:
+
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates` — passed.
+- `cargo test --locked -p tracewake-core --test spine_conformance` — passed.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance` — passed.
+- `cargo test --locked -p tracewake-tui --test adversarial_gates` — passed as supplemental evidence for debug quarantine rows cited by the report.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed.
+
+Deviations: none for this ticket's evidence-capture scope. The SPINE-03 verdict row remains pending because `0038SPICEREVE-011` owns the capstone verdict table.
