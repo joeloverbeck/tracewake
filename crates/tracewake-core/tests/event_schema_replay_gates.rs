@@ -5,11 +5,13 @@ use std::collections::BTreeSet;
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
-    BlockerCategory, BlockerCode, Intention, IntentionSource, IntentionStatus, NeedChangeCause,
-    NeedKind, NeedState, ResponsibleLayer, RoutineExecution, RoutineFamily, StuckDiagnostic,
-    StuckResultingStatus, TypedDiagnosticFields,
+    BlockerCategory, BlockerCode, DecisionTraceRecord, Intention, IntentionSource, IntentionStatus,
+    NeedChangeCause, NeedKind, NeedState, ResponsibleLayer, RoutineExecution, RoutineFamily,
+    StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
 };
-use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
+use tracewake_core::checksum::{
+    compute_holder_known_context_hash, compute_physical_checksum, ChecksumContext,
+};
 use tracewake_core::epistemics::{Channel, EpistemicProjection, KnowledgeContext, Stance};
 use tracewake_core::events::apply::{
     apply_agent_event, apply_epistemic_event, apply_event, ApplyError, ApplyOutcome,
@@ -521,6 +523,42 @@ fn random_draw_wire(scope: &str, draw_id: &str, value: &str) -> String {
         .map(envelope_hex)
         .collect::<Vec<_>>()
         .join(":")
+}
+
+fn append_ordered(events: Vec<EventEnvelope>) -> EventLog {
+    let mut log = EventLog::new();
+    for event in events {
+        append_to_log(&mut log, event);
+    }
+    log
+}
+
+fn unrelated_observation_event(
+    event_id: &str,
+    observer_actor_id: &str,
+    place_id: &str,
+    tick: SimTick,
+) -> EventEnvelope {
+    let mut event = epistemic_event_with_payload(
+        event_id,
+        EventKind::ObservationRecorded,
+        tick.value(),
+        vec![
+            PayloadField::new("schema_version", "event_schema_v1"),
+            PayloadField::new("observation_id", format!("obs_{event_id}")),
+            PayloadField::new("observer_actor_id", observer_actor_id),
+            PayloadField::new("channel", "direct_sight"),
+            PayloadField::new("observed_tick", tick.value().to_string()),
+            PayloadField::new("observer_place_id", place_id),
+            PayloadField::new("place_id", place_id),
+            PayloadField::new("confidence", "777"),
+            PayloadField::new("source_event_id", event_id),
+        ],
+    );
+    event.actor_id = Some(ActorId::new(observer_actor_id).unwrap());
+    event.place_id = Some(PlaceId::new(place_id).unwrap());
+    event.sim_tick = tick;
+    event
 }
 
 #[test]
@@ -1178,6 +1216,231 @@ fn legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults() 
     );
     assert_eq!(trace.typed_diagnostic.blocker_code, BlockerCode::None);
     assert_eq!(trace.typed_diagnostic.input_source, "actor_known_context");
+}
+
+#[test]
+fn deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses() {
+    let mut world = world_state();
+    let mut agent_state = agent_state();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+
+    run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry,
+        manifest_id(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "deterministic_rebuild".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+    let context = checksum_context("deterministic_rebuild_context_hash", &log);
+    let first = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&world),
+    );
+    let second = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap(),
+        &context,
+        Some(&world),
+    );
+    assert_eq!(first, second);
+    assert!(first.decision_context_hash_failures.is_empty());
+    assert!(first.invariant_violations.is_empty());
+    assert!(first.state_diff.is_empty());
+
+    let trace_index = log
+        .events()
+        .iter()
+        .position(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .expect("no-human day records a decision trace");
+    let trace = &log.events()[trace_index];
+    let ordinary_event_id = payload_value(trace, "ordinary_event_id")
+        .expect("trace records ordinary event id")
+        .to_string();
+    let recorded_trace = DecisionTraceRecord::deserialize_canonical(
+        payload_value(trace, "trace_canonical")
+            .expect("trace canonical exists")
+            .as_bytes(),
+    )
+    .expect("trace canonical parses");
+    assert!(
+        recorded_trace.actor_known_context_hash.is_some(),
+        "fixture must prove non-empty decision-context hash rebuilding"
+    );
+
+    let mut cause_only_events = log.events().to_vec();
+    let cause_only_trace = &mut cause_only_events[trace_index];
+    cause_only_trace
+        .payload
+        .retain(|field| field.key != "ordinary_event_id");
+    cause_only_trace.causes = vec![EventCause::Event(EventId::new(&ordinary_event_id).unwrap())];
+    let cause_only_log = append_ordered(cause_only_events);
+    let cause_only_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &cause_only_log,
+        &checksum_context("deterministic_rebuild_cause_only", &cause_only_log),
+        Some(&world),
+    );
+    assert!(
+        cause_only_rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        cause_only_rebuild.decision_context_hash_failures
+    );
+
+    let mut missing_cause_events = cause_only_log.events().to_vec();
+    missing_cause_events[trace_index].causes.clear();
+    let missing_cause_log = append_ordered(missing_cause_events);
+    let missing_cause_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &missing_cause_log,
+        &checksum_context("deterministic_rebuild_missing_cause", &missing_cause_log),
+        Some(&world),
+    );
+    assert!(missing_cause_rebuild
+        .decision_context_hash_failures
+        .iter()
+        .any(|failure| failure.issue == "missing_ordinary_event_id"));
+
+    let mut unrelated_events = log.events().to_vec();
+    let ordinary_index = unrelated_events
+        .iter()
+        .position(|event| event.event_id.as_str() == ordinary_event_id)
+        .expect("ordinary event exists");
+    let decision_tick = recorded_trace.window_start_tick;
+    unrelated_events.insert(
+        ordinary_index,
+        unrelated_observation_event(
+            "event_unrelated_wrong_actor_perception",
+            "actor_unrelated",
+            "shop_front",
+            decision_tick,
+        ),
+    );
+    unrelated_events.insert(
+        ordinary_index + 1,
+        unrelated_observation_event(
+            "event_unrelated_wrong_place_perception",
+            actor_id().as_str(),
+            "back_room",
+            decision_tick,
+        ),
+    );
+    unrelated_events.insert(
+        ordinary_index + 2,
+        unrelated_observation_event(
+            "event_unrelated_wrong_tick_perception",
+            actor_id().as_str(),
+            "shop_front",
+            SimTick::new(decision_tick.value() + 99),
+        ),
+    );
+    let mut unrelated_need = agent_event_with_payload(
+        "event_unrelated_need_wrong_actor",
+        EventKind::NeedDeltaApplied,
+        decision_tick.value() + 100,
+        vec![
+            PayloadField::new("actor_id", "actor_unrelated"),
+            PayloadField::new("need_kind", "hunger"),
+            PayloadField::new("delta", "1"),
+            PayloadField::new("cause_kind", "fixture_initial"),
+        ],
+    );
+    unrelated_need.actor_id = Some(ActorId::new("actor_unrelated").unwrap());
+    unrelated_events.insert(ordinary_index + 3, unrelated_need);
+    let unrelated_log = append_ordered(unrelated_events);
+    let unrelated_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &unrelated_log,
+        &checksum_context("deterministic_rebuild_unrelated", &unrelated_log),
+        Some(&world),
+    );
+    assert!(
+        unrelated_rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        unrelated_rebuild.decision_context_hash_failures
+    );
+
+    let mut payload_only_need_events = log.events().to_vec();
+    let ordinary_index = payload_only_need_events
+        .iter()
+        .position(|event| event.event_id.as_str() == ordinary_event_id)
+        .expect("ordinary event exists");
+    let trace_index = payload_only_need_events
+        .iter()
+        .position(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .expect("trace event exists");
+    let mut payload_only_need = agent_event_with_payload(
+        "event_relevant_payload_only_need",
+        EventKind::NeedDeltaApplied,
+        decision_tick.value() + 101,
+        vec![
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("need_kind", "hunger"),
+            PayloadField::new("delta", "0"),
+            PayloadField::new("cause_kind", "fixture_initial"),
+        ],
+    );
+    payload_only_need.actor_id = None;
+    payload_only_need_events.insert(ordinary_index, payload_only_need);
+
+    let shifted_trace_index = if trace_index >= ordinary_index {
+        trace_index + 1
+    } else {
+        trace_index
+    };
+    let trace_canonical = payload_only_need_events[shifted_trace_index]
+        .payload
+        .iter_mut()
+        .find(|field| field.key == "trace_canonical")
+        .expect("trace canonical exists");
+    let mut expected_trace =
+        DecisionTraceRecord::deserialize_canonical(trace_canonical.value.as_bytes())
+            .expect("trace canonical parses");
+    expected_trace.actor_known_inputs.push(
+        "agent_needs_present=remembered_belief:agent_state:needs_present|source_class=memory|explicit_unknown=false|source_events=event_relevant_payload_only_need"
+            .to_string(),
+    );
+    expected_trace.actor_known_context_hash =
+        Some(compute_holder_known_context_hash(expected_trace.actor_known_inputs.clone()).hash);
+    trace_canonical.value = expected_trace.serialize_canonical();
+
+    let payload_only_need_log = append_ordered(payload_only_need_events);
+    let payload_only_need_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &payload_only_need_log,
+        &checksum_context(
+            "deterministic_rebuild_payload_only_need",
+            &payload_only_need_log,
+        ),
+        Some(&world),
+    );
+    assert!(
+        payload_only_need_rebuild
+            .decision_context_hash_failures
+            .is_empty(),
+        "{:?}",
+        payload_only_need_rebuild.decision_context_hash_failures
+    );
 }
 
 #[test]
