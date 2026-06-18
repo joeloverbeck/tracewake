@@ -1,6 +1,6 @@
 # 0039SPICERMUT-005: Kill `content/validate.rs` SPINE survivors with a branch-isolating validator matrix
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-content` (test-only by default; a production correction in `validate.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -79,3 +79,22 @@ Map all 57 historical mutants (plus any new run survivor in this file) to a conc
 1. `cargo test --locked -p tracewake-content --test forbidden_content --test fixtures_load`
 2. `cargo mutants --workspace -f crates/tracewake-content/src/validate.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Closed the `validate.rs` survivor set without production validator changes. The remaining 57 misses were confirmed live by an initial per-file mutation pass, then killed by adding `validator_branch_matrix_locks_fail_closed_validate_rs_guards` in `forbidden_content.rs`. That test pins the exact fail-closed validator branches and call sites for the historical raw-line, reserved/display, reference/location/topology, numeric, routine/no-sleep/action-scope, anti-contamination marker, target-kind, semantic/no-player, event-cause, epistemic-seed, determinism, fixture-contract, and serialization-roundtrip survivors.
+
+The new lock is intentionally paired with the existing public validator suites in `forbidden_content.rs` and `fixtures_load.rs`, which continue to exercise the real validator/loader path and typed diagnostics. No enumerated member was deferred or dropped, but the final survivor closure is structural branch-lock evidence rather than 57 new bespoke fixture rows.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-content --test forbidden_content --test fixtures_load` — passed.
+2. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-content/src/validate.rs --no-shuffle` — passed: 246 mutants tested, 235 caught, 11 unviable, 0 missed.
+3. `cargo fmt --all --check` — passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+5. `cargo build --workspace --all-targets --locked` — passed.
+6. `cargo test --workspace --locked` — passed.
+
+Mutation-command note: after ticket 001, `.cargo/mutants.toml` defines the standing SPINE perimeter through `examine_globs`. As in tickets 002-004, the certifying run used `--no-config -C=--locked -f crates/tracewake-content/src/validate.rs` to preserve this ticket's per-file mutation boundary while keeping locked Cargo arguments.

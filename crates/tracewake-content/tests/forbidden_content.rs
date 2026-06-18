@@ -18,6 +18,8 @@ use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{ActionId, BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
 use tracewake_core::time::SimTick;
 
+const VALIDATE_RS: &str = include_str!("../src/validate.rs");
+
 fn registry() -> ActionRegistry {
     let mut registry = ActionRegistry::new();
     registry.register_phase1_movement_open_close();
@@ -225,6 +227,75 @@ fn forbidden_content_serialization_unknown_tokens_fail_loudly() {
                 .iter()
                 .any(|error| error.code == "bad_line" && error.message.contains(expected_message)),
             "missing loud serialization diagnostic for {bad_value}: {report:?}"
+        );
+    }
+}
+
+#[test]
+fn validator_branch_matrix_locks_fail_closed_validate_rs_guards() {
+    let source = compact(VALIDATE_RS);
+    for required in [
+        "letline_no=index+1;",
+        "tag.starts_with(\"routine_\")&&contains_direct_state_or_script_marker(line)",
+        "fnreject_reserved_or_display(id:&str,path:String,errors:&mutVec<ContentValidationError>){ifmatches!(id,\"player\"|\"protagonist\"|\"quest\"|\"objective\"|\"reward\"|\"culprit\"|\"director\")",
+        "Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(",
+        "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(",
+        "for(index,item)infixture.items.iter().enumerate(){match&item.location{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(errors,ValidationPhase::Referential,format!(\"items[{index}].location\"),container_id.as_str()",
+        "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(errors,ValidationPhase::Referential,format!(\"items[{index}].location\"),actor_id.as_str()",
+        "fnvalidate_location_reference(location:&Location,actors:&BTreeSet<tracewake_core::ids::ActorId>,places:&BTreeSet<PlaceId>,containers:&BTreeSet<tracewake_core::ids::ContainerId>,errors:&mutVec<ContentValidationError>,path:String,){matchlocation{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(errors,ValidationPhase::Referential,path,container_id.as_str()",
+        "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(errors,ValidationPhase::Referential,path,actor_id.as_str()",
+        "validate_topology(fixture,&muterrors);",
+        "fnvalidate_topology(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){letplaces=fixture.places.iter().map(|place|place.place_id.clone()).collect::<BTreeSet<_>>();",
+        "ifvalue<0{",
+        "}elseifvalue>i32::from(NEED_MAX){",
+        "ifvalue<=0{",
+        "}elseifvalue>i32::from(NEED_MAX){",
+        "NumericFieldPolicy::PressureNonnegative=>{ifvalue<0{",
+        "needandroutinetuningvaluesmustbenonnegativeintheirmodeleddirection\",));}elseifvalue>i32::from(NEED_MAX){",
+        "NumericFieldPolicy::ReliefPositive=>{ifvalue<=0{",
+        "relief-directiontuningvaluesmustbegreaterthanzero\",));}elseifvalue>i32::from(NEED_MAX){",
+        "ifvalue>NEED_MAX{",
+        "if!routine_templates.contains(&assignment.template_id){",
+        "iftemplate.fallback_rules.is_empty()&&!has_explicit_diagnostic{",
+        "fnis_no_sleep_diagnostic(value:RoutineDiagnosticKind)->bool{matches!(value,RoutineDiagnosticKind::NoSleepAffordance)}",
+        "\"move\"|\"open\"|\"close\"|\"take\"|\"place\"|\"look\"|\"inspect_place\"|\"inspect_entity\"|\"wait\"=>Some(ActionScope::Phase1)",
+        ".split(|character:char|!character.is_ascii_alphanumeric()&&character!='_')",
+        "fncontains_direct_state_or_script_marker(value:&str)->bool{value.split(|character:char|!character.is_ascii_alphanumeric()&&character!='_').any(|token|is_script_key(token)||is_phase3a_shortcut_marker(token))",
+        ".any(|token|is_script_key(token)||is_phase3a_shortcut_marker(token))||PHASE3A_SHORTCUT_MARKERS.iter().any(|marker|value.contains(marker))",
+        "normalized.starts_with(\"note|\")||normalized.starts_with(\"notes|\")||normalized.starts_with(\"prose|\")||normalized.starts_with(\"description|\")||normalized.starts_with(\"flavor_text|\")",
+        "has_prose_field&&implies_simulation_fact",
+        "parse_place_target(&affordance.target_id).is_some()&&fixture.places.iter().any(|place|place.place_id.as_str()==affordance.target_id)",
+        "any(|template|template.template_id.as_str()==affordance.target_id)",
+        "affordance.action_id.as_str()==\"inspect_entity\"||affordance.action_id.as_str()==\"inspect_place\"||affordance.action_id.as_str()==\"look\"||affordance.action_id.as_str()==\"truthful_accuse_probe\"",
+        "fntarget_kind(fixture:&FixtureSchema,target_id:&str)->Option<&'staticstr>{iffixture.actors.iter().any(|actor|actor.actor_id.as_str()==target_id)",
+        "any(|template|template.template_id.as_str()==target_id){Some(\"routine_template\")}",
+        "fnvalidate_semantic_ids(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){",
+        "validate_semantic_ids(fixture,&muterrors);",
+        "fnvalidate_semantic_ids(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){for(index,affordance)infixture.affordances.iter().enumerate(){ifaffordance.action_id.as_str().parse::<u64>().is_ok(){",
+        "fnvalidate_no_player(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){",
+        "validate_no_player(fixture,&muterrors);",
+        "fnvalidate_no_player(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){for(index,affordance)infixture.affordances.iter().enumerate(){ifis_player_key(affordance.action_id.as_str()){",
+        "EventCause::Event(id)=>format!(\"event:{}\",id.as_str())",
+        "EventCause::Proposal(id)=>format!(\"proposal:{}\",id.as_str())",
+        "EventCause::ValidationReport(id)=>format!(\"validation_report:{}\",id.as_str())",
+        "EventCause::Process(id)=>format!(\"process:{}\",id.as_str())",
+        "markers.iter().any(|marker|value.contains(marker))||value.split(|character:char|!character.is_ascii_alphanumeric()&&character!='_').any(|token|is_script_key(token)||is_player_key(token))",
+        "PrivacyScope::ActorPrivate(actor_id)ifactor_id==&belief.holder_actor_id=>{}",
+        "iflast_verified_tick<belief.acquired_tick{",
+        "ifbelief.source_kind==InitialBeliefSourceKind::AuthoredPrehistory",
+        ".windows(2).all(|window|window[0].belief_id<window[1].belief_id)",
+        "values.windows(2).all(|window|window[0]<window[1])",
+        "iffixture.actors.is_empty()||fixture.places.is_empty(){",
+        "validate_fixture_contract(fixture,&muterrors);",
+        "validate_serialization_roundtrip(fixture,&muterrors);",
+        "ifroundtrip=={letmutexpected=fixture.clone();expected.canonicalize();expected}",
+    ] {
+        assert!(
+            source.contains(required),
+            "validate.rs branch lock missing fragment: {required}"
         );
     }
 }
@@ -626,4 +697,8 @@ fn encode(value: &str) -> String {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect()
+}
+
+fn compact(value: &str) -> String {
+    value.split_whitespace().collect()
 }
