@@ -16,12 +16,15 @@ use tracewake_core::events::apply::{
     EpistemicApplyError, AGENT_WORLD_NOOP_ALLOWLIST,
 };
 use tracewake_core::events::log::{EventLog, EventLogError};
-use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream, PayloadField};
+use tracewake_core::events::{
+    EventCause, EventEnvelope, EventEnvelopeParseError, EventKind, EventStream, PayloadField,
+    RandomDrawRef,
+};
 use tracewake_core::ids::{
     ActionId, ActorId, BeliefId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
-    ContradictionId, DecisionTraceId, EventId, FixtureId, IntentionId, ItemId, ObservationId,
-    PlaceId, ProcessId, RoutineExecutionId, RoutineTemplateId, SchemaVersion, SemanticActionId,
-    StuckDiagnosticId, WorkplaceId,
+    ContradictionId, ControllerId, DecisionTraceId, EventId, FixtureId, IntentionId, ItemId,
+    ObservationId, PlaceId, ProcessId, RoutineExecutionId, RoutineTemplateId, SchemaVersion,
+    SemanticActionId, StuckDiagnosticId, ValidationReportId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
@@ -494,6 +497,30 @@ fn event_ids(values: &[&str]) -> Vec<EventId> {
         .iter()
         .map(|value| EventId::new(*value).unwrap())
         .collect()
+}
+
+fn envelope_hex(value: &str) -> String {
+    value
+        .as_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+fn encoded_vec(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|value| envelope_hex(value))
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn random_draw_wire(scope: &str, draw_id: &str, value: &str) -> String {
+    [scope, draw_id, value]
+        .into_iter()
+        .map(envelope_hex)
+        .collect::<Vec<_>>()
+        .join(":")
 }
 
 #[test]
@@ -1151,6 +1178,186 @@ fn legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults() 
     );
     assert_eq!(trace.typed_diagnostic.blocker_code, BlockerCode::None);
     assert_eq!(trace.typed_diagnostic.input_source, "actor_known_context");
+}
+
+#[test]
+fn envelope_identity_round_trips_stream_phase_source_cause_and_random_draws() {
+    let controller_id = ControllerId::new("controller_replay_audit").unwrap();
+    let validation_report_id = ValidationReportId::new("validation_report_replay_audit").unwrap();
+    let random_draw = RandomDrawRef::new("rng:phase3a", "draw:987", "1844674407370955161");
+
+    let mut controller = EventEnvelope::new_v1(
+        EventId::new("event_controller_envelope_identity").unwrap(),
+        EventKind::ControllerAttached,
+        99,
+        99,
+        SimTick::new(30),
+        OrderingKey::new(
+            SimTick::new(30),
+            SchedulePhase::DeferredProcess,
+            SchedulerSourceId::Controller(controller_id.clone()),
+            ProposalSequence::new(17),
+            ActionId::new("debug.bind").unwrap(),
+            vec![
+                "actor_tomas".to_string(),
+                "controller_replay_audit".to_string(),
+            ],
+            "controller:deferred:17",
+        ),
+        manifest_id(),
+    );
+    controller.actor_id = Some(actor_id());
+    controller.participants = vec![
+        actor_id().as_str().to_string(),
+        controller_id.as_str().to_string(),
+    ];
+    controller.random_draws = vec![random_draw.clone()];
+
+    let mut diagnostic = EventEnvelope::new_v1(
+        EventId::new("event_validation_cause_envelope_identity").unwrap(),
+        EventKind::ActionRejected,
+        99,
+        99,
+        SimTick::new(31),
+        OrderingKey::new(
+            SimTick::new(31),
+            SchedulePhase::Replay,
+            SchedulerSourceId::Controller(controller_id.clone()),
+            ProposalSequence::new(18),
+            ActionId::new("open").unwrap(),
+            vec!["strongbox_tomas".to_string()],
+            "controller:replay:18",
+        ),
+        manifest_id(),
+    );
+    diagnostic.causes = vec![EventCause::ValidationReport(validation_report_id.clone())];
+    diagnostic.validation_report_id = Some(validation_report_id.clone());
+    diagnostic.effects_summary = "validation report rejected action".to_string();
+
+    let replay_debug = EventEnvelope::new_v1(
+        EventId::new("event_replay_debug_envelope_identity").unwrap(),
+        EventKind::ReplayProjectionRebuilt,
+        99,
+        99,
+        SimTick::new(32),
+        OrderingKey::new(
+            SimTick::new(32),
+            SchedulePhase::Replay,
+            SchedulerSourceId::Process(ProcessId::new("process_replay_audit").unwrap()),
+            ProposalSequence::new(19),
+            ActionId::new("replay.projection").unwrap(),
+            vec!["world".to_string()],
+            "replay:debug:19",
+        ),
+        manifest_id(),
+    );
+
+    let mut log = EventLog::new();
+    let controller = append_to_log(&mut log, controller);
+    let diagnostic = append_to_log(&mut log, diagnostic);
+    let replay_debug = append_to_log(&mut log, replay_debug);
+    let canonical = log.serialize_canonical();
+    let first_round_trip = EventLog::deserialize_canonical(&canonical).unwrap();
+    let duplicate_round_trip =
+        EventLog::deserialize_canonical(&first_round_trip.serialize_canonical()).unwrap();
+
+    assert_eq!(first_round_trip.serialize_canonical(), canonical);
+    assert_eq!(duplicate_round_trip.serialize_canonical(), canonical);
+    assert_eq!(
+        first_round_trip.events(),
+        &[controller, diagnostic, replay_debug]
+    );
+
+    let round_tripped_controller = &first_round_trip.events()[0];
+    assert_eq!(round_tripped_controller.stream, EventStream::Controller);
+    assert_eq!(round_tripped_controller.stream_position, 0);
+    assert_eq!(
+        round_tripped_controller.ordering_key.phase,
+        SchedulePhase::DeferredProcess
+    );
+    assert_eq!(
+        round_tripped_controller.ordering_key.source_id,
+        SchedulerSourceId::Controller(controller_id.clone())
+    );
+    assert_eq!(round_tripped_controller.random_draws, vec![random_draw]);
+
+    let round_tripped_diagnostic = &first_round_trip.events()[1];
+    assert_eq!(
+        round_tripped_diagnostic.ordering_key.phase,
+        SchedulePhase::Replay
+    );
+    assert_eq!(
+        round_tripped_diagnostic.ordering_key.source_id,
+        SchedulerSourceId::Controller(controller_id)
+    );
+    assert_eq!(
+        round_tripped_diagnostic.causes,
+        vec![EventCause::ValidationReport(validation_report_id.clone())]
+    );
+    assert_eq!(
+        round_tripped_diagnostic.validation_report_id.as_ref(),
+        Some(&validation_report_id)
+    );
+
+    let round_tripped_replay_debug = &first_round_trip.events()[2];
+    assert_eq!(round_tripped_replay_debug.stream, EventStream::ReplayDebug);
+    assert_eq!(round_tripped_replay_debug.stream_position, 0);
+    assert_eq!(
+        round_tripped_replay_debug.ordering_key.phase,
+        SchedulePhase::Replay
+    );
+}
+
+#[test]
+fn random_draw_deserialization_rejects_malformed_and_bad_hex_records() {
+    let mut envelope = event(
+        "event_random_draw_corruption_matrix",
+        EventKind::ActorWaited,
+        0,
+    );
+    envelope.random_draws = vec![RandomDrawRef::new(
+        "rng:corruption",
+        "draw:nonzero",
+        "987654321",
+    )];
+    let canonical = String::from_utf8(envelope.serialize_canonical()).unwrap();
+    let good_random_draws = encoded_vec(&[random_draw_wire(
+        "rng:corruption",
+        "draw:nonzero",
+        "987654321",
+    )]);
+    assert!(
+        canonical.contains(&format!("random_draws={good_random_draws}")),
+        "{canonical}"
+    );
+
+    let malformed_tuple = encoded_vec(&[format!(
+        "{}:{}",
+        envelope_hex("rng:corruption"),
+        envelope_hex("draw:nonzero")
+    )]);
+    let malformed = canonical.replace(
+        &format!("random_draws={good_random_draws}"),
+        &format!("random_draws={malformed_tuple}"),
+    );
+    assert_eq!(
+        EventEnvelope::deserialize_canonical(malformed.as_bytes()),
+        Err(EventEnvelopeParseError::InvalidTuple)
+    );
+
+    let bad_inner_hex = encoded_vec(&[format!(
+        "zz:{}:{}",
+        envelope_hex("draw:nonzero"),
+        envelope_hex("987654321")
+    )]);
+    let bad_hex = canonical.replace(
+        &format!("random_draws={good_random_draws}"),
+        &format!("random_draws={bad_inner_hex}"),
+    );
+    assert_eq!(
+        EventEnvelope::deserialize_canonical(bad_hex.as_bytes()),
+        Err(EventEnvelopeParseError::BadHex)
+    );
 }
 
 #[test]

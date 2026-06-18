@@ -1,6 +1,6 @@
 # 0039SPICERMUT-007: Kill `events/envelope.rs` SPINE survivors with envelope-identity + random-draw round-trips
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `events/envelope.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -77,3 +77,22 @@ Map all 9 historical mutants (plus any new run survivor in this file) to a concr
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/events/envelope.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented the `events/envelope.rs` SPINE survivor witnesses as test-only coverage in `crates/tracewake-core/tests/event_schema_replay_gates.rs`:
+
+- Added an envelope identity round-trip matrix that serializes through `EventLog`, deserializes twice, and asserts downstream-consumed identity for controller and replay-debug streams, deferred and replay schedule phases, controller scheduler source IDs, validation-report causes, validation-report IDs, stream positions, and nonzero random draw records.
+- Added random-draw corruption rows that replace the canonical `random_draws` field with malformed tuple and bad-inner-hex encodings, proving typed `EventEnvelopeParseError::InvalidTuple` and `EventEnvelopeParseError::BadHex` failures.
+- No production correction in `crates/tracewake-core/src/events/envelope.rs` was required. The parser has string-valued random draw refs, so there is no numeric out-of-range branch to exercise without changing schema; the fail-loud coverage matches the current parser's concrete malformed-input diagnostics.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/events/envelope.rs --no-shuffle` — passed with 112 mutants tested, 80 caught, 32 unviable, 0 missed. The `--no-config` deviation was required because ticket 001 made `.cargo/mutants.toml` the standing SPINE perimeter; using the literal ticket command with config would enumerate the full perimeter instead of only `events/envelope.rs`.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
