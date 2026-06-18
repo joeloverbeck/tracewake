@@ -4,19 +4,19 @@
 Title: 0038 SPINE-CERT event-log, replay, projection, pipeline, and no-direct-dispatch certification acceptance report
 Spec under execution: specs/0038_SPINE_CERT_EVENT_LOG_REPLAY_PROJECTION_PIPELINE_AND_NO_DIRECT_DISPATCH_CERTIFICATION_SPEC.md
 Implementation repository: joeloverbeck/tracewake
-Implementation commit: b4b59c92d126692c9f2fa4c986695b9f2e20db2c
-Commit freshness claim: local checkout HEAD at 0038SPICEREVE-001 scaffold command capture; not independently verified as latest main
+Implementation commit: 0ce59ad78e466fa77301b85ce9bef6c3a30b1eb2
+Commit freshness claim: local checkout HEAD after `0038SPICEREVE-010`; capstone `0038SPICEREVE-011` is report-only and changes no production logic
 Spec posture consumed: P0-CERT passed
 Gate label under certification: SPINE-CERT
-Verdict: <pending>
+Verdict: SPINE-CERT scoped remediation
 Non-executable spec note: this report executes the audit; the spec did not certify results
 ```
 
 This report instantiates the 0038 acceptance-artifact contract. The 0038 spec
 defined the audit plan and withheld a verdict; this report is the artifact that
-will render the eventual SPINE-CERT verdict after tickets
-`0038SPICEREVE-002` through `0038SPICEREVE-011` fill the seam evidence,
-mutation package, and capstone sections.
+renders the SPINE-CERT verdict after tickets `0038SPICEREVE-002` through
+`0038SPICEREVE-011` filled the seam evidence, mutation package, and capstone
+sections.
 
 ## Evidence-Status Ledger Legend
 
@@ -94,8 +94,7 @@ Filtered command rows are paired with the unfiltered required
 
 ## SPINE-01 Event Log, Event Envelope, And Append-Only Causal Stream
 
-Status: evidence captured by `0038SPICEREVE-002`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-002`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-01 Evidence Summary
 
@@ -147,8 +146,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-02 Replay Rebuild, Divergence Reporting, And Deterministic Replay Gates
 
-Status: evidence captured by `0038SPICEREVE-003`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-003`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-02 Evidence Summary
 
@@ -197,8 +195,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-03 Projection Rebuild And Non-Truth-Writer Quarantine
 
-Status: evidence captured by `0038SPICEREVE-004`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-004`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-03 Evidence Summary
 
@@ -252,8 +249,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-04 Randomness And Random-Stream Discipline
 
-Status: evidence captured by `0038SPICEREVE-005`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-005`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-04 Evidence Summary
 
@@ -297,8 +293,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-05 Save Package, Manifest Integrity, Schema Versioning, And Upcast/Read Discipline
 
-Status: evidence captured by `0038SPICEREVE-006`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-006`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-05 Evidence Summary
 
@@ -343,8 +338,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-06 Action Proposal, Validation, Scheduling, Event Append, Application, And Feedback Pipeline
 
-Status: evidence captured by `0038SPICEREVE-007`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-007`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-06 Evidence Summary
 
@@ -409,8 +403,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-07 TUI, Embodied View Models, Transcript Surface, And Debug Split
 
-Status: evidence captured by `0038SPICEREVE-008`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-008`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-07 Evidence Summary
 
@@ -458,8 +451,7 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-08 No Direct Dispatch And Full Mutation-Path Closure
 
-Status: evidence captured by `0038SPICEREVE-009`; per-seam verdict remains
-pending until capstone `0038SPICEREVE-011`.
+Status: evidence captured by `0038SPICEREVE-009`; per-seam verdict rendered in the capstone table below.
 
 ### SPINE-08 Evidence Summary
 
@@ -512,22 +504,45 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## Per-Seam Verdict Table
 
-Status: pending. Owned by `0038SPICEREVE-011`.
+Status: verdict rendered by `0038SPICEREVE-011`.
 
 | Seam | Required status for SPINE-CERT passed | Required artifacts | Current status |
 |---|---|---|---|
-| SPINE-01 event log | all positive and adversarial event-log evidence passed | canonical event log fingerprints, corrupted-log rejection | pending |
-| SPINE-02 replay | deterministic replay and loud divergence evidence passed | replay reports, duplicate-run checksums, first-divergence artifact | pending |
-| SPINE-03 projection | rebuildable non-truth-writer projection evidence passed | projection fingerprints, holder-known context/provenance records | pending |
-| SPINE-04 randomness | RNG stream discipline proven or no-RNG absence proven | seed/stream records, banned entry-point guards, duplicate-run evidence | pending |
-| SPINE-05 save/manifest | manifest/schema/replay package integrity passed | manifest fingerprints, schema diagnostics, mismatch failure artifact | pending |
-| SPINE-06 pipeline | canonical action pipeline and validation evidence passed | proposal/validation/event trace records, accepted/rejected witnesses | pending |
-| SPINE-07 TUI/debug | embodied/debug quarantine evidence passed | transcript snapshots, debug-only artifacts, semantic-action path evidence | pending |
-| SPINE-08 no direct dispatch | bypass closure and mutation capability evidence passed | compile-fail negative fixtures, API-boundary evidence, mutation results | pending |
+| SPINE-01 event log | all positive and adversarial event-log evidence passed | canonical event log fingerprints, corrupted-log rejection | passed as seam evidence; see SPINE-01 section and command transcripts |
+| SPINE-02 replay | deterministic replay and loud divergence evidence passed | replay reports, duplicate-run checksums, first-divergence artifact | passed as seam evidence; see SPINE-02 section and command transcripts |
+| SPINE-03 projection | rebuildable non-truth-writer projection evidence passed | projection fingerprints, holder-known context/provenance records | passed as seam evidence; see SPINE-03 section and command transcripts |
+| SPINE-04 randomness | RNG stream discipline proven or no-RNG absence proven | seed/stream records, banned entry-point guards, duplicate-run evidence | passed as seam evidence; see SPINE-04 section and command transcripts |
+| SPINE-05 save/manifest | manifest/schema/replay package integrity passed | manifest fingerprints, schema diagnostics, mismatch failure artifact | passed as seam evidence; see SPINE-05 section and command transcripts |
+| SPINE-06 pipeline | canonical action pipeline and validation evidence passed | proposal/validation/event trace records, accepted/rejected witnesses | passed as seam evidence; see SPINE-06 section and command transcripts |
+| SPINE-07 TUI/debug | embodied/debug quarantine evidence passed | transcript snapshots, debug-only artifacts, semantic-action path evidence | passed as seam evidence; see SPINE-07 section and command transcripts |
+| SPINE-08 no direct dispatch | bypass closure and mutation capability evidence passed | compile-fail negative fixtures, API-boundary evidence, mutation results | passed as seam evidence for bypass closure; mutation posture below blocks certification |
+| Mutation posture | Wave A and Wave B mutation package has no untriaged behavior-changing survivor, or each survivor has equivalent-mutant evidence | Wave A/B commands, output, survivor register, no-silent-exclusion statement | scoped remediation required: Wave B found 296 missed mutants across SPINE files; see `reports/0038_spine_cert_mutation_triage_register.md` |
 
 ## Replay And Provenance Package
 
-Status: pending. Owned by `0038SPICEREVE-011` after seam evidence lands.
+Status: packaged by `0038SPICEREVE-011`.
+
+The replay/provenance package is assembled from the observed report sections and
+command transcripts below:
+
+| Package requirement | Evidence |
+|---|---|
+| Event-log packages for each required fixture | SPINE-01 seed-log fingerprint table at `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `content_golden_fixtures_run.txt`; `content_fixtures_load.txt` |
+| Replay reports for each required fixture | SPINE-02 replay evidence; `core_event_schema_replay_gates.txt`; `core_golden_scenarios.txt`; `core_generative_lock.txt`; `content_golden_fixtures_run.txt` |
+| State and projection checksums | SPINE-02 and SPINE-03 sections; `golden_fixtures_run`, `event_schema_replay_gates`, `generative_lock`, and `hidden_truth_gates` command transcripts |
+| Content manifest fingerprints | SPINE-05 section; `content_fixtures_load.txt`; `content_golden_fixtures_run.txt`; manifest fingerprint tests |
+| Holder-known context IDs, hashes, frontiers, and provenance ancestry | SPINE-03, SPINE-06, and SPINE-07 sections; `core_hidden_truth_gates.txt`; `tui_adversarial_gates.txt`; `tui_transcript_snapshot.txt` |
+| Debug quarantine separated from embodied transcripts | SPINE-07 paired channel witness; `tui_transcript_snapshot.txt`; `tui_adversarial_gates.txt`; `core_negative_fixture_runner.txt` |
+| Corrupted/adversarial loud-failure reports | SPINE-01, SPINE-02, SPINE-05, SPINE-06, SPINE-07, and SPINE-08 adversarial tables; `core_event_schema_replay_gates.txt`; `content_forbidden_content.txt`; `core_negative_fixture_runner.txt`; `tui_adversarial_gates.txt` |
+
+Fixture matrix confirmation: the required §6 fixture families are exercised by
+`content_golden_fixtures_run.txt`, `content_fixtures_load.txt`,
+`core_golden_scenarios.txt`, `core_hidden_truth_gates.txt`,
+`core_no_human_capstone.txt`, `tui_transcript_snapshot.txt`, and the TUI
+adversarial/acceptance transcripts. The capstone reran
+`cargo test --workspace --locked`, `cargo test --locked -p tracewake-core --test
+emergence_ledger`, and `cargo test --locked -p tracewake-core --test
+spine_conformance`; all exited 0.
 
 ## Mutation Package
 
@@ -597,7 +612,33 @@ required; no equivalent-mutant claim is made.
 
 ## EMERGE-OBS Handling
 
-Status: pending. Owned by `0038SPICEREVE-011`.
+Status: packaged by `0038SPICEREVE-011` as observer-only evidence.
 
 `EMERGE-OBS` is observer-only evidence. It is not a phase gate, is not a
 pass/fail threshold, and cannot substitute for any SPINE seam.
+
+The concrete witness is `crates/tracewake-core/tests/emergence_ledger.rs`.
+The capstone reran `cargo test --locked -p tracewake-core --test
+emergence_ledger`; it exited 0 and proved the `EmergeObsLedger` over the
+no-human generated corpus remains observer-only and replay-byte-identical.
+This evidence is informative only for SPINE-CERT. It does not offset the Wave B
+mutation survivors and does not feed any later ladder gate.
+
+## Final Verdict
+
+`SPINE-CERT scoped remediation`.
+
+The eight SPINE seam rows have observed, negative-fixture, static-review, and
+mutation-capability evidence sufficient for their local seam evidence packages.
+The overall certification cannot pass because the mutation posture is blocking:
+Wave B found 296 missed mutants in SPINE-CERT files, with 0 timeouts and 326
+unviable mutants. The survivor register records those misses as scoped
+remediation required, and no equivalent-mutant claim is made.
+
+Responsible remediation layers named by the mutation register: content loader,
+schema, serialization, validation, action proposal/report, checksum, debug
+reports, epistemic knowledge context, event application, event envelope,
+projection, replay rebuild/report, scheduler, view models, TUI render, and TUI
+transcript. This result is a blocking remediation state only. It is not
+`SPINE-CERT passed`, cannot feed `EPI-CERT`, `ORD-LIFE-CERT`, Phase-4 entry, or
+later gates, and does not relabel the phase or skip the required remediation.

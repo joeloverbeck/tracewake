@@ -1,6 +1,6 @@
 # 0038SPICEREVE-011: Capstone — per-seam verdict table, replay/provenance package, and SPINE-CERT verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — consolidates the seam evidence into the §9.4 verdict table, assembles the §9.5 replay/provenance package and §9.7 EMERGE-OBS slot, and renders the verdict; introduces no production logic.
@@ -74,3 +74,28 @@ Package the §9.7 EMERGE-OBS observer-only evidence (citing `emergence_ledger`) 
 1. `cargo test --workspace --locked`
 2. `cargo test --locked -p tracewake-core --test emergence_ledger`
 3. `cargo test --locked -p tracewake-core --test spine_conformance` (cross-seam spine map — the narrower boundary confirming the consolidated seam set resolves)
+
+## Outcome
+
+Completed: 2026-06-18
+
+Rendered the acceptance artifact verdict as `SPINE-CERT scoped remediation`.
+The eight SPINE seam rows are consolidated in the §9.4 table as locally passed
+evidence packages, but the mutation posture blocks certification because Wave B
+found 296 missed mutants across SPINE-CERT files. The final verdict names the
+responsible remediation layers from the mutation register and records that the
+result is a blocking remediation state only, not a pass and not input to later
+ladder gates.
+
+Packaged the §9.5 replay/provenance evidence by linking event-log packages,
+replay reports, state/projection checksums, content manifest fingerprints,
+holder-known context/provenance records, debug-quarantine artifacts, and
+corrupted/adversarial loud-failure reports back to the existing command
+transcripts and seam sections. Packaged EMERGE-OBS as observer-only,
+non-gating evidence.
+
+Verification passed:
+
+- `cargo test --workspace --locked`
+- `cargo test --locked -p tracewake-core --test emergence_ledger`
+- `cargo test --locked -p tracewake-core --test spine_conformance`
