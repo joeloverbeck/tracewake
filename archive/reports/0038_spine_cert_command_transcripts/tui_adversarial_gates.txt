@@ -1,0 +1,26 @@
+COMMAND: cargo test --locked -p tracewake-tui --test adversarial_gates
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/adversarial_gates.rs (target/debug/deps/adversarial_gates-c7f10057767876ea)
+
+running 15 tests
+test adversarial_gates_forged_privileged_semantic_id_is_not_current_action ... ok
+test adversarial_gates_typed_diagnostics_are_independent_of_display_text ... ok
+test adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not ... ok
+test adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target ... ok
+test adversarial_gates_public_tui_boundary_rejects_direct_dispatch_shape ... ok
+test adversarial_gates_debug_truth_does_not_enter_actor_surfaces ... ok
+test adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts ... ok
+test debug_command_strings_are_not_embodied_commands ... ok
+test adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth ... ok
+test adversarial_gates_stale_view_token_fails_after_state_change ... ok
+test debug_panel_does_not_change_embodied_affordances ... ok
+test tui_current_view_submission_rejects_stale_selection ... ok
+test adversarial_gates_rendering_does_not_change_typed_order_or_replay ... ok
+test tui_transcript_marks_debug_sections_non_diegetic ... ok
+test adversarial_gates_no_human_operator_output_stays_debug_only ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+EXIT_STATUS: 0

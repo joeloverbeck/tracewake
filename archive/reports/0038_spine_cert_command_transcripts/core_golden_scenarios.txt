@@ -1,0 +1,27 @@
+COMMAND: cargo test --locked -p tracewake-core --test golden_scenarios
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/golden_scenarios.rs (target/debug/deps/golden_scenarios-36c2e7809f5f038e)
+
+running 16 tests
+test controller_binding_is_not_world_state ... ok
+test accepted_actions_append_versioned_events ... ok
+test debug_item_location_reports_last_location_event ... ok
+test check_container_records_observation_but_open_alone_does_not ... ok
+test no_human_advance_requires_no_controller ... ok
+test debug_rejection_report_names_failed_stage ... ok
+test possession_controller_binding_is_not_world_state ... ok
+test phase3a_agent_state_replay_projection_is_deterministic ... ok
+test missing_property_belief_does_not_support_truthful_accusation ... ok
+test projection_rebuild_matches_live_state ... ok
+test no_human_epistemic_check_records_evidence_without_controller ... ok
+test expected_absence_check_creates_contradiction_and_missing_belief ... ok
+test replay_checksum_matches ... ok
+test sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge ... ok
+test replay_detects_missing_or_reordered_event ... ok
+test phase3a_no_human_metrics_are_byte_identical_after_log_replay ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+EXIT_STATUS: 0

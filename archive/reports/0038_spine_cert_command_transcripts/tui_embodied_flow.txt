@@ -1,0 +1,17 @@
+COMMAND: cargo test --locked -p tracewake-tui --test embodied_flow
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/embodied_flow.rs (target/debug/deps/embodied_flow-96bef0b4b3474bda)
+
+running 6 tests
+test source_scan_smoke_tui_does_not_call_event_applier ... ok
+test embodied_view_omits_raw_workplace_assignment_without_context ... ok
+test embodied_workplace_availability_reflects_belief_not_truth ... ok
+test embodied_workplace_believed_open_truth_closed ... ok
+test phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth ... ok
+test bind_render_submit_rerender_and_show_why_not ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+EXIT_STATUS: 0

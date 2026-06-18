@@ -1,0 +1,12 @@
+COMMAND: cargo test --locked -p tracewake-core --test no_human_capstone
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/no_human_capstone.rs (target/debug/deps/no_human_capstone-e6eae427d2e31f2d)
+
+running 1 test
+test no_human_capstone_proves_typed_ancestry_and_replay ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+
+EXIT_STATUS: 0

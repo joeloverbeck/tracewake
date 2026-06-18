@@ -1,0 +1,13 @@
+COMMAND: cargo test --locked -p tracewake-core --test generative_lock
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/generative_lock.rs (target/debug/deps/generative_lock-09150f468fc8e1f3)
+
+running 2 tests
+test duration_terminal_targeted_tamper_requires_duration_terminal ... ok
+test generated_sequences_replay_and_satisfy_metamorphic_locks ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+EXIT_STATUS: 0

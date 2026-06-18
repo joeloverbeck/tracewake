@@ -1,0 +1,12 @@
+COMMAND: cargo test --locked -p tracewake-core --test ci_workflow_guards
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/ci_workflow_guards.rs (target/debug/deps/ci_workflow_guards-097f54ed9b79fe8b)
+
+running 1 test
+test ci_workflow_guards_cover_workflow_integrity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+EXIT_STATUS: 0
