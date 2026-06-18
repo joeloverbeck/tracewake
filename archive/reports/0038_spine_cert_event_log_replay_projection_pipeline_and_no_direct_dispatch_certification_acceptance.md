@@ -94,7 +94,56 @@ Filtered command rows are paired with the unfiltered required
 
 ## SPINE-01 Event Log, Event Envelope, And Append-Only Causal Stream
 
-Status: pending. Owned by `0038SPICEREVE-002`.
+Status: evidence captured by `0038SPICEREVE-002`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-01 Evidence Summary
+
+SPINE-01 certifying evidence is drawn from observed command transcripts already
+captured in this report plus the supplemental seed-log fingerprint table at
+`archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`.
+
+The positive corpus named by spec §5 is covered as follows:
+
+| Fixture | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Certification use |
+|---|---|---|---|---|---|
+| `replay_item_location_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `golden_fixtures_run` exercises fixture load/action/replay paths; seed log is empty and recorded as such | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass for fixture presence/runtime gate; seed fingerprint is supplemental |
+| `container_item_move_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `golden_fixtures_run` covers item/container movement behavior; seed log is empty and recorded as such | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass for fixture presence/runtime gate; seed fingerprint is supplemental |
+| `door_access_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `golden_fixtures_run` covers door access behavior; seed log is empty and recorded as such | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass for fixture presence/runtime gate; seed fingerprint is supplemental |
+| `strongbox_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `golden_fixtures_run` covers strongbox behavior; seed log contains one `initial_belief_seeded` event | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass for fixture presence/runtime gate |
+| `ordinary_workday_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `golden_fixtures_run` covers ordinary-workday behavior; seed log carries starting belief and role-assignment notice events | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass for fixture presence/runtime gate |
+| `sleep_eat_work_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `sleep_eat_work_fixture_logs_need_effects_and_replays` in `golden_fixtures_run` appends sleep/eat/work events, serializes the log, deserializes it, and compares replay checksums | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass |
+| `no_human_day_001` | observed run + static review | seed log raw canonical bytes; runtime behavior transcript | `no_human_day_real_run_replays_metrics_and_trace_projection` in `golden_fixtures_run` runs the no-human day, rebuilds projection, compares physical/agent checksums, verifies metrics replay, and rejects a truncated replay | `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` | counted as certifying pass |
+
+Envelope field coverage is structurally present in
+`crates/tracewake-core/src/events/envelope.rs`: `EventEnvelope` carries event
+ID, event type, schema version, stream, stream position, global order,
+simulation tick, ordering key, actor ID, process ID, participants, place ID,
+causes, proposal ID, validation report ID, random draw refs, payload fields,
+effects summary, and content manifest ID. `EventEnvelope::serialize_canonical`
+serializes those fields with stable keys, and `EventLog::append` assigns
+monotonic global order and per-stream positions before storing the envelope.
+`EventEnvelope::new_caused_v1` rejects cause-required event kinds without
+causes.
+
+Adversarial and loud-failure evidence:
+
+| Requirement | Evidence status | Behavior witness | Failure layer | Transcript |
+|---|---|---|---|---|
+| Missing/unsupported schema versions reject loudly | observed run | `unsupported_event_schema_append_rejected`, `unsupported_event_schema_replay_rejected`, and `unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied` | `event application` / `projection/replay` | `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt` |
+| Duplicate or corrupted ordering rejects loudly | observed run | `EventLog::deserialize_canonical` rejects reordered global order; `rebuild_projection` verifies global order and stream position; `no_human_day_real_run_replays_metrics_and_trace_projection` rejects a missing-tail replay | `projection/replay` | `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+| Missing causes are rejected before envelope construction | static review + observed run | `EventKind::requires_cause` + `EventEnvelope::new_caused_v1` cause check; action-emitted cause disposition is locked by `action_emitted_event_kinds_have_cause_disposition` | `event application` | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| Mutation-implying payloads require typed apply arms/effects surfaces | observed run | `event_kind_metadata_is_total`, `physical_mutating_event_kinds_have_explicit_world_apply_arms`, `agent_stream_event_kinds_have_explicit_agent_apply_arms`, and `non_world_stream_cannot_change_physical_checksum` | `event application` / `projection/replay` | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt` |
+| Hidden-truth or prose-born payload insertion rejects or stays non-authoritative | observed run | `content_prose_born_fact_rejected` and hidden-truth adversarial gates in the content/core suites | `content/schema validation` / `tests/fixtures` | `archive/reports/0038_spine_cert_command_transcripts/content_forbidden_content.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_hidden_truth_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+
+Sampling/exhaustiveness claim: field coverage and event-kind metadata coverage
+are exhaustive over `EventEnvelope` fields and `EventKind::all()` at this
+commit. Positive fixture behavior is the spec-mandated named corpus, not a
+random sample. The seed-log fingerprint table is supplemental for initial
+fixture logs and does not replace runtime appended-event evidence.
+
+Pending/historical caveat: none for SPINE-01 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-02 Replay Rebuild, Divergence Reporting, And Deterministic Replay Gates
 

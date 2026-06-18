@@ -1,6 +1,6 @@
 # 0038SPICEREVE-002: SPINE-01 evidence — event log, envelope, and append-only causal stream
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — fills the SPINE-01 section of the acceptance artifact from existing tests/fixtures.
@@ -74,3 +74,21 @@ For the adversarial families — missing/unsupported schema versions, duplicate 
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test --locked -p tracewake-core --test spine_conformance && cargo test --locked -p tracewake-core --test negative_fixture_runner`
 3. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-01 section of `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md` with event-envelope field coverage, positive fixture/runtime coverage, schema and ordering rejection evidence, corrupted-log divergence evidence, mutation-path typed-apply evidence, and prose-born / hidden-truth payload guard evidence.
+
+Added `archive/reports/0038_spine_cert_spine01_seed_log_fingerprints.md` as a supplemental fingerprint table for the required fixtures' loaded seed event logs. The table explicitly distinguishes empty seed logs from runtime appended-event evidence so the artifact does not overclaim seed fingerprints as full runtime traces.
+
+Verification run after report edits:
+
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo test --locked -p tracewake-core --test spine_conformance` — passed.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed.
+
+Deviations: none for this ticket's evidence-capture scope. The SPINE-01 verdict row remains pending because `0038SPICEREVE-011` owns the capstone verdict table.
