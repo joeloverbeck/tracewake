@@ -1,6 +1,6 @@
 # 0039SPICERMUT-013: Kill `actions/proposal.rs` SPINE survivors with end-to-end proposal-provenance witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `actions/proposal.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -80,3 +80,28 @@ Map each empty/`xyzzy` stable-ID mutant and the `tui_context -> None` mutant (pl
 1. `cargo test --locked -p tracewake-core --test spine_conformance --test hidden_truth_gates`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/actions/proposal.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Changed the source-context validation path in `crates/tracewake-core/src/actions/pipeline.rs` so human-origin proposal validation consumes `ProposalSource::tui_context()` instead of destructuring the enum directly. A `tui_context -> None` mutation now rejects human TUI proposals at `SourceContextValidation` rather than remaining observationally unused.
+
+Strengthened the existing source-context witness in `actions::pipeline::tests::human_source_context_stale_frontier_rejects_before_action_validation` to assert the exact consumed debug facts:
+
+- `source_kind == "tui_semantic_action"`
+- `semantic_action_id == "look"`
+
+This makes the `ProposalSource::stable_id` empty/`xyzzy` mutants observable through a real validation report path, not a getter-only assertion.
+
+Deviation from the original plan: the effective witness landed in the `actions/pipeline.rs` unit-test module, with a small production correction in the pipeline consumer, rather than in `spine_conformance.rs` / `hidden_truth_gates.rs`. `actions/proposal.rs` did not need a data-shape change. Because ticket 001 installed the standing SPINE mutation perimeter in `.cargo/mutants.toml`, the per-file ticket proof used `--no-config` so the command measured only this ticket's target file.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --lib actions::pipeline::tests` — passed.
+- `cargo test --locked -p tracewake-core --test spine_conformance --test hidden_truth_gates` — passed.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/actions/proposal.rs --no-shuffle` — passed; 4 mutants tested, 3 caught, 1 unviable, 0 missed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
