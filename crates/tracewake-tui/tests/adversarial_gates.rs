@@ -5,7 +5,7 @@ use tracewake_core::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
 };
 use tracewake_tui::app::{AppError, TuiApp};
-use tracewake_tui::render::render_notebook;
+use tracewake_tui::render::{render_notebook, render_rejection};
 use tracewake_tui::run::run_command_loop;
 use tracewake_tui::transcript::{
     capture_representative_transcript, capture_representative_transcript_sections,
@@ -435,11 +435,22 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
     let mara_notebook = app.notebook_view().unwrap();
     let mara_rendered_view = app.render_current_view().unwrap();
     let mara_rendered_notebook = render_notebook(&mara_notebook);
+    let tomas_rendered_notebook = render_notebook(&tomas_notebook);
 
     assert_eq!(app.physical_checksum(), checksum_before_rebind);
     assert_eq!(mara_view.viewer_actor_id.as_str(), "actor_mara");
     assert!(mara_notebook.typed_leads.is_empty());
     assert!(mara_notebook.source_bound_beliefs.is_empty());
+    assert!(tomas_rendered_notebook.contains("contradiction="));
+    assert!(tomas_rendered_notebook.contains("source_kind="));
+    assert!(
+        !tomas_rendered_notebook
+            .lines()
+            .skip_while(|line| *line != "Leads:")
+            .take_while(|line| *line != "Beliefs:")
+            .any(|line| line == "- none"),
+        "typed notebook leads must suppress the legacy empty marker: {tomas_rendered_notebook}"
+    );
     for actor_surface in [mara_rendered_view.as_str(), mara_rendered_notebook.as_str()] {
         assert!(!actor_surface.contains("Knowledge context"));
         assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
@@ -601,6 +612,8 @@ fn adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts() {
     let rejected = app
         .submit_semantic_action(&SemanticActionId::new("move.to.back_room").unwrap())
         .unwrap();
+    let rendered_view = app.render_current_view().unwrap();
+    let rendered_rejection = render_rejection(&rejected.report);
     let why_not = app
         .current_view()
         .unwrap()
@@ -636,6 +649,10 @@ fn adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts() {
                 && !text.contains("actor_mara")
         }));
     assert!(app.render_debug_action_rejection_panel().is_some());
+    assert!(rendered_view.contains("Why-not:"));
+    assert!(rendered_rejection.contains("Why-not:"));
+    assert!(rendered_rejection.contains("door_closed_blocks_movement"));
+    assert!(rendered_rejection.contains(&rejected.report.actor_visible_summary));
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "action_validation",
         scenario_id: "door_access_001",

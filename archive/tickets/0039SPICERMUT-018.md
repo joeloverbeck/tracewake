@@ -1,6 +1,6 @@
 # 0039SPICERMUT-018: Kill `tui/render.rs` SPINE survivors with production-view-model render witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-tui` (test-only by default; a production correction in `tui/render.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -49,6 +49,12 @@ Map all 4 historical mutants (plus any new run survivor in this file) to a concr
 - `crates/tracewake-tui/tests/adversarial_gates.rs` (modify)
 - `crates/tracewake-tui/src/render.rs` (modify — only if a survivor reveals a real defect; default is test-only)
 
+## Implementation Disposition (2026-06-18)
+
+Current-code reassessment confirmed the 4 historical `render.rs` survivors remained: embodied why-not fact gating, notebook empty-marker gating, and empty/`xyzzy` action-rejection rendering.
+
+The implemented witnesses are test-only. `adversarial_gates.rs` now asserts production `TuiApp` rendering for typed notebook leads and action rejection output. `render.rs` unit tests add member-specific view-model rows for the why-not fact predicate and the typed-lead/no-empty-marker notebook branch, because the per-file mutation test slice for this package needed those exact render branches in unit coverage. No production rendering behavior changed.
+
 ## Out of Scope
 
 - Transcript representative-section selection (ticket 019).
@@ -80,3 +86,24 @@ Map all 4 historical mutants (plus any new run survivor in this file) to a concr
 1. `cargo test --locked -p tracewake-tui --test tui_seam_conformance --test adversarial_gates`
 2. `cargo mutants --workspace -f crates/tracewake-tui/src/render.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added render witnesses that preserve typed why-not facts from an embodied view model, suppress the notebook empty marker when typed leads are present, and assert production `TuiApp` rendering preserves typed notebook lead fields and rejection summary/reason-code output. The adversarial surfaces still prove possession rebinding and debug rendering do not leak debug/non-diegetic facts into ordinary actor output.
+
+Deviations from the original plan:
+
+- `tui_seam_conformance.rs` remained unchanged; its existing seam checks passed. The new positive render assertions landed in `adversarial_gates.rs` and `render.rs` unit tests.
+- The mutation command used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-tui/src/render.rs --no-shuffle` instead of the ticket's bare command, because ticket 001 installed the standing `.cargo/mutants.toml`; `--no-config` preserves this ticket's per-file Wave B proof boundary.
+
+Verification:
+
+- `cargo test --locked -p tracewake-tui --lib render::tests` — passed, 11 render tests.
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance --test adversarial_gates` — passed, 2 seam-conformance tests and 15 adversarial-gate tests.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-tui/src/render.rs --no-shuffle` — passed with 14 mutants tested, 14 caught, 0 missed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
