@@ -147,7 +147,53 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-02 Replay Rebuild, Divergence Reporting, And Deterministic Replay Gates
 
-Status: pending. Owned by `0038SPICEREVE-003`.
+Status: evidence captured by `0038SPICEREVE-003`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-02 Evidence Summary
+
+Replay evidence is drawn from the replay report API in
+`crates/tracewake-core/src/replay/report.rs`, the replay rebuild path in
+`crates/tracewake-core/src/replay/rebuild.rs`, and observed command
+transcripts. `ReplayReport` records fixture ID, content manifest ID, initial
+checksum, event count, diagnostic event count, unsupported versions,
+application errors, final physical checksum, final epistemic checksum, final
+agent checksum, expected checksums, `matches_expected`, state diff, and first
+divergence detail. `run_replay` computes `matches_expected` only when physical
+checksum, agent checksum, state diff, unsupported-version lists, application
+errors, epistemic errors, agent errors, and decision-context hash failures all
+remain clean.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE02-REPLAY-REPORT-FIELDS | SPINE-02 | static review | parsed semantic content | `ReplayReport` field set and `run_replay` `matches_expected` predicate | `crates/tracewake-core/src/replay/report.rs` | exhaustive over replay report fields at this commit | none | counted as certifying support with observed tests below | none | `crates/tracewake-core/src/replay/report.rs` |
+| SPINE02-SCHEMA-REPLAY-GATES | SPINE-02 | observed run | command transcript | `event_schema_replay_gates` covers unsupported schema replay, stream mismatch, non-world checksum no-op, no-human replay checksum match, and typed diagnostic rebuild | replay rebuild output from test assertions | focused replay/schema gate suite | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt` |
+| SPINE02-GOLDEN-SCENARIOS | SPINE-02 | observed run | command transcript | `golden_scenarios` exercises phase-one and phase-three replay scenarios through `run_replay` and `rebuild_projection` | scenario event logs and checksum contexts built in `crates/tracewake-core/tests/golden_scenarios.rs` | named golden scenario suite | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/core_golden_scenarios.txt` |
+| SPINE02-GENERATIVE-LOCK | SPINE-02 | observed run | run seed + command transcript | `generated_sequences_replay_and_satisfy_metamorphic_locks` iterates `GENERATIVE_SEEDS`, runs replay/rebuild checks, serialization round trips, prefix replay, terminal payload tamper checks, and marker no-op checksum checks | generated event logs and replay reports per seed | multi-seed generated corpus with recorded contributor floors | none | counted as certifying pass | generated corpus is property evidence, not a replacement for required named fixtures | `archive/reports/0038_spine_cert_command_transcripts/core_generative_lock.txt` |
+| SPINE02-FIXTURE-LOAD | SPINE-02 | observed run | command transcript | `fixtures_load` validates deterministic fixture loading, manifest-scoped paths, schema validation, and fixture census rules | loaded fixture packages and manifests | full content fixture constructor/load suite | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/content_fixtures_load.txt` |
+| SPINE02-GOLDEN-FIXTURE-CORPUS | SPINE-02 | observed run | command transcript | `golden_fixtures_run` covers all fixtures from `fixtures::all()`, including `replay_item_location_001`, `ordinary_workday_001`, `sleep_eat_work_001`, `wait_then_window_passive_charges_each_tick_once_001`, and `sleep_spanning_window_boundary_charges_each_tick_once_001` | runtime logs, replay checksums, tamper checks, and fixture fingerprints inside the test suite | full golden fixture corpus, not sampled | none | counted as certifying pass | none | `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+| SPINE02-NONDETERMINISM-BANS | SPINE-02 | negative fixture | command transcript | `negative_fixture_runner` proves banned environment, filesystem, process, wall-clock time, network, and random entry-point fixtures fail under the configured lint/negative-fixture harness | negative fixture stderr assertions | registered negative fixture census | none | counted as certifying pass for host-input isolation | none | `archive/reports/0038_spine_cert_command_transcripts/core_negative_fixture_runner.txt` |
+
+Required corruptions are covered by observed tests:
+
+| Corruption | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| Drop the last event from a passing log | observed run | `no_human_day_real_run_replays_metrics_and_trace_projection` truncates the serialized no-human log and asserts replay does not match expected checksums | `projection/replay` | counted as certifying pass |
+| Swap/reorder events | observed run | `EventLog::deserialize_canonical` rejects reordered global order; `rebuild_projection` checks global order and stream positions before applying events | `projection/replay` / `scheduler ordering` | counted as certifying pass |
+| Change content manifest ID / package identity | observed run | `fixtures_load` and `golden_fixtures_run` validate manifest-scoped loading and frozen fixture fingerprints; SPINE-05 owns the full save/manifest contract | `content/schema validation` | counted as supporting evidence for replay package identity, not the full SPINE-05 manifest seam |
+| Unsupported future schema version | observed run | `unsupported_event_schema_replay_rejected` and related schema-version tests | `projection/replay` | counted as certifying pass |
+| Dangling or tampered event provenance | observed run | `no_human_decision_context_hash_gate_fails_when_source_evidence_tampered`, generative payload tamper checks, and event-schema missing payload/cause-adjacent tests | `event application` / `projection/replay` | counted as certifying pass |
+| Host time/timezone or external input perturbation | negative fixture | `negative_fixture_runner` includes banned `SystemTime`, `Instant`, `env`, filesystem, network, process, and random entry-point fixtures | `tests/fixtures` | counted as certifying pass for fail-closed input isolation |
+
+Sampling/exhaustiveness claim: the named positive fixture corpus is explicitly
+covered by `golden_fixtures_run`; the broader fixture corpus is covered by
+`fixtures::all()` tests and fixture census checks. `generative_lock` supplies
+multi-seed replay/tamper breadth over generated ordinary-life sequences and
+records contributor floors; it is additional property evidence, not a
+substitute for named fixture coverage.
+
+Pending/historical caveat: none for SPINE-02 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-03 Projection Rebuild And Non-Truth-Writer Quarantine
 

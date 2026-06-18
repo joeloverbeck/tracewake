@@ -1,6 +1,6 @@
 # 0038SPICEREVE-003: SPINE-02 evidence — replay rebuild, divergence reporting, and deterministic replay gates
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — fills the SPINE-02 section of the acceptance artifact from existing tests/fixtures.
@@ -75,3 +75,20 @@ Record typed loud-failure witnesses for the required corruptions (dropped last e
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates && cargo test --locked -p tracewake-core --test generative_lock`
 2. `cargo test --locked -p tracewake-core --test golden_scenarios && cargo test --locked -p tracewake-content --test golden_fixtures_run`
 3. `cargo test --locked -p tracewake-content --test fixtures_load`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-02 section of `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md` with replay report field coverage, replay rebuild / divergence predicates, named golden fixture coverage, multi-seed generative determinism evidence, fixture-load determinism evidence, and nondeterministic host-input negative-fixture evidence.
+
+Verification run after report edits:
+
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo test --locked -p tracewake-core --test golden_scenarios` — passed.
+- `cargo test --locked -p tracewake-core --test generative_lock` — passed.
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test --locked -p tracewake-content --test fixtures_load` — passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed.
+
+Deviations: none for this ticket's evidence-capture scope. The SPINE-02 verdict row remains pending because `0038SPICEREVE-011` owns the capstone verdict table.
