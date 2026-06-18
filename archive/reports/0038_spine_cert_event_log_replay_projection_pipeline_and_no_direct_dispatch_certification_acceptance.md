@@ -297,7 +297,49 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-05 Save Package, Manifest Integrity, Schema Versioning, And Upcast/Read Discipline
 
-Status: pending. Owned by `0038SPICEREVE-006`.
+Status: evidence captured by `0038SPICEREVE-006`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-05 Evidence Summary
+
+SPINE-05 evidence is drawn from `ContentManifest`, fixture package loading,
+content schema validation, replay report/schema gates, and the golden fixture
+fingerprint corpus. At this commit Tracewake has content manifests and replay
+packages, but no production save-package or snapshot-assisted-load subsystem.
+Snapshot-assisted load is therefore not applicable: no snapshot subsystem at
+this commit. The current save-manifest gap is named explicitly: certification
+evidence covers manifest-bound replay packages and event-log ancestry, not a
+general persisted save package with snapshot ancestry pointers.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE05-MANIFEST-IDENTITY-FINGERPRINT | SPINE-05 | static review + observed run | content manifest fields and raw source bytes | `ContentManifest::new` records manifest ID, fixture ID, schema version, content version, canonical paths, actor roster, windows, and `twf1-` content fingerprint; tests prove sorted canonical paths and raw-byte sensitivity | `crates/tracewake-content/src/manifest.rs`; `fixtures_load` transcript | exhaustive over current manifest fields and all loaded fixtures in `fixtures::all()` | no persisted save package beyond content manifest + replay package exists at this commit | counted as certifying manifest identity and fingerprint behavior | none | `archive/reports/0038_spine_cert_command_transcripts/content_fixtures_load.txt` |
+| SPINE05-FIXTURE-CORPUS-LOADS | SPINE-05 | observed run | command transcript | `all_fixtures_load_deterministically_and_validate` verifies every registered positive fixture constructor is present, validates, and reloads with identical canonical world and manifest fingerprint | fixture manifest IDs of the form `manifest_<fixture_id>` and loaded canonical worlds | full registered positive fixture corpus, not sampled | none | counted as certifying pass for fixture-package load and stable manifest fingerprinting | none | `archive/reports/0038_spine_cert_command_transcripts/content_fixtures_load.txt` |
+| SPINE05-FROZEN-FINGERPRINTS | SPINE-05 | observed run | command transcript | `fixture_fingerprints_match_frozen_goldens` compares all fixture fingerprints to the frozen table and proves a synthetic mismatched fingerprint fails the seam | frozen fixture fingerprint table and loaded manifest fingerprints | full frozen fixture fingerprint table | none | counted as certifying pass for manifest-fingerprint regression detection | none | `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+| SPINE05-SCHEMA-CONFORMANCE | SPINE-05 | observed run | command transcript | `schema_conformance` maps content/schema and content/validation requirements to named tests and proves fixture-scope schema registration/canonical serialization | content schema registry and serialized fixture bytes | schema conformance matrix for current content fields | none | counted as certifying pass for content schema discipline | none | `archive/reports/0038_spine_cert_command_transcripts/content_schema_conformance.txt` |
+| SPINE05-CONTENT-SCHEMA-REJECTIONS | SPINE-05 | observed run | command transcript | `fixtures_load_unsupported_schema_version_rejected_001` rejects `schema_v999` at validation and package load; `forbidden_content` rejects unsupported/prohibited content fields and validates canonical serialization metadata | validation reports with parse/schema diagnostic codes | focused adversarial content schema fixtures | none | counted as certifying loud failure for unsupported content schema and bad content | none | `archive/reports/0038_spine_cert_command_transcripts/content_fixtures_load.txt`; `archive/reports/0038_spine_cert_command_transcripts/content_forbidden_content.txt` |
+| SPINE05-EVENT-SCHEMA-REPLAY-GATES | SPINE-05 | observed run | command transcript | `unsupported_event_schema_append_rejected`, `unsupported_event_schema_replay_rejected`, and `unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied` fail loudly for unsupported event/payload schemas | event log append/replay errors and replay report diagnostics | focused event schema replay gate suite | none | counted as certifying loud failure for unsupported event schema and missing upcast/read support | none | `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt` |
+| SPINE05-REPLAY-PACKAGE-MANIFEST-ID | SPINE-05 | static review + observed run | event envelope and replay report content identity fields | `EventEnvelope` serializes `content_manifest_id`; `ReplayReport` records `content_manifest_id`; golden fixture tests load with fixture manifest IDs and replay serialized logs through the same manifest-scoped package context | `crates/tracewake-core/src/events/envelope.rs`; `crates/tracewake-core/src/replay/report.rs`; `golden_fixtures_run` transcript | exhaustive over current envelope/report identity fields with runtime fixture coverage | no explicit save-package manifest object exists yet | counted as certifying manifest identity reuse for current replay packages | replay package identity is represented by content manifest + event log + replay context, not a general save manifest | `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_event_schema_replay_gates.txt` |
+
+Adversarial and loud-failure evidence:
+
+| Adversarial case | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| Content manifest file order changes without semantic changes | static review + observed run | `ContentManifest::new` sorts source files into canonical paths; `manifest_carries_identity_and_fingerprint` asserts sorted path order | content/schema validation | counted as certifying pass |
+| Content byte change must change fingerprint | observed run | `manifest_fingerprint_reprices_raw_file_bytes`, `fixture_fingerprint_reprices_secondary_file_bytes`, and `fixture_fingerprint_reprices_raw_primary_bytes_with_same_parsed_fixture` | content/schema validation | counted as certifying pass |
+| Mismatched manifest fingerprint must fail | observed run | `fixture_fingerprints_match_frozen_goldens` mutates the expected fingerprint table and requires an error mentioning the changed fixture | tests/fixtures | counted as certifying pass |
+| Missing/extra/prohibited or unsupported content fields | observed run | `forbidden_content` and `golden_fixtures_run` validation rejection tests for bad IDs, unsupported action targets, quest/script/player-only content, hidden truth, and non-canonical ordering | content/schema validation | counted as certifying pass |
+| Unsupported content schema | observed run | `fixtures_load_unsupported_schema_version_rejected_001` rejects `schema_v999` at validation and package load | content/schema validation | counted as certifying pass |
+| Unsupported event or payload schema | observed run | `event_schema_replay_gates` append, deserialize/replay, and epistemic payload schema gates | event application / projection/replay | counted as certifying pass |
+| Snapshot without event ancestry | not applicable at this commit | no production snapshot-assisted-load subsystem exists | documentation status | recorded as not applicable: no snapshot subsystem at this commit; event-log ancestry remains the current replay authority |
+
+Sampling/exhaustiveness claim: fixture load and frozen fingerprint checks cover
+the registered positive fixture corpus; schema-conformance covers the current
+content schema registry; replay schema gates cover the current unsupported
+event/payload schema failure paths.
+
+Pending/historical caveat: none for SPINE-05 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-06 Action Proposal, Validation, Scheduling, Event Append, Application, And Feedback Pipeline
 

@@ -1,6 +1,6 @@
 # 0038SPICEREVE-006: SPINE-05 evidence — save package, manifest integrity, schema versioning, and upcast/read discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — fills the SPINE-05 section of the acceptance artifact from existing tests/fixtures.
@@ -74,3 +74,24 @@ Record at least one adversarial manifest/fingerprint mismatch artifact (byte cha
 1. `cargo test --locked -p tracewake-content --test fixtures_load && cargo test --locked -p tracewake-content --test schema_conformance`
 2. `cargo test --locked -p tracewake-content --test forbidden_content && cargo test --locked -p tracewake-content --test golden_fixtures_run`
 3. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-05 section of the acceptance report with manifest identity,
+fingerprint stability/sensitivity, schema-version rejection, replay-package
+content-manifest identity, and adversarial mismatch evidence. Recorded the
+conditional snapshot resolution explicitly: snapshot-assisted load is not
+applicable because no production snapshot subsystem exists at this commit.
+Named the current save-manifest gap: certification evidence covers
+manifest-bound replay packages and event-log ancestry, not a general persisted
+save package with snapshot ancestry pointers.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-content --test fixtures_load` passed.
+2. `cargo test --locked -p tracewake-content --test schema_conformance` passed.
+3. `cargo test --locked -p tracewake-content --test forbidden_content` passed.
+4. `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed.
+5. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` passed.
