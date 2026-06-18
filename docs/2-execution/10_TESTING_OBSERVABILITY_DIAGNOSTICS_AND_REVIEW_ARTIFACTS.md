@@ -327,8 +327,8 @@ Workflow-level posture:
 | `clippy` | Runs `cargo clippy --workspace --all-targets -- -D warnings`. |
 | `test` | Runs `cargo build --workspace --all-targets --locked` and `cargo test --workspace --locked`; the locked test invocation is the documented CI superset of the local `cargo test --workspace` completion gate. |
 | `lock-layer-gates` | Runs the named lock-layer integration targets with `--locked`, including anti-regression, hidden-truth, replay, content, and TUI seam gates. |
-| `mutants-in-diff` | Runs guarded-layer mutation checks for pull requests and pushes when guarded source paths changed, with accepted baseline misses normalized by file, mutation, and function. |
-| `mutants-lock-layer` | Runs the scheduled or manual guarded-layer mutation baseline and uploads `mutants.out` while failing on new misses outside the accepted baseline. |
+| `mutants-in-diff` | Runs standing SPINE-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, with accepted baseline misses normalized by file, mutation, and function. |
+| `mutants-lock-layer` | Runs the scheduled or manual standing SPINE-perimeter mutation baseline through `.cargo/mutants.toml` and uploads `mutants.out` while failing on new misses outside the accepted baseline. |
 
 Phase-entry mutation rule: clearing a scheduled-mutation `pending` status, or
 making any `ORD-LIFE-CERT` readiness claim that depends on the lock layer,

@@ -1519,14 +1519,35 @@ fn is_guarded_layer_source(path: &str) -> bool {
     })
 }
 
-const MUTATION_PERIMETER_REQUIRED_FILTERS: &[&str] = &[
-    "-f 'crates/tracewake-core/src/agent/**'",
-    "-f 'crates/tracewake-core/src/scheduler*'",
-    "-f 'crates/tracewake-core/src/projections*'",
-    "-f 'crates/tracewake-core/src/actions/pipeline.rs'",
-    "-f 'crates/tracewake-core/src/actions/defs/eat.rs'",
-    "-f 'crates/tracewake-core/src/actions/defs/sleep.rs'",
-    "-f 'crates/tracewake-core/src/actions/defs/work.rs'",
+const MUTATION_PERIMETER_EXAMINE_GLOBS: &[&str] = &[
+    "crates/tracewake-core/src/agent/**",
+    "crates/tracewake-core/src/scheduler.rs",
+    "crates/tracewake-core/src/projections.rs",
+    "crates/tracewake-core/src/actions/pipeline.rs",
+    "crates/tracewake-core/src/actions/defs/eat.rs",
+    "crates/tracewake-core/src/actions/defs/sleep.rs",
+    "crates/tracewake-core/src/actions/defs/work.rs",
+    "crates/tracewake-core/src/events/**",
+    "crates/tracewake-core/src/replay/**",
+    "crates/tracewake-core/src/checksum.rs",
+    "crates/tracewake-core/src/state.rs",
+    "crates/tracewake-core/src/actions/proposal.rs",
+    "crates/tracewake-core/src/actions/report.rs",
+    "crates/tracewake-core/src/view_models.rs",
+    "crates/tracewake-core/src/debug_capability.rs",
+    "crates/tracewake-core/src/controller.rs",
+    "crates/tracewake-core/src/debug_reports.rs",
+    "crates/tracewake-core/src/epistemics/knowledge_context.rs",
+    "crates/tracewake-core/src/epistemics/projection.rs",
+    "crates/tracewake-content/src/manifest.rs",
+    "crates/tracewake-content/src/load.rs",
+    "crates/tracewake-content/src/schema.rs",
+    "crates/tracewake-content/src/serialization.rs",
+    "crates/tracewake-content/src/validate.rs",
+    "crates/tracewake-tui/src/app.rs",
+    "crates/tracewake-tui/src/debug_panels.rs",
+    "crates/tracewake-tui/src/render.rs",
+    "crates/tracewake-tui/src/transcript.rs",
 ];
 
 const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
@@ -1537,6 +1558,31 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/eat.rs",
     "crates/tracewake-core/src/actions/defs/sleep.rs",
     "crates/tracewake-core/src/actions/defs/work.rs",
+    "crates/tracewake-core/src/events/mod.rs",
+    "crates/tracewake-core/src/events/apply.rs",
+    "crates/tracewake-core/src/events/envelope.rs",
+    "crates/tracewake-core/src/replay/mod.rs",
+    "crates/tracewake-core/src/replay/rebuild.rs",
+    "crates/tracewake-core/src/replay/report.rs",
+    "crates/tracewake-core/src/checksum.rs",
+    "crates/tracewake-core/src/state.rs",
+    "crates/tracewake-core/src/actions/proposal.rs",
+    "crates/tracewake-core/src/actions/report.rs",
+    "crates/tracewake-core/src/view_models.rs",
+    "crates/tracewake-core/src/debug_capability.rs",
+    "crates/tracewake-core/src/controller.rs",
+    "crates/tracewake-core/src/debug_reports.rs",
+    "crates/tracewake-core/src/epistemics/knowledge_context.rs",
+    "crates/tracewake-core/src/epistemics/projection.rs",
+    "crates/tracewake-content/src/manifest.rs",
+    "crates/tracewake-content/src/load.rs",
+    "crates/tracewake-content/src/schema.rs",
+    "crates/tracewake-content/src/serialization.rs",
+    "crates/tracewake-content/src/validate.rs",
+    "crates/tracewake-tui/src/app.rs",
+    "crates/tracewake-tui/src/debug_panels.rs",
+    "crates/tracewake-tui/src/render.rs",
+    "crates/tracewake-tui/src/transcript.rs",
 ];
 
 const MUTANTS_BASELINE_NORMALIZED_COUNT: usize = 0;
@@ -2219,7 +2265,7 @@ fn simple_glob_matches(pattern: &str, path: &str) -> bool {
     false
 }
 
-fn recognized_mutants_exclude_glob(pattern: &str) -> bool {
+fn recognized_mutants_glob(pattern: &str) -> bool {
     !pattern.contains('*')
         || pattern.ends_with("/**")
         || (pattern.ends_with('*') && !pattern[..pattern.len() - 1].contains('*'))
@@ -2240,8 +2286,9 @@ fn parse_mutants_toml_top_level_keys(mutants_toml: &str) -> Vec<String> {
         .collect()
 }
 
-fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
-    let Some(after_marker) = mutants_toml.split("exclude_globs = [").nth(1) else {
+fn parse_mutants_glob_array(mutants_toml: &str, key: &str) -> Vec<String> {
+    let marker = format!("{key} = [");
+    let Some(after_marker) = mutants_toml.split(&marker).nth(1) else {
         return Vec::new();
     };
     let Some(block) = after_marker.split(']').next() else {
@@ -2278,6 +2325,14 @@ fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
         .collect()
 }
 
+fn parse_examine_globs(mutants_toml: &str) -> Vec<String> {
+    parse_mutants_glob_array(mutants_toml, "examine_globs")
+}
+
+fn parse_exclude_globs(mutants_toml: &str) -> Vec<String> {
+    parse_mutants_glob_array(mutants_toml, "exclude_globs")
+}
+
 fn yaml_concurrency_block(ci_yml: &str) -> Option<&str> {
     let start = ci_yml.find("\nconcurrency:\n")? + "\nconcurrency:\n".len();
     let body = &ci_yml[start..];
@@ -2299,24 +2354,63 @@ fn yaml_step_blocks_with_cargo_mutants(ci_yml: &str) -> Vec<&str> {
 fn in_diff_filter_matches_path(filter_line: &str, required_path: &str) -> bool {
     if required_path.starts_with("crates/tracewake-core/src/agent/") {
         filter_line.contains("crates/tracewake-core/src/agent/|")
+    } else if required_path.starts_with("crates/tracewake-core/src/events/") {
+        filter_line.contains("crates/tracewake-core/src/events/")
+    } else if required_path.starts_with("crates/tracewake-core/src/replay/") {
+        filter_line.contains("crates/tracewake-core/src/replay/")
     } else if required_path == "crates/tracewake-core/src/scheduler.rs" {
         filter_line.contains("crates/tracewake-core/src/scheduler\\.rs")
     } else if required_path == "crates/tracewake-core/src/projections.rs" {
         filter_line.contains("crates/tracewake-core/src/projections\\.rs")
     } else if required_path == "crates/tracewake-core/src/actions/pipeline.rs" {
         filter_line.contains("crates/tracewake-core/src/actions/pipeline\\.rs")
+    } else if required_path.starts_with("crates/tracewake-core/src/actions/defs/") {
+        grouped_regex_contains_stem(filter_line, "actions/defs/(", ")\\.rs", required_path)
+    } else if matches!(
+        required_path,
+        "crates/tracewake-core/src/actions/proposal.rs"
+            | "crates/tracewake-core/src/actions/report.rs"
+    ) {
+        grouped_regex_contains_stem(filter_line, "actions/(", ")\\.rs", required_path)
+    } else if matches!(
+        required_path,
+        "crates/tracewake-core/src/epistemics/knowledge_context.rs"
+            | "crates/tracewake-core/src/epistemics/projection.rs"
+    ) {
+        grouped_regex_contains_stem(filter_line, "epistemics/(", ")\\.rs", required_path)
+    } else if required_path.starts_with("crates/tracewake-content/src/") {
+        grouped_regex_contains_stem(
+            filter_line,
+            "tracewake-content/src/(",
+            ")\\.rs",
+            required_path,
+        )
+    } else if required_path.starts_with("crates/tracewake-tui/src/") {
+        grouped_regex_contains_stem(filter_line, "tracewake-tui/src/(", ")\\.rs", required_path)
+    } else if required_path.ends_with(".rs") {
+        let escaped_path = required_path.replace('.', "\\.");
+        filter_line.contains(&escaped_path)
     } else {
-        let stem = required_path
-            .rsplit('/')
-            .next()
-            .and_then(|file_name| file_name.strip_suffix(".rs"))
-            .unwrap_or(required_path);
-        filter_line
-            .split("actions/defs/(")
-            .nth(1)
-            .and_then(|tail| tail.split(")\\.rs").next())
-            .is_some_and(|group| group.split('|').any(|entry| entry == stem))
+        false
     }
+}
+
+fn grouped_regex_contains_stem(
+    filter_line: &str,
+    prefix: &str,
+    suffix: &str,
+    required_path: &str,
+) -> bool {
+    let stem = required_path
+        .rsplit('/')
+        .next()
+        .and_then(|file_name| file_name.strip_suffix(".rs"))
+        .unwrap_or(required_path);
+    filter_line
+        .split(prefix)
+        .nth(1)
+        .and_then(|tail| tail.split(suffix).next())
+        .is_some_and(|group| group.split('|').any(|entry| entry == stem))
 }
 
 fn mutation_rationale_violations(classifications: &[WorkspaceSourceClassification]) -> Vec<String> {
@@ -3136,13 +3230,19 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     let mut violations = Vec::new();
 
     for key in parse_mutants_toml_top_level_keys(mutants_toml) {
-        if !matches!(key.as_str(), "additional_cargo_args" | "exclude_globs") {
+        if !matches!(
+            key.as_str(),
+            "additional_cargo_args" | "test_workspace" | "examine_globs" | "exclude_globs"
+        ) {
             violations.push(format!("mutants.toml uses unsupported key {key}"));
         }
     }
 
-    if mutants_toml.contains("crates/tracewake-core/src/actions/defs/**") {
-        violations.push("mutants.toml excludes all action definitions".to_string());
+    if !mutants_toml.contains(r#"additional_cargo_args = ["--workspace", "--locked"]"#) {
+        violations.push("mutants.toml omits locked workspace cargo args".to_string());
+    }
+    if !mutants_toml.contains("test_workspace = true") {
+        violations.push("mutants.toml omits test_workspace = true".to_string());
     }
 
     let scheduled_block =
@@ -3165,16 +3265,48 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
     let in_diff_filter_line = in_diff_filter_lines.first().copied().unwrap_or_default();
 
-    for scheduled_filter in MUTATION_PERIMETER_REQUIRED_FILTERS {
-        if !scheduled_effective_lines.contains(scheduled_filter) {
+    if !scheduled_effective_lines.contains("cargo mutants --workspace --no-shuffle") {
+        violations.push(
+            "scheduled mutation baseline does not use checked-in cargo-mutants config command"
+                .to_string(),
+        );
+    }
+    if scheduled_effective_lines.contains(" -f ")
+        || scheduled_effective_lines.contains(" --file ")
+        || scheduled_effective_lines.contains("--no-config")
+    {
+        violations
+            .push("scheduled mutation baseline declares a divergent file perimeter".to_string());
+    }
+
+    let examine_globs = parse_examine_globs(mutants_toml);
+    for required_glob in MUTATION_PERIMETER_EXAMINE_GLOBS {
+        if !examine_globs.iter().any(|glob| glob == required_glob) {
             violations.push(format!(
-                "scheduled mutation baseline omits required filter {scheduled_filter}"
+                "mutants.toml examine_globs omits required standing glob {required_glob}"
+            ));
+        }
+    }
+    for glob in &examine_globs {
+        if !recognized_mutants_glob(glob) {
+            violations.push(format!(
+                "mutants.toml examine_globs entry {glob} uses unsupported glob shape"
+            ));
+        }
+    }
+    for required_path in MUTATION_PERIMETER_CANARY_PATHS {
+        if !examine_globs
+            .iter()
+            .any(|glob| simple_glob_matches(glob, required_path))
+        {
+            violations.push(format!(
+                "mutants.toml examine_globs do not cover mutation perimeter path {required_path}"
             ));
         }
     }
 
     for excluded in parse_exclude_globs(mutants_toml) {
-        if !recognized_mutants_exclude_glob(&excluded) {
+        if !recognized_mutants_glob(&excluded) {
             violations.push(format!(
                 "mutants.toml exclude_globs entry {excluded} uses unsupported glob shape"
             ));
@@ -3188,31 +3320,6 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         }
     }
 
-    let exclude_globs = parse_exclude_globs(mutants_toml);
-    for entry in WORKSPACE_SOURCE_CLASSIFICATIONS.iter().filter(|entry| {
-        entry
-            .path
-            .starts_with("crates/tracewake-core/src/actions/defs/")
-            && entry.path.ends_with(".rs")
-    }) {
-        let excluded = exclude_globs
-            .iter()
-            .any(|pattern| simple_glob_matches(pattern, entry.path));
-        let in_mutation_perimeter = MUTATION_PERIMETER_CANARY_PATHS.contains(&entry.path);
-        if in_mutation_perimeter && excluded {
-            violations.push(format!(
-                "mutants.toml excludes guarded action definition {}",
-                entry.path
-            ));
-        }
-        if !in_mutation_perimeter && !excluded {
-            violations.push(format!(
-                "mutants.toml does not exclude non-perimeter action definition {}",
-                entry.path
-            ));
-        }
-    }
-
     for required_path in MUTATION_PERIMETER_CANARY_PATHS {
         if !in_diff_filter_matches_path(in_diff_filter_line, required_path) {
             violations.push(format!(
@@ -3220,24 +3327,13 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
             ));
         }
 
-        let Some(classification) = WORKSPACE_SOURCE_CLASSIFICATIONS
+        if !WORKSPACE_SOURCE_CLASSIFICATIONS
             .iter()
-            .find(|entry| entry.path == *required_path)
-        else {
+            .any(|entry| entry.path == *required_path)
+        {
             violations.push(format!(
                 "{required_path} missing from source classification table"
             ));
-            continue;
-        };
-        match classification.class {
-            WorkspaceSourceClass::GuardedLayer => {}
-            WorkspaceSourceClass::Exempt { rationale } => {
-                if !rationale.contains("mutation") {
-                    violations.push(format!(
-                        "{required_path} classification rationale must name mutation coverage"
-                    ));
-                }
-            }
         }
     }
 
@@ -4358,20 +4454,18 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "mutation perimeter, CI filters, and action-source rationales diverged: {violations:#?}"
     );
 
-    let excluded_defs = MUTANTS_TOML.replace(
-        "  \"crates/tracewake-core/src/actions/mod.rs\",",
-        "  \"crates/tracewake-core/src/actions/defs/**\",\n  \"crates/tracewake-core/src/actions/mod.rs\",",
-    );
+    let missing_events_glob =
+        MUTANTS_TOML.replace("  \"crates/tracewake-core/src/events/**\",\n", "");
     assert!(
-        mutation_perimeter_consistency_violations(&excluded_defs, CI_YML)
+        mutation_perimeter_consistency_violations(&missing_events_glob, CI_YML)
             .iter()
-            .any(|violation| violation.contains("excludes all action definitions")),
-        "synthetic broad action-def exclusion must fail the perimeter guard"
+            .any(|violation| violation.contains("events/**")),
+        "synthetic missing standing examine glob must fail the perimeter guard"
     );
 
     let excluded_eat = MUTANTS_TOML.replace(
-        "  \"crates/tracewake-core/src/actions/mod.rs\",",
-        "  \"crates/tracewake-core/src/actions/defs/eat.rs\",\n  \"crates/tracewake-core/src/actions/mod.rs\",",
+        "examine_globs = [",
+        "exclude_globs = [\n  \"crates/tracewake-core/src/actions/defs/eat.rs\",\n]\n\nexamine_globs = [",
     );
     assert!(
         mutation_perimeter_consistency_violations(&excluded_eat, CI_YML)
@@ -4389,25 +4483,14 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
     );
 
     let unsupported_glob = MUTANTS_TOML.replace(
-        "  \"crates/tracewake-core/src/actions/defs/wait.rs\",",
-        "  \"**/wait.rs\",",
+        "  \"crates/tracewake-tui/src/transcript.rs\",",
+        "  \"**/transcript.rs\",",
     );
     assert!(
         mutation_perimeter_consistency_violations(&unsupported_glob, CI_YML)
             .iter()
             .any(|violation| violation.contains("unsupported glob shape")),
-        "synthetic unsupported exclude glob must fail closed"
-    );
-
-    let missing_wait_exclusion = MUTANTS_TOML.replace(
-        "  \"crates/tracewake-core/src/actions/defs/wait.rs\",\n",
-        "",
-    );
-    assert!(
-        mutation_perimeter_consistency_violations(&missing_wait_exclusion, CI_YML)
-            .iter()
-            .any(|violation| violation.contains("wait.rs")),
-        "synthetic non-perimeter action def missing from exclude_globs must fail parity"
+        "synthetic unsupported examine glob must fail closed"
     );
 
     let swallowed_failure = CI_YML.replace(
@@ -4422,8 +4505,8 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
     );
 
     let multiline_swallowed_failure = CI_YML.replace(
-        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
-        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\ || echo ok\n",
+        "          cargo mutants --workspace --no-shuffle",
+        "          cargo mutants --workspace --no-shuffle || echo ok",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &multiline_swallowed_failure)
@@ -4476,26 +4559,15 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic push-gap regression must fail the perimeter guard"
     );
 
-    let missing_eat_scheduled = CI_YML.replace(
-        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
-        "",
+    let divergent_scheduled_filter = CI_YML.replace(
+        "          cargo mutants --workspace --no-shuffle",
+        "          cargo mutants --workspace -f 'crates/tracewake-core/src/actions/defs/eat.rs' --no-shuffle",
     );
     assert!(
-        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_eat_scheduled)
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &divergent_scheduled_filter)
             .iter()
-            .any(|violation| violation.contains("actions/defs/eat.rs")),
-        "synthetic scheduled-filter removal must fail for eat.rs"
-    );
-
-    let decoy_scheduled_filter = CI_YML.replace(
-        "            -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
-        "          # -f 'crates/tracewake-core/src/actions/defs/eat.rs' \\\n",
-    );
-    assert!(
-        mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_scheduled_filter)
-            .iter()
-            .any(|violation| violation.contains("actions/defs/eat.rs")),
-        "synthetic commented scheduled-filter decoy must fail for eat.rs"
+            .any(|violation| violation.contains("divergent file perimeter")),
+        "synthetic scheduled filter reintroduction must fail"
     );
 
     let missing_eat_in_diff = CI_YML.replace(

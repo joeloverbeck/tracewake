@@ -1,6 +1,6 @@
 # 0039SPICERMUT-001: Permanent standing mutation perimeter, CI convergence, and guard durability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — rewrites `.cargo/mutants.toml`, the mutation jobs in `.github/workflows/ci.yml`, and `crates/tracewake-core/tests/ci_workflow_guards.rs`. No simulation/runtime production logic changes.
@@ -84,3 +84,44 @@ Update the guard so future CI edits cannot silently narrow either job: assert th
 1. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
 2. `cargo mutants --workspace --list-files`
 3. `cargo test --workspace --locked` — full-pipeline confirmation that the config/CI/guard rewrite leaves the unmutated baseline green (the mutation campaign itself is ticket 020's boundary).
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented the permanent standing SPINE-CERT mutation perimeter by replacing
+the old SPINE-excluding `.cargo/mutants.toml` deny-list with a checked-in
+`examine_globs` allow-list, `test_workspace = true`, and locked workspace cargo
+args for cargo-mutants 27.1.0. The CI scheduled mutation job now invokes
+`cargo mutants --workspace --no-shuffle` through the checked-in configuration
+instead of maintaining a divergent `-f` list, and the in-diff trigger now covers
+the same standing SPINE perimeter across core, content, and TUI sources.
+
+Hardened both CI guard surfaces: `ci_workflow_guards.rs` now reads
+`.cargo/mutants.toml` and fails on missing perimeter entries, missing
+`test_workspace`, reintroduced scheduled `-f` filters, missing output retention,
+or missing baseline enforcement; `anti_regression_guards.rs` was updated from
+the retired exclusion/filter model to the new allow-list model so the existing
+guard remains truthful and fail-closed. Active doctrine/conformance wording in
+`docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` and
+`docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+was updated because it still described the old narrow guarded-layer mutation
+perimeter.
+
+Deviations from the original files-to-touch list: two active docs and the
+existing `anti_regression_guards.rs` were updated after verification exposed
+stale current-state claims and guard assumptions. No simulation/runtime
+production logic changed. The full mutation campaign and survivor reconciliation
+remain out of scope for ticket 020.
+
+Verification run:
+
+- `cargo mutants --workspace --list-files` (final census included the required
+  standing SPINE files, including `events/mod.rs`, `replay/mod.rs`, `state.rs`,
+  `controller.rs`, `epistemics/projection.rs`, content sources, and TUI sources)
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards`
+- `cargo test --locked -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
