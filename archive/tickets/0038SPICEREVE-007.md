@@ -1,6 +1,6 @@
 # 0038SPICEREVE-007: SPINE-06 evidence — action proposal, validation, scheduling, event append/application, and feedback pipeline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — fills the SPINE-06 section of the acceptance artifact from existing tests/fixtures.
@@ -74,3 +74,22 @@ For the adversarial corpus (hidden-truth planning, prose-born fact, forbidden pr
 1. `cargo test --locked -p tracewake-core --test spine_conformance && cargo test --locked -p tracewake-core --test hidden_truth_gates`
 2. `cargo test --locked -p tracewake-core --test no_human_capstone && cargo test --locked -p tracewake-core --test golden_scenarios`
 3. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-18
+
+Filled the SPINE-06 section of the acceptance report with action pipeline,
+source-context, accepted/rejected transaction, scheduler handoff, hidden-truth
+firewall, and golden fixture corpus evidence. Recorded representative accepted
+and rejected transaction traces, append-before-apply evidence, and the
+SPINE-06-scoped direct-dispatch/bypass witnesses while leaving exhaustive
+mutation-bypass closure to SPINE-08.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-core --test spine_conformance` passed.
+2. `cargo test --locked -p tracewake-core --test hidden_truth_gates` passed.
+3. `cargo test --locked -p tracewake-core --test no_human_capstone` passed.
+4. `cargo test --locked -p tracewake-core --test golden_scenarios` passed.
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed.

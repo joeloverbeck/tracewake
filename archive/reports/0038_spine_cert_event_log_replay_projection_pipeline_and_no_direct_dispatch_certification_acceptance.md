@@ -343,7 +343,69 @@ is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-06 Action Proposal, Validation, Scheduling, Event Append, Application, And Feedback Pipeline
 
-Status: pending. Owned by `0038SPICEREVE-007`.
+Status: evidence captured by `0038SPICEREVE-007`; per-seam verdict remains
+pending until capstone `0038SPICEREVE-011`.
+
+### SPINE-06 Evidence Summary
+
+SPINE-06 evidence is drawn from the shared action pipeline, scheduler no-human
+proposal loop, source-context gates, hidden-truth planning gates, no-human
+capstone ancestry checks, golden scenarios, and the content golden fixture
+runner. The canonical action path at this commit is proposal -> validation ->
+scheduling -> event append -> event application -> feedback. Exhaustive
+mutation-bypass closure is owned by SPINE-08; this section records the
+pipeline-owned append-before-apply and representative direct-dispatch evidence.
+
+| Evidence ID | SPINE seam(s) | Evidence status | Fingerprint scope | Behavior witness | Replay/provenance record | Sampling/exhaustiveness claim | Pending/historical caveat | Certification use | Staged-abstraction note | Artifact path or command transcript |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SPINE06-PIPELINE-STAGES | SPINE-06 | static review + observed run | parsed semantic content | `PipelineStage::all()` includes origin intake, controller binding, source context, action lookup, validation, mutation plan, validation report, event envelope construction, append, application, projection update, and debug linkage; `pipeline_contains_epistemic_slot_and_later_inert_slots` locks the current staged shape | `crates/tracewake-core/src/actions/pipeline.rs` | exhaustive over current pipeline stage enum | none | counted as certifying support with observed transaction tests below | staged placeholders are recorded as inert slots, not unimplemented mutation authority | `archive/reports/0038_spine_cert_command_transcripts/core_golden_scenarios.txt` |
+| SPINE06-SOURCE-CONTEXT-GATES | SPINE-06 | observed run | command transcript | source-context tests reject missing, stale, forged, cross-actor, and stale-tick human proposals by reason code; current-view semantic action proposals are required for privileged TUI-origin proposals | validation report reason codes and source context fields | focused source-context adversarial cases | none | counted as certifying pass for source-bound proposal intake | none | `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_spine_conformance.txt` |
+| SPINE06-VALIDATE-NONMUTATING | SPINE-06 | observed run | command transcript | `validate_proposal_does_not_commit_or_mutate_state_log_or_epistemics` covers accepted and rejected preflight validation and proves state, log, and projection are unchanged | validation reports for accepted check/wait and rejected check proposals | focused preflight non-mutation cases | none | counted as certifying pass for validation-as-read-only | none | `archive/reports/0038_spine_cert_command_transcripts/core_golden_scenarios.txt` |
+| SPINE06-ACCEPTED-TRANSACTION | SPINE-06 | observed run | command transcript | `scheduler_origin_check_container_commits_without_controller_binding` records `proposal_scheduler_check`, accepted report, and appended `ContainerChecked` plus `ObservationRecorded` events; `open_then_move_log_replays_to_same_state` records accepted `proposal_open` and `proposal_move` events that replay to live state | proposal IDs, event IDs in appended envelopes, validation reports, event log replay | representative accepted pipeline transactions | none | counted as certifying pass for proposal -> validation -> append -> apply -> replay feedback | none | `archive/reports/0038_spine_cert_command_transcripts/core_golden_scenarios.txt` |
+| SPINE06-REJECTED-TRANSACTION | SPINE-06 | observed run | command transcript | `rejected_proposal_is_structured_and_mutates_no_world_state` records rejected unknown-action proposal, `ActionDefinitionLookup` failed stage, `UnknownActionId` reason, actor/debug summaries, `ActionRejected` event, and unchanged physical state | validation report and rejection event envelope | representative rejected transaction | none | counted as certifying pass for modeled rejection without world mutation | none | `archive/reports/0038_spine_cert_command_transcripts/core_golden_scenarios.txt` |
+| SPINE06-SCHEDULER-PIPELINE-HANDOFF | SPINE-06 | static review + observed run | parsed semantic content + command transcript | scheduler builds agent proposals from `ActorDecisionTransaction::run`, assigns deterministic ordering keys, calls `run_pipeline(&mut context, &proposal)`, then appends decision/routine trace events with proposal ancestry; scheduler helper append/apply paths append before applying agent events | no-human event log, proposal ancestry assertions, decision trace records | representative scheduler/no-human path plus source guards | none | counted as certifying pass for scheduler ordering and no scheduler rewrite of actor reason | SPINE-08 owns exhaustive bypass closure | `archive/reports/0038_spine_cert_command_transcripts/core_no_human_capstone.txt`; `archive/reports/0038_spine_cert_command_transcripts/core_anti_regression_guards.txt` |
+| SPINE06-HIDDEN-TRUTH-FIREWALL | SPINE-06 | observed run | command transcript | `hidden_truth_gates`, `no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`, and hidden-truth audit transaction guards prove hidden truth blocks planning or stays diagnostic, not actor-visible fallback input | hidden-truth audit records, provenance-bearing contexts, planner traces | spec-required hidden-truth adversarial fixtures | none | counted as certifying pass for truth-validates-but-does-not-plan | none | `archive/reports/0038_spine_cert_command_transcripts/core_hidden_truth_gates.txt`; `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+| SPINE06-GOLDEN-PIPELINE-CORPUS | SPINE-06 | observed run | command transcript | `golden_fixtures_run` exercises sleep/eat/work, ordinary workday, wait/passive charges, blocked work then sleep, interrupted sleep, displaced work completion, safety move, routine blocked diagnostics, method fallback diagnostics, and scheduler rewrite adversarial fixtures | fixture event logs, replay checksums, proposal IDs, trace diagnostics, and actor-visible/debug summaries | spec-mandated positive and adversarial content fixture corpus for SPINE-06 | none | counted as certifying pass for the broad pipeline behavior corpus | none | `archive/reports/0038_spine_cert_command_transcripts/content_golden_fixtures_run.txt` |
+
+Representative accepted transaction trace:
+
+| Field | Evidence |
+|---|---|
+| Proposal ID/source | `proposal_scheduler_check`, scheduler origin; no controller binding required |
+| Ordering/source context | deterministic `OrderingKey` built from requested tick, scheduler phase/source, proposal sequence, action ID, target IDs, and proposal ID |
+| Validation report | accepted, action `check_container`, target `strongbox_tomas` |
+| Appended events | `ContainerChecked`, then `ObservationRecorded` |
+| Application/replay | log length reaches 2; open/move accepted transaction replay reconstructs live physical state |
+| Actor-visible/debug feedback | validation reports include actor-visible and debug summaries; projection/debug quarantine is also covered by SPINE-03 and SPINE-07 |
+
+Representative rejected transaction trace:
+
+| Field | Evidence |
+|---|---|
+| Proposal ID/source | test-origin rejected proposal using an unknown action ID |
+| Validation report | rejected at `ActionDefinitionLookup` with `UnknownActionId`; `would_mutate == false` |
+| Appended events | first appended event is `ActionRejected` |
+| Application/replay | physical state remains unchanged |
+| Actor-visible/debug feedback | report carries non-empty actor-visible and debug summaries without exposing hidden planner truth |
+
+Adversarial and loud-failure evidence:
+
+| Adversarial case | Evidence status | Witness | Failure layer | Certification use |
+|---|---|---|---|---|
+| Hidden truth used as planner input | observed run | `hidden_truth_gates` and `no_hidden_truth_planning_001` keep hidden food out of planner inputs or emit typed hidden-truth diagnostics | planning/method selection | counted as certifying pass |
+| Prose-born or forbidden provenance fact enters actor-visible pipeline | observed run | content golden and forbidden-content fixtures reject prose-born facts and forbidden provenance inputs | content/schema validation / actor-known context construction | counted as certifying pass |
+| Scheduler rewrites actor reason after transaction | observed run | `scheduler_cannot_rewrite_wait_reason_after_transaction_001` and `guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition` | scheduler ordering | counted as certifying pass |
+| Direct action definition mutates without `run_pipeline` | observed run + static review | `scheduler_never_direct_dispatches_primitive_action`, `guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass`, and `no_direct_apply_event_outside_event_replay_or_pipeline` | scheduler ordering / event application | counted as SPINE-06 representative pass; exhaustive closure remains SPINE-08 |
+| Validation proposes fallback or hidden actor-visible fact | observed run | transaction and hidden-truth audit guards require stuck diagnostics/replanning inputs without actor-visible hidden fact leakage | action validation / planning/method selection | counted as certifying pass |
+
+Sampling/exhaustiveness claim: the accepted/rejected traces are representative
+transaction witnesses; `golden_fixtures_run` covers the spec-mandated positive
+and adversarial fixture corpus; `no_human_capstone` covers no-human proposal
+ancestry and hidden-truth leakage checks; `spine_conformance` maps the seam to
+named evidence.
+
+Pending/historical caveat: none for SPINE-06 evidence capture. The seam verdict
+is still pending only because the capstone owns the cross-seam verdict table.
 
 ## SPINE-07 TUI, Embodied View Models, Transcript Surface, And Debug Split
 
