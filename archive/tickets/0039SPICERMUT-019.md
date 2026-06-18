@@ -1,6 +1,6 @@
 # 0039SPICERMUT-019: Kill `tui/transcript.rs` SPINE survivor with representative-section + quarantine witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-tui` (test-only by default; a production correction in `tui/transcript.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -48,6 +48,12 @@ Map the 1 historical mutant (and any new run survivor in this file) to the rever
 - `crates/tracewake-tui/tests/tui_seam_conformance.rs` (modify)
 - `crates/tracewake-tui/src/transcript.rs` (modify — only if a survivor reveals a real defect; default is test-only)
 
+## Implementation Disposition (2026-06-18)
+
+Current-code reassessment confirmed the historical survivor remained in `capture_representative_transcript_sections`: the wait-action selector could be reversed and still satisfy the prior transcript checks.
+
+The implemented witness is a test-only assertion in `crates/tracewake-tui/src/transcript.rs` because the per-file mutation test slice needed the exact package unit test to observe the selected action. It asserts the canonical representative section order and that `view.after_wait` advances to `Tick: 1`, so a reversed selector cannot pass by submitting a different current action.
+
 ## Out of Scope
 
 - Render-section predicates (ticket 018).
@@ -78,3 +84,24 @@ Map the 1 historical mutant (and any new run survivor in this file) to the rever
 1. `cargo test --locked -p tracewake-tui --test transcript_snapshot --test tui_seam_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-tui/src/transcript.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added a transcript behavior witness that compares the exact representative section sequence across two runs and verifies the post-wait section reflects the intended wait action by rendering `Tick: 1`. Existing snapshot and seam-conformance tests continue to prove byte stability and debug-section quarantine.
+
+Deviations from the original plan:
+
+- `transcript_snapshot.rs` and `tui_seam_conformance.rs` remained unchanged; their existing target suites passed. The new branch-killing assertion landed in `transcript.rs` unit tests because cargo-mutants exercised this file through the package test slice.
+- The mutation command used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-tui/src/transcript.rs --no-shuffle` instead of the ticket's bare command, because ticket 001 installed the standing `.cargo/mutants.toml`; `--no-config` preserves this ticket's per-file Wave B proof boundary.
+
+Verification:
+
+- `cargo test --locked -p tracewake-tui --lib transcript::tests` — passed, 1 transcript unit test.
+- `cargo test --locked -p tracewake-tui --test transcript_snapshot --test tui_seam_conformance` — passed, 3 transcript snapshot tests and 2 seam-conformance tests.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-tui/src/transcript.rs --no-shuffle` — passed with 8 mutants tested, 6 caught, 2 unviable, 0 missed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.

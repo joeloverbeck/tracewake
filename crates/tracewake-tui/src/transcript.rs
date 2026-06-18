@@ -115,6 +115,33 @@ mod tests {
 
         assert_eq!(first_sections, second_sections);
         assert_eq!(first, second);
+        assert_eq!(
+            first_sections
+                .iter()
+                .map(|section| section.name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "view.initial",
+                "action.move.to.back_room",
+                "view.why_not",
+                "notebook.actor_sena",
+                "view.after_wait",
+                "debug.event_log",
+                "debug.controller_binding",
+                "debug.item_location",
+                "debug.action_rejection",
+                "debug.projection_rebuild",
+                "debug.replay",
+                "debug.epistemics",
+                "debug.beliefs.actor_sena",
+                "debug.observations.actor_sena",
+            ]
+        );
+        let after_wait = first_sections
+            .iter()
+            .find(|section| section.name == "view.after_wait")
+            .expect("representative transcript includes post-wait view");
+        assert!(after_wait.body.contains("Tick: 1"));
         assert!(first.contains("== view.initial =="));
         assert!(first.contains("== action.move.to.back_room =="));
         assert!(first.contains("DEBUG NON-DIEGETIC"));
