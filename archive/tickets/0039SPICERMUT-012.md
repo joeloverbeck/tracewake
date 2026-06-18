@@ -1,6 +1,6 @@
 # 0039SPICERMUT-012: Kill `projections.rs` SPINE survivors with actor-known projection + paired-world witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `projections.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -80,3 +80,24 @@ Map all 5 historical mutants (plus any new run survivor in this file) to a concr
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/projections.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added test-only SPINE projection witnesses in `crates/tracewake-core/src/projections.rs`:
+
+- Added `phase3a_workplace_semantic_actions_require_place_access_and_provenance`, which constructs a sealed actor-known workplace context with current, remote, and closed workplaces; proves only the current open workplace is available; and checks disabled workplace reason codes plus exact holder-known/source-event provenance.
+- Extended `semantic_action_entry_proposal_branches_are_exact` to prove `continue_routine` semantic action entries populate active-intention parameters only for the exact continue action and do not leak those parameters to other semantic actions.
+
+Deviation from the original plan: no production correction was needed, and the witness landed in the `projections.rs` unit-test module rather than `hidden_truth_gates.rs` / `spine_conformance.rs`. The pre-patch mutation run reproduced the ticket's five historical survivors; the post-patch file mutation run killed them all. Because ticket 001 installed the standing SPINE mutation perimeter in `.cargo/mutants.toml`, the per-file ticket proof used `--no-config` so the command measured only this ticket's target file.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --lib projections::tests` — passed.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates --test spine_conformance` — passed.
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/projections.rs --no-shuffle` — passed; 123 mutants tested, 95 caught, 28 unviable, 0 missed.
+- `cargo fmt --all --check` — passed after formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
