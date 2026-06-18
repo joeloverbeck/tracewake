@@ -60,7 +60,7 @@ pub fn load_fixture_package(
     let primary = files
         .first()
         .ok_or(SerializationError::MissingField("source_file"))?;
-    let registry = registry_for_primary_bytes(&primary.bytes);
+    let registry = registry_for_primary_bytes(&primary.bytes)?;
     let accepted_world = validate_fixture_bytes(&primary.bytes, &registry)?;
     let fixture = accepted_world.fixture;
     let mut manifest = ContentManifest::new(
@@ -108,28 +108,48 @@ pub fn load_fixture_package(
     })
 }
 
-fn registry_for_primary_bytes(bytes: &[u8]) -> tracewake_core::actions::ActionRegistry {
-    let scope = std::str::from_utf8(bytes)
-        .ok()
-        .and_then(fixture_scope_from_raw_lines)
-        .unwrap_or(FixtureScope::Phase3AHistorical);
-    registry_for_fixture_scope(scope)
+fn registry_for_primary_bytes(
+    bytes: &[u8],
+) -> Result<tracewake_core::actions::ActionRegistry, SerializationError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| SerializationError::BadLine("non-utf8 fixture".to_string()))?;
+    let scope = fixture_scope_from_raw_lines(text)?;
+    Ok(registry_for_fixture_scope(scope))
 }
 
-fn fixture_scope_from_raw_lines(text: &str) -> Option<FixtureScope> {
-    text.lines().find_map(|line| {
+fn fixture_scope_from_raw_lines(text: &str) -> Result<FixtureScope, SerializationError> {
+    let mut scope = None;
+    for line in text.lines() {
         let mut parts = line.split('|');
         match (parts.next(), parts.next(), parts.next()) {
-            (Some("fixture_scope"), Some("phase1"), None) => Some(FixtureScope::Phase1),
+            (Some("fixture_scope"), Some("phase1"), None) => {
+                if scope.replace(FixtureScope::Phase1).is_some() {
+                    return Err(SerializationError::BadLine(
+                        "duplicate fixture_scope".to_string(),
+                    ));
+                }
+            }
             (Some("fixture_scope"), Some("phase2a_historical"), None) => {
-                Some(FixtureScope::Phase2AHistorical)
+                if scope.replace(FixtureScope::Phase2AHistorical).is_some() {
+                    return Err(SerializationError::BadLine(
+                        "duplicate fixture_scope".to_string(),
+                    ));
+                }
             }
             (Some("fixture_scope"), Some("phase3a_historical"), None) => {
-                Some(FixtureScope::Phase3AHistorical)
+                if scope.replace(FixtureScope::Phase3AHistorical).is_some() {
+                    return Err(SerializationError::BadLine(
+                        "duplicate fixture_scope".to_string(),
+                    ));
+                }
             }
-            _ => None,
+            (Some("fixture_scope"), ..) => {
+                return Err(SerializationError::BadLine(line.to_string()));
+            }
+            _ => {}
         }
-    })
+    }
+    scope.ok_or(SerializationError::MissingField("fixture_scope"))
 }
 
 fn seed_epistemic_projection(

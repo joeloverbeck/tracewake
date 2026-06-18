@@ -20,7 +20,9 @@ use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineSt
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
 use tracewake_core::events::apply::apply_epistemic_event;
-use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::events::{
+    EventCause, EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
+};
 use tracewake_core::ids::ActionId;
 use tracewake_core::ids::{
     ActorId, BeliefId, ContainerId, ContentManifestId, ContentVersion, EventId, FixtureId,
@@ -354,6 +356,106 @@ fn phase3a_fixture() -> FixtureSchema {
             end_tick: SimTick::new(100),
         }],
     }
+}
+
+fn raw_fixture_with_scope(fixture_id: &str, scope: &str, extra_lines: &[&str]) -> Vec<u8> {
+    let mut lines = vec![
+        format!("fixture|{fixture_id}"),
+        "schema|schema_v1".to_string(),
+        format!("fixture_scope|{scope}"),
+        "need_model|5|3".to_string(),
+        "actor|actor_tomas|home_tomas".to_string(),
+        "place|home_tomas|486f6d65||visible".to_string(),
+        "container|strongbox_tomas|home_tomas|true|false|true|".to_string(),
+        "initial_need|actor_tomas|hunger|100".to_string(),
+        "initial_need|actor_tomas|fatigue|100".to_string(),
+        "initial_need|actor_tomas|safety|100".to_string(),
+    ];
+    lines.extend(extra_lines.iter().map(|line| (*line).to_string()));
+    lines.join("\n").into_bytes()
+}
+
+fn load_raw_fixture(
+    fixture_id: &str,
+    bytes: Vec<u8>,
+) -> Result<tracewake_content::load::LoadedFixture, LoadError> {
+    load_fixture_package(
+        ContentManifestId::new(format!("manifest_{fixture_id}")).unwrap(),
+        ContentVersion::new("content_v1").unwrap(),
+        vec![tracewake_content::load::SourceFile {
+            path: format!("{fixture_id}.twf"),
+            bytes,
+        }],
+    )
+}
+
+fn validation_error_codes(error: LoadError) -> BTreeSet<&'static str> {
+    match error {
+        LoadError::Validation(failure) => failure
+            .report
+            .errors
+            .into_iter()
+            .map(|error| error.code)
+            .collect(),
+        other => panic!("expected validation error, got {other:?}"),
+    }
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
+fn phase3a_fixture_with_seed_causality_matrix() -> FixtureSchema {
+    let mut fixture = phase3a_fixture();
+    fixture.actors.push(ActorSchema {
+        actor_id: ActorId::new("actor_elena").unwrap(),
+        current_place_id: PlaceId::new("home_tomas").unwrap(),
+    });
+    fixture.initial_needs.extend([
+        InitialNeedSchema {
+            actor_id: ActorId::new("actor_elena").unwrap(),
+            kind: NeedKind::Hunger,
+            value: 100,
+        },
+        InitialNeedSchema {
+            actor_id: ActorId::new("actor_elena").unwrap(),
+            kind: NeedKind::Fatigue,
+            value: 100,
+        },
+        InitialNeedSchema {
+            actor_id: ActorId::new("actor_elena").unwrap(),
+            kind: NeedKind::Safety,
+            value: 100,
+        },
+    ]);
+    fixture.workplaces[0]
+        .assigned_actor_ids
+        .push(ActorId::new("actor_elena").unwrap());
+    fixture.initial_beliefs.push(InitialBeliefSchema {
+        belief_id: BeliefId::new("belief_tomas_seed_counter_probe").unwrap(),
+        holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+        proposition: Proposition::ActorWasNearPlace {
+            actor_id: "actor_tomas".parse().unwrap(),
+            place_id: "home_tomas".parse().unwrap(),
+        },
+        stance: tracewake_core::epistemics::Stance::BelievesTrue,
+        confidence: Confidence::new(900).unwrap(),
+        source_kind: tracewake_core::events::InitialBeliefSourceKind::AuthoredPrehistory,
+        source: SourceRef::Event(EventId::new("prehistory_seed_counter_probe").unwrap()),
+        channel: None,
+        acquired_tick: SimTick::ZERO,
+        last_verified_tick: None,
+        privacy_scope: tracewake_core::epistemics::PrivacyScope::ActorPrivate(
+            ActorId::new("actor_tomas").unwrap(),
+        ),
+        schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+    });
+    fixture.canonicalize();
+    fixture
 }
 
 #[test]
@@ -699,6 +801,220 @@ fn phase3a_load_emits_authored_prehistory_seed_events() {
         .iter()
         .any(|field| field.key == "schema_version"
             && field.value == tracewake_core::events::EVENT_SCHEMA_V1)));
+}
+
+#[test]
+fn fixture_scope_raw_lines_drive_loader_registry_and_fail_closed() {
+    let phase1 = load_raw_fixture(
+        "scope_phase1_probe",
+        raw_fixture_with_scope(
+            "scope_phase1_probe",
+            "phase1",
+            &["affordance|open|strongbox_tomas"],
+        ),
+    )
+    .unwrap();
+    assert_eq!(phase1.fixture.fixture_scope, FixtureScope::Phase1);
+    assert_eq!(phase1.manifest.fixture_id.as_str(), "scope_phase1_probe");
+    assert_eq!(phase1.manifest.actor_roster, ["actor_tomas".to_string()]);
+
+    let phase2 = load_raw_fixture(
+        "scope_phase2_probe",
+        raw_fixture_with_scope(
+            "scope_phase2_probe",
+            "phase2a_historical",
+            &["affordance|check_container|strongbox_tomas"],
+        ),
+    )
+    .unwrap();
+    assert_eq!(
+        phase2.fixture.fixture_scope,
+        FixtureScope::Phase2AHistorical
+    );
+
+    let phase3 = load_raw_fixture(
+        "scope_phase3_probe",
+        raw_fixture_with_scope(
+            "scope_phase3_probe",
+            "phase3a_historical",
+            &[
+                "sleep_place|actor_tomas|home_tomas|bed_tomas|true|4|20|2",
+                "affordance|sleep|home_tomas",
+            ],
+        ),
+    )
+    .unwrap();
+    assert_eq!(
+        phase3.fixture.fixture_scope,
+        FixtureScope::Phase3AHistorical
+    );
+
+    let phase1_rejects_phase2_action = load_raw_fixture(
+        "scope_phase1_rejects_phase2_action",
+        raw_fixture_with_scope(
+            "scope_phase1_rejects_phase2_action",
+            "phase1",
+            &["affordance|check_container|strongbox_tomas"],
+        ),
+    )
+    .unwrap_err();
+    assert!(
+        validation_error_codes(phase1_rejects_phase2_action).contains("phase_unsupported_action")
+    );
+
+    let phase2_rejects_phase3_action = load_raw_fixture(
+        "scope_phase2_rejects_phase3_action",
+        raw_fixture_with_scope(
+            "scope_phase2_rejects_phase3_action",
+            "phase2a_historical",
+            &[
+                "sleep_place|actor_tomas|home_tomas|bed_tomas|true|4|20|2",
+                "affordance|sleep|home_tomas",
+            ],
+        ),
+    )
+    .unwrap_err();
+    assert!(
+        validation_error_codes(phase2_rejects_phase3_action).contains("phase_unsupported_action")
+    );
+
+    for (fixture_id, bytes, expected) in [
+        (
+            "scope_missing_rejected",
+            b"fixture|scope_missing_rejected\nschema|schema_v1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100".to_vec(),
+            "MissingField(\"fixture_scope\")",
+        ),
+        (
+            "scope_unknown_rejected",
+            raw_fixture_with_scope("scope_unknown_rejected", "future_scope", &[]),
+            "BadLine(\"fixture_scope|future_scope\")",
+        ),
+        (
+            "scope_malformed_rejected",
+            b"fixture|scope_malformed_rejected\nschema|schema_v1\nfixture_scope|phase1|extra\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100".to_vec(),
+            "BadLine(\"fixture_scope|phase1|extra\")",
+        ),
+        (
+            "scope_duplicate_rejected",
+            b"fixture|scope_duplicate_rejected\nschema|schema_v1\nfixture_scope|phase1\nfixture_scope|phase1\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100".to_vec(),
+            "BadLine(\"duplicate fixture_scope\")",
+        ),
+        (
+            "scope_contradictory_rejected",
+            b"fixture|scope_contradictory_rejected\nschema|schema_v1\nfixture_scope|phase1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100".to_vec(),
+            "BadLine(\"duplicate fixture_scope\")",
+        ),
+    ] {
+        let error = load_raw_fixture(fixture_id, bytes).unwrap_err();
+        assert!(
+            format!("{error:?}").contains(expected),
+            "{fixture_id} should fail with {expected}, got {error:?}"
+        );
+    }
+}
+
+#[test]
+fn seed_event_log_order_and_projection_provenance_are_causal_and_stable() {
+    let fixture = phase3a_fixture_with_seed_causality_matrix();
+    let bytes = serialize_fixture(&fixture);
+    let first = load_raw_fixture("seed_causality_matrix", bytes.clone()).unwrap();
+    let second = load_raw_fixture("seed_causality_matrix", bytes).unwrap();
+    assert_eq!(first.seed_event_log, second.seed_event_log);
+
+    let events = first.seed_event_log.events();
+    assert_eq!(events.len(), 5);
+    let mut event_ids = BTreeSet::new();
+    for (index, event) in events.iter().enumerate() {
+        assert!(
+            event_ids.insert(event.event_id.as_str().to_string()),
+            "duplicate seed event id {}",
+            event.event_id.as_str()
+        );
+        assert_eq!(event.global_order, index as u64);
+        assert_eq!(event.stream_position, index as u64);
+        assert_eq!(event.stream, EventStream::Epistemic);
+        assert_eq!(event.ordering_key.proposal_sequence.value(), index as u64);
+        assert_eq!(
+            event.ordering_key.final_tie_breaker,
+            format!("seed_{index:04}")
+        );
+        assert_eq!(
+            payload_value(event, "schema_version"),
+            Some(EVENT_SCHEMA_V1)
+        );
+        assert_eq!(event.content_manifest_id, first.manifest.manifest_id);
+    }
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>(),
+        vec![
+            EventKind::InitialBeliefSeeded,
+            EventKind::StartingBeliefRecorded,
+            EventKind::StartingBeliefRecorded,
+            EventKind::RoleAssignmentNoticeRecorded,
+            EventKind::RoleAssignmentNoticeRecorded,
+        ]
+    );
+    assert_eq!(
+        payload_value(&events[0], "source_event_id"),
+        Some("prehistory_seed_counter_probe")
+    );
+    assert_eq!(payload_value(&events[1], "belief_kind"), Some("home_place"));
+    assert_eq!(
+        payload_value(&events[2], "belief_kind"),
+        Some("sleep_place")
+    );
+    assert_eq!(
+        payload_value(&events[3], "workplace_id"),
+        Some("workplace_shop")
+    );
+    assert_eq!(
+        payload_value(&events[4], "workplace_id"),
+        Some("workplace_shop")
+    );
+
+    let context = current_place_knowledge_context(
+        &first.canonical_world,
+        Some(&first.epistemic_projection),
+        &ActorId::new("actor_tomas").unwrap(),
+        SimTick::ZERO,
+        &first.manifest.manifest_id,
+        first.seed_event_log.events().len() as u64,
+    );
+    let classified_records = first
+        .epistemic_projection
+        .classified_actor_known_records_for_context(&context, &PlaceId::new("home_tomas").unwrap());
+    let sleep_record = classified_records
+        .iter()
+        .find(|record| {
+            record.record().kind() == "sleep_place"
+                && record.record().source_event_id() == &events[2].event_id
+        })
+        .expect("sleep-place seed replays into projection with source event id");
+    assert_eq!(sleep_record.record().source_tick(), SimTick::ZERO);
+    let tomas_role_notice = events
+        .iter()
+        .find(|event| {
+            event.event_type == EventKind::RoleAssignmentNoticeRecorded
+                && payload_value(event, "actor_id") == Some("actor_tomas")
+        })
+        .expect("Tomas role notice is seeded");
+    let workplace_records = first
+        .epistemic_projection
+        .classified_actor_known_records_for_context(&context, &PlaceId::new("workshop").unwrap());
+    let workplace_record = workplace_records
+        .iter()
+        .find(|record| {
+            record.record().kind() == "workplace"
+                && record.record().source_event_id() == &tomas_role_notice.event_id
+        })
+        .expect("role notice seed replays into projection with source event id");
+    assert_eq!(
+        workplace_record.record().source_event_id(),
+        &tomas_role_notice.event_id
+    );
 }
 
 #[test]

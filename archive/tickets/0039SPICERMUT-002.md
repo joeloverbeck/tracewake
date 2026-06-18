@@ -1,6 +1,6 @@
 # 0039SPICERMUT-002: Kill `content/load.rs` SPINE survivors with fixture-load + seed-causality witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-content` (test-only by default; a production correction in `load.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -80,3 +80,25 @@ Map each of the 8 seed mutants (and any new run survivor in this file) to a conc
 1. `cargo test --locked -p tracewake-content --test fixtures_load --test golden_fixtures_run`
 2. `cargo mutants --workspace -f crates/tracewake-content/src/load.rs --no-shuffle`
 3. The per-file `-f` mutation run is the correct verification boundary for this ticket; the full standing-perimeter campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented the `content/load.rs` survivor kill set with a production correction and fixture-load witnesses. The raw `fixture_scope` pre-scan now fails closed through `load_fixture_package`: missing scope, malformed scope, unknown scope, and duplicate or contradictory scope markers return serialization errors instead of silently defaulting to Phase 3A. This production change was required because the previous default masked deleted scope-arm mutants and could let invalid raw fixture identity pass into later validation.
+
+Added a per-scope loader matrix in `fixtures_load.rs` that proves legal Phase 1, Phase 2A, and Phase 3A markers select the exact registry and typed `FixtureScope`, with negative siblings for later-phase actions and defective scope lines. Added a seed-causality witness that loads the same fixture twice, pins stable seed event order/IDs/stream positions/proposal counters, and proves authored beliefs, starting-place beliefs, sleep-place beliefs, and role-assignment notices replay into the epistemic projection with the expected source event IDs.
+
+`golden_fixtures_run.rs` did not require edits; the requested golden-fixture acceptance lane still passed unchanged. No enumerated ticket member was deferred or dropped.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-content --test fixtures_load` — passed.
+2. `cargo test --locked -p tracewake-content --test fixtures_load --test golden_fixtures_run` — passed.
+3. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-content/src/load.rs --no-shuffle` — passed: 25 mutants tested, 19 caught, 6 unviable, 0 missed.
+4. `cargo fmt --all --check` — passed.
+5. `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+6. `cargo build --workspace --all-targets --locked` — passed.
+7. `cargo test --workspace --locked` — passed.
+
+Mutation-command note: after ticket 001, `.cargo/mutants.toml` defines the standing SPINE perimeter through `examine_globs`. Running the literal ticket command `cargo mutants --workspace -f crates/tracewake-content/src/load.rs --no-shuffle` therefore enumerated the full standing perimeter (`Found 2623 mutants to test`) instead of the intended per-file ticket boundary, and was interrupted after the clean unmutated baseline. The certifying run used `--no-config -C=--locked -f crates/tracewake-content/src/load.rs` to preserve the ticket's per-file boundary while keeping locked Cargo arguments.
