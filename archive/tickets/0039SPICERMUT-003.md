@@ -1,6 +1,6 @@
 # 0039SPICERMUT-003: Kill `content/schema.rs` SPINE survivors with boundary-cased schema-conversion witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-content` (test-only by default; a production correction in `schema.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -71,3 +71,24 @@ Prove valid boundary cases produce the intended typed state and a stable seriali
 1. `cargo test --locked -p tracewake-content --test schema_conformance`
 2. `cargo mutants --workspace -f crates/tracewake-content/src/schema.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented the schema-conversion survivor witnesses in `schema_conformance.rs` only; no production `schema.rs` correction was needed. The new test builds valid Phase 3A routine-assignment siblings around the active-intention start-tick comparison and drives them through `validate_fixture` followed by `FixtureSchema::to_agent_state`, asserting the selected typed active intention, routine-execution timing, and recomputable agent-state checksum input.
+
+The below-bound case proves a later-ordered earlier assignment replaces the current candidate, catching the `< -> ==` survivor. The above-bound case proves a later assignment with a higher tick cannot replace the current candidate, catching the `< -> >` survivor. The exact-bound sibling is first rejected by validation with `ambiguous_active_routine_assignment`; a conversion-path relational guard using a token minted by the nearest valid sibling proves equality does not replace the active candidate, catching the `< -> <=` survivor while preserving the fail-closed validation assertion.
+
+No enumerated ticket member was deferred or dropped.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-content --test schema_conformance` — passed.
+2. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-content/src/schema.rs --no-shuffle` — passed: 27 mutants tested, 20 caught, 7 unviable, 0 missed.
+3. `cargo fmt --all --check` — passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+5. `cargo build --workspace --all-targets --locked` — passed.
+6. `cargo test --workspace --locked` — passed.
+
+Mutation-command note: after ticket 001, `.cargo/mutants.toml` defines the standing SPINE perimeter through `examine_globs`. As in ticket 002, the certifying run used `--no-config -C=--locked -f crates/tracewake-content/src/schema.rs` to preserve this ticket's per-file mutation boundary while keeping locked Cargo arguments.
