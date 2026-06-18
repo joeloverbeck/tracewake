@@ -1,6 +1,6 @@
 # 0039SPICERMUT-009: Kill `replay/report.rs` SPINE survivor with a mandatory match/mismatch witness pair
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `replay/report.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -72,3 +72,19 @@ Map the 1 historical mutant (and any new run survivor in this file) to the misma
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/replay/report.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+- Added a paired replay-report witness in `crates/tracewake-core/tests/event_schema_replay_gates.rs` that runs one known-good package and one corrupted expected package through `run_replay`, asserting semantic report fields rather than rendered wording.
+- The matching arm proves `matches_expected`, physical checksum equality, agent checksum equality, empty state diff, no first divergence, and the non-world diagnostic event count. The mismatch arm proves `matches_expected == false`, expected-vs-actual physical checksum divergence, non-empty state diff, first-divergence field family, preserved agent checksum match, and the same diagnostic event count.
+- No production change in `crates/tracewake-core/src/replay/report.rs` was needed. The first focused mutation run exposed one newly enumerated survivor in `diagnostic_event_count` (`stream != World`); the witness was strengthened to catch it.
+- Because ticket 001 converted `.cargo/mutants.toml` into the standing SPINE perimeter, the per-file acceptance run used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/replay/report.rs --no-shuffle` to preserve this ticket's exact target. Final result: 16 mutants tested, 13 caught, 3 unviable, 0 missed.
+- Verification passed:
+  - `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+  - `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/replay/report.rs --no-shuffle`
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace --locked`

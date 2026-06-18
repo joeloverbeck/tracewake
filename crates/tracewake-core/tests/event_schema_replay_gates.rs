@@ -10,7 +10,8 @@ use tracewake_core::agent::{
     StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
 };
 use tracewake_core::checksum::{
-    compute_holder_known_context_hash, compute_physical_checksum, ChecksumContext,
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    ChecksumContext,
 };
 use tracewake_core::epistemics::{Channel, EpistemicProjection, KnowledgeContext, Stance};
 use tracewake_core::events::apply::{
@@ -30,6 +31,7 @@ use tracewake_core::ids::{
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
+use tracewake_core::replay::report::ReplayDivergenceFieldFamily;
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -1083,6 +1085,130 @@ fn replay_rebuild_checksum_matches_original_after_no_human_day() {
     assert_eq!(
         replayed_trace.typed_diagnostic.blocker_code,
         BlockerCode::None
+    );
+}
+
+#[test]
+fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
+    let mut world = world_state();
+    let mut agent_state = agent_state();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+
+    run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry,
+        manifest_id(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "report_pair".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+
+    let context = checksum_context("replay_report_match_mismatch_pair", &log);
+    let expected_checksum = compute_physical_checksum(&world, &context).checksum;
+    let expected_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let expected_diagnostic_event_count = log
+        .events()
+        .iter()
+        .filter(|event| event.stream != EventStream::World)
+        .count();
+    assert!(expected_diagnostic_event_count > 0);
+    assert_ne!(
+        expected_diagnostic_event_count,
+        log.events().len() - expected_diagnostic_event_count
+    );
+    let matching = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&world),
+        Some(expected_checksum.clone()),
+        Some(expected_agent_checksum.clone()),
+    );
+
+    assert!(matching.matches_expected);
+    assert!(matching.agent_checksum_matches);
+    assert_eq!(
+        matching.diagnostic_event_count,
+        expected_diagnostic_event_count
+    );
+    assert_eq!(matching.expected_checksum, Some(expected_checksum.clone()));
+    assert_eq!(matching.final_checksum, expected_checksum);
+    assert_eq!(
+        matching.expected_agent_checksum,
+        Some(expected_agent_checksum.clone())
+    );
+    assert_eq!(matching.final_agent_checksum, expected_agent_checksum);
+    assert!(matching.state_diff.is_empty());
+    assert_eq!(matching.first_divergence, None);
+
+    let mut corrupted_items = world.items().clone();
+    let unexpected_item_id = ItemId::new("unexpected_replay_report_item").unwrap();
+    corrupted_items.insert(
+        unexpected_item_id.clone(),
+        ItemState::new(
+            unexpected_item_id,
+            Location::AtPlace(PlaceId::new("shop_front").unwrap()),
+        ),
+    );
+    let corrupted_expected_world = PhysicalState::from_seed_parts(
+        world.actors().clone(),
+        world.places().clone(),
+        world.doors().clone(),
+        world.containers().clone(),
+        corrupted_items,
+        world.food_supplies().clone(),
+        world.workplaces().clone(),
+        world.sleep_affordances().clone(),
+        *world.need_model(),
+    );
+    let corrupted_expected_checksum =
+        compute_physical_checksum(&corrupted_expected_world, &context).checksum;
+    let mismatching = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&corrupted_expected_world),
+        Some(corrupted_expected_checksum.clone()),
+        Some(matching.final_agent_checksum.clone()),
+    );
+
+    assert!(!mismatching.matches_expected);
+    assert!(mismatching.agent_checksum_matches);
+    assert_eq!(
+        mismatching.diagnostic_event_count,
+        expected_diagnostic_event_count
+    );
+    assert_eq!(
+        mismatching.expected_checksum,
+        Some(corrupted_expected_checksum.clone())
+    );
+    assert_ne!(mismatching.final_checksum, corrupted_expected_checksum);
+    assert_eq!(
+        mismatching.expected_agent_checksum,
+        Some(matching.final_agent_checksum)
+    );
+    assert!(!mismatching.state_diff.is_empty());
+    let first_divergence = mismatching
+        .first_divergence
+        .expect("corrupt expected world reports first divergence");
+    assert!(first_divergence.first_divergent_event_id.is_some());
+    assert_eq!(
+        first_divergence.field_family,
+        ReplayDivergenceFieldFamily::Item
     );
 }
 
