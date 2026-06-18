@@ -3,6 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use tracewake_content::fixtures;
 use tracewake_content::fixtures::GoldenFixture;
 use tracewake_content::load::load_fixture_package;
+use tracewake_content::serialization::{
+    deserialize_event_log, deserialize_fixture, serialize_event_log, serialize_fixture,
+};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes};
 use tracewake_core::actions::defs::sleep::build_sleep_completion_events;
 use tracewake_core::actions::defs::work::build_work_completion_events;
@@ -24,13 +27,18 @@ use tracewake_core::checksum::{
 };
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::KnowledgeContext;
-use tracewake_core::epistemics::{EpistemicProjection, HolderKind, SourceRef};
+use tracewake_core::epistemics::{
+    Channel, Confidence, EpistemicProjection, HolderKind, PrivacyScope, Proposition, SourceRef,
+    Stance,
+};
 use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventEnvelope, EventKind, EventStream, PayloadField};
+use tracewake_core::events::{
+    EventEnvelope, EventKind, EventStream, InitialBeliefSourceKind, PayloadField,
+};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId, FoodSupplyId,
-    IntentionId, PlaceId, RoutineExecutionId, RoutineTemplateId,
+    ActorId, BeliefId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId,
+    FoodSupplyId, IntentionId, PlaceId, RoutineExecutionId, RoutineTemplateId, SchemaVersion,
 };
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_decision_context_hashes, rebuild_projection, run_replay};
@@ -268,6 +276,182 @@ fn fixture_fingerprints_match_frozen_goldens() {
             .any(|error| error.contains(first_fixture_id)),
         "synthetic mismatched manifest fingerprint must fail the frozen seam"
     );
+}
+
+#[test]
+fn serialization_round_trips_spine_variant_matrix() {
+    let mut fixture = fixtures::strongbox_001().fixture;
+    fixture.fixture_scope = tracewake_content::schema::FixtureScope::Phase3AHistorical;
+
+    for (index, (channel, stance, privacy_scope, last_verified_tick)) in [
+        (
+            Some(Channel::TouchOrSearch),
+            Stance::BelievesTrue,
+            PrivacyScope::ActorPrivate(ActorId::new("actor_tomas").unwrap()),
+            None,
+        ),
+        (
+            Some(Channel::AbsenceMarker),
+            Stance::BelievesFalse,
+            PrivacyScope::PublicPlaceholder,
+            Some(SimTick::new(17)),
+        ),
+        (
+            Some(Channel::ReadingPlaceholderSchemaOnly),
+            Stance::Doubts,
+            PrivacyScope::InstitutionPlaceholder("village_notice_board".to_string()),
+            Some(SimTick::new(42)),
+        ),
+        (
+            Some(Channel::DirectSight),
+            Stance::UnknownOrUnresolved,
+            PrivacyScope::ActorPrivate(ActorId::new("actor_tomas").unwrap()),
+            Some(SimTick::new(99)),
+        ),
+        (
+            None,
+            Stance::ExpectsTrue,
+            PrivacyScope::PublicPlaceholder,
+            None,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        fixture
+            .initial_beliefs
+            .push(tracewake_content::schema::InitialBeliefSchema {
+                belief_id: BeliefId::new(format!("belief_serialization_variant_{index}")).unwrap(),
+                holder_actor_id: ActorId::new("actor_tomas").unwrap(),
+                proposition: Proposition::ItemLocatedAtPlace {
+                    item_id: "coin_stack_01".parse().unwrap(),
+                    place_id: "shop_front".parse().unwrap(),
+                },
+                stance,
+                confidence: Confidence::new(700 + index as u16).unwrap(),
+                source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
+                source: SourceRef::Event(
+                    EventId::new(format!("prehistory_serialization_variant_{index}")).unwrap(),
+                ),
+                channel,
+                acquired_tick: SimTick::new(index as u64),
+                last_verified_tick,
+                privacy_scope,
+                schema_version: SchemaVersion::new("epistemic_record_v1").unwrap(),
+            });
+    }
+
+    let routine_families = [
+        (RoutineFamily::MorningWake, vec![]),
+        (RoutineFamily::EatMeal, vec![7]),
+        (RoutineFamily::GoToWork, vec![2, 5, 9]),
+        (RoutineFamily::WorkBlock, vec![3]),
+        (RoutineFamily::ReturnHome, vec![4]),
+        (RoutineFamily::SleepNight, vec![6]),
+        (RoutineFamily::FindFood, vec![8]),
+        (RoutineFamily::LeaveUnsafePlace, vec![10]),
+        (RoutineFamily::ContinueCurrentIntention, vec![11]),
+        (RoutineFamily::Wait, vec![12]),
+        (RoutineFamily::IdleWithReason, vec![13]),
+    ];
+    for (index, (family, interruption_points)) in routine_families.iter().enumerate() {
+        fixture
+            .routine_templates
+            .push(tracewake_content::schema::RoutineTemplateSchema {
+                template_id: RoutineTemplateId::new(format!("routine_serialization_{index}"))
+                    .unwrap(),
+                family: *family,
+                applicability_conditions: vec![RoutineCondition::ActorKnowsHome],
+                preconditions: Vec::new(),
+                steps: vec![RoutineStep::WaitUntil {
+                    reason: format!("serialization_{index}"),
+                }],
+                min_duration_ticks: 1,
+                max_duration_ticks: 3,
+                interruption_points: interruption_points.clone(),
+                failure_modes: vec![format!("failure_{index}")],
+                fallback_rules: vec![format!("fallback_{index}")],
+                debug_labels: vec![format!("debug_{index}")],
+                reservable_resource: if index % 2 == 0 {
+                    Some(format!("resource_{index}"))
+                } else {
+                    None
+                },
+            });
+    }
+    fixture.canonicalize();
+
+    let bytes = serialize_fixture(&fixture);
+    let parsed = deserialize_fixture(&bytes).unwrap();
+    let bytes_after = serialize_fixture(&parsed);
+
+    assert_eq!(bytes, bytes_after);
+    assert_eq!(
+        parsed
+            .initial_beliefs
+            .iter()
+            .map(|belief| (
+                belief.channel,
+                belief.stance,
+                belief.privacy_scope.clone(),
+                belief.last_verified_tick
+            ))
+            .collect::<Vec<_>>(),
+        fixture
+            .initial_beliefs
+            .iter()
+            .map(|belief| (
+                belief.channel,
+                belief.stance,
+                belief.privacy_scope.clone(),
+                belief.last_verified_tick
+            ))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        parsed
+            .routine_templates
+            .iter()
+            .map(|template| (template.family, template.interruption_points.clone()))
+            .collect::<Vec<_>>(),
+        fixture
+            .routine_templates
+            .iter()
+            .map(|template| (template.family, template.interruption_points.clone()))
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn serialized_event_log_replays_to_identical_state() {
+    let (initial_state, initial_agent_state, final_state, final_agent_state, log) =
+        sleep_eat_work_replay_fixture();
+    assert!(!log.events().is_empty());
+
+    let bytes = serialize_event_log(&log);
+    assert!(
+        !bytes.is_empty(),
+        "nonempty event logs must serialize to nonempty canonical bytes"
+    );
+    let round_tripped_log = deserialize_event_log(&bytes).unwrap();
+    assert_eq!(round_tripped_log.events().len(), log.events().len());
+    assert_eq!(serialize_event_log(&round_tripped_log), bytes);
+
+    let context = checksum_context("sleep_eat_work_001", &round_tripped_log);
+    let physical_checksum = compute_physical_checksum(&final_state, &context).checksum;
+    let agent_checksum = compute_agent_state_checksum(&final_agent_state, &context).checksum;
+    let replay = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &round_tripped_log,
+        &context,
+        Some(&final_state),
+        Some(physical_checksum.clone()),
+        Some(agent_checksum.clone()),
+    );
+
+    assert_eq!(replay.final_checksum, physical_checksum);
+    assert_eq!(replay.final_agent_checksum, agent_checksum);
 }
 
 fn load(golden: GoldenFixture) -> (PhysicalState, AgentState, ContentManifestId) {

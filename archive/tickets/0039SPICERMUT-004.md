@@ -1,6 +1,6 @@
 # 0039SPICERMUT-004: Kill `content/serialization.rs` SPINE survivors with typed round-trip + replay witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-content` (test-only by default; a production correction in `serialization.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -80,3 +80,24 @@ Map each of the 17 seed mutants (and any new run survivor in this file) to a con
 1. `cargo test --locked -p tracewake-content --test golden_fixtures_run --test forbidden_content`
 2. `cargo mutants --workspace -f crates/tracewake-content/src/serialization.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Implemented the serialization survivor witnesses in integration tests only; no production `serialization.rs` correction was needed. `golden_fixtures_run.rs` now includes a typed fixture serialization matrix covering affected channel, stance, privacy-scope, optional-tick, routine-family, and interruption-point variants through `serialize_fixture` -> `deserialize_fixture` -> `serialize_fixture` byte identity and typed semantic comparisons.
+
+Added a nonempty event-log serialization witness that builds the existing `sleep_eat_work_001` replay fixture, serializes and deserializes its log through the content serialization API, and runs replay from the deserialized log to identical physical and agent-state checksums. This makes an empty-log serializer observable as a replay/semantic failure rather than a bytes-only check.
+
+`forbidden_content.rs` now includes fail-loud serialization negatives for unknown stance/channel/privacy tokens, unknown routine family, malformed interruption-point lists, truncated routine-template fields, and an explicit empty-log serialization guard showing empty serialized logs cannot stand in as nonempty replay evidence. No enumerated ticket member was deferred or dropped.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-content --test golden_fixtures_run --test forbidden_content` — passed.
+2. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-content/src/serialization.rs --no-shuffle` — passed: 128 mutants tested, 110 caught, 18 unviable, 0 missed.
+3. `cargo fmt --all --check` — passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+5. `cargo build --workspace --all-targets --locked` — passed.
+6. `cargo test --workspace --locked` — passed.
+
+Mutation-command note: after ticket 001, `.cargo/mutants.toml` defines the standing SPINE perimeter through `examine_globs`. As in tickets 002 and 003, the certifying run used `--no-config -C=--locked -f crates/tracewake-content/src/serialization.rs` to preserve this ticket's per-file mutation boundary while keeping locked Cargo arguments.

@@ -5,13 +5,16 @@ use tracewake_content::load::registry_for_fixture_scope;
 use tracewake_content::schema::{
     content_field_by_schema_field, ActionAffordanceSchema, FixtureScope, InitialBeliefSchema,
 };
-use tracewake_content::serialization::serialize_fixture;
+use tracewake_content::serialization::{
+    deserialize_event_log, serialize_event_log, serialize_fixture,
+};
 use tracewake_content::validate::{
     content_field_registry, validate_fixture, validate_fixture_bytes, ValidationPhase,
 };
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::RoutineStep;
 use tracewake_core::epistemics::{Channel, Confidence, Proposition, SourceRef};
+use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{ActionId, BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
 use tracewake_core::time::SimTick;
 
@@ -188,6 +191,101 @@ fn forbidden_content_routine_template_without_typed_family_is_blocking_error() {
             .iter()
             .any(|error| error.code == "bad_line" && error.message.contains("bad routine family")),
         "missing typed family rejection: {report:?}"
+    );
+}
+
+#[test]
+fn forbidden_content_serialization_unknown_tokens_fail_loudly() {
+    let mut fixture = fixtures::strongbox_001().fixture;
+    fixture
+        .initial_beliefs
+        .push(valid_seed("belief_bad_token_probe"));
+    fixture.canonicalize();
+    let valid = String::from_utf8(serialize_fixture(&fixture)).unwrap();
+    let belief_line = valid
+        .lines()
+        .find(|line| line.starts_with("initial_belief|"))
+        .unwrap();
+    let fields = belief_line.split('|').collect::<Vec<_>>();
+
+    for (field_index, bad_value, expected_message) in [
+        (4, "believes_maybe", "bad stance believes_maybe"),
+        (8, "dream_channel", "bad channel dream_channel"),
+        (11, "guild:village", "guild:village"),
+    ] {
+        let mut bad_fields = fields.clone();
+        bad_fields[field_index] = bad_value;
+        let raw = valid.replace(belief_line, &bad_fields.join("|"));
+        let report = validate_fixture_bytes(raw.as_bytes(), &registry())
+            .unwrap_err()
+            .report;
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| error.code == "bad_line" && error.message.contains(expected_message)),
+            "missing loud serialization diagnostic for {bad_value}: {report:?}"
+        );
+    }
+}
+
+#[test]
+fn forbidden_content_serialization_truncated_and_malformed_lists_fail_loudly() {
+    let step = encode("routine_step_v1|wait_until|77616974");
+    let valid_template = format!(
+        "routine_template|routine_wait_probe|wait|||{step}|1|2|0,2,5|77616974|77616974|73657269616c697a6174696f6e|"
+    );
+    let base = format!(
+        "fixture|bad_serialization_fixture\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100\n{valid_template}"
+    );
+
+    let bad_family = base.replace("|wait|", "|wont_wait|");
+    let report = validate_fixture_bytes(bad_family.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report.errors.iter().any(|error| error.code == "bad_line"
+            && error.message.contains("bad routine family wont_wait")),
+        "missing routine-family diagnostic: {report:?}"
+    );
+
+    let malformed_list = base.replace("|0,2,5|", "|0,nope,5|");
+    let report = validate_fixture_bytes(malformed_list.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report
+            .errors
+            .iter()
+            .any(|error| error.code == "bad_number" && error.message.contains("nope")),
+        "missing malformed-list diagnostic: {report:?}"
+    );
+
+    let truncated = base.replace(
+        &valid_template,
+        "routine_template|routine_wait_probe|wait|||726f7574696e655f737465705f76317c776169745f756e74696c7c3737363136393734|1|2|0",
+    );
+    let report = validate_fixture_bytes(truncated.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report.errors.iter().any(|error| error.code == "bad_line"
+            && error
+                .message
+                .contains("routine_template|routine_wait_probe")),
+        "missing truncated-line diagnostic: {report:?}"
+    );
+}
+
+#[test]
+fn forbidden_content_empty_event_log_serialization_is_not_nonempty_replay_witness() {
+    let empty = EventLog::new();
+    let bytes = serialize_event_log(&empty);
+    let parsed = deserialize_event_log(&bytes).unwrap();
+
+    assert!(
+        parsed.events().is_empty(),
+        "empty serialized logs must not be accepted as nonempty replay evidence"
     );
 }
 
