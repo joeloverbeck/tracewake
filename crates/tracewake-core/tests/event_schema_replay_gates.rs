@@ -7,7 +7,7 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
     BlockerCategory, BlockerCode, DecisionTraceRecord, Intention, IntentionSource, IntentionStatus,
     NeedChangeCause, NeedKind, NeedState, ResponsibleLayer, RoutineExecution, RoutineFamily,
-    StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
+    RoutineStepStatus, StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
@@ -1208,6 +1208,133 @@ fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
     assert!(first_divergence.first_divergent_event_id.is_some());
     assert_eq!(
         first_divergence.field_family,
+        ReplayDivergenceFieldFamily::Item
+    );
+}
+
+#[test]
+fn checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints() {
+    let context = checksum_context("checksum_identity_witness", &EventLog::new());
+    let base_world = world_state();
+    let base_physical_report = compute_physical_checksum(&base_world, &context);
+
+    let equivalent_world = PhysicalSeed::from_state(&base_world).build();
+    let equivalent_physical_report = compute_physical_checksum(&equivalent_world, &context);
+    assert_eq!(
+        base_physical_report.checksum,
+        equivalent_physical_report.checksum
+    );
+    assert_eq!(
+        base_physical_report.canonical_input,
+        equivalent_physical_report.canonical_input
+    );
+
+    let mut relocated_seed = PhysicalSeed::from_state(&base_world);
+    relocated_seed
+        .items_mut()
+        .get_mut(&ItemId::new("loose_key_01").unwrap())
+        .expect("loose key exists")
+        .location = Location::InContainer(ContainerId::new("strongbox_tomas").unwrap());
+    let relocated_world = relocated_seed.build();
+    let relocated_physical_report = compute_physical_checksum(&relocated_world, &context);
+    assert_ne!(
+        base_physical_report.checksum,
+        relocated_physical_report.checksum
+    );
+    assert!(
+        base_physical_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("item|id=loose_key_01") && line.contains("at_place:")),
+        "{:?}",
+        base_physical_report.canonical_input
+    );
+    assert!(
+        relocated_physical_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("item|id=loose_key_01") && line.contains("in_container:")),
+        "{:?}",
+        relocated_physical_report.canonical_input
+    );
+
+    let base_agent = agent_state_with_active_intention_and_routine();
+    let mut in_progress_seed = AgentSeed::from_state(&base_agent);
+    in_progress_seed
+        .routine_executions_mut()
+        .get_mut(&RoutineExecutionId::new("routine_exec_breakfast").unwrap())
+        .expect("routine exists")
+        .step_status = RoutineStepStatus::InProgress;
+    let in_progress_agent = in_progress_seed.build();
+    let mut completed_seed = AgentSeed::from_state(&base_agent);
+    completed_seed
+        .routine_executions_mut()
+        .get_mut(&RoutineExecutionId::new("routine_exec_breakfast").unwrap())
+        .expect("routine exists")
+        .step_status = RoutineStepStatus::Completed;
+    let completed_agent = completed_seed.build();
+    let in_progress_agent_report = compute_agent_state_checksum(&in_progress_agent, &context);
+    let completed_agent_report = compute_agent_state_checksum(&completed_agent, &context);
+    assert_ne!(
+        in_progress_agent_report.checksum,
+        completed_agent_report.checksum
+    );
+    assert!(
+        in_progress_agent_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("routine_execution|") && line.contains("status=in_progress")),
+        "{:?}",
+        in_progress_agent_report.canonical_input
+    );
+    assert!(
+        completed_agent_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("routine_execution|") && line.contains("status=completed")),
+        "{:?}",
+        completed_agent_report.canonical_input
+    );
+
+    let replay = run_replay(
+        &base_world,
+        &in_progress_agent,
+        &EventLog::new(),
+        &context,
+        Some(&base_world),
+        Some(base_physical_report.checksum.clone()),
+        Some(in_progress_agent_report.checksum.clone()),
+    );
+    assert!(replay.matches_expected);
+    assert_eq!(
+        replay
+            .expected_agent_checksum
+            .as_ref()
+            .map(|checksum| checksum.as_str()),
+        Some(replay.final_agent_checksum.as_str())
+    );
+    assert!(replay.final_agent_checksum.as_str().starts_with("twa1-"));
+
+    let corrupted_replay = run_replay(
+        &base_world,
+        &in_progress_agent,
+        &EventLog::new(),
+        &context,
+        Some(&relocated_world),
+        Some(relocated_physical_report.checksum),
+        Some(in_progress_agent_report.checksum),
+    );
+    assert!(!corrupted_replay.matches_expected);
+    assert_ne!(
+        corrupted_replay.expected_checksum,
+        Some(corrupted_replay.final_checksum)
+    );
+    assert!(!corrupted_replay.state_diff.is_empty());
+    assert_eq!(
+        corrupted_replay
+            .first_divergence
+            .expect("relocated expected state reports first divergence")
+            .field_family,
         ReplayDivergenceFieldFamily::Item
     );
 }

@@ -1,6 +1,6 @@
 # 0039SPICERMUT-010: Kill `checksum.rs` SPINE survivors with checksum-identity + replay-divergence witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — adds behavior-witness tests in `tracewake-core` (test-only by default; a production correction in `checksum.rs` lands only if a survivor reveals a real defect, per spec §4.13).
@@ -79,3 +79,19 @@ Map all 6 historical mutants (plus any new run survivor in this file) to a concr
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test golden_scenarios`
 2. `cargo mutants --workspace -f crates/tracewake-core/src/checksum.rs --no-shuffle`
 3. The per-file `-f` run is the correct verification boundary; the full standing campaign is ticket 020.
+
+## Outcome
+
+Completed: 2026-06-18
+
+- Added checksum identity and divergence witnesses in `crates/tracewake-core/tests/event_schema_replay_gates.rs` covering equivalent physical reconstruction, location-only checksum divergence, routine-step-status-only agent checksum divergence, replay artifact agent checksum strings, and first-divergence reporting for a corrupted expected state.
+- Strengthened `crates/tracewake-core/tests/golden_scenarios.rs` so the existing no-human replay fingerprint asserts the persisted agent checksum string as a `twa1-` replay artifact and compares expected/final report fingerprints.
+- No production change in `crates/tracewake-core/src/checksum.rs` was needed.
+- Because ticket 001 converted `.cargo/mutants.toml` into the standing SPINE perimeter, the per-file acceptance run used `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/checksum.rs --no-shuffle` to preserve this ticket's exact target. Result: 25 mutants tested, 16 caught, 9 unviable, 0 missed.
+- Verification passed:
+  - `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test golden_scenarios`
+  - `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/checksum.rs --no-shuffle`
+  - `cargo fmt --all --check`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo build --workspace --all-targets --locked`
+  - `cargo test --workspace --locked`
