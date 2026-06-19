@@ -1,6 +1,6 @@
 # 0041 EPI-CERT mutation remediation replacement certification acceptance artifact
 
-Spec: `specs/0041_EPI_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`  
+Spec: `archive/specs/0041_EPI_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`  
 Spec number: `0041`  
 Status: COMPLETED  
 Source baseline: `7a17447d7c8bc5fc591d70d7fe783b8f5d0e68f5`  
@@ -22,8 +22,8 @@ institutions, notices, travel, LOD, LLM/speech, or story-sifting scope.
 
 ## Scope And Worktree Note
 
-Artifact staging path:
-`reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`
+Artifact archive path:
+`archive/reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`
 
 The exact commit under test is `726b2a1f1318381e75d4ffc4eff6b5103fbdd2c3`.
 At command time the worktree also contained unrelated unstaged local edits under

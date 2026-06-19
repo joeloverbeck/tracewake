@@ -89,11 +89,16 @@ Render `EPI-CERT passed` only when all §8.10 conditions (1)–(7) hold, and sta
 
 Completed: 2026-06-19
 
+Outcome amended: 2026-06-19
+
 Evidence-only capstone completed for exact implementation/evidence commit
 `726b2a1f1318381e75d4ffc4eff6b5103fbdd2c3`.
 
 Produced
-`reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`.
+`reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`,
+then archived it at
+`archive/reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`
+on accepted closeout.
 The artifact renders `EPI-CERT passed`, supersedes the 0040 EPI-CERT
 acceptance artifact for current EPI-CERT use, preserves 0040 as historical
 lineage, and states that archived specs/tickets `0004`–`0040` are

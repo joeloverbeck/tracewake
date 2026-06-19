@@ -5,7 +5,7 @@
 **Target repository:** `joeloverbeck/tracewake`  
 **Authoring and reassessment baseline:** `7a17447d7c8bc5fc591d70d7fe783b8f5d0e68f5`  
 **Spec series:** numbered implementation spec, staged under `specs/`, archived on acceptance closeout  
-**Status:** proposed; implementation-ready; non-executable in the authoring session  
+**Status:** COMPLETED  
 **Future-spec posture:** `Remediation`  
 **Admissibility posture:** `EPI-CERT scoped remediation`  
 **Consumed predecessor gates:** `P0-CERT passed` through the 0037 replacement artifact; `SPINE-CERT passed` through the 0039 replacement artifact  
@@ -1729,6 +1729,40 @@ These are execution choices, not clarifying questions for the authoring session.
 ## Outcome
 
 **Proposed.** This document defines the 0041 remediation and replacement-certification contract. No commands were executed and no certification result is asserted by this authoring session.
+
+## Outcome
+
+Completed: 2026-06-19
+
+The 0041 EPI-CERT mutation remediation series completed through archived
+tickets `0041EPICERMUT-001` through `0041EPICERMUT-010`. The implementation:
+
+- preserved the standing checked-in `.cargo/mutants.toml` denominator and
+  broadened CI in-diff durability for `epistemics/**`;
+- killed or semantically closed every historical 0040 EPI mutation survivor;
+- captured the final configured mutation census and full mutation output;
+- reconciled all 30 historical identities in
+  `reports/0041_epi_cert_mutation_triage_register.md`;
+- produced the replacement acceptance artifact
+  `archive/reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`.
+
+Verification completed:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
+- all 20 named EPI suites across `tracewake-core`, `tracewake-content`, and
+  `tracewake-tui`
+- `cargo mutants --workspace --no-shuffle -o reports/0041_epi_cert_mutation_full.out`
+  with 2774 mutants tested, 2182 caught, 592 unviable, 0 missed, and 0 timeout
+
+The replacement artifact renders `EPI-CERT passed` for exact
+implementation/evidence commit `726b2a1f1318381e75d4ffc4eff6b5103fbdd2c3` and
+supersedes the 0040 EPI-CERT artifact for current EPI-CERT use while preserving
+0040 as historical lineage. No later certification line is implemented or
+certified by this closeout; the newly admissible next ladder move is an
+`ORD-LIFE-CERT` spec and evidence package.
 
 ---
 
