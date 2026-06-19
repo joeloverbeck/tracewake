@@ -1,6 +1,6 @@
 # 0040EPICERHOL-004: EPI-03 — observation channels, capture boundaries, and event-backed insertion
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,19 @@ Populate the EPI-03 section with the §9.2 ledger fields per witness (positive, 
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test --locked -p tracewake-core --test hidden_truth_gates && cargo test --locked -p tracewake-core --test negative_fixture_runner`
 3. `cargo test --locked -p tracewake-content --test golden_fixtures_run` (registered observation fixture corpus boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-03 section in `reports/0040_epi_cert_holder_known_contexts_beliefs_observations_provenance_possession_parity_view_models_and_debug_quarantine_certification_acceptance.md` with evidence rows for modeled observation-channel witnesses, channel-gated/no-telepathy controls, compile-fail observation/raw-insert boundaries, replay/provenance equality, and the `ReadingPlaceholderSchemaOnly` staged-abstraction declaration. The §9.4 EPI-03 row now cites those evidence IDs, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` passed.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates` passed.
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed.
+- `cargo test --locked -p tracewake-core --test golden_scenarios` passed.
+
+No deviations from ticket scope. The ticket remained evidence-only; live reading-channel completion remains out of scope and explicitly staged.

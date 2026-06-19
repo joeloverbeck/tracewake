@@ -227,7 +227,62 @@ Status: evidence collected by `0040EPICERHOL-003`; aggregate row remains pending
 
 ## EPI-03 - Observation Channels, Capture Boundaries, And Event-Backed Insertion
 
-Status: pending. Owned by `0040EPICERHOL-004`.
+Status: evidence collected by `0040EPICERHOL-004`; aggregate row remains pending for the capstone and mutation package.
+
+- Evidence item ID: `EPI03-POS-001`
+- EPI cross-references: `EPI-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test golden_scenarios` and `cargo test --locked -p tracewake-content --test golden_fixtures_run` exited 0 at commit `b231d1b9591dd00d7d14749ea19d5ed130da8c52`; 16 and 42 tests passed respectively. Relevant witnesses include `accepted_actions_append_versioned_events`, `check_container_records_observation_but_open_alone_does_not`, `sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge`, `expected_absence_check_creates_contradiction_and_missing_belief`, `no_human_epistemic_check_records_evidence_without_controller`, and `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`.
+- Path under test and behavior witness: modeled observation channels, source-backed observation facts, sound uncertainty, modeled absence, and append-before-projection behavior; responsible layers `action validation`, `event application`, and `projection/replay`.
+- Replay/provenance ancestry: event append and source-event IDs are exercised by the scenario/fixture tests; replay equality is recorded in `EPI03-REPLAY-001`.
+- Sampling/exhaustiveness: finite named observation-channel fixture/test set required by ticket `0040EPICERHOL-004`.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-03 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI03-ADV-001`
+- EPI cross-references: `EPI-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates` exited 0 at commit `b231d1b9591dd00d7d14749ea19d5ed130da8c52`; 16 tests passed, including `embodied_affordances_exclude_hidden_food_in_closed_container`, `hidden_food_closed_container_is_not_actor_known_food_source`, `hidden_food_unknown_route_does_not_become_transaction_target`, `hidden_route_edge_absent_from_actor_context_blocks_route_plan`, `workplace_requires_assignment_or_observation_provenance`, and `planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context`.
+- Path under test and behavior witness: channel-gated observation/no-telepathy controls for closed containers, hidden food, hidden routes, workplace knowledge, and empty adversarial context; responsible layers `actor-known context construction` and `projection/replay`.
+- Replay/provenance ancestry: hidden-truth tests include event-backed epistemic fields and sealed-context replay witnesses; deeper replay coverage is recorded in `EPI03-REPLAY-001`.
+- Sampling/exhaustiveness: finite named EPI-03 adversarial perimeter.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-03 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI03-COMPILE-001`
+- EPI cross-references: `EPI-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test negative_fixture_runner` exited 0 at commit `b231d1b9591dd00d7d14749ea19d5ed130da8c52`; 5 tests passed, including registered compile-fail coverage for `external_crate_cannot_construct_observation_without_source` and `external_crate_cannot_insert_raw_epistemic_records`.
+- Path under test and behavior witness: external crates cannot construct observations without a source or insert raw epistemic records; responsible layers `content/schema validation` and `event application`.
+- Replay/provenance ancestry: not applicable to compile-fail evidence.
+- Sampling/exhaustiveness: registered negative-fixture corpus member set for EPI-03 observation boundaries.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-03 compile-fail negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI03-REPLAY-001`
+- EPI cross-references: `EPI-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates` exited 0 at commit `b231d1b9591dd00d7d14749ea19d5ed130da8c52`; 30 tests passed, including `epistemic_apply_matrix_preserves_fields_and_rejects_unknown_tokens`, `starting_observation_and_contradiction_events_survive_replay_with_sources`, `unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied`, `unsupported_event_schema_append_rejected`, `replay_rebuild_checksum_matches_original_after_no_human_day`, and `replay_report_match_mismatch_pair_exposes_semantic_fingerprints`.
+- Path under test and behavior witness: observation event application, append/schema rejection, source-bearing observation/contradiction replay, and replay mismatch reporting; responsible layer `projection/replay`.
+- Replay/provenance ancestry: event-envelope/source-event ancestry and replay rebuild reports are exercised by `event_schema_replay_gates`; scenario/fixture channels are recorded in `EPI03-POS-001`.
+- Sampling/exhaustiveness: finite named replay command required by ticket `0040EPICERHOL-004`.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-03 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI03-STAGED-READING-001`
+- EPI cross-references: `EPI-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates` exited 0 at commit `b231d1b9591dd00d7d14749ea19d5ed130da8c52`; the apply/replay matrix includes `reading_placeholder_schema_only` as a typed schema value while this artifact does not count it as completed live reading behavior.
+- Path under test and behavior witness: staged reading channel placeholder in epistemic schema/application; responsible layer `event application`; the witness proves schema/application handling only.
+- Replay/provenance ancestry: source-event handling for the placeholder is exercised in the apply matrix; no live reading affordance/event path is certified by this row.
+- Sampling/exhaustiveness: bounded staged abstraction declared for the current schema placeholder.
+- Pending or historical handling: staged abstraction: proven now = schema/application value is typed and replayed; abstracted = complete live reading behavior; forbidden to fake = may not be used as evidence of completed reading; future route = separate scoped implementation that supplies modeled event/provenance path; anti-overclaim evidence = EPI-03 row remains tied to this staged declaration.
+- Certification use: counted only for schema/application placeholder honesty; not counted as completed live reading evidence.
 
 ## EPI-04 - Expectation Contradiction, Mismatch Linkage, And Absence-Without-Culprit Discipline
 
@@ -271,7 +326,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 |---|---|---|---|---|---|---|
 | `EPI-01` sealed context identity/scope/hash/frontier | actor-known context construction; proposal construction | `EPI01-POS-001`, `EPI01-PROPOSAL-001` | `EPI01-ADV-001`, `EPI01-COMPILE-001` | `EPI01-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | `EPI02-POS-001`, `EPI02-FRESH-001` | `EPI02-ADV-001`, `EPI02-COMPILE-001` | `EPI02-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-03` observation channels/event capture | event application; projection/replay | pending | pending | pending | pending | pending |
+| `EPI-03` observation channels/event capture | event application; projection/replay | `EPI03-POS-001`, `EPI03-STAGED-READING-001` | `EPI03-ADV-001`, `EPI03-COMPILE-001` | `EPI03-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
 | `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | pending | pending | pending | pending | pending |
 | `EPI-06` projection rebuild/non-writer | event application; projection/replay | pending | pending | pending | pending | pending |
