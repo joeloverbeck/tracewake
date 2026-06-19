@@ -423,6 +423,8 @@ fn require_item(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::epistemics::{Contradiction, ContradictionKind, EpistemicProjection};
+    use crate::ids::{BeliefId, ContentManifestId, ContradictionId, ObservationId};
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
@@ -432,12 +434,103 @@ mod tests {
         ContainerId::new(value).unwrap()
     }
 
+    fn belief_id(value: &str) -> BeliefId {
+        BeliefId::new(value).unwrap()
+    }
+
+    fn contradiction_id(value: &str) -> ContradictionId {
+        ContradictionId::new(value).unwrap()
+    }
+
+    fn observation_id(value: &str) -> ObservationId {
+        ObservationId::new(value).unwrap()
+    }
+
     fn item_id(value: &str) -> ItemId {
         ItemId::new(value).unwrap()
     }
 
     fn place_id(value: &str) -> PlaceId {
         PlaceId::new(value).unwrap()
+    }
+
+    fn typed_relation_contradiction(
+        contradiction: &str,
+        expected: Proposition,
+        observed: Proposition,
+    ) -> Option<Contradiction> {
+        if !expected.contradicts(&observed) || !observed.contradicts(&expected) {
+            return None;
+        }
+
+        Some(Contradiction::new(
+            contradiction_id(contradiction),
+            actor_id("actor_tomas"),
+            ContradictionKind::ExpectedItemAbsentFromContainer,
+            belief_id("belief_tomas_expected_location"),
+            observation_id("obs_tomas_checked_location"),
+            expected,
+            observed,
+            crate::time::SimTick::new(9),
+        ))
+    }
+
+    fn assert_replayable_typed_relation_contradiction(
+        contradiction: Contradiction,
+        expected_summary: &str,
+    ) {
+        let expected_canonical = contradiction.expected_proposition().serialize_canonical();
+        let observed_canonical = contradiction.observed_proposition().serialize_canonical();
+        let mut projection = EpistemicProjection::new(
+            ContentManifestId::new("proposition_relation_matrix").unwrap(),
+        );
+        projection.insert_contradiction(contradiction);
+        let replayed_checksum = projection.compute_checksum().checksum;
+        let debug = projection.debug_epistemics_view();
+
+        assert_eq!(debug.contradictions.len(), 1);
+        assert_eq!(
+            debug.contradictions[0].holder_actor_id,
+            actor_id("actor_tomas")
+        );
+        assert_eq!(
+            debug.contradictions[0].expectation_belief_id,
+            "belief_tomas_expected_location"
+        );
+        assert_eq!(
+            debug.contradictions[0].observation_id,
+            "obs_tomas_checked_location"
+        );
+        assert_eq!(debug.contradictions[0].summary, expected_summary);
+        assert!(projection
+            .compute_checksum()
+            .canonical_input
+            .iter()
+            .any(
+                |entry| entry.contains(&expected_canonical) && entry.contains(&observed_canonical)
+            ));
+        assert_eq!(projection.compute_checksum().checksum, replayed_checksum);
+    }
+
+    fn at_place_expected(item: &str, place: &str) -> Proposition {
+        Proposition::ItemLocatedAtPlace {
+            item_id: item_id(item),
+            place_id: place_id(place),
+        }
+    }
+
+    fn carried_by_expected(item: &str, actor: &str) -> Proposition {
+        Proposition::ItemCarriedByActor {
+            item_id: item_id(item),
+            actor_id: actor_id(actor),
+        }
+    }
+
+    fn missing_from(item: &str, location: Location) -> Proposition {
+        Proposition::ItemMissingFromExpectedLocation {
+            item_id: item_id(item),
+            expected_location: location,
+        }
     }
 
     #[test]
@@ -486,6 +579,117 @@ mod tests {
         assert!(located.contradicts(&missing));
         assert!(missing.contradicts(&located));
         assert!(!located.contradicts(&unrelated));
+    }
+
+    #[test]
+    fn at_place_missing_relation_creates_only_exact_typed_contradiction() {
+        let rows = [
+            (
+                "item_and_place_match",
+                at_place_expected("coin_stack_01", "back_room"),
+                missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+                true,
+            ),
+            (
+                "item_differs",
+                at_place_expected("silver_ring_01", "back_room"),
+                missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+                false,
+            ),
+            (
+                "place_differs",
+                at_place_expected("coin_stack_01", "shop_front"),
+                missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+                false,
+            ),
+            (
+                "both_differ",
+                at_place_expected("silver_ring_01", "shop_front"),
+                missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+                false,
+            ),
+        ];
+
+        for (label, expected, observed, should_contradict) in rows {
+            let detection = typed_relation_contradiction(
+                &format!("contradiction_at_place_{label}"),
+                expected,
+                observed,
+            );
+            assert_eq!(
+                detection.is_some(),
+                should_contradict,
+                "at-place row {label}"
+            );
+            if let Some(contradiction) = detection {
+                assert_replayable_typed_relation_contradiction(
+                    contradiction,
+                    "coin_stack_01 is at back_room -> coin_stack_01 is missing from expected location place back_room",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn carried_by_missing_relation_creates_only_exact_holder_contradiction() {
+        let rows = [
+            (
+                "item_and_actor_match",
+                carried_by_expected("coin_stack_01", "actor_tomas"),
+                missing_from(
+                    "coin_stack_01",
+                    Location::CarriedBy(actor_id("actor_tomas")),
+                ),
+                true,
+            ),
+            (
+                "item_differs",
+                carried_by_expected("silver_ring_01", "actor_tomas"),
+                missing_from(
+                    "coin_stack_01",
+                    Location::CarriedBy(actor_id("actor_tomas")),
+                ),
+                false,
+            ),
+            (
+                "actor_differs",
+                carried_by_expected("coin_stack_01", "actor_mara"),
+                missing_from(
+                    "coin_stack_01",
+                    Location::CarriedBy(actor_id("actor_tomas")),
+                ),
+                false,
+            ),
+            (
+                "both_differ",
+                carried_by_expected("silver_ring_01", "actor_mara"),
+                missing_from(
+                    "coin_stack_01",
+                    Location::CarriedBy(actor_id("actor_tomas")),
+                ),
+                false,
+            ),
+        ];
+
+        for (label, expected, observed, should_contradict) in rows {
+            let detection = typed_relation_contradiction(
+                &format!("contradiction_carried_by_{label}"),
+                expected,
+                observed,
+            );
+            assert_eq!(
+                detection.is_some(),
+                should_contradict,
+                "carried-by row {label}"
+            );
+            if let Some(contradiction) = detection {
+                assert_eq!(contradiction.holder_actor_id(), &actor_id("actor_tomas"));
+                assert_replayable_typed_relation_contradiction(
+                    contradiction,
+                    "coin_stack_01 is carried by actor_tomas -> coin_stack_01 is missing from expected location actor actor_tomas",
+                );
+            }
+        }
     }
 
     #[test]

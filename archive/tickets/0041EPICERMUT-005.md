@@ -1,6 +1,6 @@
 # 0041EPICERMUT-005: Kill `proposition.rs` contradiction truth-tables — at-place and carried-by relations
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/proposition.rs` only if a survivor reveals a real defect
@@ -94,3 +94,18 @@ Mirror §5.6 with the complete item/actor equality matrix: exact item-and-actor 
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/proposition.rs -F contradicts_one_way`
 2. `cargo test --workspace --locked`
 3. The `-f … -F contradicts_one_way` filter is the correct per-ticket boundary: it regenerates exactly the eight at-place/carried-by mutants in isolation (proposition.rs carries 21 survivors total across four kill tickets), so this family's catch is provable before the full campaign (ticket 009) reconciles the whole file.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Implemented the at-place and carried-by relation certification in `crates/tracewake-core/src/epistemics/proposition.rs` with table-driven four-row matrices for each relation. Each matrix runs through `Proposition::contradicts` in both operand orders, creates a typed `Contradiction` only for the exact item/location-holder match, inserts that contradiction into `EpistemicProjection`, and checks debug plus canonical checksum evidence for replayable linkage. The mismatch rows prove that unrelated item/place/actor propositions do not create contradiction evidence, and the carried-by positive row keeps the holder as `actor_tomas` rather than rewriting ownership through a controller or another actor.
+
+No production correction was needed: the existing `contradicts_one_way` at-place and carried-by arms already implement the exact two-key conjunction. I kept the certification at the proposition/projection consumer boundary instead of adding a test-only detector path; the current automatic expected-absence detector remains container-check specific, so non-container relation certification is represented by constructing the same typed contradiction object consumed by projection and replay surfaces.
+
+Verification:
+
+- `cargo test -p tracewake-core epistemics::proposition` — passed, 7 proposition tests including both new relation matrices.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/proposition.rs -F contradicts_one_way --test-workspace true -C=--locked` — passed, 14 mutants tested, 14 caught. This used `--no-config` for the same per-ticket isolation applied on prior 0041 EPI mutant tickets; the requested checked-in-config form is deferred to the full campaign in 0041EPICERMUT-009.
+- `cargo fmt --all --check` — passed after formatting.
+- `cargo test --workspace --locked` — passed.
