@@ -39,6 +39,16 @@ which is the **freshest / most-specific seed** for this pass — later predecess
 earlier ones as the primary input (a successor report's forward-routing appendix usually outranks the
 original routing memo it descends from).
 
+Distinguish a **lineage predecessor** from a **cross-line structural precedent**. A *lineage
+predecessor* is a prior brief/spec in the *same* campaign line, one phase back (e.g. a gate's audit
+brief that this remediation brief succeeds) — name it here in §1 to frame the *delta* and avoid
+re-commissioning completed work. A *cross-line structural precedent* is a prior brief/spec from a
+*sibling* line reused only as the **shape model** (e.g. a `P0-CERT` mutation-remediation spec cloned
+as the template for a `SPINE-CERT` mutation-remediation brief) — it is not a delta seed, so list it
+in §2 as a *structural model* read rather than naming it as a predecessor here. A single pass can
+carry both at once; keep their roles separate so Session 2 reads the lineage predecessor for *what is
+already done* and the structural precedent for *what shape to produce*.
+
 ### 2. Read in full (authority order)
 
 An explicit, tiered path list — every file Session 2 must read before producing — each
