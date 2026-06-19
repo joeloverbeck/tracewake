@@ -1,6 +1,6 @@
 # 0040EPICERHOL-008: EPI-07 — actor decision transaction, proposal context parity, validation-truth firewall, and feedback split
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -76,3 +76,20 @@ Populate the EPI-07 section with the §9.2 ledger fields per witness (positive, 
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
 2. `cargo test --locked -p tracewake-core --test no_human_capstone && cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 3. `cargo test --locked -p tracewake-tui --test adversarial_gates` (typed-wrapped hidden-input rejection boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-07 section of the acceptance artifact with proposal-context parity, truth-firewall/no-leak adversarial, and replay/tamper evidence. The §9.4 EPI-07 row now cites `EPI07-POS-001`, `EPI07-ADV-001`, and `EPI07-REPLAY-001`, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test no_human_capstone`
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-core --test golden_scenarios`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+
+No deviations. Planner-quality and ordinary-life completeness remain outside this evidence-only EPI boundary.

@@ -419,7 +419,40 @@ Status: evidence collected by `0040EPICERHOL-007`; aggregate row remains pending
 
 ## EPI-07 - Actor Decision Transaction, Proposal Context Parity, Validation-Truth Firewall, And Feedback Split
 
-Status: pending. Owned by `0040EPICERHOL-008`.
+Status: evidence collected by `0040EPICERHOL-008`; aggregate row remains pending for the mutation package and capstone verdict.
+
+- Evidence item ID: `EPI07-POS-001`
+- EPI cross-references: `EPI-07`
+- Evidence status: pass
+- Fingerprint scope: sealed actor-known input, candidate/decision trace boundary, selected proposal, `ProposalSourceContext` ID/hash/frontier tuple, validation stage, appended event, actor-visible outcome, and actor-safe/debug feedback split.
+- Evidence summary: `cargo test --locked -p tracewake-core --test acceptance_gates`, `cargo test --locked -p tracewake-core --test no_human_capstone`, `cargo test --locked -p tracewake-core --test golden_scenarios`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. These gates prove human/nonhuman proposals share validation, no-human decision traces retain typed ancestry, accepted actions append versioned replay-visible events, and fixture decisions remain bound to actor-known context rather than validation/debug truth.
+- Path under test and behavior witness: `agent/transaction.rs`, `agent/no_human_surface.rs`, `agent/candidate.rs`, `agent/decision.rs`, `agent/planner.rs`, `actions/proposal.rs`, `actions/pipeline.rs`, `actions/report.rs`, and `events/envelope.rs`. Representative witnesses include `human_and_nonhuman_proposals_share_validation_path`, `phase3a_agent_events_apply_live_and_replay_to_same_agent_checksum`, `no_human_capstone_proves_typed_ancestry_and_replay`, `accepted_actions_append_versioned_events`, and `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`.
+- Replay/provenance ancestry: the proposal path retains context identity, hash/frontier, source-event ancestry, semantic action, validation result, event append, and actor-safe feedback through accepted log replay.
+- Sampling/exhaustiveness: finite EPI-07 positive command set required by ticket `0040EPICERHOL-008`.
+- Pending or historical handling: planner quality and ordinary-life completeness remain outside this EPI row and are not inferred.
+- Certification use: counted as certifying pass for the EPI-07 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI07-ADV-001`
+- EPI cross-references: `EPI-07`
+- Evidence status: pass
+- Fingerprint scope: paired hidden-food/route/workplace/debug-state worlds, forbidden provenance contamination, typed-wrapped hidden input, stale view token, forged privileged action shape, and actor-safe why-not feedback.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates`, `cargo test --locked -p tracewake-content --test golden_fixtures_run`, and `cargo test --locked -p tracewake-tui --test adversarial_gates` passed. These gates show hidden truth does not enter candidate/proposal inputs or actor-safe reasons before a legal observation channel, and typed-wrapped contamination/stale or forged TUI submissions are rejected.
+- Path under test and behavior witness: `actor_known_context_unforgeable_from_truth`, `hidden_route_edge_absent_from_actor_context_blocks_route_plan`, `hidden_food_unknown_route_does_not_become_transaction_target`, `debug_truth_never_enters_holder_known_context_hash`, `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, `adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target`, `adversarial_gates_stale_view_token_fails_after_state_change`, and `adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts`.
+- Replay/provenance ancestry: rejected or blocked paths produce typed actor-safe blockers and separately authorized debug diagnostics without appending accepted events or backfilling hidden validation facts into the next holder-known context.
+- Sampling/exhaustiveness: finite named paired/no-leak/TUI adversarial corpus required by ticket `0040EPICERHOL-008`.
+- Pending or historical handling: relational anti-contamination breadth remains owned by `0040EPICERHOL-013`.
+- Certification use: counted as certifying pass for the EPI-07 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI07-REPLAY-001`
+- EPI cross-references: `EPI-07`
+- Evidence status: pass
+- Fingerprint scope: accepted/rejected event prefixes, context parity tamper, payload schema/version, proposal eligibility, validation result, replay report, and actor-safe feedback determinism.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, `cargo test --locked -p tracewake-core --test golden_scenarios`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. Replay gates reproduce proposal/action outcomes from accepted event prefixes and reject forged schema, stream, stale context, or tampered source evidence before accepted mutation.
+- Path under test and behavior witness: `agent_apply_matrix_observes_parser_arms_transitions_and_causality`, `forged_trace_and_diagnostic_schema_versions_are_rejected_for_materialized_agent_replay_001`, `replay_report_match_mismatch_pair_exposes_semantic_fingerprints`, `replay_checksum_matches`, `debug_rejection_report_names_failed_stage`, and `no_human_decision_context_hash_gate_fails_when_source_evidence_tampered`.
+- Replay/provenance ancestry: replayed prefixes preserve the same source context, proposal eligibility, validation result, appended-event semantics, and actor-safe feedback; tampered parity/source fields fail before accepted state mutation.
+- Sampling/exhaustiveness: finite EPI-07 replay/proposal command set required by ticket `0040EPICERHOL-008`.
+- Pending or historical handling: none for this evidence row beyond mutation/capstone consolidation.
+- Certification use: counted as certifying pass for the EPI-07 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## EPI-08 - Possession Parity And Cognition-Neutral Controller Binding
 
@@ -451,7 +484,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | `EPI04-POS-001`, `EPI04-STAGED-001` | `EPI04-ADV-001`, `EPI04-COMPILE-001` | `EPI04-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | `EPI05-POS-001` | `EPI05-ADV-001` | `EPI05-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-06` projection rebuild/non-writer | event application; projection/replay | `EPI06-POS-001` | `EPI06-ADV-001` | `EPI06-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | pending | pending | pending | pending | pending |
+| `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | `EPI07-POS-001` | `EPI07-ADV-001` | `EPI07-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | pending | pending | pending | pending | pending |
 | `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
 | `EPI-10` debug quarantine | debug quarantine; view-model rendering | pending | pending | pending | pending | pending |
