@@ -765,6 +765,86 @@ mod tests {
     }
 
     #[test]
+    fn display_formats_all_variants_as_structured_explanations() {
+        let cases = [
+            (
+                Proposition::ItemLocatedInContainer {
+                    item_id: item_id("coin_stack_01"),
+                    container_id: container_id("strongbox_tomas"),
+                },
+                "coin_stack_01 is in strongbox_tomas",
+            ),
+            (
+                Proposition::ItemLocatedAtPlace {
+                    item_id: item_id("coin_stack_01"),
+                    place_id: place_id("back_room"),
+                },
+                "coin_stack_01 is at back_room",
+            ),
+            (
+                Proposition::ItemCarriedByActor {
+                    item_id: item_id("coin_stack_01"),
+                    actor_id: actor_id("actor_tomas"),
+                },
+                "coin_stack_01 is carried by actor_tomas",
+            ),
+            (
+                Proposition::ContainerContentsObserved {
+                    container_id: container_id("strongbox_tomas"),
+                },
+                "contents of strongbox_tomas were observed",
+            ),
+            (
+                missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+                "coin_stack_01 is missing from expected location place back_room",
+            ),
+            (
+                missing_from(
+                    "coin_stack_01",
+                    Location::InContainer(container_id("strongbox_tomas")),
+                ),
+                "coin_stack_01 is missing from expected location container strongbox_tomas",
+            ),
+            (
+                missing_from(
+                    "coin_stack_01",
+                    Location::CarriedBy(actor_id("actor_tomas")),
+                ),
+                "coin_stack_01 is missing from expected location actor actor_tomas",
+            ),
+            (
+                Proposition::SoundHeardNearPlace {
+                    place_id: place_id("back_room"),
+                },
+                "sound was heard near back_room",
+            ),
+            (
+                Proposition::PossibleMovementNearPlace {
+                    place_id: place_id("back_room"),
+                },
+                "movement may have occurred near back_room",
+            ),
+            (
+                Proposition::ActorWasNearPlace {
+                    actor_id: actor_id("actor_tomas"),
+                    place_id: place_id("back_room"),
+                },
+                "actor_tomas was near back_room",
+            ),
+        ];
+
+        for (proposition, rendered) in cases {
+            assert_eq!(format!("{proposition}"), rendered);
+            assert_eq!(proposition.render(), rendered);
+            assert_eq!(
+                Proposition::deserialize_canonical(proposition.serialize_canonical().as_bytes())
+                    .unwrap(),
+                proposition
+            );
+        }
+    }
+
+    #[test]
     fn contradiction_detects_missing_expected_location() {
         let located = Proposition::ItemLocatedInContainer {
             item_id: item_id("coin_stack_01"),

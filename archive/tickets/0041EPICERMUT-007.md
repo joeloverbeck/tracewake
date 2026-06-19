@@ -1,6 +1,6 @@
 # 0041EPICERMUT-007: Kill `proposition.rs` canonical rendering survivors — `Display` and `render_location`
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/proposition.rs` only if a survivor reveals a real defect
@@ -94,3 +94,19 @@ Embodied rendering reports only holder-known expectation/contradiction, never th
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/proposition.rs -F 'Proposition::fmt' -F render_location`
 2. `cargo test --workspace --locked`
 3. The `-f … -F` filter is the correct per-ticket boundary: it regenerates exactly the rendering mutants in isolation so this family's catch is provable before the full campaign (ticket 009) reconciles the whole file.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Implemented the rendering certification in `crates/tracewake-core/src/epistemics/proposition.rs`. Existing ticket 005/006 projection checks already carry expected-location rendering through typed contradiction debug summaries and canonical checksum evidence; ticket 007 adds a retained `Display` corpus over every proposition variant, including all three expected-location relation kinds, and pairs each rendered explanation with the typed canonical round-trip. This catches empty/default formatter output and both `render_location` replacement identities while preserving structured relation kind and concrete ID assertions.
+
+No production correction was needed: `render_location` already preserves `place`, `container`, and `actor` relation labels. I searched the live call sites and found projection/notebook consumers use `Proposition::render()` directly, while TUI debug panels receive already-rendered proposition strings. I therefore treated `<impl Display for Proposition>::fmt` as a redundant public formatter certification rather than a production explanation-surface certification; no alias/fallback path was added.
+
+Verification:
+
+- `cargo test -p tracewake-core epistemics::proposition` — passed, 11 proposition tests including the new Display corpus and prior relation/parser consumer checks.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/proposition.rs -F '<impl fmt::Display for Proposition>::fmt' -F render_location --test-workspace true -C=--locked` — passed, 3 mutants tested, 3 caught.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/proposition.rs -F 'Proposition::fmt' -F render_location --test-workspace true -C=--locked` — passed for the two `render_location` mutants, 2 tested, 2 caught; this confirmed the requested `Proposition::fmt` spelling does not match cargo-mutants' generated Display name.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace --locked` — passed.
