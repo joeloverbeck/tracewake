@@ -1,6 +1,6 @@
 # 0041EPICERMUT-010: Capstone — EPI-01…11 live re-proof + compile-fail corpus + replacement EPI-CERT acceptance artifact
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — verification/evidence-only; re-runs the EPI seam suites, packages the evidence, and produces the replacement acceptance artifact that renders the aggregate verdict. No production logic.
@@ -84,3 +84,40 @@ Render `EPI-CERT passed` only when all §8.10 conditions (1)–(7) hold, and sta
 1. `cargo test --workspace --locked` (clean re-proof baseline) and the 20 named EPI suites (`cargo test --locked -p tracewake-core --test hidden_truth_gates`, … through `-p tracewake-tui --test command_loop_session`).
 2. `cargo test -p tracewake-core --test negative_fixture_runner` (§6.12 compile-fail corpus).
 3. Re-running the existing EPI seam suites is the correct verification boundary: this capstone re-proves seams that already exist and renders the aggregate verdict from ticket 009's reconciled mutation evidence; it adds no production logic, so its deliverable is the live-evidence artifact, not new tests.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Evidence-only capstone completed for exact implementation/evidence commit
+`726b2a1f1318381e75d4ffc4eff6b5103fbdd2c3`.
+
+Produced
+`reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`.
+The artifact renders `EPI-CERT passed`, supersedes the 0040 EPI-CERT
+acceptance artifact for current EPI-CERT use, preserves 0040 as historical
+lineage, and states that archived specs/tickets `0004`–`0040` are
+historical/precedent only.
+
+Live proof commands passed:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
+- core named EPI suites:
+  `hidden_truth_gates`, `event_schema_replay_gates`, `acceptance_gates`,
+  `anti_regression_guards`, `generative_lock`, `golden_scenarios`,
+  `negative_fixture_runner`, `spine_conformance`, `no_human_capstone`,
+  `emergence_ledger`
+- content named EPI suites:
+  `fixtures_load`, `forbidden_content`, `golden_fixtures_run`,
+  `schema_conformance`
+- TUI named EPI suites:
+  `adversarial_gates`, `tui_seam_conformance`, `transcript_snapshot`,
+  `tui_acceptance`, `embodied_flow`, `command_loop_session`
+
+The artifact packages the ticket 009 completed mutation evidence:
+2774 configured mutants, 2182 caught, 592 unviable, 0 missed, 0 timeout;
+all 30 historical identities reconciled; no new survivors; no baseline-miss
+entries.
