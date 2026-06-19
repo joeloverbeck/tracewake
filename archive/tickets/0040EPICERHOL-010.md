@@ -1,6 +1,6 @@
 # 0040EPICERHOL-010: EPI-09 — embodied projection source, notebook, action availability, why-not, and stale-snapshot behavior
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,21 @@ Populate the EPI-09 section with the §9.2 ledger fields per witness (positive o
 1. `cargo test --locked -p tracewake-tui --test embodied_flow`
 2. `cargo test --locked -p tracewake-tui --test transcript_snapshot && cargo test --locked -p tracewake-tui --test tui_seam_conformance`
 3. `cargo test --locked -p tracewake-core --test negative_fixture_runner` (debug-projection-view authorized-API boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-09 section of the acceptance artifact with embodied view-model, hidden/debug no-leak, stale-context, and replay evidence. The §9.4 EPI-09 row now cites `EPI09-POS-001`, `EPI09-ADV-001`, and `EPI09-REPLAY-001`, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+- `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+
+No deviations. Debug capability isolation depth remains scoped to `0040EPICERHOL-011`.

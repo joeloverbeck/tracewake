@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — consolidates the audit-point/compile-fail/relational/mutation evidence into the §9.4 verdict table, assembles the §9.5 replay/provenance package and §9.8 EMERGE-OBS slot, and renders the verdict; introduces no production logic.
-**Deps**: archive/tickets/0040EPICERHOL-001.md, archive/tickets/0040EPICERHOL-002.md, archive/tickets/0040EPICERHOL-003.md, archive/tickets/0040EPICERHOL-004.md, archive/tickets/0040EPICERHOL-005.md, archive/tickets/0040EPICERHOL-006.md, archive/tickets/0040EPICERHOL-007.md, archive/tickets/0040EPICERHOL-008.md, archive/tickets/0040EPICERHOL-009.md, 0040EPICERHOL-010, 0040EPICERHOL-011, 0040EPICERHOL-012, 0040EPICERHOL-013, 0040EPICERHOL-014
+**Deps**: archive/tickets/0040EPICERHOL-001.md, archive/tickets/0040EPICERHOL-002.md, archive/tickets/0040EPICERHOL-003.md, archive/tickets/0040EPICERHOL-004.md, archive/tickets/0040EPICERHOL-005.md, archive/tickets/0040EPICERHOL-006.md, archive/tickets/0040EPICERHOL-007.md, archive/tickets/0040EPICERHOL-008.md, archive/tickets/0040EPICERHOL-009.md, archive/tickets/0040EPICERHOL-010.md, 0040EPICERHOL-011, 0040EPICERHOL-012, 0040EPICERHOL-013, 0040EPICERHOL-014
 
 ## Problem
 

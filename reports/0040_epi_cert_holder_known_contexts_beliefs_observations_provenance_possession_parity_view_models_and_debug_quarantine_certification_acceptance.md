@@ -493,7 +493,40 @@ Status: evidence collected by `0040EPICERHOL-009`; aggregate row remains pending
 
 ## EPI-09 - Embodied Projection Source, Notebook, Action Availability, Why-Not, And Stale-Snapshot Behavior
 
-Status: pending. Owned by `0040EPICERHOL-010`.
+Status: evidence collected by `0040EPICERHOL-010`; aggregate row remains pending for the mutation package and capstone verdict.
+
+- Evidence item ID: `EPI09-POS-001`
+- EPI cross-references: `EPI-09`
+- Evidence status: pass
+- Fingerprint scope: sealed holder-known context, embodied projection source/snapshot, context ID/hash/frontier, semantic view-model serialization, notebook entries, action availability, why-not rows, actor-safe source summaries, and rendered transcript.
+- Evidence summary: `cargo test --locked -p tracewake-tui --test embodied_flow`, `cargo test --locked -p tracewake-tui --test transcript_snapshot`, `cargo test --locked -p tracewake-tui --test tui_seam_conformance`, `cargo test --locked -p tracewake-core --test acceptance_gates`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. These gates prove embodied views are built from sealed actor-known context and bounded snapshots, render local/actor-safe affordances, and preserve deterministic transcript/view serialization.
+- Path under test and behavior witness: `projections.rs`, `view_models.rs`, `epistemics/knowledge_context.rs`, `actions/report.rs`, `crates/tracewake-tui/src/app.rs`, `render.rs`, and `transcript.rs`. Representative witnesses include `embodied_view_omits_raw_workplace_assignment_without_context`, `embodied_workplace_availability_reflects_belief_not_truth`, `bind_render_submit_rerender_and_show_why_not`, `transcript_snapshot_is_byte_identical_across_runs`, and `tui_epistemic_debug_uses_core_builder_not_raw_projection_storage`.
+- Replay/provenance ancestry: embodied source summaries and why-not/action rows derive from sealed context/projection inputs, not unrestricted live `PhysicalState` handles.
+- Sampling/exhaustiveness: finite EPI-09 positive view-model command set required by ticket `0040EPICERHOL-010`.
+- Pending or historical handling: debug capability isolation depth remains owned by `0040EPICERHOL-011`.
+- Certification use: counted as certifying pass for the EPI-09 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI09-ADV-001`
+- EPI cross-references: `EPI-09`
+- Evidence status: pass
+- Fingerprint scope: hidden item, closed-container contents, hidden route, raw workplace assignment, unknown sleep affordance, other actor private belief, debug report, validator-only fact, stale view token, and privileged debug projection access.
+- Evidence summary: `cargo test --locked -p tracewake-tui --test adversarial_gates`, `cargo test --locked -p tracewake-core --test negative_fixture_runner`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. These gates prove hidden/debug/validator-only facts do not enter embodied structs, labels, why-not text, transcript, or action dispatch, and privileged debug projection construction outside the authorized core API remains blocked.
+- Path under test and behavior witness: `adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target`, `adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts`, `adversarial_gates_stale_view_token_fails_after_state_change`, `debug_panel_does_not_change_embodied_affordances`, `source_scan_smoke_tui_does_not_call_event_applier`, and `debug_report_construction_without_capability_compile_fails`.
+- Replay/provenance ancestry: stale or mismatched view/context tuples reject before becoming fresh proposal sources; debug-only data stays outside embodied semantic serialization and actor feedback.
+- Sampling/exhaustiveness: finite named hidden-field, debug-quarantine, stale-view, and negative-fixture corpus required by ticket `0040EPICERHOL-010`.
+- Pending or historical handling: none for this evidence row beyond mutation/capstone consolidation.
+- Certification use: counted as certifying pass for the EPI-09 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI09-REPLAY-001`
+- EPI cross-references: `EPI-09`
+- Evidence status: pass
+- Fingerprint scope: replay-rebuilt embodied inputs, event envelope identity, context hash/frontier, semantic view serialization, transcript bytes, and tamper/stale proposal controls.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, `cargo test --locked -p tracewake-content --test golden_fixtures_run`, and `cargo test --locked -p tracewake-tui --test transcript_snapshot` passed. Replay and transcript gates prove rebuilt inputs reproduce the same actor-visible model and tampered/stale inputs fail rather than silently refreshing hidden truth.
+- Path under test and behavior witness: `replay_rebuild_checksum_matches_original_after_no_human_day`, `deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses`, `serialized_event_log_replays_to_identical_state`, `no_human_decision_context_hash_gate_fails_when_source_evidence_tampered`, `phase3a_debug_snapshot_is_byte_identical_across_runs`, and `tui_transcript_snapshot_remains_byte_stable`.
+- Replay/provenance ancestry: accepted logs rebuild the context/projection sources used by the view model; transcript determinism checks the rendered actor-visible surface separately from debug output.
+- Sampling/exhaustiveness: finite EPI-09 replay/transcript command set required by ticket `0040EPICERHOL-010`.
+- Pending or historical handling: none for this evidence row beyond mutation/capstone consolidation.
+- Certification use: counted as certifying pass for the EPI-09 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## EPI-10 - Debug Capability Isolation, Report/View Separation, TUI Quarantine, And No Feedback Path
 
@@ -519,7 +552,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | `EPI-06` projection rebuild/non-writer | event application; projection/replay | `EPI06-POS-001` | `EPI06-ADV-001` | `EPI06-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | `EPI07-POS-001` | `EPI07-ADV-001` | `EPI07-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | `EPI08-POS-001` | `EPI08-ADV-001` | `EPI08-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
+| `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | `EPI09-POS-001` | `EPI09-ADV-001` | `EPI09-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-10` debug quarantine | debug quarantine; view-model rendering | pending | pending | pending | pending | pending |
 | `EPI-11` relational capstone | first responsible layer | pending | pending | pending | pending | pending |
 | Configured EPI mutation perimeter | layer by survivor | pending | pending | pending | pending | pending |
