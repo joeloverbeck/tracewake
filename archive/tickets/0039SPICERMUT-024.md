@@ -1,6 +1,6 @@
 # 0039SPICERMUT-024: Epistemic projection mutation survivors
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — strengthens epistemic projection checksum, actor-known projection, location, and source-summary tests. No schema changes.
@@ -73,3 +73,27 @@ Add focused tests for the projection identities listed in
 1. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/epistemics/projection.rs --no-shuffle`
 2. `cargo test --workspace --locked`
 3. Per-file mutation is the correct first proof boundary because ticket 020 already established the full standing denominator.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added focused projection witnesses for checksum identity, projection event
+bookkeeping, presence/notebook filtering, actor-known source IDs, canonical
+record serialization, workplace freshness, location/holder/source summaries,
+observation classification, and starting-belief materialization.
+
+The projection-file mutation proof passed cleanly with
+`cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/epistemics/projection.rs --no-shuffle`:
+139 mutants tested in 4m; 102 caught and 37 unviable, with zero missed mutants.
+This run intentionally used `--no-config` because ticket 020 installed the
+standing `.cargo/mutants.toml`; the per-file survivor proof remains scoped to
+this ticket while ticket 020 owns the full standing campaign denominator.
+
+Verification passed:
+
+1. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/epistemics/projection.rs --no-shuffle`
+2. `cargo fmt --all --check`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo test --workspace --locked`
