@@ -118,7 +118,12 @@ Exactly what Session 2 outputs — leave no ambiguity:
 - each **downloadable markdown document**, by filename and whether it **replaces** an
   existing file or is **new**;
 - for replacements, name the file being replaced and what must be preserved vs. changed;
-- when the deliverable is a **numbered spec**, derive its number and path from the live
+- when the deliverable is a **numbered spec**: **fast path first** — if a same-line
+  lineage-predecessor brief chose the immediately-prior staging number and recent git history
+  (`git log --name-status --find-renames -n 20`) shows no intervening renumber/restart, continue
+  N → N+1, **cite that predecessor**, and skip the epoch derivation below (this is the
+  *Lineage-predecessor short-circuit*, detailed in full at the end of this bullet). Otherwise,
+  derive its number and path from the live
   spec ledger + specs README (e.g. `docs/4-specs/SPEC_LEDGER.md`), not from the archive:
   prefer the next free *live* number (a realigned ledger may restart numbering, so an
   archived `0002` does not block a live `0002`) — **but first scan `archive/specs/` and
