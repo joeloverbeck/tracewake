@@ -1,4 +1,4 @@
-# Standing SPINE-CERT mutation perimeter.
+# Standing certification lock-layer mutation perimeter.
 #
 # cargo-mutants 27.1.0 is the CI syntax baseline for this checked-in config.
 # CI jobs must load this file instead of maintaining independent `-f` lists.

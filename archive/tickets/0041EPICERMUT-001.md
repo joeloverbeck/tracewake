@@ -1,6 +1,6 @@
 # 0041EPICERMUT-001: Standing perimeter confirmation, CI in-diff trigger convergence, and config comment correction
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — `.cargo/mutants.toml` (descriptive comment), `.github/workflows/ci.yml` (in-diff mutation trigger), `crates/tracewake-core/tests/ci_workflow_guards.rs` (standing-trigger fragment guard)
@@ -93,3 +93,26 @@ If retained for status honesty, update the `mutants-in-diff` row prose in `docs/
 1. `cargo test -p tracewake-core --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. The targeted `ci_workflow_guards` run is the correct verification boundary: it is the suite that pins the CI trigger ↔ config ↔ doc contract this ticket edits; the full pipeline confirms no collateral breakage.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Implemented the standing EPI in-diff trigger correction by replacing the two-file `knowledge_context|projection` regex fragment in `.github/workflows/ci.yml` with the directory-level `crates/tracewake-core/src/epistemics/` fragment. Updated `crates/tracewake-core/tests/ci_workflow_guards.rs` to pin the same broadened fragment.
+
+Corrected the stale SPINE-only perimeter wording in `.cargo/mutants.toml` and in `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`. The checked-in `.cargo/mutants.toml` denominator remained unchanged apart from the descriptive comment; `epistemics/**`, `test_workspace = true`, and `additional_cargo_args = ["--locked"]` remain present.
+
+During full-gate verification, `cargo test --workspace` exposed an additional enforced consumer: `crates/tracewake-core/tests/anti_regression_guards.rs` still parsed only the old grouped epistemics regex and reported the broadened trigger as omitting `knowledge_context.rs` and `projection.rs`. Updated that parser narrowly so either the new directory fragment or the historical grouped fragment satisfies those existing required paths; reran the failing target successfully before rerunning the full gate set.
+
+Verification:
+
+- `cargo test -p tracewake-core --test ci_workflow_guards` passed.
+- `grep -E 'epistemics/' .github/workflows/ci.yml` showed the directory-level trigger fragment.
+- `grep -F 'epistemics/(knowledge_context|projection)' .github/workflows/ci.yml` returned no matches.
+- `cargo test -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters` passed after the parser update.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
+
+Deviations: the implementation touched `crates/tracewake-core/tests/anti_regression_guards.rs` in addition to the originally listed files because the full workspace test proved that guard is part of the same CI-filter contract. No survivor was added to `.cargo/mutants-baseline-misses.txt`; the certifying mutation campaign remains owned by `0041EPICERMUT-009`.
