@@ -1,6 +1,6 @@
 # 0040EPICERHOL-013: EPI-11 — relational anti-contamination & possession-parity capstone harness (+ §6.2 generated/metamorphic)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-harness only: paired-run / metamorphic / property assertions added to the existing certification suites (no production logic; spec §2 authorizes evidence instrumentation, not remediation).
@@ -82,3 +82,22 @@ Produce the §9.7 paired-run ledger: per pair, the exact hidden input difference
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates && cargo test --locked -p tracewake-core --test generative_lock`
 2. `cargo test --locked -p tracewake-tui --test adversarial_gates && cargo test --locked -p tracewake-tui --test embodied_flow`
 3. `cargo test --workspace --locked` (full relational harness across all touched suites)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-11 section and §9.7 relational capstone package with the seven-pair ledger and sampled §6.2 generated/metamorphic evidence. The §9.4 EPI-11 row now cites `EPI11-REL-001` and `EPI11-GEN-001`, while its aggregate result remains pending for the mutation package and capstone verdict.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test generative_lock`
+- `cargo test --locked -p tracewake-core --test golden_scenarios`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --workspace --locked`
+
+Deviation: no new test-harness code was added in this ticket because the live certification suites already contained the named paired-run, replay, and generative/metamorphic witnesses. The report records that evidence as sampled where appropriate and does not claim finite generated-domain exhaustion.

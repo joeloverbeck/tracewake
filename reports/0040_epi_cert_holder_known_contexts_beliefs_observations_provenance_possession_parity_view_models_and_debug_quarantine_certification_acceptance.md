@@ -567,7 +567,29 @@ Status: evidence collected by `0040EPICERHOL-011`; aggregate row remains pending
 
 ## EPI-11 - Relational Anti-Contamination And Possession-Parity Capstone
 
-Status: pending. Owned by `0040EPICERHOL-013`.
+Status: evidence collected by `0040EPICERHOL-013`; aggregate row remains pending for the mutation package and capstone verdict.
+
+- Evidence item ID: `EPI11-REL-001`
+- EPI cross-references: `EPI-11`, `EPI-01` through `EPI-10`
+- Evidence status: pass
+- Fingerprint scope: paired focal actor-observable event prefixes, actor-known context, notebook, available actions, proposal, embodied render, legal reveal event/provenance, post-reveal divergence ancestry, and replay confirmation.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates`, `cargo test --locked -p tracewake-core --test acceptance_gates`, `cargo test --locked -p tracewake-core --test golden_scenarios`, `cargo test --locked -p tracewake-content --test golden_fixtures_run`, `cargo test --locked -p tracewake-tui --test adversarial_gates`, and `cargo test --locked -p tracewake-tui --test embodied_flow` passed. These gates cover the seven §EPI-11 hidden-variable pairs at actor-visible/decision-producing surfaces rather than using whole-world checksum equality.
+- Path under test and behavior witness: closed-container and hidden-route pairs are covered by `hidden_food_closed_container_is_not_actor_known_food_source`, `embodied_affordances_exclude_hidden_food_in_closed_container`, `hidden_route_edge_absent_from_actor_context_blocks_route_plan`, and `hidden_food_unknown_route_does_not_become_transaction_target`; workplace truth by `embodied_workplace_believed_open_truth_closed`, `embodied_workplace_availability_reflects_belief_not_truth`, and workplace provenance fixtures; other-actor privacy by `epistemic_context_projection_and_records_remain_sealed`; debug state by `debug_truth_never_enters_holder_known_context_hash`, `debug_panel_does_not_change_embodied_affordances`, and `adversarial_gates_debug_truth_does_not_enter_actor_surfaces`; possession source by `human_and_nonhuman_proposals_share_validation_path`, `possession_controller_binding_is_not_world_state`, and `possession_fixture_preserves_intention_needs_and_can_continue`; stale truth by `adversarial_gates_stale_view_token_fails_after_state_change` and `tui_current_view_submission_rejects_stale_selection`.
+- Replay/provenance ancestry: post-reveal divergence is required to trace to an accepted event/provenance chain, and both pair members reproduce under replay via `event_schema_replay_gates` and golden fixture replay checks.
+- Sampling/exhaustiveness: finite named pair matrix from spec §EPI-11; no generated claim is treated as exhaustive unless the finite command/test domain is the named suite.
+- Pending or historical handling: mutation witness linkage remains owned by `0040EPICERHOL-014`.
+- Certification use: counted as certifying pass for the EPI-11 relational-evidence columns; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI11-GEN-001`
+- EPI cross-references: `EPI-11`, `§6.2`
+- Evidence status: sampled pass
+- Fingerprint scope: recorded deterministic seeds, generated event prefixes, source/provenance order, single-field semantic tamper, source-removal/substitution, replay round trip, prefix replay, checksum/hash sensitivity, and minimized counterexample retention.
+- Evidence summary: `cargo test --locked -p tracewake-core --test generative_lock` passed with the existing recorded-seed generator. The harness checks replay equality, canonical serialization round trips, prefix replay, single need-charge locks, payload tamper poisoning, duration-terminal tamper poisoning, and marker append non-interference across the recorded seed set.
+- Path under test and behavior witness: `generated_sequences_replay_and_satisfy_metamorphic_locks` and `duration_terminal_targeted_tamper_requires_duration_terminal`.
+- Replay/provenance ancestry: generated event logs are serialized, deserialized, replayed, prefix-replayed, and tampered; failures are required to name replay/validation layers instead of silently preserving original outputs.
+- Sampling/exhaustiveness: sampled generated evidence with recorded `GENERATIVE_SEEDS`; no finite-domain exhaustion is claimed.
+- Pending or historical handling: retained counterexamples were not present in this run because the generated suite passed.
+- Certification use: counted as §6.2 sampled metamorphic evidence for EPI-11; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## Section 6.1 Compile-Fail Boundary Corpus Matrix
 
@@ -614,7 +636,7 @@ Status: evidence collected by `0040EPICERHOL-012`; aggregate use remains pending
 | `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | `EPI08-POS-001` | `EPI08-ADV-001` | `EPI08-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | `EPI09-POS-001` | `EPI09-ADV-001` | `EPI09-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-10` debug quarantine | debug quarantine; view-model rendering | `EPI10-POS-001` | `EPI10-ADV-001` | `EPI10-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-11` relational capstone | first responsible layer | pending | pending | pending | pending | pending |
+| `EPI-11` relational capstone | actor-known context; proposal construction; view-model rendering; projection/replay; debug quarantine | `EPI11-REL-001`, `EPI11-GEN-001` | `EPI11-REL-001` | `EPI11-REL-001`, `EPI11-GEN-001` | pending `0040EPICERHOL-014` | pending |
 | Configured EPI mutation perimeter | layer by survivor | pending | pending | pending | pending | pending |
 | Artifact/evidence honesty | documentation status; tests/fixtures | `0040-BASELINE-001`, `0040-NAMED-BINS-001` | pending | pending | pending | pending |
 
@@ -628,7 +650,19 @@ Status: pending. Owned by `0040EPICERHOL-014`.
 
 ## Section 9.7 Relational Capstone Package
 
-Status: pending. Owned by `0040EPICERHOL-013`; consolidated by `0040EPICERHOL-015`.
+Status: evidence collected by `0040EPICERHOL-013`; consolidated by `0040EPICERHOL-015`.
+
+| Pair | Hidden input difference | Equality precondition | Actor-visible / decision-producing fields compared | Pre-reveal result | Legal reveal / divergence handling | Replay confirmation | Seed/sample scope | First responsible layer on failure |
+|---|---|---|---|---|---|---|---|---|
+| Closed container | Item present vs absent inside unopened/unsearched container. | Same focal observation/event history before open/search/touch. | Actor-known food/container facts, embodied affordances, proposal target eligibility, actor-safe reason. | pass via `hidden_truth_gates`, `acceptance_gates`, `embodied_flow`. | Accepted open/search/touch plus observation event may reveal; before that hidden contents stay absent. | `event_schema_replay_gates`, `golden_fixtures_run`. | finite named tests, not generated exhaustion. | actor-known context construction; view-model rendering; action validation. |
+| Hidden route | Route edge exists vs absent but not perceived/recorded. | Same known exits and route records. | Known exits, movement availability, decision trace, sealed proposal. | pass via `hidden_truth_gates` and registered fixtures. | Sight/notice/search event may convey route knowledge. | `event_schema_replay_gates`, `golden_fixtures_run`. | finite named tests. | actor-known context construction; proposal construction. |
+| Workplace truth | Workplace open vs closed while actor has same belief/notice. | Same belief/provenance packet and context hash before validation. | Belief, availability, proposal, actor-safe rationale. | pass via `embodied_flow`, `acceptance_gates`, workplace fixture witnesses. | Validation may reject; belief changes only through legal feedback/observation. | `event_schema_replay_gates`, `golden_fixtures_run`. | finite named tests. | action validation; actor-known context construction. |
+| Other actor privacy | Actor B private belief/observation differs. | Actor A has no permitted communication/record path. | Actor A context, notebook, decision inputs, embodied view. | pass via `hidden_truth_gates` privacy/sealed projection witnesses. | Explicit modeled communication/record path if implemented and in scope. | `event_schema_replay_gates`. | finite named tests. | actor-known context construction; projection/replay. |
+| Debug state | Debug detached vs attached with omniscient report. | Same simulation events and actor-known context. | State/event/projection/context/proposal/embodied artifacts. | pass via `adversarial_gates`, `tui_acceptance`, `hidden_truth_gates`. | No diegetic divergence is legal from debug alone. | `event_schema_replay_gates`, transcript/golden runs. | finite named tests. | debug quarantine; view-model rendering. |
+| Possession source | Autonomous vs human controller, same actor state and semantic choice. | Same actor cognition, context, physical state, and action availability. | Context, actions, validation rules, event/state result. | pass via `acceptance_gates`, `golden_scenarios`, `golden_fixtures_run`. | Controller-binding/debug metadata only, outside actor cognition. | `event_schema_replay_gates`, `golden_fixtures_run`. | finite named tests. | proposal construction; action validation; controller binding. |
+| Stale truth | Hidden truth changes after snapshot but before perception. | Same stale embodied model/context token before admissible observation. | Existing menu, context tuple, proposal source freshness, actor decision input. | pass via `adversarial_gates` stale-view checks and TUI submission guards. | Later admissible observation and rebuilt context may diverge. | `event_schema_replay_gates`, transcript/golden runs. | finite named tests. | view-model rendering; proposal construction. |
+
+Generated/metamorphic package: `EPI11-GEN-001` is sampled evidence from recorded deterministic seeds. It records replay, canonical serialization, prefix replay, payload/source tamper, duration-terminal tamper, and non-interference checks. No generated finite-domain exhaustion or retained counterexample is claimed for this passing run.
 
 ## Section 9.8 EMERGE-OBS Handling
 
