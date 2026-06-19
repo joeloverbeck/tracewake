@@ -286,7 +286,62 @@ Status: evidence collected by `0040EPICERHOL-004`; aggregate row remains pending
 
 ## EPI-04 - Expectation Contradiction, Mismatch Linkage, And Absence-Without-Culprit Discipline
 
-Status: pending. Owned by `0040EPICERHOL-005`.
+Status: evidence collected by `0040EPICERHOL-005`; aggregate row remains pending for the capstone and mutation package.
+
+- Evidence item ID: `EPI04-POS-001`
+- EPI cross-references: `EPI-04`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` exited 0 at commit `374fd926d83763b74cff6592dd3ec4812ec3f5ec`; 42 tests passed, including the registered `expectation_contradiction_001` fixture and Phase 2A fixture coverage.
+- Path under test and behavior witness: expected-item absence contradiction fixture from prior belief through modeled search/action event to absence observation and contradiction linkage; responsible layers `tests/fixtures`, `event application`, and `projection/replay`.
+- Replay/provenance ancestry: fixture source and event provenance are exercised by the golden runner; replay equality is recorded in `EPI04-REPLAY-001`.
+- Sampling/exhaustiveness: finite single active contradiction-kind fixture plus runner registry coverage.
+- Pending or historical handling: bounded staged abstraction: the implemented active contradiction kind is `ExpectedItemAbsentFromContainer`; this row does not claim general belief revision.
+- Certification use: counted as certifying pass for the EPI-04 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI04-ADV-001`
+- EPI cross-references: `EPI-04`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates` exited 0 at commit `374fd926d83763b74cff6592dd3ec4812ec3f5ec`; 16 tests passed, including hidden food/route/workplace no-leak tests, `planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context`, and `epistemic_context_projection_and_records_remain_sealed`.
+- Path under test and behavior witness: absence/no-telepathy controls ensure hidden culprit, hidden destination, or unobserved cause are not inferred from an absence contradiction; responsible layers `actor-known context construction` and `projection/replay`.
+- Replay/provenance ancestry: hidden-truth gate evidence is paired with replay/source-event evidence in `EPI04-REPLAY-001`.
+- Sampling/exhaustiveness: finite named no-leak perimeter relevant to EPI-04 absence-without-culprit discipline.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-04 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI04-COMPILE-001`
+- EPI cross-references: `EPI-04`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test negative_fixture_runner` exited 0 at commit `374fd926d83763b74cff6592dd3ec4812ec3f5ec`; 5 tests passed, including registered compile-fail coverage for `external_crate_cannot_mutate_contradiction_links`.
+- Path under test and behavior witness: external crates cannot mutate contradiction links directly; responsible layer `projection/replay` / `epistemic record integrity`.
+- Replay/provenance ancestry: not applicable to compile-fail evidence.
+- Sampling/exhaustiveness: registered negative-fixture corpus member set for EPI-04 contradiction-link boundary.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-04 compile-fail negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI04-REPLAY-001`
+- EPI cross-references: `EPI-04`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates` exited 0 at commit `374fd926d83763b74cff6592dd3ec4812ec3f5ec`; 30 tests passed, including `starting_observation_and_contradiction_events_survive_replay_with_sources`, `epistemic_apply_matrix_preserves_fields_and_rejects_unknown_tokens`, `replay_rebuild_checksum_matches_original_after_no_human_day`, and `replay_report_match_mismatch_pair_exposes_semantic_fingerprints`.
+- Path under test and behavior witness: contradiction source records survive replay with linked observation/source events; replay rejects unsupported/unknown epistemic payloads loudly and reports mismatches; responsible layer `projection/replay`.
+- Replay/provenance ancestry: source-event and linked-record ancestry are exercised by `event_schema_replay_gates`.
+- Sampling/exhaustiveness: finite named replay command required by ticket `0040EPICERHOL-005`.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-04 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI04-STAGED-001`
+- EPI cross-references: `EPI-04`
+- Evidence status: pass
+- Fingerprint scope: not applicable
+- Evidence summary: The current EPI-04 evidence is explicitly bounded to `ExpectedItemAbsentFromContainer`; the artifact does not claim generalized contradiction or belief-revision coverage beyond that implemented kind.
+- Path under test and behavior witness: staged abstraction declaration for the contradiction relation; responsible layer `doctrine mismatch` guard.
+- Replay/provenance ancestry: positive/replay evidence for the implemented kind is in `EPI04-POS-001` and `EPI04-REPLAY-001`.
+- Sampling/exhaustiveness: bounded staged abstraction over the single active contradiction kind named by spec 0040.
+- Pending or historical handling: future route requires a separate scoped implementation/certification package for broader contradiction families; current diagnostics distinguish "not implemented yet" from "implemented but broken" by naming this bounded kind.
+- Certification use: counted only for abstraction honesty; not counted as proof of general belief revision.
 
 ## EPI-05 - Provenance Witnesses, Source-Event Sufficiency, Freshness, And Hidden-Truth Audit
 
@@ -327,7 +382,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | `EPI-01` sealed context identity/scope/hash/frontier | actor-known context construction; proposal construction | `EPI01-POS-001`, `EPI01-PROPOSAL-001` | `EPI01-ADV-001`, `EPI01-COMPILE-001` | `EPI01-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | `EPI02-POS-001`, `EPI02-FRESH-001` | `EPI02-ADV-001`, `EPI02-COMPILE-001` | `EPI02-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-03` observation channels/event capture | event application; projection/replay | `EPI03-POS-001`, `EPI03-STAGED-READING-001` | `EPI03-ADV-001`, `EPI03-COMPILE-001` | `EPI03-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
+| `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | `EPI04-POS-001`, `EPI04-STAGED-001` | `EPI04-ADV-001`, `EPI04-COMPILE-001` | `EPI04-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | pending | pending | pending | pending | pending |
 | `EPI-06` projection rebuild/non-writer | event application; projection/replay | pending | pending | pending | pending | pending |
 | `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | pending | pending | pending | pending | pending |

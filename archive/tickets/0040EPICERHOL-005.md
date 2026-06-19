@@ -1,6 +1,6 @@
 # 0040EPICERHOL-005: EPI-04 — expectation contradiction, mismatch linkage, and absence-without-culprit discipline
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,18 @@ Populate the EPI-04 section with the §9.2 ledger fields per witness (positive, 
 1. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 2. `cargo test --locked -p tracewake-core --test event_schema_replay_gates && cargo test --locked -p tracewake-core --test hidden_truth_gates`
 3. `cargo test --locked -p tracewake-core --test negative_fixture_runner` (contradiction-link mutation boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-04 section in `reports/0040_epi_cert_holder_known_contexts_beliefs_observations_provenance_possession_parity_view_models_and_debug_quarantine_certification_acceptance.md` with evidence rows for the `expectation_contradiction_001` positive fixture, absence/no-culprit hidden-truth controls, contradiction-link compile-fail controls, replay/provenance equality, and the bounded staged-abstraction declaration for the single implemented `ExpectedItemAbsentFromContainer` contradiction kind. The §9.4 EPI-04 row now cites those evidence IDs, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed.
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` passed.
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates` passed.
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed.
+
+No deviations from ticket scope. The ticket remained evidence-only; broader contradiction/general belief-revision behavior remains out of scope and explicitly staged.
