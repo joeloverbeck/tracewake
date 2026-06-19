@@ -423,8 +423,11 @@ fn require_item(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epistemics::{Contradiction, ContradictionKind, EpistemicProjection};
-    use crate::ids::{BeliefId, ContentManifestId, ContradictionId, ObservationId};
+    use crate::epistemics::{
+        Belief, Channel, Confidence, Contradiction, ContradictionKind, EpistemicProjection,
+        HolderKind, SourceRef, Stance,
+    };
+    use crate::ids::{BeliefId, ContentManifestId, ContradictionId, EventId, ObservationId};
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
@@ -436,6 +439,10 @@ mod tests {
 
     fn belief_id(value: &str) -> BeliefId {
         BeliefId::new(value).unwrap()
+    }
+
+    fn event_id(value: &str) -> EventId {
+        EventId::new(value).unwrap()
     }
 
     fn contradiction_id(value: &str) -> ContradictionId {
@@ -533,6 +540,55 @@ mod tests {
         }
     }
 
+    fn assert_projection_consumes_round_tripped_proposition(
+        label: &str,
+        proposition: Proposition,
+        stance: Stance,
+    ) -> Proposition {
+        let canonical = proposition.serialize_canonical();
+        let parsed = Proposition::deserialize_canonical(canonical.as_bytes()).unwrap();
+        assert_eq!(
+            parsed, proposition,
+            "round-trip typed proposition for {label}"
+        );
+        assert_eq!(
+            parsed.serialize_canonical(),
+            canonical,
+            "canonical for {label}"
+        );
+
+        let mut projection =
+            EpistemicProjection::new(ContentManifestId::new("proposition_parser_corpus").unwrap());
+        let belief = Belief::new(
+            belief_id(&format!("belief_parser_{label}")),
+            HolderKind::Actor(actor_id("actor_tomas")),
+            parsed.clone(),
+            stance,
+            Confidence::new(875).unwrap(),
+            SourceRef::Event(event_id("event_parser_corpus")),
+            crate::time::SimTick::new(11),
+        )
+        .with_channel(Channel::ReadingPlaceholderSchemaOnly);
+        projection.insert_belief(belief);
+        let checksum = projection.compute_checksum();
+        let debug = projection.debug_epistemics_view();
+
+        assert!(checksum
+            .canonical_input
+            .iter()
+            .any(|entry| entry.contains(&canonical)));
+        assert!(debug.beliefs_by_holder.iter().any(|holder| {
+            holder.holder_actor_id == actor_id("actor_tomas")
+                && holder.beliefs.iter().any(|entry| {
+                    entry.belief_id == format!("belief_parser_{label}")
+                        && entry.proposition == proposition.render()
+                        && entry.stance == stance.stable_id()
+                })
+        }));
+
+        parsed
+    }
+
     #[test]
     fn proposition_round_trips_through_canonical_bytes() {
         let proposition = Proposition::ItemMissingFromExpectedLocation {
@@ -558,6 +614,153 @@ mod tests {
             .unwrap()
             .serialize_canonical_bytes(),
             bytes
+        );
+    }
+
+    #[test]
+    fn canonical_parser_round_trips_every_variant_through_projection_consumers() {
+        let cases = [
+            (
+                "item_in_container",
+                Proposition::ItemLocatedInContainer {
+                    item_id: item_id("coin_stack_01"),
+                    container_id: container_id("strongbox_tomas"),
+                },
+                Stance::BelievesTrue,
+            ),
+            (
+                "item_at_place",
+                Proposition::ItemLocatedAtPlace {
+                    item_id: item_id("coin_stack_01"),
+                    place_id: place_id("back_room"),
+                },
+                Stance::BelievesTrue,
+            ),
+            (
+                "item_carried_by_actor",
+                Proposition::ItemCarriedByActor {
+                    item_id: item_id("coin_stack_01"),
+                    actor_id: actor_id("actor_tomas"),
+                },
+                Stance::ExpectsTrue,
+            ),
+            (
+                "container_contents_observed",
+                Proposition::ContainerContentsObserved {
+                    container_id: container_id("strongbox_tomas"),
+                },
+                Stance::BelievesTrue,
+            ),
+            (
+                "sound_heard_near_place",
+                Proposition::SoundHeardNearPlace {
+                    place_id: place_id("back_room"),
+                },
+                Stance::Plausible,
+            ),
+            (
+                "possible_movement_near_place",
+                Proposition::PossibleMovementNearPlace {
+                    place_id: place_id("back_room"),
+                },
+                Stance::Plausible,
+            ),
+            (
+                "actor_was_near_place",
+                Proposition::ActorWasNearPlace {
+                    actor_id: actor_id("actor_tomas"),
+                    place_id: place_id("back_room"),
+                },
+                Stance::BelievesTrue,
+            ),
+        ];
+
+        for (label, proposition, stance) in cases {
+            assert_projection_consumes_round_tripped_proposition(label, proposition, stance);
+        }
+    }
+
+    #[test]
+    fn expected_location_parser_round_trips_into_typed_contradiction_linkage() {
+        let cases = [
+            (
+                "at_place",
+                at_place_expected("coin_stack_01", "back_room"),
+                missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+                "coin_stack_01 is at back_room -> coin_stack_01 is missing from expected location place back_room",
+            ),
+            (
+                "in_container",
+                Proposition::ItemLocatedInContainer {
+                    item_id: item_id("coin_stack_01"),
+                    container_id: container_id("strongbox_tomas"),
+                },
+                missing_from(
+                    "coin_stack_01",
+                    Location::InContainer(container_id("strongbox_tomas")),
+                ),
+                "coin_stack_01 is in strongbox_tomas -> coin_stack_01 is missing from expected location container strongbox_tomas",
+            ),
+            (
+                "carried_by",
+                carried_by_expected("coin_stack_01", "actor_tomas"),
+                missing_from(
+                    "coin_stack_01",
+                    Location::CarriedBy(actor_id("actor_tomas")),
+                ),
+                "coin_stack_01 is carried by actor_tomas -> coin_stack_01 is missing from expected location actor actor_tomas",
+            ),
+        ];
+
+        for (label, expected, observed, summary) in cases {
+            let parsed_observed = assert_projection_consumes_round_tripped_proposition(
+                label,
+                observed,
+                Stance::BelievesTrue,
+            );
+            let contradiction = typed_relation_contradiction(
+                &format!("contradiction_location_parser_{label}"),
+                expected,
+                parsed_observed,
+            )
+            .expect("round-tripped location should create typed contradiction");
+            assert_replayable_typed_relation_contradiction(contradiction, summary);
+        }
+    }
+
+    #[test]
+    fn malformed_canonical_propositions_fail_closed_without_defaults() {
+        let invalid_shape = [
+            b"unknown_tag|coin_stack_01".as_slice(),
+            b"item_carried_by_actor|coin_stack_01".as_slice(),
+            b"container_contents_observed|strongbox_tomas|extra".as_slice(),
+            b"possible_movement_near_place".as_slice(),
+            b"coin_stack_01 is carried by actor_tomas".as_slice(),
+        ];
+        for canonical in invalid_shape {
+            assert_eq!(
+                Proposition::deserialize_canonical(canonical),
+                Err(PropositionParseError::InvalidShape)
+            );
+        }
+
+        assert_eq!(
+            Proposition::deserialize_canonical(
+                b"item_missing_from_expected_location|coin_stack_01|back_room"
+            ),
+            Err(PropositionParseError::InvalidLocationShape)
+        );
+        assert_eq!(
+            Proposition::deserialize_canonical(
+                b"item_missing_from_expected_location|coin_stack_01|near_place:back_room"
+            ),
+            Err(PropositionParseError::InvalidLocationShape)
+        );
+        assert_eq!(
+            Proposition::deserialize_canonical(b"item_carried_by_actor|coin_stack_01|actor:tomas"),
+            Err(PropositionParseError::InvalidId(
+                IdError::InvalidCharacter { found: ':' }
+            ))
         );
     }
 

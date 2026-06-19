@@ -1,6 +1,6 @@
 # 0041EPICERMUT-006: Kill `proposition.rs` canonical parser and location-deserialization arms
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/proposition.rs` only if a survivor reveals a real defect
@@ -95,3 +95,20 @@ Round-trip `ItemMissingFromExpectedLocation` through canonical bytes for `AtPlac
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/proposition.rs -F from_str -F deserialize_location`
 2. `cargo test --workspace --locked`
 3. The `-f … -F from_str -F deserialize_location` filter is the correct per-ticket boundary: it regenerates exactly the five parser/deserialization mutants in isolation so this family's catch is provable before the full campaign (ticket 009) reconciles the whole file.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Implemented the parser/deserialization certification in `crates/tracewake-core/src/epistemics/proposition.rs`. The new canonical corpus round-trips every `Proposition` variant through `serialize_canonical` -> `deserialize_canonical` -> projection-consumed belief evidence, then asserts both canonical checksum input and debug belief rendering/stance. The retained concrete parser-arm witnesses cover `item_carried_by_actor`, `container_contents_observed`, and `possible_movement_near_place`; the possible-movement witness is kept as `Stance::Plausible`, so it reaches the projection surface without becoming truth.
+
+Added expected-location round trips for `AtPlace`, `InContainer`, and `CarriedBy`, then fed the parsed missing-location proposition into typed contradiction creation and projection checksum/debug evidence. Added fail-closed controls for unknown tags, wrong arity, prose-shaped canonical input, missing `kind:id`, unknown location tags, and invalid stable IDs.
+
+No production correction was needed: the existing parser and location deserializer already preserve the intended canonical forms. I kept the certification in the local proposition/projection consumer test module rather than spreading equivalent parser assertions into content/TUI tests, because the surviving mutants are all in `proposition.rs` and the projection checksum/debug consumer gives the required downstream evidence without adding alias or fallback paths.
+
+Verification:
+
+- `cargo test -p tracewake-core epistemics::proposition` — passed, 10 proposition tests including the new parser corpus and location round-trip contradiction linkage.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/proposition.rs -F from_str -F deserialize_location --test-workspace true -C=--locked` — passed, 13 mutants tested: 11 caught, 2 unviable, 0 missed. This used `--no-config` for the same per-ticket isolation applied on prior 0041 EPI mutant tickets; the requested checked-in-config form is deferred to the full campaign in 0041EPICERMUT-009.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace --locked` — passed.
