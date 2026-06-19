@@ -1,6 +1,6 @@
 # 0040EPICERHOL-011: EPI-10 — debug capability isolation, report/view separation, TUI quarantine, and no feedback path
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,21 @@ Populate the EPI-10 section with the §9.2 ledger fields per witness (capability
 1. `cargo test --locked -p tracewake-tui --test adversarial_gates`
 2. `cargo test --locked -p tracewake-core --test negative_fixture_runner && cargo test --locked -p tracewake-core --test hidden_truth_gates`
 3. `cargo test --locked -p tracewake-tui --test tui_seam_conformance` (debug-token embodied-suppression boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-10 section of the acceptance artifact with debug capability, non-diegetic marker/token separation, no-feedback-path, and replay/non-interference evidence. The §9.4 EPI-10 row now cites `EPI10-POS-001`, `EPI10-ADV-001`, and `EPI10-REPLAY-001`, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+- `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+- `cargo test --locked -p tracewake-tui --test tui_acceptance`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+No deviations. The broader compile-fail corpus matrix remains cross-referenced to `0040EPICERHOL-012`.
