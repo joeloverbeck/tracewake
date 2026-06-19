@@ -1,6 +1,6 @@
 # 0039SPICERMUT-022: Controller binding mutation survivors
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — strengthens controller binding tests around possession/debug authorization. No schema changes.
@@ -80,3 +80,22 @@ crates/tracewake-core/src/controller.rs:83:28: replace += with -= in ControllerB
 1. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/controller.rs --no-shuffle`
 2. `cargo test --workspace --locked`
 3. Per-file mutation is the correct first proof boundary because ticket 020 already established the full standing denominator.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added a focused controller binding lifecycle witness that observes binding
+sequence values across attach, detach, and reattach; verifies debug binding
+visibility; and asserts fail-closed authorization for wrong actors and detached
+controllers. This kills the five controller survivors routed from ticket 020
+without changing production controller behavior.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core controller::tests::binding_lifecycle_sequences_debug_view_and_authorization_are_observable`
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/controller.rs --no-shuffle` (13 mutants tested in 53s: 8 caught, 5 unviable)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
