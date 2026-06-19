@@ -1,6 +1,6 @@
 # 0040EPICERHOL-015: Acceptance capstone — §9.4 verdict table, §9.5 replay/provenance package, §9.8 EMERGE-OBS, and aggregate EPI-CERT verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — consolidates the audit-point/compile-fail/relational/mutation evidence into the §9.4 verdict table, assembles the §9.5 replay/provenance package and §9.8 EMERGE-OBS slot, and renders the verdict; introduces no production logic.
@@ -75,3 +75,15 @@ Package the §9.8 EMERGE-OBS observer-only evidence (citing `emergence_ledger`) 
 1. `cargo test --workspace --locked`
 2. `cargo test --locked -p tracewake-core --test emergence_ledger`
 3. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` (artifact-wording/evidence-honesty boundary for the rendered verdict)
+
+## Outcome
+
+Completed: 2026-06-19
+
+The acceptance artifact now consolidates the §9.4 verdict table, §9.5 replay/provenance package, §9.8 EMERGE-OBS observer-only evidence, and §9.9 aggregate verdict. The rendered verdict is `EPI-CERT scoped remediation`: the seam evidence, compile-fail matrix, replay/provenance package, relational package, and fixture runner evidence are populated, but `MUT-WAVEB-001` leaves a 30-mutant survivor floor recorded in `reports/0040_epi_cert_mutation_final_missed.txt` and `reports/0040_epi_cert_mutation_triage_register.md`.
+
+Verification:
+
+- `cargo test --workspace --locked` - passed.
+- `cargo test --locked -p tracewake-core --test emergence_ledger` - passed.
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` - passed.

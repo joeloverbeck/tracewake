@@ -7,9 +7,9 @@ Implementation commit tested for scaffold baseline: `f9858fca35e6136bd825f59de95
 Worktree at baseline command start: clean
 Spec posture consumed: P0-CERT passed from `archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md`; SPINE-CERT passed from `archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md` at exact implementation commit `92ba47f14998e0ea2fc95502bc3b76c5909478ca`.
 Gate label under certification: `EPI-CERT`
-Verdict: `<pending>`
+Verdict: `EPI-CERT scoped remediation`
 
-This artifact renders no EPI-CERT verdict until the capstone ticket fills the per-seam verdict table and aggregate verdict. It is an implementation-session acceptance artifact for spec `0040`; it does not independently verify current `main`, does not certify latest main, and does not advance ORD-LIFE-CERT, FIRST-PROOF-CERT, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, or LLM/speech surfaces.
+This artifact renders `EPI-CERT scoped remediation` at the capstone ticket because the configured EPI mutation perimeter completed with 30 untriaged missed mutants. It is an implementation-session acceptance artifact for spec `0040`; it does not independently verify current `main`, does not certify latest main, and does not advance ORD-LIFE-CERT, FIRST-PROOF-CERT, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, or LLM/speech surfaces.
 
 ## Scope And Baseline Delta
 
@@ -626,23 +626,33 @@ Status: evidence collected by `0040EPICERHOL-012`; aggregate use remains pending
 
 | Requirement | Responsible layer(s) | Positive evidence | Adversarial/negative evidence | Replay/provenance evidence | Mutation evidence | Result from certifying evidence |
 |---|---|---|---|---|---|---|
-| `EPI-01` sealed context identity/scope/hash/frontier | actor-known context construction; proposal construction | `EPI01-POS-001`, `EPI01-PROPOSAL-001` | `EPI01-ADV-001`, `EPI01-COMPILE-001` | `EPI01-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | `EPI02-POS-001`, `EPI02-FRESH-001` | `EPI02-ADV-001`, `EPI02-COMPILE-001` | `EPI02-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-03` observation channels/event capture | event application; projection/replay | `EPI03-POS-001`, `EPI03-STAGED-READING-001` | `EPI03-ADV-001`, `EPI03-COMPILE-001` | `EPI03-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | `EPI04-POS-001`, `EPI04-STAGED-001` | `EPI04-ADV-001`, `EPI04-COMPILE-001` | `EPI04-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | `EPI05-POS-001` | `EPI05-ADV-001` | `EPI05-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-06` projection rebuild/non-writer | event application; projection/replay | `EPI06-POS-001` | `EPI06-ADV-001` | `EPI06-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | `EPI07-POS-001` | `EPI07-ADV-001` | `EPI07-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | `EPI08-POS-001` | `EPI08-ADV-001` | `EPI08-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | `EPI09-POS-001` | `EPI09-ADV-001` | `EPI09-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-10` debug quarantine | debug quarantine; view-model rendering | `EPI10-POS-001` | `EPI10-ADV-001` | `EPI10-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-11` relational capstone | actor-known context; proposal construction; view-model rendering; projection/replay; debug quarantine | `EPI11-REL-001`, `EPI11-GEN-001` | `EPI11-REL-001` | `EPI11-REL-001`, `EPI11-GEN-001` | pending `0040EPICERHOL-014` | pending |
+| `EPI-01` sealed context identity/scope/hash/frontier | actor-known context construction; proposal construction | `EPI01-POS-001`, `EPI01-PROPOSAL-001` | `EPI01-ADV-001`, `EPI01-COMPILE-001` | `EPI01-REPLAY-001` | `MUT-WAVEB-001` | pass |
+| `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | `EPI02-POS-001`, `EPI02-FRESH-001` | `EPI02-ADV-001`, `EPI02-COMPILE-001` | `EPI02-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes epistemics/observation/projection coverage gaps | fail - scoped remediation |
+| `EPI-03` observation channels/event capture | event application; projection/replay | `EPI03-POS-001`, `EPI03-STAGED-READING-001` | `EPI03-ADV-001`, `EPI03-COMPILE-001` | `EPI03-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes observation/replay-sensitive coverage gaps | fail - scoped remediation |
+| `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | `EPI04-POS-001`, `EPI04-STAGED-001` | `EPI04-ADV-001`, `EPI04-COMPILE-001` | `EPI04-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes projection/contradiction coverage gaps | fail - scoped remediation |
+| `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | `EPI05-POS-001` | `EPI05-ADV-001` | `EPI05-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes source/provenance validation coverage gaps | fail - scoped remediation |
+| `EPI-06` projection rebuild/non-writer | event application; projection/replay | `EPI06-POS-001` | `EPI06-ADV-001` | `EPI06-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes projection/rebuild coverage gaps | fail - scoped remediation |
+| `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | `EPI07-POS-001` | `EPI07-ADV-001` | `EPI07-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes proposal/validation coverage gaps | fail - scoped remediation |
+| `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | `EPI08-POS-001` | `EPI08-ADV-001` | `EPI08-REPLAY-001` | `MUT-WAVEB-001` | pass |
+| `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | `EPI09-POS-001` | `EPI09-ADV-001` | `EPI09-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes embodied/projection rendering coverage gaps | fail - scoped remediation |
+| `EPI-10` debug quarantine | debug quarantine; view-model rendering | `EPI10-POS-001` | `EPI10-ADV-001` | `EPI10-REPLAY-001` | `MUT-WAVEB-001`; survivor floor includes display/error-format coverage gaps | fail - scoped remediation |
+| `EPI-11` relational capstone | actor-known context; proposal construction; view-model rendering; projection/replay; debug quarantine | `EPI11-REL-001`, `EPI11-GEN-001` | `EPI11-REL-001` | `EPI11-REL-001`, `EPI11-GEN-001` | `MUT-WAVEB-001`; survivor floor covers multiple relational layers | fail - scoped remediation |
 | Configured EPI mutation perimeter | projection/replay; content/schema validation; diagnostics; view-model rendering | `MUT-WAVEB-001` | `MUT-WAVEB-001` | `MUT-WAVEB-001` | `MUT-WAVEB-001`, `reports/0040_epi_cert_mutation_triage_register.md` | fail - scoped remediation |
-| Artifact/evidence honesty | documentation status; tests/fixtures | `0040-BASELINE-001`, `0040-NAMED-BINS-001` | pending | pending | pending | pending |
+| Artifact/evidence honesty | documentation status; tests/fixtures | `0040-BASELINE-001`, `0040-NAMED-BINS-001` | `SEC61-COMPILE-001`, `MUT-WAVEB-001` | `EPI01-REPLAY-001` through `EPI11-REL-001`, `EPI11-GEN-001` | `MUT-WAVEB-001`, `reports/0040_epi_cert_mutation_triage_register.md` | pass |
 
 ## Section 9.5 Replay And Provenance Package
 
-Status: pending. Owned by `0040EPICERHOL-015` after the EPI sections, compile-fail matrix, relational package, and mutation package are populated.
+Status: packaged by `0040EPICERHOL-015`; complete for verdict purposes, with mutation remediation still required.
+
+- Serialized accepted event inputs: `EPI01-REPLAY-001`, `EPI03-REPLAY-001`, `EPI05-REPLAY-001`, `EPI06-REPLAY-001`, `EPI07-REPLAY-001`, `EPI08-REPLAY-001`, `EPI10-REPLAY-001`, `EPI11-REL-001`, and `EPI11-GEN-001` cover accepted log prefixes, no-human runs, golden scenario inputs, fixture serializations, and relational pair members. The registered `golden_fixtures_run` corpus is the exhaustive fixture family runner for the §6 matrix.
+- Event envelope/index/fingerprint and source-event witnesses: `EPI01-REPLAY-001`, `EPI03-REPLAY-001`, `EPI05-REPLAY-001`, `EPI06-REPLAY-001`, and `EPI07-REPLAY-001` cover event envelope identity, payload schema, source/cause fields, source-event deletion/tamper controls, append order, replay mismatch reports, and first-divergence fingerprints.
+- Live/replay authoritative and epistemic checksums: `EPI06-POS-001`, `EPI06-REPLAY-001`, `EPI08-REPLAY-001`, `EPI09-REPLAY-001`, and `EPI10-REPLAY-001` cover authoritative state checksums, projection checksums, actor-known context hashes, canonical serialization round trips, duplicate/reordered event rejection, and debug-disabled/debug-enabled replay non-interference.
+- Sealed holder-known packets: `EPI01-POS-001`, `EPI01-ADV-001`, `EPI01-REPLAY-001`, `EPI02-POS-001`, `EPI05-POS-001`, and `EPI06-POS-001` cover packet IDs, hashes, frontiers, viewer/scope decisions, source-backed construction, content/schema identities, and compile-fail proof that external code cannot forge or retarget the packet.
+- Proposal source tuples and validation split: `EPI01-PROPOSAL-001`, `EPI05-POS-001`, `EPI05-ADV-001`, `EPI07-POS-001`, `EPI07-ADV-001`, `EPI07-REPLAY-001`, and `EPI08-POS-001` cover context tuple retention, validation results, accepted/rejected events, actor-safe reasons, controller-binding scope, and debug rejection reports.
+- Embodied/debug artifacts: `EPI08-POS-001`, `EPI09-POS-001`, `EPI09-ADV-001`, `EPI09-REPLAY-001`, `EPI10-POS-001`, `EPI10-ADV-001`, and `EPI10-REPLAY-001` cover embodied view-model serialization, transcript snapshots, actor-safe why-not output, separate authorized debug artifacts, `DEBUG NON-DIEGETIC` markers, and no leakage into actor-visible channels.
+- Contradiction/freshness matrices: `EPI02-FRESH-001`, `EPI04-POS-001`, `EPI04-ADV-001`, `EPI04-REPLAY-001`, and `EPI04-STAGED-001` cover supersession, expected absence, contradiction creation, unsupported-kind non-overclaim handling, and source-backed replay survival.
+- Relational pair declarations and reveal ancestry: `EPI11-REL-001` names every hidden-variable pair, equality precondition, actor-visible/decision-producing comparison domain, reveal/divergence rule, replay confirmation, seed/sample scope, and first responsible layer; `EPI11-GEN-001` records sampled generated replay/tamper/non-interference controls without counting sampled evidence as finite-domain exhaustion.
+- First-divergence reports: passing replay controls cite match/mismatch report witnesses in `EPI03-REPLAY-001`, `EPI05-REPLAY-001`, `EPI06-REPLAY-001`, and `EPI07-REPLAY-001`. The only certifying failure package is the mutation floor in `MUT-WAVEB-001`, whose first responsible layers are tracked per survivor in `reports/0040_epi_cert_mutation_triage_register.md`.
 
 ## Section 9.6 Mutation Package
 
@@ -677,10 +687,18 @@ Generated/metamorphic package: `EPI11-GEN-001` is sampled evidence from recorded
 
 ## Section 9.8 EMERGE-OBS Handling
 
-Status: pending. Owned by `0040EPICERHOL-015`.
+Status: packaged by `0040EPICERHOL-015`; observer-only, non-gating.
+
+The verified corpus includes `cargo test --locked -p tracewake-core --test emergence_ledger`, recorded in the command ledger as `EMERGE-OBS` evidence. This evidence is labeled observer-only: it may inform the living-world acceptance record, but it does not alter any `EPI-01` through `EPI-11` row, does not satisfy the mutation perimeter, does not become a phase gate or pass/fail threshold, and is not a scheduler objective or quality substitute.
 
 ## Section 9.9 Aggregate Verdict
 
-Verdict: `<pending>`
+Verdict: `EPI-CERT scoped remediation`
 
-The aggregate verdict remains pending because `EPI-01` through `EPI-11`, the compile-fail matrix, the mutation package, the relational capstone package, and the final replay/provenance package have not yet been populated.
+The aggregate verdict is `EPI-CERT scoped remediation`.
+
+Rows `EPI-01` through `EPI-11`, the §6 compile-fail matrix, the §9.5 replay/provenance package, the §9.7 relational capstone package, and the §9.8 observer-only emergence package are populated. The configured EPI mutation perimeter fails because `MUT-WAVEB-001` leaves a 30-mutant survivor floor with no accepted equivalence or non-critical disposition. Under §9.9 condition 6, that failure blocks `EPI-CERT passed` and routes the work to later scoped remediation.
+
+Responsible remediation layers named by the survivor register: epistemics observation/proposition/projection records, event/projection rebuild behavior, proposal/validation source checks, embodied/debug rendering and diagnostic formatting, content/schema validation, and replay-sensitive source/provenance boundaries. The exact survivor identities are recorded in `reports/0040_epi_cert_mutation_final_missed.txt` and triaged in `reports/0040_epi_cert_mutation_triage_register.md`.
+
+This verdict does not relabel the gate, does not grant a partial pass, and does not authorize skipping to ORD-LIFE-CERT, FIRST-PROOF-CERT, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, or LLM/speech surfaces. It certifies only the implementation-session evidence named in this artifact and does not independently verify current `main`.
