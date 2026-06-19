@@ -456,7 +456,40 @@ Status: evidence collected by `0040EPICERHOL-008`; aggregate row remains pending
 
 ## EPI-08 - Possession Parity And Cognition-Neutral Controller Binding
 
-Status: pending. Owned by `0040EPICERHOL-009`.
+Status: evidence collected by `0040EPICERHOL-009`; aggregate row remains pending for the mutation package and capstone verdict.
+
+- Evidence item ID: `EPI08-POS-001`
+- EPI cross-references: `EPI-08`
+- Evidence status: pass
+- Fingerprint scope: controller-binding state, agent/cognition fingerprints, epistemic projection checksum, holder-known context ID/hash/frontier, embodied view/action set, selected semantic action, proposal, validation, event-log segment, and resulting state.
+- Evidence summary: `cargo test --locked -p tracewake-core --test acceptance_gates`, `cargo test --locked -p tracewake-tui --test embodied_flow`, `cargo test --locked -p tracewake-tui --test command_loop_session`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. These gates prove human and autonomous paths use the same proposal/validation pipeline, possession preserves actor-owned cognition and available semantic actions, and attach/debug command surfaces do not rewrite embodied cognition.
+- Path under test and behavior witness: `controller.rs`, `state.rs`, `projections.rs`, `view_models.rs`, `agent/transaction.rs`, `actions/proposal.rs`, `actions/pipeline.rs`, and TUI command flow. Representative witnesses include `human_and_nonhuman_proposals_share_validation_path`, `possession_controller_binding_is_not_world_state`, `possession_fixture_preserves_intention_needs_and_can_continue`, `bind_render_submit_rerender_and_show_why_not`, and `numeric_selection_executes_stable_semantic_action_id`.
+- Replay/provenance ancestry: same-state human/autonomous comparisons preserve context tuple, actor-known projection, action availability, validation rules, and event/state outcome; controller-binding state is the declared non-cognition fingerprint difference.
+- Sampling/exhaustiveness: finite EPI-08 positive possession-parity command set required by ticket `0040EPICERHOL-009`.
+- Pending or historical handling: relational possession-source capstone breadth remains owned by `0040EPICERHOL-013`.
+- Certification use: counted as certifying pass for the EPI-08 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI08-ADV-001`
+- EPI cross-references: `EPI-08`
+- Evidence status: pass
+- Fingerprint scope: possess-A-then-B carryover, debug attachment, unauthorized/malformed command binding, stale or forged selection, prior actor notebook/belief/provenance leakage, and hidden-truth variation.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates`, `cargo test --locked -p tracewake-tui --test command_loop_session`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. These gates show possession does not transfer prior actor cognition/provenance/debug truth, and malformed or debug-only command paths stay typed/debug-only without creating actor knowledge or accepted events.
+- Path under test and behavior witness: `debug_item_does_not_leak_to_following_view_or_change_checksum`, `malformed_debug_actor_id_is_typed_error`, `adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth` via the same TUI boundary family covered by the ticket's command loop, `debug_truth_never_enters_holder_known_context_hash`, and `epistemic_context_projection_and_records_remain_sealed`.
+- Replay/provenance ancestry: rejected or debug-only controller operations do not append cognition-changing events and do not introduce prior actor sources into the newly possessed actor's provenance table.
+- Sampling/exhaustiveness: finite named hidden-truth, command-source, and registered fixture corpus required by ticket `0040EPICERHOL-009`.
+- Pending or historical handling: full relational anti-contamination matrix remains owned by `0040EPICERHOL-013`.
+- Certification use: counted as certifying pass for the EPI-08 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI08-REPLAY-001`
+- EPI cross-references: `EPI-08`
+- Evidence status: pass
+- Fingerprint scope: replayed autonomous and human event inputs, proposal validation, accepted event envelopes, state/projection checksum, no-human capstone ancestry, and fixture serialization.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, `cargo test --locked -p tracewake-core --test no_human_capstone`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. Replay evidence proves possession-parity event/state outcomes and autonomous no-human ancestry survive accepted-log rebuilds.
+- Path under test and behavior witness: `phase3a_agent_events_apply_live_and_replay_to_same_agent_checksum`, `replay_rebuild_checksum_matches_original_after_no_human_day`, `no_human_capstone_proves_typed_ancestry_and_replay`, `serialized_event_log_replays_to_identical_state`, and registered possession/no-human fixture rebuilds.
+- Replay/provenance ancestry: serialized event input rebuilds preserve same-state parity relations and explain expected controller-binding differences by explicit fingerprint scope.
+- Sampling/exhaustiveness: finite EPI-08 replay command set required by ticket `0040EPICERHOL-009`.
+- Pending or historical handling: none for this row beyond mutation/capstone consolidation.
+- Certification use: counted as certifying pass for the EPI-08 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## EPI-09 - Embodied Projection Source, Notebook, Action Availability, Why-Not, And Stale-Snapshot Behavior
 
@@ -485,7 +518,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | `EPI05-POS-001` | `EPI05-ADV-001` | `EPI05-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-06` projection rebuild/non-writer | event application; projection/replay | `EPI06-POS-001` | `EPI06-ADV-001` | `EPI06-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | `EPI07-POS-001` | `EPI07-ADV-001` | `EPI07-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | pending | pending | pending | pending | pending |
+| `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | `EPI08-POS-001` | `EPI08-ADV-001` | `EPI08-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
 | `EPI-10` debug quarantine | debug quarantine; view-model rendering | pending | pending | pending | pending | pending |
 | `EPI-11` relational capstone | first responsible layer | pending | pending | pending | pending | pending |

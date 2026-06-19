@@ -1,6 +1,6 @@
 # 0040EPICERHOL-009: EPI-08 — possession parity and cognition-neutral controller binding
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,21 @@ Populate the EPI-08 section with the §9.2 ledger fields per witness (positive p
 1. `cargo test --locked -p tracewake-core --test acceptance_gates`
 2. `cargo test --locked -p tracewake-core --test hidden_truth_gates && cargo test --locked -p tracewake-tui --test embodied_flow`
 3. `cargo test --locked -p tracewake-tui --test command_loop_session` (controller command-source / unauthorized-binding boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-08 section of the acceptance artifact with possession parity, no prior-actor carryover/unauthorized-binding, and replay evidence. The §9.4 EPI-08 row now cites `EPI08-POS-001`, `EPI08-ADV-001`, and `EPI08-REPLAY-001`, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-core --test no_human_capstone`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+- `cargo test --locked -p tracewake-tui --test command_loop_session`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+
+No deviations. `adversarial_gates` was run as extra supporting evidence for the possession-rebind no-carryover witness. Controller-binding state is recorded as the only expected non-cognition fingerprint difference for possession comparisons.
