@@ -571,7 +571,34 @@ Status: pending. Owned by `0040EPICERHOL-013`.
 
 ## Section 6.1 Compile-Fail Boundary Corpus Matrix
 
-Status: pending. Owned by `0040EPICERHOL-012`.
+Status: evidence collected by `0040EPICERHOL-012`; aggregate use remains pending for capstone consolidation.
+
+- Evidence item ID: `SEC61-COMPILE-001`
+- EPI cross-references: `EPI-01`, `EPI-02`, `EPI-03`, `EPI-06`, `EPI-10`
+- Evidence status: pass
+- Fingerprint scope: external-crate API boundary for sealed epistemic constructors, private fields, source/scope mutation, raw projection storage, debug capability minting, debug context/report/view construction, and banned float confidence surfaces.
+- Evidence summary: `cargo test --locked -p tracewake-core --test negative_fixture_runner`, `cargo test --locked -p tracewake-core --doc`, and `cargo test --locked -p tracewake-core --test negative_fixture_runner -- --list` passed. The runner confirmed the registered negative corpus, banned API proving fixtures, debug report construction guard, and phase1 loader mutation guard remain negative; doctests confirmed compile-fail boundaries including `DebugCapability` construction/minting.
+- Path under test and behavior witness: `tests/negative-fixtures/**`, `debug_capability.rs`, `debug_reports.rs`, `agent/actor_known.rs`, `agent/no_human_surface.rs`, `view_models.rs`, and `negative_fixture_runner`.
+- Replay/provenance ancestry: not applicable to compile-fail evidence; the proof closes external API paths before runtime.
+- Sampling/exhaustiveness: 13 enumerated §6.1 rows below: 12 negative-fixture directory classes plus the `debug_capability.rs` doctest pair as one corpus row.
+- Pending or historical handling: capstone must decide aggregate use; this row only records compile-fail corpus status.
+- Certification use: counted as consolidated compile-fail negative evidence for EPI rows that cite §6.1; aggregate verdict remains pending.
+
+| Corpus row | Forbidden capability | Compiler failure class | Relevant EPI point(s) | API-closure rationale |
+|---|---|---|---|---|
+| `banned_float_confidence_types` | External code attempts raw float confidence for epistemic values. | Clippy/compile-fail banned API fixture. | `EPI-02`, `EPI-06` | Confidence must pass through typed epistemic currency; the fixture proves the banned surface is structurally unavailable rather than accepted with a fragile diagnostic string. |
+| `external_crate_cannot_build_debug_knowledge_context` | External crate constructs debug holder-known context. | Private capability/constructor boundary. | `EPI-01`, `EPI-10` | Debug context construction requires core-owned authority; external code cannot forge the mode/viewer/capability tuple. |
+| `external_crate_cannot_build_debug_projection_view_without_core_debug_api` | External crate builds privileged debug projection view. | Private constructor/capability boundary. | `EPI-06`, `EPI-09`, `EPI-10` | Privileged projection view creation is routed through core debug APIs; raw projection maps are not externally readable as a substitute. |
+| `external_crate_cannot_construct_belief_literal` | External crate creates a belief literal directly. | Private field/constructor boundary. | `EPI-02` | Beliefs require typed, source-backed construction; external literal construction cannot bypass provenance/scope rules. |
+| `external_crate_cannot_construct_debug_report` | External crate constructs debug report/view families. | Capability-sealed debug report constructor boundary. | `EPI-10` | Debug reports require core-owned `DebugCapability`; the fixture closes report fabrication rather than matching a wording-only error. |
+| `external_crate_cannot_construct_observation_without_source` | External crate creates observation without source evidence. | Missing source/private constructor boundary. | `EPI-03`, `EPI-05` | Observation construction requires source-event provenance; no external no-source shortcut exists. |
+| `debug_capability.rs` doctest pair | External crate constructs `DebugCapability` literally or calls `DebugCapability::mint()`. | Private fields and `pub(crate)` mint boundary. | `EPI-10` | The capability's literal fields are inaccessible and `mint()` is crate-private, proving unforgeability at the type boundary. |
+| `external_crate_cannot_insert_raw_epistemic_records` | External crate inserts raw epistemic records into projection storage. | Private storage/API boundary. | `EPI-06` | Projection records are replay-derived through accepted event application; external raw insertion is not an exposed writer. |
+| `external_crate_cannot_mutate_belief_source_or_scope` | External crate mutates belief source or privacy scope. | Private field/mutator absence boundary. | `EPI-02`, `EPI-05` | Source/scope are sealed after validated construction; external mutation cannot reclassify provenance or privacy. |
+| `external_crate_cannot_mutate_contradiction_links` | External crate rewires contradiction links. | Private field/mutator absence boundary. | `EPI-04` | Contradiction relation links are produced by typed event/projection logic; external mutation cannot fabricate relation evidence. |
+| `external_crate_cannot_mutate_knowledge_context_mode` | External crate changes holder-known context mode. | Private field/mutator absence boundary. | `EPI-01`, `EPI-10` | Context mode is sealed by construction; external code cannot flip actor/debug mode after the fact. |
+| `external_crate_cannot_mutate_knowledge_context_viewer` | External crate changes context viewer/holder. | Private field/mutator absence boundary. | `EPI-01`, `EPI-08` | Viewer identity is sealed in the context packet; external code cannot retarget another actor's context. |
+| `external_crate_cannot_read_raw_epistemic_projection_maps` | External crate reads raw projection maps directly. | Private storage/API boundary. | `EPI-06`, `EPI-09` | Context-filtered APIs are the exposed read path; raw maps are not externally accessible for bypassing privacy/freshness filters. |
 
 ## Section 9.4 Per-Seam Verdict Table
 

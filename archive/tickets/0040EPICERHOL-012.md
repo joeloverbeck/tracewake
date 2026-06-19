@@ -1,6 +1,6 @@
 # 0040EPICERHOL-012: §6.1 compile-fail boundary corpus — case-by-case matrix
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs the existing compile-fail corpus and records the case-by-case matrix. May add test-only instrumentation per spec §2.
@@ -74,3 +74,16 @@ Populate the §6.1 section with the full runner output reference and the 13-row 
 1. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
 2. `cargo test --locked -p tracewake-core --doc`
 3. `cargo test --locked -p tracewake-core --test negative_fixture_runner -- --list` (enumerate the corpus members covered by the matrix)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the §6.1 compile-fail boundary corpus matrix with 13 case-by-case rows covering the 12 negative-fixture directory classes plus the `debug_capability.rs` doctest pair. Each row records the forbidden capability, compiler failure class, relevant EPI point, and why the failure closes an external API path rather than merely matching an error string. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-core --doc`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner -- --list`
+
+No deviations. The compiled corpus remains negative; capstone aggregation remains owned by `0040EPICERHOL-015`.
