@@ -1,6 +1,6 @@
 # 0041EPICERMUT-003: Kill `contradiction.rs` survivors — expected-absence eligibility and contradiction activity
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/contradiction.rs` only if a survivor reveals a real defect or the redundant-method-removal disposition is taken
@@ -98,3 +98,23 @@ Inventing an inactive contradiction kind solely to kill this mutant is forbidden
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/contradiction.rs`
 2. `cargo test --workspace --locked`
 3. `cargo mutants -f <file>` is the correct per-ticket boundary: it regenerates this file's two mutants so each identity's catch/disposition is provable before the full campaign (ticket 009) reconciles them.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Added an expected-absence eligibility matrix in `crates/tracewake-core/src/epistemics/contradiction.rs` that exercises the detection consumer with all holder/stance combinations. Only the matching holder plus `ExpectsTrue` row creates the typed contradiction; the wrong-stance, wrong-holder, and wrong-holder-plus-wrong-stance rows remain ineligible. The positive row asserts the prior belief, contradicting observation, holder, expected proposition, and observed source path through `detect_expected_absences`.
+
+Took the allowed redundant-method-removal disposition for `ContradictionKind::is_active`. The final enum domain still contains only `ExpectedItemAbsentFromContainer`; repo-wide grep showed no production call site, and the only use was the local unit assertion. Removed the unused method instead of inventing an inactive contradiction kind solely to kill the mutant. Ticket 009 should record this as a removed redundant method rather than a caught mutant or missed equivalent.
+
+Verification:
+
+- `cargo test -p tracewake-core epistemics::contradiction` passed.
+- `cargo test --workspace --locked` passed.
+- `cargo fmt --all` was run successfully.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/contradiction.rs --list` showed no `ContradictionKind::is_active` mutant after removal and retained the `replace || with && in detect_expected_absences` identity.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/contradiction.rs --test-workspace true -C=--locked` completed with 18 mutants tested: 9 caught, 9 unviable, 0 missed. `mutants.out/caught.txt` includes `replace || with && in detect_expected_absences`.
+
+Deviations: as with ticket 002, the file-local mutation proof used `--no-config` so `-f` scoped to this file rather than expanding through the checked-in standing mutation perimeter. The full checked-in configuration remains owned by ticket 009.
+
+No `.cargo/mutants-baseline-misses.txt` entry was added. No §4.11 equivalent/non-critical survivor disposition was used.

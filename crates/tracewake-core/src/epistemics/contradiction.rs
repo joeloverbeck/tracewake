@@ -23,10 +23,6 @@ impl ContradictionKind {
             }
         }
     }
-
-    pub const fn is_active(self) -> bool {
-        matches!(self, ContradictionKind::ExpectedItemAbsentFromContainer)
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -264,7 +260,6 @@ mod tests {
             ContradictionKind::ExpectedItemAbsentFromContainer.stable_id(),
             "expected_item_absent_from_container"
         );
-        assert!(ContradictionKind::ExpectedItemAbsentFromContainer.is_active());
     }
 
     fn expectation_belief(
@@ -273,6 +268,16 @@ mod tests {
         item: &str,
         container: &str,
     ) -> Belief {
+        expectation_belief_with_stance(belief_id_value, actor, item, container, Stance::ExpectsTrue)
+    }
+
+    fn expectation_belief_with_stance(
+        belief_id_value: &str,
+        actor: &str,
+        item: &str,
+        container: &str,
+        stance: Stance,
+    ) -> Belief {
         Belief::new(
             belief_id(belief_id_value),
             HolderKind::Actor(actor_id(actor)),
@@ -280,7 +285,7 @@ mod tests {
                 item_id: item_id(item),
                 container_id: container_id(container),
             },
-            Stance::ExpectsTrue,
+            stance,
             Confidence::new(900).unwrap(),
             SourceRef::Event(event_id("event_seed")),
             SimTick::ZERO,
@@ -319,6 +324,73 @@ mod tests {
         assert!(matches!(
             detections[0].missing_belief.proposition(),
             Proposition::ItemMissingFromExpectedLocation { .. }
+        ));
+    }
+
+    #[test]
+    fn detection_requires_matching_holder_and_expectation_stance() {
+        let matching = expectation_belief(
+            "belief_tomas_expected_coin",
+            "actor_tomas",
+            "coin_stack_01",
+            "strongbox_tomas",
+        );
+        let wrong_stance = expectation_belief_with_stance(
+            "belief_tomas_doubts_coin",
+            "actor_tomas",
+            "coin_stack_02",
+            "strongbox_tomas",
+            Stance::Doubts,
+        );
+        let wrong_holder = expectation_belief(
+            "belief_elena_expected_coin",
+            "actor_elena",
+            "coin_stack_03",
+            "strongbox_tomas",
+        );
+        let wrong_holder_and_stance = expectation_belief_with_stance(
+            "belief_elena_doubts_coin",
+            "actor_elena",
+            "coin_stack_04",
+            "strongbox_tomas",
+            Stance::Doubts,
+        );
+        let detections = detect_expected_absences(
+            &actor_id("actor_tomas"),
+            &container_id("strongbox_tomas"),
+            &BTreeSet::new(),
+            &[
+                &matching,
+                &wrong_stance,
+                &wrong_holder,
+                &wrong_holder_and_stance,
+            ],
+            &observation_id("obs_tomas_checked_strongbox"),
+            &event_id("event_observation"),
+            SimTick::new(4),
+            Confidence::new(950).unwrap(),
+        );
+
+        assert_eq!(detections.len(), 1);
+        assert_eq!(
+            detections[0].contradiction.prior_expectation_belief_id(),
+            &belief_id("belief_tomas_expected_coin")
+        );
+        assert_eq!(
+            detections[0].contradiction.contradicting_observation_id(),
+            &observation_id("obs_tomas_checked_strongbox")
+        );
+        assert_eq!(
+            detections[0].contradiction.holder_actor_id(),
+            &actor_id("actor_tomas")
+        );
+        assert!(matches!(
+            detections[0].contradiction.expected_proposition(),
+            Proposition::ItemLocatedInContainer {
+                item_id: expected_item_id,
+                container_id: expected_container_id,
+            } if expected_item_id == &item_id("coin_stack_01")
+                && expected_container_id == &container_id("strongbox_tomas")
         ));
     }
 
