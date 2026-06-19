@@ -669,6 +669,10 @@ mod tests {
         WorkplaceId::new(value).unwrap()
     }
 
+    fn event_id(value: &str) -> crate::ids::EventId {
+        crate::ids::EventId::new(value).unwrap()
+    }
+
     #[test]
     fn records_use_ordered_collections() {
         let mut actor = ActorBody::new(actor_id("actor_tomas"), place_id("shop_front"));
@@ -756,5 +760,134 @@ mod tests {
         assert!(workplace
             .assigned_actor_ids
             .contains(&actor_id("actor_tomas")));
+    }
+
+    #[test]
+    fn physical_state_workplaces_accessor_returns_materialized_workplaces() {
+        let mut workplaces = BTreeMap::new();
+        workplaces.insert(
+            workplace_id("workplace_office"),
+            WorkplaceState::new(
+                workplace_id("workplace_office"),
+                place_id("office"),
+                4,
+                8,
+                4,
+                900,
+                900,
+                "service_completed_placeholder",
+            ),
+        );
+        let state = PhysicalState::from_seed_parts(
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            workplaces,
+            BTreeMap::new(),
+            NeedModelState::new(5, 3),
+        );
+
+        assert_eq!(state.workplaces().len(), 1);
+        assert_eq!(
+            state
+                .workplaces()
+                .get(&workplace_id("workplace_office"))
+                .map(|workplace| (
+                    workplace.place_id.as_str(),
+                    workplace.work_duration_ticks,
+                    workplace.output_tag.as_str()
+                )),
+            Some(("office", 4, "service_completed_placeholder"))
+        );
+    }
+
+    #[test]
+    fn visibility_default_stable_ids_are_canonical() {
+        assert_eq!(VisibilityDefault::Visible.stable_id(), "visible");
+        assert_eq!(VisibilityDefault::Concealed.stable_id(), "concealed");
+        assert!(VisibilityDefault::Visible.is_visible());
+        assert!(!VisibilityDefault::Concealed.is_visible());
+    }
+
+    #[test]
+    fn agent_state_accessors_return_materialized_record_maps() {
+        let threshold_event = event_id("event.need_threshold_crossed.1");
+        let candidate_event = event_id("event.candidate_goal_evaluated.1");
+        let mut agent_state = AgentState::default();
+        agent_state.need_threshold_crossings.insert(
+            threshold_event.clone(),
+            NeedThresholdCrossingRecord {
+                event_id: threshold_event.clone(),
+                actor_id: actor_id("actor_tomas"),
+                need_kind: NeedKind::Hunger,
+                from_value: 400,
+                to_value: 850,
+                from_band: "comfortable".to_string(),
+                to_band: "urgent".to_string(),
+                payload_fields: vec![("source".to_string(), "wait_tick".to_string())],
+            },
+        );
+        agent_state.candidate_goal_evaluations.insert(
+            candidate_event.clone(),
+            CandidateGoalEvaluationRecord {
+                event_id: candidate_event.clone(),
+                event_kind: "candidate_goal_evaluated".to_string(),
+                actor_id: Some(actor_id("actor_tomas")),
+                proposal_id: Some(ProposalId::new("proposal_work_shift").unwrap()),
+                caused_event_ids: vec![threshold_event.clone()],
+                sim_tick: crate::time::SimTick::new(4),
+                payload_fields: vec![("goal".to_string(), "work".to_string())],
+                summary: "work goal considered".to_string(),
+            },
+        );
+
+        assert_eq!(
+            agent_state
+                .need_threshold_crossings()
+                .get(&threshold_event)
+                .map(|record| (
+                    record.need_kind,
+                    record.from_value,
+                    record.to_value,
+                    record.to_band.as_str()
+                )),
+            Some((NeedKind::Hunger, 400, 850, "urgent"))
+        );
+        assert_eq!(
+            agent_state
+                .candidate_goal_evaluations()
+                .get(&candidate_event)
+                .map(|record| (
+                    record.actor_id.as_ref().map(ActorId::as_str),
+                    record.proposal_id.as_ref().map(ProposalId::as_str),
+                    record.caused_event_ids.as_slice(),
+                    record.summary.as_str()
+                )),
+            Some((
+                Some("actor_tomas"),
+                Some("proposal_work_shift"),
+                [threshold_event].as_slice(),
+                "work goal considered"
+            ))
+        );
+    }
+
+    #[test]
+    fn door_connectivity_matches_only_authored_endpoints() {
+        let shop = place_id("shop_front");
+        let back = place_id("back_room");
+        let street = place_id("street");
+        let door = DoorState::new(
+            DoorId::new("door_shop_back").unwrap(),
+            shop.clone(),
+            back.clone(),
+        );
+
+        assert!(door.connects_place(&shop));
+        assert!(door.connects_place(&back));
+        assert!(!door.connects_place(&street));
     }
 }

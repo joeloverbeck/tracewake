@@ -965,6 +965,14 @@ fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
     assert_eq!(replay.final_checksum, live_physical_checksum);
     assert_eq!(replay.final_agent_checksum, live_agent_checksum);
     assert_eq!(replay.expected_agent_checksum, Some(live_agent_checksum));
+    assert!(replay.final_agent_checksum.as_str().starts_with("twa1-"));
+    assert_eq!(
+        replay
+            .expected_agent_checksum
+            .as_ref()
+            .map(|checksum| checksum.as_str()),
+        Some(replay.final_agent_checksum.as_str())
+    );
     assert!(replay.agent_checksum_matches);
     assert!(first_metrics.contains("no_human_day_metrics_v1"));
     let canonical_text = String::from_utf8(canonical).unwrap().to_ascii_lowercase();

@@ -1,0 +1,2 @@
+crates/tracewake-core/src/epistemics/projection.rs:292:9: replace EpistemicProjectionChecksum::as_str -> &str with ""
+crates/tracewake-core/src/epistemics/projection.rs:292:9: replace EpistemicProjectionChecksum::as_str -> &str with "xyzzy"

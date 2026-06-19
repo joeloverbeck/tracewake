@@ -5,23 +5,33 @@ use std::collections::BTreeSet;
 use support::{AgentSeed, PhysicalSeed};
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::{
-    BlockerCode, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
-    ResponsibleLayer, RoutineExecution, RoutineFamily,
+    BlockerCategory, BlockerCode, DecisionTraceRecord, Intention, IntentionSource, IntentionStatus,
+    NeedChangeCause, NeedKind, NeedState, ResponsibleLayer, RoutineExecution, RoutineFamily,
+    RoutineStepStatus, StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
 };
-use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext};
-use tracewake_core::epistemics::EpistemicProjection;
+use tracewake_core::checksum::{
+    compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
+    ChecksumContext,
+};
+use tracewake_core::epistemics::{Channel, EpistemicProjection, KnowledgeContext, Stance};
 use tracewake_core::events::apply::{
-    apply_agent_event, apply_epistemic_event, ApplyError, EpistemicApplyError,
+    apply_agent_event, apply_epistemic_event, apply_event, ApplyError, ApplyOutcome,
+    EpistemicApplyError, AGENT_WORLD_NOOP_ALLOWLIST,
 };
 use tracewake_core::events::log::{EventLog, EventLogError};
-use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream, PayloadField};
+use tracewake_core::events::{
+    EventCause, EventEnvelope, EventEnvelopeParseError, EventKind, EventStream, PayloadField,
+    RandomDrawRef,
+};
 use tracewake_core::ids::{
-    ActionId, ActorId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
-    DecisionTraceId, EventId, FixtureId, IntentionId, ItemId, PlaceId, ProcessId,
-    RoutineExecutionId, RoutineTemplateId, SchemaVersion, WorkplaceId,
+    ActionId, ActorId, BeliefId, CandidateGoalId, ContainerId, ContentManifestId, ContentVersion,
+    ContradictionId, ControllerId, DecisionTraceId, EventId, FixtureId, IntentionId, ItemId,
+    ObservationId, PlaceId, ProcessId, RoutineExecutionId, RoutineTemplateId, SchemaVersion,
+    SemanticActionId, StuckDiagnosticId, ValidationReportId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
+use tracewake_core::replay::report::ReplayDivergenceFieldFamily;
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
@@ -29,6 +39,8 @@ use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, DoorState, ItemState, PhysicalState, PlaceState,
 };
 use tracewake_core::time::SimTick;
+
+const APPLY_RS: &str = include_str!("../src/events/apply.rs");
 
 fn actor_id() -> ActorId {
     ActorId::new("actor_tomas").unwrap()
@@ -121,6 +133,18 @@ fn world_state() -> PhysicalState {
             Location::InContainer(ContainerId::new("strongbox_tomas").unwrap()),
         ),
     );
+    seed.items_mut().insert(
+        ItemId::new("loose_key_01").unwrap(),
+        ItemState::new(
+            ItemId::new("loose_key_01").unwrap(),
+            Location::AtPlace(shop.clone()),
+        ),
+    );
+    seed.places_mut()
+        .get_mut(&shop)
+        .expect("shop seed exists")
+        .local_item_ids
+        .insert(ItemId::new("loose_key_01").unwrap());
 
     seed.build()
 }
@@ -311,6 +335,232 @@ fn assert_forged_agent_payload_version_rejected(
         "{:?}",
         replay.agent_application_errors
     );
+}
+
+fn process_cause() -> Vec<EventCause> {
+    vec![EventCause::Process("process_apply_matrix".parse().unwrap())]
+}
+
+fn event_cause(event_id: &str) -> Vec<EventCause> {
+    vec![EventCause::Event(EventId::new(event_id).unwrap())]
+}
+
+fn agent_event_with_payload(
+    event_id: &str,
+    kind: EventKind,
+    sequence: u64,
+    payload: Vec<PayloadField>,
+) -> EventEnvelope {
+    let mut event = caused_event(event_id, kind, sequence, process_cause());
+    event.payload = payload;
+    event
+}
+
+fn world_event_with_payload(
+    event_id: &str,
+    kind: EventKind,
+    sequence: u64,
+    payload: Vec<PayloadField>,
+) -> EventEnvelope {
+    let mut event = caused_event(event_id, kind, sequence, process_cause());
+    event.payload = payload;
+    event
+}
+
+fn epistemic_event_with_payload(
+    event_id: &str,
+    kind: EventKind,
+    sequence: u64,
+    payload: Vec<PayloadField>,
+) -> EventEnvelope {
+    let mut event = caused_event(event_id, kind, sequence, process_cause());
+    event.payload = payload;
+    event
+}
+
+fn belief_payload(
+    belief_id: &str,
+    stance: &str,
+    channel: Option<&str>,
+    confidence: u16,
+    source_event_id: &str,
+) -> Vec<PayloadField> {
+    let mut payload = vec![
+        PayloadField::new("schema_version", "event_schema_v1"),
+        PayloadField::new("belief_id", belief_id),
+        PayloadField::new("holder_actor_id", actor_id().as_str()),
+        PayloadField::new(
+            "proposition",
+            "item_located_at_place|loose_key_01|shop_front",
+        ),
+        PayloadField::new("stance", stance),
+        PayloadField::new("confidence", confidence.to_string()),
+        PayloadField::new("source_event_id", source_event_id),
+        PayloadField::new("acquired_tick", "11"),
+    ];
+    if let Some(channel) = channel {
+        payload.push(PayloadField::new("channel", channel));
+    }
+    payload
+}
+
+fn observation_payload(
+    observation_id: &str,
+    channel: &str,
+    confidence: u16,
+    source_event_id: &str,
+) -> Vec<PayloadField> {
+    vec![
+        PayloadField::new("schema_version", "event_schema_v1"),
+        PayloadField::new("observation_id", observation_id),
+        PayloadField::new("observer_actor_id", actor_id().as_str()),
+        PayloadField::new("channel", channel),
+        PayloadField::new("observed_tick", "12"),
+        PayloadField::new("observer_place_id", "shop_front"),
+        PayloadField::new("place_id", "shop_front"),
+        PayloadField::new("confidence", confidence.to_string()),
+        PayloadField::new("source_event_id", source_event_id),
+        PayloadField::new("alternatives", "coin_stack_01,loose_key_01"),
+    ]
+}
+
+fn contradiction_payload(
+    contradiction_id: &str,
+    belief_id: &str,
+    observation_id: &str,
+) -> Vec<PayloadField> {
+    vec![
+        PayloadField::new("schema_version", "event_schema_v1"),
+        PayloadField::new("contradiction_id", contradiction_id),
+        PayloadField::new("holder_actor_id", actor_id().as_str()),
+        PayloadField::new("prior_expectation_belief_id", belief_id),
+        PayloadField::new("contradicting_observation_id", observation_id),
+        PayloadField::new(
+            "expected_proposition",
+            "item_located_in_container|loose_key_01|strongbox_tomas",
+        ),
+        PayloadField::new(
+            "observed_proposition",
+            "item_missing_from_expected_location|loose_key_01|in_container:strongbox_tomas",
+        ),
+        PayloadField::new("detected_tick", "13"),
+    ]
+}
+
+fn intention_started_payload(
+    intention_id: &str,
+    source: &str,
+    routine_template: Option<&str>,
+    durability: u8,
+    start_tick: u64,
+) -> Vec<PayloadField> {
+    let mut payload = vec![
+        PayloadField::new("intention_id", intention_id),
+        PayloadField::new("actor_id", actor_id().as_str()),
+        PayloadField::new("status", "active"),
+        PayloadField::new("source", source),
+        PayloadField::new("selected_goal_id", format!("goal_{intention_id}")),
+        PayloadField::new("current_step", "inspect_visible_key"),
+        PayloadField::new("durability_level", durability.to_string()),
+        PayloadField::new("start_tick", start_tick.to_string()),
+        PayloadField::new("trace_id", format!("trace_{intention_id}")),
+    ];
+    if let Some(routine_template) = routine_template {
+        payload.push(PayloadField::new(
+            "selected_routine_method",
+            routine_template,
+        ));
+    }
+    payload
+}
+
+fn transition_payload(intention_id: &str, status: &str, reason: &str) -> Vec<PayloadField> {
+    vec![
+        PayloadField::new("intention_id", intention_id),
+        PayloadField::new("status", status),
+        PayloadField::new("reason", reason),
+    ]
+}
+
+fn active_intention<'a>(state: &'a AgentState, intention_id: &str) -> &'a Intention {
+    state
+        .intentions()
+        .get(&IntentionId::new(intention_id).unwrap())
+        .expect("intention exists")
+}
+
+fn routine_execution<'a>(state: &'a AgentState, execution_id: &str) -> &'a RoutineExecution {
+    state
+        .routine_executions()
+        .get(&RoutineExecutionId::new(execution_id).unwrap())
+        .expect("routine execution exists")
+}
+
+fn event_ids(values: &[&str]) -> Vec<EventId> {
+    values
+        .iter()
+        .map(|value| EventId::new(*value).unwrap())
+        .collect()
+}
+
+fn envelope_hex(value: &str) -> String {
+    value
+        .as_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+fn encoded_vec(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|value| envelope_hex(value))
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn random_draw_wire(scope: &str, draw_id: &str, value: &str) -> String {
+    [scope, draw_id, value]
+        .into_iter()
+        .map(envelope_hex)
+        .collect::<Vec<_>>()
+        .join(":")
+}
+
+fn append_ordered(events: Vec<EventEnvelope>) -> EventLog {
+    let mut log = EventLog::new();
+    for event in events {
+        append_to_log(&mut log, event);
+    }
+    log
+}
+
+fn unrelated_observation_event(
+    event_id: &str,
+    observer_actor_id: &str,
+    place_id: &str,
+    tick: SimTick,
+) -> EventEnvelope {
+    let mut event = epistemic_event_with_payload(
+        event_id,
+        EventKind::ObservationRecorded,
+        tick.value(),
+        vec![
+            PayloadField::new("schema_version", "event_schema_v1"),
+            PayloadField::new("observation_id", format!("obs_{event_id}")),
+            PayloadField::new("observer_actor_id", observer_actor_id),
+            PayloadField::new("channel", "direct_sight"),
+            PayloadField::new("observed_tick", tick.value().to_string()),
+            PayloadField::new("observer_place_id", place_id),
+            PayloadField::new("place_id", place_id),
+            PayloadField::new("confidence", "777"),
+            PayloadField::new("source_event_id", event_id),
+        ],
+    );
+    event.actor_id = Some(ActorId::new(observer_actor_id).unwrap());
+    event.place_id = Some(PlaceId::new(place_id).unwrap());
+    event.sim_tick = tick;
+    event
 }
 
 #[test]
@@ -839,6 +1089,257 @@ fn replay_rebuild_checksum_matches_original_after_no_human_day() {
 }
 
 #[test]
+fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
+    let mut world = world_state();
+    let mut agent_state = agent_state();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+
+    run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry,
+        manifest_id(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "report_pair".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+
+    let context = checksum_context("replay_report_match_mismatch_pair", &log);
+    let expected_checksum = compute_physical_checksum(&world, &context).checksum;
+    let expected_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let expected_diagnostic_event_count = log
+        .events()
+        .iter()
+        .filter(|event| event.stream != EventStream::World)
+        .count();
+    assert!(expected_diagnostic_event_count > 0);
+    assert_ne!(
+        expected_diagnostic_event_count,
+        log.events().len() - expected_diagnostic_event_count
+    );
+    let matching = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&world),
+        Some(expected_checksum.clone()),
+        Some(expected_agent_checksum.clone()),
+    );
+
+    assert!(matching.matches_expected);
+    assert!(matching.agent_checksum_matches);
+    assert_eq!(
+        matching.diagnostic_event_count,
+        expected_diagnostic_event_count
+    );
+    assert_eq!(matching.expected_checksum, Some(expected_checksum.clone()));
+    assert_eq!(matching.final_checksum, expected_checksum);
+    assert_eq!(
+        matching.expected_agent_checksum,
+        Some(expected_agent_checksum.clone())
+    );
+    assert_eq!(matching.final_agent_checksum, expected_agent_checksum);
+    assert!(matching.state_diff.is_empty());
+    assert_eq!(matching.first_divergence, None);
+
+    let mut corrupted_items = world.items().clone();
+    let unexpected_item_id = ItemId::new("unexpected_replay_report_item").unwrap();
+    corrupted_items.insert(
+        unexpected_item_id.clone(),
+        ItemState::new(
+            unexpected_item_id,
+            Location::AtPlace(PlaceId::new("shop_front").unwrap()),
+        ),
+    );
+    let corrupted_expected_world = PhysicalState::from_seed_parts(
+        world.actors().clone(),
+        world.places().clone(),
+        world.doors().clone(),
+        world.containers().clone(),
+        corrupted_items,
+        world.food_supplies().clone(),
+        world.workplaces().clone(),
+        world.sleep_affordances().clone(),
+        *world.need_model(),
+    );
+    let corrupted_expected_checksum =
+        compute_physical_checksum(&corrupted_expected_world, &context).checksum;
+    let mismatching = run_replay(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&corrupted_expected_world),
+        Some(corrupted_expected_checksum.clone()),
+        Some(matching.final_agent_checksum.clone()),
+    );
+
+    assert!(!mismatching.matches_expected);
+    assert!(mismatching.agent_checksum_matches);
+    assert_eq!(
+        mismatching.diagnostic_event_count,
+        expected_diagnostic_event_count
+    );
+    assert_eq!(
+        mismatching.expected_checksum,
+        Some(corrupted_expected_checksum.clone())
+    );
+    assert_ne!(mismatching.final_checksum, corrupted_expected_checksum);
+    assert_eq!(
+        mismatching.expected_agent_checksum,
+        Some(matching.final_agent_checksum)
+    );
+    assert!(!mismatching.state_diff.is_empty());
+    let first_divergence = mismatching
+        .first_divergence
+        .expect("corrupt expected world reports first divergence");
+    assert!(first_divergence.first_divergent_event_id.is_some());
+    assert_eq!(
+        first_divergence.field_family,
+        ReplayDivergenceFieldFamily::Item
+    );
+}
+
+#[test]
+fn checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints() {
+    let context = checksum_context("checksum_identity_witness", &EventLog::new());
+    let base_world = world_state();
+    let base_physical_report = compute_physical_checksum(&base_world, &context);
+
+    let equivalent_world = PhysicalSeed::from_state(&base_world).build();
+    let equivalent_physical_report = compute_physical_checksum(&equivalent_world, &context);
+    assert_eq!(
+        base_physical_report.checksum,
+        equivalent_physical_report.checksum
+    );
+    assert_eq!(
+        base_physical_report.canonical_input,
+        equivalent_physical_report.canonical_input
+    );
+
+    let mut relocated_seed = PhysicalSeed::from_state(&base_world);
+    relocated_seed
+        .items_mut()
+        .get_mut(&ItemId::new("loose_key_01").unwrap())
+        .expect("loose key exists")
+        .location = Location::InContainer(ContainerId::new("strongbox_tomas").unwrap());
+    let relocated_world = relocated_seed.build();
+    let relocated_physical_report = compute_physical_checksum(&relocated_world, &context);
+    assert_ne!(
+        base_physical_report.checksum,
+        relocated_physical_report.checksum
+    );
+    assert!(
+        base_physical_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("item|id=loose_key_01") && line.contains("at_place:")),
+        "{:?}",
+        base_physical_report.canonical_input
+    );
+    assert!(
+        relocated_physical_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("item|id=loose_key_01") && line.contains("in_container:")),
+        "{:?}",
+        relocated_physical_report.canonical_input
+    );
+
+    let base_agent = agent_state_with_active_intention_and_routine();
+    let mut in_progress_seed = AgentSeed::from_state(&base_agent);
+    in_progress_seed
+        .routine_executions_mut()
+        .get_mut(&RoutineExecutionId::new("routine_exec_breakfast").unwrap())
+        .expect("routine exists")
+        .step_status = RoutineStepStatus::InProgress;
+    let in_progress_agent = in_progress_seed.build();
+    let mut completed_seed = AgentSeed::from_state(&base_agent);
+    completed_seed
+        .routine_executions_mut()
+        .get_mut(&RoutineExecutionId::new("routine_exec_breakfast").unwrap())
+        .expect("routine exists")
+        .step_status = RoutineStepStatus::Completed;
+    let completed_agent = completed_seed.build();
+    let in_progress_agent_report = compute_agent_state_checksum(&in_progress_agent, &context);
+    let completed_agent_report = compute_agent_state_checksum(&completed_agent, &context);
+    assert_ne!(
+        in_progress_agent_report.checksum,
+        completed_agent_report.checksum
+    );
+    assert!(
+        in_progress_agent_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("routine_execution|") && line.contains("status=in_progress")),
+        "{:?}",
+        in_progress_agent_report.canonical_input
+    );
+    assert!(
+        completed_agent_report
+            .canonical_input
+            .iter()
+            .any(|line| line.contains("routine_execution|") && line.contains("status=completed")),
+        "{:?}",
+        completed_agent_report.canonical_input
+    );
+
+    let replay = run_replay(
+        &base_world,
+        &in_progress_agent,
+        &EventLog::new(),
+        &context,
+        Some(&base_world),
+        Some(base_physical_report.checksum.clone()),
+        Some(in_progress_agent_report.checksum.clone()),
+    );
+    assert!(replay.matches_expected);
+    assert_eq!(
+        replay
+            .expected_agent_checksum
+            .as_ref()
+            .map(|checksum| checksum.as_str()),
+        Some(replay.final_agent_checksum.as_str())
+    );
+    assert!(replay.final_agent_checksum.as_str().starts_with("twa1-"));
+
+    let corrupted_replay = run_replay(
+        &base_world,
+        &in_progress_agent,
+        &EventLog::new(),
+        &context,
+        Some(&relocated_world),
+        Some(relocated_physical_report.checksum),
+        Some(in_progress_agent_report.checksum),
+    );
+    assert!(!corrupted_replay.matches_expected);
+    assert_ne!(
+        corrupted_replay.expected_checksum,
+        Some(corrupted_replay.final_checksum)
+    );
+    assert!(!corrupted_replay.state_diff.is_empty());
+    assert_eq!(
+        corrupted_replay
+            .first_divergence
+            .expect("relocated expected state reports first divergence")
+            .field_family,
+        ReplayDivergenceFieldFamily::Item
+    );
+}
+
+#[test]
 fn no_human_metrics_rebuild_from_typed_diagnostic_fields() {
     let mut log = EventLog::new();
     append_to_log(
@@ -968,4 +1469,1216 @@ fn legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults() 
     );
     assert_eq!(trace.typed_diagnostic.blocker_code, BlockerCode::None);
     assert_eq!(trace.typed_diagnostic.input_source, "actor_known_context");
+}
+
+#[test]
+fn deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses() {
+    let mut world = world_state();
+    let mut agent_state = agent_state();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let mut log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
+
+    run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry,
+        manifest_id(),
+        NoHumanDayConfig {
+            actor_ids: vec![actor_id()],
+            windows: vec![DayWindow {
+                window_id: "deterministic_rebuild".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            }],
+        },
+    );
+    let context = checksum_context("deterministic_rebuild_context_hash", &log);
+    let first = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &log,
+        &context,
+        Some(&world),
+    );
+    let second = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap(),
+        &context,
+        Some(&world),
+    );
+    assert_eq!(first, second);
+    assert!(first.decision_context_hash_failures.is_empty());
+    assert!(first.invariant_violations.is_empty());
+    assert!(first.state_diff.is_empty());
+
+    let trace_index = log
+        .events()
+        .iter()
+        .position(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .expect("no-human day records a decision trace");
+    let trace = &log.events()[trace_index];
+    let ordinary_event_id = payload_value(trace, "ordinary_event_id")
+        .expect("trace records ordinary event id")
+        .to_string();
+    let recorded_trace = DecisionTraceRecord::deserialize_canonical(
+        payload_value(trace, "trace_canonical")
+            .expect("trace canonical exists")
+            .as_bytes(),
+    )
+    .expect("trace canonical parses");
+    assert!(
+        recorded_trace.actor_known_context_hash.is_some(),
+        "fixture must prove non-empty decision-context hash rebuilding"
+    );
+
+    let mut cause_only_events = log.events().to_vec();
+    let cause_only_trace = &mut cause_only_events[trace_index];
+    cause_only_trace
+        .payload
+        .retain(|field| field.key != "ordinary_event_id");
+    cause_only_trace.causes = vec![EventCause::Event(EventId::new(&ordinary_event_id).unwrap())];
+    let cause_only_log = append_ordered(cause_only_events);
+    let cause_only_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &cause_only_log,
+        &checksum_context("deterministic_rebuild_cause_only", &cause_only_log),
+        Some(&world),
+    );
+    assert!(
+        cause_only_rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        cause_only_rebuild.decision_context_hash_failures
+    );
+
+    let mut missing_cause_events = cause_only_log.events().to_vec();
+    missing_cause_events[trace_index].causes.clear();
+    let missing_cause_log = append_ordered(missing_cause_events);
+    let missing_cause_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &missing_cause_log,
+        &checksum_context("deterministic_rebuild_missing_cause", &missing_cause_log),
+        Some(&world),
+    );
+    assert!(missing_cause_rebuild
+        .decision_context_hash_failures
+        .iter()
+        .any(|failure| failure.issue == "missing_ordinary_event_id"));
+
+    let mut unrelated_events = log.events().to_vec();
+    let ordinary_index = unrelated_events
+        .iter()
+        .position(|event| event.event_id.as_str() == ordinary_event_id)
+        .expect("ordinary event exists");
+    let decision_tick = recorded_trace.window_start_tick;
+    unrelated_events.insert(
+        ordinary_index,
+        unrelated_observation_event(
+            "event_unrelated_wrong_actor_perception",
+            "actor_unrelated",
+            "shop_front",
+            decision_tick,
+        ),
+    );
+    unrelated_events.insert(
+        ordinary_index + 1,
+        unrelated_observation_event(
+            "event_unrelated_wrong_place_perception",
+            actor_id().as_str(),
+            "back_room",
+            decision_tick,
+        ),
+    );
+    unrelated_events.insert(
+        ordinary_index + 2,
+        unrelated_observation_event(
+            "event_unrelated_wrong_tick_perception",
+            actor_id().as_str(),
+            "shop_front",
+            SimTick::new(decision_tick.value() + 99),
+        ),
+    );
+    let mut unrelated_need = agent_event_with_payload(
+        "event_unrelated_need_wrong_actor",
+        EventKind::NeedDeltaApplied,
+        decision_tick.value() + 100,
+        vec![
+            PayloadField::new("actor_id", "actor_unrelated"),
+            PayloadField::new("need_kind", "hunger"),
+            PayloadField::new("delta", "1"),
+            PayloadField::new("cause_kind", "fixture_initial"),
+        ],
+    );
+    unrelated_need.actor_id = Some(ActorId::new("actor_unrelated").unwrap());
+    unrelated_events.insert(ordinary_index + 3, unrelated_need);
+    let unrelated_log = append_ordered(unrelated_events);
+    let unrelated_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &unrelated_log,
+        &checksum_context("deterministic_rebuild_unrelated", &unrelated_log),
+        Some(&world),
+    );
+    assert!(
+        unrelated_rebuild.decision_context_hash_failures.is_empty(),
+        "{:?}",
+        unrelated_rebuild.decision_context_hash_failures
+    );
+
+    let mut payload_only_need_events = log.events().to_vec();
+    let ordinary_index = payload_only_need_events
+        .iter()
+        .position(|event| event.event_id.as_str() == ordinary_event_id)
+        .expect("ordinary event exists");
+    let trace_index = payload_only_need_events
+        .iter()
+        .position(|event| event.event_type == EventKind::DecisionTraceRecorded)
+        .expect("trace event exists");
+    let mut payload_only_need = agent_event_with_payload(
+        "event_relevant_payload_only_need",
+        EventKind::NeedDeltaApplied,
+        decision_tick.value() + 101,
+        vec![
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("need_kind", "hunger"),
+            PayloadField::new("delta", "0"),
+            PayloadField::new("cause_kind", "fixture_initial"),
+        ],
+    );
+    payload_only_need.actor_id = None;
+    payload_only_need_events.insert(ordinary_index, payload_only_need);
+
+    let shifted_trace_index = if trace_index >= ordinary_index {
+        trace_index + 1
+    } else {
+        trace_index
+    };
+    let trace_canonical = payload_only_need_events[shifted_trace_index]
+        .payload
+        .iter_mut()
+        .find(|field| field.key == "trace_canonical")
+        .expect("trace canonical exists");
+    let mut expected_trace =
+        DecisionTraceRecord::deserialize_canonical(trace_canonical.value.as_bytes())
+            .expect("trace canonical parses");
+    expected_trace.actor_known_inputs.push(
+        "agent_needs_present=remembered_belief:agent_state:needs_present|source_class=memory|explicit_unknown=false|source_events=event_relevant_payload_only_need"
+            .to_string(),
+    );
+    expected_trace.actor_known_context_hash =
+        Some(compute_holder_known_context_hash(expected_trace.actor_known_inputs.clone()).hash);
+    trace_canonical.value = expected_trace.serialize_canonical();
+
+    let payload_only_need_log = append_ordered(payload_only_need_events);
+    let payload_only_need_rebuild = rebuild_projection(
+        &initial_world,
+        &initial_agent_state,
+        &payload_only_need_log,
+        &checksum_context(
+            "deterministic_rebuild_payload_only_need",
+            &payload_only_need_log,
+        ),
+        Some(&world),
+    );
+    assert!(
+        payload_only_need_rebuild
+            .decision_context_hash_failures
+            .is_empty(),
+        "{:?}",
+        payload_only_need_rebuild.decision_context_hash_failures
+    );
+}
+
+#[test]
+fn envelope_identity_round_trips_stream_phase_source_cause_and_random_draws() {
+    let controller_id = ControllerId::new("controller_replay_audit").unwrap();
+    let validation_report_id = ValidationReportId::new("validation_report_replay_audit").unwrap();
+    let random_draw = RandomDrawRef::new("rng:phase3a", "draw:987", "1844674407370955161");
+
+    let mut controller = EventEnvelope::new_v1(
+        EventId::new("event_controller_envelope_identity").unwrap(),
+        EventKind::ControllerAttached,
+        99,
+        99,
+        SimTick::new(30),
+        OrderingKey::new(
+            SimTick::new(30),
+            SchedulePhase::DeferredProcess,
+            SchedulerSourceId::Controller(controller_id.clone()),
+            ProposalSequence::new(17),
+            ActionId::new("debug.bind").unwrap(),
+            vec![
+                "actor_tomas".to_string(),
+                "controller_replay_audit".to_string(),
+            ],
+            "controller:deferred:17",
+        ),
+        manifest_id(),
+    );
+    controller.actor_id = Some(actor_id());
+    controller.participants = vec![
+        actor_id().as_str().to_string(),
+        controller_id.as_str().to_string(),
+    ];
+    controller.random_draws = vec![random_draw.clone()];
+
+    let mut diagnostic = EventEnvelope::new_v1(
+        EventId::new("event_validation_cause_envelope_identity").unwrap(),
+        EventKind::ActionRejected,
+        99,
+        99,
+        SimTick::new(31),
+        OrderingKey::new(
+            SimTick::new(31),
+            SchedulePhase::Replay,
+            SchedulerSourceId::Controller(controller_id.clone()),
+            ProposalSequence::new(18),
+            ActionId::new("open").unwrap(),
+            vec!["strongbox_tomas".to_string()],
+            "controller:replay:18",
+        ),
+        manifest_id(),
+    );
+    diagnostic.causes = vec![EventCause::ValidationReport(validation_report_id.clone())];
+    diagnostic.validation_report_id = Some(validation_report_id.clone());
+    diagnostic.effects_summary = "validation report rejected action".to_string();
+
+    let replay_debug = EventEnvelope::new_v1(
+        EventId::new("event_replay_debug_envelope_identity").unwrap(),
+        EventKind::ReplayProjectionRebuilt,
+        99,
+        99,
+        SimTick::new(32),
+        OrderingKey::new(
+            SimTick::new(32),
+            SchedulePhase::Replay,
+            SchedulerSourceId::Process(ProcessId::new("process_replay_audit").unwrap()),
+            ProposalSequence::new(19),
+            ActionId::new("replay.projection").unwrap(),
+            vec!["world".to_string()],
+            "replay:debug:19",
+        ),
+        manifest_id(),
+    );
+
+    let mut log = EventLog::new();
+    let controller = append_to_log(&mut log, controller);
+    let diagnostic = append_to_log(&mut log, diagnostic);
+    let replay_debug = append_to_log(&mut log, replay_debug);
+    let canonical = log.serialize_canonical();
+    let first_round_trip = EventLog::deserialize_canonical(&canonical).unwrap();
+    let duplicate_round_trip =
+        EventLog::deserialize_canonical(&first_round_trip.serialize_canonical()).unwrap();
+
+    assert_eq!(first_round_trip.serialize_canonical(), canonical);
+    assert_eq!(duplicate_round_trip.serialize_canonical(), canonical);
+    assert_eq!(
+        first_round_trip.events(),
+        &[controller, diagnostic, replay_debug]
+    );
+
+    let round_tripped_controller = &first_round_trip.events()[0];
+    assert_eq!(round_tripped_controller.stream, EventStream::Controller);
+    assert_eq!(round_tripped_controller.stream_position, 0);
+    assert_eq!(
+        round_tripped_controller.ordering_key.phase,
+        SchedulePhase::DeferredProcess
+    );
+    assert_eq!(
+        round_tripped_controller.ordering_key.source_id,
+        SchedulerSourceId::Controller(controller_id.clone())
+    );
+    assert_eq!(round_tripped_controller.random_draws, vec![random_draw]);
+
+    let round_tripped_diagnostic = &first_round_trip.events()[1];
+    assert_eq!(
+        round_tripped_diagnostic.ordering_key.phase,
+        SchedulePhase::Replay
+    );
+    assert_eq!(
+        round_tripped_diagnostic.ordering_key.source_id,
+        SchedulerSourceId::Controller(controller_id)
+    );
+    assert_eq!(
+        round_tripped_diagnostic.causes,
+        vec![EventCause::ValidationReport(validation_report_id.clone())]
+    );
+    assert_eq!(
+        round_tripped_diagnostic.validation_report_id.as_ref(),
+        Some(&validation_report_id)
+    );
+
+    let round_tripped_replay_debug = &first_round_trip.events()[2];
+    assert_eq!(round_tripped_replay_debug.stream, EventStream::ReplayDebug);
+    assert_eq!(round_tripped_replay_debug.stream_position, 0);
+    assert_eq!(
+        round_tripped_replay_debug.ordering_key.phase,
+        SchedulePhase::Replay
+    );
+}
+
+#[test]
+fn random_draw_deserialization_rejects_malformed_and_bad_hex_records() {
+    let mut envelope = event(
+        "event_random_draw_corruption_matrix",
+        EventKind::ActorWaited,
+        0,
+    );
+    envelope.random_draws = vec![RandomDrawRef::new(
+        "rng:corruption",
+        "draw:nonzero",
+        "987654321",
+    )];
+    let canonical = String::from_utf8(envelope.serialize_canonical()).unwrap();
+    let good_random_draws = encoded_vec(&[random_draw_wire(
+        "rng:corruption",
+        "draw:nonzero",
+        "987654321",
+    )]);
+    assert!(
+        canonical.contains(&format!("random_draws={good_random_draws}")),
+        "{canonical}"
+    );
+
+    let malformed_tuple = encoded_vec(&[format!(
+        "{}:{}",
+        envelope_hex("rng:corruption"),
+        envelope_hex("draw:nonzero")
+    )]);
+    let malformed = canonical.replace(
+        &format!("random_draws={good_random_draws}"),
+        &format!("random_draws={malformed_tuple}"),
+    );
+    assert_eq!(
+        EventEnvelope::deserialize_canonical(malformed.as_bytes()),
+        Err(EventEnvelopeParseError::InvalidTuple)
+    );
+
+    let bad_inner_hex = encoded_vec(&[format!(
+        "zz:{}:{}",
+        envelope_hex("draw:nonzero"),
+        envelope_hex("987654321")
+    )]);
+    let bad_hex = canonical.replace(
+        &format!("random_draws={good_random_draws}"),
+        &format!("random_draws={bad_inner_hex}"),
+    );
+    assert_eq!(
+        EventEnvelope::deserialize_canonical(bad_hex.as_bytes()),
+        Err(EventEnvelopeParseError::BadHex)
+    );
+}
+
+#[test]
+fn epistemic_apply_matrix_preserves_fields_and_rejects_unknown_tokens() {
+    let context = KnowledgeContext::embodied(actor_id(), SimTick::new(20));
+    let mut projection = EpistemicProjection::new(manifest_id());
+    let mut log = EventLog::new();
+    for (index, (stance, channel)) in [
+        ("believes_false", Some("reading_placeholder_schema_only")),
+        ("expects_true", Some("touch_or_search")),
+        ("doubts", Some("absence_marker")),
+        ("unknown_or_unresolved", None),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let source_event_id = format!("event_epistemic_source_{index}");
+        let belief_id = format!("belief_apply_matrix_{index}");
+        let event = epistemic_event_with_payload(
+            &format!("event_belief_apply_matrix_{index}"),
+            EventKind::BeliefUpdated,
+            index as u64,
+            belief_payload(
+                &belief_id,
+                stance,
+                channel,
+                731 + index as u16,
+                &source_event_id,
+            ),
+        );
+        append_to_log(&mut log, event.clone());
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+        let belief = projection
+            .beliefs_for_context(&context)
+            .into_iter()
+            .find(|belief| belief.belief_id() == &BeliefId::new(&belief_id).unwrap())
+            .expect("belief applied through projection");
+        assert_eq!(
+            belief.source(),
+            &tracewake_core::epistemics::SourceRef::Event(EventId::new(&source_event_id).unwrap())
+        );
+        assert_eq!(
+            belief.confidence().serialize_canonical(),
+            format!("0{}", 731 + index as u16)
+        );
+        match stance {
+            "believes_false" => assert_eq!(belief.stance(), Stance::BelievesFalse),
+            "expects_true" => assert_eq!(belief.stance(), Stance::ExpectsTrue),
+            "doubts" => assert_eq!(belief.stance(), Stance::Doubts),
+            "unknown_or_unresolved" => assert_eq!(belief.stance(), Stance::UnknownOrUnresolved),
+            _ => unreachable!(),
+        }
+        match channel {
+            Some("reading_placeholder_schema_only") => {
+                assert_eq!(
+                    belief.channel(),
+                    Some(Channel::ReadingPlaceholderSchemaOnly)
+                );
+            }
+            Some("touch_or_search") => assert_eq!(belief.channel(), Some(Channel::TouchOrSearch)),
+            Some("absence_marker") => assert_eq!(belief.channel(), Some(Channel::AbsenceMarker)),
+            None => assert_eq!(belief.channel(), None),
+            _ => unreachable!(),
+        }
+    }
+
+    let bad_stance = epistemic_event_with_payload(
+        "event_belief_bad_stance_apply_matrix",
+        EventKind::BeliefUpdated,
+        10,
+        belief_payload(
+            "belief_bad_stance_apply_matrix",
+            "not_a_stance",
+            None,
+            800,
+            "event_epistemic_source_bad_stance",
+        ),
+    );
+    assert!(matches!(
+        apply_epistemic_event(&mut projection, &bad_stance),
+        Err(EpistemicApplyError::BadPayload { key: "stance", .. })
+    ));
+
+    let bad_channel = epistemic_event_with_payload(
+        "event_observation_bad_channel_apply_matrix",
+        EventKind::ObservationRecorded,
+        11,
+        observation_payload(
+            "observation_bad_channel_apply_matrix",
+            "not_a_channel",
+            812,
+            "event_epistemic_source_bad_channel",
+        ),
+    );
+    assert!(matches!(
+        apply_epistemic_event(&mut projection, &bad_channel),
+        Err(EpistemicApplyError::BadPayload { key: "channel", .. })
+    ));
+
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let context = checksum_context("epistemic_apply_matrix_preserves_fields", &replayed_log);
+    let replay = run_replay(
+        &world_state(),
+        &agent_state(),
+        &replayed_log,
+        &context,
+        Some(&world_state()),
+        None,
+        None,
+    );
+    assert!(replay.epistemic_application_errors.is_empty());
+    assert_ne!(
+        replay.final_epistemic_checksum,
+        EpistemicProjection::new(manifest_id())
+            .compute_checksum()
+            .checksum
+    );
+}
+
+#[test]
+fn starting_observation_and_contradiction_events_survive_replay_with_sources() {
+    let mut projection = EpistemicProjection::new(manifest_id());
+    let mut log = EventLog::new();
+    let starting = epistemic_event_with_payload(
+        "event_starting_food_belief_apply_matrix",
+        EventKind::StartingBeliefRecorded,
+        0,
+        vec![
+            PayloadField::new("schema_version", "event_schema_v1"),
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("belief_kind", "household_food_source"),
+            PayloadField::new("subject_id", "food_visible_shelf"),
+            PayloadField::new("value", "place:shop_front"),
+        ],
+    );
+    let observation = epistemic_event_with_payload(
+        "event_observation_apply_matrix",
+        EventKind::ObservationRecorded,
+        1,
+        observation_payload(
+            "observation_apply_matrix",
+            "reading_placeholder_schema_only",
+            877,
+            "event_starting_food_belief_apply_matrix",
+        ),
+    );
+    let belief = epistemic_event_with_payload(
+        "event_expectation_apply_matrix",
+        EventKind::BeliefUpdated,
+        2,
+        belief_payload(
+            "belief_expectation_apply_matrix",
+            "expects_true",
+            Some("touch_or_search"),
+            866,
+            "event_observation_apply_matrix",
+        ),
+    );
+    let contradiction = epistemic_event_with_payload(
+        "event_contradiction_apply_matrix",
+        EventKind::ExpectationContradicted,
+        3,
+        contradiction_payload(
+            "contradiction_apply_matrix",
+            "belief_expectation_apply_matrix",
+            "observation_apply_matrix",
+        ),
+    );
+
+    for event in [
+        starting.clone(),
+        observation.clone(),
+        belief.clone(),
+        contradiction.clone(),
+    ] {
+        append_to_log(&mut log, event.clone());
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+    }
+
+    let context = KnowledgeContext::embodied(actor_id(), SimTick::new(20));
+    let observations = projection.observations_for_context(&context);
+    assert!(observations.iter().any(|observation| {
+        observation.observation_id() == &ObservationId::new("observation_apply_matrix").unwrap()
+            && observation.source()
+                == &tracewake_core::epistemics::SourceRef::Event(
+                    EventId::new("event_starting_food_belief_apply_matrix").unwrap(),
+                )
+            && observation.channel() == Channel::ReadingPlaceholderSchemaOnly
+            && observation.alternatives().contains("loose_key_01")
+    }));
+    let contradictions = projection.contradictions_for_context(&context);
+    assert!(contradictions.iter().any(|contradiction| {
+        contradiction.contradiction_id()
+            == &ContradictionId::new("contradiction_apply_matrix").unwrap()
+            && contradiction.prior_expectation_belief_id()
+                == &BeliefId::new("belief_expectation_apply_matrix").unwrap()
+            && contradiction.contradicting_observation_id()
+                == &ObservationId::new("observation_apply_matrix").unwrap()
+    }));
+
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let context = checksum_context("starting_observation_contradiction_sources", &replayed_log);
+    let replay = run_replay(
+        &world_state(),
+        &agent_state(),
+        &replayed_log,
+        &context,
+        Some(&world_state()),
+        None,
+        None,
+    );
+    assert!(replay.epistemic_application_errors.is_empty());
+    assert_ne!(
+        replay.final_epistemic_checksum,
+        EpistemicProjection::new(manifest_id())
+            .compute_checksum()
+            .checksum
+    );
+}
+
+#[test]
+fn agent_apply_matrix_observes_parser_arms_transitions_and_causality() {
+    let mut state = agent_state_with_active_intention_and_routine();
+    let need = agent_event_with_payload(
+        "event_need_delta_safety_routine_effect_matrix",
+        EventKind::NeedDeltaApplied,
+        0,
+        vec![
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("need_kind", "safety"),
+            PayloadField::new("delta", "37"),
+            PayloadField::new("elapsed_ticks", "3"),
+            PayloadField::new("cause_kind", "routine_effect"),
+            PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+        ],
+    );
+    assert_eq!(
+        apply_agent_event(&mut state, &need),
+        Ok(ApplyOutcome::Applied)
+    );
+    let safety = state
+        .needs_by_actor()
+        .get(&actor_id())
+        .and_then(|needs| needs.get(&NeedKind::Safety))
+        .expect("safety need exists");
+    assert_eq!(safety.value(), 137);
+    assert!(matches!(
+        safety.last_change_cause(),
+        NeedChangeCause::RoutineEffect(id) if id.as_str() == "routine_exec_breakfast"
+    ));
+
+    for (index, (source, routine_template)) in [
+        ("need_pressure", Some("routine_need_pressure")),
+        ("routine_duty", Some("routine_duty_template")),
+        ("safety_interruption", None),
+        (
+            "fixture_routine_assignment",
+            Some("routine_fixture_template"),
+        ),
+        ("fallback", None),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let intention_id = format!("intention_source_matrix_{index}");
+        let event = agent_event_with_payload(
+            &format!("event_intention_source_matrix_{index}"),
+            EventKind::IntentionStarted,
+            index as u64 + 1,
+            intention_started_payload(
+                &intention_id,
+                source,
+                routine_template,
+                5 + index as u8,
+                20 + index as u64,
+            ),
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+        let intention = active_intention(&state, &intention_id);
+        assert_eq!(intention.status, IntentionStatus::Active);
+        assert_eq!(intention.durability_level, 5 + index as u8);
+        assert_eq!(intention.start_tick, SimTick::new(20 + index as u64));
+        match (source, intention.source) {
+            ("need_pressure", IntentionSource::NeedPressure)
+            | ("routine_duty", IntentionSource::RoutineDuty)
+            | ("safety_interruption", IntentionSource::SafetyInterruption)
+            | ("fixture_routine_assignment", IntentionSource::FixtureRoutineAssignment)
+            | ("fallback", IntentionSource::Fallback) => {}
+            _ => panic!("source {source} parsed as {:?}", intention.source),
+        }
+        assert_eq!(
+            intention
+                .selected_routine_method
+                .as_ref()
+                .map(|id| id.as_str()),
+            routine_template
+        );
+    }
+
+    let bad_source = agent_event_with_payload(
+        "event_intention_bad_source_matrix",
+        EventKind::IntentionStarted,
+        8,
+        intention_started_payload("intention_bad_source_matrix", "not_a_source", None, 6, 30),
+    );
+    assert!(matches!(
+        apply_agent_event(&mut state, &bad_source),
+        Err(ApplyError::BadPayload { key: "source", .. })
+    ));
+
+    for (index, (kind, status, expected)) in [
+        (
+            EventKind::IntentionSuspended,
+            "suspended",
+            IntentionStatus::Suspended,
+        ),
+        (
+            EventKind::IntentionCompleted,
+            "completed",
+            IntentionStatus::Completed,
+        ),
+        (
+            EventKind::IntentionFailed,
+            "failed",
+            IntentionStatus::Failed,
+        ),
+        (
+            EventKind::IntentionAbandoned,
+            "abandoned",
+            IntentionStatus::Abandoned,
+        ),
+        (
+            EventKind::IntentionInterrupted,
+            "interrupted",
+            IntentionStatus::Interrupted,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut transition_state = agent_state_with_active_intention_and_routine();
+        let event = agent_event_with_payload(
+            &format!("event_intention_transition_matrix_{index}"),
+            kind,
+            20 + index as u64,
+            transition_payload("intention_breakfast", status, "matrix transition"),
+        );
+        assert_eq!(
+            apply_agent_event(&mut transition_state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+        let intention = active_intention(&transition_state, "intention_breakfast");
+        assert_eq!(intention.status, expected);
+        assert_eq!(
+            intention.status_reason.as_deref(),
+            Some("matrix transition")
+        );
+    }
+
+    let mut resumed_state = agent_state_with_active_intention_and_routine();
+    let suspended = agent_event_with_payload(
+        "event_intention_suspend_before_resume_matrix",
+        EventKind::IntentionSuspended,
+        40,
+        transition_payload("intention_breakfast", "suspended", "pause before resume"),
+    );
+    let resumed = agent_event_with_payload(
+        "event_intention_resume_matrix",
+        EventKind::IntentionResumed,
+        41,
+        transition_payload("intention_breakfast", "active", "resume matrix"),
+    );
+    assert_eq!(
+        apply_agent_event(&mut resumed_state, &suspended),
+        Ok(ApplyOutcome::Applied)
+    );
+    assert_eq!(
+        apply_agent_event(&mut resumed_state, &resumed),
+        Ok(ApplyOutcome::Applied)
+    );
+    assert_eq!(
+        active_intention(&resumed_state, "intention_breakfast").status,
+        IntentionStatus::Active
+    );
+
+    let continued = agent_event_with_payload(
+        "event_intention_continue_matrix",
+        EventKind::IntentionContinued,
+        42,
+        vec![
+            PayloadField::new("intention_id", "intention_breakfast"),
+            PayloadField::new("status", "active"),
+            PayloadField::new("reason", "continue matrix"),
+            PayloadField::new("progress_tick", "33"),
+            PayloadField::new("current_step", "inspect_visible_key"),
+        ],
+    );
+    assert_eq!(
+        apply_agent_event(&mut state, &continued),
+        Ok(ApplyOutcome::Applied)
+    );
+    let intention = active_intention(&state, "intention_breakfast");
+    assert_eq!(intention.last_progress_tick, SimTick::new(33));
+    assert_eq!(
+        intention.current_step.as_deref(),
+        Some("inspect_visible_key")
+    );
+
+    for (kind, payload, status, attempts) in [
+        (
+            EventKind::RoutineStepStarted,
+            vec![
+                PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+                PayloadField::new("progress_tick", "44"),
+                PayloadField::new("action_id", "check_container.pantry"),
+                PayloadField::new("fallback_attempts", "2"),
+            ],
+            tracewake_core::agent::RoutineStepStatus::InProgress,
+            2,
+        ),
+        (
+            EventKind::RoutineStepCompleted,
+            vec![
+                PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+                PayloadField::new("progress_tick", "45"),
+                PayloadField::new("fallback_attempts", "3"),
+            ],
+            tracewake_core::agent::RoutineStepStatus::Completed,
+            3,
+        ),
+        (
+            EventKind::RoutineStepFailed,
+            vec![
+                PayloadField::new("routine_execution_id", "routine_exec_breakfast"),
+                PayloadField::new("progress_tick", "46"),
+                PayloadField::new("reason", "blocked matrix"),
+                PayloadField::new("fallback_attempts", "4"),
+            ],
+            tracewake_core::agent::RoutineStepStatus::Failed,
+            4,
+        ),
+    ] {
+        let event = agent_event_with_payload(
+            &format!("event_routine_step_matrix_{}", kind.stable_id()),
+            kind,
+            50,
+            payload,
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+        let routine = routine_execution(&state, "routine_exec_breakfast");
+        assert_eq!(routine.step_status, status);
+        assert_eq!(routine.fallback_attempts, attempts);
+    }
+
+    let start = agent_event_with_payload(
+        "event_candidate_cause_source_matrix",
+        EventKind::CandidateGoalsEvaluated,
+        60,
+        vec![PayloadField::new("payload_schema_version", "1")],
+    );
+    let mut caused = caused_event(
+        "event_continue_arbitration_cause_matrix",
+        EventKind::ContinueRoutineAccepted,
+        61,
+        event_cause("event_candidate_cause_source_matrix"),
+    );
+    caused.payload = vec![PayloadField::new("payload_schema_version", "1")];
+    assert_eq!(
+        apply_agent_event(&mut state, &start),
+        Ok(ApplyOutcome::Applied)
+    );
+    assert_eq!(
+        apply_agent_event(&mut state, &caused),
+        Ok(ApplyOutcome::Applied)
+    );
+    assert_eq!(
+        state
+            .continue_routine_arbitrations()
+            .get(&EventId::new("event_continue_arbitration_cause_matrix").unwrap())
+            .expect("continue record exists")
+            .caused_event_ids,
+        event_ids(&["event_candidate_cause_source_matrix"])
+    );
+}
+
+#[test]
+fn typed_diagnostic_hidden_truth_true_is_validated_and_replayed() {
+    let mut state = agent_state();
+    let typed = TypedDiagnosticFields {
+        responsible_layer: ResponsibleLayer::ActionValidation,
+        blocker_code: BlockerCode::HiddenTruthInput,
+        input_source: "actor_known_context".to_string(),
+        actual_source: "hidden_truth_probe".to_string(),
+        hidden_truth_referenced: true,
+        remediation_hint: "reject hidden truth probe".to_string(),
+    };
+    let diagnostic = StuckDiagnostic::new(
+        StuckDiagnosticId::new("diagnostic_hidden_truth_true_matrix").unwrap(),
+        actor_id(),
+        SimTick::new(7),
+        SimTick::new(9),
+        Some(NeedKind::Safety),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(SemanticActionId::new("inspect.hidden_truth").unwrap()),
+        BlockerCategory::Knowledge,
+        "hidden truth attempted",
+        "actor did not know this fact",
+        "debug-only hidden truth input",
+        "rejected",
+        StuckResultingStatus::Waiting,
+    )
+    .with_typed_diagnostic(typed.clone());
+    let event = agent_event_with_payload(
+        "event_stuck_diagnostic_hidden_truth_true_matrix",
+        EventKind::StuckDiagnosticRecorded,
+        0,
+        vec![
+            PayloadField::new("diagnostic_schema_version", "1"),
+            PayloadField::new("diagnostic_id", "diagnostic_hidden_truth_true_matrix"),
+            PayloadField::new("diagnostic_canonical", diagnostic.serialize_canonical()),
+            PayloadField::new("responsible_layer", typed.responsible_layer.stable_id()),
+            PayloadField::new("blocker_code", typed.blocker_code.stable_id()),
+            PayloadField::new("input_source", &typed.input_source),
+            PayloadField::new("actual_source", &typed.actual_source),
+            PayloadField::new("hidden_truth_referenced", "true"),
+            PayloadField::new("remediation_hint", &typed.remediation_hint),
+        ],
+    );
+    assert_eq!(
+        apply_agent_event(&mut state, &event),
+        Ok(ApplyOutcome::Applied)
+    );
+    let record = state
+        .stuck_diagnostics()
+        .get(&StuckDiagnosticId::new("diagnostic_hidden_truth_true_matrix").unwrap())
+        .expect("diagnostic applied");
+    assert_eq!(record.typed_diagnostic, typed);
+
+    let mut forged = event.clone();
+    forged.payload.iter_mut().for_each(|field| {
+        if field.key == "hidden_truth_referenced" {
+            field.value = "maybe".to_string();
+        }
+    });
+    assert!(matches!(
+        apply_agent_event(&mut agent_state(), &forged),
+        Err(ApplyError::BadPayload {
+            key: "hidden_truth_referenced",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn agent_noop_allowlist_remains_narrow_and_behavioral() {
+    assert_eq!(
+        AGENT_WORLD_NOOP_ALLOWLIST,
+        &[
+            EventKind::FoodConsumed,
+            EventKind::NoHumanDayStarted,
+            EventKind::NoHumanDayCompleted,
+        ]
+    );
+    assert!(
+        APPLY_RS.contains(
+            "kind if AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) => Ok(ApplyOutcome::WorldNoOp)"
+        ),
+        "agent no-op fallback must stay tied to the explicit allowlist"
+    );
+
+    let mut state = agent_state();
+    for (index, kind) in [EventKind::NoHumanDayStarted, EventKind::NoHumanDayCompleted]
+        .into_iter()
+        .enumerate()
+    {
+        let event = agent_event_with_payload(
+            &format!("event_agent_noop_allowlist_matrix_{index}"),
+            kind,
+            index as u64,
+            Vec::new(),
+        );
+        assert_eq!(
+            apply_agent_event(&mut state, &event),
+            Ok(ApplyOutcome::WorldNoOp)
+        );
+    }
+    assert_eq!(state, agent_state());
+}
+
+#[test]
+fn intention_transition_wrong_status_rejects_before_state_change() {
+    for (kind, wrong_status) in [
+        (EventKind::IntentionContinued, "suspended"),
+        (EventKind::IntentionSuspended, "active"),
+        (EventKind::IntentionCompleted, "active"),
+        (EventKind::IntentionFailed, "active"),
+        (EventKind::IntentionAbandoned, "active"),
+        (EventKind::IntentionInterrupted, "active"),
+    ] {
+        let mut state = agent_state_with_active_intention_and_routine();
+        let before = state.clone();
+        let event = agent_event_with_payload(
+            &format!("event_wrong_status_{}", kind.stable_id()),
+            kind,
+            70,
+            transition_payload("intention_breakfast", wrong_status, "wrong status"),
+        );
+        assert!(matches!(
+            apply_agent_event(&mut state, &event),
+            Err(ApplyError::PreconditionMismatch {
+                field: "status",
+                ..
+            })
+        ));
+        assert_eq!(state, before);
+    }
+
+    let mut resumed_state = agent_state_with_active_intention_and_routine();
+    let suspend = agent_event_with_payload(
+        "event_wrong_status_resume_setup",
+        EventKind::IntentionSuspended,
+        80,
+        transition_payload("intention_breakfast", "suspended", "setup suspended"),
+    );
+    assert_eq!(
+        apply_agent_event(&mut resumed_state, &suspend),
+        Ok(ApplyOutcome::Applied)
+    );
+    let before = resumed_state.clone();
+    let wrong_resume = agent_event_with_payload(
+        "event_wrong_status_resume_matrix",
+        EventKind::IntentionResumed,
+        81,
+        transition_payload("intention_breakfast", "suspended", "wrong resume status"),
+    );
+    assert!(matches!(
+        apply_agent_event(&mut resumed_state, &wrong_resume),
+        Err(ApplyError::PreconditionMismatch {
+            field: "status",
+            ..
+        })
+    ));
+    assert_eq!(resumed_state, before);
+}
+
+#[test]
+fn world_item_apply_matrix_observes_state_and_precondition_failures() {
+    let mut world = world_state();
+    let take = world_event_with_payload(
+        "event_take_loose_key_matrix",
+        EventKind::ItemTakenFromPlace,
+        0,
+        vec![
+            PayloadField::new("item_id", "loose_key_01"),
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("place_id", "shop_front"),
+        ],
+    );
+    assert_eq!(apply_event(&mut world, &take), Ok(ApplyOutcome::Applied));
+    assert_eq!(
+        world
+            .items()
+            .get(&ItemId::new("loose_key_01").unwrap())
+            .unwrap()
+            .location,
+        Location::CarriedBy(actor_id())
+    );
+    assert!(world
+        .actors()
+        .get(&actor_id())
+        .unwrap()
+        .carried_item_ids
+        .contains(&ItemId::new("loose_key_01").unwrap()));
+    assert!(!world
+        .places()
+        .get(&PlaceId::new("shop_front").unwrap())
+        .unwrap()
+        .local_item_ids
+        .contains(&ItemId::new("loose_key_01").unwrap()));
+
+    let place = world_event_with_payload(
+        "event_place_loose_key_matrix",
+        EventKind::ItemPlacedInPlace,
+        1,
+        vec![
+            PayloadField::new("item_id", "loose_key_01"),
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("place_id", "back_room"),
+        ],
+    );
+    assert_eq!(apply_event(&mut world, &place), Ok(ApplyOutcome::Applied));
+    assert_eq!(
+        world
+            .items()
+            .get(&ItemId::new("loose_key_01").unwrap())
+            .unwrap()
+            .location,
+        Location::AtPlace(PlaceId::new("back_room").unwrap())
+    );
+    assert!(!world
+        .actors()
+        .get(&actor_id())
+        .unwrap()
+        .carried_item_ids
+        .contains(&ItemId::new("loose_key_01").unwrap()));
+    assert!(world
+        .places()
+        .get(&PlaceId::new("back_room").unwrap())
+        .unwrap()
+        .local_item_ids
+        .contains(&ItemId::new("loose_key_01").unwrap()));
+
+    let before = world.clone();
+    let bad_take = world_event_with_payload(
+        "event_take_missing_actor_matrix",
+        EventKind::ItemTakenFromPlace,
+        2,
+        vec![
+            PayloadField::new("item_id", "loose_key_01"),
+            PayloadField::new("actor_id", "actor_missing"),
+            PayloadField::new("place_id", "back_room"),
+        ],
+    );
+    assert!(matches!(
+        apply_event(&mut world, &bad_take),
+        Err(ApplyError::MissingActor(actor)) if actor.as_str() == "actor_missing"
+    ));
+    assert_eq!(world, before);
+
+    let bad_place = world_event_with_payload(
+        "event_place_wrong_location_matrix",
+        EventKind::ItemPlacedInPlace,
+        3,
+        vec![
+            PayloadField::new("item_id", "loose_key_01"),
+            PayloadField::new("actor_id", actor_id().as_str()),
+            PayloadField::new("place_id", "shop_front"),
+        ],
+    );
+    assert!(matches!(
+        apply_event(&mut world, &bad_place),
+        Err(ApplyError::PreconditionMismatch {
+            field: "item.location",
+            ..
+        })
+    ));
+    assert_eq!(world, before);
+}
+
+#[test]
+fn world_boolean_preconditions_reject_payload_lies_before_state_change() {
+    let mut world = world_state();
+    let bad_door_close = world_event_with_payload(
+        "event_bad_door_bool_matrix",
+        EventKind::DoorClosed,
+        0,
+        vec![
+            PayloadField::new("door_id", "door_shop_back"),
+            PayloadField::new("was_open", "false"),
+            PayloadField::new("now_open", "true"),
+        ],
+    );
+    let before = world.clone();
+    assert!(matches!(
+        apply_event(&mut world, &bad_door_close),
+        Err(ApplyError::PreconditionMismatch {
+            field: "was_open",
+            ..
+        })
+    ));
+    assert_eq!(world, before);
+
+    let bad_container_close = world_event_with_payload(
+        "event_bad_container_bool_matrix",
+        EventKind::ContainerClosed,
+        1,
+        vec![
+            PayloadField::new("container_id", "strongbox_tomas"),
+            PayloadField::new("was_open", "false"),
+            PayloadField::new("now_open", "true"),
+        ],
+    );
+    let before = world.clone();
+    assert!(matches!(
+        apply_event(&mut world, &bad_container_close),
+        Err(ApplyError::PreconditionMismatch {
+            field: "was_open",
+            ..
+        })
+    ));
+    assert_eq!(world, before);
 }

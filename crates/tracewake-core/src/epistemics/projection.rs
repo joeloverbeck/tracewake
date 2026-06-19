@@ -1573,12 +1573,16 @@ mod tests {
         NoHumanActorKnownSurfaceRequest,
     };
     use crate::epistemics::belief::{Belief, HolderKind, Stance};
+    use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
     use crate::epistemics::knowledge_context::KnowledgeContext;
     use crate::epistemics::observation::{
         Channel, Confidence, Observation, ObservationSubject, ObservationTarget, SourceRef,
     };
     use crate::epistemics::proposition::Proposition;
-    use crate::ids::{ContainerId, DoorId, EventId, ItemId, ObservationId};
+    use crate::events::PayloadField;
+    use crate::ids::{
+        ActionId, ContainerId, ContradictionId, DoorId, EventId, ItemId, ObservationId,
+    };
     use crate::location::Location;
     use crate::state::{ActorBody, AgentState, NeedModelState, PhysicalState};
     use crate::time::SimTick;
@@ -1632,6 +1636,458 @@ mod tests {
             SourceRef::Event(event_id(id)),
             SimTick::new(3),
         )
+    }
+
+    fn visible_observation(kind: &str, target_id: &str, payload: Vec<PayloadField>) -> Observation {
+        let mut raw_payload = vec![
+            PayloadField::new("perceived_kind", kind),
+            PayloadField::new("target_id", target_id),
+        ];
+        raw_payload.extend(payload);
+        Observation::new(
+            ObservationId::new(format!("observation_{kind}_{target_id}")).unwrap(),
+            actor_id("actor_tomas"),
+            Channel::DirectSight,
+            SimTick::new(4),
+            place_id("home_tomas"),
+            ObservationSubject::Place(place_id("home_tomas")),
+            ObservationTarget::Place(place_id("home_tomas")),
+            Confidence::new(900).unwrap(),
+            SourceRef::Event(event_id("event_visible_observation")),
+        )
+        .with_raw_payload(raw_payload)
+    }
+
+    fn contradiction() -> Contradiction {
+        Contradiction::new(
+            ContradictionId::new("contradiction_missing_coin").unwrap(),
+            actor_id("actor_tomas"),
+            ContradictionKind::ExpectedItemAbsentFromContainer,
+            belief_id("belief_expected_coin"),
+            ObservationId::new("observation_missing_coin").unwrap(),
+            Proposition::ItemLocatedInContainer {
+                item_id: item_id("coin_stack_01"),
+                container_id: container_id("strongbox_tomas"),
+            },
+            proposition("coin_stack_01", "strongbox_tomas"),
+            SimTick::new(5),
+        )
+    }
+
+    #[test]
+    fn checksum_and_projection_bookkeeping_are_canonical() {
+        let checksum = EpistemicProjectionChecksum::from_canonical_lines(&["alpha".to_string()]);
+        assert_eq!(checksum.as_str(), "twe1-bbd23ea491ed9813");
+
+        let changed = EpistemicProjectionChecksum::from_canonical_lines(&["alphb".to_string()]);
+        assert_ne!(checksum, changed);
+
+        let mut projection = EpistemicProjection::new(manifest_id());
+        assert_eq!(projection.event_range.event_count, 0);
+        projection.record_applied_event(event_id("event_first"));
+        projection.record_applied_event(event_id("event_second"));
+        assert_eq!(projection.event_range.event_count, 2);
+        assert_eq!(
+            projection
+                .event_range
+                .first_event_id
+                .as_ref()
+                .map(EventId::as_str),
+            Some("event_first")
+        );
+        assert_eq!(
+            projection
+                .event_range
+                .last_event_id
+                .as_ref()
+                .map(EventId::as_str),
+            Some("event_second")
+        );
+    }
+
+    #[test]
+    fn projection_presence_and_notebook_filters_are_observable() {
+        let mut projection = EpistemicProjection::new(manifest_id());
+        assert!(projection.is_empty());
+        assert!(!projection.has_belief(&belief_id("belief_tomas_missing_coin")));
+
+        projection.insert_belief(belief(
+            "belief_tomas_missing_coin",
+            "actor_tomas",
+            "coin_stack_01",
+        ));
+        assert!(projection.has_belief(&belief_id("belief_tomas_missing_coin")));
+        assert!(!projection.is_empty());
+
+        for (label, mut candidate) in [
+            ("observation", EpistemicProjection::new(manifest_id())),
+            ("belief", EpistemicProjection::new(manifest_id())),
+            ("contradiction", EpistemicProjection::new(manifest_id())),
+            ("notebook", EpistemicProjection::new(manifest_id())),
+            ("actor_known", EpistemicProjection::new(manifest_id())),
+        ] {
+            match label {
+                "observation" => candidate.insert_observation(visible_observation(
+                    "visible_actor",
+                    "actor_mara",
+                    Vec::new(),
+                )),
+                "belief" => candidate.insert_belief(belief(
+                    "belief_candidate_missing_coin",
+                    "actor_tomas",
+                    "coin_stack_01",
+                )),
+                "contradiction" => candidate.insert_contradiction(contradiction()),
+                "notebook" => {
+                    candidate
+                        .notebook_entries_by_actor
+                        .entry(actor_id("actor_tomas"))
+                        .or_default()
+                        .insert(NotebookEntry {
+                            actor_id: actor_id("actor_tomas"),
+                            source_belief_id: Some(belief_id("belief_note")),
+                            source_observation_id: None,
+                            summary: "Tomas wrote a note".to_string(),
+                        });
+                }
+                "actor_known" => candidate.insert_role_assignment_notice(
+                    actor_id("actor_tomas"),
+                    workplace_id("workplace_tomas"),
+                    place_id("home_tomas"),
+                    true,
+                    event_id("event_role_notice"),
+                    SimTick::new(4),
+                ),
+                other => panic!("unhandled candidate {other}"),
+            }
+            assert!(
+                !candidate.is_empty(),
+                "{label} should make projection non-empty"
+            );
+        }
+
+        let mut notebook_projection = EpistemicProjection::new(manifest_id());
+        for actor in ["actor_tomas", "actor_mara"] {
+            notebook_projection
+                .notebook_entries_by_actor
+                .entry(actor_id(actor))
+                .or_default()
+                .insert(NotebookEntry {
+                    actor_id: actor_id(actor),
+                    source_belief_id: None,
+                    source_observation_id: Some(
+                        ObservationId::new(format!("observation_{actor}")).unwrap(),
+                    ),
+                    summary: format!("note for {actor}"),
+                });
+        }
+        let embodied = KnowledgeContext::embodied(actor_id("actor_tomas"), SimTick::new(4));
+        let embodied_notes: Vec<_> = notebook_projection
+            .notebook_entries_for_context(&embodied)
+            .iter()
+            .map(|entry| entry.summary.as_str())
+            .collect();
+        assert_eq!(embodied_notes, ["note for actor_tomas"]);
+
+        let capability = crate::debug_capability::DebugCapability::mint();
+        let debug = KnowledgeContext::debug(actor_id("actor_tomas"), SimTick::new(4), &capability);
+        assert_eq!(
+            notebook_projection
+                .notebook_entries_for_context(&debug)
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn actor_known_sources_and_canonical_records_are_stable() {
+        let stable_ids: Vec<_> = [
+            ActorKnownProjectionSource::RoleAssignmentNotice,
+            ActorKnownProjectionSource::StartingBelief,
+            ActorKnownProjectionSource::CurrentPlace,
+            ActorKnownProjectionSource::CarriedItem,
+            ActorKnownProjectionSource::VisibleExit,
+            ActorKnownProjectionSource::VisibleFoodSupply,
+            ActorKnownProjectionSource::VisibleDoor,
+            ActorKnownProjectionSource::VisibleContainer,
+            ActorKnownProjectionSource::VisibleItem,
+            ActorKnownProjectionSource::VisibleActor,
+            ActorKnownProjectionSource::VisibleSleepAffordance,
+        ]
+        .iter()
+        .map(ActorKnownProjectionSource::stable_id)
+        .collect();
+        assert_eq!(
+            stable_ids,
+            [
+                "role_assignment_notice",
+                "starting_belief",
+                "current_place",
+                "carried_item",
+                "visible_exit",
+                "visible_food_supply",
+                "visible_door",
+                "visible_container",
+                "visible_item",
+                "visible_actor",
+                "visible_sleep_affordance"
+            ]
+        );
+
+        let canonical: Vec<_> = policy_behavior_records(actor_id("actor_tomas"))
+            .iter()
+            .map(ActorKnownProjectionRecord::serialize_canonical)
+            .collect();
+        assert!(canonical.iter().any(|line| line
+            == "current_place|place=home_tomas|label=Tomas home|source=current_place|event=event_current_place|tick=4"));
+        assert!(canonical.iter().any(|line| line
+            == "carried_item|id=notebook_01|place=home_tomas|location=carried:actor_tomas|portable=true|source=carried_item|event=event_carried_item|tick=4"));
+        assert!(canonical.iter().any(|line| line
+            == "workplace|id=workplace_tomas|place=home_tomas|access_open=true|source=role_assignment_notice|event=event_role_notice|tick=4"));
+    }
+
+    #[test]
+    fn actor_known_classification_helpers_preserve_freshness_keys_and_sources() {
+        let actor = actor_id("actor_tomas");
+        let previous = ActorKnownProjectionRecord::Workplace {
+            actor_id: actor.clone(),
+            workplace_id: workplace_id("workplace_tomas"),
+            place_id: place_id("home_tomas"),
+            believed_access_open: false,
+            source: ActorKnownProjectionSource::RoleAssignmentNotice,
+            source_event_id: event_id("event_role_notice_a"),
+            source_tick: SimTick::new(4),
+        };
+        let later_event = ActorKnownProjectionRecord::Workplace {
+            actor_id: actor.clone(),
+            workplace_id: workplace_id("workplace_tomas"),
+            place_id: place_id("home_tomas"),
+            believed_access_open: true,
+            source: ActorKnownProjectionSource::RoleAssignmentNotice,
+            source_event_id: event_id("event_role_notice_b"),
+            source_tick: SimTick::new(4),
+        };
+        let later_tick = ActorKnownProjectionRecord::Workplace {
+            actor_id: actor.clone(),
+            workplace_id: workplace_id("workplace_tomas"),
+            place_id: place_id("home_tomas"),
+            believed_access_open: true,
+            source: ActorKnownProjectionSource::RoleAssignmentNotice,
+            source_event_id: event_id("event_role_notice_old"),
+            source_tick: SimTick::new(5),
+        };
+        assert!(workplace_record_is_newer(&later_event, &previous));
+        assert!(workplace_record_is_newer(&later_tick, &previous));
+        assert!(!workplace_record_is_newer(&previous, &later_event));
+        assert!(!workplace_record_is_newer(&previous, &previous));
+
+        let visible_actor = ActorKnownProjectionRecord::LocalActor {
+            actor_id: actor.clone(),
+            observed_actor_id: actor_id("actor_mara"),
+            place_id: place_id("home_tomas"),
+            source: ActorKnownProjectionSource::VisibleActor,
+            source_event_id: event_id("event_visible_actor"),
+            source_tick: SimTick::new(4),
+        };
+        assert_eq!(
+            reclassifying_record_freshness(&visible_actor, true, SimTick::new(4)),
+            ActorKnownProjectionFreshness::CurrentlyPerceived
+        );
+        assert_eq!(
+            reclassifying_record_freshness(&visible_actor, false, SimTick::new(4)),
+            ActorKnownProjectionFreshness::Remembered
+        );
+        assert_eq!(
+            reclassifying_record_freshness(&previous, true, SimTick::new(4)),
+            ActorKnownProjectionFreshness::Remembered
+        );
+
+        assert_eq!(
+            location_key(&Location::AtPlace(place_id("home_tomas"))),
+            "place:home_tomas"
+        );
+        assert_eq!(
+            location_key(&Location::InContainer(container_id("strongbox_tomas"))),
+            "container:strongbox_tomas"
+        );
+        assert_eq!(
+            location_key(&Location::CarriedBy(actor.clone())),
+            "carried:actor_tomas"
+        );
+        assert_eq!(holder_key(&HolderKind::Actor(actor)), "actor:actor_tomas");
+        assert_eq!(
+            source_summary(&SourceRef::Event(event_id("event_source"))),
+            "event:event_source"
+        );
+        assert_eq!(
+            source_summary(&SourceRef::Action(ActionId::new("look").unwrap())),
+            "action:look"
+        );
+    }
+
+    #[test]
+    fn observations_materialize_actor_known_records_with_locations() {
+        let actor_records = actor_known_records_from_observation(&visible_observation(
+            "visible_actor",
+            "actor_mara",
+            Vec::new(),
+        ));
+        assert!(matches!(
+            actor_records.as_slice(),
+            [ActorKnownProjectionRecord::LocalActor {
+                observed_actor_id,
+                source: ActorKnownProjectionSource::VisibleActor,
+                ..
+            }] if observed_actor_id.as_str() == "actor_mara"
+        ));
+
+        let item_records = actor_known_records_from_observation(&visible_observation(
+            "visible_item",
+            "coin_stack_01",
+            vec![
+                PayloadField::new("item_source_kind", "place"),
+                PayloadField::new("item_source_place_id", "home_tomas"),
+                PayloadField::new("portable", "true"),
+            ],
+        ));
+        assert!(matches!(
+            item_records.as_slice(),
+            [ActorKnownProjectionRecord::LocalItem {
+                item_id,
+                source_location: Location::AtPlace(place_id),
+                source: ActorKnownProjectionSource::VisibleItem,
+                ..
+            }] if item_id.as_str() == "coin_stack_01" && place_id.as_str() == "home_tomas"
+        ));
+
+        let carried_records = actor_known_records_from_observation(&visible_observation(
+            "carried_item",
+            "notebook_01",
+            vec![
+                PayloadField::new("item_source_kind", "carried"),
+                PayloadField::new("item_source_actor_id", "actor_tomas"),
+                PayloadField::new("portable", "true"),
+            ],
+        ));
+        assert!(matches!(
+            carried_records.as_slice(),
+            [ActorKnownProjectionRecord::CarriedItem {
+                item_id,
+                source_location: Location::CarriedBy(actor_id),
+                portable: true,
+                source: ActorKnownProjectionSource::CarriedItem,
+                ..
+            }] if item_id.as_str() == "notebook_01" && actor_id.as_str() == "actor_tomas"
+        ));
+
+        let container_item_records = actor_known_records_from_observation(&visible_observation(
+            "visible_item",
+            "coin_stack_02",
+            vec![
+                PayloadField::new("item_source_kind", "container"),
+                PayloadField::new("item_source_container_id", "strongbox_tomas"),
+                PayloadField::new("portable", "false"),
+            ],
+        ));
+        assert!(matches!(
+            container_item_records.as_slice(),
+            [ActorKnownProjectionRecord::LocalItem {
+                item_id,
+                source_location: Location::InContainer(container_id),
+                portable: false,
+                source: ActorKnownProjectionSource::VisibleItem,
+                ..
+            }] if item_id.as_str() == "coin_stack_02" && container_id.as_str() == "strongbox_tomas"
+        ));
+
+        let door_records = actor_known_records_from_observation(&visible_observation(
+            "visible_door",
+            "door_home_market",
+            vec![
+                PayloadField::new("endpoint_a", "home_tomas"),
+                PayloadField::new("endpoint_b", "market"),
+                PayloadField::new("is_open", "true"),
+                PayloadField::new("is_locked", "false"),
+                PayloadField::new("blocks_movement_when_closed", "true"),
+            ],
+        ));
+        assert!(matches!(
+            door_records.as_slice(),
+            [ActorKnownProjectionRecord::LocalDoor {
+                door_id,
+                endpoint_a,
+                endpoint_b,
+                is_open: true,
+                is_locked: false,
+                blocks_movement_when_closed: true,
+                source: ActorKnownProjectionSource::VisibleDoor,
+                ..
+            }] if door_id.as_str() == "door_home_market"
+                && endpoint_a.as_str() == "home_tomas"
+                && endpoint_b.as_str() == "market"
+        ));
+
+        let container_records = actor_known_records_from_observation(&visible_observation(
+            "visible_container",
+            "strongbox_tomas",
+            vec![
+                PayloadField::new("is_open", "false"),
+                PayloadField::new("is_locked", "true"),
+            ],
+        ));
+        assert!(matches!(
+            container_records.as_slice(),
+            [ActorKnownProjectionRecord::LocalContainer {
+                container_id,
+                is_open: false,
+                is_locked: true,
+                source: ActorKnownProjectionSource::VisibleContainer,
+                ..
+            }] if container_id.as_str() == "strongbox_tomas"
+        ));
+    }
+
+    #[test]
+    fn starting_beliefs_materialize_actor_known_records() {
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_starting_belief(
+            actor_id("actor_tomas"),
+            "sleep_place",
+            "sleep_affordance_bed",
+            "home_tomas",
+            event_id("event_starting_sleep"),
+            SimTick::new(1),
+        );
+        projection.insert_starting_belief(
+            actor_id("actor_tomas"),
+            "household_food_source",
+            "food_pantry",
+            "place:kitchen",
+            event_id("event_starting_food"),
+            SimTick::new(2),
+        );
+        projection.insert_starting_belief(
+            actor_id("actor_tomas"),
+            "unknown_kind",
+            "ignored",
+            "ignored",
+            event_id("event_ignored"),
+            SimTick::new(3),
+        );
+
+        let records: Vec<_> = projection
+            .actor_known_records_by_actor
+            .get(&actor_id("actor_tomas"))
+            .into_iter()
+            .flat_map(|records| records.iter())
+            .map(ActorKnownProjectionRecord::serialize_canonical)
+            .collect();
+
+        assert_eq!(records.len(), 2);
+        assert!(records.iter().any(|record| record
+            == "food|id=food_pantry|place=kitchen|servings=-|source=starting_belief|event=event_starting_food|tick=2"));
+        assert!(records.iter().any(|record| record
+            == "sleep|place=home_tomas|affordance=sleep_affordance_bed|source=starting_belief|event=event_starting_sleep|tick=1"));
     }
 
     #[test]

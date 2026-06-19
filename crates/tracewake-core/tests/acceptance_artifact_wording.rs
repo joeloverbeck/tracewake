@@ -4,6 +4,9 @@ const PHASE2A_ARTIFACT: &str =
 const P0_CERT_0037_ARTIFACT: &str = include_str!(
     "../../../archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md"
 );
+const SPINE_CERT_0039_ARTIFACT: &str = include_str!(
+    "../../../archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md"
+);
 
 const REQUIRED_PHASE1_SCOPED_WORDING: &str =
     "Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit";
@@ -11,6 +14,8 @@ const REQUIRED_PHASE2A_SCOPED_WORDING: &str =
     "Phase 2A epistemic substrate hardening remediation accepted for exact commit";
 const REQUIRED_P0_CERT_SCOPED_WORDING: &str =
     "P0-CERT post-0008 baseline mutation remediation accepted for exact commit";
+const REQUIRED_SPINE_CERT_SCOPED_WORDING: &str =
+    "SPINE-CERT mutation remediation accepted for exact commit";
 
 const FORBIDDEN_WORDING_HEADING: &str = "Forbidden wording:";
 
@@ -50,6 +55,15 @@ fn p0_cert_0037_acceptance_artifact_uses_scoped_exact_commit_wording() {
 }
 
 #[test]
+fn spine_cert_0039_acceptance_artifact_uses_scoped_exact_commit_wording() {
+    validate_acceptance_artifact_wording(SPINE_CERT_0039_ARTIFACT)
+        .expect("0039 SPINE-CERT artifact wording is scoped");
+    assert!(SPINE_CERT_0039_ARTIFACT.contains("Exact implementation commit under test"));
+    assert!(SPINE_CERT_0039_ARTIFACT.contains("92ba47f14998e0ea2fc95502bc3b76c5909478ca"));
+    assert!(SPINE_CERT_0039_ARTIFACT.contains("Verdict: SPINE-CERT passed"));
+}
+
+#[test]
 fn acceptance_artifact_forbidden_overclaim_phrase_fails() {
     let artifact =
         format!("{REQUIRED_PHASE1_SCOPED_WORDING} `<commit>`.\n\nTracewake is fully certified.");
@@ -72,6 +86,7 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
     if !text.contains(REQUIRED_PHASE1_SCOPED_WORDING)
         && !text.contains(REQUIRED_PHASE2A_SCOPED_WORDING)
         && !text.contains(REQUIRED_P0_CERT_SCOPED_WORDING)
+        && !text.contains(REQUIRED_SPINE_CERT_SCOPED_WORDING)
     {
         return Err("missing scoped exact-commit wording".to_string());
     }

@@ -81,6 +81,7 @@ Archived specs remain history. They may explain why the upper-tier overhaul happ
 | `archive/specs/0036_P0_CERT_POST_0008_BASELINE_CERTIFICATION_AUDIT_SPEC.md` | P0-CERT post-0008 baseline certification audit across event/replay/projection, actor-known provenance, human/autonomous parity, possession non-reset, scheduler/no-human boundaries, validation truth, debug quarantine, fixture corpus, diagnostics, historical-only archive use, and capstone evidence-honesty fields. | Completed by the `0036P0CERPOS0008` ticket series plus `archive/reports/0036_p0_cert_post_0008_baseline_certification_acceptance.md`; verdict is `P0-CERT scoped remediation`, not `P0-CERT passed`, because configured mutation evidence emitted untriaged finding `0036-MUTATION-REMEDIATION-001` for `actor_known_local_actors_for_context`. Later specs may not cite this artifact as `P0-CERT passed` until a replacement certification artifact passes. |
 | `archive/specs/0037_P0_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md` | Scoped P0-CERT mutation remediation for `0036-MUTATION-REMEDIATION-001` plus live replacement certification artifact across P0-01..P0-10, full configured guarded-layer mutation posture, source-backed local-actor view-model witness, survivor triage register, and scoped evidence-honesty replacement of the 0036 artifact. | Completed by the `0037P0CERTMUTREM` ticket series plus `archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md`; verdict is `P0-CERT passed` for the scoped post-0008 baseline mutation remediation line at the artifact's exact implementation commit. Supersedes the 0036 artifact for P0-CERT citation purposes; does not certify latest main, Phase-4 entry, second proof, institutions, notices, travel, LOD, LLM/speech surfaces, SPINE-CERT, EPI-CERT, or ORD-LIFE-CERT. |
 | `archive/specs/0038_SPINE_CERT_EVENT_LOG_REPLAY_PROJECTION_PIPELINE_AND_NO_DIRECT_DISPATCH_CERTIFICATION_SPEC.md` | SPINE-CERT certification audit across event log, replay, projection, randomness, save/manifest, action pipeline, TUI/debug split, no-direct-dispatch closure, mutation expansion, replay/provenance packaging, and observer-only EMERGE-OBS handling. | Completed by the `0038SPICEREVE` ticket series plus `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md`; verdict is `SPINE-CERT scoped remediation`, not `SPINE-CERT passed`, because Wave B mutation expansion found 296 missed mutants across SPINE-CERT files. Later specs may not cite this artifact as `SPINE-CERT passed` or proceed to `EPI-CERT`, `ORD-LIFE-CERT`, Phase-4 entry, or later gates until scoped remediation resolves the survivor posture. |
+| `archive/specs/0039_SPINE_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md` | Scoped SPINE-CERT mutation remediation for the 0038 Wave B survivor floor plus the final standing perimeter, CI/perimeter governance, per-file survivor remediation, full standing mutation re-proof, live SPINE-01..SPINE-08 re-proof, and replacement certification artifact. | Completed by the `0039SPICERMUT` ticket series plus `archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md`; verdict is `SPINE-CERT passed` for the scoped 0039 mutation remediation line at exact implementation commit `92ba47f14998e0ea2fc95502bc3b76c5909478ca`. Supersedes the 0038 artifact for SPINE-CERT citation purposes; does not certify latest main, EPI-CERT, ORD-LIFE-CERT, FIRST-PROOF-CERT, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, or future feature surfaces. |
 
 ## Next known execution move
 
@@ -89,9 +90,13 @@ The current replacement P0-CERT artifact is
 which renders `P0-CERT passed` for the scoped post-0008 baseline mutation
 remediation line at its exact implementation commit. Later specs may cite
 `P0-CERT passed` only with that scope and artifact. This ledger does not declare
-Phase-4 entry, second-proof entry, EPI-CERT, ORD-LIFE-CERT, latest main
-certification, or any future feature expansion. `SPINE-CERT` currently stands
-at scoped remediation per
-`archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md`;
-the next admissible work is scoped remediation of the 296 Wave B mutation
-survivors, not later-gate progression.
+latest main certification or any future feature expansion.
+
+The current replacement SPINE-CERT artifact is
+`archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md`,
+which renders `SPINE-CERT passed` for the scoped 0039 mutation remediation line
+at exact implementation commit `92ba47f14998e0ea2fc95502bc3b76c5909478ca`.
+Later specs may cite `SPINE-CERT passed` only with that scope and artifact. This
+ledger does not declare EPI-CERT, ORD-LIFE-CERT, FIRST-PROOF-CERT, Phase-4
+entry, second-proof entry, latest main certification, or any future feature
+expansion.

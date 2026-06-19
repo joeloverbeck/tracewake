@@ -297,7 +297,7 @@ mod tests {
     use tracewake_core::view_models::{
         ActionAvailability, EmbodiedViewModel, NotebookLeadEntry, NotebookView,
         Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleDoor, VisibleExit,
-        VisibleItem, VisibleItemSource,
+        VisibleItem, VisibleItemSource, WhyNotFailureKind, WhyNotView,
     };
 
     fn context() -> KnowledgeContext {
@@ -445,6 +445,53 @@ mod tests {
     }
 
     #[test]
+    fn renderer_prints_typed_why_not_facts_from_view_model() {
+        let context = context();
+        let view = EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::ZERO,
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: Some("fallback summary must not win".to_string()),
+            last_rejection_why_not: Some(WhyNotView {
+                failure_kind: WhyNotFailureKind::Access,
+                actor_known_summary: "Door door_market_store is closed.".to_string(),
+                reason_codes: vec!["door_closed_blocks_movement".to_string()],
+                actor_visible_facts: vec![
+                    "door_id=door_market_store".to_string(),
+                    "to_place_id=store_room".to_string(),
+                ],
+            }),
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            notebook: None,
+            debug_available: true,
+        };
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(rendered.contains(
+            "Why-not: Door door_market_store is closed. kind=access reasons=door_closed_blocks_movement"
+        ));
+        assert!(
+            rendered.contains("Why-not facts: door_id=door_market_store,to_place_id=store_room")
+        );
+        assert!(!rendered.contains("fallback summary must not win"));
+    }
+
+    #[test]
     fn render_notebook_prints_typed_lead_anatomy() {
         let view = NotebookView {
             viewer_actor_id: ActorId::new("actor_lina").unwrap(),
@@ -465,7 +512,7 @@ mod tests {
                 possible_next_actions: vec!["inspect place".to_string(), "ask actor".to_string()],
                 summary: "The belief and observation disagree.".to_string(),
             }],
-            possible_leads: vec!["legacy summary".to_string()],
+            possible_leads: Vec::new(),
         };
 
         let rendered = render_notebook(&view);
@@ -474,6 +521,10 @@ mod tests {
         assert!(rendered.contains("staleness=fresh"));
         assert!(rendered.contains("wrong_if=the source may be stale"));
         assert!(rendered.contains("next_actions=inspect place,ask actor"));
+        assert!(!rendered
+            .lines()
+            .skip_while(|line| *line != "Leads:")
+            .any(|line| line == "- none"));
         assert!(!rendered.contains("legacy summary"));
     }
 

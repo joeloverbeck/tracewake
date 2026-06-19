@@ -2514,7 +2514,8 @@ pub mod no_human {
         use crate::events::{EventCause, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
-            ProposalId, RoutineExecutionId, RoutineTemplateId, SleepAffordanceId, WorkplaceId,
+            ProposalId, RoutineExecutionId, RoutineTemplateId, SemanticActionId, SleepAffordanceId,
+            WorkplaceId,
         };
         use crate::location::Location;
         use crate::state::{
@@ -2713,6 +2714,342 @@ pub mod no_human {
 
         fn actor_id() -> ActorId {
             ActorId::new("actor_tomas").unwrap()
+        }
+
+        fn ordinary_event(
+            event_id: &str,
+            event_kind: EventKind,
+            actor_id: &ActorId,
+            action_id: &str,
+            tick: SimTick,
+        ) -> EventEnvelope {
+            let mut event = EventEnvelope::new_caused_v1(
+                EventId::new(event_id).unwrap(),
+                event_kind,
+                0,
+                0,
+                tick,
+                OrderingKey::new(
+                    tick,
+                    SchedulePhase::NoHumanProcess,
+                    SchedulerSourceId::Actor(actor_id.clone()),
+                    ProposalSequence::new(0),
+                    ActionId::new(action_id).unwrap(),
+                    vec![actor_id.as_str().to_string()],
+                    event_id,
+                ),
+                content_manifest_id(),
+                vec![EventCause::Proposal(
+                    ProposalId::new(format!("proposal_{event_id}")).unwrap(),
+                )],
+            )
+            .unwrap();
+            event.actor_id = Some(actor_id.clone());
+            event.proposal_id = Some(ProposalId::new(format!("proposal_{event_id}")).unwrap());
+            event.payload = vec![PayloadField::new("actor_id", actor_id.as_str())];
+            event
+        }
+
+        fn in_progress_execution(
+            execution_id: &str,
+            actor_id: &ActorId,
+            family: RoutineFamily,
+            start_tick: SimTick,
+            action_id: &str,
+        ) -> crate::agent::RoutineExecution {
+            let mut execution = crate::agent::RoutineExecution::new(
+                RoutineExecutionId::new(execution_id).unwrap(),
+                actor_id.clone(),
+                RoutineTemplateId::new(format!("template_{execution_id}")).unwrap(),
+                family,
+                start_tick,
+                Some(start_tick.next()),
+                Some(start_tick.advance_by(6)),
+                None,
+                DecisionTraceId::new(format!("trace_{execution_id}")).unwrap(),
+            );
+            execution.start_step(
+                start_tick,
+                SemanticActionId::new(action_id.replace('_', ".")).unwrap(),
+            );
+            execution
+        }
+
+        #[test]
+        fn duration_completion_appends_exact_matching_routine_step_once() {
+            let process_id = ProcessId::new("process_duration_completion_witness").unwrap();
+            for (event_kind, family, ordinary_action_id, suffix) in [
+                (
+                    EventKind::SleepCompleted,
+                    RoutineFamily::SleepNight,
+                    "sleep",
+                    "sleep",
+                ),
+                (
+                    EventKind::WorkBlockCompleted,
+                    RoutineFamily::WorkBlock,
+                    "work_block",
+                    "work",
+                ),
+            ] {
+                let actor_id = actor_id();
+                let other_actor = ActorId::new(format!("actor_other_{suffix}")).unwrap();
+                let matching_id =
+                    RoutineExecutionId::new(format!("routine_exec_matching_{suffix}")).unwrap();
+                let other_actor_id =
+                    RoutineExecutionId::new(format!("routine_exec_other_actor_{suffix}")).unwrap();
+                let other_family_id =
+                    RoutineExecutionId::new(format!("routine_exec_other_family_{suffix}")).unwrap();
+                let future_start_id =
+                    RoutineExecutionId::new(format!("routine_exec_future_start_{suffix}")).unwrap();
+                let completed_status_id =
+                    RoutineExecutionId::new(format!("routine_exec_completed_status_{suffix}"))
+                        .unwrap();
+                let mut agent_state = agent_state(&actor_id);
+                agent_state.routine_executions.insert(
+                    matching_id.clone(),
+                    in_progress_execution(
+                        matching_id.as_str(),
+                        &actor_id,
+                        family,
+                        SimTick::new(2),
+                        ordinary_action_id,
+                    ),
+                );
+                agent_state.routine_executions.insert(
+                    other_actor_id.clone(),
+                    in_progress_execution(
+                        other_actor_id.as_str(),
+                        &other_actor,
+                        family,
+                        SimTick::new(1),
+                        ordinary_action_id,
+                    ),
+                );
+                agent_state.routine_executions.insert(
+                    other_family_id.clone(),
+                    in_progress_execution(
+                        other_family_id.as_str(),
+                        &actor_id,
+                        if family == RoutineFamily::SleepNight {
+                            RoutineFamily::WorkBlock
+                        } else {
+                            RoutineFamily::SleepNight
+                        },
+                        SimTick::new(1),
+                        ordinary_action_id,
+                    ),
+                );
+                agent_state.routine_executions.insert(
+                    future_start_id.clone(),
+                    in_progress_execution(
+                        future_start_id.as_str(),
+                        &actor_id,
+                        family,
+                        SimTick::new(8),
+                        ordinary_action_id,
+                    ),
+                );
+                let mut completed_status = in_progress_execution(
+                    completed_status_id.as_str(),
+                    &actor_id,
+                    family,
+                    SimTick::ZERO,
+                    ordinary_action_id,
+                );
+                completed_status.complete_step(SimTick::new(1));
+                agent_state
+                    .routine_executions
+                    .insert(completed_status_id.clone(), completed_status);
+                let mut log = EventLog::new();
+                let completion = ordinary_event(
+                    &format!("event_{suffix}_completed_duration_witness"),
+                    event_kind,
+                    &actor_id,
+                    ordinary_action_id,
+                    SimTick::new(5),
+                );
+
+                append_routine_step_completed_after_duration_completion(
+                    &mut log,
+                    &mut agent_state,
+                    &process_id,
+                    &content_manifest_id(),
+                    &completion,
+                );
+
+                let routine_events = log
+                    .events()
+                    .iter()
+                    .filter(|event| event.event_type == EventKind::RoutineStepCompleted)
+                    .collect::<Vec<_>>();
+                assert_eq!(routine_events.len(), 1, "{suffix}");
+                let routine_event = routine_events[0];
+                assert_eq!(routine_event.sim_tick, SimTick::new(5));
+                assert_eq!(
+                    routine_event.ordering_key.action_id.as_str(),
+                    "routine_step_completed"
+                );
+                assert!(routine_event
+                    .causes
+                    .iter()
+                    .any(|cause| cause == &EventCause::Event(completion.event_id.clone())));
+                assert!(routine_event.payload.iter().any(|field| {
+                    field.key == "routine_execution_id" && field.value == matching_id.as_str()
+                }));
+                assert!(routine_event.payload.iter().any(|field| {
+                    field.key == "ordinary_action_id" && field.value == ordinary_action_id
+                }));
+                assert_eq!(
+                    agent_state.routine_executions[&matching_id].step_status,
+                    RoutineStepStatus::Completed,
+                    "{suffix}"
+                );
+                for decoy_id in [
+                    other_actor_id,
+                    other_family_id,
+                    future_start_id,
+                    completed_status_id,
+                ] {
+                    assert_ne!(
+                        routine_event
+                            .payload
+                            .iter()
+                            .find(|field| field.key == "routine_execution_id")
+                            .map(|field| field.value.as_str()),
+                        Some(decoy_id.as_str()),
+                        "{suffix}"
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn work_move_starts_but_non_move_progress_completes_routine_step() {
+            let process_id = ProcessId::new("process_instant_progress_witness").unwrap();
+            let actor_id = actor_id();
+            let window = DayWindow {
+                window_id: "work_window".to_string(),
+                start_tick: SimTick::new(4),
+                end_tick: SimTick::new(8),
+            };
+
+            let move_execution_id = RoutineExecutionId::new("routine_exec_work_move").unwrap();
+            let mut move_agent_state = agent_state(&actor_id);
+            move_agent_state.routine_executions.insert(
+                move_execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    move_execution_id.clone(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_work_move").unwrap(),
+                    RoutineFamily::WorkBlock,
+                    SimTick::new(4),
+                    Some(SimTick::new(5)),
+                    Some(SimTick::new(8)),
+                    None,
+                    DecisionTraceId::new("trace_work_move").unwrap(),
+                ),
+            );
+            let move_proposal = Proposal::new(
+                ProposalId::new("proposal_work_move").unwrap(),
+                ProposalOrigin::Scheduler,
+                Some(actor_id.clone()),
+                ActionId::new("move").unwrap(),
+                SimTick::new(4),
+            );
+            let move_event = ordinary_event(
+                "event_work_move_progress",
+                EventKind::ActorMoved,
+                &actor_id,
+                "move",
+                SimTick::new(4),
+            );
+            let mut move_log = EventLog::new();
+
+            append_routine_step_events_after_proposal(
+                &mut move_log,
+                &mut move_agent_state,
+                &process_id,
+                &actor_id,
+                &window,
+                &move_proposal,
+                &content_manifest_id(),
+                Some(&move_event),
+            );
+
+            assert!(move_log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::RoutineStepStarted));
+            assert!(!move_log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::RoutineStepCompleted));
+            assert_eq!(
+                move_agent_state.routine_executions[&move_execution_id].step_status,
+                RoutineStepStatus::InProgress
+            );
+
+            let work_execution_id = RoutineExecutionId::new("routine_exec_work_wait").unwrap();
+            let mut work_agent_state = agent_state(&actor_id);
+            work_agent_state.routine_executions.insert(
+                work_execution_id.clone(),
+                crate::agent::RoutineExecution::new(
+                    work_execution_id.clone(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_work_wait").unwrap(),
+                    RoutineFamily::WorkBlock,
+                    SimTick::new(4),
+                    Some(SimTick::new(5)),
+                    Some(SimTick::new(8)),
+                    None,
+                    DecisionTraceId::new("trace_work_wait").unwrap(),
+                ),
+            );
+            let work_proposal = Proposal::new(
+                ProposalId::new("proposal_work_wait").unwrap(),
+                ProposalOrigin::Scheduler,
+                Some(actor_id.clone()),
+                ActionId::new("work_block").unwrap(),
+                SimTick::new(4),
+            );
+            let work_event = ordinary_event(
+                "event_work_non_move_progress",
+                EventKind::ActorWaited,
+                &actor_id,
+                "work_block",
+                SimTick::new(4),
+            );
+            let mut work_log = EventLog::new();
+
+            append_routine_step_events_after_proposal(
+                &mut work_log,
+                &mut work_agent_state,
+                &process_id,
+                &actor_id,
+                &window,
+                &work_proposal,
+                &content_manifest_id(),
+                Some(&work_event),
+            );
+
+            assert!(work_log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::RoutineStepStarted));
+            let completed = work_log
+                .events()
+                .iter()
+                .find(|event| event.event_type == EventKind::RoutineStepCompleted)
+                .expect("non-move work-family event completes instant progress");
+            assert!(completed
+                .payload
+                .iter()
+                .any(|field| { field.key == "ordinary_action_id" && field.value == "work_block" }));
+            assert_eq!(
+                work_agent_state.routine_executions[&work_execution_id].step_status,
+                RoutineStepStatus::Completed
+            );
         }
 
         #[test]

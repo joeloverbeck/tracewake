@@ -5,15 +5,20 @@ use tracewake_content::load::registry_for_fixture_scope;
 use tracewake_content::schema::{
     content_field_by_schema_field, ActionAffordanceSchema, FixtureScope, InitialBeliefSchema,
 };
-use tracewake_content::serialization::serialize_fixture;
+use tracewake_content::serialization::{
+    deserialize_event_log, serialize_event_log, serialize_fixture,
+};
 use tracewake_content::validate::{
     content_field_registry, validate_fixture, validate_fixture_bytes, ValidationPhase,
 };
 use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::RoutineStep;
 use tracewake_core::epistemics::{Channel, Confidence, Proposition, SourceRef};
+use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{ActionId, BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
 use tracewake_core::time::SimTick;
+
+const VALIDATE_RS: &str = include_str!("../src/validate.rs");
 
 fn registry() -> ActionRegistry {
     let mut registry = ActionRegistry::new();
@@ -188,6 +193,170 @@ fn forbidden_content_routine_template_without_typed_family_is_blocking_error() {
             .iter()
             .any(|error| error.code == "bad_line" && error.message.contains("bad routine family")),
         "missing typed family rejection: {report:?}"
+    );
+}
+
+#[test]
+fn forbidden_content_serialization_unknown_tokens_fail_loudly() {
+    let mut fixture = fixtures::strongbox_001().fixture;
+    fixture
+        .initial_beliefs
+        .push(valid_seed("belief_bad_token_probe"));
+    fixture.canonicalize();
+    let valid = String::from_utf8(serialize_fixture(&fixture)).unwrap();
+    let belief_line = valid
+        .lines()
+        .find(|line| line.starts_with("initial_belief|"))
+        .unwrap();
+    let fields = belief_line.split('|').collect::<Vec<_>>();
+
+    for (field_index, bad_value, expected_message) in [
+        (4, "believes_maybe", "bad stance believes_maybe"),
+        (8, "dream_channel", "bad channel dream_channel"),
+        (11, "guild:village", "guild:village"),
+    ] {
+        let mut bad_fields = fields.clone();
+        bad_fields[field_index] = bad_value;
+        let raw = valid.replace(belief_line, &bad_fields.join("|"));
+        let report = validate_fixture_bytes(raw.as_bytes(), &registry())
+            .unwrap_err()
+            .report;
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|error| error.code == "bad_line" && error.message.contains(expected_message)),
+            "missing loud serialization diagnostic for {bad_value}: {report:?}"
+        );
+    }
+}
+
+#[test]
+fn validator_branch_matrix_locks_fail_closed_validate_rs_guards() {
+    let source = compact(VALIDATE_RS);
+    for required in [
+        "letline_no=index+1;",
+        "tag.starts_with(\"routine_\")&&contains_direct_state_or_script_marker(line)",
+        "fnreject_reserved_or_display(id:&str,path:String,errors:&mutVec<ContentValidationError>){ifmatches!(id,\"player\"|\"protagonist\"|\"quest\"|\"objective\"|\"reward\"|\"culprit\"|\"director\")",
+        "Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(",
+        "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(",
+        "for(index,item)infixture.items.iter().enumerate(){match&item.location{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(errors,ValidationPhase::Referential,format!(\"items[{index}].location\"),container_id.as_str()",
+        "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(errors,ValidationPhase::Referential,format!(\"items[{index}].location\"),actor_id.as_str()",
+        "fnvalidate_location_reference(location:&Location,actors:&BTreeSet<tracewake_core::ids::ActorId>,places:&BTreeSet<PlaceId>,containers:&BTreeSet<tracewake_core::ids::ContainerId>,errors:&mutVec<ContentValidationError>,path:String,){matchlocation{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(errors,ValidationPhase::Referential,path,container_id.as_str()",
+        "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(errors,ValidationPhase::Referential,path,actor_id.as_str()",
+        "validate_topology(fixture,&muterrors);",
+        "fnvalidate_topology(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){letplaces=fixture.places.iter().map(|place|place.place_id.clone()).collect::<BTreeSet<_>>();",
+        "ifvalue<0{",
+        "}elseifvalue>i32::from(NEED_MAX){",
+        "ifvalue<=0{",
+        "}elseifvalue>i32::from(NEED_MAX){",
+        "NumericFieldPolicy::PressureNonnegative=>{ifvalue<0{",
+        "needandroutinetuningvaluesmustbenonnegativeintheirmodeleddirection\",));}elseifvalue>i32::from(NEED_MAX){",
+        "NumericFieldPolicy::ReliefPositive=>{ifvalue<=0{",
+        "relief-directiontuningvaluesmustbegreaterthanzero\",));}elseifvalue>i32::from(NEED_MAX){",
+        "ifvalue>NEED_MAX{",
+        "if!routine_templates.contains(&assignment.template_id){",
+        "iftemplate.fallback_rules.is_empty()&&!has_explicit_diagnostic{",
+        "fnis_no_sleep_diagnostic(value:RoutineDiagnosticKind)->bool{matches!(value,RoutineDiagnosticKind::NoSleepAffordance)}",
+        "\"move\"|\"open\"|\"close\"|\"take\"|\"place\"|\"look\"|\"inspect_place\"|\"inspect_entity\"|\"wait\"=>Some(ActionScope::Phase1)",
+        ".split(|character:char|!character.is_ascii_alphanumeric()&&character!='_')",
+        "fncontains_direct_state_or_script_marker(value:&str)->bool{value.split(|character:char|!character.is_ascii_alphanumeric()&&character!='_').any(|token|is_script_key(token)||is_phase3a_shortcut_marker(token))",
+        ".any(|token|is_script_key(token)||is_phase3a_shortcut_marker(token))||PHASE3A_SHORTCUT_MARKERS.iter().any(|marker|value.contains(marker))",
+        "normalized.starts_with(\"note|\")||normalized.starts_with(\"notes|\")||normalized.starts_with(\"prose|\")||normalized.starts_with(\"description|\")||normalized.starts_with(\"flavor_text|\")",
+        "has_prose_field&&implies_simulation_fact",
+        "parse_place_target(&affordance.target_id).is_some()&&fixture.places.iter().any(|place|place.place_id.as_str()==affordance.target_id)",
+        "any(|template|template.template_id.as_str()==affordance.target_id)",
+        "affordance.action_id.as_str()==\"inspect_entity\"||affordance.action_id.as_str()==\"inspect_place\"||affordance.action_id.as_str()==\"look\"||affordance.action_id.as_str()==\"truthful_accuse_probe\"",
+        "fntarget_kind(fixture:&FixtureSchema,target_id:&str)->Option<&'staticstr>{iffixture.actors.iter().any(|actor|actor.actor_id.as_str()==target_id)",
+        "any(|template|template.template_id.as_str()==target_id){Some(\"routine_template\")}",
+        "fnvalidate_semantic_ids(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){",
+        "validate_semantic_ids(fixture,&muterrors);",
+        "fnvalidate_semantic_ids(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){for(index,affordance)infixture.affordances.iter().enumerate(){ifaffordance.action_id.as_str().parse::<u64>().is_ok(){",
+        "fnvalidate_no_player(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){",
+        "validate_no_player(fixture,&muterrors);",
+        "fnvalidate_no_player(fixture:&FixtureSchema,errors:&mutVec<ContentValidationError>){for(index,affordance)infixture.affordances.iter().enumerate(){ifis_player_key(affordance.action_id.as_str()){",
+        "EventCause::Event(id)=>format!(\"event:{}\",id.as_str())",
+        "EventCause::Proposal(id)=>format!(\"proposal:{}\",id.as_str())",
+        "EventCause::ValidationReport(id)=>format!(\"validation_report:{}\",id.as_str())",
+        "EventCause::Process(id)=>format!(\"process:{}\",id.as_str())",
+        "markers.iter().any(|marker|value.contains(marker))||value.split(|character:char|!character.is_ascii_alphanumeric()&&character!='_').any(|token|is_script_key(token)||is_player_key(token))",
+        "PrivacyScope::ActorPrivate(actor_id)ifactor_id==&belief.holder_actor_id=>{}",
+        "iflast_verified_tick<belief.acquired_tick{",
+        "ifbelief.source_kind==InitialBeliefSourceKind::AuthoredPrehistory",
+        ".windows(2).all(|window|window[0].belief_id<window[1].belief_id)",
+        "values.windows(2).all(|window|window[0]<window[1])",
+        "iffixture.actors.is_empty()||fixture.places.is_empty(){",
+        "validate_fixture_contract(fixture,&muterrors);",
+        "validate_serialization_roundtrip(fixture,&muterrors);",
+        "ifroundtrip=={letmutexpected=fixture.clone();expected.canonicalize();expected}",
+    ] {
+        assert!(
+            source.contains(required),
+            "validate.rs branch lock missing fragment: {required}"
+        );
+    }
+}
+
+#[test]
+fn forbidden_content_serialization_truncated_and_malformed_lists_fail_loudly() {
+    let step = encode("routine_step_v1|wait_until|77616974");
+    let valid_template = format!(
+        "routine_template|routine_wait_probe|wait|||{step}|1|2|0,2,5|77616974|77616974|73657269616c697a6174696f6e|"
+    );
+    let base = format!(
+        "fixture|bad_serialization_fixture\nschema|schema_v1\nfixture_scope|phase3a_historical\nneed_model|5|3\nactor|actor_tomas|home_tomas\nplace|home_tomas|486f6d65||visible\ninitial_need|actor_tomas|hunger|100\ninitial_need|actor_tomas|fatigue|100\ninitial_need|actor_tomas|safety|100\n{valid_template}"
+    );
+
+    let bad_family = base.replace("|wait|", "|wont_wait|");
+    let report = validate_fixture_bytes(bad_family.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report.errors.iter().any(|error| error.code == "bad_line"
+            && error.message.contains("bad routine family wont_wait")),
+        "missing routine-family diagnostic: {report:?}"
+    );
+
+    let malformed_list = base.replace("|0,2,5|", "|0,nope,5|");
+    let report = validate_fixture_bytes(malformed_list.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report
+            .errors
+            .iter()
+            .any(|error| error.code == "bad_number" && error.message.contains("nope")),
+        "missing malformed-list diagnostic: {report:?}"
+    );
+
+    let truncated = base.replace(
+        &valid_template,
+        "routine_template|routine_wait_probe|wait|||726f7574696e655f737465705f76317c776169745f756e74696c7c3737363136393734|1|2|0",
+    );
+    let report = validate_fixture_bytes(truncated.as_bytes(), &registry())
+        .unwrap_err()
+        .report;
+    assert!(
+        report.errors.iter().any(|error| error.code == "bad_line"
+            && error
+                .message
+                .contains("routine_template|routine_wait_probe")),
+        "missing truncated-line diagnostic: {report:?}"
+    );
+}
+
+#[test]
+fn forbidden_content_empty_event_log_serialization_is_not_nonempty_replay_witness() {
+    let empty = EventLog::new();
+    let bytes = serialize_event_log(&empty);
+    let parsed = deserialize_event_log(&bytes).unwrap();
+
+    assert!(
+        parsed.events().is_empty(),
+        "empty serialized logs must not be accepted as nonempty replay evidence"
     );
 }
 
@@ -528,4 +697,8 @@ fn encode(value: &str) -> String {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect()
+}
+
+fn compact(value: &str) -> String {
+    value.split_whitespace().collect()
 }

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 const CI_YML: &str = include_str!("../../../.github/workflows/ci.yml");
+const MUTANTS_TOML: &str = include_str!("../../../.cargo/mutants.toml");
 const DOC10: &str = include_str!(
     "../../../docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md"
 );
@@ -12,9 +13,60 @@ const REQUIRED_GATE_COMMANDS: &[&str] = &[
     "cargo test --workspace --locked",
 ];
 
+const STANDING_MUTATION_PERIMETER: &[&str] = &[
+    "crates/tracewake-core/src/agent/**",
+    "crates/tracewake-core/src/scheduler.rs",
+    "crates/tracewake-core/src/projections.rs",
+    "crates/tracewake-core/src/actions/pipeline.rs",
+    "crates/tracewake-core/src/actions/defs/eat.rs",
+    "crates/tracewake-core/src/actions/defs/sleep.rs",
+    "crates/tracewake-core/src/actions/defs/work.rs",
+    "crates/tracewake-core/src/events/**",
+    "crates/tracewake-core/src/replay/**",
+    "crates/tracewake-core/src/checksum.rs",
+    "crates/tracewake-core/src/state.rs",
+    "crates/tracewake-core/src/actions/proposal.rs",
+    "crates/tracewake-core/src/actions/report.rs",
+    "crates/tracewake-core/src/view_models.rs",
+    "crates/tracewake-core/src/debug_capability.rs",
+    "crates/tracewake-core/src/controller.rs",
+    "crates/tracewake-core/src/debug_reports.rs",
+    "crates/tracewake-core/src/epistemics/knowledge_context.rs",
+    "crates/tracewake-core/src/epistemics/projection.rs",
+    "crates/tracewake-content/src/manifest.rs",
+    "crates/tracewake-content/src/load.rs",
+    "crates/tracewake-content/src/schema.rs",
+    "crates/tracewake-content/src/serialization.rs",
+    "crates/tracewake-content/src/validate.rs",
+    "crates/tracewake-tui/src/app.rs",
+    "crates/tracewake-tui/src/debug_panels.rs",
+    "crates/tracewake-tui/src/render.rs",
+    "crates/tracewake-tui/src/transcript.rs",
+];
+
+const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
+    "crates/tracewake-core/src/agent/",
+    "crates/tracewake-core/src/scheduler\\.rs",
+    "crates/tracewake-core/src/projections\\.rs",
+    "crates/tracewake-core/src/actions/pipeline\\.rs",
+    "crates/tracewake-core/src/actions/defs/(eat|sleep|work)\\.rs",
+    "crates/tracewake-core/src/events/",
+    "crates/tracewake-core/src/replay/",
+    "crates/tracewake-core/src/checksum\\.rs",
+    "crates/tracewake-core/src/state\\.rs",
+    "crates/tracewake-core/src/actions/(proposal|report)\\.rs",
+    "crates/tracewake-core/src/view_models\\.rs",
+    "crates/tracewake-core/src/debug_capability\\.rs",
+    "crates/tracewake-core/src/controller\\.rs",
+    "crates/tracewake-core/src/debug_reports\\.rs",
+    "crates/tracewake-core/src/epistemics/(knowledge_context|projection)\\.rs",
+    "crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\\.rs",
+    "crates/tracewake-tui/src/(app|debug_panels|render|transcript)\\.rs",
+];
+
 #[test]
 fn ci_workflow_guards_cover_workflow_integrity() {
-    let errors = ci_workflow_guard_errors(CI_YML, DOC10);
+    let errors = ci_workflow_guard_errors(CI_YML, MUTANTS_TOML, DOC10);
     assert!(
         errors.is_empty(),
         "CI workflow guard failures:\n{}",
@@ -26,7 +78,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "run: cargo fmt --all --check || true",
     );
     assert!(
-        ci_workflow_guard_errors(&masked_gate, DOC10)
+        ci_workflow_guard_errors(&masked_gate, MUTANTS_TOML, DOC10)
             .iter()
             .any(|error| error.contains("masked gate command")),
         "synthetic masked gate step must fail"
@@ -37,7 +89,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "- uses: docker/login-action@v3",
     );
     assert!(
-        ci_workflow_guard_errors(&unpinned_third_party, DOC10)
+        ci_workflow_guard_errors(&unpinned_third_party, MUTANTS_TOML, DOC10)
             .iter()
             .any(|error| error.contains("non-actions use is not SHA-pinned")),
         "synthetic unpinned third-party action must fail"
@@ -45,7 +97,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
 
     let missing_permissions = CI_YML.replace("permissions:\n  contents: read\n\n", "");
     assert!(
-        ci_workflow_guard_errors(&missing_permissions, DOC10)
+        ci_workflow_guard_errors(&missing_permissions, MUTANTS_TOML, DOC10)
             .iter()
             .any(|error| error.contains("missing top-level permissions")),
         "synthetic missing permissions must fail"
@@ -56,7 +108,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "hashFiles('**/Cargo.lock')",
     );
     assert!(
-        ci_workflow_guard_errors(&hygiene_less_cache, DOC10)
+        ci_workflow_guard_errors(&hygiene_less_cache, MUTANTS_TOML, DOC10)
             .iter()
             .any(|error| error.contains("target cache key omits")),
         "synthetic target cache key without toolchain/manifests must fail"
@@ -67,7 +119,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "run: cargo build",
     );
     assert!(
-        ci_workflow_guard_errors(&missing_gate_command, DOC10)
+        ci_workflow_guard_errors(&missing_gate_command, MUTANTS_TOML, DOC10)
             .iter()
             .any(|error| error.contains("missing required gate command")),
         "synthetic missing verbatim gate command must fail"
@@ -77,14 +129,42 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "{CI_YML}\n  synthetic-undocumented:\n    name: synthetic\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
     );
     assert!(
-        ci_workflow_guard_errors(&undocumented_job, DOC10)
+        ci_workflow_guard_errors(&undocumented_job, MUTANTS_TOML, DOC10)
             .iter()
             .any(|error| error.contains("workflow job synthetic-undocumented is not documented")),
         "synthetic undocumented workflow job must fail"
     );
+
+    let divergent_scheduled_perimeter = CI_YML.replace(
+        "cargo mutants --workspace --no-shuffle",
+        "cargo mutants --workspace -f 'crates/tracewake-core/src/agent/**' --no-shuffle",
+    );
+    assert!(
+        ci_workflow_guard_errors(&divergent_scheduled_perimeter, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("divergent scheduled mutation perimeter")),
+        "synthetic scheduled mutation -f perimeter must fail"
+    );
+
+    let missing_test_workspace = MUTANTS_TOML.replace("test_workspace = true", "");
+    assert!(
+        ci_workflow_guard_errors(CI_YML, &missing_test_workspace, DOC10)
+            .iter()
+            .any(|error| error.contains("missing mutation config posture")),
+        "synthetic missing test_workspace must fail"
+    );
+
+    let missing_spine_file =
+        MUTANTS_TOML.replace(r#"  "crates/tracewake-core/src/events/**","#, "");
+    assert!(
+        ci_workflow_guard_errors(CI_YML, &missing_spine_file, DOC10)
+            .iter()
+            .any(|error| error.contains("missing standing mutation perimeter path")),
+        "synthetic missing SPINE perimeter path must fail"
+    );
 }
 
-fn ci_workflow_guard_errors(workflow: &str, doc10: &str) -> Vec<String> {
+fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
     let mut errors = Vec::new();
     errors.extend(required_gate_command_errors(workflow, doc10));
     errors.extend(masked_gate_errors(workflow));
@@ -93,6 +173,7 @@ fn ci_workflow_guard_errors(workflow: &str, doc10: &str) -> Vec<String> {
     errors.extend(cache_key_errors(workflow));
     errors.extend(doc_workflow_parity_errors(workflow, doc10));
     errors.extend(doc_flag_posture_errors(doc10));
+    errors.extend(mutation_perimeter_errors(workflow, mutants_config));
     errors
 }
 
@@ -218,6 +299,61 @@ fn doc_flag_posture_errors(doc10: &str) -> Vec<String> {
     ] {
         if !doc10.contains(required) {
             errors.push(format!("doc 10 missing CI posture text: {required}"));
+        }
+    }
+    errors
+}
+
+fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        r#"additional_cargo_args = ["--locked"]"#,
+        "test_workspace = true",
+        "examine_globs = [",
+    ] {
+        if !mutants_config.contains(required) {
+            errors.push(format!("missing mutation config posture: {required}"));
+        }
+    }
+    if mutants_config.contains("exclude_globs") {
+        errors.push("mutation config reintroduces exclude_globs".to_string());
+    }
+    for path in STANDING_MUTATION_PERIMETER {
+        if !mutants_config.contains(&format!(r#""{path}""#)) {
+            errors.push(format!("missing standing mutation perimeter path: {path}"));
+        }
+    }
+    for trigger in STANDING_MUTATION_TRIGGER_FRAGMENTS {
+        if !workflow.contains(trigger) {
+            errors.push(format!(
+                "in-diff mutation trigger omits standing perimeter fragment: {trigger}"
+            ));
+        }
+    }
+    if workflow.contains("cargo mutants --workspace -f")
+        || workflow.contains("cargo mutants --workspace \\\n            -f")
+    {
+        errors.push("divergent scheduled mutation perimeter uses -f filters".to_string());
+    }
+    for forbidden in ["--no-config", "--baseline=skip"] {
+        if workflow.contains(forbidden) {
+            errors.push(format!(
+                "mutation workflow uses forbidden option: {forbidden}"
+            ));
+        }
+    }
+    for required in [
+        "cargo install cargo-mutants --version 27.1.0 --locked",
+        "cargo mutants --workspace --no-shuffle",
+        ".cargo/mutants-baseline-misses.txt",
+        "comm -23",
+        "actions/upload-artifact@v4",
+        "path: mutants.out",
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!(
+                "mutation workflow missing enforcement text: {required}"
+            ));
         }
     }
     errors

@@ -30,12 +30,19 @@ impl DebugCapability {
         }
     }
 
-    pub const fn debug_only(&self) -> bool {
-        true
+    pub fn debug_only(&self) -> bool {
+        self.marker == DEBUG_NON_DIEGETIC_MARKER
     }
 
     pub const fn marker(&self) -> &'static str {
         self.marker
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn test_non_debug() -> Self {
+        Self {
+            marker: "NOT DEBUG",
+        }
     }
 }
 

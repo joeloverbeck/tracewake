@@ -310,6 +310,133 @@ mod tests {
     }
 
     #[test]
+    fn binding_lifecycle_sequences_debug_view_and_authorization_are_observable() {
+        let mut bindings = ControllerBindings::new();
+        let mut log = EventLog::new();
+        let controller = controller_id();
+        let tomas = actor_id("actor_tomas");
+        let elena = actor_id("actor_elena");
+
+        let first_attach = bindings.attach(
+            controller.clone(),
+            tomas.clone(),
+            ControllerMode::Embodied,
+            SimTick::ZERO,
+            &mut log,
+            content_manifest_id(),
+        );
+        assert_eq!(
+            first_attach
+                .payload
+                .iter()
+                .find(|field| field.key == "binding_sequence")
+                .map(|field| field.value.as_str()),
+            Some("0")
+        );
+        assert_eq!(
+            bindings
+                .binding(&controller)
+                .unwrap()
+                .binding
+                .binding_sequence,
+            0
+        );
+        assert_eq!(bindings.debug_bindings().len(), 1);
+        assert_eq!(
+            bindings.debug_bindings()[0].binding.bound_actor_id.as_ref(),
+            Some(&tomas)
+        );
+        assert_eq!(bindings.authorize(&controller, &tomas), Ok(()));
+        assert_eq!(
+            bindings.authorize(&controller, &elena),
+            Err(ControllerError::ControllerActorMismatch {
+                controller_id: controller.clone(),
+                expected_actor_id: elena.clone(),
+                actual_actor_id: Some(tomas.clone()),
+            })
+        );
+
+        let second_attach = bindings.attach(
+            controller.clone(),
+            elena.clone(),
+            ControllerMode::Debug,
+            SimTick::new(1),
+            &mut log,
+            content_manifest_id(),
+        );
+        assert_eq!(
+            second_attach
+                .payload
+                .iter()
+                .find(|field| field.key == "binding_sequence")
+                .map(|field| field.value.as_str()),
+            Some("1")
+        );
+        assert_eq!(
+            bindings
+                .binding(&controller)
+                .unwrap()
+                .binding
+                .binding_sequence,
+            1
+        );
+        assert_eq!(bindings.authorize(&controller, &elena), Ok(()));
+
+        let detach = bindings.detach(
+            &controller,
+            SimTick::new(2),
+            &mut log,
+            content_manifest_id(),
+        );
+        assert_eq!(
+            detach
+                .payload
+                .iter()
+                .find(|field| field.key == "binding_sequence")
+                .map(|field| field.value.as_str()),
+            Some("2")
+        );
+        let detached_binding = bindings.binding(&controller).unwrap();
+        assert_eq!(detached_binding.binding.binding_sequence, 2);
+        assert_eq!(detached_binding.binding.bound_actor_id, None);
+        assert_eq!(bindings.debug_bindings().len(), 1);
+        assert_eq!(
+            bindings.authorize(&controller, &elena),
+            Err(ControllerError::ControllerActorMismatch {
+                controller_id: controller.clone(),
+                expected_actor_id: elena.clone(),
+                actual_actor_id: None,
+            })
+        );
+
+        let reattach = bindings.attach(
+            controller.clone(),
+            tomas.clone(),
+            ControllerMode::Embodied,
+            SimTick::new(3),
+            &mut log,
+            content_manifest_id(),
+        );
+        assert_eq!(
+            reattach
+                .payload
+                .iter()
+                .find(|field| field.key == "binding_sequence")
+                .map(|field| field.value.as_str()),
+            Some("3")
+        );
+        assert_eq!(
+            bindings
+                .binding(&controller)
+                .unwrap()
+                .binding
+                .binding_sequence,
+            3
+        );
+        assert_eq!(bindings.authorize(&controller, &tomas), Ok(()));
+    }
+
+    #[test]
     fn controller_event_application_is_physical_noop() {
         let mut state = state();
         let before = state.clone();

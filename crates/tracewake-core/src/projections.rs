@@ -1376,13 +1376,15 @@ pub fn proposal_from_current_view_semantic_action(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::{Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState};
+    use crate::agent::{
+        Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, SourceEventIds,
+    };
     use crate::epistemics::{
         ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
         ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
-        ActorKnownSleepAffordanceFact, Belief, Channel, Confidence, Contradiction,
-        ContradictionKind, HolderKind, Observation, ObservationSubject, ObservationTarget,
-        Proposition, SourceRef, Stance,
+        ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact, Belief, Channel, Confidence,
+        Contradiction, ContradictionKind, HolderKind, Observation, ObservationSubject,
+        ObservationTarget, Proposition, SourceRef, Stance,
     };
     use crate::events::PayloadField;
     use crate::ids::{
@@ -1834,6 +1836,104 @@ mod tests {
             eat_empty.availability,
             ActionAvailability::Disabled { .. }
         ));
+    }
+
+    #[test]
+    fn phase3a_workplace_semantic_actions_require_place_access_and_provenance() {
+        let state = state();
+        let context = KnowledgeContext::embodied_at_frontier_with_workplaces(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            7,
+            vec![
+                ActorKnownWorkplaceFact::new(
+                    WorkplaceId::new("workshop_here").unwrap(),
+                    place_id("shop_front"),
+                    true,
+                    "role_notice_here",
+                    SourceEventIds::checked(vec![event_id("event_role_notice_here")]).unwrap(),
+                    SimTick::new(1),
+                ),
+                ActorKnownWorkplaceFact::new(
+                    WorkplaceId::new("workshop_elsewhere").unwrap(),
+                    place_id("back_room"),
+                    true,
+                    "role_notice_elsewhere",
+                    SourceEventIds::checked(vec![event_id("event_role_notice_elsewhere")]).unwrap(),
+                    SimTick::new(2),
+                ),
+                ActorKnownWorkplaceFact::new(
+                    WorkplaceId::new("workshop_closed").unwrap(),
+                    place_id("shop_front"),
+                    false,
+                    "role_notice_closed",
+                    SourceEventIds::checked(vec![event_id("event_role_notice_closed")]).unwrap(),
+                    SimTick::new(3),
+                ),
+            ],
+        );
+        let source = source_for(&context, &state, None);
+        let view = view_from_source(&context, &source, &state, None);
+
+        let here = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "work.block.workshop_here")
+            .expect("current open workplace action exists");
+        assert!(here.enabled);
+        assert!(matches!(here.availability, ActionAvailability::Available));
+
+        let elsewhere = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "work.block.workshop_elsewhere")
+            .expect("remote workplace action exists");
+        assert!(!elsewhere.enabled);
+        let ActionAvailability::Disabled {
+            reason_codes,
+            provenance_refs,
+            ..
+        } = &elsewhere.availability
+        else {
+            panic!("remote workplace must be disabled");
+        };
+        assert_eq!(reason_codes, &[ReasonCode::ActorNotAtRequiredPlace]);
+        assert_eq!(
+            provenance_refs
+                .iter()
+                .map(|provenance| (provenance.kind, provenance.reference.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    ActionAvailabilityProvenanceKind::HolderKnownContext,
+                    context.holder_known_context_id().as_str()
+                ),
+                (
+                    ActionAvailabilityProvenanceKind::SourceEvent,
+                    "event_role_notice_elsewhere"
+                ),
+            ]
+        );
+
+        let closed = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.semantic_action_id.as_str() == "work.block.workshop_closed")
+            .expect("closed workplace action exists");
+        assert!(!closed.enabled);
+        let ActionAvailability::Disabled {
+            reason_codes,
+            provenance_refs,
+            ..
+        } = &closed.availability
+        else {
+            panic!("closed workplace must be disabled");
+        };
+        assert_eq!(reason_codes, &[ReasonCode::KnowledgePreconditionNotMet]);
+        assert!(provenance_refs.iter().any(|provenance| {
+            provenance.kind == ActionAvailabilityProvenanceKind::SourceEvent
+                && provenance.reference == "event_role_notice_closed"
+        }));
     }
 
     #[test]
@@ -2976,6 +3076,64 @@ mod tests {
             wait_proposal.parameters.get("reason"),
             Some(&"actor selected wait".to_string())
         );
+
+        let continue_entry = SemanticActionEntry::with_availability(
+            SemanticActionId::new("continue.routine.intention_breakfast").unwrap(),
+            ActionId::new("continue_routine").unwrap(),
+            vec![
+                "intention_breakfast".to_string(),
+                "check_container.pantry".to_string(),
+            ],
+            "Continue routine",
+            ActionAvailability::available(),
+        );
+        let continue_proposal = proposal_from_semantic_action_entry(
+            ProposalId::new("proposal_continue_entry").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            SimTick::new(7),
+            &continue_entry,
+            None,
+            None,
+        );
+        assert_eq!(
+            continue_proposal.parameters.get("active_intention_id"),
+            Some(&"intention_breakfast".to_string())
+        );
+        assert_eq!(
+            continue_proposal.parameters.get("next_action_id"),
+            Some(&"check_container.pantry".to_string())
+        );
+        assert_eq!(
+            continue_proposal.parameters.get("intention_status"),
+            Some(&"active".to_string())
+        );
+
+        let non_continue_entry = SemanticActionEntry::with_availability(
+            SemanticActionId::new("inspect.container.strongbox_tomas").unwrap(),
+            ActionId::new("inspect").unwrap(),
+            vec!["strongbox_tomas".to_string()],
+            "Inspect strongbox",
+            ActionAvailability::available(),
+        );
+        let non_continue_proposal = proposal_from_semantic_action_entry(
+            ProposalId::new("proposal_non_continue_entry").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id("actor_tomas")),
+            SimTick::new(7),
+            &non_continue_entry,
+            None,
+            None,
+        );
+        assert!(!non_continue_proposal
+            .parameters
+            .contains_key("active_intention_id"));
+        assert!(!non_continue_proposal
+            .parameters
+            .contains_key("next_action_id"));
+        assert!(!non_continue_proposal
+            .parameters
+            .contains_key("intention_status"));
     }
 
     #[test]

@@ -13,7 +13,7 @@ use crate::actions::defs::takeplace::{
 use crate::actions::defs::wait::build_wait_events;
 use crate::actions::defs::work::build_work_start_events;
 use crate::actions::defs::ActionRejection;
-use crate::actions::proposal::{Proposal, ProposalOrigin, ProposalSource};
+use crate::actions::proposal::{Proposal, ProposalOrigin};
 use crate::actions::registry::{ActionEffect, ActionRegistry};
 use crate::actions::report::{CheckedFact, ReasonCode, ReportStatus, ValidationReport};
 use crate::agent::current_place_knowledge_context;
@@ -829,7 +829,7 @@ fn source_context_check(
         ));
     };
 
-    let Some(ProposalSource::TuiSemanticAction(source)) = proposal.source.as_ref() else {
+    let Some(proposal_source) = proposal.source.as_ref() else {
         return Some(reject(
             context,
             proposal,
@@ -841,10 +841,19 @@ fn source_context_check(
         ));
     };
 
-    checked_facts.push(CheckedFact::new(
-        "source_kind",
-        ProposalSource::TuiSemanticAction(source.clone()).stable_id(),
-    ));
+    let Some(source) = proposal_source.tui_context() else {
+        return Some(reject(
+            context,
+            proposal,
+            PipelineStage::SourceContextValidation,
+            vec![ReasonCode::ProposalSourceMissing],
+            checked_facts,
+            "That action does not have a current view source.",
+            "human-origin proposal did not include a TUI semantic-action source packet",
+        ));
+    };
+
+    checked_facts.push(CheckedFact::new("source_kind", proposal_source.stable_id()));
     checked_facts.push(CheckedFact::new(
         "semantic_action_id",
         source.semantic_action_id.as_str(),
@@ -1281,7 +1290,9 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::actions::{ActionDefinition, ActionScope, ProposalOrigin, ProposalSourceContext};
+    use crate::actions::{
+        ActionDefinition, ActionScope, ProposalOrigin, ProposalSource, ProposalSourceContext,
+    };
     use crate::controller::ControllerBindings;
     use crate::epistemics::KnowledgeContext;
     use crate::events::apply::apply_event;
@@ -1586,6 +1597,14 @@ mod tests {
         assert!(!report.actor_visible_summary.contains("hkc."));
         assert!(has_fact(&report.actor_visible_facts, "action_id"));
         assert!(has_fact(&report.debug_only_facts, "source_kind"));
+        assert_eq!(
+            fact_value(&report.debug_only_facts, "source_kind"),
+            Some("tui_semantic_action")
+        );
+        assert_eq!(
+            fact_value(&report.debug_only_facts, "semantic_action_id"),
+            Some("look")
+        );
         assert!(has_fact(
             &report.debug_only_facts,
             "holder_known_context_id"
