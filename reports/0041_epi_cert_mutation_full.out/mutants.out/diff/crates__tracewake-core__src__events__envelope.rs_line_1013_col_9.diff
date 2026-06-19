@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ delete match arm "epistemic" in stream_from_id
+@@ -1005,17 +1005,17 @@
+         EventStream::ReplayDebug => "replay_debug",
+     }
+ }
+ 
+ fn stream_from_id(value: &str) -> Option<EventStream> {
+     match value {
+         "world" => Some(EventStream::World),
+         "agent" => Some(EventStream::Agent),
+-        "epistemic" => Some(EventStream::Epistemic),
++         /* ~ changed by cargo-mutants ~ */
+         "diagnostic" => Some(EventStream::Diagnostic),
+         "controller" => Some(EventStream::Controller),
+         "replay_debug" => Some(EventStream::ReplayDebug),
+         _ => None,
+     }
+ }
+ 
+ fn serialize_ordering_key(key: &OrderingKey) -> String {

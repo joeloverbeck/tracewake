@@ -1,0 +1,31 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_privacy_scope -> Result<PrivacyScope, SerializationError> with Ok(Default::default())
+@@ -705,27 +705,17 @@
+     match scope {
+         PrivacyScope::ActorPrivate(actor_id) => format!("actor:{}", actor_id.as_str()),
+         PrivacyScope::PublicPlaceholder => "public".to_string(),
+         PrivacyScope::InstitutionPlaceholder(value) => format!("institution:{}", encode(value)),
+     }
+ }
+ 
+ fn parse_privacy_scope(value: &str) -> Result<PrivacyScope, SerializationError> {
+-    if value == "public" {
+-        return Ok(PrivacyScope::PublicPlaceholder);
+-    }
+-    let (kind, id) = value
+-        .split_once(':')
+-        .ok_or_else(|| SerializationError::BadLine(value.to_string()))?;
+-    match kind {
+-        "actor" => Ok(PrivacyScope::ActorPrivate(ActorId::new(id)?)),
+-        "institution" => Ok(PrivacyScope::InstitutionPlaceholder(decode(id)?)),
+-        _ => Err(SerializationError::BadLine(value.to_string())),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn split_ids<T>(
+     value: &str,
+     parse: impl Fn(&str) -> Result<T, tracewake_core::ids::IdError>,
+ ) -> Result<Vec<T>, SerializationError> {
+     if value.is_empty() {
+         Ok(Vec::new())

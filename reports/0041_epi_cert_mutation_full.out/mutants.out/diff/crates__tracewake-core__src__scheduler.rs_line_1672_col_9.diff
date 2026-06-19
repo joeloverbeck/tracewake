@@ -1,0 +1,32 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::latest_action_tick_delta_tick -> Option<SimTick> with None
+@@ -1664,28 +1664,17 @@
+         }
+         Ok(appended)
+     }
+ 
+     fn latest_action_tick_delta_tick(
+         events: &[EventEnvelope],
+         actor_id: &ActorId,
+     ) -> Option<SimTick> {
+-        events
+-            .iter()
+-            .filter(|event| {
+-                event.event_type == EventKind::NeedDeltaApplied
+-                    && event.actor_id.as_ref() == Some(actor_id)
+-                    && payload_value(event, "cause_kind") == Some("tick_delta")
+-                    && event.causes.iter().any(|cause| {
+-                        matches!(cause, EventCause::Proposal(_) | EventCause::Event(_))
+-                    })
+-            })
+-            .map(|event| event.sim_tick)
+-            .max()
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn append_intention_lifecycle_after_proposal(
+         log: &mut EventLog,
+         agent_state: &mut AgentState,
+         process_id: &ProcessId,
+         actor_id: &ActorId,

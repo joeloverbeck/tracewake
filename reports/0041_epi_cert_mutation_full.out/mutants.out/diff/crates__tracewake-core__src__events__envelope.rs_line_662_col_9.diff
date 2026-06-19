@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace ContainerCheckedPayload::new_v1 -> Self with Default::default()
+@@ -654,23 +654,17 @@
+ 
+ impl ContainerCheckedPayload {
+     pub fn new_v1(
+         actor_id: ActorId,
+         container_id: ContainerId,
+         source_action_id: ActionId,
+         observed_tick: SimTick,
+     ) -> Self {
+-        Self {
+-            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+-            actor_id,
+-            container_id,
+-            source_action_id,
+-            observed_tick,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum EventCause {
+     Event(EventId),
+     Proposal(ProposalId),
+     ValidationReport(ValidationReportId),

@@ -1,0 +1,46 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace action_rejection_report -> ActionRejectionDebugReport with Default::default()
+@@ -234,42 +234,17 @@
+     }
+ }
+ 
+ pub fn action_rejection_report(
+     validation_report: &ValidationReport,
+     state: &PhysicalState,
+     checksum_context: &ChecksumContext,
+ ) -> ActionRejectionDebugReport {
+-    let checksum = compute_physical_checksum(state, checksum_context).checksum;
+-    ActionRejectionDebugReport {
+-        report_id: DebugReportId::new(format!(
+-            "debug.action_rejection.{}",
+-            validation_report.proposal_id.as_str()
+-        ))
+-        .unwrap(),
+-        proposal_id: validation_report.proposal_id.clone(),
+-        validation_report_id: validation_report.validation_report_id.clone(),
+-        failed_stage: validation_report.failed_stage,
+-        reason_codes: validation_report.reason_codes.clone(),
+-        actor_visible_summary: validation_report.actor_visible_summary.clone(),
+-        debug_summary: validation_report.debug_summary.clone(),
+-        actor_visible_facts: validation_report.actor_visible_facts.clone(),
+-        debug_only_facts: validation_report.debug_only_facts.clone(),
+-        precondition_trace: validation_report
+-            .debug_only_facts
+-            .iter()
+-            .map(CheckedFact::render_pair)
+-            .collect(),
+-        events_created: validation_report.event_ids.clone(),
+-        mutation_attempted: false,
+-        checksum_before: checksum.clone(),
+-        checksum_after: checksum,
+-        debug_capability: DebugCapability::mint(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn projection_rebuild_debug_report(
+     report_id: DebugReportId,
+     rebuild: ProjectionRebuildReport,
+ ) -> ProjectionRebuildDebugReport {
+     ProjectionRebuildDebugReport {
+         report_id,

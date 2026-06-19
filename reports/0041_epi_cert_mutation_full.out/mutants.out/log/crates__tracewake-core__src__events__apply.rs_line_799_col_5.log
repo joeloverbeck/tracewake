@@ -1,0 +1,80 @@
+
+*** crates/tracewake-core/src/events/apply.rs:799:5: replace parse_stance -> Result<Stance, EpistemicApplyError> with Ok(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_stance -> Result<Stance, EpistemicApplyError> with Ok(Default::default())
+@@ -791,29 +791,17 @@
+         })?;
+     Confidence::new(parsed).map_err(|_| EpistemicApplyError::BadPayload {
+         key: "confidence",
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_stance(payload: &BTreeMap<&str, &str>) -> Result<Stance, EpistemicApplyError> {
+-    let value = required_epistemic(payload, "stance")?;
+-    match value {
+-        "believes_true" => Ok(Stance::BelievesTrue),
+-        "believes_false" => Ok(Stance::BelievesFalse),
+-        "expects_true" => Ok(Stance::ExpectsTrue),
+-        "plausible" => Ok(Stance::Plausible),
+-        "doubts" => Ok(Stance::Doubts),
+-        "unknown_or_unresolved" => Ok(Stance::UnknownOrUnresolved),
+-        _ => Err(EpistemicApplyError::BadPayload {
+-            key: "stance",
+-            value: value.to_string(),
+-        }),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_channel(payload: &BTreeMap<&str, &str>) -> Result<Channel, EpistemicApplyError> {
+     let value = required_epistemic(payload, "channel")?;
+     match value {
+         "direct_sight" => Ok(Channel::DirectSight),
+         "touch_or_search" => Ok(Channel::TouchOrSearch),
+         "simple_sound" => Ok(Channel::SimpleSound),
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): couldn't read metadata for file `target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `Stance: Default` is not satisfied
+   --> crates/tracewake-core/src/events/apply.rs:799:8
+    |
+799 |     Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |        ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `Stance`
+   --> crates/tracewake-core/src/epistemics/belief.rs:17:1
+    |
+ 17 | pub enum Stance {
+    | ^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `belief::Stance: Default` is not satisfied
+   --> crates/tracewake-core/src/events/apply.rs:799:8
+    |
+799 |     Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |        ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `belief::Stance`
+   --> crates/tracewake-core/src/epistemics/belief.rs:17:1
+    |
+ 17 | pub enum Stance {
+    | ^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

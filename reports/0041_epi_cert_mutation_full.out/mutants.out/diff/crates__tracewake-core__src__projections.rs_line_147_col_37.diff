@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in actor_known_carried_item
+@@ -139,17 +139,17 @@
+ 
+ fn actor_known_carried_item<'a>(
+     context: &'a KnowledgeContext,
+     item_id: &ItemId,
+ ) -> Option<&'a ActorKnownCarriedItemFact> {
+     context
+         .actor_known_carried_items()
+         .iter()
+-        .find(|fact| fact.item_id() == item_id)
++        .find(|fact| fact.item_id() != /* ~ changed by cargo-mutants ~ */ item_id)
+ }
+ 
+ pub struct EmbodiedPreflightSource<'a> {
+     state: &'a PhysicalState,
+     registry: &'a ActionRegistry,
+     content_manifest_id: &'a ContentManifestId,
+ }
+ 

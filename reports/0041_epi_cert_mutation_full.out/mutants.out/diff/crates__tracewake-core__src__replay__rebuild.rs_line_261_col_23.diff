@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace >= with < in rebuild_decision_context_hash
+@@ -253,17 +253,17 @@
+         .iter()
+         .position(|event| event.event_id == trace_event.event_id)
+         .ok_or_else(|| {
+             Box::new(phase3a_failure(
+                 trace_event,
+                 "decision_trace_event_not_found",
+             ))
+         })?;
+-    if ordinary_index >= trace_index {
++    if ordinary_index < /* ~ changed by cargo-mutants ~ */ trace_index {
+         return Err(Box::new(phase3a_failure(
+             trace_event,
+             "ordinary_event_after_trace",
+         )));
+     }
+     let (prefix_log, prefix_state, prefix_agent_state, prefix_epistemic_projection) =
+         replay_prefix(
+             initial_state,

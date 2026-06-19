@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/report.rs
++++ replace CheckedFact::value -> &str with "xyzzy"
+@@ -194,17 +194,17 @@
+         &self.key
+     }
+ 
+     pub fn stable_key(&self) -> &str {
+         self.key.stable_key()
+     }
+ 
+     pub fn value(&self) -> &str {
+-        &self.value
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn source(&self) -> CheckedFactSource {
+         self.source
+     }
+ 
+     pub fn render_pair(&self) -> String {
+         format!("{}={}", self.stable_key(), self.value)

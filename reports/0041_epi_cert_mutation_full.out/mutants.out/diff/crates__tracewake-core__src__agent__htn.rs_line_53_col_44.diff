@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace == with != in select_method_from_templates
+@@ -45,17 +45,17 @@
+     actor_known_state: &ActorKnownPlanningState,
+     actor_known_facts: &[ActorKnownFact],
+     tick: SimTick,
+     templates: &[RoutineTemplate],
+ ) -> Result<MethodSelection, MethodSelectionFailure> {
+     let family = family_for_goal(selected_goal.goal_kind);
+     let mut candidates = templates
+         .iter()
+-        .filter(|template| template.family == family)
++        .filter(|template| template.family != /* ~ changed by cargo-mutants ~ */ family)
+         .cloned()
+         .collect::<Vec<_>>();
+     candidates.sort_by(|left, right| left.template_id.cmp(&right.template_id));
+     let mut rejected_methods = Vec::new();
+     let mut selected = None;
+     let mut selected_proofs = Vec::new();
+     for template in candidates {
+         let resolution =

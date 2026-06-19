@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventKind::registry -> Vec<EventKindMetadata> with vec![Default::default()]
+@@ -192,17 +192,17 @@
+             EventKind::StuckDiagnosticRecorded,
+             EventKind::NoHumanDayStarted,
+             EventKind::NoHumanDayCompleted,
+             EventKind::ReplayProjectionRebuilt,
+         ]
+     }
+ 
+     pub fn registry() -> Vec<EventKindMetadata> {
+-        Self::all().iter().map(|kind| kind.metadata()).collect()
++        vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn metadata(self) -> EventKindMetadata {
+         EventKindMetadata {
+             kind: self,
+             stream: self.stream(),
+             schema_version: EventSchemaVersion::V1,
+             physical_mutating: self.physical_mutating(),

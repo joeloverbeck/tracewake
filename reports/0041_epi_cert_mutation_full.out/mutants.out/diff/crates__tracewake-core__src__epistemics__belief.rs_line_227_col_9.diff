@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace BeliefDraft::build -> Result<Belief, BeliefBuildError> with Ok(Default::default())
+@@ -219,27 +219,17 @@
+     }
+ 
+     pub fn with_acquired_tick(mut self, acquired_tick: SimTick) -> Self {
+         self.acquired_tick = Some(acquired_tick);
+         self
+     }
+ 
+     pub fn build(self) -> Result<Belief, BeliefBuildError> {
+-        Ok(Belief::new(
+-            self.belief_id.ok_or(BeliefBuildError::MissingBeliefId)?,
+-            self.holder.ok_or(BeliefBuildError::MissingHolder)?,
+-            self.proposition
+-                .ok_or(BeliefBuildError::MissingProposition)?,
+-            self.stance.ok_or(BeliefBuildError::MissingStance)?,
+-            self.confidence.ok_or(BeliefBuildError::MissingConfidence)?,
+-            self.source.ok_or(BeliefBuildError::MissingSource)?,
+-            self.acquired_tick
+-                .ok_or(BeliefBuildError::MissingAcquiredTick)?,
+-        ))
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub enum BeliefBuildError {
+     MissingBeliefId,
+     MissingHolder,
+     MissingProposition,

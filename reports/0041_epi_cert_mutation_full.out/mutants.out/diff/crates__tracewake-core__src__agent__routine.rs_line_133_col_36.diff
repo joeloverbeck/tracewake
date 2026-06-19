@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace || with && in RoutineStep::deserialize_canonical
+@@ -125,17 +125,17 @@
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, RoutineStepParseError> {
+         let value = std::str::from_utf8(value).map_err(|_| RoutineStepParseError::InvalidUtf8)?;
+         let mut fields = value.split('|');
+         let version = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+         let kind = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+         let payload = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+-        if fields.next().is_some() || version != "routine_step_v1" {
++        if fields.next().is_some() && /* ~ changed by cargo-mutants ~ */ version != "routine_step_v1" {
+             return Err(RoutineStepParseError::InvalidShape);
+         }
+ 
+         let action = || {
+             SemanticActionId::new(payload).map_err(RoutineStepParseError::InvalidSemanticActionId)
+         };
+         let text = || decode_text_payload(payload);
+ 

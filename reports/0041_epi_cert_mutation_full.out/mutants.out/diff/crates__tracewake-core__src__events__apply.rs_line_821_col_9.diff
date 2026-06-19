@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "reading_placeholder_schema_only" in parse_channel
+@@ -813,17 +813,17 @@
+ 
+ fn parse_channel(payload: &BTreeMap<&str, &str>) -> Result<Channel, EpistemicApplyError> {
+     let value = required_epistemic(payload, "channel")?;
+     match value {
+         "direct_sight" => Ok(Channel::DirectSight),
+         "touch_or_search" => Ok(Channel::TouchOrSearch),
+         "simple_sound" => Ok(Channel::SimpleSound),
+         "absence_marker" => Ok(Channel::AbsenceMarker),
+-        "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
++         /* ~ changed by cargo-mutants ~ */
+         _ => Err(EpistemicApplyError::BadPayload {
+             key: "channel",
+             value: value.to_string(),
+         }),
+     }
+ }
+ 
+ fn parse_proposition(

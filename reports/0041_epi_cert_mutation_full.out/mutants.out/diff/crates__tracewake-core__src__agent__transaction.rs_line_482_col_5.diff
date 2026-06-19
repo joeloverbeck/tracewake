@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace goal_for_routine_family -> Option<GoalKind> with None
+@@ -474,27 +474,17 @@
+                 && fact.semantic_kind() == "observed_now"
+                 && fact.is_actor_known()
+         })
+         .map(|fact| fact.value().to_string())
+         .or_else(|| context.known_food_sources().iter().next().cloned())
+ }
+ 
+ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
+-    match family {
+-        RoutineFamily::SleepNight => Some(GoalKind::SleepOrRest),
+-        RoutineFamily::EatMeal => Some(GoalKind::Eat),
+-        RoutineFamily::FindFood => Some(GoalKind::FindFood),
+-        RoutineFamily::LeaveUnsafePlace => Some(GoalKind::LeaveUnsafePlace),
+-        RoutineFamily::GoToWork => Some(GoalKind::GoToWork),
+-        RoutineFamily::WorkBlock => Some(GoalKind::PerformWorkBlock),
+-        RoutineFamily::ReturnHome => Some(GoalKind::ReturnHome),
+-        RoutineFamily::ContinueCurrentIntention => Some(GoalKind::ContinueCurrentIntention),
+-        RoutineFamily::MorningWake | RoutineFamily::Wait | RoutineFamily::IdleWithReason => None,
+-    }
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn dangling_provenance_diagnostic(
+     actor_id: &ActorId,
+     tick: SimTick,
+     actor_known_facts: &[crate::agent::ActorKnownFact],
+     available_source_event_ids: &BTreeSet<EventId>,
+ ) -> Option<StuckDiagnosticRecord> {

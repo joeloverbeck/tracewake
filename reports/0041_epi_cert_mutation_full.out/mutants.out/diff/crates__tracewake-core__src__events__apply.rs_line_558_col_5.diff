@@ -1,0 +1,46 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace reject_duplicate_duration_terminal -> Result<(), ApplyError> with Ok(())
+@@ -550,42 +550,17 @@
+     fields.sort();
+     fields
+ }
+ 
+ fn reject_duplicate_duration_terminal(
+     state: &AgentState,
+     event: &EventEnvelope,
+ ) -> Result<(), ApplyError> {
+-    if !is_duration_terminal(event.event_type) {
+-        return Ok(());
+-    }
+-    for start_event_id in event.causes.iter().filter_map(|cause| match cause {
+-        EventCause::Event(event_id) => Some(event_id),
+-        _ => None,
+-    }) {
+-        let already_terminated = state.ordinary_life_episodes.values().any(|episode| {
+-            matches!(
+-                episode.event_kind.as_str(),
+-                "sleep_completed"
+-                    | "sleep_interrupted"
+-                    | "work_block_completed"
+-                    | "work_block_failed"
+-            ) && episode
+-                .caused_event_ids
+-                .iter()
+-                .any(|id| id == start_event_id)
+-        });
+-        if already_terminated {
+-            return Err(ApplyError::DuplicateDurationTerminal {
+-                start_event_id: start_event_id.clone(),
+-            });
+-        }
+-    }
+-    Ok(())
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_typed_diagnostic_payload(
+     payload: &std::collections::BTreeMap<&str, &str>,
+     typed: &crate::agent::TypedDiagnosticFields,
+ ) -> Result<(), ApplyError> {
+     if let Some(value) = payload.get("responsible_layer") {
+         let parsed =

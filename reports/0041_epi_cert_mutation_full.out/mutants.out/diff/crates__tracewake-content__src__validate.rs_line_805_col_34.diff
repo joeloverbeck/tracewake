@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace >= with < in validate_references
+@@ -797,17 +797,17 @@
+                     format!("routine_assignments[{index}]"),
+                     "routine_assignment_id_collision",
+                     format!(
+                         "routine assignment at index {index} derives the same intention/execution ID suffix as index {previous_index}"
+                     ),
+                 ));
+             }
+         }
+-        if assignment.start_tick >= assignment.end_tick {
++        if assignment.start_tick < /* ~ changed by cargo-mutants ~ */ assignment.end_tick {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::State,
+                 format!("routine_assignments[{index}]"),
+                 "bad_tick_order",
+                 "routine assignment start_tick must precede end_tick",
+             ));
+         }
+     }

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionRecord::policy -> ActorKnownProjectionKindPolicy with Default::default()
+@@ -870,17 +870,17 @@
+             | Self::LocalDoor { source_tick, .. }
+             | Self::LocalItem { source_tick, .. }
+             | Self::SleepPlace { source_tick, .. }
+             | Self::Workplace { source_tick, .. } => *source_tick,
+         }
+     }
+ 
+     pub fn policy(&self) -> ActorKnownProjectionKindPolicy {
+-        actor_known_projection_kind_policy(self.kind())
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn relevant_place_id(&self) -> &PlaceId {
+         match self {
+             Self::CurrentPlace { place_id, .. } | Self::CarriedItem { place_id, .. } => place_id,
+             Self::Route { from_place_id, .. } => from_place_id,
+             Self::FoodSource {
+                 place_id: Some(place_id),

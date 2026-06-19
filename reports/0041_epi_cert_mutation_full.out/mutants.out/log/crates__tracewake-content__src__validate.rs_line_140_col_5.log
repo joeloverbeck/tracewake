@@ -1,0 +1,64 @@
+
+*** crates/tracewake-content/src/validate.rs:140:5: replace validate_fixture -> Result<InitialWorld, ContentValidationFailure> with Ok(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_fixture -> Result<InitialWorld, ContentValidationFailure> with Ok(Default::default())
+@@ -132,22 +132,17 @@
+         Err(ContentValidationFailure::from_errors(errors))
+     }
+ }
+ 
+ pub fn validate_fixture(
+     fixture: &FixtureSchema,
+     registry: &ActionRegistry,
+ ) -> Result<InitialWorld, ContentValidationFailure> {
+-    let errors = validate_fixture_errors(fixture, registry);
+-    if errors.is_empty() {
+-        Ok(accepted_world(fixture.clone()))
+-    } else {
+-        Err(ContentValidationFailure::from_errors(errors))
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn accepted_world(mut fixture: FixtureSchema) -> InitialWorld {
+     fixture.canonicalize();
+     let physical_state = fixture.to_physical_state();
+     InitialWorld {
+         fixture,
+         physical_state,
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-content v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-content): couldn't read metadata for file `target/debug/deps/libtracewake_content-052d9f0ddd5654e3.rlib`
+   Compiling tracewake-content v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-content)
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/tests/../../tracewake-content/src/validate.rs` has changed (1781903894.671925245s, 396000001ns after last build at 1781903894.275925244s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_content --edition=2021 crates/tracewake-content/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f1a402c06b6200e9 -C extra-filename=-052d9f0ddd5654e3 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rmeta`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_content --edition=2021 crates/tracewake-content/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=d243c079ea17582c -C extra-filename=-b18457137da16d86 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name hidden_truth_gates --edition=2021 crates/tracewake-core/tests/hidden_truth_gates.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=6827b5805fd85fab -C extra-filename=-499dcae7fdb8d686 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+error[E0277]: the trait bound `InitialWorld: Default` is not satisfied
+   --> crates/tracewake-content/src/validate.rs:140:8
+    |
+140 |     Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |        ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `InitialWorld`
+   --> crates/tracewake-content/src/validate.rs:23:1
+    |
+ 23 | pub struct InitialWorld {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-content` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_content --edition=2021 crates/tracewake-content/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f1a402c06b6200e9 -C extra-filename=-052d9f0ddd5654e3 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rmeta` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `tracewake-content` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_content --edition=2021 crates/tracewake-content/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=d243c079ea17582c -C extra-filename=-b18457137da16d86 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib` (exit status: 1)
+
+*** result: Failure(101)

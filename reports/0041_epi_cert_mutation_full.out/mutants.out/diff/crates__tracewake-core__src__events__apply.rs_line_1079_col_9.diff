@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "tick_delta" in parse_need_change_cause
+@@ -1071,17 +1071,17 @@
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_need_change_cause(payload: &BTreeMap<&str, &str>) -> Result<NeedChangeCause, ApplyError> {
+     let cause_kind = required(payload, "cause_kind")?;
+     match cause_kind {
+         "fixture_initial" => Ok(NeedChangeCause::FixtureInitial),
+-        "tick_delta" => Ok(NeedChangeCause::TickDelta),
++         /* ~ changed by cargo-mutants ~ */
+         "action_effect" => Ok(NeedChangeCause::ActionEffect(parse_action_id_for_agent(
+             payload,
+             "cause_action_id",
+         )?)),
+         "routine_effect" => Ok(NeedChangeCause::RoutineEffect(parse_routine_execution_id(
+             payload,
+         )?)),
+         _ => Err(ApplyError::BadPayload {

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::intentions -> &BTreeMap<IntentionId, Intention> with Box::leak(Box::new(BTreeMap::new()))
+@@ -305,17 +305,17 @@
+         }
+     }
+ 
+     pub fn needs_by_actor(&self) -> &BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
+         &self.needs_by_actor
+     }
+ 
+     pub fn intentions(&self) -> &BTreeMap<IntentionId, Intention> {
+-        &self.intentions
++        Box::leak(Box::new(BTreeMap::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn active_intention_by_actor(&self) -> &BTreeMap<ActorId, IntentionId> {
+         &self.active_intention_by_actor
+     }
+ 
+     pub fn routine_executions(&self) -> &BTreeMap<RoutineExecutionId, RoutineExecution> {
+         &self.routine_executions

@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineExecution::resume with ()
+@@ -455,19 +455,17 @@
+ 
+     pub fn suspend(&mut self, tick: SimTick, reason: impl Into<String>) {
+         self.step_status = RoutineStepStatus::Suspended;
+         self.last_progress_tick = tick;
+         self.failure_interruption_reason = Some(reason.into());
+     }
+ 
+     pub fn resume(&mut self, tick: SimTick) {
+-        self.step_status = RoutineStepStatus::InProgress;
+-        self.last_progress_tick = tick;
+-        self.failure_interruption_reason = None;
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn abandon(&mut self, tick: SimTick, reason: impl Into<String>) {
+         self.step_status = RoutineStepStatus::Abandoned;
+         self.last_progress_tick = tick;
+         self.failure_interruption_reason = Some(reason.into());
+     }
+ 

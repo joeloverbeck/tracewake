@@ -1,0 +1,39 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineStep::proposed -> RoutineStepProposal<'_> with Default::default()
+@@ -52,35 +52,17 @@
+     WaitUntil { reason: String },
+     ContinueCurrentStep { action_id: SemanticActionId },
+     FallbackToFindFood { action_id: SemanticActionId },
+     FailWithTypedDiagnostic { diagnostic: RoutineDiagnosticKind },
+ }
+ 
+ impl RoutineStep {
+     pub fn proposed(&self) -> RoutineStepProposal<'_> {
+-        match self {
+-            RoutineStep::SelectKnownPlace { action_id }
+-            | RoutineStep::MoveTowardPlace { action_id }
+-            | RoutineStep::OpenKnownContainer { action_id }
+-            | RoutineStep::CheckKnownContainer { action_id }
+-            | RoutineStep::ConsumeAccessibleFood { action_id }
+-            | RoutineStep::StartScheduledSleep { action_id }
+-            | RoutineStep::CompleteScheduledSleep { action_id }
+-            | RoutineStep::StartWorkBlock { action_id }
+-            | RoutineStep::CompleteWorkBlock { action_id }
+-            | RoutineStep::ContinueCurrentStep { action_id }
+-            | RoutineStep::FallbackToFindFood { action_id } => {
+-                RoutineStepProposal::Action(action_id)
+-            }
+-            RoutineStep::WaitUntil { reason } => RoutineStepProposal::Wait(reason),
+-            RoutineStep::FailWithTypedDiagnostic { diagnostic } => {
+-                RoutineStepProposal::Diagnostic(diagnostic)
+-            }
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn serialize_canonical(&self) -> String {
+         match self {
+             RoutineStep::SelectKnownPlace { action_id } => {
+                 encode_action_step("select_known_place", action_id)
+             }
+             RoutineStep::MoveTowardPlace { action_id } => {

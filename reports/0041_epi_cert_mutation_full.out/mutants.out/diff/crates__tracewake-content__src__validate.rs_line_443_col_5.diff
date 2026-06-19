@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace push_id with ()
+@@ -435,17 +435,17 @@
+                 "duplicate_id",
+                 format!("duplicate stable ID {id} at {}", paths.join(",")),
+             ));
+         }
+     }
+ }
+ 
+ fn push_id(seen: &mut BTreeMap<String, Vec<String>>, id: &str, path: String) {
+-    seen.entry(id.to_string()).or_default().push(path);
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn reject_reserved_or_display(id: &str, path: String, errors: &mut Vec<ContentValidationError>) {
+     if matches!(
+         id,
+         "player" | "protagonist" | "quest" | "objective" | "reward" | "culprit" | "director"
+     ) {
+         errors.push(ContentValidationError::new(

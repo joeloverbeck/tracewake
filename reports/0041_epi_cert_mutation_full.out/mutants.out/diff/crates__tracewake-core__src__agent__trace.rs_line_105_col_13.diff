@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "method_selection" in ResponsibleLayer::parse
+@@ -97,17 +97,17 @@
+             Self::DebugQuarantine => "debug_quarantine",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+         match value {
+             "candidate_generation" => Ok(Self::CandidateGeneration),
+             "intention_lifecycle" => Ok(Self::IntentionLifecycle),
+-            "method_selection" => Ok(Self::MethodSelection),
++             /* ~ changed by cargo-mutants ~ */
+             "local_planning" => Ok(Self::LocalPlanning),
+             "proposal_construction" => Ok(Self::ProposalConstruction),
+             "scheduler" => Ok(Self::Scheduler),
+             "action_validation" => Ok(Self::ActionValidation),
+             "projection" => Ok(Self::Projection),
+             "view_model" => Ok(Self::ViewModel),
+             "test_oracle" => Ok(Self::TestOracle),
+             "debug_quarantine" => Ok(Self::DebugQuarantine),

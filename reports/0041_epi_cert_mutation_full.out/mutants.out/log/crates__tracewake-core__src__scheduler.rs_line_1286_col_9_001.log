@@ -1,0 +1,146 @@
+
+*** crates/tracewake-core/src/scheduler.rs:1286:9: replace no_human::routine_stuck_diagnostic_kinds -> Vec<(StuckDiagnosticKind, RoutineExecutionId)> with vec![(Default::default(), Default::default())]
+
+*** mutation diff:
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::routine_stuck_diagnostic_kinds -> Vec<(StuckDiagnosticKind, RoutineExecutionId)> with vec![(Default::default(), Default::default())]
+@@ -1278,54 +1278,17 @@
+         }
+     }
+ 
+     fn routine_stuck_diagnostic_kinds(
+         agent_state: &AgentState,
+         actor_id: &ActorId,
+         window: &DayWindow,
+     ) -> Vec<(StuckDiagnosticKind, RoutineExecutionId)> {
+-        agent_state
+-            .routine_executions()
+-            .iter()
+-            .filter(|(_, execution)| &execution.actor_id == actor_id)
+-            .flat_map(|(execution_id, execution)| {
+-                let mut diagnostics = Vec::new();
+-                if execution
+-                    .expected_next_progress_tick
+-                    .is_some_and(|expected| {
+-                        expected < window.start_tick && execution.last_progress_tick < expected
+-                    })
+-                {
+-                    diagnostics.push((
+-                        StuckDiagnosticKind::PastExpectedProgressWindow,
+-                        execution_id.clone(),
+-                    ));
+-                }
+-                if execution.step_status == RoutineStepStatus::Waiting
+-                    && execution.fallback_attempts > 0
+-                    && execution.last_progress_tick < window.start_tick
+-                {
+-                    diagnostics.push((StuckDiagnosticKind::RepeatedIdleWait, execution_id.clone()));
+-                }
+-                diagnostics
+-            })
+-            .filter(|(kind, execution_id)| {
+-                !agent_state.stuck_diagnostics().contains_key(
+-                    &StuckDiagnosticId::new(format!(
+-                        "diagnostic_{}_{}_{}_{}",
+-                        kind.stable_id(),
+-                        actor_id.as_str(),
+-                        window.window_id,
+-                        execution_id.as_str()
+-                    ))
+-                    .unwrap(),
+-                )
+-            })
+-            .collect()
++        vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn append_decision_trace_after_proposal(
+         log: &mut EventLog,
+         agent_state: &mut AgentState,
+         process_id: &ProcessId,
+         actor_id: &ActorId,
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/scheduler.rs` has changed (1781905213.123925226s, 7s after last build at 1781905206.843925241s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused import: `RoutineStepStatus`
+   --> crates/tracewake-core/src/scheduler.rs:234:24
+    |
+234 |         RoutineFamily, RoutineStepStatus, StuckDiagnostic, StuckResultingStatus,
+    |                        ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `StuckDiagnosticKind: Default` is not satisfied
+    --> crates/tracewake-core/src/scheduler.rs:1286:15
+     |
+1286 |         vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+     |               ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `StuckDiagnosticKind`
+    --> crates/tracewake-core/src/scheduler.rs:2304:5
+     |
+2304 |     enum StuckDiagnosticKind {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `RoutineExecutionId: Default` is not satisfied
+    --> crates/tracewake-core/src/scheduler.rs:1286:35
+     |
+1286 |         vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+     |                                   ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `RoutineExecutionId`
+    --> crates/tracewake-core/src/ids.rs:78:9
+     |
+  78 |         pub struct $name(StableId);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 152 | stable_id_type!(RoutineExecutionId);
+     | ----------------------------------- in this macro invocation
+     = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 2 previous errors; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `scheduler::no_human::StuckDiagnosticKind: Default` is not satisfied
+    --> crates/tracewake-core/src/scheduler.rs:1286:15
+     |
+1286 |         vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+     |               ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `scheduler::no_human::StuckDiagnosticKind`
+    --> crates/tracewake-core/src/scheduler.rs:2304:5
+     |
+2304 |     enum StuckDiagnosticKind {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `ids::RoutineExecutionId: Default` is not satisfied
+    --> crates/tracewake-core/src/scheduler.rs:1286:35
+     |
+1286 |         vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+     |                                   ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `ids::RoutineExecutionId`
+    --> crates/tracewake-core/src/ids.rs:78:9
+     |
+  78 |         pub struct $name(StableId);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 152 | stable_id_type!(RoutineExecutionId);
+     | ----------------------------------- in this macro invocation
+     = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `tracewake-core` (lib test) due to 2 previous errors
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

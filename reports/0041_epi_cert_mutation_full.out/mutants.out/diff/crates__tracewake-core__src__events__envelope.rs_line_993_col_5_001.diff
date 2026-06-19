@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace required -> Result<&'a str, EventEnvelopeParseError> with Ok("xyzzy")
+@@ -985,19 +985,17 @@
+         Self::Number
+     }
+ }
+ 
+ fn required<'a>(
+     map: &'a std::collections::BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<&'a str, EventEnvelopeParseError> {
+-    map.get(key)
+-        .copied()
+-        .ok_or(EventEnvelopeParseError::MissingField(key))
++    Ok("xyzzy") /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stream_id(stream: EventStream) -> &'static str {
+     match stream {
+         EventStream::World => "world",
+         EventStream::Agent => "agent",
+         EventStream::Epistemic => "epistemic",
+         EventStream::Diagnostic => "diagnostic",

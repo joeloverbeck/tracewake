@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace == with != in apply_routine_step_transition
+@@ -1419,17 +1419,17 @@
+         let attempts = fallback_attempts
+             .parse::<u32>()
+             .map_err(|_| ApplyError::BadPayload {
+                 key: "fallback_attempts",
+                 value: (*fallback_attempts).to_string(),
+             })?;
+         execution.fallback_attempts = attempts;
+     }
+-    if event_type == EventKind::RoutineStepStarted {
++    if event_type != /* ~ changed by cargo-mutants ~ */ EventKind::RoutineStepStarted {
+         execution.step_status = RoutineStepStatus::InProgress;
+     }
+     Ok(())
+ }
+ 
+ fn expect_bool(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,

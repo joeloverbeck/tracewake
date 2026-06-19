@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace serialize_location -> String with String::new()
+@@ -326,23 +326,17 @@
+             _ => return Err(PropositionParseError::InvalidShape),
+         };
+ 
+         Ok(proposition)
+     }
+ }
+ 
+ fn serialize_location(location: &Location) -> String {
+-    match location {
+-        Location::AtPlace(place_id) => format!("at_place:{}", place_id.serialize_canonical()),
+-        Location::InContainer(container_id) => {
+-            format!("in_container:{}", container_id.serialize_canonical())
+-        }
+-        Location::CarriedBy(actor_id) => format!("carried_by:{}", actor_id.serialize_canonical()),
+-    }
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn deserialize_location(value: &str) -> Result<Location, PropositionParseError> {
+     let Some((kind, id)) = value.split_once(':') else {
+         return Err(PropositionParseError::InvalidLocationShape);
+     };
+ 
+     match kind {

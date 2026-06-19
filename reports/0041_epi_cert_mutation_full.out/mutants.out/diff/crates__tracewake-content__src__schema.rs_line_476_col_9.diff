@@ -1,0 +1,82 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace FixtureSchema::canonicalize with ()
+@@ -468,78 +468,17 @@
+             last_verified_tick: None,
+             schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+         }
+     }
+ }
+ 
+ impl FixtureSchema {
+     pub fn canonicalize(&mut self) {
+-        self.actors
+-            .sort_by(|left, right| left.actor_id.cmp(&right.actor_id));
+-        self.places
+-            .sort_by(|left, right| left.place_id.cmp(&right.place_id));
+-        self.doors
+-            .sort_by(|left, right| left.door_id.cmp(&right.door_id));
+-        self.containers
+-            .sort_by(|left, right| left.container_id.cmp(&right.container_id));
+-        self.items
+-            .sort_by(|left, right| left.item_id.cmp(&right.item_id));
+-        self.affordances.sort_by(|left, right| {
+-            (&left.action_id, &left.target_id).cmp(&(&right.action_id, &right.target_id))
+-        });
+-        self.initial_beliefs
+-            .sort_by(|left, right| left.belief_id.cmp(&right.belief_id));
+-        self.initial_needs
+-            .sort_by(|left, right| (&left.actor_id, left.kind).cmp(&(&right.actor_id, right.kind)));
+-        self.homes
+-            .sort_by(|left, right| left.actor_id.cmp(&right.actor_id));
+-        self.sleep_places.sort_by(|left, right| {
+-            (&left.actor_id, &left.sleep_place_id).cmp(&(&right.actor_id, &right.sleep_place_id))
+-        });
+-        self.food_supplies
+-            .sort_by(|left, right| left.food_supply_id.cmp(&right.food_supply_id));
+-        self.known_food_sources.sort_by(|left, right| {
+-            (&left.actor_id, &left.food_supply_id).cmp(&(&right.actor_id, &right.food_supply_id))
+-        });
+-        self.workplaces
+-            .sort_by(|left, right| left.workplace_id.cmp(&right.workplace_id));
+-        self.routine_templates
+-            .sort_by(|left, right| left.template_id.cmp(&right.template_id));
+-        self.routine_assignments.sort_by(|left, right| {
+-            (&left.actor_id, &left.template_id, left.start_tick).cmp(&(
+-                &right.actor_id,
+-                &right.template_id,
+-                right.start_tick,
+-            ))
+-        });
+-        self.day_windows.sort_by(|left, right| {
+-            (&left.actor_id, left.start_tick, left.end_tick).cmp(&(
+-                &right.actor_id,
+-                right.start_tick,
+-                right.end_tick,
+-            ))
+-        });
+-        for place in &mut self.places {
+-            place.adjacent_place_ids.sort();
+-        }
+-        for container in &mut self.containers {
+-            container.contents.sort();
+-        }
+-        for workplace in &mut self.workplaces {
+-            workplace.assigned_actor_ids.sort();
+-        }
+-        for template in &mut self.routine_templates {
+-            template.applicability_conditions.sort();
+-            template.preconditions.sort();
+-            template.failure_modes.sort();
+-            template.fallback_rules.sort();
+-            template.debug_labels.sort();
+-            template.interruption_points.sort();
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn populate_known_food_sources_for_all_actors(&mut self) {
+         self.known_food_sources = self
+             .actors
+             .iter()
+             .flat_map(|actor| {
+                 self.food_supplies

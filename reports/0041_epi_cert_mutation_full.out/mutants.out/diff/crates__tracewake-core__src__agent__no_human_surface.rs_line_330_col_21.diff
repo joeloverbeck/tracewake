@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace == with != in NoHumanActorKnownSurfaceBuilder::add_role_assignment_notice
+@@ -322,17 +322,17 @@
+                 self.actor_id.clone(),
+                 "workplace_believed_accessible",
+                 format!("{}:{}", workplace_id.as_str(), believed_access_open),
+                 format!("role_assignment_notice:{source}"),
+                 Some(policy.source_tick),
+                 source_event_ids.clone(),
+             ));
+         }
+-        if place_id == self.current_place_id {
++        if place_id != /* ~ changed by cargo-mutants ~ */ self.current_place_id {
+             if let Some(current_place_witness_event_id) = &self.current_place_witness_event_id {
+                 let current_place_source_event_ids =
+                     SourceEventIds::checked(vec![current_place_witness_event_id.clone()])
+                         .expect("place witness id is non-empty");
+                 for stable_id in [
+                     "actor_at_workplace",
+                     "assigned_workplace_known",
+                     "at_workplace",

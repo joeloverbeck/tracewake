@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/report.rs
++++ delete match arm "reason" in CheckedFactKey::from_stable_key
+@@ -124,17 +124,17 @@
+             "container_id" => Self::ContainerId,
+             "door_id" => Self::DoorId,
+             "duration_ticks" => Self::DurationTicks,
+             "from_place_id" => Self::FromPlaceId,
+             "item_id" => Self::ItemId,
+             "need_kind" => Self::NeedKind,
+             "pipeline_slots_9_11" => Self::PipelineSlot,
+             "place_id" => Self::PlaceId,
+-            "reason" => Self::Reason,
++             /* ~ changed by cargo-mutants ~ */
+             "sleep_affordance_id" => Self::SleepAffordanceId,
+             "target_id" => Self::TargetId,
+             "ticks" => Self::TickCount,
+             "to_place_id" => Self::ToPlaceId,
+             _ => Self::Unsupported(key),
+         }
+     }
+ 

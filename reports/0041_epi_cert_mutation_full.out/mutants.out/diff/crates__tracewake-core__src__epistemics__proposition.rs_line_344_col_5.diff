@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace deserialize_location -> Result<Location, PropositionParseError> with Ok(Default::default())
+@@ -336,26 +336,17 @@
+         Location::InContainer(container_id) => {
+             format!("in_container:{}", container_id.serialize_canonical())
+         }
+         Location::CarriedBy(actor_id) => format!("carried_by:{}", actor_id.serialize_canonical()),
+     }
+ }
+ 
+ fn deserialize_location(value: &str) -> Result<Location, PropositionParseError> {
+-    let Some((kind, id)) = value.split_once(':') else {
+-        return Err(PropositionParseError::InvalidLocationShape);
+-    };
+-
+-    match kind {
+-        "at_place" => Ok(Location::AtPlace(PlaceId::new(id)?)),
+-        "in_container" => Ok(Location::InContainer(ContainerId::new(id)?)),
+-        "carried_by" => Ok(Location::CarriedBy(ActorId::new(id)?)),
+-        _ => Err(PropositionParseError::InvalidLocationShape),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn render_location(location: &Location) -> String {
+     match location {
+         Location::AtPlace(place_id) => format!("place {place_id}"),
+         Location::InContainer(container_id) => format!("container {container_id}"),
+         Location::CarriedBy(actor_id) => format!("actor {actor_id}"),
+     }

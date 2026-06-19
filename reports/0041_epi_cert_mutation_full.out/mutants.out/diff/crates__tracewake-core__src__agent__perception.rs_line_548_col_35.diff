@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ replace && with || in visible_item_payload
+@@ -540,17 +540,17 @@
+             PayloadField::new("item_source_place_id", place_id.as_str()),
+         ]),
+         Location::InContainer(container_id) => {
+             let container = state.containers().get(container_id)?;
+             if !matches!(&container.location, Location::AtPlace(place_id) if place_id == current_place_id)
+             {
+                 return None;
+             }
+-            if !container.is_open && !container.contents_visible_when_closed {
++            if !container.is_open || /* ~ changed by cargo-mutants ~ */ !container.contents_visible_when_closed {
+                 return None;
+             }
+             Some(vec![
+                 PayloadField::new("item_source_kind", "container"),
+                 PayloadField::new("item_source_container_id", container_id.as_str()),
+             ])
+         }
+         Location::CarriedBy(_) | Location::AtPlace(_) => None,

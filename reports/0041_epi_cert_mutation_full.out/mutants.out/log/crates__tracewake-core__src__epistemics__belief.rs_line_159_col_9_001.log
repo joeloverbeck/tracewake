@@ -1,0 +1,76 @@
+
+*** crates/tracewake-core/src/epistemics/belief.rs:159:9: replace Belief::observation_ids -> &BTreeSet<ObservationId> with Box::leak(Box::new(BTreeSet::from_iter([Default::default()])))
+
+*** mutation diff:
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Belief::observation_ids -> &BTreeSet<ObservationId> with Box::leak(Box::new(BTreeSet::from_iter([Default::default()])))
+@@ -151,17 +151,17 @@
+         self.last_verified_tick
+     }
+ 
+     pub fn stale_after_tick(&self) -> Option<SimTick> {
+         self.stale_after_tick
+     }
+ 
+     pub fn observation_ids(&self) -> &BTreeSet<ObservationId> {
+-        &self.observation_ids
++        Box::leak(Box::new(BTreeSet::from_iter([Default::default()]))) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn contradiction_ids(&self) -> &BTreeSet<ContradictionId> {
+         &self.contradiction_ids
+     }
+ 
+     pub fn schema_version(&self) -> &SchemaVersion {
+         &self.schema_version
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/epistemics/belief.rs` has changed (1781908433.775924985s, 6s after last build at 1781908427.711925021s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ObservationId: Default` is not satisfied
+   --> crates/tracewake-core/src/epistemics/belief.rs:159:49
+    |
+159 |         Box::leak(Box::new(BTreeSet::from_iter([Default::default()]))) /* ~ changed by cargo-mutants ~ */
+    |                                                 ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ObservationId`
+   --> crates/tracewake-core/src/ids.rs:78:9
+    |
+ 78 |         pub struct $name(StableId);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+146 | stable_id_type!(ObservationId);
+    | ------------------------------ in this macro invocation
+    = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `ids::ObservationId: Default` is not satisfied
+   --> crates/tracewake-core/src/epistemics/belief.rs:159:49
+    |
+159 |         Box::leak(Box::new(BTreeSet::from_iter([Default::default()]))) /* ~ changed by cargo-mutants ~ */
+    |                                                 ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ids::ObservationId`
+   --> crates/tracewake-core/src/ids.rs:78:9
+    |
+ 78 |         pub struct $name(StableId);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+146 | stable_id_type!(ObservationId);
+    | ------------------------------ in this macro invocation
+    = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

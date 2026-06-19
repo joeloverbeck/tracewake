@@ -1,0 +1,36 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace apply_door_open_state -> Result<(), ApplyError> with Ok(())
+@@ -1495,32 +1495,17 @@
+ }
+ 
+ fn apply_door_open_state(
+     state: &mut PhysicalState,
+     payload: &BTreeMap<&str, &str>,
+     expected_old: bool,
+     new_value: bool,
+ ) -> Result<(), ApplyError> {
+-    let door_id = parse_door_id(payload)?;
+-    expect_bool(payload, "was_open", expected_old)?;
+-    expect_bool(payload, "now_open", new_value)?;
+-    let door = state
+-        .doors
+-        .get_mut(&door_id)
+-        .ok_or_else(|| ApplyError::MissingDoor(door_id.clone()))?;
+-    if door.is_open != expected_old {
+-        return Err(ApplyError::PreconditionMismatch {
+-            field: "door.is_open",
+-            expected: expected_old.to_string(),
+-            actual: door.is_open.to_string(),
+-        });
+-    }
+-    door.is_open = new_value;
+-    Ok(())
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn apply_container_open_state(
+     state: &mut PhysicalState,
+     payload: &BTreeMap<&str, &str>,
+     expected_old: bool,
+     new_value: bool,
+ ) -> Result<(), ApplyError> {

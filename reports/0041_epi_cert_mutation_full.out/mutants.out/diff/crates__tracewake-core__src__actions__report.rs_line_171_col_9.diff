@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/actions/report.rs
++++ replace CheckedFactSource::stable_id -> &'static str with ""
+@@ -163,19 +163,17 @@
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum CheckedFactSource {
+     Validation,
+ }
+ 
+ impl CheckedFactSource {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            Self::Validation => "validation",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct CheckedFact {
+     key: CheckedFactKey,
+     value: String,
+     source: CheckedFactSource,

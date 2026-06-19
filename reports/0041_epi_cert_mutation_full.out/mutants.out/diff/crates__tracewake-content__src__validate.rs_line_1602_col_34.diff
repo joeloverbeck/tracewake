@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in contains_direct_state_or_script_marker
+@@ -1594,17 +1594,17 @@
+ 
+ fn semantic_action_base(value: &str) -> Option<ActionId> {
+     let base = value.split('.').next().unwrap_or(value);
+     ActionId::new(base).ok()
+ }
+ 
+ fn contains_direct_state_or_script_marker(value: &str) -> bool {
+     value
+-        .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
++        .split(|character: char|  /* ~ changed by cargo-mutants ~ */character.is_ascii_alphanumeric() && character != '_')
+         .any(|token| is_script_key(token) || is_phase3a_shortcut_marker(token))
+         || PHASE3A_SHORTCUT_MARKERS
+             .iter()
+             .any(|marker| value.contains(marker))
+ }
+ 
+ fn contains_prose_born_fact_marker(value: &str) -> bool {
+     let normalized = value.to_ascii_lowercase();

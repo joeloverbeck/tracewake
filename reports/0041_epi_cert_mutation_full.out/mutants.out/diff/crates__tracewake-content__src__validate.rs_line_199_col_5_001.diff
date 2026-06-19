@@ -1,0 +1,87 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_raw_lines -> Vec<ContentValidationError> with vec![Default::default()]
+@@ -191,83 +191,17 @@
+                 "unsupported fixture schema version {}",
+                 fixture.schema_version.as_str()
+             ),
+         ));
+     }
+ }
+ 
+ fn validate_raw_lines(bytes: &[u8]) -> Vec<ContentValidationError> {
+-    let mut errors = Vec::new();
+-    let text = match std::str::from_utf8(bytes) {
+-        Ok(text) => text,
+-        Err(_) => {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::ParseSchema,
+-                "fixture",
+-                "non_utf8",
+-                "fixture source must be UTF-8",
+-            ));
+-            return errors;
+-        }
+-    };
+-
+-    for (index, line) in text.lines().enumerate() {
+-        let line_no = index + 1;
+-        let tag = line.split('|').next().unwrap_or_default();
+-        if is_forbidden_key(tag) {
+-            let phase = if is_player_key(tag) {
+-                ValidationPhase::NoPlayer
+-            } else {
+-                ValidationPhase::NoScript
+-            };
+-            errors.push(ContentValidationError::new(
+-                phase,
+-                format!("line[{line_no}].{tag}"),
+-                "forbidden_form",
+-                format!("forbidden content form {tag}"),
+-            ));
+-        } else if content_field_by_canonical_key(tag).is_none() {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::ParseSchema,
+-                format!("line[{line_no}].{tag}"),
+-                "unknown_field",
+-                format!("unknown content section {tag}"),
+-            ));
+-            if contains_prose_born_fact_marker(line) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::NoScript,
+-                    format!("line[{line_no}].{tag}"),
+-                    "prose_born_fact",
+-                    "prose or notes must not imply culprit, outcome, or hidden truth facts",
+-                ));
+-            }
+-            if tag.starts_with("routine_") && contains_direct_state_or_script_marker(line) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::NoScript,
+-                    format!("line[{line_no}].{tag}"),
+-                    "authored_shortcut_effect",
+-                    format!("unknown routine content section {tag} contains behavior shortcut"),
+-                ));
+-            }
+-        }
+-
+-        let parts = line.split('|').collect::<Vec<_>>();
+-        if parts.get(1).is_some_and(|value| value.is_empty()) {
+-            if let Some(registration) = content_field_by_canonical_key(tag) {
+-                errors.push(ContentValidationError::new(
+-                    registration.validation_phase,
+-                    format!("line[{line_no}].{tag}.id"),
+-                    registration.diagnostic_code,
+-                    "stable ID field must not be empty",
+-                ));
+-            }
+-        }
+-    }
+-    errors
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+     let mut seen: BTreeMap<String, Vec<String>> = BTreeMap::new();
+     seen.entry(fixture.fixture_id.as_str().to_string())
+         .or_default()
+         .push("fixture.fixture_id".to_string());
+     seen.entry(fixture.schema_version.as_str().to_string())

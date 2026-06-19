@@ -1,0 +1,32 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace failure -> LocalPlanFailure with Default::default()
+@@ -361,28 +361,17 @@
+ 
+ fn failure(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     blocker: BlockerCategory,
+     reason: &str,
+     candidates: Vec<String>,
+ ) -> LocalPlanFailure {
+-    LocalPlanFailure {
+-        blocker,
+-        reason: reason.to_string(),
+-        trace: trace(
+-            state,
+-            request,
+-            candidates,
+-            Vec::new(),
+-            vec![reason.to_string()],
+-            Some(blocker),
+-        ),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn trace(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     candidates_tried: Vec<String>,
+     selected_plan: Vec<PlannedProposal>,
+     rejected_steps: Vec<String>,

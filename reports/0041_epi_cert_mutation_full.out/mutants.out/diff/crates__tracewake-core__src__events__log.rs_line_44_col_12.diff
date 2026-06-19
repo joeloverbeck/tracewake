@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/log.rs
++++ delete ! in EventLog::append_deserialized
+@@ -36,17 +36,17 @@
+         self.events.push(event.clone());
+         Ok(event)
+     }
+ 
+     fn append_deserialized(
+         &mut self,
+         event: EventEnvelope,
+     ) -> Result<EventEnvelope, EventLogError> {
+-        if !event.has_supported_schema_version() {
++        if  /* ~ changed by cargo-mutants ~ */event.has_supported_schema_version() {
+             return Err(EventLogError::UnsupportedSchemaVersion(
+                 event.event_schema_version.as_str().to_string(),
+             ));
+         }
+         let expected_global_order = self.events.len() as u64;
+         if event.global_order != expected_global_order {
+             return Err(EventLogError::GlobalOrderMismatch {
+                 expected: expected_global_order,

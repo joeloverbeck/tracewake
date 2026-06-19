@@ -1,0 +1,34 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace InitialBeliefSchema::to_belief -> Belief with Default::default()
+@@ -425,30 +425,17 @@
+ pub struct DayWindowSchema {
+     pub actor_id: ActorId,
+     pub start_tick: SimTick,
+     pub end_tick: SimTick,
+ }
+ 
+ impl InitialBeliefSchema {
+     pub fn to_belief(&self) -> Belief {
+-        let belief = Belief::new(
+-            self.belief_id.clone(),
+-            HolderKind::Actor(self.holder_actor_id.clone()),
+-            self.proposition.clone(),
+-            self.stance,
+-            self.confidence,
+-            self.source.clone(),
+-            self.acquired_tick,
+-        )
+-        .with_last_verified_tick(self.last_verified_tick);
+-        match self.channel {
+-            Some(channel) => belief.with_channel(channel),
+-            None => belief,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn new_expectation(
+         belief_id: BeliefId,
+         holder_actor_id: ActorId,
+         proposition: Proposition,
+         confidence: Confidence,
+         source: SourceRef,

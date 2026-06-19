@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace || with && in supports_target_kind
+@@ -1666,17 +1666,17 @@
+                     .iter()
+                     .any(|place| place.place_id.as_str() == affordance.target_id)
+         }
+         ActionEffect::Open | ActionEffect::Close => {
+             fixture
+                 .doors
+                 .iter()
+                 .any(|door| door.door_id.as_str() == affordance.target_id)
+-                || fixture
++                && /* ~ changed by cargo-mutants ~ */ fixture
+                     .containers
+                     .iter()
+                     .any(|container| container.container_id.as_str() == affordance.target_id)
+         }
+         ActionEffect::CheckContainer => fixture
+             .containers
+             .iter()
+             .any(|container| container.container_id.as_str() == affordance.target_id),

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::IntentionSuspended in apply_intention_transition
+@@ -1292,17 +1292,17 @@
+     let reason = required(payload, "reason")?.to_string();
+     let intention = state
+         .intentions
+         .get_mut(&intention_id)
+         .ok_or_else(|| ApplyError::MissingIntention(intention_id.clone()))?;
+ 
+     let expected_status = match event_type {
+         EventKind::IntentionContinued | EventKind::IntentionResumed => IntentionStatus::Active,
+-        EventKind::IntentionSuspended => IntentionStatus::Suspended,
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::IntentionCompleted => IntentionStatus::Completed,
+         EventKind::IntentionFailed => IntentionStatus::Failed,
+         EventKind::IntentionAbandoned => IntentionStatus::Abandoned,
+         EventKind::IntentionInterrupted => IntentionStatus::Interrupted,
+         _ => status,
+     };
+     if status != expected_status {
+         return Err(ApplyError::PreconditionMismatch {

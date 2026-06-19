@@ -1,0 +1,36 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["initial_belief", belief_id, holder_actor_id, proposition, stance, confidence, source_kind, source_id, channel, acquired_tick, last_verified_tick, privacy_scope, schema_version] in deserialize_fixture
+@@ -352,32 +352,17 @@
+                 item_id: ItemId::new(*item_id)?,
+                 portable: parse_bool(portable)?,
+                 location: deserialize_location(location)?,
+             }),
+             ["affordance", action_id, target_id] => affordances.push(ActionAffordanceSchema {
+                 action_id: ActionId::new(*action_id)?,
+                 target_id: (*target_id).to_string(),
+             }),
+-            ["initial_belief", belief_id, holder_actor_id, proposition, stance, confidence, source_kind, source_id, channel, acquired_tick, last_verified_tick, privacy_scope, schema_version] => {
+-                initial_beliefs.push(InitialBeliefSchema {
+-                    belief_id: BeliefId::new(*belief_id)?,
+-                    holder_actor_id: ActorId::new(*holder_actor_id)?,
+-                    proposition: Proposition::from_str(&decode(proposition)?)?,
+-                    stance: parse_stance(stance)?,
+-                    confidence: parse_confidence(confidence)?,
+-                    source_kind: parse_source_kind(source_kind)?,
+-                    source: parse_source(source_kind, source_id)?,
+-                    channel: parse_optional_channel(channel)?,
+-                    acquired_tick: parse_tick(acquired_tick)?,
+-                    last_verified_tick: parse_optional_tick(last_verified_tick)?,
+-                    privacy_scope: parse_privacy_scope(privacy_scope)?,
+-                    schema_version: SchemaVersion::new(*schema_version)?,
+-                })
+-            }
++             /* ~ changed by cargo-mutants ~ */
+             ["initial_need", actor_id, kind, value] => initial_needs.push(InitialNeedSchema {
+                 actor_id: ActorId::new(*actor_id)?,
+                 kind: parse_need_kind(kind)?,
+                 value: parse_u16(value)?,
+             }),
+             ["home", actor_id, place_id] => homes.push(HomeSchema {
+                 actor_id: ActorId::new(*actor_id)?,
+                 place_id: PlaceId::new(*place_id)?,

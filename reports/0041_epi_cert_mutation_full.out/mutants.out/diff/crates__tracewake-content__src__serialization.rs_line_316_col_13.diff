@@ -1,0 +1,26 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["need_model", awake_hunger_delta_per_tick, awake_fatigue_delta_per_tick] in deserialize_fixture
+@@ -308,22 +308,17 @@
+     let mut day_windows = Vec::new();
+ 
+     for line in text.lines() {
+         let parts = line.split('|').collect::<Vec<_>>();
+         match parts.as_slice() {
+             ["fixture", id] => fixture_id = Some(FixtureId::new(*id)?),
+             ["schema", version] => schema_version = Some(SchemaVersion::new(*version)?),
+             ["fixture_scope", scope] => fixture_scope = Some(parse_fixture_scope(scope)?),
+-            ["need_model", awake_hunger_delta_per_tick, awake_fatigue_delta_per_tick] => {
+-                need_model = Some(NeedModelSchema {
+-                    awake_hunger_delta_per_tick: parse_i32(awake_hunger_delta_per_tick)?,
+-                    awake_fatigue_delta_per_tick: parse_i32(awake_fatigue_delta_per_tick)?,
+-                })
+-            }
++             /* ~ changed by cargo-mutants ~ */
+             ["actor", actor_id, place_id] => actors.push(ActorSchema {
+                 actor_id: ActorId::new(*actor_id)?,
+                 current_place_id: PlaceId::new(*place_id)?,
+             }),
+             ["place", place_id, label, adjacent, visibility_default] => places.push(PlaceSchema {
+                 place_id: PlaceId::new(*place_id)?,
+                 display_label: decode(label)?,
+                 adjacent_place_ids: split_ids(adjacent, |part| PlaceId::new(part))?,

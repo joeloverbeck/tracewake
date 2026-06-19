@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace == with != in target_kind
+@@ -1743,17 +1743,17 @@
+         .items
+         .iter()
+         .any(|item| item.item_id.as_str() == target_id)
+     {
+         Some("item")
+     } else if fixture
+         .food_supplies
+         .iter()
+-        .any(|food| food.food_supply_id.as_str() == target_id)
++        .any(|food| food.food_supply_id.as_str() != /* ~ changed by cargo-mutants ~ */ target_id)
+     {
+         Some("food_supply")
+     } else if fixture
+         .workplaces
+         .iter()
+         .any(|workplace| workplace.workplace_id.as_str() == target_id)
+     {
+         Some("workplace")

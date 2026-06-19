@@ -1,0 +1,171 @@
+
+*** crates/tracewake-core/src/agent/generation.rs:63:5: replace generate_candidate_goals -> CandidateGenerationOutput with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/generation.rs
++++ replace generate_candidate_goals -> CandidateGenerationOutput with Default::default()
+@@ -55,123 +55,17 @@
+ 
+ pub const fn need_crossing_triggers_candidate_reevaluation(
+     crossing: &NeedThresholdCrossing,
+ ) -> bool {
+     matches!(crossing.direction, ThresholdDirection::IncreasingPressure)
+ }
+ 
+ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGenerationOutput {
+-    let mut candidates = Vec::new();
+-    let active_needs = input
+-        .needs
+-        .iter()
+-        .map(|need| pressure_for_need(&input.actor_id, need))
+-        .collect::<Vec<_>>();
+-
+-    if input.active_intention.is_some() {
+-        candidates.push(candidate(
+-            input,
+-            "continue_current_intention",
+-            CandidateGoalSource::CurrentIntentionContinuation,
+-            GoalKind::ContinueCurrentIntention,
+-            GoalPriority::ActiveIntentionContinuation,
+-            "active intention remains durable",
+-            actor_known_fact_notes(&input.actor_known_facts),
+-            ApplicabilityResult::Applicable,
+-            None,
+-        ));
+-    }
+-
+-    for need in &input.needs {
+-        match (need.kind(), need.band()) {
+-            (NeedKind::Hunger, NeedBand::Rising) => candidates.push(hunger_candidate(
+-                input,
+-                GoalPriority::MildNeedPressure,
+-                "hunger is rising",
+-            )),
+-            (NeedKind::Hunger, NeedBand::Urgent) => candidates.push(hunger_candidate(
+-                input,
+-                GoalPriority::UrgentHungerOrFatigue,
+-                "hunger is urgent",
+-            )),
+-            (NeedKind::Hunger, NeedBand::Severe) => candidates.push(hunger_candidate(
+-                input,
+-                GoalPriority::SevereHunger,
+-                "hunger is severe",
+-            )),
+-            (NeedKind::Fatigue, NeedBand::Urgent) => candidates.push(candidate(
+-                input,
+-                "sleep_or_rest",
+-                CandidateGoalSource::NeedPressure,
+-                GoalKind::SleepOrRest,
+-                GoalPriority::UrgentHungerOrFatigue,
+-                "fatigue is urgent",
+-                actor_known_fact_notes(&input.actor_known_facts),
+-                ApplicabilityResult::Applicable,
+-                None,
+-            )),
+-            (NeedKind::Fatigue, NeedBand::Severe) => candidates.push(candidate(
+-                input,
+-                "sleep_or_rest",
+-                CandidateGoalSource::NeedPressure,
+-                GoalKind::SleepOrRest,
+-                GoalPriority::SevereFatigue,
+-                "fatigue is severe",
+-                actor_known_fact_notes(&input.actor_known_facts),
+-                ApplicabilityResult::Applicable,
+-                None,
+-            )),
+-            (NeedKind::Safety, NeedBand::Severe) => candidates.push(candidate(
+-                input,
+-                "leave_unsafe_place",
+-                CandidateGoalSource::SafetyInterruption,
+-                GoalKind::LeaveUnsafePlace,
+-                GoalPriority::SevereSafety,
+-                "safety is severe",
+-                actor_known_fact_notes(&input.actor_known_facts),
+-                ApplicabilityResult::Applicable,
+-                None,
+-            )),
+-            _ => {}
+-        }
+-    }
+-
+-    if let Some(goal_kind) = input.routine_window_goal {
+-        candidates.push(candidate(
+-            input,
+-            goal_kind.stable_id(),
+-            CandidateGoalSource::RoutineDuty,
+-            goal_kind,
+-            GoalPriority::RoutineWindowDuty,
+-            "routine window is active",
+-            actor_known_fact_notes(&input.actor_known_facts),
+-            ApplicabilityResult::Applicable,
+-            None,
+-        ));
+-    }
+-
+-    candidates.push(candidate(
+-        input,
+-        "idle_with_reason",
+-        CandidateGoalSource::Fallback,
+-        GoalKind::IdleWithReason,
+-        GoalPriority::IdleWithReason,
+-        "no higher priority candidate selected",
+-        actor_known_fact_notes(&input.actor_known_facts),
+-        ApplicabilityResult::Applicable,
+-        None,
+-    ));
+-    candidates.sort();
+-
+-    CandidateGenerationOutput {
+-        candidates,
+-        active_needs,
+-        actor_known_inputs_used: actor_known_input_refs(&input.actor_known_facts),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn hunger_candidate(
+     input: &CandidateGenerationInput,
+     priority: GoalPriority,
+     reason: &str,
+ ) -> CandidateGoal {
+     let knows_food = input
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/generation.rs` has changed (1781906565.295924256s, 5s after last build at 1781906560.183924137s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused import: `NeedKind`
+ --> crates/tracewake-core/src/agent/generation.rs:3:50
+  |
+3 |     GoalKind, GoalPriority, Intention, NeedBand, NeedKind, NeedPressure, NeedState,
+  |                                                  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `CandidateGenerationOutput: Default` is not satisfied
+  --> crates/tracewake-core/src/agent/generation.rs:63:5
+   |
+63 |     Default::default() /* ~ changed by cargo-mutants ~ */
+   |     ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `CandidateGenerationOutput`
+   |
+help: consider annotating `CandidateGenerationOutput` with `#[derive(Default)]`
+   |
+21 + #[derive(Default)]
+22 | pub struct CandidateGenerationOutput {
+   |
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

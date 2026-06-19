@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace == with != in item_location_report
+@@ -209,17 +209,17 @@
+         .collect::<Vec<_>>();
+     let last_location_event_id = location_event_chain
+         .last()
+         .cloned()
+         .or_else(|| Some(EventId::new(format!("fixture_origin.{}", item_id.as_str())).unwrap()));
+     let current_projection_position = log
+         .events()
+         .iter()
+-        .filter(|event| event.stream == EventStream::World)
++        .filter(|event| event.stream != /* ~ changed by cargo-mutants ~ */ EventStream::World)
+         .map(|event| event.stream_position)
+         .max();
+ 
+     ItemLocationDebugReport {
+         report_id: DebugReportId::new(format!("debug.item_location.{}", item_id.as_str())).unwrap(),
+         item_id: item_id.clone(),
+         exists: item.is_some(),
+         current_location,

@@ -1,0 +1,101 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace build_sleep_end_events -> Result<Vec<EventEnvelope>, ApplyError> with Ok(vec![])
+@@ -283,97 +283,17 @@
+     sleep_started_event: &EventEnvelope,
+     log: &EventLog,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,
+     end_tick: SimTick,
+     kind: EventKind,
+     reason: &str,
+ ) -> Result<Vec<EventEnvelope>, ApplyError> {
+-    let actor_id = sleep_started_event
+-        .actor_id
+-        .clone()
+-        .ok_or_else(|| ApplyError::BadPayload {
+-            key: "actor_id",
+-            value: "missing".to_string(),
+-        })?;
+-    let sleep_ticks = classify_actor_tick_regimes_with_start(
+-        log,
+-        &actor_id,
+-        sleep_started_event.sim_tick,
+-        end_tick,
+-        Some(sleep_started_event),
+-    )
+-    .asleep_ticks;
+-    let fatigue_delta = -(sleep_ticks as i32).saturating_mul(payload_i32(
+-        sleep_started_event,
+-        "fatigue_recovery_per_tick",
+-    )?);
+-    let hunger_delta = (sleep_ticks as i32)
+-        .saturating_mul(payload_i32(sleep_started_event, "hunger_rise_per_tick")?);
+-    let mut lifecycle = EventEnvelope::new_caused_v1(
+-        EventId::new(format!(
+-            "event.{}.{}",
+-            kind.stable_id(),
+-            sleep_started_event.event_id.as_str()
+-        ))
+-        .unwrap(),
+-        kind,
+-        0,
+-        0,
+-        end_tick,
+-        ordering_key.clone(),
+-        content_manifest_id.clone(),
+-        vec![EventCause::Event(sleep_started_event.event_id.clone())],
+-    )
+-    .unwrap();
+-    lifecycle.actor_id = Some(actor_id.clone());
+-    lifecycle.proposal_id = sleep_started_event.proposal_id.clone();
+-    lifecycle.participants = vec![actor_id.to_string()];
+-    lifecycle.payload = vec![
+-        PayloadField::new("payload_schema_version", "1"),
+-        PayloadField::new("actor_id", actor_id.as_str()),
+-        PayloadField::new("elapsed_ticks", sleep_ticks.to_string()),
+-        PayloadField::new("reason", reason),
+-        PayloadField::new("fatigue_delta", fatigue_delta.to_string()),
+-        PayloadField::new("hunger_delta", hunger_delta.to_string()),
+-    ];
+-    lifecycle.effects_summary = format!("{} after {} ticks", kind.stable_id(), sleep_ticks);
+-
+-    let mut fatigue_events = sleep_need_events(
+-        agent_state,
+-        sleep_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        end_tick,
+-        NeedKind::Fatigue,
+-        fatigue_delta,
+-        sleep_ticks,
+-    )?;
+-    if let Some(fatigue) = fatigue_events.first_mut() {
+-        fatigue.effects_summary = format!(
+-            "fatigue recovered by {} over {} sleep ticks",
+-            fatigue_delta.abs(),
+-            sleep_ticks
+-        );
+-    }
+-    let hunger_events = sleep_need_events(
+-        agent_state,
+-        sleep_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        end_tick,
+-        NeedKind::Hunger,
+-        hunger_delta,
+-        sleep_ticks,
+-    )?;
+-    let mut events = vec![lifecycle];
+-    events.extend(fatigue_events);
+-    events.extend(hunger_events);
+-    Ok(events)
++    Ok(vec![]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::too_many_arguments)]
+ fn sleep_need_events(
+     agent_state: &AgentState,
+     sleep_started_event: &EventEnvelope,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,

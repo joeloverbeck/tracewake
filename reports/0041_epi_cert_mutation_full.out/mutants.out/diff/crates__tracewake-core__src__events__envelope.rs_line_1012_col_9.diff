@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ delete match arm "agent" in stream_from_id
+@@ -1004,17 +1004,17 @@
+         EventStream::Controller => "controller",
+         EventStream::ReplayDebug => "replay_debug",
+     }
+ }
+ 
+ fn stream_from_id(value: &str) -> Option<EventStream> {
+     match value {
+         "world" => Some(EventStream::World),
+-        "agent" => Some(EventStream::Agent),
++         /* ~ changed by cargo-mutants ~ */
+         "epistemic" => Some(EventStream::Epistemic),
+         "diagnostic" => Some(EventStream::Diagnostic),
+         "controller" => Some(EventStream::Controller),
+         "replay_debug" => Some(EventStream::ReplayDebug),
+         _ => None,
+     }
+ }
+ 

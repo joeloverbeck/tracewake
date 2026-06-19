@@ -1,0 +1,84 @@
+
+*** crates/tracewake-core/src/debug_reports.rs:492:5: replace no_human_day_debug_report -> NoHumanDayDebugReport with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace no_human_day_debug_report -> NoHumanDayDebugReport with Default::default()
+@@ -484,24 +484,17 @@
+         "Stuck",
+         rows,
+         Vec::new(),
+         std::mem::take(&mut stuck_diagnostics),
+     )
+ }
+ 
+ pub fn no_human_day_debug_report(log: &EventLog) -> NoHumanDayDebugReport {
+-    let metrics = no_human_day_metrics(log);
+-    let canonical_summary = metrics.serialize_canonical();
+-    NoHumanDayDebugReport {
+-        report_id: DebugReportId::new("debug.phase3a.no_human_day").unwrap(),
+-        metrics,
+-        canonical_summary,
+-        debug_capability: DebugCapability::mint(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
+     matches!(
+         event.event_type,
+         EventKind::ItemRemovedFromContainer
+             | EventKind::ItemTakenFromPlace
+             | EventKind::ItemPlacedInContainer
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): couldn't read metadata for file `target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused import: `no_human_day_metrics`
+  --> crates/tracewake-core/src/debug_reports.rs:10:26
+   |
+10 | use crate::projections::{no_human_day_metrics, NoHumanDayMetrics};
+   |                          ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `NoHumanDayDebugReport: Default` is not satisfied
+   --> crates/tracewake-core/src/debug_reports.rs:492:5
+    |
+492 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `NoHumanDayDebugReport`
+   --> crates/tracewake-core/src/debug_reports.rs:93:1
+    |
+ 93 | pub struct NoHumanDayDebugReport {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `debug_reports::NoHumanDayDebugReport: Default` is not satisfied
+   --> crates/tracewake-core/src/debug_reports.rs:492:5
+    |
+492 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `debug_reports::NoHumanDayDebugReport`
+   --> crates/tracewake-core/src/debug_reports.rs:93:1
+    |
+ 93 | pub struct NoHumanDayDebugReport {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

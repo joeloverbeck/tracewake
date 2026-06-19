@@ -1,0 +1,27 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_visibility_default -> Result<VisibilityDefault, SerializationError> with Ok(Default::default())
+@@ -504,23 +504,17 @@
+         "phase3a_historical" => Ok(FixtureScope::Phase3AHistorical),
+         _ => Err(SerializationError::BadLine(format!(
+             "bad fixture scope {value}"
+         ))),
+     }
+ }
+ 
+ fn parse_visibility_default(value: &str) -> Result<VisibilityDefault, SerializationError> {
+-    match value {
+-        "visible" => Ok(VisibilityDefault::Visible),
+-        "concealed" => Ok(VisibilityDefault::Concealed),
+-        _ => Err(SerializationError::BadLine(format!(
+-            "bad place visibility_default {value}"
+-        ))),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn serialize_event_log(log: &EventLog) -> Vec<u8> {
+     log.serialize_canonical()
+ }
+ 
+ pub fn deserialize_event_log(bytes: &[u8]) -> Result<EventLog, SerializationError> {
+     EventLog::deserialize_canonical(bytes).map_err(SerializationError::EventLog)

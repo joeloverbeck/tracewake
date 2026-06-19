@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace && with || in contains_prose_born_fact_marker
+@@ -1623,17 +1623,17 @@
+         "scripted outcome",
+         "outcome",
+         "final event",
+         "must happen",
+         "really happened",
+     ]
+     .iter()
+     .any(|marker| normalized.contains(marker));
+-    has_prose_field && implies_simulation_fact
++    has_prose_field || /* ~ changed by cargo-mutants ~ */ implies_simulation_fact
+ }
+ 
+ fn is_known_routine_failure_mode(value: &str) -> bool {
+     matches!(
+         value,
+         "access"
+             | "actor_not_at_workplace"
+             | "food_inaccessible"

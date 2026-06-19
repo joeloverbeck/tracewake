@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace AgentStateChecksum::as_str -> &str with "xyzzy"
+@@ -293,17 +293,17 @@
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct AgentStateChecksum(String);
+ 
+ impl AgentStateChecksum {
+     pub fn as_str(&self) -> &str {
+-        &self.0
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn from_canonical_lines(lines: &[String]) -> Self {
+         let physical = PhysicalChecksum::from_canonical_lines(lines);
+         Self(format!(
+             "twa1-{}",
+             physical.as_str().trim_start_matches("twc1-")
+         ))

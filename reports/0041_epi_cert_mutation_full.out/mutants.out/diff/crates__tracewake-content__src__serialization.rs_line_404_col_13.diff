@@ -1,0 +1,26 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["known_food_source", actor_id, food_supply_id] in deserialize_fixture
+@@ -396,22 +396,17 @@
+             ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] => {
+                 food_supplies.push(FoodSupplySchema {
+                     food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+                     location: deserialize_location(location)?,
+                     servings: parse_u32(servings)?,
+                     hunger_reduction_per_serving: parse_i32(hunger_reduction_per_serving)?,
+                 })
+             }
+-            ["known_food_source", actor_id, food_supply_id] => {
+-                known_food_sources.push(KnownFoodSourceSchema {
+-                    actor_id: ActorId::new(*actor_id)?,
+-                    food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+-                })
+-            }
++             /* ~ changed by cargo-mutants ~ */
+             ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, role_notice_access_open, output_tag] => {
+                 workplaces.push(WorkplaceSchema {
+                     workplace_id: WorkplaceId::new(*workplace_id)?,
+                     place_id: PlaceId::new(*place_id)?,
+                     assigned_actor_ids: split_ids(assigned_actor_ids, |part| ActorId::new(part))?,
+                     work_duration_ticks: parse_u64(work_duration_ticks)?,
+                     fatigue_delta_per_tick: parse_i32(fatigue_delta_per_tick)?,
+                     hunger_delta_per_tick: parse_i32(hunger_delta_per_tick)?,

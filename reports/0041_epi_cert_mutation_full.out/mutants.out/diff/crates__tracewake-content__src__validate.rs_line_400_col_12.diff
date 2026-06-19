@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_ids
+@@ -392,17 +392,17 @@
+             template.template_id.as_str(),
+             format!("routine_templates[{index}].template_id"),
+             errors,
+         );
+     }
+ 
+     let mut initial_need_keys = BTreeSet::new();
+     for (index, need) in fixture.initial_needs.iter().enumerate() {
+-        if !initial_need_keys.insert((need.actor_id.clone(), need.kind)) {
++        if  /* ~ changed by cargo-mutants ~ */initial_need_keys.insert((need.actor_id.clone(), need.kind)) {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::Id,
+                 format!("initial_needs[{index}]"),
+                 "duplicate_id",
+                 format!(
+                     "duplicate initial need {} for {}",
+                     need.kind.stable_id(),
+                     need.actor_id.as_str()

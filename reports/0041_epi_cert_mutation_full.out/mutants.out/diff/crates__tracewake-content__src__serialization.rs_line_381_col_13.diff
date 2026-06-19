@@ -1,0 +1,24 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["home", actor_id, place_id] in deserialize_fixture
+@@ -373,20 +373,17 @@
+                     schema_version: SchemaVersion::new(*schema_version)?,
+                 })
+             }
+             ["initial_need", actor_id, kind, value] => initial_needs.push(InitialNeedSchema {
+                 actor_id: ActorId::new(*actor_id)?,
+                 kind: parse_need_kind(kind)?,
+                 value: parse_u16(value)?,
+             }),
+-            ["home", actor_id, place_id] => homes.push(HomeSchema {
+-                actor_id: ActorId::new(*actor_id)?,
+-                place_id: PlaceId::new(*place_id)?,
+-            }),
++             /* ~ changed by cargo-mutants ~ */
+             ["sleep_place", actor_id, place_id, sleep_place_id, access_open, duration_ticks, fatigue_recovery_per_tick, hunger_rise_per_tick] => {
+                 sleep_places.push(SleepPlaceSchema {
+                     actor_id: ActorId::new(*actor_id)?,
+                     place_id: PlaceId::new(*place_id)?,
+                     sleep_place_id: SleepAffordanceId::new(*sleep_place_id)?,
+                     access_open: parse_bool(access_open)?,
+                     duration_ticks: parse_u64(duration_ticks)?,
+                     fatigue_recovery_per_tick: parse_i32(fatigue_recovery_per_tick)?,

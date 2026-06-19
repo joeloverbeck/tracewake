@@ -1,0 +1,146 @@
+
+*** crates/tracewake-core/src/projections.rs:1282:5: replace proposal_from_semantic_action_entry -> Proposal with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/projections.rs
++++ replace proposal_from_semantic_action_entry -> Proposal with Default::default()
+@@ -1274,83 +1274,17 @@
+     proposal_id: ProposalId,
+     origin: ProposalOrigin,
+     actor_id: Option<ActorId>,
+     requested_tick: SimTick,
+     entry: &SemanticActionEntry,
+     source_view: Option<&EmbodiedViewModel>,
+     controller_id: Option<&ControllerId>,
+ ) -> Proposal {
+-    assert!(
+-        origin != ProposalOrigin::Human || source_view.is_some(),
+-        "human semantic-action proposal construction requires a current embodied view source context"
+-    );
+-    let mut proposal = Proposal::new(
+-        proposal_id,
+-        origin,
+-        actor_id,
+-        entry.action_id.clone(),
+-        requested_tick,
+-    );
+-    proposal.target_ids = entry.target_ids.clone();
+-    if let Some(view) = source_view {
+-        proposal.source_view_model_id = Some(view.view_model_id.clone());
+-        proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+-            source_view_model_id: view.view_model_id.clone(),
+-            holder_known_context_id: view.holder_known_context_id.clone(),
+-            holder_known_context_hash: view.holder_known_context_hash.clone(),
+-            holder_known_context_frontier: view.holder_known_context_frontier,
+-            context_tick: view.sim_tick,
+-            actor_id: view.viewer_actor_id.clone(),
+-            semantic_action_id: entry.semantic_action_id.clone(),
+-            provenance_ancestry: entry
+-                .availability
+-                .provenance_refs()
+-                .iter()
+-                .map(|source| format!("{}:{}", source.kind.stable_id(), source.reference))
+-                .collect(),
+-        }));
+-    }
+-    if let Some(controller_id) = controller_id {
+-        proposal
+-            .parameters
+-            .insert("controller_id".to_string(), controller_id.to_string());
+-    }
+-    if entry.semantic_action_id.as_str() == "wait.1_tick" {
+-        proposal
+-            .parameters
+-            .insert("ticks".to_string(), "1".to_string());
+-        proposal
+-            .parameters
+-            .insert("reason".to_string(), "actor selected wait".to_string());
+-    }
+-    if entry.action_id.as_str() == "sleep" {
+-        if let Some(sleep_affordance_id) = entry.target_ids.first() {
+-            proposal.parameters.insert(
+-                "sleep_affordance_id".to_string(),
+-                sleep_affordance_id.clone(),
+-            );
+-        }
+-    }
+-    if entry.action_id.as_str() == "continue_routine" {
+-        if let Some(intention_id) = entry.target_ids.first() {
+-            proposal
+-                .parameters
+-                .insert("active_intention_id".to_string(), intention_id.clone());
+-        }
+-        if let Some(next_action_id) = entry.target_ids.get(1) {
+-            proposal
+-                .parameters
+-                .insert("next_action_id".to_string(), next_action_id.clone());
+-        }
+-        proposal
+-            .parameters
+-            .insert("intention_status".to_string(), "active".to_string());
+-    }
+-    proposal
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn visible_open_sleep_affordance(
+     source: &EmbodiedProjectionSource<'_>,
+ ) -> Option<SleepAffordanceId> {
+     source.actor_known_sleep_affordances.first().cloned()
+ }
+ 
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/projections.rs` has changed (1781904841.907922874s, 4s after last build at 1781904837.131922914s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused imports: `ProposalSourceContext` and `ProposalSource`
+ --> crates/tracewake-core/src/projections.rs:2:66
+  |
+2 |     validate_proposal, ActionRegistry, Proposal, ProposalOrigin, ProposalSource,
+  |                                                                  ^^^^^^^^^^^^^^
+3 |     ProposalSourceContext, ProposalValidationContext, ReasonCode, ReportStatus, ValidationReport,
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `Proposal: Default` is not satisfied
+    --> crates/tracewake-core/src/projections.rs:1282:5
+     |
+1282 |     Default::default() /* ~ changed by cargo-mutants ~ */
+     |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `Proposal`
+    --> crates/tracewake-core/src/actions/proposal.rs:19:1
+     |
+  19 | pub struct Proposal {
+     | ^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `proposal::Proposal: Default` is not satisfied
+    --> crates/tracewake-core/src/projections.rs:1282:5
+     |
+1282 |     Default::default() /* ~ changed by cargo-mutants ~ */
+     |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `proposal::Proposal`
+    --> crates/tracewake-core/src/actions/proposal.rs:19:1
+     |
+  19 | pub struct Proposal {
+     | ^^^^^^^^^^^^^^^^^^^
+
+warning: `tracewake-core` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `tracewake-core` (lib test) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

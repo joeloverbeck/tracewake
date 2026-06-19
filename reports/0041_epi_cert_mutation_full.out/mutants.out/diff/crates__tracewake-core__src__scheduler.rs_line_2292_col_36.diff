@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace == with != in no_human::is_no_human_progress_event
+@@ -2284,17 +2284,17 @@
+             return false;
+         }
+         if event.event_type != EventKind::ContinueRoutineProposed {
+             return true;
+         }
+         event
+             .payload
+             .iter()
+-            .any(|field| field.key == "behavioral_progress" && field.value == "true")
++            .any(|field| field.key != /* ~ changed by cargo-mutants ~ */ "behavioral_progress" && field.value == "true")
+     }
+ 
+     fn append_marker(
+         log: &mut EventLog,
+         kind: EventKind,
+         process_id: &ProcessId,
+         tick: SimTick,
+         sequence: u64,

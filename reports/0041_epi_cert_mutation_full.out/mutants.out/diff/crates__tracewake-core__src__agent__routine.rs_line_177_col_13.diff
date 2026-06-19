@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ delete match arm "fail_with_typed_diagnostic" in RoutineStep::deserialize_canonical
+@@ -169,20 +169,17 @@
+             }),
+             "wait_until" => Ok(Self::WaitUntil { reason: text()? }),
+             "continue_current_step" => Ok(Self::ContinueCurrentStep {
+                 action_id: action()?,
+             }),
+             "fallback_to_find_food" => Ok(Self::FallbackToFindFood {
+                 action_id: action()?,
+             }),
+-            "fail_with_typed_diagnostic" => Ok(Self::FailWithTypedDiagnostic {
+-                diagnostic: RoutineDiagnosticKind::parse(text()?.as_str())
+-                    .map_err(|_| RoutineStepParseError::InvalidDiagnosticKind)?,
+-            }),
++             /* ~ changed by cargo-mutants ~ */
+             _ => Err(RoutineStepParseError::InvalidStepKind),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub enum RoutineStepProposal<'a> {
+     Action(&'a SemanticActionId),

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/observation.rs
++++ replace <= with > in Confidence::is_low
+@@ -21,17 +21,17 @@
+         }
+     }
+ 
+     pub const fn parts_per_thousand(self) -> u16 {
+         self.0
+     }
+ 
+     pub const fn is_low(self) -> bool {
+-        self.0 <= 350
++        self.0 > /* ~ changed by cargo-mutants ~ */ 350
+     }
+ 
+     pub fn serialize_canonical(self) -> String {
+         format!("{:04}", self.0)
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]

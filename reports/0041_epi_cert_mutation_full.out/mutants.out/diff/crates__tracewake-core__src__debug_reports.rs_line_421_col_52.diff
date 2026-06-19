@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace == with != in phase3a_actor_report
+@@ -413,17 +413,17 @@
+     rows.push(format!(
+         "active_intention={}",
+         active_intention_id.map(|id| id.as_str()).unwrap_or("none")
+     ));
+     rows.extend(
+         agent_state
+             .routine_executions
+             .values()
+-            .filter(|execution| execution.actor_id == *actor_id)
++            .filter(|execution| execution.actor_id != /* ~ changed by cargo-mutants ~ */ *actor_id)
+             .map(|execution| {
+                 format!(
+                     "routine={} template={} status={:?}",
+                     execution.execution_id.as_str(),
+                     execution.template_id.as_str(),
+                     execution.step_status
+                 )
+             }),

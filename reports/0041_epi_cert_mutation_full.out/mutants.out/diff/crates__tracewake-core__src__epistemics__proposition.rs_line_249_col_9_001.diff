@@ -1,0 +1,47 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace Proposition::contradicts_one_way -> bool with false
+@@ -241,43 +241,17 @@
+             Proposition::ActorWasNearPlace { actor_id, place_id } => {
+                 require_actor(actor_id, known_actors)?;
+                 require_place(place_id, known_places)
+             }
+         }
+     }
+ 
+     fn contradicts_one_way(&self, other: &Self) -> bool {
+-        match (self, other) {
+-            (
+-                Proposition::ItemLocatedInContainer {
+-                    item_id,
+-                    container_id,
+-                },
+-                Proposition::ItemMissingFromExpectedLocation {
+-                    item_id: missing_item_id,
+-                    expected_location: Location::InContainer(expected_container_id),
+-                },
+-            ) => item_id == missing_item_id && container_id == expected_container_id,
+-            (
+-                Proposition::ItemLocatedAtPlace { item_id, place_id },
+-                Proposition::ItemMissingFromExpectedLocation {
+-                    item_id: missing_item_id,
+-                    expected_location: Location::AtPlace(expected_place_id),
+-                },
+-            ) => item_id == missing_item_id && place_id == expected_place_id,
+-            (
+-                Proposition::ItemCarriedByActor { item_id, actor_id },
+-                Proposition::ItemMissingFromExpectedLocation {
+-                    item_id: missing_item_id,
+-                    expected_location: Location::CarriedBy(expected_actor_id),
+-                },
+-            ) => item_id == missing_item_id && actor_id == expected_actor_id,
+-            _ => false,
+-        }
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl fmt::Display for Proposition {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         f.write_str(&self.render())
+     }
+ }

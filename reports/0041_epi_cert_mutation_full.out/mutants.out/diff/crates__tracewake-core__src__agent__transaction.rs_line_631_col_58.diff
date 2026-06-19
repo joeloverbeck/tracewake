@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace == with != in witness_kind_allowed
+@@ -623,17 +623,17 @@
+         "actor_knows_sleep_affordance"
+         | "actor_knows_sleep_place"
+         | "sleep_place_believed_accessible" => matches!(
+             event_kind,
+             EventKind::ObservationRecorded | EventKind::StartingBeliefRecorded
+         ),
+         "actor_knows_workplace"
+         | "workplace_assignment_active"
+-        | "workplace_believed_accessible" => *event_kind == EventKind::RoleAssignmentNoticeRecorded,
++        | "workplace_believed_accessible" => *event_kind != /* ~ changed by cargo-mutants ~ */ EventKind::RoleAssignmentNoticeRecorded,
+         "actor_belief_projection_limitation"
+         | "modeled_wait_reason"
+         | "reevaluation_window_known" => matches!(
+             event_kind,
+             EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+         ),
+         "active_intention_present" | "next_step_available" => matches!(
+             event_kind,

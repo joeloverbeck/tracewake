@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineCondition::stable_id -> &'static str with ""
+@@ -234,38 +234,17 @@
+     FixtureAuthoredPossibility,
+     SharedPipelinePreconditions,
+     AssignedWorkplaceKnown,
+     AtWorkplace,
+ }
+ 
+ impl RoutineCondition {
+     pub const fn stable_id(&self) -> &'static str {
+-        match self {
+-            Self::ActorKnowsFoodSource => "actor_knows_food_source",
+-            Self::ActorKnowsWorkplace => "actor_knows_workplace",
+-            Self::WorkplaceAssignmentActive => "workplace_assignment_active",
+-            Self::ActorKnowsHome => "actor_knows_home",
+-            Self::ActorKnowsSleepPlace => "actor_knows_sleep_place",
+-            Self::ActorHasFoodSearchKnowledge => "actor_has_food_search_knowledge",
+-            Self::ActiveIntentionPresent => "active_intention_present",
+-            Self::SleepStateCanEnd => "sleep_state_can_end",
+-            Self::FoodSourceBelievedAccessible => "food_source_believed_accessible",
+-            Self::ActorAtWorkplace => "actor_at_workplace",
+-            Self::SleepPlaceBelievedAccessible => "sleep_place_believed_accessible",
+-            Self::SearchSurfaceActorKnown => "search_surface_actor_known",
+-            Self::NextStepAvailable => "next_step_available",
+-            Self::KnownRouteSurface => "known_route_surface",
+-            Self::ModeledWaitReason => "modeled_wait_reason",
+-            Self::ReevaluationWindowKnown => "reevaluation_window_known",
+-            Self::FixtureAuthoredPossibility => "fixture_authored_possibility",
+-            Self::SharedPipelinePreconditions => "shared_pipeline_preconditions",
+-            Self::AssignedWorkplaceKnown => "assigned_workplace_known",
+-            Self::AtWorkplace => "at_workplace",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn parse(value: &str) -> Option<Self> {
+         match value {
+             "actor_knows_food_source" => Some(Self::ActorKnowsFoodSource),
+             "actor_knows_workplace" => Some(Self::ActorKnowsWorkplace),
+             "workplace_assignment_active" => Some(Self::WorkplaceAssignmentActive),
+             "actor_knows_home" => Some(Self::ActorKnowsHome),

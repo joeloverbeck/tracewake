@@ -1,0 +1,79 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace validate_typed_diagnostic_payload -> Result<(), ApplyError> with Ok(())
+@@ -582,75 +582,17 @@
+     }
+     Ok(())
+ }
+ 
+ fn validate_typed_diagnostic_payload(
+     payload: &std::collections::BTreeMap<&str, &str>,
+     typed: &crate::agent::TypedDiagnosticFields,
+ ) -> Result<(), ApplyError> {
+-    if let Some(value) = payload.get("responsible_layer") {
+-        let parsed =
+-            crate::agent::ResponsibleLayer::parse(value).map_err(|_| ApplyError::BadPayload {
+-                key: "responsible_layer",
+-                value: (*value).to_string(),
+-            })?;
+-        if parsed != typed.responsible_layer {
+-            return Err(ApplyError::BadPayload {
+-                key: "responsible_layer",
+-                value: (*value).to_string(),
+-            });
+-        }
+-    }
+-    if let Some(value) = payload.get("blocker_code") {
+-        let parsed =
+-            crate::agent::BlockerCode::parse(value).map_err(|_| ApplyError::BadPayload {
+-                key: "blocker_code",
+-                value: (*value).to_string(),
+-            })?;
+-        if parsed != typed.blocker_code {
+-            return Err(ApplyError::BadPayload {
+-                key: "blocker_code",
+-                value: (*value).to_string(),
+-            });
+-        }
+-    }
+-    if let Some(value) = payload.get("hidden_truth_referenced") {
+-        let parsed = match *value {
+-            "true" => true,
+-            "false" => false,
+-            _ => {
+-                return Err(ApplyError::BadPayload {
+-                    key: "hidden_truth_referenced",
+-                    value: (*value).to_string(),
+-                });
+-            }
+-        };
+-        if parsed != typed.hidden_truth_referenced {
+-            return Err(ApplyError::BadPayload {
+-                key: "hidden_truth_referenced",
+-                value: (*value).to_string(),
+-            });
+-        }
+-    }
+-    for (key, expected) in [
+-        ("input_source", typed.input_source.as_str()),
+-        ("actual_source", typed.actual_source.as_str()),
+-        ("remediation_hint", typed.remediation_hint.as_str()),
+-    ] {
+-        if let Some(value) = payload.get(key) {
+-            if *value != expected {
+-                return Err(ApplyError::BadPayload {
+-                    key,
+-                    value: (*value).to_string(),
+-                });
+-            }
+-        }
+-    }
+-    Ok(())
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn payload_map(payload: &[PayloadField]) -> BTreeMap<&str, &str> {
+     payload
+         .iter()
+         .map(|field| (field.key.as_str(), field.value.as_str()))
+         .collect()
+ }

@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedThresholdCrossing::stable_id -> String with String::new()
+@@ -96,22 +96,17 @@
+ pub struct NeedThresholdCrossing {
+     pub from: NeedBand,
+     pub to: NeedBand,
+     pub direction: ThresholdDirection,
+ }
+ 
+ impl NeedThresholdCrossing {
+     pub fn stable_id(&self) -> String {
+-        format!(
+-            "{}>{}:{}",
+-            self.from.stable_id(),
+-            self.to.stable_id(),
+-            self.direction.stable_id()
+-        )
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn parse(value: &str) -> Result<Option<Self>, NeedParseError> {
+         if value == "none" {
+             return Ok(None);
+         }
+         let (bands, direction) = value
+             .split_once(':')

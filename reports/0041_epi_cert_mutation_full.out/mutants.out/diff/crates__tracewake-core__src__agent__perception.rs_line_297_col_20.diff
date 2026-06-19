@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ delete ! in current_place_knowledge_context
+@@ -289,17 +289,17 @@
+             classified.is_latest_current_place_record(),
+         );
+         match classified.record() {
+             ActorKnownProjectionRecord::Route {
+                 from_place_id,
+                 to_place_id,
+                 ..
+             } => {
+-                if !included_by_policy {
++                if  /* ~ changed by cargo-mutants ~ */included_by_policy {
+                     continue;
+                 }
+                 routes.push(ActorKnownRouteFact::new(
+                     from_place_id.clone(),
+                     to_place_id.clone(),
+                     source_key,
+                 ));
+             }

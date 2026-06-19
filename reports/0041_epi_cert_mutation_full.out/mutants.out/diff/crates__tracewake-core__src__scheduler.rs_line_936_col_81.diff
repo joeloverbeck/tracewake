@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace <= with > in no_human::append_due_completions
+@@ -928,17 +928,17 @@
+             } else {
+                 retained_sleep_starts.push(sleep_started);
+             }
+         }
+         *pending_sleep_starts = retained_sleep_starts;
+ 
+         let mut retained_work_starts = Vec::new();
+         for work_started in pending_work_starts.drain(..) {
+-            if scheduled_completion_tick(&work_started).is_some_and(|tick| tick <= due_tick) {
++            if scheduled_completion_tick(&work_started).is_some_and(|tick| tick > /* ~ changed by cargo-mutants ~ */ due_tick) {
+                 due_completions.push(PendingCompletion::Work(work_started));
+             } else {
+                 retained_work_starts.push(work_started);
+             }
+         }
+         *pending_work_starts = retained_work_starts;
+ 
+         due_completions.sort_by(|left, right| {

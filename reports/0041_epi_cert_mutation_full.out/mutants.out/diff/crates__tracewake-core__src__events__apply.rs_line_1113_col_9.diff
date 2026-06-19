@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "need_pressure" in parse_intention_source
+@@ -1105,17 +1105,17 @@
+             value: value.to_string(),
+         }),
+     }
+ }
+ 
+ fn parse_intention_source(payload: &BTreeMap<&str, &str>) -> Result<IntentionSource, ApplyError> {
+     let value = required(payload, "source")?;
+     match value {
+-        "need_pressure" => Ok(IntentionSource::NeedPressure),
++         /* ~ changed by cargo-mutants ~ */
+         "routine_duty" => Ok(IntentionSource::RoutineDuty),
+         "candidate_goal_selection" => Ok(IntentionSource::CandidateGoalSelection),
+         "safety_interruption" => Ok(IntentionSource::SafetyInterruption),
+         "fixture_routine_assignment" => Ok(IntentionSource::FixtureRoutineAssignment),
+         "fallback" => Ok(IntentionSource::Fallback),
+         _ => Err(ApplyError::BadPayload {
+             key: "source",
+             value: value.to_string(),

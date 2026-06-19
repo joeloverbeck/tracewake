@@ -1,0 +1,49 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace plan_local_actions -> Result<LocalPlan, LocalPlanFailure> with Ok(Default::default())
+@@ -58,45 +58,17 @@
+     pub trace: LocalPlanTrace,
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ pub fn plan_local_actions(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+-    match &request.goal {
+-        PlannerGoal::ReachPlace(target) => plan_route(state, request, target),
+-        PlannerGoal::CheckContainer(container_id) => {
+-            plan_check_container(state, request, container_id)
+-        }
+-        PlannerGoal::EatKnownFood(food_source) => plan_known_food(state, request, food_source),
+-        PlannerGoal::StartSleep(sleep_place_id) => plan_start_sleep(state, request, sleep_place_id),
+-        PlannerGoal::StartWorkBlock(workplace_id) => {
+-            plan_start_work_block(state, request, workplace_id)
+-        }
+-        PlannerGoal::LeaveUnsafePlace => plan_leave_unsafe_place(state, request),
+-        PlannerGoal::WaitWithReason(reason) => {
+-            let proposal = PlannedProposal {
+-                action_id: ActionId::new("wait").unwrap(),
+-                target_ids: vec![reason.clone()],
+-            };
+-            Ok(LocalPlan {
+-                proposals: vec![proposal.clone()],
+-                trace: trace(
+-                    state,
+-                    request,
+-                    vec![format!("wait:{reason}")],
+-                    vec![proposal],
+-                    Vec::new(),
+-                    None,
+-                ),
+-            })
+-        }
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_leave_unsafe_place(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+     let Some(target) = state

@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace <impl fmt::Display for RoutineStepParseError>::fmt -> fmt::Result with Ok(Default::default())
+@@ -493,30 +493,17 @@
+     InvalidStepKind,
+     InvalidDiagnosticKind,
+     InvalidTextPayload,
+     InvalidSemanticActionId(crate::ids::IdError),
+ }
+ 
+ impl fmt::Display for RoutineStepParseError {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        match self {
+-            RoutineStepParseError::InvalidUtf8 => {
+-                write!(f, "canonical routine step bytes must be UTF-8")
+-            }
+-            RoutineStepParseError::InvalidShape => write!(f, "invalid routine step shape"),
+-            RoutineStepParseError::InvalidStepKind => write!(f, "invalid routine step kind"),
+-            RoutineStepParseError::InvalidDiagnosticKind => {
+-                write!(f, "invalid routine diagnostic kind")
+-            }
+-            RoutineStepParseError::InvalidTextPayload => write!(f, "invalid routine step text"),
+-            RoutineStepParseError::InvalidSemanticActionId(err) => {
+-                write!(f, "invalid routine step action ID: {err}")
+-            }
+-        }
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl std::error::Error for RoutineStepParseError {}
+ 
+ fn encode_action_step(kind: &str, action_id: &SemanticActionId) -> String {
+     format!(
+         "routine_step_v1|{}|{}",

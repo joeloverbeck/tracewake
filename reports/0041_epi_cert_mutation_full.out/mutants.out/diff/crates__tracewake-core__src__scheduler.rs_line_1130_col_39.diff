@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace == with != in no_human::append_routine_step_completed_after_duration_completion
+@@ -1122,17 +1122,17 @@
+         };
+         let Some(execution_id) = agent_state
+             .routine_executions
+             .iter()
+             .filter(|(_, execution)| &execution.actor_id == actor_id)
+             .filter(|(_, execution)| execution.family == family)
+             .filter(|(_, execution)| execution.start_tick <= completion_event.sim_tick)
+             .filter(|(_, execution)| {
+-                execution.step_status == crate::agent::RoutineStepStatus::InProgress
++                execution.step_status != /* ~ changed by cargo-mutants ~ */ crate::agent::RoutineStepStatus::InProgress
+             })
+             .min_by(|(_, left), (_, right)| {
+                 left.start_tick
+                     .cmp(&right.start_tick)
+                     .then_with(|| left.execution_id.cmp(&right.execution_id))
+             })
+             .map(|(execution_id, _)| execution_id.clone())
+         else {

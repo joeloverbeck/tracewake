@@ -1,0 +1,76 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_numeric_i32 with ()
+@@ -1290,72 +1290,17 @@
+ ];
+ 
+ fn validate_numeric_i32(
+     value: i32,
+     path: impl Into<String>,
+     policy: NumericFieldPolicy,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+-    let path = path.into();
+-    match policy {
+-        NumericFieldPolicy::PressureNonnegative => {
+-            if value < 0 {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    path,
+-                    "invalid_tuning_direction",
+-                    "need and routine tuning values must be nonnegative in their modeled direction",
+-                ));
+-            } else if value > i32::from(NEED_MAX) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    path,
+-                    "invalid_tuning_magnitude",
+-                    format!(
+-                        "need and routine tuning values must not exceed {NEED_MAX} per tick or serving"
+-                    ),
+-                ));
+-            }
+-        }
+-        NumericFieldPolicy::ReliefPositive => {
+-            if value <= 0 {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    path,
+-                    "invalid_relief_magnitude",
+-                    "relief-direction tuning values must be greater than zero",
+-                ));
+-            } else if value > i32::from(NEED_MAX) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    path,
+-                    "invalid_tuning_magnitude",
+-                    format!(
+-                        "need and routine tuning values must not exceed {NEED_MAX} per tick or serving"
+-                    ),
+-                ));
+-            }
+-        }
+-        NumericFieldPolicy::NeedBandI32 => {
+-            if !(0..=i32::from(NEED_MAX)).contains(&value) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    path,
+-                    "invalid_need_band",
+-                    format!("need-band values must be between 0 and {NEED_MAX}"),
+-                ));
+-            }
+-        }
+-        NumericFieldPolicy::DurationAtLeastOne
+-        | NumericFieldPolicy::NeedBandU16
+-        | NumericFieldPolicy::CountNonnegative => {
+-            unreachable!("non-i32 numeric policy used for i32 field")
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_duration_u64(
+     value: u64,
+     path: impl Into<String>,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+     if value == 0 {

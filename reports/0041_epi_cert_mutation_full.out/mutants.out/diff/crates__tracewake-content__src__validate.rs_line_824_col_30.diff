@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace >= with < in validate_references
+@@ -816,17 +816,17 @@
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("day_windows[{index}].actor_id"),
+                 window.actor_id.as_str(),
+                 "actor",
+             );
+         }
+-        if window.start_tick >= window.end_tick {
++        if window.start_tick < /* ~ changed by cargo-mutants ~ */ window.end_tick {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::State,
+                 format!("day_windows[{index}]"),
+                 "bad_tick_order",
+                 "day window start_tick must precede end_tick",
+             ));
+         }
+     }

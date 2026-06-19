@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace == with != in supports_target_kind
+@@ -1682,17 +1682,17 @@
+             .any(|container| container.container_id.as_str() == affordance.target_id),
+         ActionEffect::Eat => fixture
+             .food_supplies
+             .iter()
+             .any(|food| food.food_supply_id.as_str() == affordance.target_id),
+         ActionEffect::Sleep => fixture
+             .places
+             .iter()
+-            .any(|place| place.place_id.as_str() == affordance.target_id),
++            .any(|place| place.place_id.as_str() != /* ~ changed by cargo-mutants ~ */ affordance.target_id),
+         ActionEffect::Work => fixture
+             .workplaces
+             .iter()
+             .any(|workplace| workplace.workplace_id.as_str() == affordance.target_id),
+         ActionEffect::ContinueRoutine => fixture
+             .routine_templates
+             .iter()
+             .any(|template| template.template_id.as_str() == affordance.target_id),

@@ -1,0 +1,26 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_confidence -> Result<Confidence, SerializationError> with Ok(Default::default())
+@@ -577,22 +577,17 @@
+         "plausible" => Ok(Stance::Plausible),
+         "doubts" => Ok(Stance::Doubts),
+         "unknown_or_unresolved" => Ok(Stance::UnknownOrUnresolved),
+         _ => Err(SerializationError::BadLine(format!("bad stance {value}"))),
+     }
+ }
+ 
+ fn parse_confidence(value: &str) -> Result<Confidence, SerializationError> {
+-    Confidence::new(
+-        value
+-            .parse::<u16>()
+-            .map_err(|_| SerializationError::BadU64(value.to_string()))?,
+-    )
+-    .map_err(Into::into)
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_tick(value: &str) -> Result<SimTick, SerializationError> {
+     parse_u64(value).map(SimTick::new)
+ }
+ 
+ fn parse_optional_tick(value: &str) -> Result<Option<SimTick>, SerializationError> {
+     if value.is_empty() {

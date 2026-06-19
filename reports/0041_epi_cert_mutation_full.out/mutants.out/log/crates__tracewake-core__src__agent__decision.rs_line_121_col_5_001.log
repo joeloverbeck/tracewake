@@ -1,0 +1,163 @@
+
+*** crates/tracewake-core/src/agent/decision.rs:121:5: replace select_goal_and_trace -> Option<DecisionSelection> with Some(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/decision.rs
++++ replace select_goal_and_trace -> Option<DecisionSelection> with Some(Default::default())
+@@ -113,92 +113,17 @@
+     },
+     Adopted {
+         intention: Intention,
+         reason: String,
+     },
+ }
+ 
+ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> {
+-    let mut applicable = input
+-        .candidates
+-        .iter()
+-        .filter(|candidate| candidate.applicability == ApplicabilityResult::Applicable)
+-        .cloned()
+-        .collect::<Vec<_>>();
+-    applicable.sort();
+-    let selected = applicable.into_iter().next()?;
+-    let active_intention = input.active_intention.clone();
+-    let outcome = if selected.goal_kind == crate::agent::GoalKind::ContinueCurrentIntention {
+-        DecisionOutcome::Continued
+-    } else if active_intention.is_some() {
+-        DecisionOutcome::Switched
+-    } else {
+-        DecisionOutcome::Continued
+-    };
+-
+-    let trace_id = DecisionTraceId::new(format!(
+-        "trace_decision_{}_{}_{}",
+-        input.actor_id.as_str(),
+-        input.decision_tick.value(),
+-        selected.candidate_goal_id.as_str()
+-    ))
+-    .unwrap();
+-    let lifecycle_effects = lifecycle_effects(
+-        &input.actor_id,
+-        input.decision_tick,
+-        &selected,
+-        active_intention.as_ref(),
+-        &trace_id,
+-    );
+-    let rejected_goals = input
+-        .candidates
+-        .iter()
+-        .filter(|candidate| candidate.candidate_goal_id != selected.candidate_goal_id)
+-        .map(|candidate| RejectedDecisionItem {
+-            stable_ref: candidate.candidate_goal_id.to_string(),
+-            reason: candidate
+-                .rejection_reason
+-                .clone()
+-                .unwrap_or_else(|| "lower_priority".to_string()),
+-        })
+-        .collect();
+-    let hidden_truth_audit = hidden_truth_audit_from_actor_known_inputs(&input.actor_known_inputs);
+-    let actor_known_inputs = input
+-        .actor_known_inputs
+-        .iter()
+-        .map(ActorKnownInputRef::render_for_trace)
+-        .collect();
+-    let trace = DecisionTrace::new(
+-        trace_id,
+-        input.actor_id,
+-        input.decision_tick,
+-        input.decision_tick.advance_by(1),
+-        Vec::new(),
+-        active_intention,
+-        input.candidates,
+-        Some(selected.candidate_goal_id.clone()),
+-        selected.selected_routine_method.clone(),
+-        None,
+-        rejected_goals,
+-        Vec::new(),
+-        Vec::new(),
+-        actor_known_inputs,
+-        None,
+-        Some("selected_by_priority_order".to_string()),
+-        None,
+-        hidden_truth_audit,
+-        outcome,
+-        "deterministic candidate selection".to_string(),
+-    );
+-    Some(DecisionSelection {
+-        selected_goal: selected,
+-        trace,
+-        lifecycle_effects,
+-    })
++    Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn hidden_truth_audit_from_actor_known_inputs(
+     actor_known_inputs: &[ActorKnownInputRef],
+ ) -> HiddenTruthAudit {
+     let actor_known_only = actor_known_inputs
+         .iter()
+         .all(|input| !input.source_class.is_forbidden_for_cognition() && !input.explicit_unknown);
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/decision.rs` has changed (1781906506.383924067s, 5s after last build at 1781906501.675924099s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused imports: `ApplicabilityResult`, `DecisionOutcome`, and `RejectedDecisionItem`
+ --> crates/tracewake-core/src/agent/decision.rs:2:43
+  |
+2 |     ActorKnownFact, ActorKnownProvenance, ApplicabilityResult, CandidateGoal, DecisionOutcome,
+  |                                           ^^^^^^^^^^^^^^^^^^^                 ^^^^^^^^^^^^^^^
+3 |     DecisionTrace, HiddenTruthAudit, Intention, IntentionSource, RejectedDecisionItem,
+  |                                                                  ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `RejectedDecisionItem`
+ --> crates/tracewake-core/src/agent/decision.rs:3:66
+  |
+3 |     DecisionTrace, HiddenTruthAudit, Intention, IntentionSource, RejectedDecisionItem,
+  |                                                                  ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `DecisionSelection: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/decision.rs:121:10
+    |
+121 |     Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `DecisionSelection`
+   --> crates/tracewake-core/src/agent/decision.rs:98:1
+    |
+ 98 | pub struct DecisionSelection {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `decision::DecisionSelection: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/decision.rs:121:10
+    |
+121 |     Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `decision::DecisionSelection`
+   --> crates/tracewake-core/src/agent/decision.rs:98:1
+    |
+ 98 | pub struct DecisionSelection {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `tracewake-core` (lib test) generated 1 warning
+error: could not compile `tracewake-core` (lib test) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

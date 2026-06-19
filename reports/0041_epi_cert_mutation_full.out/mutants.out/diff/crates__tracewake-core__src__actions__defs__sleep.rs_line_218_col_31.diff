@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace != with == in sleep_interruption_reason
+@@ -210,17 +210,17 @@
+     let Some(sleep_affordance_id) = payload_value(sleep_started_event, "sleep_affordance_id")
+         .and_then(|value| SleepAffordanceId::new(value).ok())
+     else {
+         return Some("sleep_affordance_missing");
+     };
+     let Some(sleep_affordance) = state.sleep_affordances.get(&sleep_affordance_id) else {
+         return Some("sleep_affordance_missing");
+     };
+-    if actor.current_place_id != sleep_affordance.place_id {
++    if actor.current_place_id == /* ~ changed by cargo-mutants ~ */ sleep_affordance.place_id {
+         return Some("actor_displaced");
+     }
+     if !sleep_affordance.access_open {
+         return Some("sleep_affordance_closed");
+     }
+     if has_severe_interrupting_need(agent_state, actor_id) {
+         return Some("severe_need_pressure");
+     }

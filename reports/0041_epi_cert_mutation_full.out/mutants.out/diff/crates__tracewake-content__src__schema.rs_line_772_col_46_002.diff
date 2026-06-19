@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace < with <= in FixtureSchema::to_agent_state
+@@ -764,17 +764,17 @@
+                 current_step,
+                 8,
+                 assignment.start_tick,
+                 trace_id.clone(),
+             );
+             active_intention_candidates
+                 .entry(assignment.actor_id.clone())
+                 .and_modify(|(start_tick, active_intention_id)| {
+-                    if assignment.start_tick < *start_tick {
++                    if assignment.start_tick <= /* ~ changed by cargo-mutants ~ */ *start_tick {
+                         *start_tick = assignment.start_tick;
+                         *active_intention_id = intention_id.clone();
+                     }
+                 })
+                 .or_insert((assignment.start_tick, intention_id.clone()));
+             assert!(
+                 intentions.insert(intention_id, intention).is_none(),
+                 "validated routine assignments produce unique intention IDs"

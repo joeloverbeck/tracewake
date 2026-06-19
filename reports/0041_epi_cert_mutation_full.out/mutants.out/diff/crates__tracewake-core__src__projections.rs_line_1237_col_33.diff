@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in with_validator_availability
+@@ -1229,17 +1229,17 @@
+             controller_bindings: None,
+             epistemic_projection: None,
+             content_manifest_id: preflight.content_manifest_id,
+             ordering_key: &ordering_key,
+             current_event_frontier: preflight.knowledge_context_frontier,
+         },
+         &proposal,
+     );
+-    let enabled = report.status == ReportStatus::Accepted;
++    let enabled = report.status != /* ~ changed by cargo-mutants ~ */ ReportStatus::Accepted;
+     let availability = if enabled {
+         ActionAvailability::available()
+     } else {
+         let mut provenance_refs = vec![
+             ActionAvailabilityProvenance::new(
+                 ActionAvailabilityProvenanceKind::HolderKnownContext,
+                 preflight.knowledge_context_id.as_str(),
+             ),

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeContext::actor_known_current_places -> &[ActorKnownCurrentPlaceFact] with Vec::leak(Vec::new())
+@@ -1083,17 +1083,17 @@
+         &self.provenance_entries
+     }
+ 
+     pub fn actor_known_workplaces(&self) -> &[ActorKnownWorkplaceFact] {
+         &self.actor_known_workplaces
+     }
+ 
+     pub fn actor_known_current_places(&self) -> &[ActorKnownCurrentPlaceFact] {
+-        &self.actor_known_current_places
++        Vec::leak(Vec::new()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn actor_known_carried_items(&self) -> &[ActorKnownCarriedItemFact] {
+         &self.actor_known_carried_items
+     }
+ 
+     pub fn actor_known_food_sources(&self) -> &[ActorKnownFoodSourceFact] {
+         &self.actor_known_food_sources

@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace EpistemicProjection::notebook_entries_for_context -> Vec<&NotebookEntry> with vec![Box::leak(Box::new(Default::default()))]
+@@ -491,29 +491,17 @@
+                 .into_iter()
+                 .flat_map(|ids| ids.iter())
+                 .filter_map(|id| self.contradictions_by_id.get(id))
+                 .collect(),
+         }
+     }
+ 
+     pub fn notebook_entries_for_context(&self, context: &KnowledgeContext) -> Vec<&NotebookEntry> {
+-        match context.mode() {
+-            ViewMode::Debug => self
+-                .notebook_entries_by_actor
+-                .values()
+-                .flat_map(|entries| entries.iter())
+-                .collect(),
+-            ViewMode::Embodied => self
+-                .notebook_entries_by_actor
+-                .get(context.viewer_actor_id())
+-                .into_iter()
+-                .flat_map(|entries| entries.iter())
+-                .collect(),
+-        }
++        vec![Box::leak(Box::new(Default::default()))] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn classified_actor_known_records_for_context(
+         &self,
+         context: &KnowledgeContext,
+         current_place_id: &PlaceId,
+     ) -> Vec<ClassifiedActorKnownProjectionRecord<'_>> {
+         let latest_current_place_tick = self

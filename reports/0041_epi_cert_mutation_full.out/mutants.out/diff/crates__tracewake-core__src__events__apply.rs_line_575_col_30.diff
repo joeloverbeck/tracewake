@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace == with != in reject_duplicate_duration_terminal
+@@ -567,17 +567,17 @@
+                 episode.event_kind.as_str(),
+                 "sleep_completed"
+                     | "sleep_interrupted"
+                     | "work_block_completed"
+                     | "work_block_failed"
+             ) && episode
+                 .caused_event_ids
+                 .iter()
+-                .any(|id| id == start_event_id)
++                .any(|id| id != /* ~ changed by cargo-mutants ~ */ start_event_id)
+         });
+         if already_terminated {
+             return Err(ApplyError::DuplicateDurationTerminal {
+                 start_event_id: start_event_id.clone(),
+             });
+         }
+     }
+     Ok(())

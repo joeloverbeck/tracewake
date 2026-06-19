@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownFoodSourceFact::believed_servings -> Option<u32> with Some(0)
+@@ -346,17 +346,17 @@
+         }
+     }
+ 
+     pub fn food_supply_id(&self) -> &FoodSupplyId {
+         &self.food_supply_id
+     }
+ 
+     pub fn believed_servings(&self) -> Option<u32> {
+-        self.believed_servings
++        Some(0) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn source_key(&self) -> &str {
+         &self.source_key
+     }
+ 
+     fn canonical_key(&self) -> String {
+         format!(

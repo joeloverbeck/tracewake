@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::record_window_progress with ()
+@@ -694,20 +694,17 @@
+     }
+ 
+     fn record_window_progress(
+         progress_by_window_actor: &mut BTreeMap<(String, ActorId), usize>,
+         window_id: &str,
+         actor_id: &ActorId,
+         progress_events: usize,
+     ) {
+-        if progress_events > 0 {
+-            progress_by_window_actor
+-                .insert((window_id.to_string(), actor_id.clone()), progress_events);
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     struct BuiltAgentProposal {
+         proposal: Proposal,
+         decision_trace_record: DecisionTraceRecord,
+     }
+ 
+     fn build_agent_proposal(

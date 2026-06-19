@@ -1,0 +1,158 @@
+
+*** crates/tracewake-core/src/actions/defs/sleep.rs:291:5: replace build_sleep_end_events -> Result<Vec<EventEnvelope>, ApplyError> with Ok(vec![Default::default()])
+
+*** mutation diff:
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace build_sleep_end_events -> Result<Vec<EventEnvelope>, ApplyError> with Ok(vec![Default::default()])
+@@ -283,97 +283,17 @@
+     sleep_started_event: &EventEnvelope,
+     log: &EventLog,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,
+     end_tick: SimTick,
+     kind: EventKind,
+     reason: &str,
+ ) -> Result<Vec<EventEnvelope>, ApplyError> {
+-    let actor_id = sleep_started_event
+-        .actor_id
+-        .clone()
+-        .ok_or_else(|| ApplyError::BadPayload {
+-            key: "actor_id",
+-            value: "missing".to_string(),
+-        })?;
+-    let sleep_ticks = classify_actor_tick_regimes_with_start(
+-        log,
+-        &actor_id,
+-        sleep_started_event.sim_tick,
+-        end_tick,
+-        Some(sleep_started_event),
+-    )
+-    .asleep_ticks;
+-    let fatigue_delta = -(sleep_ticks as i32).saturating_mul(payload_i32(
+-        sleep_started_event,
+-        "fatigue_recovery_per_tick",
+-    )?);
+-    let hunger_delta = (sleep_ticks as i32)
+-        .saturating_mul(payload_i32(sleep_started_event, "hunger_rise_per_tick")?);
+-    let mut lifecycle = EventEnvelope::new_caused_v1(
+-        EventId::new(format!(
+-            "event.{}.{}",
+-            kind.stable_id(),
+-            sleep_started_event.event_id.as_str()
+-        ))
+-        .unwrap(),
+-        kind,
+-        0,
+-        0,
+-        end_tick,
+-        ordering_key.clone(),
+-        content_manifest_id.clone(),
+-        vec![EventCause::Event(sleep_started_event.event_id.clone())],
+-    )
+-    .unwrap();
+-    lifecycle.actor_id = Some(actor_id.clone());
+-    lifecycle.proposal_id = sleep_started_event.proposal_id.clone();
+-    lifecycle.participants = vec![actor_id.to_string()];
+-    lifecycle.payload = vec![
+-        PayloadField::new("payload_schema_version", "1"),
+-        PayloadField::new("actor_id", actor_id.as_str()),
+-        PayloadField::new("elapsed_ticks", sleep_ticks.to_string()),
+-        PayloadField::new("reason", reason),
+-        PayloadField::new("fatigue_delta", fatigue_delta.to_string()),
+-        PayloadField::new("hunger_delta", hunger_delta.to_string()),
+-    ];
+-    lifecycle.effects_summary = format!("{} after {} ticks", kind.stable_id(), sleep_ticks);
+-
+-    let mut fatigue_events = sleep_need_events(
+-        agent_state,
+-        sleep_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        end_tick,
+-        NeedKind::Fatigue,
+-        fatigue_delta,
+-        sleep_ticks,
+-    )?;
+-    if let Some(fatigue) = fatigue_events.first_mut() {
+-        fatigue.effects_summary = format!(
+-            "fatigue recovered by {} over {} sleep ticks",
+-            fatigue_delta.abs(),
+-            sleep_ticks
+-        );
+-    }
+-    let hunger_events = sleep_need_events(
+-        agent_state,
+-        sleep_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        end_tick,
+-        NeedKind::Hunger,
+-        hunger_delta,
+-        sleep_ticks,
+-    )?;
+-    let mut events = vec![lifecycle];
+-    events.extend(fatigue_events);
+-    events.extend(hunger_events);
+-    Ok(events)
++    Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::too_many_arguments)]
+ fn sleep_need_events(
+     agent_state: &AgentState,
+     sleep_started_event: &EventEnvelope,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/actions/defs/sleep.rs` has changed (1781911613.119924232s, 5s after last build at 1781911608.939924211s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused import: `crate::need_accounting::classify_actor_tick_regimes_with_start`
+  --> crates/tracewake-core/src/actions/defs/sleep.rs:13:5
+   |
+13 | use crate::need_accounting::classify_actor_tick_regimes_with_start;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `EventEnvelope: Default` is not satisfied
+   --> crates/tracewake-core/src/actions/defs/sleep.rs:291:13
+    |
+291 |     Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+    |             ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `EventEnvelope`
+   --> crates/tracewake-core/src/events/envelope.rs:717:1
+    |
+717 | pub struct EventEnvelope {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `envelope::EventEnvelope: Default` is not satisfied
+   --> crates/tracewake-core/src/actions/defs/sleep.rs:291:13
+    |
+291 |     Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+    |             ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `envelope::EventEnvelope`
+   --> crates/tracewake-core/src/events/envelope.rs:717:1
+    |
+717 | pub struct EventEnvelope {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `tracewake-core` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `tracewake-core` (lib test) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace has_active_intention -> bool with true
+@@ -509,19 +509,17 @@
+                 self.decision_tick,
+                 frame_source_event_ids,
+             ));
+         }
+     }
+ }
+ 
+ fn has_active_intention(agent_state: &AgentState, actor_id: &ActorId) -> bool {
+-    agent_state
+-        .active_intention_by_actor()
+-        .contains_key(actor_id)
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::agent::htn::{resolve_condition, ConditionResolution};
+     use crate::agent::{
+         plan_local_actions, LocalPlanRequest, PlannerGoal, RoutineCondition, RoutineStep,

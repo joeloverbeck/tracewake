@@ -1,0 +1,114 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_no_script with ()
+@@ -1793,110 +1793,17 @@
+                     affordance.action_id.as_str()
+                 ),
+             ));
+         }
+     }
+ }
+ 
+ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+-    for (index, place) in fixture.places.iter().enumerate() {
+-        reject_text_by_policy(
+-            &place.display_label,
+-            format!("places[{index}].display_label"),
+-            StringScanPolicy::Union,
+-            errors,
+-        );
+-    }
+-    for (index, affordance) in fixture.affordances.iter().enumerate() {
+-        if is_script_key(affordance.action_id.as_str()) {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::NoScript,
+-                format!("affordances[{index}].action_id"),
+-                "authored_outcome_chain",
+-                format!(
+-                    "script action {} is forbidden",
+-                    affordance.action_id.as_str()
+-                ),
+-            ));
+-        }
+-        reject_text_by_policy(
+-            &affordance.target_id,
+-            format!("affordances[{index}].target_id"),
+-            StringScanPolicy::Union,
+-            errors,
+-        );
+-    }
+-    for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+-        let planner_intended = planner_intended_seed_text(belief).any(contains_planner_seed_marker);
+-        if planner_intended && belief.channel.is_none() {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::NoScript,
+-                format!("initial_beliefs[{index}]"),
+-                "missing_actor_known_provenance",
+-                "planner-intended actor-known initial beliefs must declare an observation channel",
+-            ));
+-        }
+-    }
+-    for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+-        for (index, value) in template.failure_modes.iter().enumerate() {
+-            reject_text_by_policy(
+-                value,
+-                format!("routine_templates[{template_index}].failure_modes[{index}]"),
+-                StringScanPolicy::Union,
+-                errors,
+-            );
+-        }
+-        for (index, value) in template.debug_labels.iter().enumerate() {
+-            reject_text_by_policy(
+-                value,
+-                format!("routine_templates[{template_index}].debug_labels[{index}]"),
+-                StringScanPolicy::Union,
+-                errors,
+-            );
+-        }
+-        if let Some(value) = &template.reservable_resource {
+-            reject_text_by_policy(
+-                value,
+-                format!("routine_templates[{template_index}].reservable_resource"),
+-                StringScanPolicy::Union,
+-                errors,
+-            );
+-        }
+-        for (index, step) in template.steps.iter().enumerate() {
+-            match step.proposed() {
+-                RoutineStepProposal::Action(action_id) => reject_text_by_policy(
+-                    action_id.as_str(),
+-                    format!("routine_templates[{template_index}].steps[{index}]"),
+-                    StringScanPolicy::Union,
+-                    errors,
+-                ),
+-                RoutineStepProposal::Diagnostic(diagnostic) => reject_text_by_policy(
+-                    diagnostic.stable_id(),
+-                    format!("routine_templates[{template_index}].steps[{index}]"),
+-                    StringScanPolicy::Union,
+-                    errors,
+-                ),
+-                RoutineStepProposal::Wait(reason) => reject_text_by_policy(
+-                    reason,
+-                    format!("routine_templates[{template_index}].steps[{index}]"),
+-                    StringScanPolicy::Union,
+-                    errors,
+-                ),
+-            }
+-        }
+-        for (index, fallback) in template.fallback_rules.iter().enumerate() {
+-            reject_text_by_policy(
+-                fallback,
+-                format!("routine_templates[{template_index}].fallback_rules[{index}]"),
+-                StringScanPolicy::Union,
+-                errors,
+-            );
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ struct StringFieldScanRegistration {
+     field: &'static str,
+     policy: StringScanPolicy,
+     rationale: &'static str,

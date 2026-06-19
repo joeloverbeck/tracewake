@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ delete match arm "sleep_place" in actor_known_record_from_starting_belief
+@@ -1452,24 +1452,17 @@
+     actor_id: ActorId,
+     belief_kind: &str,
+     subject_id: &str,
+     value: &str,
+     source_event_id: EventId,
+     source_tick: SimTick,
+ ) -> Option<ActorKnownProjectionRecord> {
+     match belief_kind {
+-        "sleep_place" => Some(ActorKnownProjectionRecord::SleepPlace {
+-            actor_id,
+-            place_id: PlaceId::new(value).ok()?,
+-            sleep_affordance_id: Some(subject_id.to_string()),
+-            source: ActorKnownProjectionSource::StartingBelief,
+-            source_event_id,
+-            source_tick,
+-        }),
++         /* ~ changed by cargo-mutants ~ */
+         "household_food_source" => {
+             let place_value = value.strip_prefix("place:")?;
+             let place_id = PlaceId::new(place_value).ok()?;
+             Some(ActorKnownProjectionRecord::FoodSource {
+                 actor_id,
+                 food_source_id: subject_id.to_string(),
+                 place_id: Some(place_id),
+                 believed_servings: None,

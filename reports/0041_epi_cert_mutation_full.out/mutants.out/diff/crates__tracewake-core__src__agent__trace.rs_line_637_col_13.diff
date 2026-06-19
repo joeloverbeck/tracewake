@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "waiting" in StuckResultingStatus::parse
+@@ -629,17 +629,17 @@
+             StuckResultingStatus::Suspended => "suspended",
+             StuckResultingStatus::Completed => "completed",
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, StuckDiagnosticParseError> {
+         match value {
+             "idle" => Ok(Self::Idle),
+-            "waiting" => Ok(Self::Waiting),
++             /* ~ changed by cargo-mutants ~ */
+             "replanning" => Ok(Self::Replanning),
+             "failed" => Ok(Self::Failed),
+             "suspended" => Ok(Self::Suspended),
+             "completed" => Ok(Self::Completed),
+             _ => Err(StuckDiagnosticParseError::InvalidResultingStatus),
+         }
+     }
+ }

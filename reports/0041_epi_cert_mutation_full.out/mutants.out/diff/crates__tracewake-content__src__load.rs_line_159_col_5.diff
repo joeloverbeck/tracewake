@@ -1,0 +1,33 @@
+--- crates/tracewake-content/src/load.rs
++++ replace seed_epistemic_projection -> Result<EpistemicProjection, LoadError> with Ok(Default::default())
+@@ -151,29 +151,17 @@
+     }
+     scope.ok_or(SerializationError::MissingField("fixture_scope"))
+ }
+ 
+ fn seed_epistemic_projection(
+     manifest_id: ContentManifestId,
+     seed_event_log: &EventLog,
+ ) -> Result<EpistemicProjection, LoadError> {
+-    let mut projection = EpistemicProjection::new(manifest_id);
+-    for event in seed_event_log.events() {
+-        if event.stream == EventStream::Epistemic {
+-            apply_epistemic_event(&mut projection, event).map_err(|error| {
+-                LoadError::EpistemicSeedEvent(format!(
+-                    "fixture seed epistemic event {} failed: {error:?}",
+-                    event.event_id.as_str()
+-                ))
+-            })?;
+-            projection.record_applied_event(event.event_id.clone());
+-        }
+-    }
+-    Ok(projection)
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn seed_event_log(fixture: &FixtureSchema, manifest_id: ContentManifestId) -> EventLog {
+     let mut log = EventLog::new();
+     let mut sequence = 0_u64;
+ 
+     for belief in &fixture.initial_beliefs {
+         let event_id = EventId::new(format!(

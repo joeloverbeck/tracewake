@@ -1,0 +1,30 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace is_player_key -> bool with true
+@@ -2797,26 +2797,17 @@
+     ContentValidationError::new(ValidationPhase::ParseSchema, path, code, message)
+ }
+ 
+ fn is_forbidden_key(value: &str) -> bool {
+     is_player_key(value) || is_script_key(value)
+ }
+ 
+ fn is_player_key(value: &str) -> bool {
+-    matches!(
+-        value,
+-        "player"
+-            | "player_character"
+-            | "player_only"
+-            | "protagonist"
+-            | "quest"
+-            | "objective"
+-            | "reward"
+-    )
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_script_key(value: &str) -> bool {
+     matches!(
+         value,
+         "on_enter"
+             | "on_open"
+             | "on_tick"

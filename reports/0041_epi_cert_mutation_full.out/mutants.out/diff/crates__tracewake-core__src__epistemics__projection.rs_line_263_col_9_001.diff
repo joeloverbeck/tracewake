@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ClassifiedActorKnownProjectionRecord<'a>::is_latest_current_place_record -> bool with false
+@@ -255,17 +255,17 @@
+         self.freshness
+     }
+ 
+     pub fn source_tick(&self) -> SimTick {
+         self.record.source_tick()
+     }
+ 
+     pub fn is_latest_current_place_record(&self) -> bool {
+-        self.latest_current_place_record
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn is_current_place_record(&self) -> bool {
+         self.current_place_record
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]

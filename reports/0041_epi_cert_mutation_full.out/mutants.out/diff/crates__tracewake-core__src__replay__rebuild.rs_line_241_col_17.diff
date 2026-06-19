@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ delete match arm crate::events::EventCause::Event(event_id) in rebuild_decision_context_hash
+@@ -233,17 +233,17 @@
+     let window_end_tick = payload_value(trace_event, "window_end_tick")
+         .and_then(|value| value.parse::<u64>().ok())
+         .map(SimTick::new)
+         .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_window_end_tick")))?;
+     let ordinary_event_id = payload_value(trace_event, "ordinary_event_id")
+         .and_then(|value| EventId::new(value).ok())
+         .or_else(|| {
+             trace_event.causes.iter().find_map(|cause| match cause {
+-                crate::events::EventCause::Event(event_id) => Some(event_id.clone()),
++                 /* ~ changed by cargo-mutants ~ */
+                 _ => None,
+             })
+         })
+         .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_ordinary_event_id")))?;
+     let ordinary_index = log
+         .events()
+         .iter()
+         .position(|event| event.event_id == ordinary_event_id)

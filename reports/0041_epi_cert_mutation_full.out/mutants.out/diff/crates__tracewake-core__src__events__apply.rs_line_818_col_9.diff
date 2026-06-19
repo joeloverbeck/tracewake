@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "touch_or_search" in parse_channel
+@@ -810,17 +810,17 @@
+         }),
+     }
+ }
+ 
+ fn parse_channel(payload: &BTreeMap<&str, &str>) -> Result<Channel, EpistemicApplyError> {
+     let value = required_epistemic(payload, "channel")?;
+     match value {
+         "direct_sight" => Ok(Channel::DirectSight),
+-        "touch_or_search" => Ok(Channel::TouchOrSearch),
++         /* ~ changed by cargo-mutants ~ */
+         "simple_sound" => Ok(Channel::SimpleSound),
+         "absence_marker" => Ok(Channel::AbsenceMarker),
+         "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
+         _ => Err(EpistemicApplyError::BadPayload {
+             key: "channel",
+             value: value.to_string(),
+         }),
+     }

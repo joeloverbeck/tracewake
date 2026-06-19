@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedState::last_threshold_crossing -> Option<NeedThresholdCrossing> with Some(Default::default())
+@@ -203,17 +203,17 @@
+         NeedBand::for_value(self.value)
+     }
+ 
+     pub const fn last_change_cause(&self) -> &NeedChangeCause {
+         &self.last_change_cause
+     }
+ 
+     pub const fn last_threshold_crossing(&self) -> Option<NeedThresholdCrossing> {
+-        self.last_threshold_crossing
++        Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn last_change_source_label(&self) -> String {
+         self.last_change_cause.stable_id()
+     }
+ 
+     pub fn apply_delta(
+         &mut self,

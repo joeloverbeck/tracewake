@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/observation.rs
++++ replace Observation::confidence -> Confidence with Default::default()
+@@ -195,17 +195,17 @@
+         &self.target
+     }
+ 
+     pub fn raw_payload(&self) -> &[PayloadField] {
+         &self.raw_payload
+     }
+ 
+     pub fn confidence(&self) -> Confidence {
+-        self.confidence
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn source(&self) -> &SourceRef {
+         &self.source
+     }
+ 
+     pub fn alternatives(&self) -> &BTreeSet<String> {
+         &self.alternatives

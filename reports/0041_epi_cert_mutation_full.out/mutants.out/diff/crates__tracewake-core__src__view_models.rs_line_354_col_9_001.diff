@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace ActionAvailabilityProvenanceKind::stable_id -> &'static str with "xyzzy"
+@@ -346,22 +346,17 @@
+     HolderKnownContext,
+     SourceEvent,
+     ValidationReport,
+     ValidatorFact,
+ }
+ 
+ impl ActionAvailabilityProvenanceKind {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            Self::HolderKnownContext => "holder_known_context",
+-            Self::SourceEvent => "source_event",
+-            Self::ValidationReport => "validation_report",
+-            Self::ValidatorFact => "validator_fact",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum DebugViewModel {
+     ControllerBinding(DebugControllerBindingView),
+     EventLog(DebugEventLogView),
+     ItemLocation(DebugItemLocationView),

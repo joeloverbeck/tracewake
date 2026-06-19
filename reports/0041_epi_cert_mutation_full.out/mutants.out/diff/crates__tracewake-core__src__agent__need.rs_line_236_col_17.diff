@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace == with != in NeedState::threshold_crossing
+@@ -228,17 +228,17 @@
+             self.last_threshold_crossing = crossing;
+         }
+         crossing
+     }
+ 
+     pub fn threshold_crossing(from_value: u16, to_value: u16) -> Option<NeedThresholdCrossing> {
+         let from = NeedBand::for_value(from_value);
+         let to = NeedBand::for_value(to_value);
+-        if from == to {
++        if from != /* ~ changed by cargo-mutants ~ */ to {
+             return None;
+         }
+ 
+         let direction = match to_value.cmp(&from_value) {
+             std::cmp::Ordering::Greater => ThresholdDirection::IncreasingPressure,
+             std::cmp::Ordering::Less => ThresholdDirection::DecreasingPressure,
+             std::cmp::Ordering::Equal => return None,
+         };

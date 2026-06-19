@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace is_latest_current_place_record -> bool with false
+@@ -1232,18 +1232,17 @@
+     }
+ }
+ 
+ fn is_latest_current_place_record(
+     record: &ActorKnownProjectionRecord,
+     current_place_id: &PlaceId,
+     latest_current_place_tick: Option<SimTick>,
+ ) -> bool {
+-    record.relevant_place_id() == current_place_id
+-        && Some(record.source_tick()) == latest_current_place_tick
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_records_from_observation(
+     observation: &Observation,
+ ) -> Vec<ActorKnownProjectionRecord> {
+     let Some(source_event_id) = source_event_id(observation.source()) else {
+         return Vec::new();
+     };

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in build_embodied_view_model
+@@ -539,17 +539,17 @@
+ pub fn build_embodied_view_model(
+     context: &KnowledgeContext,
+     source: &EmbodiedProjectionSource<'_>,
+     preflight_source: &EmbodiedPreflightSource<'_>,
+     last_rejection: Option<&ValidationReport>,
+ ) -> Result<EmbodiedViewModel, ProjectionError> {
+     let viewer_actor_id = context.viewer_actor_id();
+     let viewer_rejection =
+-        last_rejection.filter(|report| report.actor_id.as_ref() == Some(viewer_actor_id));
++        last_rejection.filter(|report| report.actor_id.as_ref() != /* ~ changed by cargo-mutants ~ */ Some(viewer_actor_id));
+     let sim_tick = context.current_tick();
+     let agent_state = source.agent_state;
+ 
+     let mut visible_exits = source
+         .actor_known_routes
+         .iter()
+         .cloned()
+         .map(|destination_place_id| VisibleExit {

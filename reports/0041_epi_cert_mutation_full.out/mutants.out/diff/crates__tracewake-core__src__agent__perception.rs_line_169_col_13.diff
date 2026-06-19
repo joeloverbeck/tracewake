@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ replace && with || in current_place_perception_events
+@@ -161,17 +161,17 @@
+                 .into_iter()
+                 .chain([PayloadField::new("portable", item.portable.to_string())])
+                 .collect(),
+         });
+     }
+ 
+     for local_actor_id in state.actors().keys().filter(|local_actor_id| {
+         *local_actor_id != actor_id
+-            && state
++            || /* ~ changed by cargo-mutants ~ */ state
+                 .actors()
+                 .get(*local_actor_id)
+                 .is_some_and(|local_actor| local_actor.current_place_id == current_place_id)
+     }) {
+         observations.push(PerceivedThing {
+             kind: "visible_actor",
+             subject_id: current_place_id.as_str().to_string(),
+             target_id: local_actor_id.as_str().to_string(),

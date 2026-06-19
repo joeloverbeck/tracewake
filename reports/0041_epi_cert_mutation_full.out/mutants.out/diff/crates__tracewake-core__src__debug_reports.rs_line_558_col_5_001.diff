@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace stuck_views -> Vec<Phase3AStuckDiagnosticView> with vec![Default::default()]
+@@ -550,21 +550,17 @@
+         outcome: trace.outcome.stable_id().to_string(),
+         candidate_goal_count: trace.candidate_goal_count,
+         hidden_truth_actor_known_only: trace.hidden_truth_audit_result.actor_known_only,
+         hidden_truth_notes: trace.hidden_truth_audit_result.notes.clone(),
+     }
+ }
+ 
+ fn stuck_views(agent_state: &AgentState) -> Vec<Phase3AStuckDiagnosticView> {
+-    agent_state
+-        .stuck_diagnostics
+-        .values()
+-        .map(stuck_view)
+-        .collect()
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stuck_views_for_actor(
+     agent_state: &AgentState,
+     actor_id: &ActorId,
+ ) -> Vec<Phase3AStuckDiagnosticView> {
+     agent_state
+         .stuck_diagnostics

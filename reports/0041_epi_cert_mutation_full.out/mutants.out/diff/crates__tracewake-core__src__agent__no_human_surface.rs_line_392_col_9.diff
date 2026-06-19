@@ -1,0 +1,52 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace NoHumanActorKnownSurfaceBuilder::add_sleep_place_knowledge with ()
+@@ -384,48 +384,17 @@
+     fn add_sleep_place_knowledge(
+         &mut self,
+         place_id: PlaceId,
+         sleep_affordance_id: Option<&str>,
+         source: impl Into<String>,
+         source_event_ids: Vec<EventId>,
+         policy: ProjectionFactPolicy,
+     ) {
+-        let source_event_ids =
+-            SourceEventIds::checked(source_event_ids).expect("sleep source ids are non-empty");
+-        let source = source.into();
+-        self.known_sleep_places.insert(place_id.clone());
+-        if let Some(sleep_affordance_id) = sleep_affordance_id {
+-            self.push_projection_fact(
+-                policy.freshness,
+-                "actor_knows_sleep_affordance",
+-                sleep_affordance_id,
+-                source.clone(),
+-                policy.source_tick,
+-                source_event_ids.clone(),
+-            );
+-        }
+-        self.push_projection_fact(
+-            policy.freshness,
+-            "actor_knows_sleep_place",
+-            place_id.as_str(),
+-            source.clone(),
+-            policy.source_tick,
+-            source_event_ids.clone(),
+-        );
+-        if policy.accessibility_scope == ActorKnownProjectionAccessibilityScope::FromAnyPlace {
+-            self.push_projection_fact(
+-                policy.freshness,
+-                "sleep_place_believed_accessible",
+-                place_id.as_str(),
+-                source,
+-                policy.source_tick,
+-                source_event_ids,
+-            );
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn add_window_framing_facts(
+         &mut self,
+         agent_state: &AgentState,
+         window_id: &str,
+         window_end_tick: SimTick,
+         current_place_witness_event_id: Option<EventId>,

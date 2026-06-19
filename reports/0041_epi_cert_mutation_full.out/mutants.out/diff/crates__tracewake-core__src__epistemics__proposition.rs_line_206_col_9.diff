@@ -1,0 +1,60 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace Proposition::validate_references -> Result<(), PropositionReferenceError> with Ok(())
+@@ -198,56 +198,17 @@
+ 
+     pub fn validate_references(
+         &self,
+         known_actors: &BTreeSet<ActorId>,
+         known_places: &BTreeSet<PlaceId>,
+         known_containers: &BTreeSet<ContainerId>,
+         known_items: &BTreeSet<ItemId>,
+     ) -> Result<(), PropositionReferenceError> {
+-        match self {
+-            Proposition::ItemLocatedInContainer {
+-                item_id,
+-                container_id,
+-            } => {
+-                require_item(item_id, known_items)?;
+-                require_container(container_id, known_containers)
+-            }
+-            Proposition::ItemLocatedAtPlace { item_id, place_id } => {
+-                require_item(item_id, known_items)?;
+-                require_place(place_id, known_places)
+-            }
+-            Proposition::ItemCarriedByActor { item_id, actor_id } => {
+-                require_item(item_id, known_items)?;
+-                require_actor(actor_id, known_actors)
+-            }
+-            Proposition::ContainerContentsObserved { container_id } => {
+-                require_container(container_id, known_containers)
+-            }
+-            Proposition::ItemMissingFromExpectedLocation {
+-                item_id,
+-                expected_location,
+-            } => {
+-                require_item(item_id, known_items)?;
+-                validate_location(
+-                    expected_location,
+-                    known_actors,
+-                    known_places,
+-                    known_containers,
+-                )
+-            }
+-            Proposition::SoundHeardNearPlace { place_id }
+-            | Proposition::PossibleMovementNearPlace { place_id } => {
+-                require_place(place_id, known_places)
+-            }
+-            Proposition::ActorWasNearPlace { actor_id, place_id } => {
+-                require_actor(actor_id, known_actors)?;
+-                require_place(place_id, known_places)
+-            }
+-        }
++        Ok(()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn contradicts_one_way(&self, other: &Self) -> bool {
+         match (self, other) {
+             (
+                 Proposition::ItemLocatedInContainer {
+                     item_id,
+                     container_id,

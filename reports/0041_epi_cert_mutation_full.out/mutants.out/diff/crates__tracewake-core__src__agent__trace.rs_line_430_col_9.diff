@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace <impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError>::from -> Self with Default::default()
+@@ -422,21 +422,17 @@
+             DiagnosticFieldParseError::InvalidResponsibleLayer => Self::InvalidResponsibleLayer,
+             DiagnosticFieldParseError::InvalidBlockerCode => Self::InvalidBlockerCode,
+         }
+     }
+ }
+ 
+ impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError {
+     fn from(value: StuckDiagnosticParseError) -> Self {
+-        match value {
+-            StuckDiagnosticParseError::InvalidTextPayload
+-            | StuckDiagnosticParseError::InvalidUtf8 => Self::InvalidTextPayload,
+-            _ => Self::InvalidShape,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct RejectedDecisionItem {
+     pub stable_ref: String,
+     pub reason: String,
+ }

@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace stuck_views_for_actor -> Vec<Phase3AStuckDiagnosticView> with vec![]
+@@ -561,22 +561,17 @@
+         .map(stuck_view)
+         .collect()
+ }
+ 
+ fn stuck_views_for_actor(
+     agent_state: &AgentState,
+     actor_id: &ActorId,
+ ) -> Vec<Phase3AStuckDiagnosticView> {
+-    agent_state
+-        .stuck_diagnostics
+-        .values()
+-        .filter(|diagnostic| &diagnostic.actor_id == actor_id)
+-        .map(stuck_view)
+-        .collect()
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stuck_view(diagnostic: &crate::agent::StuckDiagnosticRecord) -> Phase3AStuckDiagnosticView {
+     Phase3AStuckDiagnosticView {
+         diagnostic_id: diagnostic.diagnostic_id.as_str().to_string(),
+         actor_id: diagnostic.actor_id.clone(),
+         window_start_tick: diagnostic.window_start_tick,
+         window_end_tick: diagnostic.window_end_tick,

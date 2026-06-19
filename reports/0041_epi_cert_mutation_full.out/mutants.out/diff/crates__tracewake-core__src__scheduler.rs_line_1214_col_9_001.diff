@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::scheduled_completion_tick -> Option<SimTick> with Some(Default::default())
+@@ -1206,22 +1206,17 @@
+             PayloadField::new("ordinary_action_id", ordinary_action_id),
+         ];
+         event.effects_summary =
+             "duration routine step completed with ordinary completion ancestry".to_string();
+         event
+     }
+ 
+     fn scheduled_completion_tick(event: &EventEnvelope) -> Option<SimTick> {
+-        event
+-            .payload
+-            .iter()
+-            .find(|field| field.key == "expected_completion_tick")
+-            .and_then(|field| field.value.parse::<u64>().ok())
+-            .map(SimTick::new)
++        Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+         event
+             .payload
+             .iter()
+             .find(|field| field.key == key)
+             .map(|field| field.value.as_str())

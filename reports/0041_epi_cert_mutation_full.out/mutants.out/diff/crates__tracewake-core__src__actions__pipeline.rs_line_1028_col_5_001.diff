@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace is_actor_visible_fact -> bool with false
+@@ -1020,23 +1020,17 @@
+     checked_facts
+         .iter()
+         .filter(|fact| !is_actor_visible_fact(fact))
+         .cloned()
+         .collect()
+ }
+ 
+ fn is_actor_visible_fact(fact: &CheckedFact) -> bool {
+-    matches!(
+-        fact.key(),
+-        crate::actions::report::CheckedFactKey::ActionId
+-            | crate::actions::report::CheckedFactKey::ActorId
+-            | crate::actions::report::CheckedFactKey::Reason
+-            | crate::actions::report::CheckedFactKey::TickCount
+-    )
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn reject_committed(
+     context: &mut PipelineContext<'_>,
+     proposal: &Proposal,
+     failed_stage: PipelineStage,
+     reason_codes: Vec<ReasonCode>,
+     checked_facts: Vec<CheckedFact>,

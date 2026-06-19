@@ -1,0 +1,29 @@
+--- crates/tracewake-tui/src/debug_panels.rs
++++ replace render_event_log_panel -> String with "xyzzy".into()
+@@ -55,25 +55,17 @@
+             format!("actor_fact_count={}", report.actor_visible_facts.len()),
+             format!("debug_fact_count={}", report.debug_only_facts.len()),
+             format!("mutation_attempted={}", report.mutation_attempted),
+         ],
+     )
+ }
+ 
+ pub fn render_event_log_panel(view: &DebugEventLogView) -> String {
+-    assert!(view.debug_only());
+-    let mut rows = vec![format!("event_count={}", view.events.len())];
+-    rows.extend(view.events.iter().map(|event| {
+-        format!(
+-            "{}:{}:{}:{:?}",
+-            event.global_order, event.stream_position, event.event_type, event.stream
+-        )
+-    }));
+-    lines("Event Log", rows)
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn render_controller_binding_panel(report: &ControllerBindingDebugReport) -> String {
+     assert!(report.debug_only());
+     let mut rows = vec![format!("binding_count={}", report.bindings.len())];
+     rows.extend(report.bindings.iter().cloned());
+     lines("Controller Binding", rows)
+ }

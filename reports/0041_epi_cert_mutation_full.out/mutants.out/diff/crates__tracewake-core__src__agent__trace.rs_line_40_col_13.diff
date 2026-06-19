@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "waited" in DecisionOutcome::parse
+@@ -32,17 +32,17 @@
+             DecisionOutcome::Completed => "completed",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Option<Self> {
+         match value {
+             "continued" => Some(Self::Continued),
+             "switched" => Some(Self::Switched),
+-            "waited" => Some(Self::Waited),
++             /* ~ changed by cargo-mutants ~ */
+             "replanned" => Some(Self::Replanned),
+             "failed" => Some(Self::Failed),
+             "completed" => Some(Self::Completed),
+             _ => None,
+         }
+     }
+ }
+ 

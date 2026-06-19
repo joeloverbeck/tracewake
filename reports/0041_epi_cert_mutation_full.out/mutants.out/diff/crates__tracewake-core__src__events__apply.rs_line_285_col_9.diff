@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::ExpectationContradicted in apply_epistemic_event
+@@ -277,21 +277,17 @@
+                 belief_kind,
+                 subject_id,
+                 value,
+                 event.event_id.clone(),
+                 event.sim_tick,
+             );
+             Ok(ApplyOutcome::Applied)
+         }
+-        EventKind::ExpectationContradicted => {
+-            let contradiction = parse_contradiction_payload(&payload)?;
+-            projection.insert_contradiction(contradiction);
+-            Ok(ApplyOutcome::Applied)
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::ContainerChecked => Ok(ApplyOutcome::WorldNoOp),
+         _ => Err(EpistemicApplyError::NonEpistemicEvent),
+     }
+ }
+ 
+ pub fn apply_agent_event(
+     state: &mut AgentState,
+     event: &EventEnvelope,

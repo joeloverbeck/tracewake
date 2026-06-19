@@ -1,0 +1,39 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::current_view -> Result<EmbodiedViewModel, AppError> with Ok(Default::default())
+@@ -164,35 +164,17 @@
+             &self.content_manifest_id,
+         );
+         self.bound_actor_id = Some(actor_id);
+         self.last_rejection = None;
+         Ok(())
+     }
+ 
+     pub fn current_view(&self) -> Result<EmbodiedViewModel, AppError> {
+-        let actor_id = self
+-            .bound_actor_id
+-            .as_ref()
+-            .ok_or(AppError::ActorNotBound)?;
+-        let context = self.current_view_context(actor_id);
+-        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &self.state);
+-        let source = EmbodiedProjectionSource::from_sealed_context(
+-            &context,
+-            snapshot,
+-            Some(&self.agent_state),
+-        );
+-        let preflight =
+-            EmbodiedPreflightSource::new(&self.state, &self.registry, &self.content_manifest_id);
+-        let mut view =
+-            build_embodied_view_model(&context, &source, &preflight, self.last_rejection.as_ref())
+-                .map_err(AppError::from)?;
+-        view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
+-        view.debug_available = self.debug_available_for(actor_id);
+-        Ok(view)
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn debug_available_for(&self, actor_id: &ActorId) -> bool {
+         self.controller_bindings
+             .binding(&self.controller_id)
+             .is_some_and(|binding| {
+                 binding.binding.bound_actor_id.as_ref() == Some(actor_id)
+                     && matches!(binding.binding.mode, ControllerMode::Debug)

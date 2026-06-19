@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace != with == in source_context_check
+@@ -808,17 +808,17 @@
+                 checked_facts,
+                 "That action was blocked by the actor-known audit.",
+                 "agent-origin proposal lacked a clean hidden-truth audit stamp",
+             ));
+         }
+         return None;
+     }
+ 
+-    if proposal.origin != ProposalOrigin::Human {
++    if proposal.origin == /* ~ changed by cargo-mutants ~ */ ProposalOrigin::Human {
+         return None;
+     }
+ 
+     let Some(actor_id) = proposal.actor_id.as_ref() else {
+         return Some(reject(
+             context,
+             proposal,
+             PipelineStage::SourceContextValidation,

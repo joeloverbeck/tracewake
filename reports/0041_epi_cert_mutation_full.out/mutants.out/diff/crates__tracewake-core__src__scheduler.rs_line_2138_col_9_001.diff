@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::routine_failure_reason -> &'static str with "xyzzy"
+@@ -2130,23 +2130,17 @@
+         event.actor_id = Some(actor_id.clone());
+         event.process_id = Some(process_id.clone());
+         event.proposal_id = Some(proposal.proposal_id.clone());
+         event.participants = vec![actor_id.to_string(), execution_id.to_string()];
+         event
+     }
+ 
+     fn routine_failure_reason(event: &EventEnvelope) -> &'static str {
+-        match event.event_type {
+-            EventKind::ActionRejected => "action_rejected",
+-            EventKind::EatFailed => "eat_failed",
+-            EventKind::WorkBlockFailed => "work_block_failed",
+-            EventKind::ContinueRoutineRejected => "continue_routine_rejected",
+-            _ => "ordinary_action_failed",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn advance_no_human(
+         state: NoHumanStateMut<'_>,
+         log: &mut EventLog,
+         registry: &ActionRegistry,
+         content_manifest_id: ContentManifestId,
+         start_tick: SimTick,

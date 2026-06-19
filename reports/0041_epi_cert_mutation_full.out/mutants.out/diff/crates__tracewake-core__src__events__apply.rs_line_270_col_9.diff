@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::StartingBeliefRecorded in apply_epistemic_event
+@@ -262,31 +262,17 @@
+                 workplace_id,
+                 place_id,
+                 access_open,
+                 event.event_id.clone(),
+                 event.sim_tick,
+             );
+             Ok(ApplyOutcome::Applied)
+         }
+-        EventKind::StartingBeliefRecorded => {
+-            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+-            let belief_kind = required_epistemic(&payload, "belief_kind")?;
+-            let subject_id = required_epistemic(&payload, "subject_id")?;
+-            let value = required_epistemic(&payload, "value")?;
+-            projection.insert_starting_belief(
+-                actor_id,
+-                belief_kind,
+-                subject_id,
+-                value,
+-                event.event_id.clone(),
+-                event.sim_tick,
+-            );
+-            Ok(ApplyOutcome::Applied)
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::ExpectationContradicted => {
+             let contradiction = parse_contradiction_payload(&payload)?;
+             projection.insert_contradiction(contradiction);
+             Ok(ApplyOutcome::Applied)
+         }
+         EventKind::ContainerChecked => Ok(ApplyOutcome::WorldNoOp),
+         _ => Err(EpistemicApplyError::NonEpistemicEvent),
+     }

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace >= with < in plan_route
+@@ -212,17 +212,17 @@
+     }
+ 
+     let mut queue = VecDeque::from([(state.current_place_id().clone(), Vec::<PlaceId>::new())]);
+     let mut visited = BTreeSet::from([state.current_place_id().clone()]);
+     let mut candidates = Vec::new();
+     let mut expansions = 0_usize;
+ 
+     while let Some((place_id, path)) = queue.pop_front() {
+-        if expansions >= request.budget {
++        if expansions < /* ~ changed by cargo-mutants ~ */ request.budget {
+             return Err(failure(
+                 state,
+                 request,
+                 BlockerCategory::PlannerBudgetExhausted,
+                 "planner budget exhausted",
+                 candidates,
+             ));
+         }

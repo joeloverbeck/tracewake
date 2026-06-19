@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::StuckDiagnosticKind::concrete_blocker -> &'static str with ""
+@@ -2349,21 +2349,17 @@
+             match self {
+                 Self::WindowNoProgress => "window_no_progress",
+                 Self::PastExpectedProgressWindow => "past_expected_progress_window",
+                 Self::RepeatedIdleWait => "repeated_idle_wait",
+             }
+         }
+ 
+         const fn concrete_blocker(self) -> &'static str {
+-            match self {
+-                Self::WindowNoProgress => "no progress recorded in no-human day window",
+-                Self::PastExpectedProgressWindow => "no progress past expected progress window",
+-                Self::RepeatedIdleWait => "repeated idle/wait without typed progress reason",
+-            }
++            "" /* ~ changed by cargo-mutants ~ */
+         }
+ 
+         const fn actual_source(self) -> &'static str {
+             match self {
+                 Self::WindowNoProgress => "scheduler_no_progress_detection",
+                 Self::PastExpectedProgressWindow => {
+                     "routine_expected_next_progress_stuck_detection"
+                 }

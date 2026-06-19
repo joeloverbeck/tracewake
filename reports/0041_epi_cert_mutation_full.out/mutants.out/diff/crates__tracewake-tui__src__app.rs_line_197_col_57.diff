@@ -1,0 +1,21 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace == with != in TuiApp::debug_available_for
+@@ -189,17 +189,17 @@
+         view.debug_available = self.debug_available_for(actor_id);
+         Ok(view)
+     }
+ 
+     fn debug_available_for(&self, actor_id: &ActorId) -> bool {
+         self.controller_bindings
+             .binding(&self.controller_id)
+             .is_some_and(|binding| {
+-                binding.binding.bound_actor_id.as_ref() == Some(actor_id)
++                binding.binding.bound_actor_id.as_ref() != /* ~ changed by cargo-mutants ~ */ Some(actor_id)
+                     && matches!(binding.binding.mode, ControllerMode::Debug)
+             })
+     }
+ 
+     pub fn debug_available(&self) -> bool {
+         self.bound_actor_id
+             .as_ref()
+             .is_some_and(|actor_id| self.debug_available_for(actor_id))

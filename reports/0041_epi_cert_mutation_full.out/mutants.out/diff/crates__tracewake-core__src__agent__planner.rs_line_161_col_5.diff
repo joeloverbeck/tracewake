@@ -1,0 +1,51 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace plan_start_work_block -> Result<LocalPlan, LocalPlanFailure> with Ok(Default::default())
+@@ -153,47 +153,17 @@
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_start_work_block(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     workplace_id: &str,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+-    if state
+-        .known_workplaces()
+-        .iter()
+-        .any(|(known_workplace_id, place_id)| {
+-            known_workplace_id.as_str() == workplace_id && place_id == state.current_place_id()
+-        })
+-    {
+-        let proposal = PlannedProposal {
+-            action_id: ActionId::new("work_block").unwrap(),
+-            target_ids: vec![workplace_id.to_string()],
+-        };
+-        return Ok(LocalPlan {
+-            proposals: vec![proposal.clone()],
+-            trace: trace(
+-                state,
+-                request,
+-                vec![format!("workplace:{workplace_id}")],
+-                vec![proposal],
+-                Vec::new(),
+-                None,
+-            ),
+-        });
+-    }
+-
+-    Err(failure(
+-        state,
+-        request,
+-        BlockerCategory::Knowledge,
+-        "workplace is not actor-known at current place",
+-        vec![format!("workplace:{workplace_id}")],
+-    ))
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_route(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     target: &PlaceId,
+ ) -> Result<LocalPlan, LocalPlanFailure> {

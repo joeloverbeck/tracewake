@@ -1,0 +1,72 @@
+
+*** crates/tracewake-core/src/events/apply.rs:833:5: replace parse_proposition -> Result<Proposition, EpistemicApplyError> with Ok(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_proposition -> Result<Proposition, EpistemicApplyError> with Ok(Default::default())
+@@ -825,21 +825,17 @@
+         }),
+     }
+ }
+ 
+ fn parse_proposition(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<Proposition, EpistemicApplyError> {
+-    let value = required_epistemic(payload, key)?;
+-    value.parse().map_err(|_| EpistemicApplyError::BadPayload {
+-        key,
+-        value: value.to_string(),
+-    })
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_belief_payload(payload: &BTreeMap<&str, &str>) -> Result<Belief, EpistemicApplyError> {
+     let holder_actor_id = parse_actor_id_epistemic(payload, "holder_actor_id")
+         .map_err(|_| EpistemicApplyError::MissingHolder)?;
+     let source_event_id = parse_event_id_epistemic(payload, "source_event_id")
+         .map_err(|_| EpistemicApplyError::MissingSource)?;
+     let mut belief = Belief::new(
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/events/apply.rs` has changed (1781910319.151924254s, 5s after last build at 1781910314.087924255s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `Proposition: Default` is not satisfied
+   --> crates/tracewake-core/src/events/apply.rs:833:8
+    |
+833 |     Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |        ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `Proposition`
+   --> crates/tracewake-core/src/epistemics/proposition.rs:9:1
+    |
+  9 | pub enum Proposition {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `proposition::Proposition: Default` is not satisfied
+   --> crates/tracewake-core/src/events/apply.rs:833:8
+    |
+833 |     Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |        ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `proposition::Proposition`
+   --> crates/tracewake-core/src/epistemics/proposition.rs:9:1
+    |
+  9 | pub enum Proposition {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

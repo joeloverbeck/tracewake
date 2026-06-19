@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace is_no_sleep_diagnostic -> bool with true
+@@ -1574,17 +1574,17 @@
+                 step.proposed(),
+                 RoutineStepProposal::Diagnostic(diagnostic) if is_no_sleep_diagnostic(*diagnostic)
+             )
+         })
+     })
+ }
+ 
+ fn is_no_sleep_diagnostic(value: RoutineDiagnosticKind) -> bool {
+-    matches!(value, RoutineDiagnosticKind::NoSleepAffordance)
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn known_action_scope(action_id: &ActionId) -> Option<ActionScope> {
+     match action_id.as_str() {
+         "move" | "open" | "close" | "take" | "place" | "look" | "inspect_place"
+         | "inspect_entity" | "wait" => Some(ActionScope::Phase1),
+         "check_container" | "truthful_accuse_probe" => Some(ActionScope::Phase2AHistorical),
+         "sleep" | "eat" | "work_block" | "continue_routine" => Some(ActionScope::Phase3AHistorical),

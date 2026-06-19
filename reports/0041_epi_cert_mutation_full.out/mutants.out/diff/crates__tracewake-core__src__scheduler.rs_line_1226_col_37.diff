@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace == with != in no_human::payload_value
+@@ -1218,17 +1218,17 @@
+             .and_then(|field| field.value.parse::<u64>().ok())
+             .map(SimTick::new)
+     }
+ 
+     fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+         event
+             .payload
+             .iter()
+-            .find(|field| field.key == key)
++            .find(|field| field.key != /* ~ changed by cargo-mutants ~ */ key)
+             .map(|field| field.value.as_str())
+     }
+ 
+     fn actor_has_open_body_exclusive_duration(
+         log: &EventLog,
+         actor_id: &ActorId,
+         tick: SimTick,
+     ) -> Result<bool, crate::need_accounting::DuplicateDurationTerminal> {

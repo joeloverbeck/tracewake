@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::from_seed_parts -> Self with Default::default()
+@@ -285,29 +285,17 @@
+     pub fn from_seed_parts(
+         needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+         intentions: BTreeMap<IntentionId, Intention>,
+         active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
+         routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
+         decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
+         stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+     ) -> Self {
+-        Self {
+-            needs_by_actor,
+-            need_tick_charges: BTreeSet::new(),
+-            intentions,
+-            active_intention_by_actor,
+-            routine_executions,
+-            decision_traces,
+-            stuck_diagnostics,
+-            need_threshold_crossings: BTreeMap::new(),
+-            ordinary_life_episodes: BTreeMap::new(),
+-            candidate_goal_evaluations: BTreeMap::new(),
+-            continue_routine_arbitrations: BTreeMap::new(),
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn needs_by_actor(&self) -> &BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
+         &self.needs_by_actor
+     }
+ 
+     pub fn intentions(&self) -> &BTreeMap<IntentionId, Intention> {
+         &self.intentions

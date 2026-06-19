@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace decode_opt_need -> Result<Option<NeedKind>, StuckDiagnosticParseError> with Ok(None)
+@@ -909,23 +909,17 @@
+         Some(NeedKind::Hunger) => "hunger",
+         Some(NeedKind::Fatigue) => "fatigue",
+         Some(NeedKind::Safety) => "safety",
+         None => "-",
+     }
+ }
+ 
+ fn decode_opt_need(value: &str) -> Result<Option<NeedKind>, StuckDiagnosticParseError> {
+-    match value {
+-        "-" => Ok(None),
+-        "hunger" => Ok(Some(NeedKind::Hunger)),
+-        "fatigue" => Ok(Some(NeedKind::Fatigue)),
+-        "safety" => Ok(Some(NeedKind::Safety)),
+-        _ => Err(StuckDiagnosticParseError::InvalidNeed),
+-    }
++    Ok(None) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn encode_opt_id(value: Option<&str>) -> String {
+     value.unwrap_or("-").to_string()
+ }
+ 
+ fn decode_opt_id<T>(
+     value: &str,

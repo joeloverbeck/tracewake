@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "direct_sight" in parse_channel
+@@ -809,17 +809,17 @@
+             value: value.to_string(),
+         }),
+     }
+ }
+ 
+ fn parse_channel(payload: &BTreeMap<&str, &str>) -> Result<Channel, EpistemicApplyError> {
+     let value = required_epistemic(payload, "channel")?;
+     match value {
+-        "direct_sight" => Ok(Channel::DirectSight),
++         /* ~ changed by cargo-mutants ~ */
+         "touch_or_search" => Ok(Channel::TouchOrSearch),
+         "simple_sound" => Ok(Channel::SimpleSound),
+         "absence_marker" => Ok(Channel::AbsenceMarker),
+         "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
+         _ => Err(EpistemicApplyError::BadPayload {
+             key: "channel",
+             value: value.to_string(),
+         }),

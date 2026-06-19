@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_locations
+@@ -905,17 +905,17 @@
+             if !local_contents.insert(item_id.clone()) {
+                 errors.push(ContentValidationError::new(
+                     ValidationPhase::DeterminismHazard,
+                     format!("containers[{container_index}].contents"),
+                     "duplicate_contents",
+                     format!("container contents duplicate item {}", item_id.as_str()),
+                 ));
+             }
+-            if !listed_contents.insert(item_id.clone()) {
++            if  /* ~ changed by cargo-mutants ~ */listed_contents.insert(item_id.clone()) {
+                 errors.push(ContentValidationError::new(
+                     ValidationPhase::Location,
+                     format!("containers[{container_index}].contents"),
+                     "item_double_location",
+                     format!(
+                         "item {} is listed by more than one container",
+                         item_id.as_str()
+                     ),

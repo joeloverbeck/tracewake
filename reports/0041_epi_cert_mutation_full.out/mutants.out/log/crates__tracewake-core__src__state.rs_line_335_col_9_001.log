@@ -1,0 +1,100 @@
+
+*** crates/tracewake-core/src/state.rs:335:9: replace AgentState::need_threshold_crossings -> &BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord> with Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())])))
+
+*** mutation diff:
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::need_threshold_crossings -> &BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord> with Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())])))
+@@ -327,17 +327,17 @@
+ 
+     pub fn stuck_diagnostics(&self) -> &BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
+         &self.stuck_diagnostics
+     }
+ 
+     pub fn need_threshold_crossings(
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord> {
+-        &self.need_threshold_crossings
++        Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn ordinary_life_episodes(
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord> {
+         &self.ordinary_life_episodes
+     }
+ 
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/state.rs` has changed (1781905618.259925374s, 4s after last build at 1781905614.491925367s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `EventId: Default` is not satisfied
+   --> crates/tracewake-core/src/state.rs:335:50
+    |
+335 |         Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+    |                                                  ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `EventId`
+   --> crates/tracewake-core/src/ids.rs:78:9
+    |
+ 78 |         pub struct $name(StableId);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+137 | stable_id_type!(EventId);
+    | ------------------------ in this macro invocation
+    = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NeedThresholdCrossingRecord: Default` is not satisfied
+   --> crates/tracewake-core/src/state.rs:335:70
+    |
+335 |         Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+    |                                                                      ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `NeedThresholdCrossingRecord`
+   --> crates/tracewake-core/src/state.rs:157:1
+    |
+157 | pub struct NeedThresholdCrossingRecord {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 2 previous errors
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `ids::EventId: Default` is not satisfied
+   --> crates/tracewake-core/src/state.rs:335:50
+    |
+335 |         Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+    |                                                  ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ids::EventId`
+   --> crates/tracewake-core/src/ids.rs:78:9
+    |
+ 78 |         pub struct $name(StableId);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+137 | stable_id_type!(EventId);
+    | ------------------------ in this macro invocation
+    = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `state::NeedThresholdCrossingRecord: Default` is not satisfied
+   --> crates/tracewake-core/src/state.rs:335:70
+    |
+335 |         Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+    |                                                                      ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `state::NeedThresholdCrossingRecord`
+   --> crates/tracewake-core/src/state.rs:157:1
+    |
+157 | pub struct NeedThresholdCrossingRecord {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 2 previous errors
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

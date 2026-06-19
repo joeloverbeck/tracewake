@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace Phase3ADebugReport::debug_only -> bool with false
+@@ -124,17 +124,17 @@
+ impl ControllerBindingDebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }
+ 
+ impl Phase3ADebugReport {
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl NoHumanDayDebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace != with == in source_context_check
+@@ -793,17 +793,17 @@
+     context: PipelineReadContext<'_>,
+     proposal: &Proposal,
+     mut checked_facts: Vec<CheckedFact>,
+ ) -> Option<PipelineDecision> {
+     if proposal.origin == ProposalOrigin::Agent {
+         if proposal
+             .parameters
+             .get("hidden_truth_audit_actor_known_only")
+-            .is_none_or(|value| value != "true")
++            .is_none_or(|value| value == /* ~ changed by cargo-mutants ~ */ "true")
+         {
+             return Some(reject(
+                 context,
+                 proposal,
+                 PipelineStage::SourceContextValidation,
+                 vec![ReasonCode::HiddenTruthInput],
+                 checked_facts,
+                 "That action was blocked by the actor-known audit.",

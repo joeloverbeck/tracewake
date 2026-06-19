@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/contradiction.rs
++++ replace Contradiction::prior_expectation_belief_id -> &BeliefId with Box::leak(Box::new(Default::default()))
+@@ -77,17 +77,17 @@
+         &self.holder_actor_id
+     }
+ 
+     pub fn kind(&self) -> ContradictionKind {
+         self.kind
+     }
+ 
+     pub fn prior_expectation_belief_id(&self) -> &BeliefId {
+-        &self.prior_expectation_belief_id
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn contradicting_observation_id(&self) -> &ObservationId {
+         &self.contradicting_observation_id
+     }
+ 
+     pub fn expected_proposition(&self) -> &Proposition {
+         &self.expected_proposition

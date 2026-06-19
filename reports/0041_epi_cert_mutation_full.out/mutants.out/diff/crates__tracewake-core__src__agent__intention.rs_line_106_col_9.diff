@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/agent/intention.rs
++++ replace Intention::record_progress with ()
+@@ -98,18 +98,17 @@
+             last_progress_tick: start_tick,
+             status: IntentionStatus::Active,
+             status_reason: None,
+             trace_ancestry: vec![trace_id],
+         }
+     }
+ 
+     pub fn record_progress(&mut self, tick: SimTick, step: impl Into<String>) {
+-        self.last_progress_tick = tick;
+-        self.current_step = Some(step.into());
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn suspend(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {
+         self.transition(IntentionStatus::Suspended, reason)
+     }
+ 
+     pub fn complete(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {
+         self.transition(IntentionStatus::Completed, reason)

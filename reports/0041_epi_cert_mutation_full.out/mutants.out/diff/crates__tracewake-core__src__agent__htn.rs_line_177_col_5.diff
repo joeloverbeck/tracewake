@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace resolve_template_conditions -> TemplateConditionResolution with Default::default()
+@@ -169,38 +169,17 @@
+     }
+ }
+ 
+ fn resolve_template_conditions(
+     template: &RoutineTemplate,
+     actor_known_state: &ActorKnownPlanningState,
+     actor_known_facts: &[ActorKnownFact],
+ ) -> TemplateConditionResolution {
+-    let mut resolution = TemplateConditionResolution::default();
+-    for condition in template
+-        .applicability_conditions
+-        .iter()
+-        .chain(template.preconditions.iter())
+-    {
+-        match resolve_condition(condition, actor_known_state, actor_known_facts) {
+-            ConditionResolution::Satisfied { proof_source } => {
+-                resolution
+-                    .proof_sources
+-                    .push(format!("{}={proof_source}", condition.stable_id()));
+-            }
+-            ConditionResolution::Rejected { reason } => {
+-                resolution.rejected_conditions.push((*condition, reason));
+-            }
+-            ConditionResolution::Unknown { reason } => {
+-                resolution.unknown_conditions.push((*condition, reason));
+-            }
+-        }
+-    }
+-    resolution.proof_sources.sort();
+-    resolution
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn resolve_condition(
+     condition: &RoutineCondition,
+     actor_known_state: &ActorKnownPlanningState,
+     actor_known_facts: &[ActorKnownFact],
+ ) -> ConditionResolution {
+     match condition {

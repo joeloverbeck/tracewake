@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "false" in parse_bool
+@@ -777,17 +777,17 @@
+             })
+             .collect()
+     }
+ }
+ 
+ fn parse_bool(value: &str) -> Result<bool, SerializationError> {
+     match value {
+         "true" => Ok(true),
+-        "false" => Ok(false),
++         /* ~ changed by cargo-mutants ~ */
+         _ => Err(SerializationError::BadBool(value.to_string())),
+     }
+ }
+ 
+ fn encode(value: &str) -> String {
+     value
+         .as_bytes()
+         .iter()

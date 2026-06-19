@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ delete match arm "at_workplace" in RoutineCondition::parse
+@@ -279,17 +279,17 @@
+             "search_surface_actor_known" => Some(Self::SearchSurfaceActorKnown),
+             "next_step_available" => Some(Self::NextStepAvailable),
+             "known_route_surface" => Some(Self::KnownRouteSurface),
+             "modeled_wait_reason" => Some(Self::ModeledWaitReason),
+             "reevaluation_window_known" => Some(Self::ReevaluationWindowKnown),
+             "fixture_authored_possibility" => Some(Self::FixtureAuthoredPossibility),
+             "shared_pipeline_preconditions" => Some(Self::SharedPipelinePreconditions),
+             "assigned_workplace_known" => Some(Self::AssignedWorkplaceKnown),
+-            "at_workplace" => Some(Self::AtWorkplace),
++             /* ~ changed by cargo-mutants ~ */
+             _ => None,
+         }
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct RoutineTemplate {
+     pub template_id: RoutineTemplateId,

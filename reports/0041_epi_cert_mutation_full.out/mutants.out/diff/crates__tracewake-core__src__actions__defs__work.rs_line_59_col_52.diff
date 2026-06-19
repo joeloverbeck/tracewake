@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ delete ! in build_work_start_events
+@@ -51,17 +51,17 @@
+             proposal,
+             ordering_key,
+             content_manifest_id,
+             workplace,
+             "access",
+             "workplace access closed",
+         )]);
+     }
+-    if !workplace.assigned_actor_ids.is_empty() && !workplace.assigned_actor_ids.contains(&actor_id)
++    if !workplace.assigned_actor_ids.is_empty() &&  /* ~ changed by cargo-mutants ~ */workplace.assigned_actor_ids.contains(&actor_id)
+     {
+         return Ok(vec![work_failed_event(
+             proposal,
+             ordering_key,
+             content_manifest_id,
+             workplace,
+             "physical",
+             "actor not assigned to workplace",

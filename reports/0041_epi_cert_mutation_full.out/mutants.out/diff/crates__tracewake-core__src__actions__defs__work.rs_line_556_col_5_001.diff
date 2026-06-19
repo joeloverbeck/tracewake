@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ replace payload_value -> Result<&'a str, ApplyError> with Ok("xyzzy")
+@@ -548,22 +548,17 @@
+     agent_state
+         .needs_by_actor
+         .get(actor_id)
+         .and_then(|needs| needs.get(&need_kind))
+         .map(crate::agent::NeedState::value)
+ }
+ 
+ fn payload_value<'a>(event: &'a EventEnvelope, key: &'static str) -> Result<&'a str, ApplyError> {
+-    event
+-        .payload
+-        .iter()
+-        .find(|field| field.key == key)
+-        .map(|field| field.value.as_str())
+-        .ok_or(ApplyError::MissingPayload(key))
++    Ok("xyzzy") /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyError> {
+     let value = event
+         .payload
+         .iter()
+         .find(|field| field.key == key)
+         .map(|field| field.value.as_str())

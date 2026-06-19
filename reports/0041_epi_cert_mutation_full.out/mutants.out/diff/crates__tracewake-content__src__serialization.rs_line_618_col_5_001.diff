@@ -1,0 +1,23 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_u64 -> Result<u64, SerializationError> with Ok(1)
+@@ -610,19 +610,17 @@
+ 
+ fn parse_u32(value: &str) -> Result<u32, SerializationError> {
+     value
+         .parse::<u32>()
+         .map_err(|_| SerializationError::BadU64(value.to_string()))
+ }
+ 
+ fn parse_u64(value: &str) -> Result<u64, SerializationError> {
+-    value
+-        .parse::<u64>()
+-        .map_err(|_| SerializationError::BadU64(value.to_string()))
++    Ok(1) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_i32(value: &str) -> Result<i32, SerializationError> {
+     value
+         .parse::<i32>()
+         .map_err(|_| SerializationError::BadU64(value.to_string()))
+ }
+ 

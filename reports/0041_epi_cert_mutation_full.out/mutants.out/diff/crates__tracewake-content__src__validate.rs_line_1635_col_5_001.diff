@@ -1,0 +1,35 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace is_known_routine_failure_mode -> bool with false
+@@ -1627,31 +1627,17 @@
+         "really happened",
+     ]
+     .iter()
+     .any(|marker| normalized.contains(marker));
+     has_prose_field && implies_simulation_fact
+ }
+ 
+ fn is_known_routine_failure_mode(value: &str) -> bool {
+-    matches!(
+-        value,
+-        "access"
+-            | "actor_not_at_workplace"
+-            | "food_inaccessible"
+-            | "food_missing"
+-            | "need_blocked"
+-            | "no_current_intention"
+-            | "no_known_food_sources"
+-            | "route_blocked"
+-            | "search_blocked"
+-            | "sleep_place_blocked"
+-            | "step_blocked"
+-            | "workplace_closed"
+-    )
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_known_routine_fallback_rule(value: &str) -> bool {
+     matches!(value, "fallback_wait_with_reason" | "wait")
+ }
+ 
+ fn supports_target_kind(
+     effect: ActionEffect,

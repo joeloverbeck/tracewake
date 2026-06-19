@@ -1,0 +1,92 @@
+
+*** crates/tracewake-core/src/events/log.rs:44:9: replace EventLog::append_deserialized -> Result<EventEnvelope, EventLogError> with Ok(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-core/src/events/log.rs
++++ replace EventLog::append_deserialized -> Result<EventEnvelope, EventLogError> with Ok(Default::default())
+@@ -36,41 +36,17 @@
+         self.events.push(event.clone());
+         Ok(event)
+     }
+ 
+     fn append_deserialized(
+         &mut self,
+         event: EventEnvelope,
+     ) -> Result<EventEnvelope, EventLogError> {
+-        if !event.has_supported_schema_version() {
+-            return Err(EventLogError::UnsupportedSchemaVersion(
+-                event.event_schema_version.as_str().to_string(),
+-            ));
+-        }
+-        let expected_global_order = self.events.len() as u64;
+-        if event.global_order != expected_global_order {
+-            return Err(EventLogError::GlobalOrderMismatch {
+-                expected: expected_global_order,
+-                actual: event.global_order,
+-            });
+-        }
+-        let expected_stream_position = self
+-            .events
+-            .iter()
+-            .filter(|existing| existing.stream == event.stream)
+-            .count() as u64;
+-        if event.stream_position != expected_stream_position {
+-            return Err(EventLogError::StreamPositionMismatch {
+-                expected: expected_stream_position,
+-                actual: event.stream_position,
+-            });
+-        }
+-        self.events.push(event.clone());
+-        Ok(event)
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn events(&self) -> &[EventEnvelope] {
+         &self.events
+     }
+ 
+     #[cfg(test)]
+     pub(crate) fn from_ordered_events_for_replay_tests(events: Vec<EventEnvelope>) -> Self {
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/events/log.rs` has changed (1781911103.387925047s, 3s after last build at 1781911100.031925024s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `envelope::EventEnvelope: Default` is not satisfied
+   --> crates/tracewake-core/src/events/log.rs:44:12
+    |
+ 44 |         Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |            ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `envelope::EventEnvelope`
+   --> crates/tracewake-core/src/events/envelope.rs:717:1
+    |
+717 | pub struct EventEnvelope {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `EventEnvelope: Default` is not satisfied
+   --> crates/tracewake-core/src/events/log.rs:44:12
+    |
+ 44 |         Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |            ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `EventEnvelope`
+   --> crates/tracewake-core/src/events/envelope.rs:717:1
+    |
+717 | pub struct EventEnvelope {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

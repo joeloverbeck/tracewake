@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace || with && in supports_target_kind
+@@ -1699,17 +1699,17 @@
+         ActionEffect::Take | ActionEffect::Place => fixture
+             .items
+             .iter()
+             .any(|item| item.item_id.as_str() == affordance.target_id),
+         ActionEffect::QueryOnly => {
+             affordance.action_id.as_str() == "inspect_entity"
+                 || affordance.action_id.as_str() == "inspect_place"
+                 || affordance.action_id.as_str() == "look"
+-                || affordance.action_id.as_str() == "truthful_accuse_probe"
++                && /* ~ changed by cargo-mutants ~ */ affordance.action_id.as_str() == "truthful_accuse_probe"
+         }
+         ActionEffect::Wait => false,
+     }
+ }
+ 
+ fn parse_place_target(value: &str) -> Option<PlaceId> {
+     PlaceId::new(value).ok()
+ }

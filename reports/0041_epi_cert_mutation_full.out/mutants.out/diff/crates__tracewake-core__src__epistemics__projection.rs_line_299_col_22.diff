@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ^= with |= in EpistemicProjectionChecksum::from_canonical_lines
+@@ -291,17 +291,17 @@
+     pub fn as_str(&self) -> &str {
+         &self.0
+     }
+ 
+     pub fn from_canonical_lines(lines: &[String]) -> Self {
+         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+         for line in lines {
+             for byte in line.as_bytes().iter().copied().chain([b'\n']) {
+-                hash ^= u64::from(byte);
++                hash |= /* ~ changed by cargo-mutants ~ */ u64::from(byte);
+                 hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+             }
+         }
+         Self(format!("twe1-{hash:016x}"))
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]

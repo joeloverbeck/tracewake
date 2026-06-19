@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace != with == in deserialize_random_draw
+@@ -1129,17 +1129,17 @@
+         .join(":")
+ }
+ 
+ fn deserialize_random_draw(value: &str) -> Result<RandomDrawRef, EventEnvelopeParseError> {
+     let parts = value
+         .split(':')
+         .map(decode)
+         .collect::<Result<Vec<_>, _>>()?;
+-    if parts.len() != 3 {
++    if parts.len() == /* ~ changed by cargo-mutants ~ */ 3 {
+         return Err(EventEnvelopeParseError::InvalidTuple);
+     }
+     Ok(RandomDrawRef::new(&parts[0], &parts[1], &parts[2]))
+ }
+ 
+ fn serialize_payload(field: &PayloadField) -> String {
+     format!("{}:{}", encode(&field.key), encode(&field.value))
+ }

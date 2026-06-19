@@ -1,0 +1,40 @@
+--- crates/tracewake-core/src/actions/defs/eat.rs
++++ replace food_supply_target -> Result<FoodSupplyId, ActionRejection> with Ok(Default::default())
+@@ -256,36 +256,17 @@
+                 });
+             }
+             None
+         }
+     }
+ }
+ 
+ fn food_supply_target(proposal: &Proposal) -> Result<FoodSupplyId, ActionRejection> {
+-    let target = proposal.target_ids.first().ok_or_else(|| {
+-        reject(
+-            PipelineStage::TargetBinding,
+-            ReasonCode::TargetNotFound,
+-            "target_count",
+-            &proposal.target_ids.len().to_string(),
+-            "There is no food source to eat from.",
+-            "eat proposal did not include a food supply target",
+-        )
+-    })?;
+-    FoodSupplyId::new(target).map_err(|_| {
+-        reject(
+-            PipelineStage::TargetBinding,
+-            ReasonCode::UnsupportedTargetKind,
+-            "food_supply_id",
+-            target,
+-            "That food source is invalid.",
+-            "eat target was not a stable food supply ID",
+-        )
+-    })
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn location_payload(location: &Location) -> String {
+     match location {
+         Location::AtPlace(id) => format!("place:{}", id.as_str()),
+         Location::InContainer(id) => format!("container:{}", id.as_str()),
+         Location::CarriedBy(id) => format!("actor:{}", id.as_str()),
+     }

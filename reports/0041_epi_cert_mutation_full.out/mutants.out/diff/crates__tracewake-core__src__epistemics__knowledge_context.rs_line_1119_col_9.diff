@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeContext::actor_known_items -> &[ActorKnownItemFact] with Vec::leak(Vec::new())
+@@ -1111,17 +1111,17 @@
+         &self.actor_known_doors
+     }
+ 
+     pub fn actor_known_containers(&self) -> &[ActorKnownContainerFact] {
+         &self.actor_known_containers
+     }
+ 
+     pub fn actor_known_items(&self) -> &[ActorKnownItemFact] {
+-        &self.actor_known_items
++        Vec::leak(Vec::new()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn actor_known_local_actors(&self) -> &[ActorKnownLocalActorFact] {
+         &self.actor_known_local_actors
+     }
+ 
+     pub fn forbidden_truth_audit(&self) -> &ForbiddenTruthAudit {
+         &self.forbidden_truth_audit

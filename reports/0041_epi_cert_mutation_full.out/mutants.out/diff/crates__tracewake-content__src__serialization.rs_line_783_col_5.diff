@@ -1,0 +1,25 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_bool -> Result<bool, SerializationError> with Ok(true)
+@@ -775,21 +775,17 @@
+                 part.parse::<usize>()
+                     .map_err(|_| SerializationError::BadU64(part.to_string()))
+             })
+             .collect()
+     }
+ }
+ 
+ fn parse_bool(value: &str) -> Result<bool, SerializationError> {
+-    match value {
+-        "true" => Ok(true),
+-        "false" => Ok(false),
+-        _ => Err(SerializationError::BadBool(value.to_string())),
+-    }
++    Ok(true) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn encode(value: &str) -> String {
+     value
+         .as_bytes()
+         .iter()
+         .map(|byte| format!("{byte:02x}"))
+         .collect()

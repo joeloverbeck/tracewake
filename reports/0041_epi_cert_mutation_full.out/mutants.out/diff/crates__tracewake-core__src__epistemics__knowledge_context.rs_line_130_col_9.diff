@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeProvenanceEntry::actor_known_source -> Self with Default::default()
+@@ -122,21 +122,17 @@
+ }
+ 
+ impl KnowledgeProvenanceEntry {
+     pub fn actor_known_source(
+         kind: KnowledgeProvenanceKind,
+         source: AllowedKnowledgeSource,
+         source_key: impl Into<String>,
+     ) -> Self {
+-        Self {
+-            kind,
+-            source,
+-            source_key: source_key.into(),
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn kind(&self) -> &KnowledgeProvenanceKind {
+         &self.kind
+     }
+ 
+     pub fn source(&self) -> AllowedKnowledgeSource {
+         self.source

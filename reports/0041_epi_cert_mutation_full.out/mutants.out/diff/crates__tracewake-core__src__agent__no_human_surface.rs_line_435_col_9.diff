@@ -1,0 +1,98 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace NoHumanActorKnownSurfaceBuilder::add_window_framing_facts with ()
+@@ -427,94 +427,17 @@
+         &mut self,
+         agent_state: &AgentState,
+         window_id: &str,
+         window_end_tick: SimTick,
+         current_place_witness_event_id: Option<EventId>,
+         needs_witness_event_id: Option<EventId>,
+         frame_event_id: Option<EventId>,
+     ) {
+-        let Some(frame_source_event_ids) = frame_event_id
+-            .map(|id| SourceEventIds::checked(vec![id]).expect("frame event id is non-empty"))
+-        else {
+-            return;
+-        };
+-        if let Some(current_place_source_event_ids) = current_place_witness_event_id
+-            .map(|id| SourceEventIds::checked(vec![id]).expect("place witness id is non-empty"))
+-        {
+-            self.facts.push(ActorKnownFact::observed_now(
+-                self.actor_id.clone(),
+-                "actor_current_place_visible",
+-                self.current_place_id.as_str(),
+-                "evented_perception:current_place",
+-                self.decision_tick,
+-                current_place_source_event_ids,
+-            ));
+-        }
+-        if agent_state.needs_by_actor().contains_key(&self.actor_id) {
+-            if let Some(needs_source_event_ids) = needs_witness_event_id
+-                .map(|id| SourceEventIds::checked(vec![id]).expect("needs witness id is non-empty"))
+-            {
+-                self.facts.push(ActorKnownFact::remembered_belief(
+-                    self.actor_id.clone(),
+-                    "agent_needs_present",
+-                    "needs_present",
+-                    "agent_state:needs_present",
+-                    self.decision_tick,
+-                    needs_source_event_ids,
+-                ));
+-            }
+-        }
+-        self.facts.push(ActorKnownFact::remembered_belief(
+-            self.actor_id.clone(),
+-            "actor_belief_projection_limitation",
+-            "not_supplied",
+-            "no_human_day:typed_projection_limitation",
+-            self.decision_tick,
+-            frame_source_event_ids.clone(),
+-        ));
+-        self.facts.push(ActorKnownFact::remembered_belief(
+-            self.actor_id.clone(),
+-            "modeled_wait_reason",
+-            "bounded_idle",
+-            format!("window_id={window_id}:bounded_idle"),
+-            self.decision_tick,
+-            frame_source_event_ids.clone(),
+-        ));
+-        self.facts.push(ActorKnownFact::remembered_belief(
+-            self.actor_id.clone(),
+-            "reevaluation_window_known",
+-            window_id,
+-            format!(
+-                "window_id={}:{}..{}",
+-                window_id,
+-                self.decision_tick.map_or(0, |tick| tick.value()),
+-                window_end_tick.value()
+-            ),
+-            self.decision_tick,
+-            frame_source_event_ids.clone(),
+-        ));
+-        if has_active_intention(agent_state, &self.actor_id) {
+-            self.facts.push(ActorKnownFact::remembered_belief(
+-                self.actor_id.clone(),
+-                "active_intention_present",
+-                "active",
+-                "agent_state:active_intention",
+-                self.decision_tick,
+-                frame_source_event_ids.clone(),
+-            ));
+-            self.facts.push(ActorKnownFact::remembered_belief(
+-                self.actor_id.clone(),
+-                "next_step_available",
+-                "modeled_next_step",
+-                "agent_state:active_intention_next_step",
+-                self.decision_tick,
+-                frame_source_event_ids,
+-            ));
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn has_active_intention(agent_state: &AgentState, actor_id: &ActorId) -> bool {
+     agent_state
+         .active_intention_by_actor()
+         .contains_key(actor_id)
+ }

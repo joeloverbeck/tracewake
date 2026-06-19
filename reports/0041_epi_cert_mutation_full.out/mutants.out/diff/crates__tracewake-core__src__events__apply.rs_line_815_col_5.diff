@@ -1,0 +1,32 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_channel -> Result<Channel, EpistemicApplyError> with Ok(Default::default())
+@@ -807,28 +807,17 @@
+         _ => Err(EpistemicApplyError::BadPayload {
+             key: "stance",
+             value: value.to_string(),
+         }),
+     }
+ }
+ 
+ fn parse_channel(payload: &BTreeMap<&str, &str>) -> Result<Channel, EpistemicApplyError> {
+-    let value = required_epistemic(payload, "channel")?;
+-    match value {
+-        "direct_sight" => Ok(Channel::DirectSight),
+-        "touch_or_search" => Ok(Channel::TouchOrSearch),
+-        "simple_sound" => Ok(Channel::SimpleSound),
+-        "absence_marker" => Ok(Channel::AbsenceMarker),
+-        "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
+-        _ => Err(EpistemicApplyError::BadPayload {
+-            key: "channel",
+-            value: value.to_string(),
+-        }),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_proposition(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<Proposition, EpistemicApplyError> {
+     let value = required_epistemic(payload, key)?;
+     value.parse().map_err(|_| EpistemicApplyError::BadPayload {

@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownPlanningContext::from_observed_parts -> Self with Default::default()
+@@ -313,30 +313,17 @@
+         _known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+         _known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
+         _known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
+         _known_food_sources: BTreeSet<String>,
+         _known_sleep_places: BTreeSet<PlaceId>,
+         _known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
+         facts: Vec<ActorKnownFact>,
+     ) -> Self {
+-        let derived = DerivedActorKnownFields::from_facts(&facts);
+-        let mut context = Self {
+-            actor_id,
+-            current_place_id,
+-            known_edges: derived.known_edges,
+-            known_closed_doors: derived.known_closed_doors,
+-            known_containers_by_place: derived.known_containers_by_place,
+-            known_food_sources: derived.known_food_sources,
+-            known_sleep_places: derived.known_sleep_places,
+-            known_workplaces: derived.known_workplaces,
+-            facts,
+-        };
+-        context.sort_facts();
+-        context
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn actor_id(&self) -> &ActorId {
+         &self.actor_id
+     }
+ 
+     pub fn current_place_id(&self) -> &PlaceId {
+         &self.current_place_id

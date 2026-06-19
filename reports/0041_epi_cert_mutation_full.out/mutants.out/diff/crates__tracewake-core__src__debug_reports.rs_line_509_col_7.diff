@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace && with || in is_item_location_event
+@@ -501,17 +501,17 @@
+ 
+ fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
+     matches!(
+         event.event_type,
+         EventKind::ItemRemovedFromContainer
+             | EventKind::ItemTakenFromPlace
+             | EventKind::ItemPlacedInContainer
+             | EventKind::ItemPlacedInPlace
+-    ) && event
++    ) || /* ~ changed by cargo-mutants ~ */ event
+         .payload
+         .iter()
+         .any(|field| field.key == "item_id" && field.value == item_id.as_str())
+ }
+ 
+ fn phase3a_report(
+     report_id: &str,
+     title: &str,

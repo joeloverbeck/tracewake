@@ -1,0 +1,193 @@
+
+*** crates/tracewake-core/src/projections.rs:1070:5: replace semantic_actions -> Vec<SemanticActionEntry> with vec![Default::default()]
+
+*** mutation diff:
+--- crates/tracewake-core/src/projections.rs
++++ replace semantic_actions -> Vec<SemanticActionEntry> with vec![Default::default()]
+@@ -1062,142 +1062,17 @@
+ fn semantic_actions(
+     preflight: &SemanticActionPreflightContext<'_>,
+     visible_exits: &[VisibleExit],
+     visible_doors: &[VisibleDoor],
+     visible_containers: &[VisibleContainer],
+     visible_items: &[VisibleItem],
+     carried_items: &[ItemId],
+ ) -> Vec<SemanticActionEntry> {
+-    let mut actions = Vec::new();
+-    actions.push(with_validator_availability(
+-        SemanticActionEntry::new(
+-            SemanticActionId::new("wait.1_tick").unwrap(),
+-            ActionId::new("wait").unwrap(),
+-            vec!["1_tick".to_string()],
+-            "Wait",
+-            true,
+-            None,
+-        ),
+-        preflight,
+-    ));
+-
+-    for exit in visible_exits {
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!("move.to.{}", exit.destination_place_id.as_str()))
+-                    .unwrap(),
+-                ActionId::new("move").unwrap(),
+-                vec![exit.destination_place_id.to_string()],
+-                format!("Move to {}", exit.destination_place_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-    }
+-
+-    for door in visible_doors {
+-        let action = if door.is_open { "close" } else { "open" };
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!("{action}.door.{}", door.door_id.as_str())).unwrap(),
+-                ActionId::new(action).unwrap(),
+-                vec![door.door_id.to_string()],
+-                format!("{action} {}", door.door_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-    }
+-
+-    for container in visible_containers {
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!(
+-                    "check.container.{}",
+-                    container.container_id.as_str()
+-                ))
+-                .unwrap(),
+-                ActionId::new("check_container").unwrap(),
+-                vec![container.container_id.to_string()],
+-                format!("Check {}", container.container_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-        let action = if container.is_open { "close" } else { "open" };
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!(
+-                    "{action}.container.{}",
+-                    container.container_id.as_str()
+-                ))
+-                .unwrap(),
+-                ActionId::new(action).unwrap(),
+-                vec![container.container_id.to_string()],
+-                format!("{action} {}", container.container_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-    }
+-
+-    for item in visible_items {
+-        let source_label = match &item.source {
+-            VisibleItemSource::Place => "place".to_string(),
+-            VisibleItemSource::Container(container_id) => container_id.to_string(),
+-            VisibleItemSource::Carried => "carried".to_string(),
+-        };
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!(
+-                    "take.item.{}.from.{source_label}",
+-                    item.item_id.as_str()
+-                ))
+-                .unwrap(),
+-                ActionId::new("take").unwrap(),
+-                vec![item.item_id.to_string()],
+-                format!("Take {}", item.item_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!("inspect.item.{}", item.item_id.as_str())).unwrap(),
+-                ActionId::new("inspect_entity").unwrap(),
+-                vec![item.item_id.to_string()],
+-                format!("Inspect {}", item.item_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-    }
+-
+-    for item_id in carried_items {
+-        actions.push(with_validator_availability(
+-            SemanticActionEntry::new(
+-                SemanticActionId::new(format!("place.item.{}.at.place", item_id.as_str())).unwrap(),
+-                ActionId::new("place").unwrap(),
+-                vec![item_id.to_string()],
+-                format!("Place {}", item_id.as_str()),
+-                true,
+-                None,
+-            ),
+-            preflight,
+-        ));
+-    }
+-
+-    actions
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn with_validator_availability(
+     entry: SemanticActionEntry,
+     preflight: &SemanticActionPreflightContext<'_>,
+ ) -> SemanticActionEntry {
+     let proposal = proposal_from_semantic_action_entry(
+         ProposalId::new(format!(
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/projections.rs` has changed (1781904835.707922927s, 5s after last build at 1781904830.795922943s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `SemanticActionEntry: Default` is not satisfied
+    --> crates/tracewake-core/src/projections.rs:1070:10
+     |
+1070 |     vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+     |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `SemanticActionEntry`
+    --> crates/tracewake-core/src/view_models.rs:202:1
+     |
+ 202 | pub struct SemanticActionEntry {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `view_models::SemanticActionEntry: Default` is not satisfied
+    --> crates/tracewake-core/src/projections.rs:1070:10
+     |
+1070 |     vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+     |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `view_models::SemanticActionEntry`
+    --> crates/tracewake-core/src/view_models.rs:202:1
+     |
+ 202 | pub struct SemanticActionEntry {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace || with && in validate_epistemic_seeds
+@@ -2609,17 +2609,17 @@
+                 ));
+             }
+         }
+         match &belief.source {
+             SourceRef::Event(event_id)
+                 if belief.source_kind == InitialBeliefSourceKind::AuthoredPrehistory =>
+             {
+                 if is_forbidden_key(event_id.as_str())
+-                    || contains_direct_state_or_script_marker(event_id.as_str())
++                    && /* ~ changed by cargo-mutants ~ */ contains_direct_state_or_script_marker(event_id.as_str())
+                 {
+                     errors.push(ContentValidationError::new(
+                         ValidationPhase::NoScript,
+                         format!("initial_beliefs[{index}].source_id"),
+                         "shortcut_truth_field",
+                         format!("forbidden shortcut-truth source {}", event_id.as_str()),
+                     ));
+                 }

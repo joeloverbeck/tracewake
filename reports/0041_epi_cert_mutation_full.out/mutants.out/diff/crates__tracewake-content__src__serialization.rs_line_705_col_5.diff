@@ -1,0 +1,25 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace serialize_privacy_scope -> String with String::new()
+@@ -697,21 +697,17 @@
+         "authored_prehistory" => Ok(InitialBeliefSourceKind::AuthoredPrehistory),
+         _ => Err(SerializationError::BadLine(format!(
+             "bad source kind {value}"
+         ))),
+     }
+ }
+ 
+ fn serialize_privacy_scope(scope: &PrivacyScope) -> String {
+-    match scope {
+-        PrivacyScope::ActorPrivate(actor_id) => format!("actor:{}", actor_id.as_str()),
+-        PrivacyScope::PublicPlaceholder => "public".to_string(),
+-        PrivacyScope::InstitutionPlaceholder(value) => format!("institution:{}", encode(value)),
+-    }
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_privacy_scope(value: &str) -> Result<PrivacyScope, SerializationError> {
+     if value == "public" {
+         return Ok(PrivacyScope::PublicPlaceholder);
+     }
+     let (kind, id) = value
+         .split_once(':')

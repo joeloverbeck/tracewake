@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::routine_assignment -> Self with Default::default()
+@@ -108,27 +108,17 @@
+     pub fn routine_assignment(
+         actor_id: ActorId,
+         stable_id: impl Into<String>,
+         value: impl Into<String>,
+         source: impl Into<String>,
+         tick: Option<SimTick>,
+         source_event_ids: SourceEventIds,
+     ) -> Self {
+-        Self::new(
+-            actor_id,
+-            stable_id,
+-            "routine_assignment",
+-            value,
+-            tick,
+-            ActorKnownProvenance::RoutineAssignment {
+-                source: source.into(),
+-            },
+-            source_event_ids,
+-        )
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn fixture_possibility(
+         actor_id: ActorId,
+         stable_id: impl Into<String>,
+         value: impl Into<String>,
+         source: impl Into<String>,
+         tick: Option<SimTick>,

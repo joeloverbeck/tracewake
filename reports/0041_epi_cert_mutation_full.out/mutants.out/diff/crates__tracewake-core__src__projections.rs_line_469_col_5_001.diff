@@ -1,0 +1,37 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace is_typed_planner_failure_event -> bool with false
+@@ -461,33 +461,17 @@
+ fn count_kind(events: &[EventEnvelope], kind: EventKind) -> usize {
+     events
+         .iter()
+         .filter(|event| event.event_type == kind)
+         .count()
+ }
+ 
+ fn is_typed_planner_failure_event(event: &EventEnvelope) -> bool {
+-    if !matches!(
+-        event.event_type,
+-        EventKind::DecisionTraceRecorded | EventKind::StuckDiagnosticRecorded
+-    ) {
+-        return false;
+-    }
+-    let responsible_layer = typed_responsible_layer(event);
+-    let blocker_code = typed_blocker_code(event);
+-    matches!(responsible_layer, Some(ResponsibleLayer::LocalPlanning))
+-        || matches!(
+-            blocker_code,
+-            Some(
+-                BlockerCode::PlannerBudgetExhausted
+-                    | BlockerCode::EmptyLocalPlan
+-                    | BlockerCode::LocalPlanFailed
+-            )
+-        )
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn typed_responsible_layer(event: &EventEnvelope) -> Option<ResponsibleLayer> {
+     payload_value(event, "responsible_layer").and_then(|value| ResponsibleLayer::parse(value).ok())
+ }
+ 
+ fn typed_blocker_code(event: &EventEnvelope) -> Option<BlockerCode> {
+     payload_value(event, "blocker_code").and_then(|value| BlockerCode::parse(value).ok())

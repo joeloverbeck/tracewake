@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace || with && in contains_player_conditioned_fact
+@@ -522,17 +522,17 @@
+     action_ids.len()
+ }
+ 
+ fn contains_player_conditioned_fact(event: &EventEnvelope) -> bool {
+     event.participants.iter().any(|value| is_player_term(value))
+         || event
+             .payload
+             .iter()
+-            .any(|field| is_player_term(&field.key) || is_player_term(&field.value))
++            .any(|field| is_player_term(&field.key) && /* ~ changed by cargo-mutants ~ */ is_player_term(&field.value))
+         || is_player_term(&event.effects_summary)
+ }
+ 
+ fn is_player_term(value: &str) -> bool {
+     let lowered = value.to_ascii_lowercase();
+     lowered.contains("player") || lowered.contains("controller")
+ }
+ 

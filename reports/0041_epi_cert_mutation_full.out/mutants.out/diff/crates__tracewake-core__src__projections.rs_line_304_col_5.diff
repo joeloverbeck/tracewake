@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace actor_known_containers_for_context -> Vec<ActorKnownContainerSurface> with vec![]
+@@ -296,30 +296,17 @@
+     doors.sort();
+     doors.dedup();
+     doors
+ }
+ 
+ fn actor_known_containers_for_context(
+     context: &KnowledgeContext,
+ ) -> Vec<ActorKnownContainerSurface> {
+-    let mut containers = context
+-        .actor_known_containers()
+-        .iter()
+-        .map(
+-            |fact: &ActorKnownContainerFact| ActorKnownContainerSurface {
+-                container_id: fact.container_id().clone(),
+-                is_open: fact.is_open(),
+-                is_locked: fact.is_locked(),
+-            },
+-        )
+-        .collect::<Vec<_>>();
+-    containers.sort();
+-    containers.dedup();
+-    containers
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_items_for_context(context: &KnowledgeContext) -> Vec<ActorKnownItemSurface> {
+     let mut items = context
+         .actor_known_items()
+         .iter()
+         .map(|fact: &ActorKnownItemFact| ActorKnownItemSurface {
+             item_id: fact.item_id().clone(),

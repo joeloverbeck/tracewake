@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineFamily::stable_id -> &'static str with "xyzzy"
+@@ -17,29 +17,17 @@
+     LeaveUnsafePlace,
+     ContinueCurrentIntention,
+     Wait,
+     IdleWithReason,
+ }
+ 
+ impl RoutineFamily {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            RoutineFamily::MorningWake => "morning_wake",
+-            RoutineFamily::EatMeal => "eat_meal",
+-            RoutineFamily::GoToWork => "go_to_work",
+-            RoutineFamily::WorkBlock => "work_block",
+-            RoutineFamily::ReturnHome => "return_home",
+-            RoutineFamily::SleepNight => "sleep_night",
+-            RoutineFamily::FindFood => "find_food",
+-            RoutineFamily::LeaveUnsafePlace => "leave_unsafe_place",
+-            RoutineFamily::ContinueCurrentIntention => "continue_current_intention",
+-            RoutineFamily::Wait => "wait",
+-            RoutineFamily::IdleWithReason => "idle_with_reason",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum RoutineStep {
+     SelectKnownPlace { action_id: SemanticActionId },
+     MoveTowardPlace { action_id: SemanticActionId },
+     OpenKnownContainer { action_id: SemanticActionId },

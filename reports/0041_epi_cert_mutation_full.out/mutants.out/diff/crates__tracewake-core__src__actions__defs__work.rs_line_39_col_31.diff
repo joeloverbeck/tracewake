@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ replace != with == in build_work_start_events
+@@ -31,17 +31,17 @@
+             ReasonCode::TargetNotFound,
+             "workplace_id",
+             workplace_id.as_str(),
+             "That workplace is not present.",
+             "work target was missing from physical state",
+         )
+     })?;
+ 
+-    if actor.current_place_id != workplace.place_id {
++    if actor.current_place_id == /* ~ changed by cargo-mutants ~ */ workplace.place_id {
+         return Ok(vec![work_failed_event(
+             proposal,
+             ordering_key,
+             content_manifest_id,
+             workplace,
+             "access",
+             "actor not at workplace",
+         )]);

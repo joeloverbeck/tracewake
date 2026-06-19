@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace payload_i32 -> Result<i32, ApplyError> with Ok(-1)
+@@ -244,21 +244,17 @@
+     event
+         .payload
+         .iter()
+         .find(|field| field.key == key)
+         .map(|field| field.value.as_str())
+ }
+ 
+ fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyError> {
+-    let value = payload_value(event, key).ok_or(ApplyError::MissingPayload(key))?;
+-    value.parse().map_err(|_| ApplyError::BadPayload {
+-        key,
+-        value: value.to_string(),
+-    })
++    Ok(-1) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn build_sleep_interruption_events(
+     agent_state: &AgentState,
+     sleep_started_event: &EventEnvelope,
+     log: &EventLog,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,

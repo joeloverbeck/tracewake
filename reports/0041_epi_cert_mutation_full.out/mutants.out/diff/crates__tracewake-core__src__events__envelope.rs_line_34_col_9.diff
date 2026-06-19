@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventSchemaVersion::all -> &'static[EventSchemaVersion] with Vec::leak(Vec::new())
+@@ -26,17 +26,17 @@
+ 
+ pub const EVENT_SCHEMA_REGISTRY: &[EventSchemaRegistryEntry] = &[EventSchemaRegistryEntry {
+     version: EventSchemaVersion::V1,
+     migration: EventSchemaMigration::CurrentNoMigrationRequired,
+ }];
+ 
+ impl EventSchemaVersion {
+     pub const fn all() -> &'static [EventSchemaVersion] {
+-        &[EventSchemaVersion::V1]
++        Vec::leak(Vec::new()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn as_str(self) -> &'static str {
+         match self {
+             EventSchemaVersion::V1 => "event_schema_v1",
+         }
+     }
+ 

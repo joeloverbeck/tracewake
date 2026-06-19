@@ -1,0 +1,39 @@
+--- crates/tracewake-core/src/agent/generation.rs
++++ replace hunger_candidate -> CandidateGoal with Default::default()
+@@ -169,35 +169,17 @@
+     }
+ }
+ 
+ fn hunger_candidate(
+     input: &CandidateGenerationInput,
+     priority: GoalPriority,
+     reason: &str,
+ ) -> CandidateGoal {
+-    let knows_food = input
+-        .actor_known_facts
+-        .iter()
+-        .any(|fact| fact.stable_id() == "actor_knows_food_source" && fact.is_actor_known());
+-    candidate(
+-        input,
+-        if knows_food { "eat" } else { "find_food" },
+-        CandidateGoalSource::NeedPressure,
+-        if knows_food {
+-            GoalKind::Eat
+-        } else {
+-            GoalKind::FindFood
+-        },
+-        priority,
+-        reason,
+-        actor_known_fact_notes(&input.actor_known_facts),
+-        ApplicabilityResult::Applicable,
+-        None,
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_fact_notes(actor_known_facts: &[ActorKnownFact]) -> Vec<String> {
+     actor_known_facts
+         .iter()
+         .map(ActorKnownFact::proof_note)
+         .collect()
+ }

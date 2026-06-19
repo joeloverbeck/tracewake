@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Belief::privacy_scope -> &PrivacyScope with Box::leak(Box::new(Default::default()))
+@@ -163,17 +163,17 @@
+         &self.contradiction_ids
+     }
+ 
+     pub fn schema_version(&self) -> &SchemaVersion {
+         &self.schema_version
+     }
+ 
+     pub fn privacy_scope(&self) -> &PrivacyScope {
+-        &self.privacy_scope
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, Default)]
+ pub struct BeliefDraft {
+     belief_id: Option<BeliefId>,
+     holder: Option<HolderKind>,
+     proposition: Option<Proposition>,

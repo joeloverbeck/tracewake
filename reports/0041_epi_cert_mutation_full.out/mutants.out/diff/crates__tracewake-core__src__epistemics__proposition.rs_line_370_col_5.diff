@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace validate_location -> Result<(), PropositionReferenceError> with Ok(())
+@@ -362,21 +362,17 @@
+ }
+ 
+ fn validate_location(
+     location: &Location,
+     known_actors: &BTreeSet<ActorId>,
+     known_places: &BTreeSet<PlaceId>,
+     known_containers: &BTreeSet<ContainerId>,
+ ) -> Result<(), PropositionReferenceError> {
+-    match location {
+-        Location::AtPlace(place_id) => require_place(place_id, known_places),
+-        Location::InContainer(container_id) => require_container(container_id, known_containers),
+-        Location::CarriedBy(actor_id) => require_actor(actor_id, known_actors),
+-    }
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn require_actor(
+     actor_id: &ActorId,
+     known_actors: &BTreeSet<ActorId>,
+ ) -> Result<(), PropositionReferenceError> {
+     if known_actors.contains(actor_id) {
+         Ok(())

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "scheduler" in ResponsibleLayer::parse
+@@ -100,17 +100,17 @@
+ 
+     pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+         match value {
+             "candidate_generation" => Ok(Self::CandidateGeneration),
+             "intention_lifecycle" => Ok(Self::IntentionLifecycle),
+             "method_selection" => Ok(Self::MethodSelection),
+             "local_planning" => Ok(Self::LocalPlanning),
+             "proposal_construction" => Ok(Self::ProposalConstruction),
+-            "scheduler" => Ok(Self::Scheduler),
++             /* ~ changed by cargo-mutants ~ */
+             "action_validation" => Ok(Self::ActionValidation),
+             "projection" => Ok(Self::Projection),
+             "view_model" => Ok(Self::ViewModel),
+             "test_oracle" => Ok(Self::TestOracle),
+             "debug_quarantine" => Ok(Self::DebugQuarantine),
+             _ => Err(DiagnosticFieldParseError::InvalidResponsibleLayer),
+         }
+     }

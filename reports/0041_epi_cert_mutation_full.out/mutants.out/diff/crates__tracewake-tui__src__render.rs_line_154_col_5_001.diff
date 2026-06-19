@@ -1,0 +1,50 @@
+--- crates/tracewake-tui/src/render.rs
++++ replace render_debug_overlay -> String with "xyzzy".into()
+@@ -146,46 +146,17 @@
+             action.semantic_action_id.as_str(),
+             disabled
+         ));
+     }
+     lines.join("\n")
+ }
+ 
+ pub fn render_debug_overlay(view: &EmbodiedViewModel) -> String {
+-    let mut lines = Vec::new();
+-    if !view.debug_available {
+-        return lines.join("\n");
+-    }
+-    lines.push(format!("{}: Embodied Overlay", DEBUG_TOKENS[0]));
+-    lines.push(format!(
+-        "{}: id={} hash={} tick={} frontier={} sources={}",
+-        DEBUG_TOKENS[1],
+-        view.holder_known_context_id.as_str(),
+-        view.holder_known_context_hash.as_str(),
+-        view.sim_tick.value(),
+-        view.holder_known_context_frontier,
+-        view.holder_known_context_source_summary
+-    ));
+-    lines.push(format!(
+-        "{} available={}",
+-        DEBUG_TOKENS[2], view.debug_available
+-    ));
+-    for action in &view.semantic_actions {
+-        let diagnostics = action.availability.debug_only_diagnostics();
+-        if !diagnostics.is_empty() {
+-            lines.push(format!(
+-                "{} action={} values={}",
+-                DEBUG_TOKENS[3],
+-                action.semantic_action_id.as_str(),
+-                diagnostics.join(",")
+-            ));
+-        }
+-    }
+-    lines.join("\n")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn visible_item_source_label(source: &VisibleItemSource) -> String {
+     match source {
+         VisibleItemSource::Place => "place".to_string(),
+         VisibleItemSource::Container(container_id) => {
+             format!("container:{}", container_id.as_str())
+         }

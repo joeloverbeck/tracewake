@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/agent/candidate.rs
++++ replace CandidateGoalSource::stable_id -> &'static str with ""
+@@ -39,24 +39,17 @@
+     CurrentIntentionContinuation,
+     SafetyInterruption,
+     FixtureRoutineAssignment,
+     Fallback,
+ }
+ 
+ impl CandidateGoalSource {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            CandidateGoalSource::NeedPressure => "need_pressure",
+-            CandidateGoalSource::RoutineDuty => "routine_duty",
+-            CandidateGoalSource::CurrentIntentionContinuation => "current_intention_continuation",
+-            CandidateGoalSource::SafetyInterruption => "safety_interruption",
+-            CandidateGoalSource::FixtureRoutineAssignment => "fixture_routine_assignment",
+-            CandidateGoalSource::Fallback => "fallback",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum GoalPriority {
+     SevereSafety,
+     SevereHunger,
+     SevereFatigue,

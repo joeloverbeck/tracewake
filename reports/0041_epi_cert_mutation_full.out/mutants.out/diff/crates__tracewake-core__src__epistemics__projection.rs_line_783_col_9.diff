@@ -1,0 +1,32 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionRecord::supersede_workplace_subject -> Option<&WorkplaceId> with None
+@@ -775,28 +775,17 @@
+             Self::LocalDoor { .. } => "local_door",
+             Self::LocalItem { .. } => "local_item",
+             Self::SleepPlace { .. } => "sleep_place",
+             Self::Workplace { .. } => "workplace",
+         }
+     }
+ 
+     fn supersede_workplace_subject(&self) -> Option<&WorkplaceId> {
+-        match self {
+-            Self::Workplace { workplace_id, .. } => Some(workplace_id),
+-            Self::Route { .. }
+-            | Self::CurrentPlace { .. }
+-            | Self::CarriedItem { .. }
+-            | Self::FoodSource { .. }
+-            | Self::SleepPlace { .. }
+-            | Self::LocalDoor { .. }
+-            | Self::LocalContainer { .. }
+-            | Self::LocalItem { .. }
+-            | Self::LocalActor { .. } => None,
+-        }
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn actor_id(&self) -> &ActorId {
+         match self {
+             Self::Route { actor_id, .. }
+             | Self::CurrentPlace { actor_id, .. }
+             | Self::CarriedItem { actor_id, .. }
+             | Self::FoodSource { actor_id, .. }

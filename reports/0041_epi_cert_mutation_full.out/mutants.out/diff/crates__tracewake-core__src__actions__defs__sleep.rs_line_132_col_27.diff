@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace != with == in require_sleep_affordance
+@@ -124,17 +124,17 @@
+     if sleep_affordance.place_id != *actor_place_id || !sleep_affordance.access_open {
+         return Err(no_sleep_affordance_rejection(
+             "sleep_affordance_not_open_at_actor_place",
+             actor_place_id,
+             sleep_affordance_id.as_str(),
+         ));
+     }
+     if let Some(sleep_place_id) = proposal.parameters.get("sleep_place_id") {
+-        if sleep_place_id != sleep_affordance.place_id.as_str() {
++        if sleep_place_id == /* ~ changed by cargo-mutants ~ */ sleep_affordance.place_id.as_str() {
+             return Err(ActionRejection::new(
+                 PipelineStage::PhysicalPreconditionValidation,
+                 ReasonCode::ActorNotAtRequiredPlace,
+                 vec![
+                     CheckedFact::new("actor_place_id", actor_place_id.as_str()),
+                     CheckedFact::new("sleep_place_id", sleep_place_id),
+                     CheckedFact::new("sleep_affordance_id", sleep_affordance_id.as_str()),
+                 ],

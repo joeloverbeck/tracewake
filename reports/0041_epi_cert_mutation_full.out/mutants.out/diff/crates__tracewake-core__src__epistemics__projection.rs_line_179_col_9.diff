@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionKindPolicy::classification -> ActorKnownProjectionPolicy with Default::default()
+@@ -171,17 +171,17 @@
+ pub struct ActorKnownProjectionKindPolicy {
+     classification: ActorKnownProjectionPolicy,
+     embodied_scope: ActorKnownProjectionEmbodiedScope,
+     accessibility_scope: ActorKnownProjectionAccessibilityScope,
+ }
+ 
+ impl ActorKnownProjectionKindPolicy {
+     pub fn classification(&self) -> ActorKnownProjectionPolicy {
+-        self.classification
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn embodied_scope(&self) -> ActorKnownProjectionEmbodiedScope {
+         self.embodied_scope
+     }
+ 
+     pub fn accessibility_scope(&self) -> ActorKnownProjectionAccessibilityScope {
+         self.accessibility_scope

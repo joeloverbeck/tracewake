@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace actor_known_current_place_label -> Option<&'a str> with Some("xyzzy")
+@@ -125,21 +125,17 @@
+         }
+     }
+ }
+ 
+ fn actor_known_current_place_label<'a>(
+     context: &'a KnowledgeContext,
+     current_place_id: &PlaceId,
+ ) -> Option<&'a str> {
+-    context
+-        .actor_known_current_places()
+-        .iter()
+-        .find(|fact| fact.place_id() == current_place_id)
+-        .map(ActorKnownCurrentPlaceFact::display_label)
++    Some("xyzzy") /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_carried_item<'a>(
+     context: &'a KnowledgeContext,
+     item_id: &ItemId,
+ ) -> Option<&'a ActorKnownCarriedItemFact> {
+     context
+         .actor_known_carried_items()

@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownSleepAffordanceFact::canonical_key -> String with "xyzzy".into()
+@@ -398,22 +398,17 @@
+         &self.place_id
+     }
+ 
+     pub fn source_key(&self) -> &str {
+         &self.source_key
+     }
+ 
+     fn canonical_key(&self) -> String {
+-        format!(
+-            "{}@{}:{}",
+-            self.sleep_affordance_id.as_str(),
+-            self.place_id.as_str(),
+-            self.source_key
+-        )
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct ActorKnownRouteFact {
+     from_place_id: PlaceId,
+     to_place_id: PlaceId,
+     source_key: String,

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeContext::holder_known_context_hash -> &HolderKnownContextHash with Box::leak(Box::new(Default::default()))
+@@ -1071,17 +1071,17 @@
+         self.debug_non_diegetic
+     }
+ 
+     pub fn holder_known_context_id(&self) -> &HolderKnownContextId {
+         &self.holder_known_context_id
+     }
+ 
+     pub fn holder_known_context_hash(&self) -> &HolderKnownContextHash {
+-        &self.holder_known_context_hash
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn provenance_entries(&self) -> &[KnowledgeProvenanceEntry] {
+         &self.provenance_entries
+     }
+ 
+     pub fn actor_known_workplaces(&self) -> &[ActorKnownWorkplaceFact] {
+         &self.actor_known_workplaces

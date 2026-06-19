@@ -1,0 +1,83 @@
+
+*** crates/tracewake-core/src/epistemics/projection.rs:1209:5: replace reclassifying_record_freshness -> ActorKnownProjectionFreshness with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace reclassifying_record_freshness -> ActorKnownProjectionFreshness with Default::default()
+@@ -1201,32 +1201,17 @@
+             && candidate.source_event_id() > previous.source_event_id())
+ }
+ 
+ fn reclassifying_record_freshness(
+     record: &ActorKnownProjectionRecord,
+     latest_current_place_record: bool,
+     context_tick: SimTick,
+ ) -> ActorKnownProjectionFreshness {
+-    if !matches!(
+-        record.source(),
+-        ActorKnownProjectionSource::VisibleExit
+-            | ActorKnownProjectionSource::VisibleFoodSupply
+-            | ActorKnownProjectionSource::VisibleDoor
+-            | ActorKnownProjectionSource::VisibleContainer
+-            | ActorKnownProjectionSource::VisibleItem
+-            | ActorKnownProjectionSource::VisibleActor
+-            | ActorKnownProjectionSource::VisibleSleepAffordance
+-    ) {
+-        return ActorKnownProjectionFreshness::Remembered;
+-    }
+-    if !latest_current_place_record || record.source_tick() != context_tick {
+-        return ActorKnownProjectionFreshness::Remembered;
+-    }
+-    ActorKnownProjectionFreshness::CurrentlyPerceived
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn location_key(location: &Location) -> String {
+     match location {
+         Location::AtPlace(place_id) => format!("place:{}", place_id.as_str()),
+         Location::InContainer(container_id) => format!("container:{}", container_id.as_str()),
+         Location::CarriedBy(actor_id) => format!("carried:{}", actor_id.as_str()),
+     }
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/epistemics/projection.rs` has changed (1781909548.651923467s, 4s after last build at 1781909544.383923498s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ActorKnownProjectionFreshness: Default` is not satisfied
+    --> crates/tracewake-core/src/epistemics/projection.rs:1209:5
+     |
+1209 |     Default::default() /* ~ changed by cargo-mutants ~ */
+     |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `ActorKnownProjectionFreshness`
+    --> crates/tracewake-core/src/epistemics/projection.rs:147:1
+     |
+ 147 | pub enum ActorKnownProjectionFreshness {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `projection::ActorKnownProjectionFreshness: Default` is not satisfied
+    --> crates/tracewake-core/src/epistemics/projection.rs:1209:5
+     |
+1209 |     Default::default() /* ~ changed by cargo-mutants ~ */
+     |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `projection::ActorKnownProjectionFreshness`
+    --> crates/tracewake-core/src/epistemics/projection.rs:147:1
+     |
+ 147 | pub enum ActorKnownProjectionFreshness {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

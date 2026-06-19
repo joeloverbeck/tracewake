@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace == with != in planner_goal_for
+@@ -435,17 +435,17 @@
+             })
+             .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_workplace".to_string())),
+         GoalKind::SleepOrRest => actor_known_context
+             .known_sleep_places()
+             .iter()
+             .next()
+             .cloned()
+             .map(|sleep_place_id| {
+-                if &sleep_place_id == actor_known_context.current_place_id() {
++                if &sleep_place_id != /* ~ changed by cargo-mutants ~ */ actor_known_context.current_place_id() {
+                     PlannerGoal::StartSleep(sleep_place_id)
+                 } else {
+                     PlannerGoal::ReachPlace(sleep_place_id)
+                 }
+             })
+             .unwrap_or_else(|| {
+                 PlannerGoal::WaitWithReason("no_actor_known_sleep_place".to_string())
+             }),

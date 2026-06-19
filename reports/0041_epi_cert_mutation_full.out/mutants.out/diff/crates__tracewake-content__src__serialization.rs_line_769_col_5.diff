@@ -1,0 +1,31 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace split_usize -> Result<Vec<usize>, SerializationError> with Ok(vec![])
+@@ -761,27 +761,17 @@
+     values
+         .iter()
+         .map(usize::to_string)
+         .collect::<Vec<_>>()
+         .join(",")
+ }
+ 
+ fn split_usize(value: &str) -> Result<Vec<usize>, SerializationError> {
+-    if value.is_empty() {
+-        Ok(Vec::new())
+-    } else {
+-        value
+-            .split(',')
+-            .map(|part| {
+-                part.parse::<usize>()
+-                    .map_err(|_| SerializationError::BadU64(part.to_string()))
+-            })
+-            .collect()
+-    }
++    Ok(vec![]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_bool(value: &str) -> Result<bool, SerializationError> {
+     match value {
+         "true" => Ok(true),
+         "false" => Ok(false),
+         _ => Err(SerializationError::BadBool(value.to_string())),
+     }

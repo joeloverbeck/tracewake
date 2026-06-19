@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_routine_rules
+@@ -1512,17 +1512,17 @@
+                     format!("routine_templates[{template_index}].steps[{step_index}]"),
+                     code,
+                     message,
+                 ));
+             }
+         }
+ 
+         for (mode_index, failure_mode) in template.failure_modes.iter().enumerate() {
+-            if !is_known_routine_failure_mode(failure_mode) {
++            if  /* ~ changed by cargo-mutants ~ */is_known_routine_failure_mode(failure_mode) {
+                 errors.push(ContentValidationError::new(
+                     ValidationPhase::State,
+                     format!("routine_templates[{template_index}].failure_modes[{mode_index}]"),
+                     "unknown_failure_mode",
+                     format!("unknown routine failure mode {failure_mode}"),
+                 ));
+             }
+         }

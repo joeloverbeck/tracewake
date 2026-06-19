@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace && with || in no_human::actor_has_open_body_exclusive_duration
+@@ -1234,17 +1234,17 @@
+     ) -> Result<bool, crate::need_accounting::DuplicateDurationTerminal> {
+         Ok(
+             crate::need_accounting::open_body_exclusive_starts(log, actor_id, tick)?
+                 .iter()
+                 .any(|event_id| {
+                     log.events().iter().any(|event| {
+                         &event.event_id == event_id
+                             && payload_value(event, "body_exclusive") == Some("true")
+-                            && scheduled_completion_tick(event)
++                            || /* ~ changed by cargo-mutants ~ */ scheduled_completion_tick(event)
+                                 .is_some_and(|completion| completion > tick)
+                     })
+                 }),
+         )
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn append_routine_stuck_diagnostics(

@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace rejected -> ConditionResolution with Default::default()
+@@ -290,19 +290,17 @@
+ 
+ fn satisfied(condition: &RoutineCondition, proof_source: impl Into<String>) -> ConditionResolution {
+     ConditionResolution::Satisfied {
+         proof_source: format!("{}:{}", condition.stable_id(), proof_source.into()),
+     }
+ }
+ 
+ fn rejected(condition: &RoutineCondition, reason: impl Into<String>) -> ConditionResolution {
+-    ConditionResolution::Rejected {
+-        reason: format!("{} rejected: {}", condition.stable_id(), reason.into()),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn unknown(condition: &RoutineCondition, reason: impl Into<String>) -> ConditionResolution {
+     ConditionResolution::Unknown {
+         reason: format!("{} unknown: {}", condition.stable_id(), reason.into()),
+     }
+ }
+ 

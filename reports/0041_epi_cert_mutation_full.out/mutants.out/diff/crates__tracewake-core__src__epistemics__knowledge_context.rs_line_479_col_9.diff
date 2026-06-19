@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownDoorFact::source_key -> &str with ""
+@@ -471,17 +471,17 @@
+         self.is_locked
+     }
+ 
+     pub fn blocks_movement_when_closed(&self) -> bool {
+         self.blocks_movement_when_closed
+     }
+ 
+     pub fn source_key(&self) -> &str {
+-        &self.source_key
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn canonical_key(&self) -> String {
+         format!(
+             "{}:{}->{}:open={}:locked={}:blocks={}:{}",
+             self.door_id.as_str(),
+             self.endpoint_a.as_str(),
+             self.endpoint_b.as_str(),

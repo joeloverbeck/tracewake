@@ -1,0 +1,21 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace == with != in TuiApp::submit_entry
+@@ -274,17 +274,17 @@
+             agent_state: &mut self.agent_state,
+             log: &mut self.log,
+             controller_bindings: Some(&self.controller_bindings),
+             epistemic_projection: Some(&mut self.epistemic_projection),
+             content_manifest_id: self.content_manifest_id.clone(),
+             ordering_key,
+         };
+         let result = run_pipeline(&mut context, &proposal);
+-        if result.report.status == ReportStatus::Rejected {
++        if result.report.status != /* ~ changed by cargo-mutants ~ */ ReportStatus::Rejected {
+             self.last_rejection = Some(result.report.clone());
+         } else {
+             self.last_rejection = None;
+             if let Some(last_event) = result.appended_events.last() {
+                 self.scheduler.current_tick = last_event.sim_tick;
+             }
+             if let Some(actor_id) = self.bound_actor_id.clone() {
+                 record_current_place_perception_and_project(

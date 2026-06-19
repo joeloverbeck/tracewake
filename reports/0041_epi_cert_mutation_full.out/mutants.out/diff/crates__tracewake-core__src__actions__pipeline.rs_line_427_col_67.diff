@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace == with != in is_body_exclusive_start
+@@ -419,17 +419,17 @@
+ 
+ fn is_body_exclusive_start(event: &EventEnvelope) -> bool {
+     matches!(
+         event.event_type,
+         EventKind::SleepStarted | EventKind::WorkBlockStarted
+     ) && event
+         .payload
+         .iter()
+-        .any(|field| field.key == "body_exclusive" && field.value == "true")
++        .any(|field| field.key == "body_exclusive" && field.value != /* ~ changed by cargo-mutants ~ */ "true")
+ }
+ 
+ fn decide_proposal(context: PipelineReadContext<'_>, proposal: &Proposal) -> PipelineDecision {
+     let mut checked_facts = vec![CheckedFact::new("action_id", proposal.action_id.as_str())];
+ 
+     if let Some(result) = controller_binding_check(context, proposal, checked_facts.clone()) {
+         return result;
+     }

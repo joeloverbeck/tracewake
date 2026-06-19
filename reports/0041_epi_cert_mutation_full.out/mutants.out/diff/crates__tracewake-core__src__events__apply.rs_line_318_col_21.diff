@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace != with == in apply_agent_event_with_capability
+@@ -310,17 +310,17 @@
+             event.event_schema_version.as_str().to_string(),
+         ));
+     }
+ 
+     if event.stream != event.event_type.stream() {
+         return Err(ApplyError::EventKindStreamMismatch);
+     }
+ 
+-    if event.stream != EventStream::Agent {
++    if event.stream == /* ~ changed by cargo-mutants ~ */ EventStream::Agent {
+         return Ok(ApplyOutcome::NonWorldNoOp);
+     }
+ 
+     if event.event_type.requires_cause() && event.causes.is_empty() {
+         return Err(ApplyError::MissingCause);
+     }
+ 
+     let payload = payload_map(&event.payload);

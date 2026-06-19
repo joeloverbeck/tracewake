@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/agent/generation.rs
++++ replace generate_candidate_goals_from_agent_state -> CandidateGenerationOutput with Default::default()
+@@ -31,31 +31,17 @@
+     pub active_intention: Option<Intention>,
+     pub actor_known_facts: Vec<ActorKnownFact>,
+     pub routine_window_goal: Option<GoalKind>,
+ }
+ 
+ pub fn generate_candidate_goals_from_agent_state(
+     input: &LiveCandidateGenerationInput<'_>,
+ ) -> CandidateGenerationOutput {
+-    let needs = input
+-        .agent_state
+-        .needs_by_actor
+-        .get(&input.actor_id)
+-        .map(|needs| needs.values().cloned().collect::<Vec<_>>())
+-        .unwrap_or_default();
+-
+-    generate_candidate_goals(&CandidateGenerationInput {
+-        actor_id: input.actor_id.clone(),
+-        decision_tick: input.decision_tick,
+-        needs,
+-        active_intention: input.active_intention.clone(),
+-        actor_known_facts: input.actor_known_facts.clone(),
+-        routine_window_goal: input.routine_window_goal,
+-    })
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub const fn need_crossing_triggers_candidate_reevaluation(
+     crossing: &NeedThresholdCrossing,
+ ) -> bool {
+     matches!(crossing.direction, ThresholdDirection::IncreasingPressure)
+ }
+ 

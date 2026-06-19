@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace source_summary -> String with String::new()
+@@ -1591,21 +1591,17 @@
+             "{} -> {}",
+             contradiction.expected_proposition().render(),
+             contradiction.observed_proposition().render()
+         ),
+     }
+ }
+ 
+ fn source_summary(source: &SourceRef) -> String {
+-    match source {
+-        SourceRef::Event(event_id) => format!("event:{}", event_id.as_str()),
+-        SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
+-        SourceRef::Cause(cause) => format!("cause:{cause:?}"),
+-    }
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::agent::{
+         current_place_knowledge_context, NoHumanActorKnownSurfaceBuilder,
+         NoHumanActorKnownSurfaceRequest,

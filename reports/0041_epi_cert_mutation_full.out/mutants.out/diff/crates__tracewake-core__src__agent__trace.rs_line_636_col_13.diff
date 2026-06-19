@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "idle" in StuckResultingStatus::parse
+@@ -628,17 +628,17 @@
+             StuckResultingStatus::Failed => "failed",
+             StuckResultingStatus::Suspended => "suspended",
+             StuckResultingStatus::Completed => "completed",
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, StuckDiagnosticParseError> {
+         match value {
+-            "idle" => Ok(Self::Idle),
++             /* ~ changed by cargo-mutants ~ */
+             "waiting" => Ok(Self::Waiting),
+             "replanning" => Ok(Self::Replanning),
+             "failed" => Ok(Self::Failed),
+             "suspended" => Ok(Self::Suspended),
+             "completed" => Ok(Self::Completed),
+             _ => Err(StuckDiagnosticParseError::InvalidResultingStatus),
+         }
+     }

@@ -1,0 +1,41 @@
+--- crates/tracewake-content/src/load.rs
++++ replace seed_event -> EventEnvelope with Default::default()
+@@ -364,37 +364,17 @@
+ fn seed_event(
+     event_id: EventId,
+     event_type: EventKind,
+     actor_id: ActorId,
+     place_id: Option<PlaceId>,
+     sequence: u64,
+     manifest_id: ContentManifestId,
+ ) -> EventEnvelope {
+-    let mut event = EventEnvelope::new_v1(
+-        event_id,
+-        event_type,
+-        0,
+-        sequence,
+-        SimTick::ZERO,
+-        OrderingKey::new(
+-            SimTick::ZERO,
+-            SchedulePhase::NoHumanProcess,
+-            SchedulerSourceId::Process(ProcessId::new("content_seed").unwrap()),
+-            ProposalSequence::new(sequence),
+-            ActionId::new("content_seed").unwrap(),
+-            vec![actor_id.as_str().to_string()],
+-            format!("seed_{sequence:04}"),
+-        ),
+-        manifest_id,
+-    );
+-    event.actor_id = Some(actor_id.clone());
+-    event.participants = vec![actor_id.to_string()];
+-    event.place_id = place_id;
+-    event
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn registry_for_fixture_scope(scope: FixtureScope) -> tracewake_core::actions::ActionRegistry {
+     let mut registry = tracewake_core::actions::ActionRegistry::new();
+     registry.register_phase1_movement_open_close();
+     registry.register_phase1_take_place();
+     registry.register_phase1_inspect_wait();
+     match scope {

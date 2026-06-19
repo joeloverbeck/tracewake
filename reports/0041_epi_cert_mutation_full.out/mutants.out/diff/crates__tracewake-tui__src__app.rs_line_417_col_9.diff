@@ -1,0 +1,21 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::render_debug_needs_panel -> String with String::new()
+@@ -409,17 +409,17 @@
+         );
+         render_replay_panel(&replay_debug_report(
+             DebugReportId::new("debug.replay").unwrap(),
+             report,
+         ))
+     }
+ 
+     pub fn render_debug_needs_panel(&self) -> String {
+-        render_phase3a_debug_panel(&phase3a_needs_report(&self.agent_state))
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn render_debug_routines_panel(&self) -> String {
+         render_phase3a_debug_panel(&phase3a_routines_report(&self.agent_state))
+     }
+ 
+     pub fn render_debug_planner_panel(&self, actor_id: &ActorId) -> String {
+         render_phase3a_debug_panel(&phase3a_planner_report(&self.agent_state, actor_id))

@@ -1,0 +1,115 @@
+
+*** crates/tracewake-core/src/scheduler.rs:923:9: replace no_human::append_due_completions -> Vec<(ActorId, SimTick)> with vec![(Default::default(), Default::default())]
+
+*** mutation diff:
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::append_due_completions -> Vec<(ActorId, SimTick)> with vec![(Default::default(), Default::default())]
+@@ -915,56 +915,17 @@
+         process_id: &ProcessId,
+         scheduler: &mut DeterministicScheduler,
+         content_manifest_id: &ContentManifestId,
+         pending_sleep_starts: &mut Vec<EventEnvelope>,
+         pending_work_starts: &mut Vec<EventEnvelope>,
+         due_tick: SimTick,
+         scheduler_errors: &mut Vec<NoHumanSchedulerError>,
+     ) -> Vec<(ActorId, SimTick)> {
+-        let mut due_completions = Vec::new();
+-        let mut retained_sleep_starts = Vec::new();
+-        for sleep_started in pending_sleep_starts.drain(..) {
+-            if scheduled_completion_tick(&sleep_started).is_some_and(|tick| tick <= due_tick) {
+-                due_completions.push(PendingCompletion::Sleep(sleep_started));
+-            } else {
+-                retained_sleep_starts.push(sleep_started);
+-            }
+-        }
+-        *pending_sleep_starts = retained_sleep_starts;
+-
+-        let mut retained_work_starts = Vec::new();
+-        for work_started in pending_work_starts.drain(..) {
+-            if scheduled_completion_tick(&work_started).is_some_and(|tick| tick <= due_tick) {
+-                due_completions.push(PendingCompletion::Work(work_started));
+-            } else {
+-                retained_work_starts.push(work_started);
+-            }
+-        }
+-        *pending_work_starts = retained_work_starts;
+-
+-        due_completions.sort_by(|left, right| {
+-            left.tick()
+-                .cmp(&right.tick())
+-                .then_with(|| left.event_id().cmp(right.event_id()))
+-        });
+-        let mut completed_durations = Vec::new();
+-        for completion in due_completions {
+-            completed_durations.extend(append_scheduled_completion(
+-                state,
+-                log,
+-                agent_state,
+-                process_id,
+-                scheduler,
+-                content_manifest_id,
+-                completion,
+-                scheduler_errors,
+-            ));
+-        }
+-        completed_durations
++        vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn append_scheduled_completion(
+         state: &PhysicalState,
+         log: &mut EventLog,
+         agent_state: &mut AgentState,
+         process_id: &ProcessId,
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/scheduler.rs` has changed (1781905098.419926414s, 6s after last build at 1781905092.779926361s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ActorId: Default` is not satisfied
+   --> crates/tracewake-core/src/scheduler.rs:923:15
+    |
+923 |         vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+    |               ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ActorId`
+   --> crates/tracewake-core/src/ids.rs:78:9
+    |
+ 78 |         pub struct $name(StableId);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+126 | stable_id_type!(ActorId);
+    | ------------------------ in this macro invocation
+    = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `ids::ActorId: Default` is not satisfied
+   --> crates/tracewake-core/src/scheduler.rs:923:15
+    |
+923 |         vec![(Default::default(), Default::default())] /* ~ changed by cargo-mutants ~ */
+    |               ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ids::ActorId`
+   --> crates/tracewake-core/src/ids.rs:78:9
+    |
+ 78 |         pub struct $name(StableId);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+126 | stable_id_type!(ActorId);
+    | ------------------------ in this macro invocation
+    = note: this error originates in the macro `stable_id_type` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

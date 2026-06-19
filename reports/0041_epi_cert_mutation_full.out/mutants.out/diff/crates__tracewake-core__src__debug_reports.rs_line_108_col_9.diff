@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace ActionRejectionDebugReport::debug_only -> bool with true
+@@ -100,17 +100,17 @@
+ impl ItemLocationDebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }
+ 
+ impl ActionRejectionDebugReport {
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl ProjectionRebuildDebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }

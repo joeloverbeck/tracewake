@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace SemanticActionEntry::with_availability -> Self with Default::default()
+@@ -239,25 +239,17 @@
+ 
+     pub fn with_availability(
+         semantic_action_id: SemanticActionId,
+         action_id: ActionId,
+         target_ids: Vec<String>,
+         label: impl Into<String>,
+         availability: ActionAvailability,
+     ) -> Self {
+-        let enabled = availability.is_available();
+-        Self {
+-            semantic_action_id,
+-            action_id,
+-            target_ids,
+-            label: label.into(),
+-            enabled,
+-            availability,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+ pub enum ActionAvailability {
+     Available,
+     Disabled {
+         reason_codes: Vec<ReasonCode>,

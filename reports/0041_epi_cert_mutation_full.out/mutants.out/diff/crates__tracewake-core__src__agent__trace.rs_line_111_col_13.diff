@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "view_model" in ResponsibleLayer::parse
+@@ -103,17 +103,17 @@
+             "candidate_generation" => Ok(Self::CandidateGeneration),
+             "intention_lifecycle" => Ok(Self::IntentionLifecycle),
+             "method_selection" => Ok(Self::MethodSelection),
+             "local_planning" => Ok(Self::LocalPlanning),
+             "proposal_construction" => Ok(Self::ProposalConstruction),
+             "scheduler" => Ok(Self::Scheduler),
+             "action_validation" => Ok(Self::ActionValidation),
+             "projection" => Ok(Self::Projection),
+-            "view_model" => Ok(Self::ViewModel),
++             /* ~ changed by cargo-mutants ~ */
+             "test_oracle" => Ok(Self::TestOracle),
+             "debug_quarantine" => Ok(Self::DebugQuarantine),
+             _ => Err(DiagnosticFieldParseError::InvalidResponsibleLayer),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -1,0 +1,92 @@
+
+*** crates/tracewake-core/src/projections.rs:284:5: replace actor_known_doors_for_context -> Vec<ActorKnownDoorSurface> with vec![Default::default()]
+
+*** mutation diff:
+--- crates/tracewake-core/src/projections.rs
++++ replace actor_known_doors_for_context -> Vec<ActorKnownDoorSurface> with vec![Default::default()]
+@@ -276,31 +276,17 @@
+         })
+         .collect::<Vec<_>>();
+     workplaces.sort();
+     workplaces.dedup();
+     workplaces
+ }
+ 
+ fn actor_known_doors_for_context(context: &KnowledgeContext) -> Vec<ActorKnownDoorSurface> {
+-    let mut doors = context
+-        .actor_known_doors()
+-        .iter()
+-        .map(|fact: &ActorKnownDoorFact| ActorKnownDoorSurface {
+-            door_id: fact.door_id().clone(),
+-            endpoint_a: fact.endpoint_a().clone(),
+-            endpoint_b: fact.endpoint_b().clone(),
+-            is_open: fact.is_open(),
+-            is_locked: fact.is_locked(),
+-            blocks_movement_when_closed: fact.blocks_movement_when_closed(),
+-        })
+-        .collect::<Vec<_>>();
+-    doors.sort();
+-    doors.dedup();
+-    doors
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_containers_for_context(
+     context: &KnowledgeContext,
+ ) -> Vec<ActorKnownContainerSurface> {
+     let mut containers = context
+         .actor_known_containers()
+         .iter()
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/projections.rs` has changed (1781904524.587923584s, 5s after last build at 1781904519.507923582s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused import: `ActorKnownDoorFact`
+  --> crates/tracewake-core/src/projections.rs:10:5
+   |
+10 |     ActorKnownDoorFact, ActorKnownItemFact, ActorKnownLocalActorFact, EpistemicProjection,
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `ActorKnownDoorSurface: Default` is not satisfied
+   --> crates/tracewake-core/src/projections.rs:284:10
+    |
+284 |     vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+    |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ActorKnownDoorSurface`
+   --> crates/tracewake-core/src/projections.rs:48:1
+    |
+ 48 | struct ActorKnownDoorSurface {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 1 warning
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `projections::ActorKnownDoorSurface: Default` is not satisfied
+   --> crates/tracewake-core/src/projections.rs:284:10
+    |
+284 |     vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+    |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `projections::ActorKnownDoorSurface`
+   --> crates/tracewake-core/src/projections.rs:48:1
+    |
+ 48 | struct ActorKnownDoorSurface {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `tracewake-core` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `tracewake-core` (lib test) due to 1 previous error; 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace reject_committed -> PipelineResult with Default::default()
+@@ -1038,29 +1038,17 @@
+     context: &mut PipelineContext<'_>,
+     proposal: &Proposal,
+     failed_stage: PipelineStage,
+     reason_codes: Vec<ReasonCode>,
+     checked_facts: Vec<CheckedFact>,
+     actor_visible_summary: impl Into<String>,
+     debug_summary: impl Into<String>,
+ ) -> PipelineResult {
+-    let report = rejection_report(
+-        proposal,
+-        failed_stage,
+-        reason_codes,
+-        checked_facts,
+-        actor_visible_summary,
+-        debug_summary,
+-    );
+-    let event = append_rejection_event(context, proposal, &report);
+-    PipelineResult {
+-        report,
+-        appended_events: vec![event],
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn rejection_report(
+     proposal: &Proposal,
+     failed_stage: PipelineStage,
+     reason_codes: Vec<ReasonCode>,
+     checked_facts: Vec<CheckedFact>,
+     actor_visible_summary: impl Into<String>,

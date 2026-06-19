@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownPlanningContext::known_sleep_places -> &BTreeSet<PlaceId> with Box::leak(Box::new(BTreeSet::new()))
+@@ -354,17 +354,17 @@
+         &self.known_containers_by_place
+     }
+ 
+     pub fn known_food_sources(&self) -> &BTreeSet<String> {
+         &self.known_food_sources
+     }
+ 
+     pub fn known_sleep_places(&self) -> &BTreeSet<PlaceId> {
+-        &self.known_sleep_places
++        Box::leak(Box::new(BTreeSet::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn known_workplaces(&self) -> &BTreeMap<WorkplaceId, PlaceId> {
+         &self.known_workplaces
+     }
+ 
+     pub fn actor_known_facts(&self) -> &[ActorKnownFact] {
+         &self.facts

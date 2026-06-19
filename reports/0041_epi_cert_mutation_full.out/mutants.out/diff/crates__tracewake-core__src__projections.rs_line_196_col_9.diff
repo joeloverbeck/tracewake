@@ -1,0 +1,44 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace EmbodiedProjectionSource<'a>::from_sealed_context -> Self with Default::default()
+@@ -188,40 +188,17 @@
+ }
+ 
+ impl<'a> EmbodiedProjectionSource<'a> {
+     pub fn from_sealed_context(
+         context: &'a KnowledgeContext,
+         snapshot: EmbodiedTruthSnapshot,
+         agent_state: Option<&'a AgentState>,
+     ) -> Self {
+-        let actor_known_food_sources = actor_known_food_sources_for_context(context);
+-        let actor_known_sleep_affordances = actor_known_sleep_affordances_for_context(context);
+-        let actor_known_routes =
+-            actor_known_routes_for_context(context, Some(&snapshot.current_place_id));
+-        let actor_known_workplaces = actor_known_workplaces_for_context(context);
+-        let actor_known_doors = actor_known_doors_for_context(context);
+-        let actor_known_containers = actor_known_containers_for_context(context);
+-        let actor_known_items = actor_known_items_for_context(context);
+-        let actor_known_local_actors = actor_known_local_actors_for_context(context);
+-        Self {
+-            agent_state,
+-            knowledge_context_id: context.holder_known_context_id().clone(),
+-            current_place_id: snapshot.current_place_id,
+-            place_label: snapshot.place_label,
+-            carried_items: snapshot.carried_items,
+-            actor_known_food_sources,
+-            actor_known_sleep_affordances,
+-            actor_known_routes,
+-            actor_known_workplaces,
+-            actor_known_doors,
+-            actor_known_containers,
+-            actor_known_items,
+-            actor_known_local_actors,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn actor_known_food_sources_for_context(
+     context: &KnowledgeContext,
+ ) -> Vec<ActorKnownFoodSourceSurface> {
+     let mut food_sources = context
+         .actor_known_food_sources()

@@ -1,0 +1,33 @@
+--- crates/tracewake-tui/src/debug_panels.rs
++++ replace render_debug_beliefs_panel -> String with String::new()
+@@ -157,29 +157,17 @@
+             contradiction.observation_id,
+             contradiction.summary
+         )
+     }));
+     lines("Epistemics", rows)
+ }
+ 
+ pub fn render_debug_beliefs_panel(view: &DebugBeliefsView) -> String {
+-    assert!(view.debug_only());
+-    assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
+-    let mut rows = vec![
+-        format!("actor={}", view.holder_actor_id.as_str()),
+-        format!("belief_count={}", view.beliefs.len()),
+-    ];
+-    rows.extend(view.beliefs.iter().map(|belief| {
+-        format!(
+-            "belief={} stance={} confidence={} source={} :: {}",
+-            belief.belief_id, belief.stance, belief.confidence, belief.source, belief.proposition
+-        )
+-    }));
+-    lines("Beliefs", rows)
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
+     assert!(view.debug_only());
+     assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
+     let mut rows = vec![
+         format!("actor={}", view.observer_actor_id.as_str()),
+         format!("observation_count={}", view.observations.len()),

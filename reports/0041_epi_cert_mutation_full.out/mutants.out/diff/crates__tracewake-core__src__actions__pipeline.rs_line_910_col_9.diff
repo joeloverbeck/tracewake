@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace != with == in source_context_check
+@@ -902,17 +902,17 @@
+             PipelineStage::SourceContextValidation,
+             vec![ReasonCode::ProposalSourceStale],
+             checked_facts,
+             "That action is from a stale view.",
+             "proposal source frontier did not match current event frontier",
+         ));
+     }
+     if source.source_view_model_id
+-        != proposal
++        == /* ~ changed by cargo-mutants ~ */ proposal
+             .source_view_model_id
+             .clone()
+             .unwrap_or_else(|| source.source_view_model_id.clone())
+     {
+         return Some(reject(
+             context,
+             proposal,
+             PipelineStage::SourceContextValidation,

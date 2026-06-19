@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/eat.rs
++++ delete - in build_eat_events
+@@ -68,17 +68,17 @@
+     );
+     let mut events = vec![consumed];
+     events.extend(eat_need_events(
+         agent_state,
+         proposal,
+         ordering_key,
+         content_manifest_id,
+         &events[0],
+-        -food.hunger_reduction_per_serving,
++         /* ~ changed by cargo-mutants ~ */food.hunger_reduction_per_serving,
+     ));
+     Ok(events)
+ }
+ 
+ fn food_consumed_event(
+     proposal: &Proposal,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,

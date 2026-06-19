@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedState::last_change_cause -> &NeedChangeCause with Box::leak(Box::new(Default::default()))
+@@ -199,17 +199,17 @@
+         self.value
+     }
+ 
+     pub const fn band(&self) -> NeedBand {
+         NeedBand::for_value(self.value)
+     }
+ 
+     pub const fn last_change_cause(&self) -> &NeedChangeCause {
+-        &self.last_change_cause
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn last_threshold_crossing(&self) -> Option<NeedThresholdCrossing> {
+         self.last_threshold_crossing
+     }
+ 
+     pub fn last_change_source_label(&self) -> String {
+         self.last_change_cause.stable_id()

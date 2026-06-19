@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace != with == in diff_physical_state
+@@ -487,17 +487,17 @@
+         ));
+     }
+     if expected.food_supplies != actual.food_supplies {
+         diffs.push(format!(
+             "food_supplies expected={:?} actual={:?}",
+             expected.food_supplies, actual.food_supplies
+         ));
+     }
+-    if expected.workplaces != actual.workplaces {
++    if expected.workplaces == /* ~ changed by cargo-mutants ~ */ actual.workplaces {
+         diffs.push(format!(
+             "workplaces expected={:?} actual={:?}",
+             expected.workplaces, actual.workplaces
+         ));
+     }
+     if expected.sleep_affordances != actual.sleep_affordances {
+         diffs.push(format!(
+             "sleep_affordances expected={:?} actual={:?}",

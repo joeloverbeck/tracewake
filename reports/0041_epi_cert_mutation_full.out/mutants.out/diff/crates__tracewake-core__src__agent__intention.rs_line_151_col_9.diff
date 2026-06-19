@@ -1,0 +1,36 @@
+--- crates/tracewake-core/src/agent/intention.rs
++++ replace Intention::transition -> Result<(), IntentionTransitionError> with Ok(())
+@@ -143,32 +143,17 @@
+         Ok(())
+     }
+ 
+     fn transition(
+         &mut self,
+         to: IntentionStatus,
+         reason: impl Into<String>,
+     ) -> Result<(), IntentionTransitionError> {
+-        if self.status.is_terminal() {
+-            return Err(IntentionTransitionError::IllegalTransition {
+-                from: self.status,
+-                to,
+-            });
+-        }
+-
+-        if self.status == to {
+-            return Err(IntentionTransitionError::NoopTransition {
+-                status: self.status,
+-            });
+-        }
+-
+-        self.status = to;
+-        self.status_reason = Some(reason.into());
+-        Ok(())
++        Ok(()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, Default, PartialEq, Eq)]
+ pub struct ActorIntentions {
+     pub active: Option<Intention>,
+     pub suspended: Vec<Intention>,
+ }

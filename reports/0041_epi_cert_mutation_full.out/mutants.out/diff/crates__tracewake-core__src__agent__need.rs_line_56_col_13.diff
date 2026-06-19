@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ delete match arm 500..= 749 in NeedBand::for_value
+@@ -48,17 +48,17 @@
+             NeedBand::Severe => "severe",
+         }
+     }
+ 
+     pub const fn for_value(value: u16) -> Self {
+         match value {
+             0..=249 => Self::Comfortable,
+             250..=499 => Self::Rising,
+-            500..=749 => Self::Urgent,
++             /* ~ changed by cargo-mutants ~ */
+             _ => Self::Severe,
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, NeedParseError> {
+         match value {
+             "comfortable" => Ok(Self::Comfortable),
+             "rising" => Ok(Self::Rising),

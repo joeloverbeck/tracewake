@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineExecution::interrupt with ()
+@@ -443,19 +443,17 @@
+ 
+     pub fn fail(&mut self, tick: SimTick, reason: impl Into<String>) {
+         self.step_status = RoutineStepStatus::Failed;
+         self.last_progress_tick = tick;
+         self.failure_interruption_reason = Some(reason.into());
+     }
+ 
+     pub fn interrupt(&mut self, tick: SimTick, reason: impl Into<String>) {
+-        self.step_status = RoutineStepStatus::Interrupted;
+-        self.last_progress_tick = tick;
+-        self.failure_interruption_reason = Some(reason.into());
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn suspend(&mut self, tick: SimTick, reason: impl Into<String>) {
+         self.step_status = RoutineStepStatus::Suspended;
+         self.last_progress_tick = tick;
+         self.failure_interruption_reason = Some(reason.into());
+     }
+ 

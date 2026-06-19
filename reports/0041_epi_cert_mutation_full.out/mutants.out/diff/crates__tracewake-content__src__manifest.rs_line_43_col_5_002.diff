@@ -1,0 +1,29 @@
+--- crates/tracewake-content/src/manifest.rs
++++ replace fingerprint_payload -> Vec<u8> with vec![1]
+@@ -35,25 +35,17 @@
+             actor_roster: Vec::new(),
+             no_human_day_windows: Vec::new(),
+             content_fingerprint: stable_fingerprint(&fingerprint_input),
+         }
+     }
+ }
+ 
+ fn fingerprint_payload(source_files: &[(String, Vec<u8>)]) -> Vec<u8> {
+-    let mut payload = Vec::new();
+-    for (path, bytes) in source_files {
+-        payload.extend_from_slice(b"--path--\n");
+-        payload.extend_from_slice(path.as_bytes());
+-        payload.extend_from_slice(b"\n--bytes--\n");
+-        payload.extend_from_slice(bytes);
+-        payload.extend_from_slice(b"\n");
+-    }
+-    payload
++    vec![1] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn stable_fingerprint(bytes: &[u8]) -> String {
+     let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+     for byte in bytes {
+         hash ^= u64::from(*byte);
+         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+     }

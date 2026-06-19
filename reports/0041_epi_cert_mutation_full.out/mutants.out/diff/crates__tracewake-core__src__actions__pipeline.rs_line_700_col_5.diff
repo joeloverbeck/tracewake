@@ -1,0 +1,40 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace accepted_report -> ValidationReport with Default::default()
+@@ -692,36 +692,17 @@
+ }
+ 
+ fn accepted_report(
+     proposal: &Proposal,
+     checked_facts: Vec<CheckedFact>,
+     would_mutate: bool,
+     events: Vec<EventEnvelope>,
+ ) -> ValidationReport {
+-    let event_ids = events.iter().map(|event| event.event_id.clone()).collect();
+-    ValidationReport {
+-        validation_report_id: report_id(proposal),
+-        proposal_id: proposal.proposal_id.clone(),
+-        actor_id: proposal.actor_id.clone(),
+-        action_id: proposal.action_id.clone(),
+-        target_ids: proposal.target_ids.clone(),
+-        status: ReportStatus::Accepted,
+-        failed_stage: None,
+-        reason_codes: Vec::new(),
+-        actor_visible_facts: actor_visible_facts(&checked_facts),
+-        debug_only_facts: debug_only_facts(&checked_facts),
+-        checked_facts,
+-        actor_visible_summary: "Accepted.".to_string(),
+-        debug_summary: "proposal accepted by shared pipeline".to_string(),
+-        would_mutate,
+-        event_ids,
+-        checksum_before: None,
+-        checksum_after: None,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn controller_binding_check(
+     context: PipelineReadContext<'_>,
+     proposal: &Proposal,
+     checked_facts: Vec<CheckedFact>,
+ ) -> Option<PipelineDecision> {
+     if proposal.origin != ProposalOrigin::Human {

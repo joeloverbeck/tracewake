@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace is_known_routine_fallback_rule -> bool with false
+@@ -1645,17 +1645,17 @@
+             | "search_blocked"
+             | "sleep_place_blocked"
+             | "step_blocked"
+             | "workplace_closed"
+     )
+ }
+ 
+ fn is_known_routine_fallback_rule(value: &str) -> bool {
+-    matches!(value, "fallback_wait_with_reason" | "wait")
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn supports_target_kind(
+     effect: ActionEffect,
+     fixture: &FixtureSchema,
+     affordance: &ActionAffordanceSchema,
+ ) -> bool {
+     match effect {

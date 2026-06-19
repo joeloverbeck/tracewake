@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace no_human_day_debug_report -> NoHumanDayDebugReport with Default::default()
+@@ -484,24 +484,17 @@
+         "Stuck",
+         rows,
+         Vec::new(),
+         std::mem::take(&mut stuck_diagnostics),
+     )
+ }
+ 
+ pub fn no_human_day_debug_report(log: &EventLog) -> NoHumanDayDebugReport {
+-    let metrics = no_human_day_metrics(log);
+-    let canonical_summary = metrics.serialize_canonical();
+-    NoHumanDayDebugReport {
+-        report_id: DebugReportId::new("debug.phase3a.no_human_day").unwrap(),
+-        metrics,
+-        canonical_summary,
+-        debug_capability: DebugCapability::mint(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
+     matches!(
+         event.event_type,
+         EventKind::ItemRemovedFromContainer
+             | EventKind::ItemTakenFromPlace
+             | EventKind::ItemPlacedInContainer

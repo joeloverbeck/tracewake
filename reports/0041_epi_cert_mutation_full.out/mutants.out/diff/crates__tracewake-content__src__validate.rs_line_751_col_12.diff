@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -743,17 +743,17 @@
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("routine_assignments[{index}].actor_id"),
+                 assignment.actor_id.as_str(),
+                 "actor",
+             );
+         }
+-        if !routine_templates.contains(&assignment.template_id) {
++        if  /* ~ changed by cargo-mutants ~ */routine_templates.contains(&assignment.template_id) {
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("routine_assignments[{index}].template_id"),
+                 assignment.template_id.as_str(),
+                 "routine_template",
+             );
+         }

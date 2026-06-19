@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in actor_known_routes_for_context
+@@ -249,17 +249,17 @@
+ 
+ fn actor_known_routes_for_context(
+     context: &KnowledgeContext,
+     current_place_id: Option<&PlaceId>,
+ ) -> Vec<PlaceId> {
+     let mut routes = context
+         .actor_known_routes()
+         .iter()
+-        .filter(|fact| current_place_id.is_some_and(|place_id| fact.from_place_id() == place_id))
++        .filter(|fact| current_place_id.is_some_and(|place_id| fact.from_place_id() != /* ~ changed by cargo-mutants ~ */ place_id))
+         .map(|fact| fact.to_place_id().clone())
+         .collect::<Vec<_>>();
+     routes.sort();
+     routes.dedup();
+     routes
+ }
+ 
+ fn actor_known_workplaces_for_context(

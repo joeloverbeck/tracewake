@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ delete match arm "no applicable method" in stuck_diagnostic
+@@ -750,20 +750,17 @@
+     debug: impl Into<String>,
+ ) -> StuckDiagnosticRecord {
+     let concrete_blocker = concrete_blocker.into();
+     let (responsible_layer, blocker_code) = match concrete_blocker.as_str() {
+         "no applicable candidate" => (
+             ResponsibleLayer::CandidateGeneration,
+             BlockerCode::NoApplicableCandidate,
+         ),
+-        "no applicable method" => (
+-            ResponsibleLayer::MethodSelection,
+-            BlockerCode::NoApplicableMethod,
+-        ),
++         /* ~ changed by cargo-mutants ~ */
+         "empty local plan" => (ResponsibleLayer::LocalPlanning, BlockerCode::EmptyLocalPlan),
+         _ => (
+             ResponsibleLayer::LocalPlanning,
+             BlockerCode::PlannerBudgetExhausted,
+         ),
+     };
+     StuckDiagnosticRecord::new(
+         StuckDiagnosticId::new(format!(

@@ -1,0 +1,25 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace encode -> String with String::new()
+@@ -783,21 +783,17 @@
+     match value {
+         "true" => Ok(true),
+         "false" => Ok(false),
+         _ => Err(SerializationError::BadBool(value.to_string())),
+     }
+ }
+ 
+ fn encode(value: &str) -> String {
+-    value
+-        .as_bytes()
+-        .iter()
+-        .map(|byte| format!("{byte:02x}"))
+-        .collect()
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn decode(value: &str) -> Result<String, SerializationError> {
+     if !value.len().is_multiple_of(2) {
+         return Err(SerializationError::BadLine(value.to_string()));
+     }
+     let mut bytes = Vec::new();
+     for chunk in value.as_bytes().chunks_exact(2) {

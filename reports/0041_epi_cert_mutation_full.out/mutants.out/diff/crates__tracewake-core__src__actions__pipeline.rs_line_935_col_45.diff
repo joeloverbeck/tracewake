@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace != with == in source_context_check
+@@ -927,17 +927,17 @@
+         context.state,
+         context.epistemic_projection,
+         actor_id,
+         source.context_tick,
+         context.content_manifest_id,
+         context.current_event_frontier,
+     );
+     if source.holder_known_context_id != *expected_context.holder_known_context_id()
+-        || source.holder_known_context_hash != *expected_context.holder_known_context_hash()
++        || source.holder_known_context_hash == /* ~ changed by cargo-mutants ~ */ *expected_context.holder_known_context_hash()
+     {
+         return Some(reject(
+             context,
+             proposal,
+             PipelineStage::SourceContextValidation,
+             vec![ReasonCode::ProposalSourceContextMismatch],
+             checked_facts,
+             "That action does not match the actor's current knowledge context.",

@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ delete match arm ["actor_was_near_place", actor_id, place_id] in <impl FromStr for Proposition>::from_str
+@@ -314,20 +314,17 @@
+                 }
+             }
+             ["sound_heard_near_place", place_id] => Proposition::SoundHeardNearPlace {
+                 place_id: PlaceId::new(*place_id)?,
+             },
+             ["possible_movement_near_place", place_id] => Proposition::PossibleMovementNearPlace {
+                 place_id: PlaceId::new(*place_id)?,
+             },
+-            ["actor_was_near_place", actor_id, place_id] => Proposition::ActorWasNearPlace {
+-                actor_id: ActorId::new(*actor_id)?,
+-                place_id: PlaceId::new(*place_id)?,
+-            },
++             /* ~ changed by cargo-mutants ~ */
+             _ => return Err(PropositionParseError::InvalidShape),
+         };
+ 
+         Ok(proposition)
+     }
+ }
+ 
+ fn serialize_location(location: &Location) -> String {

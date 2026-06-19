@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "hunger" in decode_opt_need
+@@ -911,17 +911,17 @@
+         Some(NeedKind::Safety) => "safety",
+         None => "-",
+     }
+ }
+ 
+ fn decode_opt_need(value: &str) -> Result<Option<NeedKind>, StuckDiagnosticParseError> {
+     match value {
+         "-" => Ok(None),
+-        "hunger" => Ok(Some(NeedKind::Hunger)),
++         /* ~ changed by cargo-mutants ~ */
+         "fatigue" => Ok(Some(NeedKind::Fatigue)),
+         "safety" => Ok(Some(NeedKind::Safety)),
+         _ => Err(StuckDiagnosticParseError::InvalidNeed),
+     }
+ }
+ 
+ fn encode_opt_id(value: Option<&str>) -> String {
+     value.unwrap_or("-").to_string()

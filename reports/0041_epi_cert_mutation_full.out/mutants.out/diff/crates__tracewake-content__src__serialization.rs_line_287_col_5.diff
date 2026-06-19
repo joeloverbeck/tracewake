@@ -1,0 +1,231 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace deserialize_fixture -> Result<FixtureSchema, SerializationError> with Ok(Default::default())
+@@ -279,227 +279,17 @@
+             window.start_tick.value(),
+             window.end_tick.value()
+         ));
+     }
+     lines.join("\n").into_bytes()
+ }
+ 
+ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationError> {
+-    let text = std::str::from_utf8(bytes)
+-        .map_err(|_| SerializationError::BadLine("non-utf8 fixture".to_string()))?;
+-    let mut fixture_id = None;
+-    let mut schema_version = None;
+-    let mut fixture_scope = None;
+-    let mut need_model = None;
+-    let mut actors = Vec::new();
+-    let mut places = Vec::new();
+-    let mut doors = Vec::new();
+-    let mut containers = Vec::new();
+-    let mut items = Vec::new();
+-    let mut affordances = Vec::new();
+-    let mut initial_beliefs = Vec::new();
+-    let mut initial_needs = Vec::new();
+-    let mut homes = Vec::new();
+-    let mut sleep_places = Vec::new();
+-    let mut food_supplies = Vec::new();
+-    let mut known_food_sources = Vec::new();
+-    let mut workplaces = Vec::new();
+-    let mut routine_templates = Vec::new();
+-    let mut routine_assignments = Vec::new();
+-    let mut day_windows = Vec::new();
+-
+-    for line in text.lines() {
+-        let parts = line.split('|').collect::<Vec<_>>();
+-        match parts.as_slice() {
+-            ["fixture", id] => fixture_id = Some(FixtureId::new(*id)?),
+-            ["schema", version] => schema_version = Some(SchemaVersion::new(*version)?),
+-            ["fixture_scope", scope] => fixture_scope = Some(parse_fixture_scope(scope)?),
+-            ["need_model", awake_hunger_delta_per_tick, awake_fatigue_delta_per_tick] => {
+-                need_model = Some(NeedModelSchema {
+-                    awake_hunger_delta_per_tick: parse_i32(awake_hunger_delta_per_tick)?,
+-                    awake_fatigue_delta_per_tick: parse_i32(awake_fatigue_delta_per_tick)?,
+-                })
+-            }
+-            ["actor", actor_id, place_id] => actors.push(ActorSchema {
+-                actor_id: ActorId::new(*actor_id)?,
+-                current_place_id: PlaceId::new(*place_id)?,
+-            }),
+-            ["place", place_id, label, adjacent, visibility_default] => places.push(PlaceSchema {
+-                place_id: PlaceId::new(*place_id)?,
+-                display_label: decode(label)?,
+-                adjacent_place_ids: split_ids(adjacent, |part| PlaceId::new(part))?,
+-                visibility_default: parse_visibility_default(visibility_default)?,
+-            }),
+-            ["door", door_id, endpoint_a, endpoint_b, is_open, is_locked] => {
+-                doors.push(DoorSchema {
+-                    door_id: DoorId::new(*door_id)?,
+-                    endpoint_a: PlaceId::new(*endpoint_a)?,
+-                    endpoint_b: PlaceId::new(*endpoint_b)?,
+-                    is_open: parse_bool(is_open)?,
+-                    is_locked: parse_bool(is_locked)?,
+-                })
+-            }
+-            ["container", container_id, place_id, is_open, is_locked, contents_visible_when_closed, contents] => {
+-                containers.push(ContainerSchema {
+-                    container_id: ContainerId::new(*container_id)?,
+-                    place_id: PlaceId::new(*place_id)?,
+-                    is_open: parse_bool(is_open)?,
+-                    is_locked: parse_bool(is_locked)?,
+-                    contents_visible_when_closed: parse_bool(contents_visible_when_closed)?,
+-                    contents: split_ids(contents, |part| ItemId::new(part))?,
+-                })
+-            }
+-            ["item", item_id, portable, location] => items.push(ItemSchema {
+-                item_id: ItemId::new(*item_id)?,
+-                portable: parse_bool(portable)?,
+-                location: deserialize_location(location)?,
+-            }),
+-            ["affordance", action_id, target_id] => affordances.push(ActionAffordanceSchema {
+-                action_id: ActionId::new(*action_id)?,
+-                target_id: (*target_id).to_string(),
+-            }),
+-            ["initial_belief", belief_id, holder_actor_id, proposition, stance, confidence, source_kind, source_id, channel, acquired_tick, last_verified_tick, privacy_scope, schema_version] => {
+-                initial_beliefs.push(InitialBeliefSchema {
+-                    belief_id: BeliefId::new(*belief_id)?,
+-                    holder_actor_id: ActorId::new(*holder_actor_id)?,
+-                    proposition: Proposition::from_str(&decode(proposition)?)?,
+-                    stance: parse_stance(stance)?,
+-                    confidence: parse_confidence(confidence)?,
+-                    source_kind: parse_source_kind(source_kind)?,
+-                    source: parse_source(source_kind, source_id)?,
+-                    channel: parse_optional_channel(channel)?,
+-                    acquired_tick: parse_tick(acquired_tick)?,
+-                    last_verified_tick: parse_optional_tick(last_verified_tick)?,
+-                    privacy_scope: parse_privacy_scope(privacy_scope)?,
+-                    schema_version: SchemaVersion::new(*schema_version)?,
+-                })
+-            }
+-            ["initial_need", actor_id, kind, value] => initial_needs.push(InitialNeedSchema {
+-                actor_id: ActorId::new(*actor_id)?,
+-                kind: parse_need_kind(kind)?,
+-                value: parse_u16(value)?,
+-            }),
+-            ["home", actor_id, place_id] => homes.push(HomeSchema {
+-                actor_id: ActorId::new(*actor_id)?,
+-                place_id: PlaceId::new(*place_id)?,
+-            }),
+-            ["sleep_place", actor_id, place_id, sleep_place_id, access_open, duration_ticks, fatigue_recovery_per_tick, hunger_rise_per_tick] => {
+-                sleep_places.push(SleepPlaceSchema {
+-                    actor_id: ActorId::new(*actor_id)?,
+-                    place_id: PlaceId::new(*place_id)?,
+-                    sleep_place_id: SleepAffordanceId::new(*sleep_place_id)?,
+-                    access_open: parse_bool(access_open)?,
+-                    duration_ticks: parse_u64(duration_ticks)?,
+-                    fatigue_recovery_per_tick: parse_i32(fatigue_recovery_per_tick)?,
+-                    hunger_rise_per_tick: parse_i32(hunger_rise_per_tick)?,
+-                })
+-            }
+-            ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] => {
+-                food_supplies.push(FoodSupplySchema {
+-                    food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+-                    location: deserialize_location(location)?,
+-                    servings: parse_u32(servings)?,
+-                    hunger_reduction_per_serving: parse_i32(hunger_reduction_per_serving)?,
+-                })
+-            }
+-            ["known_food_source", actor_id, food_supply_id] => {
+-                known_food_sources.push(KnownFoodSourceSchema {
+-                    actor_id: ActorId::new(*actor_id)?,
+-                    food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+-                })
+-            }
+-            ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, role_notice_access_open, output_tag] => {
+-                workplaces.push(WorkplaceSchema {
+-                    workplace_id: WorkplaceId::new(*workplace_id)?,
+-                    place_id: PlaceId::new(*place_id)?,
+-                    assigned_actor_ids: split_ids(assigned_actor_ids, |part| ActorId::new(part))?,
+-                    work_duration_ticks: parse_u64(work_duration_ticks)?,
+-                    fatigue_delta_per_tick: parse_i32(fatigue_delta_per_tick)?,
+-                    hunger_delta_per_tick: parse_i32(hunger_delta_per_tick)?,
+-                    max_fatigue_to_start: parse_i32(max_fatigue_to_start)?,
+-                    max_hunger_to_start: parse_i32(max_hunger_to_start)?,
+-                    access_open: parse_bool(access_open)?,
+-                    role_notice_access_open: parse_bool(role_notice_access_open)?,
+-                    output_tag: decode(output_tag)?,
+-                })
+-            }
+-            ["routine_template", template_id, family, applicability_conditions, preconditions, steps, min_duration_ticks, max_duration_ticks, interruption_points, failure_modes, fallback_rules, debug_labels, reservable_resource] => {
+-                routine_templates.push(RoutineTemplateSchema {
+-                    template_id: RoutineTemplateId::new(*template_id)?,
+-                    family: parse_routine_family(family)?,
+-                    applicability_conditions: split_encoded(applicability_conditions)?
+-                        .into_iter()
+-                        .map(parse_routine_condition)
+-                        .collect::<Result<Vec<_>, _>>()?,
+-                    preconditions: split_encoded(preconditions)?
+-                        .into_iter()
+-                        .map(parse_routine_condition)
+-                        .collect::<Result<Vec<_>, _>>()?,
+-                    steps: split_encoded(steps)?
+-                        .into_iter()
+-                        .map(|step| {
+-                            RoutineStep::deserialize_canonical(step.as_bytes())
+-                                .map_err(|error| SerializationError::BadLine(format!("{error}")))
+-                        })
+-                        .collect::<Result<Vec<_>, _>>()?,
+-                    min_duration_ticks: parse_u64(min_duration_ticks)?,
+-                    max_duration_ticks: parse_u64(max_duration_ticks)?,
+-                    interruption_points: split_usize(interruption_points)?,
+-                    failure_modes: split_encoded(failure_modes)?,
+-                    fallback_rules: split_encoded(fallback_rules)?,
+-                    debug_labels: split_encoded(debug_labels)?,
+-                    reservable_resource: if reservable_resource.is_empty() {
+-                        None
+-                    } else {
+-                        Some(decode(reservable_resource)?)
+-                    },
+-                })
+-            }
+-            ["routine_assignment", actor_id, template_id, start_tick, end_tick] => {
+-                routine_assignments.push(RoutineAssignmentSchema {
+-                    actor_id: ActorId::new(*actor_id)?,
+-                    template_id: RoutineTemplateId::new(*template_id)?,
+-                    start_tick: parse_tick(start_tick)?,
+-                    end_tick: parse_tick(end_tick)?,
+-                })
+-            }
+-            ["day_window", actor_id, start_tick, end_tick] => day_windows.push(DayWindowSchema {
+-                actor_id: ActorId::new(*actor_id)?,
+-                start_tick: parse_tick(start_tick)?,
+-                end_tick: parse_tick(end_tick)?,
+-            }),
+-            _ => return Err(SerializationError::BadLine(line.to_string())),
+-        }
+-    }
+-
+-    let mut fixture = FixtureSchema {
+-        fixture_id: fixture_id.ok_or(SerializationError::MissingField("fixture"))?,
+-        schema_version: schema_version.ok_or(SerializationError::MissingField("schema"))?,
+-        fixture_scope: fixture_scope.ok_or(SerializationError::MissingField("fixture_scope"))?,
+-        need_model: need_model.ok_or(SerializationError::MissingField("need_model"))?,
+-        actors,
+-        places,
+-        doors,
+-        containers,
+-        items,
+-        affordances,
+-        initial_beliefs,
+-        initial_needs,
+-        homes,
+-        sleep_places,
+-        food_supplies,
+-        known_food_sources,
+-        workplaces,
+-        routine_templates,
+-        routine_assignments,
+-        day_windows,
+-    };
+-    fixture.canonicalize();
+-    Ok(fixture)
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_fixture_scope(value: &str) -> Result<FixtureScope, SerializationError> {
+     match value {
+         "phase1" => Ok(FixtureScope::Phase1),
+         "phase2a_historical" => Ok(FixtureScope::Phase2AHistorical),
+         "phase3a_historical" => Ok(FixtureScope::Phase3AHistorical),
+         _ => Err(SerializationError::BadLine(format!(

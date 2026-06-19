@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/agent/intention.rs
++++ replace Intention::adopt -> Self with Default::default()
+@@ -81,30 +81,17 @@
+         source: IntentionSource,
+         selected_goal_id: CandidateGoalId,
+         selected_routine_method: Option<RoutineTemplateId>,
+         current_step: Option<String>,
+         durability_level: u8,
+         start_tick: SimTick,
+         trace_id: DecisionTraceId,
+     ) -> Self {
+-        Self {
+-            intention_id,
+-            actor_id,
+-            source,
+-            selected_goal_id,
+-            selected_routine_method,
+-            current_step,
+-            durability_level,
+-            start_tick,
+-            last_progress_tick: start_tick,
+-            status: IntentionStatus::Active,
+-            status_reason: None,
+-            trace_ancestry: vec![trace_id],
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn record_progress(&mut self, tick: SimTick, step: impl Into<String>) {
+         self.last_progress_tick = tick;
+         self.current_step = Some(step.into());
+     }
+ 
+     pub fn suspend(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {

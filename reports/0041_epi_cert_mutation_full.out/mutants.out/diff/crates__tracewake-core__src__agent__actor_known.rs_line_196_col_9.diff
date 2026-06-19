@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::value -> &str with ""
+@@ -188,17 +188,17 @@
+         &self.stable_id
+     }
+ 
+     pub fn semantic_kind(&self) -> &str {
+         &self.semantic_kind
+     }
+ 
+     pub fn value(&self) -> &str {
+-        &self.value
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn tick(&self) -> Option<SimTick> {
+         self.tick
+     }
+ 
+     pub fn actor_id(&self) -> &ActorId {
+         &self.actor_id

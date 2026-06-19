@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -629,17 +629,17 @@
+                 ValidationPhase::Referential,
+                 format!("initial_needs[{index}].actor_id"),
+                 need.actor_id.as_str(),
+                 "actor",
+             );
+         }
+     }
+     for (index, home) in fixture.homes.iter().enumerate() {
+-        if !actors.contains(&home.actor_id) {
++        if  /* ~ changed by cargo-mutants ~ */actors.contains(&home.actor_id) {
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("homes[{index}].actor_id"),
+                 home.actor_id.as_str(),
+                 "actor",
+             );
+         }

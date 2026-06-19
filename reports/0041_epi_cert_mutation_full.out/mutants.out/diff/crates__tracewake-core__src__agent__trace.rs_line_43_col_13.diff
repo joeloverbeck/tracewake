@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "completed" in DecisionOutcome::parse
+@@ -35,17 +35,17 @@
+ 
+     pub fn parse(value: &str) -> Option<Self> {
+         match value {
+             "continued" => Some(Self::Continued),
+             "switched" => Some(Self::Switched),
+             "waited" => Some(Self::Waited),
+             "replanned" => Some(Self::Replanned),
+             "failed" => Some(Self::Failed),
+-            "completed" => Some(Self::Completed),
++             /* ~ changed by cargo-mutants ~ */
+             _ => None,
+         }
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct HiddenTruthAudit {
+     pub actor_known_only: bool,

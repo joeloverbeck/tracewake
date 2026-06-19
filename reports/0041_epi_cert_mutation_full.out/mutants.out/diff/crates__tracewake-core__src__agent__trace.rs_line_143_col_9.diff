@@ -1,0 +1,40 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace BlockerCode::stable_id -> &'static str with ""
+@@ -135,36 +135,17 @@
+     HiddenTruthInput,
+     ProvenanceDangling,
+     ProvenanceClassMismatch,
+     ProvenanceWitnessMismatch,
+ }
+ 
+ impl BlockerCode {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            Self::None => "none",
+-            Self::Physical => "physical",
+-            Self::Access => "access",
+-            Self::Knowledge => "knowledge",
+-            Self::Resource => "resource",
+-            Self::SocialNormPlaceholder => "social_norm_placeholder",
+-            Self::SchedulingReservation => "scheduling_reservation",
+-            Self::UnsupportedAction => "unsupported_action",
+-            Self::PlannerBudgetExhausted => "planner_budget_exhausted",
+-            Self::FixtureAuthoringError => "fixture_authoring_error",
+-            Self::NoApplicableCandidate => "no_applicable_candidate",
+-            Self::NoApplicableMethod => "no_applicable_method",
+-            Self::EmptyLocalPlan => "empty_local_plan",
+-            Self::LocalPlanFailed => "local_plan_failed",
+-            Self::HiddenTruthInput => "hidden_truth_input",
+-            Self::ProvenanceDangling => "provenance_dangling",
+-            Self::ProvenanceClassMismatch => "provenance_class_mismatch",
+-            Self::ProvenanceWitnessMismatch => "provenance_witness_mismatch",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+         match value {
+             "none" => Ok(Self::None),
+             "physical" => Ok(Self::Physical),
+             "access" => Ok(Self::Access),
+             "knowledge" => Ok(Self::Knowledge),

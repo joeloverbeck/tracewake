@@ -1,0 +1,44 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedState::deserialize_canonical -> Result<Self, NeedParseError> with Ok(Default::default())
+@@ -284,40 +284,17 @@
+         )
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+         self.serialize_canonical().into_bytes()
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, NeedParseError> {
+-        let value = std::str::from_utf8(value).map_err(|_| NeedParseError::InvalidUtf8)?;
+-        let mut fields = value.split('|');
+-        let version = fields.next().ok_or(NeedParseError::InvalidShape)?;
+-        let kind = fields.next().ok_or(NeedParseError::InvalidShape)?;
+-        let need_value = fields.next().ok_or(NeedParseError::InvalidShape)?;
+-        let cause = fields.next().ok_or(NeedParseError::InvalidShape)?;
+-        let crossing = fields.next().ok_or(NeedParseError::InvalidShape)?;
+-        if fields.next().is_some() || version != "need_state_v2" {
+-            return Err(NeedParseError::InvalidShape);
+-        }
+-
+-        let need_value = need_value
+-            .parse::<u16>()
+-            .map_err(|_| NeedParseError::InvalidValue)?;
+-        if need_value > NEED_MAX {
+-            return Err(NeedParseError::InvalidValue);
+-        }
+-
+-        Ok(Self {
+-            kind: NeedKind::parse(kind)?,
+-            value: need_value,
+-            last_change_cause: NeedChangeCause::parse(cause)?,
+-            last_threshold_crossing: NeedThresholdCrossing::parse(crossing)?,
+-        })
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct NeedPressure {
+     pub actor_id: ActorId,
+     pub need_kind: NeedKind,
+     pub value: u16,

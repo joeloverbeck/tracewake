@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace replay_debug_report -> ReplayDebugReport with Default::default()
+@@ -274,21 +274,17 @@
+     ProjectionRebuildDebugReport {
+         report_id,
+         rebuild,
+         debug_capability: DebugCapability::mint(),
+     }
+ }
+ 
+ pub fn replay_debug_report(report_id: DebugReportId, replay: ReplayReport) -> ReplayDebugReport {
+-    ReplayDebugReport {
+-        report_id,
+-        replay,
+-        debug_capability: DebugCapability::mint(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn controller_binding_report(
+     report_id: DebugReportId,
+     bindings: &ControllerBindings,
+ ) -> ControllerBindingDebugReport {
+     let bindings = bindings
+         .debug_bindings()

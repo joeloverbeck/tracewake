@@ -1,0 +1,58 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace phase3a_status -> Phase3AEmbodiedStatus with Default::default()
+@@ -838,54 +838,17 @@
+                 episode.event_kind,
+                 episode.sim_tick.value(),
+                 episode.summary
+             )
+         })
+ }
+ 
+ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3AEmbodiedStatus {
+-    let mut need_summaries = agent_state
+-        .needs_by_actor
+-        .get(viewer_actor_id)
+-        .into_iter()
+-        .flat_map(|needs| needs.values())
+-        .map(|need| NeedStatusEntry {
+-            kind: need.kind().stable_id().to_string(),
+-            band_label: need.band().stable_id().to_string(),
+-            last_cause: need.last_change_cause().stable_id().to_string(),
+-        })
+-        .collect::<Vec<_>>();
+-    need_summaries.sort();
+-
+-    let intention = agent_state
+-        .active_intention_by_actor
+-        .get(viewer_actor_id)
+-        .and_then(|intention_id| agent_state.intentions.get(intention_id));
+-    let intention_summary = intention.map(|intention| {
+-        format!(
+-            "active:{}:{}",
+-            intention
+-                .selected_routine_method
+-                .as_ref()
+-                .map(|id| id.as_str())
+-                .unwrap_or("routine_unknown"),
+-            intention.current_step.as_deref().unwrap_or("step_pending")
+-        )
+-    });
+-    let routine_summary = intention
+-        .and_then(|intention| intention.selected_routine_method.as_ref())
+-        .map(|template_id| format!("routine:{}", template_id.as_str()));
+-
+-    Phase3AEmbodiedStatus {
+-        need_summaries,
+-        intention_summary,
+-        routine_summary,
+-        salient_interruption: phase3a_salient_interruption(agent_state, viewer_actor_id),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn phase3a_semantic_actions(
+     agent_state: Option<&AgentState>,
+     source: &EmbodiedProjectionSource<'_>,
+     current_place_id: &PlaceId,
+     viewer_actor_id: &ActorId,
+ ) -> Vec<SemanticActionEntry> {

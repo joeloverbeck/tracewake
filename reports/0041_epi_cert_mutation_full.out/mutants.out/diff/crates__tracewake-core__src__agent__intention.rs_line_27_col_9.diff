@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/agent/intention.rs
++++ replace IntentionStatus::is_terminal -> bool with true
+@@ -19,23 +19,17 @@
+             IntentionStatus::Completed => "completed",
+             IntentionStatus::Failed => "failed",
+             IntentionStatus::Abandoned => "abandoned",
+             IntentionStatus::Interrupted => "interrupted",
+         }
+     }
+ 
+     pub const fn is_terminal(self) -> bool {
+-        matches!(
+-            self,
+-            IntentionStatus::Completed
+-                | IntentionStatus::Failed
+-                | IntentionStatus::Abandoned
+-                | IntentionStatus::Interrupted
+-        )
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum IntentionSource {
+     NeedPressure,
+     RoutineDuty,
+     CandidateGoalSelection,

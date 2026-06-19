@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/agent/methods.rs
++++ replace template -> RoutineTemplate with Default::default()
+@@ -168,31 +168,17 @@
+     family: RoutineFamily,
+     applicability_conditions: Vec<RoutineCondition>,
+     preconditions: Vec<RoutineCondition>,
+     steps: Vec<RoutineStep>,
+     failure_modes: Vec<&str>,
+     fallback_rules: Vec<&str>,
+     reservable_resource: Option<&str>,
+ ) -> RoutineTemplate {
+-    RoutineTemplate::new(
+-        RoutineTemplateId::new(id).unwrap(),
+-        family,
+-        applicability_conditions,
+-        preconditions,
+-        steps,
+-        1,
+-        8,
+-        vec![0],
+-        failure_modes.into_iter().map(str::to_string).collect(),
+-        fallback_rules.into_iter().map(str::to_string).collect(),
+-        vec![format!("phase3a_{}", family.stable_id())],
+-        reservable_resource.map(str::to_string),
+-    )
+-    .unwrap()
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use std::collections::BTreeSet;
+ 
+     #[test]

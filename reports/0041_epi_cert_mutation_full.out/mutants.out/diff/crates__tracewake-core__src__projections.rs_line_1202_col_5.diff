@@ -1,0 +1,89 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace with_validator_availability -> SemanticActionEntry with Default::default()
+@@ -1194,85 +1194,17 @@
+ 
+     actions
+ }
+ 
+ fn with_validator_availability(
+     entry: SemanticActionEntry,
+     preflight: &SemanticActionPreflightContext<'_>,
+ ) -> SemanticActionEntry {
+-    let proposal = proposal_from_semantic_action_entry(
+-        ProposalId::new(format!(
+-            "proposal.preflight.{}",
+-            entry.semantic_action_id.as_str()
+-        ))
+-        .unwrap(),
+-        ProposalOrigin::Test,
+-        Some(preflight.viewer_actor_id.clone()),
+-        preflight.sim_tick,
+-        &entry,
+-        None,
+-        None,
+-    );
+-    let ordering_key = OrderingKey::new(
+-        preflight.sim_tick,
+-        SchedulePhase::HumanCommand,
+-        SchedulerSourceId::Actor(preflight.viewer_actor_id.clone()),
+-        ProposalSequence::new(0),
+-        proposal.action_id.clone(),
+-        proposal.target_ids.clone(),
+-        proposal.proposal_id.as_str().to_string(),
+-    );
+-    let report = validate_proposal(
+-        ProposalValidationContext {
+-            registry: preflight.registry,
+-            state: preflight.state,
+-            agent_state: preflight.agent_state,
+-            controller_bindings: None,
+-            epistemic_projection: None,
+-            content_manifest_id: preflight.content_manifest_id,
+-            ordering_key: &ordering_key,
+-            current_event_frontier: preflight.knowledge_context_frontier,
+-        },
+-        &proposal,
+-    );
+-    let enabled = report.status == ReportStatus::Accepted;
+-    let availability = if enabled {
+-        ActionAvailability::available()
+-    } else {
+-        let mut provenance_refs = vec![
+-            ActionAvailabilityProvenance::new(
+-                ActionAvailabilityProvenanceKind::HolderKnownContext,
+-                preflight.knowledge_context_id.as_str(),
+-            ),
+-            ActionAvailabilityProvenance::new(
+-                ActionAvailabilityProvenanceKind::ValidationReport,
+-                report.validation_report_id.as_str(),
+-            ),
+-        ];
+-        provenance_refs.extend(report.actor_visible_facts.iter().map(|fact| {
+-            ActionAvailabilityProvenance::new(
+-                ActionAvailabilityProvenanceKind::ValidatorFact,
+-                fact.render_pair(),
+-            )
+-        }));
+-        ActionAvailability::disabled(
+-            report.reason_codes.clone(),
+-            report.actor_visible_summary,
+-            provenance_refs,
+-            Vec::new(),
+-        )
+-    };
+-    SemanticActionEntry::with_availability(
+-        entry.semantic_action_id,
+-        entry.action_id,
+-        entry.target_ids,
+-        entry.label,
+-        availability,
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn proposal_from_semantic_action_entry(
+     proposal_id: ProposalId,
+     origin: ProposalOrigin,
+     actor_id: Option<ActorId>,
+     requested_tick: SimTick,
+     entry: &SemanticActionEntry,

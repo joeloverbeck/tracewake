@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete ! in apply_item_removed_from_container
+@@ -1578,17 +1578,17 @@
+     let container_id = parse_container_id(payload)?;
+ 
+     require_item_location(state, &item_id, Location::InContainer(container_id.clone()))?;
+     require_actor(state, &actor_id)?;
+     let container = state
+         .containers
+         .get_mut(&container_id)
+         .ok_or_else(|| ApplyError::MissingContainer(container_id.clone()))?;
+-    if !container.contents.remove(&item_id) {
++    if  /* ~ changed by cargo-mutants ~ */container.contents.remove(&item_id) {
+         return Err(ApplyError::PreconditionMismatch {
+             field: "container.contents",
+             expected: item_id.to_string(),
+             actual: "missing".to_string(),
+         });
+     }
+     state
+         .items

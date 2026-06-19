@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ delete match arm "rising" in NeedBand::parse
+@@ -56,17 +56,17 @@
+             500..=749 => Self::Urgent,
+             _ => Self::Severe,
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, NeedParseError> {
+         match value {
+             "comfortable" => Ok(Self::Comfortable),
+-            "rising" => Ok(Self::Rising),
++             /* ~ changed by cargo-mutants ~ */
+             "urgent" => Ok(Self::Urgent),
+             "severe" => Ok(Self::Severe),
+             _ => Err(NeedParseError::InvalidNeedBand),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

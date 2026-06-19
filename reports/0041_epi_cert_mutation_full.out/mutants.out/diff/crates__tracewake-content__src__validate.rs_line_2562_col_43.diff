@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace != with == in validate_epistemic_seeds
+@@ -2554,17 +2554,17 @@
+ }
+ 
+ fn validate_epistemic_seeds(
+     fixture: &FixtureSchema,
+     registry: &ActionRegistry,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+     for (index, belief) in fixture.initial_beliefs.iter().enumerate() {
+-        if belief.schema_version.as_str() != EPISTEMIC_RECORD_SCHEMA_V1 {
++        if belief.schema_version.as_str() == /* ~ changed by cargo-mutants ~ */ EPISTEMIC_RECORD_SCHEMA_V1 {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::EpistemicSeed,
+                 format!("initial_beliefs[{index}].schema_version"),
+                 "unsupported_epistemic_schema_version",
+                 format!(
+                     "unsupported epistemic schema version {}",
+                     belief.schema_version.as_str()
+                 ),

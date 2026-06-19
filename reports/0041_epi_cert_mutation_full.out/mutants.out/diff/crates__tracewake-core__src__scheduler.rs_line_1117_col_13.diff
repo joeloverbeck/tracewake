@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ delete match arm EventKind::WorkBlockCompleted in no_human::append_routine_step_completed_after_duration_completion
+@@ -1109,17 +1109,17 @@
+         log: &mut EventLog,
+         agent_state: &mut AgentState,
+         process_id: &ProcessId,
+         content_manifest_id: &ContentManifestId,
+         completion_event: &EventEnvelope,
+     ) {
+         let (family, ordinary_action_id) = match completion_event.event_type {
+             EventKind::SleepCompleted => (RoutineFamily::SleepNight, "sleep"),
+-            EventKind::WorkBlockCompleted => (RoutineFamily::WorkBlock, "work_block"),
++             /* ~ changed by cargo-mutants ~ */
+             _ => return,
+         };
+         let Some(actor_id) = completion_event.actor_id.as_ref() else {
+             return;
+         };
+         let Some(execution_id) = agent_state
+             .routine_executions
+             .iter()

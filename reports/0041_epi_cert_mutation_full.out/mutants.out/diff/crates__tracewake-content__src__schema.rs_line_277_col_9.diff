@@ -1,0 +1,25 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace FixtureScope::stable_id -> &'static str with ""
+@@ -269,21 +269,17 @@
+ pub enum FixtureScope {
+     Phase1,
+     Phase2AHistorical,
+     Phase3AHistorical,
+ }
+ 
+ impl FixtureScope {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            Self::Phase1 => "phase1",
+-            Self::Phase2AHistorical => "phase2a_historical",
+-            Self::Phase3AHistorical => "phase3a_historical",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ActorSchema {
+     pub actor_id: ActorId,
+     pub current_place_id: PlaceId,
+ }

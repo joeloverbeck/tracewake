@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ delete match arm ["item_carried_by_actor", item_id, actor_id] in <impl FromStr for Proposition>::from_str
+@@ -293,20 +293,17 @@
+                     item_id: ItemId::new(*item_id)?,
+                     container_id: ContainerId::new(*container_id)?,
+                 }
+             }
+             ["item_located_at_place", item_id, place_id] => Proposition::ItemLocatedAtPlace {
+                 item_id: ItemId::new(*item_id)?,
+                 place_id: PlaceId::new(*place_id)?,
+             },
+-            ["item_carried_by_actor", item_id, actor_id] => Proposition::ItemCarriedByActor {
+-                item_id: ItemId::new(*item_id)?,
+-                actor_id: ActorId::new(*actor_id)?,
+-            },
++             /* ~ changed by cargo-mutants ~ */
+             ["container_contents_observed", container_id] => {
+                 Proposition::ContainerContentsObserved {
+                     container_id: ContainerId::new(*container_id)?,
+                 }
+             }
+             ["item_missing_from_expected_location", item_id, expected_location] => {
+                 Proposition::ItemMissingFromExpectedLocation {
+                     item_id: ItemId::new(*item_id)?,

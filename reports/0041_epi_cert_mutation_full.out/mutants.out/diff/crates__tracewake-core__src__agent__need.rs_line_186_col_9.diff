@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedState::initial -> Self with Default::default()
+@@ -178,22 +178,17 @@
+     kind: NeedKind,
+     value: u16,
+     last_change_cause: NeedChangeCause,
+     last_threshold_crossing: Option<NeedThresholdCrossing>,
+ }
+ 
+ impl NeedState {
+     pub fn initial(kind: NeedKind, value: i32, cause: NeedChangeCause) -> Self {
+-        Self {
+-            kind,
+-            value: clamp_need_value(value),
+-            last_change_cause: cause,
+-            last_threshold_crossing: None,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn kind(&self) -> NeedKind {
+         self.kind
+     }
+ 
+     pub const fn value(&self) -> u16 {
+         self.value

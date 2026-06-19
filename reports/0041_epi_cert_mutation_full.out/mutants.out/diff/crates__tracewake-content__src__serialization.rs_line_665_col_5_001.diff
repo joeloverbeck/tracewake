@@ -1,0 +1,25 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace source_id -> String with "xyzzy".into()
+@@ -657,21 +657,17 @@
+ }
+ 
+ fn parse_routine_condition(value: String) -> Result<RoutineCondition, SerializationError> {
+     RoutineCondition::parse(&value)
+         .ok_or_else(|| SerializationError::BadLine(format!("bad routine condition {value}")))
+ }
+ 
+ fn source_id(source: &SourceRef) -> String {
+-    match source {
+-        SourceRef::Event(event_id) => event_id.as_str().to_string(),
+-        SourceRef::Action(action_id) => action_id.as_str().to_string(),
+-        SourceRef::Cause(cause) => stable_event_cause_id(cause),
+-    }
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stable_event_cause_id(cause: &EventCause) -> String {
+     match cause {
+         EventCause::Event(id) => format!("event:{}", id.as_str()),
+         EventCause::Proposal(id) => format!("proposal:{}", id.as_str()),
+         EventCause::ValidationReport(id) => format!("validation_report:{}", id.as_str()),
+         EventCause::Process(id) => format!("process:{}", id.as_str()),

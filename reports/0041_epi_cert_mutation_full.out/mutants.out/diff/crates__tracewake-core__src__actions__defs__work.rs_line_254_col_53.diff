@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ replace == with != in has_severe_interrupting_need
+@@ -246,17 +246,17 @@
+ fn has_severe_interrupting_need(agent_state: &AgentState, actor_id: &crate::ids::ActorId) -> bool {
+     agent_state
+         .needs_by_actor
+         .get(actor_id)
+         .is_some_and(|needs| {
+             [NeedKind::Hunger, NeedKind::Safety].iter().any(|kind| {
+                 needs
+                     .get(kind)
+-                    .is_some_and(|need| need.band() == NeedBand::Severe)
++                    .is_some_and(|need| need.band() != /* ~ changed by cargo-mutants ~ */ NeedBand::Severe)
+             })
+         })
+ }
+ 
+ fn work_started_event(
+     proposal: &Proposal,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,

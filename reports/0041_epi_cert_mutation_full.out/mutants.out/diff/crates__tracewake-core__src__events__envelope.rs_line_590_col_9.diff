@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace StartingBeliefRecordedPayload::new_v1 -> Self with Default::default()
+@@ -582,24 +582,17 @@
+ 
+ impl StartingBeliefRecordedPayload {
+     pub fn new_v1(
+         actor_id: ActorId,
+         belief_kind: impl Into<String>,
+         subject_id: impl Into<String>,
+         value: impl Into<String>,
+     ) -> Self {
+-        Self {
+-            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+-            source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
+-            actor_id,
+-            belief_kind: belief_kind.into(),
+-            subject_id: subject_id.into(),
+-            value: value.into(),
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ObservationRecordedPayload {
+     pub schema_version: SchemaVersion,
+     pub observation: Observation,
+ }

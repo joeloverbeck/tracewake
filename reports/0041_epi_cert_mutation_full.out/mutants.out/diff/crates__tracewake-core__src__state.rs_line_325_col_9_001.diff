@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::decision_traces -> &BTreeMap<DecisionTraceId, DecisionTraceRecord> with Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())])))
+@@ -317,17 +317,17 @@
+         &self.active_intention_by_actor
+     }
+ 
+     pub fn routine_executions(&self) -> &BTreeMap<RoutineExecutionId, RoutineExecution> {
+         &self.routine_executions
+     }
+ 
+     pub fn decision_traces(&self) -> &BTreeMap<DecisionTraceId, DecisionTraceRecord> {
+-        &self.decision_traces
++        Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn stuck_diagnostics(&self) -> &BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord> {
+         &self.stuck_diagnostics
+     }
+ 
+     pub fn need_threshold_crossings(
+         &self,

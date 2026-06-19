@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::IntentionResumed in apply_intention_transition
+@@ -1322,24 +1322,17 @@
+                     .map_err(|_| ApplyError::BadPayload {
+                         key: "progress_tick",
+                         value: (*progress_tick).to_string(),
+                     })?;
+                 let step = required(payload, "current_step")?;
+                 intention.record_progress(SimTick::new(tick), step);
+             }
+         }
+-        EventKind::IntentionResumed => {
+-            intention
+-                .reactivate(reason)
+-                .map_err(|err| ApplyError::BadPayload {
+-                    key: "status",
+-                    value: format!("{err:?}"),
+-                })?
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::IntentionSuspended => {
+             intention
+                 .suspend(reason)
+                 .map_err(|err| ApplyError::BadPayload {
+                     key: "status",
+                     value: format!("{err:?}"),
+                 })?
+         }

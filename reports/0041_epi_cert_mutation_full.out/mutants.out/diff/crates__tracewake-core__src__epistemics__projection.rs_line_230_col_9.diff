@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionKindPolicy::freshness -> ActorKnownProjectionFreshness with Default::default()
+@@ -222,24 +222,17 @@
+     }
+ 
+     fn freshness(
+         &self,
+         record: &ActorKnownProjectionRecord,
+         latest_current_place_record: bool,
+         context_tick: SimTick,
+     ) -> ActorKnownProjectionFreshness {
+-        match self.classification {
+-            ActorKnownProjectionPolicy::ReclassifyWhenStale => {
+-                reclassifying_record_freshness(record, latest_current_place_record, context_tick)
+-            }
+-            ActorKnownProjectionPolicy::SupersedeNewestBySubject => {
+-                ActorKnownProjectionFreshness::Remembered
+-            }
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub struct ClassifiedActorKnownProjectionRecord<'a> {
+     record: &'a ActorKnownProjectionRecord,
+     freshness: ActorKnownProjectionFreshness,
+     current_place_record: bool,

@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace rebuild_decision_context_hashes -> Vec<Phase3AReplayFailure> with vec![Default::default()]
+@@ -204,25 +204,17 @@
+     issues
+ }
+ 
+ pub fn rebuild_decision_context_hashes(
+     initial_state: &PhysicalState,
+     initial_agent_state: &AgentState,
+     log: &EventLog,
+ ) -> Vec<Phase3AReplayFailure> {
+-    log.events()
+-        .iter()
+-        .filter(|event| event.event_type == EventKind::DecisionTraceRecorded)
+-        .filter_map(|event| {
+-            rebuild_decision_context_hash(initial_state, initial_agent_state, log, event)
+-                .err()
+-                .map(|failure| *failure)
+-        })
+-        .collect()
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn rebuild_decision_context_hash(
+     initial_state: &PhysicalState,
+     initial_agent_state: &AgentState,
+     log: &EventLog,
+     trace_event: &EventEnvelope,
+ ) -> Result<(), Box<Phase3AReplayFailure>> {

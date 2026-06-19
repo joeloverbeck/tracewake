@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/observation.rs
++++ replace Observation::subject -> &ObservationSubject with Box::leak(Box::new(Default::default()))
+@@ -183,17 +183,17 @@
+         self.tick_window
+     }
+ 
+     pub fn observer_place_id(&self) -> &PlaceId {
+         &self.observer_place_id
+     }
+ 
+     pub fn subject(&self) -> &ObservationSubject {
+-        &self.subject
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn target(&self) -> &ObservationTarget {
+         &self.target
+     }
+ 
+     pub fn raw_payload(&self) -> &[PayloadField] {
+         &self.raw_payload

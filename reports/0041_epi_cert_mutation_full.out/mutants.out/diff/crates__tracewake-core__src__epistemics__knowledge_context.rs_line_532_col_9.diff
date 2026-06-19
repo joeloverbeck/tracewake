@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownContainerFact::source_key -> &str with ""
+@@ -524,17 +524,17 @@
+         self.is_open
+     }
+ 
+     pub fn is_locked(&self) -> bool {
+         self.is_locked
+     }
+ 
+     pub fn source_key(&self) -> &str {
+-        &self.source_key
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn canonical_key(&self) -> String {
+         format!(
+             "{}:open={}:locked={}:{}",
+             self.container_id.as_str(),
+             self.is_open,
+             self.is_locked,

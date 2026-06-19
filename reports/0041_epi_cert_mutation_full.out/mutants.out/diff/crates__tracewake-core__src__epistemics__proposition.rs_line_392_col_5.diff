@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace require_place -> Result<(), PropositionReferenceError> with Ok(())
+@@ -384,21 +384,17 @@
+         Err(PropositionReferenceError::UnknownActor(actor_id.clone()))
+     }
+ }
+ 
+ fn require_place(
+     place_id: &PlaceId,
+     known_places: &BTreeSet<PlaceId>,
+ ) -> Result<(), PropositionReferenceError> {
+-    if known_places.contains(place_id) {
+-        Ok(())
+-    } else {
+-        Err(PropositionReferenceError::UnknownPlace(place_id.clone()))
+-    }
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn require_container(
+     container_id: &ContainerId,
+     known_containers: &BTreeSet<ContainerId>,
+ ) -> Result<(), PropositionReferenceError> {
+     if known_containers.contains(container_id) {
+         Ok(())

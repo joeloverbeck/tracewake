@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete ! in apply_agent_event_with_capability
+@@ -300,17 +300,17 @@
+     apply_agent_event_with_capability(state, event, capability)
+ }
+ 
+ fn apply_agent_event_with_capability(
+     state: &mut AgentState,
+     event: &EventEnvelope,
+     _capability: AgentMutationCapability,
+ ) -> Result<ApplyOutcome, ApplyError> {
+-    if !event.has_supported_schema_version() {
++    if  /* ~ changed by cargo-mutants ~ */event.has_supported_schema_version() {
+         return Err(ApplyError::UnsupportedSchemaVersion(
+             event.event_schema_version.as_str().to_string(),
+         ));
+     }
+ 
+     if event.stream != event.event_type.stream() {
+         return Err(ApplyError::EventKindStreamMismatch);
+     }

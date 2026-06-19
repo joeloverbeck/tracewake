@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace AgentStateChecksumReport::recompute_from_canonical_input -> AgentStateChecksum with Default::default()
+@@ -314,17 +314,17 @@
+ pub struct AgentStateChecksumReport {
+     pub projection_version: AgentProjectionVersion,
+     pub checksum: AgentStateChecksum,
+     pub canonical_input: Vec<String>,
+ }
+ 
+ impl AgentStateChecksumReport {
+     pub fn recompute_from_canonical_input(&self) -> AgentStateChecksum {
+-        AgentStateChecksum::from_canonical_lines(&self.canonical_input)
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub fn compute_agent_state_checksum(
+     state: &AgentState,
+     context: &ChecksumContext,
+ ) -> AgentStateChecksumReport {
+     let projection_version = AgentProjectionVersion::new("agent_projection_v1").unwrap();

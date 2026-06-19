@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineExecution::record_fallback_attempt with ()
+@@ -467,17 +467,17 @@
+ 
+     pub fn abandon(&mut self, tick: SimTick, reason: impl Into<String>) {
+         self.step_status = RoutineStepStatus::Abandoned;
+         self.last_progress_tick = tick;
+         self.failure_interruption_reason = Some(reason.into());
+     }
+ 
+     pub fn record_fallback_attempt(&mut self) {
+-        self.fallback_attempts = self.fallback_attempts.saturating_add(1);
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum RoutineTemplateError {
+     MissingSteps,
+     MissingFailureModes,
+     MissingInterruptionPoints,

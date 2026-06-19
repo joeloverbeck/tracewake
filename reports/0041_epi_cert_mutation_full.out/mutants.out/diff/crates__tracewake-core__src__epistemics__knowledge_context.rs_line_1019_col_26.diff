@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace == with != in KnowledgeContext::permits_scope
+@@ -1011,17 +1011,17 @@
+             Vec::new(),
+         )
+     }
+ 
+     pub fn permits_scope(&self, privacy_scope: &PrivacyScope) -> bool {
+         match (self.mode, privacy_scope) {
+             (ViewMode::Debug, _) => true,
+             (ViewMode::Embodied, PrivacyScope::ActorPrivate(actor_id)) => {
+-                actor_id == &self.viewer_actor_id
++                actor_id != /* ~ changed by cargo-mutants ~ */ &self.viewer_actor_id
+             }
+             (ViewMode::Embodied, PrivacyScope::PublicPlaceholder) => true,
+             (ViewMode::Embodied, PrivacyScope::InstitutionPlaceholder(_)) => false,
+         }
+     }
+ 
+     pub fn viewer_actor_id(&self) -> &ActorId {
+         &self.viewer_actor_id

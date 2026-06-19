@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineStep::serialize_canonical_bytes -> Vec<u8> with vec![0]
+@@ -116,17 +116,17 @@
+             }
+             RoutineStep::FailWithTypedDiagnostic { diagnostic } => {
+                 encode_text_step("fail_with_typed_diagnostic", diagnostic.stable_id())
+             }
+         }
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+-        self.serialize_canonical().into_bytes()
++        vec![0] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, RoutineStepParseError> {
+         let value = std::str::from_utf8(value).map_err(|_| RoutineStepParseError::InvalidUtf8)?;
+         let mut fields = value.split('|');
+         let version = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+         let kind = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+         let payload = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;

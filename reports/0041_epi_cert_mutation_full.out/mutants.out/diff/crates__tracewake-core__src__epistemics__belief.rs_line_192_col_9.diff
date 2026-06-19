@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace BeliefDraft::with_belief_id -> Self with Default::default()
+@@ -184,18 +184,17 @@
+ }
+ 
+ impl BeliefDraft {
+     pub fn new() -> Self {
+         Self::default()
+     }
+ 
+     pub fn with_belief_id(mut self, belief_id: BeliefId) -> Self {
+-        self.belief_id = Some(belief_id);
+-        self
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn with_holder(mut self, holder: HolderKind) -> Self {
+         self.holder = Some(holder);
+         self
+     }
+ 
+     pub fn with_proposition(mut self, proposition: Proposition) -> Self {

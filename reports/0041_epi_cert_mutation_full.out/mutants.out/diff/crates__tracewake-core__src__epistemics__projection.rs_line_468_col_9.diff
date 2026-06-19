@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace EpistemicProjection::beliefs_for_context -> Vec<&Belief> with vec![]
+@@ -460,31 +460,17 @@
+             .into_iter()
+             .flat_map(|ids| ids.iter())
+             .filter_map(|id| self.observations_by_id.get(id))
+             .filter(|observation| context.permits_scope(observation.privacy_scope()))
+             .collect()
+     }
+ 
+     pub fn beliefs_for_context(&self, context: &KnowledgeContext) -> Vec<&Belief> {
+-        match context.mode() {
+-            ViewMode::Debug => self
+-                .beliefs_by_id
+-                .values()
+-                .filter(|belief| context.permits_scope(belief.privacy_scope()))
+-                .collect(),
+-            ViewMode::Embodied => self
+-                .beliefs_by_holder
+-                .get(context.viewer_actor_id())
+-                .into_iter()
+-                .flat_map(|ids| ids.iter())
+-                .filter_map(|id| self.beliefs_by_id.get(id))
+-                .filter(|belief| context.permits_scope(belief.privacy_scope()))
+-                .collect(),
+-        }
++        vec![] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn contradictions_for_context(&self, context: &KnowledgeContext) -> Vec<&Contradiction> {
+         match context.mode() {
+             ViewMode::Debug => self.contradictions_by_id.values().collect(),
+             ViewMode::Embodied => self
+                 .contradictions_by_holder
+                 .get(context.viewer_actor_id())

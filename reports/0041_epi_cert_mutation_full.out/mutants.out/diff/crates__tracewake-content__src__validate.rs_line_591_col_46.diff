@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace match guard !actors.contains(actor_id) with true in validate_references
+@@ -583,17 +583,17 @@
+             ),
+             Location::InContainer(container_id) if !containers.contains(container_id) => missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("items[{index}].location"),
+                 container_id.as_str(),
+                 "container",
+             ),
+-            Location::CarriedBy(actor_id) if !actors.contains(actor_id) => missing(
++            Location::CarriedBy(actor_id) if true /* ~ changed by cargo-mutants ~ */ => missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("items[{index}].location"),
+                 actor_id.as_str(),
+                 "actor",
+             ),
+             _ => {}
+         }

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace == with != in require_payload_version
+@@ -666,17 +666,17 @@
+ }
+ 
+ fn require_payload_version(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+     expected: &'static str,
+ ) -> Result<(), ApplyError> {
+     let actual = required(payload, key)?;
+-    if actual == expected {
++    if actual != /* ~ changed by cargo-mutants ~ */ expected {
+         Ok(())
+     } else {
+         Err(ApplyError::BadPayload {
+             key,
+             value: actual.to_string(),
+         })
+     }
+ }

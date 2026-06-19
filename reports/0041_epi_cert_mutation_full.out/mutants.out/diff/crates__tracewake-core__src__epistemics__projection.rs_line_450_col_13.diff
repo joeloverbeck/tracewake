@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace && with || in EpistemicProjection::is_empty
+@@ -442,17 +442,17 @@
+         self.beliefs_by_id.contains_key(belief_id)
+     }
+ 
+     pub fn is_empty(&self) -> bool {
+         self.observations_by_id.is_empty()
+             && self.beliefs_by_id.is_empty()
+             && self.contradictions_by_id.is_empty()
+             && self.notebook_entries_by_actor.is_empty()
+-            && self.actor_known_records_by_actor.is_empty()
++            || /* ~ changed by cargo-mutants ~ */ self.actor_known_records_by_actor.is_empty()
+     }
+ 
+     pub fn projection_version(&self) -> &EpistemicProjectionVersion {
+         &self.projection_version
+     }
+ 
+     pub fn observations_for_context(&self, context: &KnowledgeContext) -> Vec<&Observation> {
+         self.observations_by_actor

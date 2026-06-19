@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace == with != in require_item_location
+@@ -1707,17 +1707,17 @@
+     state: &PhysicalState,
+     item_id: &ItemId,
+     expected: Location,
+ ) -> Result<(), ApplyError> {
+     let item = state
+         .items
+         .get(item_id)
+         .ok_or_else(|| ApplyError::MissingItem(item_id.clone()))?;
+-    if item.location == expected {
++    if item.location != /* ~ changed by cargo-mutants ~ */ expected {
+         Ok(())
+     } else {
+         Err(ApplyError::PreconditionMismatch {
+             field: "item.location",
+             expected: format!("{expected:?}"),
+             actual: format!("{:?}", item.location),
+         })
+     }

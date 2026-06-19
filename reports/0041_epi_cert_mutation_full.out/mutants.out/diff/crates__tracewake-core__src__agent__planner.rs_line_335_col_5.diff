@@ -1,0 +1,45 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace plan_known_food -> Result<LocalPlan, LocalPlanFailure> with Ok(Default::default())
+@@ -327,41 +327,17 @@
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_known_food(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     food_source: &str,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+-    if state.known_food_sources().contains(food_source) {
+-        let proposal = PlannedProposal {
+-            action_id: ActionId::new("eat").unwrap(),
+-            target_ids: vec![food_source.to_string()],
+-        };
+-        return Ok(LocalPlan {
+-            proposals: vec![proposal.clone()],
+-            trace: trace(
+-                state,
+-                request,
+-                vec![format!("food:{food_source}")],
+-                vec![proposal],
+-                Vec::new(),
+-                None,
+-            ),
+-        });
+-    }
+-
+-    Err(failure(
+-        state,
+-        request,
+-        BlockerCategory::Resource,
+-        "food source is not actor-known",
+-        vec![format!("food:{food_source}")],
+-    ))
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn failure(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     blocker: BlockerCategory,
+     reason: &str,
+     candidates: Vec<String>,

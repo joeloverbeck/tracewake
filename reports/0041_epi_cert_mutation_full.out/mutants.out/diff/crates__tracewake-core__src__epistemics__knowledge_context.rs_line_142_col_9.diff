@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeProvenanceEntry::source -> AllowedKnowledgeSource with Default::default()
+@@ -134,17 +134,17 @@
+         }
+     }
+ 
+     pub fn kind(&self) -> &KnowledgeProvenanceKind {
+         &self.kind
+     }
+ 
+     pub fn source(&self) -> AllowedKnowledgeSource {
+-        self.source
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn source_key(&self) -> &str {
+         &self.source_key
+     }
+ 
+     fn canonical_key(&self) -> String {
+         format!(

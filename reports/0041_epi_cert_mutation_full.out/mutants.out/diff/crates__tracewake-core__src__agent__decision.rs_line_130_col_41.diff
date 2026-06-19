@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/decision.rs
++++ replace == with != in select_goal_and_trace
+@@ -122,17 +122,17 @@
+         .candidates
+         .iter()
+         .filter(|candidate| candidate.applicability == ApplicabilityResult::Applicable)
+         .cloned()
+         .collect::<Vec<_>>();
+     applicable.sort();
+     let selected = applicable.into_iter().next()?;
+     let active_intention = input.active_intention.clone();
+-    let outcome = if selected.goal_kind == crate::agent::GoalKind::ContinueCurrentIntention {
++    let outcome = if selected.goal_kind != /* ~ changed by cargo-mutants ~ */ crate::agent::GoalKind::ContinueCurrentIntention {
+         DecisionOutcome::Continued
+     } else if active_intention.is_some() {
+         DecisionOutcome::Switched
+     } else {
+         DecisionOutcome::Continued
+     };
+ 
+     let trace_id = DecisionTraceId::new(format!(

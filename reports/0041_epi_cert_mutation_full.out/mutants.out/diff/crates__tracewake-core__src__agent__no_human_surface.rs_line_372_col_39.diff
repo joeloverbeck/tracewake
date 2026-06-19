@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace == with != in NoHumanActorKnownSurfaceBuilder::add_food_source_knowledge
+@@ -364,17 +364,17 @@
+         self.push_projection_fact(
+             policy.freshness,
+             "actor_knows_food_source",
+             food_source,
+             source.clone(),
+             policy.source_tick,
+             source_event_ids.clone(),
+         );
+-        if policy.accessibility_scope == ActorKnownProjectionAccessibilityScope::FromAnyPlace {
++        if policy.accessibility_scope != /* ~ changed by cargo-mutants ~ */ ActorKnownProjectionAccessibilityScope::FromAnyPlace {
+             self.push_projection_fact(
+                 policy.freshness,
+                 "food_source_believed_accessible",
+                 food_source,
+                 source,
+                 policy.source_tick,
+                 source_event_ids,
+             );

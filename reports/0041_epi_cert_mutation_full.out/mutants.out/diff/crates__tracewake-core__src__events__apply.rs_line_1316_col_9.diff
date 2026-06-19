@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::IntentionContinued in apply_intention_transition
+@@ -1308,30 +1308,17 @@
+         return Err(ApplyError::PreconditionMismatch {
+             field: "status",
+             expected: expected_status.stable_id().to_string(),
+             actual: status.stable_id().to_string(),
+         });
+     }
+ 
+     match event_type {
+-        EventKind::IntentionContinued => {
+-            intention.status = IntentionStatus::Active;
+-            intention.status_reason = Some(reason);
+-            if let Some(progress_tick) = payload.get("progress_tick") {
+-                let tick = progress_tick
+-                    .parse::<u64>()
+-                    .map_err(|_| ApplyError::BadPayload {
+-                        key: "progress_tick",
+-                        value: (*progress_tick).to_string(),
+-                    })?;
+-                let step = required(payload, "current_step")?;
+-                intention.record_progress(SimTick::new(tick), step);
+-            }
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::IntentionResumed => {
+             intention
+                 .reactivate(reason)
+                 .map_err(|err| ApplyError::BadPayload {
+                     key: "status",
+                     value: format!("{err:?}"),
+                 })?
+         }

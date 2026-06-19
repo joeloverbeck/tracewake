@@ -1,0 +1,36 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace plan_leave_unsafe_place -> Result<LocalPlan, LocalPlanFailure> with Ok(Default::default())
+@@ -94,32 +94,17 @@
+     }
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_leave_unsafe_place(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+-    let Some(target) = state
+-        .known_edges()
+-        .get(state.current_place_id())
+-        .and_then(|neighbors| neighbors.iter().next())
+-        .cloned()
+-    else {
+-        return Err(failure(
+-            state,
+-            request,
+-            BlockerCategory::Knowledge,
+-            "no actor-known exit from unsafe place",
+-            vec![format!("place:{}", state.current_place_id().as_str())],
+-        ));
+-    };
+-
+-    plan_route(state, request, &target)
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_start_sleep(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     sleep_place_id: &PlaceId,
+ ) -> Result<LocalPlan, LocalPlanFailure> {

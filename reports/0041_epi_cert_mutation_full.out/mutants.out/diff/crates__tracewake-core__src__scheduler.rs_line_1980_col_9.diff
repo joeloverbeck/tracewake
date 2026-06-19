@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::is_instant_routine_progress_event -> bool with true
+@@ -1972,23 +1972,17 @@
+         )
+     }
+ 
+     fn is_instant_routine_progress_event(
+         execution_family: RoutineFamily,
+         proposal: &Proposal,
+         event: &EventEnvelope,
+     ) -> bool {
+-        if execution_family == RoutineFamily::WorkBlock && proposal.action_id.as_str() == "move" {
+-            return false;
+-        }
+-        !matches!(
+-            event.event_type,
+-            EventKind::SleepStarted | EventKind::WorkBlockStarted
+-        )
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn build_routine_step_started_event(
+         process_id: &ProcessId,
+         execution_id: &RoutineExecutionId,
+         actor_id: &ActorId,
+         window: &DayWindow,

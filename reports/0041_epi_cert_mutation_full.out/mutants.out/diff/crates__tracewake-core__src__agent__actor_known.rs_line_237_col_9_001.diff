@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownProvenance::actor_known -> bool with false
+@@ -229,23 +229,17 @@
+     FixturePossibility { source: String },
+     PipelineValidationTruth(RestrictedProvenance),
+     DebugOmniscience(RestrictedProvenance),
+     UnprovenPhysicalTruth { note: String },
+ }
+ 
+ impl ActorKnownProvenance {
+     fn actor_known(&self) -> bool {
+-        matches!(
+-            self,
+-            Self::ObservedNow { .. }
+-                | Self::RememberedBelief { .. }
+-                | Self::RoutineAssignment { .. }
+-                | Self::FixturePossibility { .. }
+-        )
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn note(&self) -> String {
+         match self {
+             Self::ObservedNow { source } => format!("observed_now:{source}"),
+             Self::RememberedBelief { source } => format!("remembered_belief:{source}"),
+             Self::RoutineAssignment { source } => format!("routine_assignment:{source}"),
+             Self::FixturePossibility { source } => format!("fixture_possibility:{source}"),

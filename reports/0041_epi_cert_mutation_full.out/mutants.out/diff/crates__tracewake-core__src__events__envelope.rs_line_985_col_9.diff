@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace <impl From<std::num::ParseIntError> for EventEnvelopeParseError>::from -> Self with Default::default()
+@@ -977,17 +977,17 @@
+ impl From<crate::ids::IdError> for EventEnvelopeParseError {
+     fn from(value: crate::ids::IdError) -> Self {
+         Self::Id(value)
+     }
+ }
+ 
+ impl From<std::num::ParseIntError> for EventEnvelopeParseError {
+     fn from(_: std::num::ParseIntError) -> Self {
+-        Self::Number
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn required<'a>(
+     map: &'a std::collections::BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<&'a str, EventEnvelopeParseError> {
+     map.get(key)

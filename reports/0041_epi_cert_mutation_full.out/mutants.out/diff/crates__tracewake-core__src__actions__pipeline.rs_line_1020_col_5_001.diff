@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace debug_only_facts -> Vec<CheckedFact> with vec![Default::default()]
+@@ -1012,21 +1012,17 @@
+     checked_facts
+         .iter()
+         .filter(|fact| is_actor_visible_fact(fact))
+         .cloned()
+         .collect()
+ }
+ 
+ fn debug_only_facts(checked_facts: &[CheckedFact]) -> Vec<CheckedFact> {
+-    checked_facts
+-        .iter()
+-        .filter(|fact| !is_actor_visible_fact(fact))
+-        .cloned()
+-        .collect()
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_actor_visible_fact(fact: &CheckedFact) -> bool {
+     matches!(
+         fact.key(),
+         crate::actions::report::CheckedFactKey::ActionId
+             | crate::actions::report::CheckedFactKey::ActorId
+             | crate::actions::report::CheckedFactKey::Reason

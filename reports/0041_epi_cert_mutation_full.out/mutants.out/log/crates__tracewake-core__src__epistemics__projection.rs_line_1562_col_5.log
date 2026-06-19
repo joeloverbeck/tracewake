@@ -1,0 +1,81 @@
+
+*** crates/tracewake-core/src/epistemics/projection.rs:1562:5: replace debug_observation_entry -> DebugObservationEntry with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace debug_observation_entry -> DebugObservationEntry with Default::default()
+@@ -1554,30 +1554,17 @@
+             .contradiction_ids()
+             .iter()
+             .map(|id| id.as_str().to_string())
+             .collect(),
+     }
+ }
+ 
+ fn debug_observation_entry(observation: &Observation) -> DebugObservationEntry {
+-    DebugObservationEntry {
+-        observation_id: observation.observation_id().as_str().to_string(),
+-        observer_actor_id: observation.observer_actor_id().clone(),
+-        channel: observation.channel().stable_id().to_string(),
+-        confidence: observation.confidence().serialize_canonical(),
+-        confidence_parts_per_thousand: observation.confidence().parts_per_thousand(),
+-        confidence_class: if observation.confidence().is_low() {
+-            "low"
+-        } else {
+-            "standard"
+-        }
+-        .to_string(),
+-        source: source_summary(observation.source()),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn debug_contradiction_entry(contradiction: &Contradiction) -> DebugContradictionEntry {
+     DebugContradictionEntry {
+         contradiction_id: contradiction.contradiction_id().as_str().to_string(),
+         holder_actor_id: contradiction.holder_actor_id().clone(),
+         expectation_belief_id: contradiction
+             .prior_expectation_belief_id()
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): couldn't read metadata for file `target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `DebugObservationEntry: Default` is not satisfied
+    --> crates/tracewake-core/src/epistemics/projection.rs:1562:5
+     |
+1562 |     Default::default() /* ~ changed by cargo-mutants ~ */
+     |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `DebugObservationEntry`
+    --> crates/tracewake-core/src/view_models.rs:730:1
+     |
+ 730 | pub struct DebugObservationEntry {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `view_models::DebugObservationEntry: Default` is not satisfied
+    --> crates/tracewake-core/src/epistemics/projection.rs:1562:5
+     |
+1562 |     Default::default() /* ~ changed by cargo-mutants ~ */
+     |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `view_models::DebugObservationEntry`
+    --> crates/tracewake-core/src/view_models.rs:730:1
+     |
+ 730 | pub struct DebugObservationEntry {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

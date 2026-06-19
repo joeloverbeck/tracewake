@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::IntentionAbandoned in apply_intention_transition
+@@ -1354,24 +1354,17 @@
+         EventKind::IntentionFailed => {
+             intention
+                 .fail(reason)
+                 .map_err(|err| ApplyError::BadPayload {
+                     key: "status",
+                     value: format!("{err:?}"),
+                 })?
+         }
+-        EventKind::IntentionAbandoned => {
+-            intention
+-                .abandon(reason)
+-                .map_err(|err| ApplyError::BadPayload {
+-                    key: "status",
+-                    value: format!("{err:?}"),
+-                })?
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::IntentionInterrupted => {
+             intention
+                 .interrupt(reason)
+                 .map_err(|err| ApplyError::BadPayload {
+                     key: "status",
+                     value: format!("{err:?}"),
+                 })?
+         }

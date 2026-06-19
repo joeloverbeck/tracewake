@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/candidate.rs
++++ replace <impl PartialOrd for CandidateGoal>::partial_cmp -> Option<Ordering> with Some(Default::default())
+@@ -167,17 +167,17 @@
+ impl Ord for CandidateGoal {
+     fn cmp(&self, other: &Self) -> Ordering {
+         self.ordering_key().cmp(&other.ordering_key())
+     }
+ }
+ 
+ impl PartialOrd for CandidateGoal {
+     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+-        Some(self.cmp(other))
++        Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
+     fn id(value: &str) -> CandidateGoalId {

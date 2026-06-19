@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace join -> String with "xyzzy".into()
+@@ -733,17 +733,17 @@
+         value
+             .split(',')
+             .map(|part| parse(part).map_err(Into::into))
+             .collect()
+     }
+ }
+ 
+ fn join<'a>(values: impl Iterator<Item = &'a str>) -> String {
+-    values.collect::<Vec<_>>().join(",")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn join_encoded(values: &[String]) -> String {
+     values
+         .iter()
+         .map(|value| encode(value))
+         .collect::<Vec<_>>()
+         .join(",")

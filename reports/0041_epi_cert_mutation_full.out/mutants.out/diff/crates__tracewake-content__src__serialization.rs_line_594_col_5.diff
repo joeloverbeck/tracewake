@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_tick -> Result<SimTick, SerializationError> with Ok(Default::default())
+@@ -586,17 +586,17 @@
+         value
+             .parse::<u16>()
+             .map_err(|_| SerializationError::BadU64(value.to_string()))?,
+     )
+     .map_err(Into::into)
+ }
+ 
+ fn parse_tick(value: &str) -> Result<SimTick, SerializationError> {
+-    parse_u64(value).map(SimTick::new)
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_optional_tick(value: &str) -> Result<Option<SimTick>, SerializationError> {
+     if value.is_empty() {
+         Ok(None)
+     } else {
+         parse_tick(value).map(Some)
+     }

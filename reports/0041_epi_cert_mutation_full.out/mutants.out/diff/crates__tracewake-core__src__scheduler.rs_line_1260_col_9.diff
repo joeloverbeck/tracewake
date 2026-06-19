@@ -1,0 +1,39 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::append_routine_stuck_diagnostics with ()
+@@ -1252,35 +1252,17 @@
+         agent_state: &mut AgentState,
+         process_id: &ProcessId,
+         actor_id: &ActorId,
+         window: &DayWindow,
+         content_manifest_id: &ContentManifestId,
+         stuck_diagnostic_event_ids: &mut Vec<EventId>,
+         scheduler_errors: &mut Vec<NoHumanSchedulerError>,
+     ) {
+-        let diagnostics = routine_stuck_diagnostic_kinds(agent_state, actor_id, window);
+-        for (kind, execution_id) in diagnostics {
+-            let event = append_stuck_diagnostic(
+-                log,
+-                process_id,
+-                actor_id,
+-                window,
+-                content_manifest_id,
+-                kind,
+-                Some(execution_id),
+-            );
+-            match apply_agent_event(agent_state, &event) {
+-                Ok(_) => stuck_diagnostic_event_ids.push(event.event_id),
+-                Err(error) => scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+-                    event_id: event.event_id,
+-                    error,
+-                }),
+-            }
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn routine_stuck_diagnostic_kinds(
+         agent_state: &AgentState,
+         actor_id: &ActorId,
+         window: &DayWindow,
+     ) -> Vec<(StuckDiagnosticKind, RoutineExecutionId)> {
+         agent_state

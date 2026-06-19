@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventSchemaVersion::as_str -> &'static str with ""
+@@ -30,19 +30,17 @@
+ }];
+ 
+ impl EventSchemaVersion {
+     pub const fn all() -> &'static [EventSchemaVersion] {
+         &[EventSchemaVersion::V1]
+     }
+ 
+     pub const fn as_str(self) -> &'static str {
+-        match self {
+-            EventSchemaVersion::V1 => "event_schema_v1",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn to_schema_version(self) -> SchemaVersion {
+         SchemaVersion::new(self.as_str()).expect("event schema registry uses valid stable ids")
+     }
+ 
+     pub fn from_schema_version(version: &SchemaVersion) -> Option<Self> {
+         EVENT_SCHEMA_REGISTRY

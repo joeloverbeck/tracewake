@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ replace == with != in payload_value
+@@ -551,17 +551,17 @@
+         .and_then(|needs| needs.get(&need_kind))
+         .map(crate::agent::NeedState::value)
+ }
+ 
+ fn payload_value<'a>(event: &'a EventEnvelope, key: &'static str) -> Result<&'a str, ApplyError> {
+     event
+         .payload
+         .iter()
+-        .find(|field| field.key == key)
++        .find(|field| field.key != /* ~ changed by cargo-mutants ~ */ key)
+         .map(|field| field.value.as_str())
+         .ok_or(ApplyError::MissingPayload(key))
+ }
+ 
+ fn payload_i32(event: &EventEnvelope, key: &'static str) -> Result<i32, ApplyError> {
+     let value = event
+         .payload
+         .iter()

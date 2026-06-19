@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_u8 -> Result<u8, ApplyError> with Ok(1)
+@@ -1156,21 +1156,17 @@
+         .map(Some)
+         .map_err(|_| ApplyError::BadPayload {
+             key: "selected_routine_method",
+             value: value.to_string(),
+         })
+ }
+ 
+ fn parse_u8(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<u8, ApplyError> {
+-    let value = required(payload, key)?;
+-    value.parse::<u8>().map_err(|_| ApplyError::BadPayload {
+-        key,
+-        value: value.to_string(),
+-    })
++    Ok(1) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_u64_agent(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<u64, ApplyError> {
+     let value = required(payload, key)?;
+     value.parse::<u64>().map_err(|_| ApplyError::BadPayload {
+         key,
+         value: value.to_string(),
+     })

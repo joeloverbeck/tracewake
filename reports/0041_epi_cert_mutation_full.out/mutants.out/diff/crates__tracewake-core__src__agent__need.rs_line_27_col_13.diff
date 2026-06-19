@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ delete match arm "fatigue" in NeedKind::parse
+@@ -19,17 +19,17 @@
+             NeedKind::Fatigue => "fatigue",
+             NeedKind::Safety => "safety",
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, NeedParseError> {
+         match value {
+             "hunger" => Ok(Self::Hunger),
+-            "fatigue" => Ok(Self::Fatigue),
++             /* ~ changed by cargo-mutants ~ */
+             "safety" => Ok(Self::Safety),
+             _ => Err(NeedParseError::InvalidNeedKind),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum NeedBand {

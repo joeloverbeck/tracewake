@@ -1,0 +1,23 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace parse_u16 -> Result<u16, SerializationError> with Ok(0)
+@@ -598,19 +598,17 @@
+     if value.is_empty() {
+         Ok(None)
+     } else {
+         parse_tick(value).map(Some)
+     }
+ }
+ 
+ fn parse_u16(value: &str) -> Result<u16, SerializationError> {
+-    value
+-        .parse::<u16>()
+-        .map_err(|_| SerializationError::BadU64(value.to_string()))
++    Ok(0) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_u32(value: &str) -> Result<u32, SerializationError> {
+     value
+         .parse::<u32>()
+         .map_err(|_| SerializationError::BadU64(value.to_string()))
+ }
+ 

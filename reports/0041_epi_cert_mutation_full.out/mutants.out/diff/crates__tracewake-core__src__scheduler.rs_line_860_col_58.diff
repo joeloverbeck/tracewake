@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace == with != in no_human::eligible_routine_execution_for_actor
+@@ -852,17 +852,17 @@
+     fn eligible_routine_execution_for_actor<'a>(
+         agent_state: &'a AgentState,
+         actor_id: &ActorId,
+         window: &DayWindow,
+     ) -> Option<(&'a RoutineExecutionId, &'a crate::agent::RoutineExecution)> {
+         agent_state
+             .routine_executions
+             .iter()
+-            .filter(|(_, execution)| &execution.actor_id == actor_id)
++            .filter(|(_, execution)| &execution.actor_id != /* ~ changed by cargo-mutants ~ */ actor_id)
+             .filter(|(_, execution)| {
+                 execution.start_tick <= window.start_tick
+                     && execution
+                         .deadline_tick
+                         .is_none_or(|deadline| window.start_tick < deadline)
+             })
+             .filter(|(_, execution)| {
+                 !matches!(

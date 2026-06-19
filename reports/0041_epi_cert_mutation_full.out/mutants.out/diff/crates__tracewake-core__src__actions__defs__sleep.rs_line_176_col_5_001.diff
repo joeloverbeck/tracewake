@@ -1,0 +1,41 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace build_sleep_completion_events -> Result<Vec<EventEnvelope>, ApplyError> with Ok(vec![Default::default()])
+@@ -168,37 +168,17 @@
+     state: &PhysicalState,
+     agent_state: &AgentState,
+     log: &EventLog,
+     sleep_started_event: &EventEnvelope,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,
+     completion_tick: SimTick,
+ ) -> Result<Vec<EventEnvelope>, ApplyError> {
+-    if let Some(reason) = sleep_interruption_reason(state, agent_state, sleep_started_event) {
+-        return build_sleep_interruption_events(
+-            agent_state,
+-            sleep_started_event,
+-            log,
+-            ordering_key,
+-            content_manifest_id,
+-            completion_tick,
+-            reason,
+-        );
+-    }
+-    build_sleep_end_events(
+-        agent_state,
+-        sleep_started_event,
+-        log,
+-        ordering_key,
+-        content_manifest_id,
+-        completion_tick,
+-        EventKind::SleepCompleted,
+-        "sleep completed",
+-    )
++    Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn sleep_interruption_reason(
+     state: &PhysicalState,
+     agent_state: &AgentState,
+     sleep_started_event: &EventEnvelope,
+ ) -> Option<&'static str> {
+     let Some(actor_id) = sleep_started_event.actor_id.as_ref() else {

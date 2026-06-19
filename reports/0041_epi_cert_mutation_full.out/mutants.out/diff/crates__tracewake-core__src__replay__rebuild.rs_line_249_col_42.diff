@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace == with != in rebuild_decision_context_hash
+@@ -241,17 +241,17 @@
+                 crate::events::EventCause::Event(event_id) => Some(event_id.clone()),
+                 _ => None,
+             })
+         })
+         .ok_or_else(|| Box::new(phase3a_failure(trace_event, "missing_ordinary_event_id")))?;
+     let ordinary_index = log
+         .events()
+         .iter()
+-        .position(|event| event.event_id == ordinary_event_id)
++        .position(|event| event.event_id != /* ~ changed by cargo-mutants ~ */ ordinary_event_id)
+         .ok_or_else(|| Box::new(phase3a_failure(trace_event, "ordinary_event_not_found")))?;
+     let trace_index = log
+         .events()
+         .iter()
+         .position(|event| event.event_id == trace_event.event_id)
+         .ok_or_else(|| {
+             Box::new(phase3a_failure(
+                 trace_event,

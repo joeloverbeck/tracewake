@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace && with || in resolve_condition
+@@ -221,17 +221,17 @@
+                 && !has_modeled_fact(actor_known_facts, "food_search_knowledge_local_visible")
+             {
+                 return unknown(condition, "no modeled actor-known food search source");
+             }
+             satisfied(condition, "actor_known_state:food_search_source")
+         }
+         RoutineCondition::SearchSurfaceActorKnown => {
+             if actor_known_state.known_food_sources().is_empty()
+-                && actor_known_state.known_containers_by_place().is_empty()
++                || /* ~ changed by cargo-mutants ~ */ actor_known_state.known_containers_by_place().is_empty()
+                 && !has_modeled_fact(actor_known_facts, "food_search_knowledge_local_visible")
+             {
+                 return unknown(condition, "no actor-known search surface");
+             }
+             satisfied(condition, "actor_known_state:search_surface")
+         }
+         RoutineCondition::KnownRouteSurface => {
+             if actor_known_state.known_edges().is_empty()

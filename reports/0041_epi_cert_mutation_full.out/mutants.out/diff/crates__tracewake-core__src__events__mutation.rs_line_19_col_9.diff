@@ -1,0 +1,15 @@
+--- crates/tracewake-core/src/events/mutation.rs
++++ replace AgentMutationCapability::mint -> Self with Default::default()
+@@ -11,11 +11,11 @@
+ impl WorldMutationCapability {
+     pub(in crate::events) fn mint() -> Self {
+         Self { _private: () }
+     }
+ }
+ 
+ impl AgentMutationCapability {
+     pub(in crate::events) fn mint() -> Self {
+-        Self { _private: () }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }

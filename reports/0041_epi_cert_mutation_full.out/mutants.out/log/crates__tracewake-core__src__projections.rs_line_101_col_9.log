@@ -1,0 +1,92 @@
+
+*** crates/tracewake-core/src/projections.rs:101:9: replace EmbodiedTruthSnapshot::from_physical_state -> Self with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/projections.rs
++++ replace EmbodiedTruthSnapshot::from_physical_state -> Self with Default::default()
+@@ -93,41 +93,17 @@
+ pub struct EmbodiedTruthSnapshot {
+     current_place_id: PlaceId,
+     place_label: String,
+     carried_items: Vec<VisibleItem>,
+ }
+ 
+ impl EmbodiedTruthSnapshot {
+     pub fn from_physical_state(context: &KnowledgeContext, state: &PhysicalState) -> Self {
+-        let actor = state
+-            .actors
+-            .get(context.viewer_actor_id())
+-            .expect("sealed embodied source requires an existing viewer actor");
+-        let current_place_id = actor.current_place_id.clone();
+-        let place_label = actor_known_current_place_label(context, &current_place_id)
+-            .expect("sealed embodied source requires observed current-place label")
+-            .to_string();
+-        let mut carried_items = actor
+-            .carried_item_ids
+-            .iter()
+-            .filter_map(|item_id| {
+-                actor_known_carried_item(context, item_id).map(|item| VisibleItem {
+-                    item_id: item.item_id().clone(),
+-                    source: visible_item_source(item.source()),
+-                    portable: item.portable(),
+-                })
+-            })
+-            .collect::<Vec<_>>();
+-        carried_items.sort();
+-        Self {
+-            current_place_id,
+-            place_label,
+-            carried_items,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn actor_known_current_place_label<'a>(
+     context: &'a KnowledgeContext,
+     current_place_id: &PlaceId,
+ ) -> Option<&'a str> {
+     context
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/debug_reports.rs` has changed (1781904463.923923684s, 3s after last build at 1781904460.723923682s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `EmbodiedTruthSnapshot: Default` is not satisfied
+   --> crates/tracewake-core/src/projections.rs:101:9
+    |
+101 |         Default::default() /* ~ changed by cargo-mutants ~ */
+    |         ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `EmbodiedTruthSnapshot`
+   --> crates/tracewake-core/src/projections.rs:93:1
+    |
+ 93 | pub struct EmbodiedTruthSnapshot {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `projections::EmbodiedTruthSnapshot: Default` is not satisfied
+   --> crates/tracewake-core/src/projections.rs:101:9
+    |
+101 |         Default::default() /* ~ changed by cargo-mutants ~ */
+    |         ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `projections::EmbodiedTruthSnapshot`
+   --> crates/tracewake-core/src/projections.rs:93:1
+    |
+ 93 | pub struct EmbodiedTruthSnapshot {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

@@ -1,0 +1,40 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace NoHumanDayMetrics::serialize_canonical -> String with String::new()
+@@ -362,36 +362,17 @@
+     pub replay_failure_count: usize,
+     pub tui_action_coverage: usize,
+     pub player_conditioned_event_count: usize,
+     pub player_conditioned_event_rate_per_1000: u64,
+ }
+ 
+ impl NoHumanDayMetrics {
+     pub fn serialize_canonical(&self) -> String {
+-        format!(
+-            "no_human_day_metrics_v1|events={}|routine_events={}|meals_completed={}|meals_missed={}|sleep_completed={}|sleep_interrupted={}|work_completed={}|work_failed={}|need_crossings={}|routine_interruptions={}|planner_failures={}|stuck_actors={}|run_duration_ticks={}|replay_failures={}|tui_action_coverage={}|player_conditioned_events={}|player_conditioned_rate_per_1000={}",
+-            self.events_per_day,
+-            self.routine_event_count,
+-            self.meals_completed,
+-            self.meals_missed,
+-            self.sleep_completed,
+-            self.sleep_interrupted,
+-            self.work_blocks_completed,
+-            self.work_blocks_failed,
+-            self.need_threshold_crossings,
+-            self.routine_interruptions,
+-            self.planner_failures,
+-            self.stuck_actor_count,
+-            self.run_duration_ticks,
+-            self.replay_failure_count,
+-            self.tui_action_coverage,
+-            self.player_conditioned_event_count,
+-            self.player_conditioned_event_rate_per_1000
+-        )
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub fn no_human_day_metrics(log: &EventLog) -> NoHumanDayMetrics {
+     let events = log.events();
+     let player_conditioned_event_count = events
+         .iter()
+         .filter(|event| contains_player_conditioned_fact(event))

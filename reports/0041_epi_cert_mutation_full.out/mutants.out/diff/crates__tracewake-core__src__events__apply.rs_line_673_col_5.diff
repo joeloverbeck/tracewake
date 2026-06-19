@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace require_payload_version -> Result<(), ApplyError> with Ok(())
+@@ -665,25 +665,17 @@
+         .ok_or(ApplyError::MissingPayload(key))
+ }
+ 
+ fn require_payload_version(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+     expected: &'static str,
+ ) -> Result<(), ApplyError> {
+-    let actual = required(payload, key)?;
+-    if actual == expected {
+-        Ok(())
+-    } else {
+-        Err(ApplyError::BadPayload {
+-            key,
+-            value: actual.to_string(),
+-        })
+-    }
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn required_epistemic<'a>(
+     payload: &'a BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<&'a str, EpistemicApplyError> {
+     payload
+         .get(key)

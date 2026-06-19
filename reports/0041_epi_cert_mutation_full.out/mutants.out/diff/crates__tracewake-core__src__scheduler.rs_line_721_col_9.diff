@@ -1,0 +1,73 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::build_agent_proposal -> Option<BuiltAgentProposal> with None
+@@ -713,69 +713,17 @@
+     fn build_agent_proposal(
+         state: &PhysicalState,
+         agent_state: &AgentState,
+         log: &EventLog,
+         actor_id: &ActorId,
+         window: &DayWindow,
+         content_manifest_id: &ContentManifestId,
+     ) -> Option<BuiltAgentProposal> {
+-        let actor = state.actors.get(actor_id)?;
+-        let epistemic_projection = epistemic_projection_from_log(log, content_manifest_id);
+-        let actor_known_state =
+-            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+-                projection: &epistemic_projection,
+-                agent_state,
+-                actor_id: actor_id.clone(),
+-                current_place_id: actor.current_place_id.clone(),
+-                decision_tick: window.start_tick,
+-                window_id: &window.window_id,
+-                window_end_tick: window.end_tick,
+-                current_place_witness_event_id: latest_current_place_perception_event_id(
+-                    log,
+-                    actor_id,
+-                    window.start_tick,
+-                    &actor.current_place_id,
+-                ),
+-                needs_witness_event_id: latest_need_event_id(log, actor_id),
+-                frame_event_id: latest_frame_event_id(log),
+-            })
+-            .build(agent_state)
+-            .into_context();
+-        let source_event_ids = log
+-            .events()
+-            .iter()
+-            .map(|event| event.event_id.clone())
+-            .collect::<std::collections::BTreeSet<_>>();
+-        let source_event_kinds = log
+-            .events()
+-            .iter()
+-            .map(|event| (event.event_id.clone(), event.event_type))
+-            .collect::<std::collections::BTreeMap<_, _>>();
+-        match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+-            actor_id: actor_id.clone(),
+-            decision_tick: window.start_tick,
+-            agent_state,
+-            actor_known_context: &actor_known_state,
+-            source_event_ids: Some(&source_event_ids),
+-            source_event_kinds: Some(&source_event_kinds),
+-            routine_window_family: routine_window_family(
+-                agent_state,
+-                actor_id,
+-                window,
+-                &actor_known_state,
+-            ),
+-            include_idle_fallback: true,
+-        }) {
+-            ActorDecisionTransactionOutcome::Proposed(proposed) => Some(BuiltAgentProposal {
+-                proposal: proposed.proposal.into_proposal(),
+-                decision_trace_record: proposed.decision_trace_record,
+-            }),
+-            ActorDecisionTransactionOutcome::Stuck { .. } => None,
+-        }
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn epistemic_projection_from_log(
+         log: &EventLog,
+         content_manifest_id: &ContentManifestId,
+     ) -> EpistemicProjection {
+         let mut projection = EpistemicProjection::new(content_manifest_id.clone());
+         for event in log.events() {

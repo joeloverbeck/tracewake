@@ -1,0 +1,43 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace apply_need_delta -> Result<(), ApplyError> with Ok(())
+@@ -1176,39 +1176,17 @@
+     })
+ }
+ 
+ fn apply_need_delta(
+     state: &mut AgentState,
+     event: &EventEnvelope,
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<(), ApplyError> {
+-    let actor_id = parse_actor_id(payload)?;
+-    let need_kind = parse_need_kind(payload)?;
+-    let delta = parse_i32(payload, "delta")?;
+-    let cause = parse_need_change_cause(payload)?;
+-    assert_single_tick_delta_charge(state, event, payload, &actor_id, need_kind)?;
+-    if matches!(cause, NeedChangeCause::FixtureInitial) {
+-        let needs = state.needs_by_actor.entry(actor_id.clone()).or_default();
+-        needs
+-            .entry(need_kind)
+-            .or_insert_with(|| crate::agent::NeedState::initial(need_kind, 0, cause.clone()));
+-    }
+-
+-    let need_state = state
+-        .needs_by_actor
+-        .get_mut(&actor_id)
+-        .and_then(|needs| needs.get_mut(&need_kind))
+-        .ok_or_else(|| ApplyError::MissingNeedState {
+-            actor_id: actor_id.clone(),
+-            need_kind,
+-        })?;
+-
+-    need_state.apply_delta(delta, cause);
+-    Ok(())
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn assert_single_tick_delta_charge(
+     state: &mut AgentState,
+     event: &EventEnvelope,
+     payload: &BTreeMap<&str, &str>,
+     actor_id: &ActorId,
+     need_kind: NeedKind,

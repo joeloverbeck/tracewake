@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace typed_responsible_layer -> Option<ResponsibleLayer> with Some(Default::default())
+@@ -481,17 +481,17 @@
+                 BlockerCode::PlannerBudgetExhausted
+                     | BlockerCode::EmptyLocalPlan
+                     | BlockerCode::LocalPlanFailed
+             )
+         )
+ }
+ 
+ fn typed_responsible_layer(event: &EventEnvelope) -> Option<ResponsibleLayer> {
+-    payload_value(event, "responsible_layer").and_then(|value| ResponsibleLayer::parse(value).ok())
++    Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn typed_blocker_code(event: &EventEnvelope) -> Option<BlockerCode> {
+     payload_value(event, "blocker_code").and_then(|value| BlockerCode::parse(value).ok())
+ }
+ 
+ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+     event

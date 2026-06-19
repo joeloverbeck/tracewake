@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::candidate_goal_evaluations -> &BTreeMap<crate::ids::EventId, CandidateGoalEvaluationRecord> with Box::leak(Box::new(BTreeMap::new()))
+@@ -339,17 +339,17 @@
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, OrdinaryLifeEpisodeRecord> {
+         &self.ordinary_life_episodes
+     }
+ 
+     pub fn candidate_goal_evaluations(
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, CandidateGoalEvaluationRecord> {
+-        &self.candidate_goal_evaluations
++        Box::leak(Box::new(BTreeMap::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn continue_routine_arbitrations(
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, ContinueRoutineArbitrationRecord> {
+         &self.continue_routine_arbitrations
+     }
+ }

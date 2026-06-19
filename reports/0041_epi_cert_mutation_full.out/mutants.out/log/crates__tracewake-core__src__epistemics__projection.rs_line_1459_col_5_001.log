@@ -1,0 +1,91 @@
+
+*** crates/tracewake-core/src/epistemics/projection.rs:1459:5: replace actor_known_record_from_starting_belief -> Option<ActorKnownProjectionRecord> with Some(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace actor_known_record_from_starting_belief -> Option<ActorKnownProjectionRecord> with Some(Default::default())
+@@ -1451,40 +1451,17 @@
+ fn actor_known_record_from_starting_belief(
+     actor_id: ActorId,
+     belief_kind: &str,
+     subject_id: &str,
+     value: &str,
+     source_event_id: EventId,
+     source_tick: SimTick,
+ ) -> Option<ActorKnownProjectionRecord> {
+-    match belief_kind {
+-        "sleep_place" => Some(ActorKnownProjectionRecord::SleepPlace {
+-            actor_id,
+-            place_id: PlaceId::new(value).ok()?,
+-            sleep_affordance_id: Some(subject_id.to_string()),
+-            source: ActorKnownProjectionSource::StartingBelief,
+-            source_event_id,
+-            source_tick,
+-        }),
+-        "household_food_source" => {
+-            let place_value = value.strip_prefix("place:")?;
+-            let place_id = PlaceId::new(place_value).ok()?;
+-            Some(ActorKnownProjectionRecord::FoodSource {
+-                actor_id,
+-                food_source_id: subject_id.to_string(),
+-                place_id: Some(place_id),
+-                believed_servings: None,
+-                source: ActorKnownProjectionSource::StartingBelief,
+-                source_event_id,
+-                source_tick,
+-            })
+-        }
+-        _ => None,
+-    }
++    Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn source_event_id(source: &SourceRef) -> Option<EventId> {
+     match source {
+         SourceRef::Event(event_id) => Some(event_id.clone()),
+         SourceRef::Action(_) | SourceRef::Cause(_) => None,
+     }
+ }
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/epistemics/projection.rs` has changed (1781909632.919922835s, 3s after last build at 1781909629.059922835s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ActorKnownProjectionRecord: Default` is not satisfied
+    --> crates/tracewake-core/src/epistemics/projection.rs:1459:10
+     |
+1459 |     Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+     |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `ActorKnownProjectionRecord`
+    --> crates/tracewake-core/src/epistemics/projection.rs:50:1
+     |
+  50 | pub enum ActorKnownProjectionRecord {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `projection::ActorKnownProjectionRecord: Default` is not satisfied
+    --> crates/tracewake-core/src/epistemics/projection.rs:1459:10
+     |
+1459 |     Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+     |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+     |
+help: the trait `Default` is not implemented for `projection::ActorKnownProjectionRecord`
+    --> crates/tracewake-core/src/epistemics/projection.rs:50:1
+     |
+  50 | pub enum ActorKnownProjectionRecord {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

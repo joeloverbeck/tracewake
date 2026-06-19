@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace HolderKnownContextHash::as_str -> &str with ""
+@@ -517,17 +517,17 @@
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct HolderKnownContextHash(String);
+ 
+ impl HolderKnownContextHash {
+     pub fn as_str(&self) -> &str {
+-        &self.0
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn from_canonical_lines(lines: &[String]) -> Self {
+         let physical = PhysicalChecksum::from_canonical_lines(lines);
+         Self(format!(
+             "hkc1-{}",
+             physical.as_str().trim_start_matches("twc1-")
+         ))

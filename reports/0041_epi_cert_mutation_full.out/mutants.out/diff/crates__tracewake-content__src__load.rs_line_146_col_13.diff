@@ -1,0 +1,23 @@
+--- crates/tracewake-content/src/load.rs
++++ delete match arm (Some("fixture_scope"), ..) in fixture_scope_from_raw_lines
+@@ -138,19 +138,17 @@
+             }
+             (Some("fixture_scope"), Some("phase3a_historical"), None) => {
+                 if scope.replace(FixtureScope::Phase3AHistorical).is_some() {
+                     return Err(SerializationError::BadLine(
+                         "duplicate fixture_scope".to_string(),
+                     ));
+                 }
+             }
+-            (Some("fixture_scope"), ..) => {
+-                return Err(SerializationError::BadLine(line.to_string()));
+-            }
++             /* ~ changed by cargo-mutants ~ */
+             _ => {}
+         }
+     }
+     scope.ok_or(SerializationError::MissingField("fixture_scope"))
+ }
+ 
+ fn seed_epistemic_projection(
+     manifest_id: ContentManifestId,

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "physical" in BlockerCategory::parse
+@@ -576,17 +576,17 @@
+             BlockerCategory::UnsupportedAction => "unsupported_action",
+             BlockerCategory::PlannerBudgetExhausted => "planner_budget_exhausted",
+             BlockerCategory::FixtureAuthoringError => "fixture_authoring_error",
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, StuckDiagnosticParseError> {
+         match value {
+-            "physical" => Ok(Self::Physical),
++             /* ~ changed by cargo-mutants ~ */
+             "access" => Ok(Self::Access),
+             "knowledge" => Ok(Self::Knowledge),
+             "resource" => Ok(Self::Resource),
+             "social_norm_placeholder" => Ok(Self::SocialNormPlaceholder),
+             "scheduling_reservation" => Ok(Self::SchedulingReservation),
+             "unsupported_action" => Ok(Self::UnsupportedAction),
+             "planner_budget_exhausted" => Ok(Self::PlannerBudgetExhausted),
+             "fixture_authoring_error" => Ok(Self::FixtureAuthoringError),

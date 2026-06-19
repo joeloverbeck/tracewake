@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_optional_tick -> Result<Option<SimTick>, EpistemicApplyError> with Ok(Some(Default::default()))
+@@ -770,20 +770,17 @@
+         })?;
+     Ok(SimTick::new(parsed))
+ }
+ 
+ fn parse_optional_tick(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<Option<SimTick>, EpistemicApplyError> {
+-    payload
+-        .get(key)
+-        .map(|_| parse_tick(payload, key))
+-        .transpose()
++    Ok(Some(Default::default())) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_confidence(payload: &BTreeMap<&str, &str>) -> Result<Confidence, EpistemicApplyError> {
+     let value = required_epistemic(payload, "confidence")?;
+     let parsed = value
+         .parse::<u16>()
+         .map_err(|_| EpistemicApplyError::BadPayload {
+             key: "confidence",

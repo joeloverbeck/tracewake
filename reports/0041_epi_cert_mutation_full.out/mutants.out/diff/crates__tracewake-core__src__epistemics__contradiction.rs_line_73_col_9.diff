@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/contradiction.rs
++++ replace Contradiction::contradiction_id -> &ContradictionId with Box::leak(Box::new(Default::default()))
+@@ -65,17 +65,17 @@
+             expected_proposition,
+             observed_proposition,
+             detected_tick,
+             schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+         }
+     }
+ 
+     pub fn contradiction_id(&self) -> &ContradictionId {
+-        &self.contradiction_id
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn holder_actor_id(&self) -> &ActorId {
+         &self.holder_actor_id
+     }
+ 
+     pub fn kind(&self) -> ContradictionKind {
+         self.kind

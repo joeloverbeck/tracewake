@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "false" in decode_bool
+@@ -894,17 +894,17 @@
+     } else {
+         "false"
+     }
+ }
+ 
+ fn decode_bool(value: &str) -> Option<bool> {
+     match value {
+         "true" => Some(true),
+-        "false" => Some(false),
++         /* ~ changed by cargo-mutants ~ */
+         _ => None,
+     }
+ }
+ 
+ fn encode_opt_need(value: Option<NeedKind>) -> &'static str {
+     match value {
+         Some(NeedKind::Hunger) => "hunger",
+         Some(NeedKind::Fatigue) => "fatigue",

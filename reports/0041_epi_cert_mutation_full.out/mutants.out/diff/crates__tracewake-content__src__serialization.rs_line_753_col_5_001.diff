@@ -1,0 +1,25 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace split_encoded -> Result<Vec<String>, SerializationError> with Ok(vec![String::new()])
+@@ -745,21 +745,17 @@
+     values
+         .iter()
+         .map(|value| encode(value))
+         .collect::<Vec<_>>()
+         .join(",")
+ }
+ 
+ fn split_encoded(value: &str) -> Result<Vec<String>, SerializationError> {
+-    if value.is_empty() {
+-        Ok(Vec::new())
+-    } else {
+-        value.split(',').map(decode).collect()
+-    }
++    Ok(vec![String::new()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn join_usize(values: &[usize]) -> String {
+     values
+         .iter()
+         .map(usize::to_string)
+         .collect::<Vec<_>>()
+         .join(",")

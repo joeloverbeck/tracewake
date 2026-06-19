@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ delete match arm "replay_debug" in stream_from_id
+@@ -1008,17 +1008,17 @@
+ 
+ fn stream_from_id(value: &str) -> Option<EventStream> {
+     match value {
+         "world" => Some(EventStream::World),
+         "agent" => Some(EventStream::Agent),
+         "epistemic" => Some(EventStream::Epistemic),
+         "diagnostic" => Some(EventStream::Diagnostic),
+         "controller" => Some(EventStream::Controller),
+-        "replay_debug" => Some(EventStream::ReplayDebug),
++         /* ~ changed by cargo-mutants ~ */
+         _ => None,
+     }
+ }
+ 
+ fn serialize_ordering_key(key: &OrderingKey) -> String {
+     [
+         key.sim_tick.value().to_string(),
+         schedule_phase_id(&key.phase).to_string(),

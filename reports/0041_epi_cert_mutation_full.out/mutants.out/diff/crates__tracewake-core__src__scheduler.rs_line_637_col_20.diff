@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ delete ! in no_human::run_no_human_day
+@@ -629,17 +629,17 @@
+                 if !state.actors.contains_key(actor_id) {
+                     continue;
+                 }
+                 if duration_skip_by_window_actor
+                     .contains(&(window.window_id.clone(), actor_id.clone()))
+                 {
+                     continue;
+                 }
+-                if !progress_by_window_actor
++                if  /* ~ changed by cargo-mutants ~ */progress_by_window_actor
+                     .contains_key(&(window.window_id.clone(), actor_id.clone()))
+                 {
+                     let event = append_stuck_diagnostic(
+                         log,
+                         &process_id,
+                         actor_id,
+                         window,
+                         &content_manifest_id,

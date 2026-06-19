@@ -1,0 +1,21 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::render_debug_no_human_day_panel -> String with String::new()
+@@ -425,17 +425,17 @@
+         render_phase3a_debug_panel(&phase3a_planner_report(&self.agent_state, actor_id))
+     }
+ 
+     pub fn render_debug_stuck_panel(&self) -> String {
+         render_phase3a_debug_panel(&phase3a_stuck_report(&self.agent_state))
+     }
+ 
+     pub fn render_debug_no_human_day_panel(&self) -> String {
+-        render_no_human_day_panel(&no_human_day_debug_report(&self.log))
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn render_debug_actor_panel(&self, actor_id: &ActorId) -> String {
+         render_phase3a_debug_panel(&phase3a_actor_report(&self.agent_state, actor_id))
+     }
+ 
+     pub fn notebook_view(&self) -> Result<NotebookView, AppError> {
+         self.current_view()?.notebook.ok_or(AppError::ActorNotBound)

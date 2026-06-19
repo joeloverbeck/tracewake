@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/contradiction.rs
++++ replace Contradiction::schema_version -> &SchemaVersion with Box::leak(Box::new(Default::default()))
+@@ -97,17 +97,17 @@
+         &self.observed_proposition
+     }
+ 
+     pub fn detected_tick(&self) -> SimTick {
+         self.detected_tick
+     }
+ 
+     pub fn schema_version(&self) -> &SchemaVersion {
+-        &self.schema_version
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[allow(clippy::too_many_arguments)]
+ pub fn detect_expected_absences(
+     holder_actor_id: &ActorId,
+     checked_container_id: &ContainerId,
+     observed_item_ids: &BTreeSet<ItemId>,

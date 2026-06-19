@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ delete ! in no_human::routine_stuck_diagnostic_kinds
+@@ -1304,17 +1304,17 @@
+                     && execution.fallback_attempts > 0
+                     && execution.last_progress_tick < window.start_tick
+                 {
+                     diagnostics.push((StuckDiagnosticKind::RepeatedIdleWait, execution_id.clone()));
+                 }
+                 diagnostics
+             })
+             .filter(|(kind, execution_id)| {
+-                !agent_state.stuck_diagnostics().contains_key(
++                 /* ~ changed by cargo-mutants ~ */agent_state.stuck_diagnostics().contains_key(
+                     &StuckDiagnosticId::new(format!(
+                         "diagnostic_{}_{}_{}_{}",
+                         kind.stable_id(),
+                         actor_id.as_str(),
+                         window.window_id,
+                         execution_id.as_str()
+                     ))
+                     .unwrap(),

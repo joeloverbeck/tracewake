@@ -1,0 +1,82 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace phase3a_routines_report -> Phase3ADebugReport with Default::default()
+@@ -326,78 +326,17 @@
+                 need.last_change_cause().stable_id()
+             ));
+         }
+     }
+     phase3a_report("debug.phase3a.needs", "Needs", rows, Vec::new(), Vec::new())
+ }
+ 
+ pub fn phase3a_routines_report(agent_state: &AgentState) -> Phase3ADebugReport {
+-    let mut rows = vec![
+-        format!("intention_count={}", agent_state.intentions.len()),
+-        format!(
+-            "active_intention_count={}",
+-            agent_state.active_intention_by_actor.len()
+-        ),
+-        format!("routine_count={}", agent_state.routine_executions.len()),
+-    ];
+-    rows.extend(
+-        agent_state
+-            .active_intention_by_actor
+-            .iter()
+-            .map(|(actor_id, intention_id)| {
+-                format!(
+-                    "active actor={} intention={}",
+-                    actor_id.as_str(),
+-                    intention_id.as_str()
+-                )
+-            }),
+-    );
+-    rows.extend(agent_state.intentions.values().map(|intention| {
+-        format!(
+-            "intention={} actor={} status={:?} goal={} method={} step={}",
+-            intention.intention_id.as_str(),
+-            intention.actor_id.as_str(),
+-            intention.status,
+-            intention.selected_goal_id.as_str(),
+-            intention
+-                .selected_routine_method
+-                .as_ref()
+-                .map(|id| id.as_str())
+-                .unwrap_or("none"),
+-            intention.current_step.as_deref().unwrap_or("none")
+-        )
+-    }));
+-    rows.extend(agent_state.routine_executions.values().map(|execution| {
+-        format!(
+-            "routine={} actor={} template={} family={} step_index={} status={:?} next_tick={} deadline={} fallback_attempts={}",
+-            execution.execution_id.as_str(),
+-            execution.actor_id.as_str(),
+-            execution.template_id.as_str(),
+-            execution.family.stable_id(),
+-            execution.current_step_index,
+-            execution.step_status,
+-            execution
+-                .expected_next_progress_tick
+-                .map(|tick| tick.value().to_string())
+-                .unwrap_or_else(|| "none".to_string()),
+-            execution
+-                .deadline_tick
+-                .map(|tick| tick.value().to_string())
+-                .unwrap_or_else(|| "none".to_string()),
+-            execution.fallback_attempts
+-        )
+-    }));
+-    phase3a_report(
+-        "debug.phase3a.routines",
+-        "Routines",
+-        rows,
+-        Vec::new(),
+-        Vec::new(),
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn phase3a_actor_report(agent_state: &AgentState, actor_id: &ActorId) -> Phase3ADebugReport {
+     let mut rows = vec![format!("actor={}", actor_id.as_str())];
+     if let Some(needs) = agent_state.needs_by_actor.get(actor_id) {
+         rows.extend(needs.values().map(|need| {
+             format!(
+                 "need={} value={} band={}",

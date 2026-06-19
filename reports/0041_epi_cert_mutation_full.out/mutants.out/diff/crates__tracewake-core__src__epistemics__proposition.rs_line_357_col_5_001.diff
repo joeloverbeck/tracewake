@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace render_location -> String with "xyzzy".into()
+@@ -349,21 +349,17 @@
+         "at_place" => Ok(Location::AtPlace(PlaceId::new(id)?)),
+         "in_container" => Ok(Location::InContainer(ContainerId::new(id)?)),
+         "carried_by" => Ok(Location::CarriedBy(ActorId::new(id)?)),
+         _ => Err(PropositionParseError::InvalidLocationShape),
+     }
+ }
+ 
+ fn render_location(location: &Location) -> String {
+-    match location {
+-        Location::AtPlace(place_id) => format!("place {place_id}"),
+-        Location::InContainer(container_id) => format!("container {container_id}"),
+-        Location::CarriedBy(actor_id) => format!("actor {actor_id}"),
+-    }
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_location(
+     location: &Location,
+     known_actors: &BTreeSet<ActorId>,
+     known_places: &BTreeSet<PlaceId>,
+     known_containers: &BTreeSet<ContainerId>,
+ ) -> Result<(), PropositionReferenceError> {

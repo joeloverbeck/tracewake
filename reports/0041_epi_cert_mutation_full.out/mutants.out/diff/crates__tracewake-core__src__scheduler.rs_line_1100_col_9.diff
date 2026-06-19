@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::credit_completion with ()
+@@ -1092,22 +1092,17 @@
+     }
+ 
+     fn credit_completion(
+         progress_by_window_actor: &mut BTreeMap<(String, ActorId), usize>,
+         windows: &[DayWindow],
+         completed_actor_id: &ActorId,
+         completion_tick: SimTick,
+     ) {
+-        for window in windows {
+-            if window.contains_tick(completion_tick) {
+-                progress_by_window_actor
+-                    .insert((window.window_id.clone(), completed_actor_id.clone()), 1);
+-            }
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn append_routine_step_completed_after_duration_completion(
+         log: &mut EventLog,
+         agent_state: &mut AgentState,
+         process_id: &ProcessId,
+         content_manifest_id: &ContentManifestId,
+         completion_event: &EventEnvelope,

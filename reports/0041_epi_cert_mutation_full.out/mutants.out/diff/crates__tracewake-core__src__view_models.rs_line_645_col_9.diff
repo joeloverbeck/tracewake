@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace DebugTruthBeliefMismatchView::debug_only -> bool with true
+@@ -637,17 +637,17 @@
+             item_id,
+             ground_truth_location: ground_truth_location.into(),
+             held_belief_summary: held_belief_summary.into(),
+             mismatch_summary: mismatch_summary.into(),
+         }
+     }
+ 
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn non_diegetic_marker(&self) -> &'static str {
+         DEBUG_EPISTEMICS_MARKER
+     }
+ }
+ 
+ fn classify_why_not(report: &ValidationReport) -> WhyNotFailureKind {

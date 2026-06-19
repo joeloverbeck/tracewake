@@ -1,0 +1,100 @@
+
+*** crates/tracewake-core/src/agent/transaction.rs:809:5: replace stuck_diagnostic_for_plan_failure -> StuckDiagnosticRecord with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace stuck_diagnostic_for_plan_failure -> StuckDiagnosticRecord with Default::default()
+@@ -801,49 +801,17 @@
+ 
+ fn stuck_diagnostic_for_plan_failure(
+     actor_id: &ActorId,
+     tick: SimTick,
+     active_goal: &CandidateGoal,
+     routine_step: Option<RoutineStep>,
+     failure: LocalPlanFailure,
+ ) -> StuckDiagnosticRecord {
+-    let blocker_code = failure.blocker.blocker_code();
+-    StuckDiagnosticRecord::new(
+-        StuckDiagnosticId::new(format!(
+-            "stuck_actor_decision_{}_{}",
+-            actor_id.as_str(),
+-            tick.value()
+-        ))
+-        .unwrap(),
+-        actor_id.clone(),
+-        tick,
+-        tick.advance_by(1),
+-        None,
+-        Some(active_goal.candidate_goal_id.clone()),
+-        None,
+-        active_goal.selected_routine_method.clone(),
+-        None,
+-        routine_step,
+-        None,
+-        failure.blocker,
+-        failure.reason,
+-        "local plan failed from actor-known inputs",
+-        format!("{:?}", failure.trace),
+-        "typed_stuck_diagnostic",
+-        StuckResultingStatus::Failed,
+-    )
+-    .with_typed_diagnostic(TypedDiagnosticFields {
+-        responsible_layer: ResponsibleLayer::LocalPlanning,
+-        blocker_code,
+-        input_source: "actor_known_context".to_string(),
+-        actual_source: "actor_decision_transaction".to_string(),
+-        hidden_truth_referenced: false,
+-        remediation_hint: "inspect local plan trace for actor-known blocker".to_string(),
+-    })
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::agent::{
+         ActorKnownFact, Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState,
+         SourceEventIds,
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/transaction.rs` has changed (1781908383.291925037s, 5s after last build at 1781908378.839925065s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `StuckDiagnostic: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/transaction.rs:809:5
+    |
+809 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `StuckDiagnostic`
+   --> crates/tracewake-core/src/agent/trace.rs:648:1
+    |
+648 | pub struct StuckDiagnostic {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `trace::StuckDiagnostic: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/transaction.rs:809:5
+    |
+809 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `trace::StuckDiagnostic`
+   --> crates/tracewake-core/src/agent/trace.rs:648:1
+    |
+648 | pub struct StuckDiagnostic {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

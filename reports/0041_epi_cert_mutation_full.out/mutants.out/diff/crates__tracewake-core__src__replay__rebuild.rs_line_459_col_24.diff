@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace != with == in diff_physical_state
+@@ -451,17 +451,17 @@
+             .get("trace_id")
+             .or_else(|| payload.get("decision_trace_id"))
+             .map(|value| (*value).to_string()),
+     }
+ }
+ 
+ pub fn diff_physical_state(expected: &PhysicalState, actual: &PhysicalState) -> Vec<String> {
+     let mut diffs = Vec::new();
+-    if expected.actors != actual.actors {
++    if expected.actors == /* ~ changed by cargo-mutants ~ */ actual.actors {
+         diffs.push(format!(
+             "actors expected={:?} actual={:?}",
+             expected.actors, actual.actors
+         ));
+     }
+     if expected.places != actual.places {
+         diffs.push(format!(
+             "places expected={:?} actual={:?}",

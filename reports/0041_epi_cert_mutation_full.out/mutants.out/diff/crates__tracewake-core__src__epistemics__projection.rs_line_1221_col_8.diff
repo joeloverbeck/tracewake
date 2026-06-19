@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ delete ! in reclassifying_record_freshness
+@@ -1213,17 +1213,17 @@
+             | ActorKnownProjectionSource::VisibleDoor
+             | ActorKnownProjectionSource::VisibleContainer
+             | ActorKnownProjectionSource::VisibleItem
+             | ActorKnownProjectionSource::VisibleActor
+             | ActorKnownProjectionSource::VisibleSleepAffordance
+     ) {
+         return ActorKnownProjectionFreshness::Remembered;
+     }
+-    if !latest_current_place_record || record.source_tick() != context_tick {
++    if  /* ~ changed by cargo-mutants ~ */latest_current_place_record || record.source_tick() != context_tick {
+         return ActorKnownProjectionFreshness::Remembered;
+     }
+     ActorKnownProjectionFreshness::CurrentlyPerceived
+ }
+ 
+ fn location_key(location: &Location) -> String {
+     match location {
+         Location::AtPlace(place_id) => format!("place:{}", place_id.as_str()),

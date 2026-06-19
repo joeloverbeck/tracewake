@@ -1,0 +1,86 @@
+
+*** crates/tracewake-core/src/agent/generation.rs:177:5: replace hunger_candidate -> CandidateGoal with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/generation.rs
++++ replace hunger_candidate -> CandidateGoal with Default::default()
+@@ -169,35 +169,17 @@
+     }
+ }
+ 
+ fn hunger_candidate(
+     input: &CandidateGenerationInput,
+     priority: GoalPriority,
+     reason: &str,
+ ) -> CandidateGoal {
+-    let knows_food = input
+-        .actor_known_facts
+-        .iter()
+-        .any(|fact| fact.stable_id() == "actor_knows_food_source" && fact.is_actor_known());
+-    candidate(
+-        input,
+-        if knows_food { "eat" } else { "find_food" },
+-        CandidateGoalSource::NeedPressure,
+-        if knows_food {
+-            GoalKind::Eat
+-        } else {
+-            GoalKind::FindFood
+-        },
+-        priority,
+-        reason,
+-        actor_known_fact_notes(&input.actor_known_facts),
+-        ApplicabilityResult::Applicable,
+-        None,
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_fact_notes(actor_known_facts: &[ActorKnownFact]) -> Vec<String> {
+     actor_known_facts
+         .iter()
+         .map(ActorKnownFact::proof_note)
+         .collect()
+ }
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/generation.rs` has changed (1781906602.223924612s, 5s after last build at 1781906597.619924521s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `CandidateGoal: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/generation.rs:177:5
+    |
+177 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `CandidateGoal`
+   --> crates/tracewake-core/src/agent/candidate.rs:108:1
+    |
+108 | pub struct CandidateGoal {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `candidate::CandidateGoal: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/generation.rs:177:5
+    |
+177 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `candidate::CandidateGoal`
+   --> crates/tracewake-core/src/agent/candidate.rs:108:1
+    |
+108 | pub struct CandidateGoal {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

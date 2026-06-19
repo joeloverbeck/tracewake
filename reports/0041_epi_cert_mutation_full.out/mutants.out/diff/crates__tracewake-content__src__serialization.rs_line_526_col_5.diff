@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace deserialize_event_log -> Result<EventLog, SerializationError> with Ok(Default::default())
+@@ -518,17 +518,17 @@
+     }
+ }
+ 
+ pub fn serialize_event_log(log: &EventLog) -> Vec<u8> {
+     log.serialize_canonical()
+ }
+ 
+ pub fn deserialize_event_log(bytes: &[u8]) -> Result<EventLog, SerializationError> {
+-    EventLog::deserialize_canonical(bytes).map_err(SerializationError::EventLog)
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn serialize_location(location: &Location) -> String {
+     match location {
+         Location::AtPlace(id) => format!("at:{}", id.as_str()),
+         Location::InContainer(id) => format!("in:{}", id.as_str()),
+         Location::CarriedBy(id) => format!("carried:{}", id.as_str()),
+     }

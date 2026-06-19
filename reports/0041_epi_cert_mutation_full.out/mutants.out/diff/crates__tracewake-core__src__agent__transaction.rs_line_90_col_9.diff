@@ -1,0 +1,306 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace ActorDecisionTransaction::run -> ActorDecisionTransactionOutcome with Default::default()
+@@ -82,302 +82,17 @@
+         self.proposal
+     }
+ }
+ 
+ pub struct ActorDecisionTransaction;
+ 
+ impl ActorDecisionTransaction {
+     pub fn run(input: ActorDecisionTransactionInput<'_>) -> ActorDecisionTransactionOutcome {
+-        let active_intention = active_intention_for_actor(input.agent_state, &input.actor_id);
+-        let actor_known_facts = input.actor_known_context.actor_known_facts().to_vec();
+-        if let Some(available_source_event_ids) = input.source_event_ids {
+-            if let Some(diagnostic) = dangling_provenance_diagnostic(
+-                &input.actor_id,
+-                input.decision_tick,
+-                &actor_known_facts,
+-                available_source_event_ids,
+-            ) {
+-                return ActorDecisionTransactionOutcome::Stuck {
+-                    diagnostic: Box::new(diagnostic),
+-                };
+-            }
+-        }
+-        if let Some(source_event_kinds) = input.source_event_kinds {
+-            if let Some(diagnostic) = provenance_witness_mismatch_diagnostic(
+-                &input.actor_id,
+-                input.decision_tick,
+-                &actor_known_facts,
+-                source_event_kinds,
+-            ) {
+-                return ActorDecisionTransactionOutcome::Stuck {
+-                    diagnostic: Box::new(diagnostic),
+-                };
+-            }
+-        }
+-        if let Some(diagnostic) = provenance_class_mismatch_diagnostic(
+-            &input.actor_id,
+-            input.decision_tick,
+-            &actor_known_facts,
+-        ) {
+-            return ActorDecisionTransactionOutcome::Stuck {
+-                diagnostic: Box::new(diagnostic),
+-            };
+-        }
+-        let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
+-            actor_id: input.actor_id.clone(),
+-            decision_tick: input.decision_tick,
+-            agent_state: input.agent_state,
+-            active_intention: active_intention.clone(),
+-            actor_known_facts: actor_known_facts.clone(),
+-            routine_window_goal: input
+-                .routine_window_family
+-                .and_then(goal_for_routine_family),
+-        });
+-        let mut candidates = if input.include_idle_fallback {
+-            generated.candidates
+-        } else {
+-            generated
+-                .candidates
+-                .into_iter()
+-                .filter(|candidate| candidate.goal_kind != GoalKind::IdleWithReason)
+-                .collect()
+-        };
+-        let mut last_method_failure: Option<(CandidateGoal, String)> = None;
+-        let max_method_attempts = candidates.len().saturating_add(1);
+-        let mut method_attempts = 0usize;
+-        let (selection, method) = loop {
+-            method_attempts = method_attempts.saturating_add(1);
+-            if method_attempts > max_method_attempts {
+-                return ActorDecisionTransactionOutcome::Stuck {
+-                    diagnostic: Box::new(stuck_diagnostic(
+-                        &input.actor_id,
+-                        input.decision_tick,
+-                        last_method_failure.as_ref().map(|(goal, _)| goal),
+-                        None,
+-                        "empty local plan",
+-                        "method selection retry limit exceeded without retiring the failed goal",
+-                    )),
+-                };
+-            }
+-            let Some(selection) = select_goal_and_trace(DecisionInput {
+-                actor_id: input.actor_id.clone(),
+-                decision_tick: input.decision_tick,
+-                candidates: candidates.clone(),
+-                active_intention: active_intention.clone(),
+-                actor_known_inputs: generated.actor_known_inputs_used.clone(),
+-            }) else {
+-                return ActorDecisionTransactionOutcome::Stuck {
+-                    diagnostic: Box::new(match last_method_failure {
+-                        Some((goal, error)) => stuck_diagnostic(
+-                            &input.actor_id,
+-                            input.decision_tick,
+-                            Some(&goal),
+-                            None,
+-                            "no applicable method",
+-                            error,
+-                        ),
+-                        None => stuck_diagnostic(
+-                            &input.actor_id,
+-                            input.decision_tick,
+-                            None,
+-                            None,
+-                            "no applicable candidate",
+-                            "candidate generation produced no applicable goal",
+-                        ),
+-                    }),
+-                };
+-            };
+-            if !selection.trace.hidden_truth_audit_result.actor_known_only {
+-                return ActorDecisionTransactionOutcome::Stuck {
+-                    diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
+-                        &input.actor_id,
+-                        input.decision_tick,
+-                        &selection.selected_goal,
+-                        &selection.trace,
+-                    )),
+-                };
+-            }
+-
+-            match select_phase3a_method(
+-                &selection.selected_goal,
+-                input.actor_known_context,
+-                &actor_known_facts,
+-                input.decision_tick,
+-            ) {
+-                Ok(method) => break (selection, method),
+-                Err(error) => {
+-                    let failed_goal = selection.selected_goal.clone();
+-                    let error = format!("{error:?}");
+-                    let mut retired_failed_goal = false;
+-                    for candidate in candidates.iter_mut().filter(|candidate| {
+-                        candidate.candidate_goal_id == failed_goal.candidate_goal_id
+-                    }) {
+-                        retired_failed_goal = true;
+-                        candidate.applicability = ApplicabilityResult::Inapplicable;
+-                        candidate.rejection_reason =
+-                            Some(format!("method_selection_rejected:{error}"));
+-                    }
+-                    if !retired_failed_goal {
+-                        return ActorDecisionTransactionOutcome::Stuck {
+-                            diagnostic: Box::new(stuck_diagnostic(
+-                                &input.actor_id,
+-                                input.decision_tick,
+-                                Some(&failed_goal),
+-                                None,
+-                                "empty local plan",
+-                                format!("method failure did not retire selected goal: {error}"),
+-                            )),
+-                        };
+-                    }
+-                    last_method_failure = Some((failed_goal, error));
+-                }
+-            }
+-        };
+-        let method_goal = selection.selected_goal.clone();
+-
+-        let step =
+-            method
+-                .template
+-                .steps
+-                .first()
+-                .cloned()
+-                .unwrap_or_else(|| RoutineStep::WaitUntil {
+-                    reason: "empty method".to_string(),
+-                });
+-        let request = LocalPlanRequest {
+-            routine_step: step.clone(),
+-            goal: planner_goal_for(&method_goal, input.actor_known_context),
+-            budget: crate::agent::DEFAULT_PLANNER_BUDGET,
+-            actor_known_facts: actor_known_facts.clone(),
+-        };
+-        let local_plan = match plan_local_actions(input.actor_known_context, &request) {
+-            Ok(plan) => plan,
+-            Err(failure) => {
+-                return ActorDecisionTransactionOutcome::Stuck {
+-                    diagnostic: Box::new(stuck_diagnostic_for_plan_failure(
+-                        &input.actor_id,
+-                        input.decision_tick,
+-                        &method_goal,
+-                        Some(step),
+-                        failure,
+-                    )),
+-                };
+-            }
+-        };
+-        let Some(planned) = local_plan.proposals.first() else {
+-            return ActorDecisionTransactionOutcome::Stuck {
+-                diagnostic: Box::new(stuck_diagnostic(
+-                    &input.actor_id,
+-                    input.decision_tick,
+-                    Some(&method_goal),
+-                    Some(step),
+-                    "empty local plan",
+-                    "selected method produced no concrete proposal",
+-                )),
+-            };
+-        };
+-        let bundle = SelectedGoalBundle {
+-            candidate_goal_id: method_goal.candidate_goal_id.clone(),
+-            decision_trace_id: selection.trace.trace_id.clone(),
+-            intention_transition_id: selection.lifecycle_effects.first().map(
+-                |effect| match effect {
+-                    IntentionLifecycleEffect::Continued { intention_id, .. } => {
+-                        format!("continued:{}", intention_id.as_str())
+-                    }
+-                    IntentionLifecycleEffect::Interrupted { intention_id, .. } => {
+-                        format!("interrupted:{}", intention_id.as_str())
+-                    }
+-                    IntentionLifecycleEffect::Adopted { intention, .. } => {
+-                        format!("adopted:{}", intention.intention_id.as_str())
+-                    }
+-                },
+-            ),
+-            selected_method_id: method.template.template_id.clone(),
+-            local_plan_id: format!(
+-                "local_plan_{}_{}",
+-                selection.trace.trace_id.as_str(),
+-                planned.action_id.as_str()
+-            ),
+-            proposal_ancestry: vec![
+-                selection.trace.trace_id.as_str().to_string(),
+-                method_goal.candidate_goal_id.as_str().to_string(),
+-                method.template.template_id.as_str().to_string(),
+-            ],
+-        };
+-
+-        let mut proposal = Proposal::new(
+-            ProposalId::new(format!(
+-                "proposal_actor_decision_{}_{}_{}",
+-                input.actor_id.as_str(),
+-                input.decision_tick.value(),
+-                planned.action_id.as_str()
+-            ))
+-            .unwrap(),
+-            ProposalOrigin::Agent,
+-            Some(input.actor_id.clone()),
+-            planned.action_id.clone(),
+-            input.decision_tick,
+-        );
+-        if planned.action_id.as_str() == "wait" {
+-            let reason = planned
+-                .target_ids
+-                .first()
+-                .cloned()
+-                .unwrap_or_else(|| "actor_decision_idle".to_string());
+-            proposal.parameters.insert("reason".to_string(), reason);
+-        } else if planned.action_id.as_str() == "sleep" {
+-            proposal.target_ids = planned.target_ids.clone();
+-            if let Some(sleep_place_id) = planned.target_ids.first() {
+-                proposal
+-                    .parameters
+-                    .insert("sleep_place_id".to_string(), sleep_place_id.clone());
+-                if let Some(sleep_affordance_id) =
+-                    actor_known_sleep_affordance_id(input.actor_known_context)
+-                {
+-                    proposal
+-                        .parameters
+-                        .insert("sleep_affordance_id".to_string(), sleep_affordance_id);
+-                }
+-            }
+-        } else {
+-            proposal.target_ids = planned.target_ids.clone();
+-        }
+-        proposal.parameters.insert(
+-            "decision_trace_id".to_string(),
+-            bundle.decision_trace_id.as_str().to_string(),
+-        );
+-        proposal.parameters.insert(
+-            "hidden_truth_audit_actor_known_only".to_string(),
+-            selection
+-                .trace
+-                .hidden_truth_audit_result
+-                .actor_known_only
+-                .to_string(),
+-        );
+-        proposal.parameters.insert(
+-            "candidate_goal_id".to_string(),
+-            bundle.candidate_goal_id.as_str().to_string(),
+-        );
+-        proposal.parameters.insert(
+-            "routine_template_id".to_string(),
+-            bundle.selected_method_id.as_str().to_string(),
+-        );
+-        proposal.parameters.insert(
+-            "routine_execution_id".to_string(),
+-            method.execution.execution_id.as_str().to_string(),
+-        );
+-
+-        ActorDecisionTransactionOutcome::Proposed(Box::new(ActorDecisionProposalOutcome {
+-            proposal: SealedProposal::seal(proposal),
+-            decision_trace_record: DecisionTraceRecord::from_trace(&selection.trace),
+-            decision_trace: selection.trace,
+-            lifecycle_effects: selection.lifecycle_effects,
+-            local_plan,
+-        }))
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn actor_known_sleep_affordance_id(context: &ActorKnownPlanningContext) -> Option<String> {
+     context
+         .actor_known_facts()
+         .iter()
+         .find(|fact| fact.stable_id() == "actor_knows_sleep_affordance" && fact.is_actor_known())

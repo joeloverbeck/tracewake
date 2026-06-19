@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ delete match arm "move_toward_place" in RoutineStep::deserialize_canonical
+@@ -138,19 +138,17 @@
+             SemanticActionId::new(payload).map_err(RoutineStepParseError::InvalidSemanticActionId)
+         };
+         let text = || decode_text_payload(payload);
+ 
+         match kind {
+             "select_known_place" => Ok(Self::SelectKnownPlace {
+                 action_id: action()?,
+             }),
+-            "move_toward_place" => Ok(Self::MoveTowardPlace {
+-                action_id: action()?,
+-            }),
++             /* ~ changed by cargo-mutants ~ */
+             "open_known_container" => Ok(Self::OpenKnownContainer {
+                 action_id: action()?,
+             }),
+             "check_known_container" => Ok(Self::CheckKnownContainer {
+                 action_id: action()?,
+             }),
+             "consume_accessible_food" => Ok(Self::ConsumeAccessibleFood {
+                 action_id: action()?,

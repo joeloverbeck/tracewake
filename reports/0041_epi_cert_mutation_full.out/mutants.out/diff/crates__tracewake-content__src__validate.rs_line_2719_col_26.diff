@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace == with != in validate_serialization_roundtrip
+@@ -2711,17 +2711,17 @@
+ 
+ fn validate_serialization_roundtrip(
+     fixture: &FixtureSchema,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+     let bytes = serialize_fixture(fixture);
+     match deserialize_fixture(&bytes) {
+         Ok(roundtrip)
+-            if roundtrip == {
++            if roundtrip != /* ~ changed by cargo-mutants ~ */ {
+                 let mut expected = fixture.clone();
+                 expected.canonicalize();
+                 expected
+             } => {}
+         Ok(_) => errors.push(ContentValidationError::new(
+             ValidationPhase::Serialization,
+             "fixture",
+             "serialization_drift",

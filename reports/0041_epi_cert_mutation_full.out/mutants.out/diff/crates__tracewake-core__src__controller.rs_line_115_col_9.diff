@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/controller.rs
++++ replace ControllerBindings::authorize -> Result<(), ControllerError> with Ok(())
+@@ -107,29 +107,17 @@
+         self.bindings.values().collect()
+     }
+ 
+     pub fn authorize(
+         &self,
+         controller_id: &ControllerId,
+         actor_id: &ActorId,
+     ) -> Result<(), ControllerError> {
+-        let binding = self
+-            .bindings
+-            .get(controller_id)
+-            .ok_or_else(|| ControllerError::ControllerUnbound(controller_id.clone()))?;
+-        if binding.binding.bound_actor_id.as_ref() == Some(actor_id) {
+-            Ok(())
+-        } else {
+-            Err(ControllerError::ControllerActorMismatch {
+-                controller_id: controller_id.clone(),
+-                expected_actor_id: actor_id.clone(),
+-                actual_actor_id: binding.binding.bound_actor_id.clone(),
+-            })
+-        }
++        Ok(()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn controller_event(
+     kind: EventKind,
+     controller_id: ControllerId,
+     actor_id: Option<ActorId>,
+     sequence: u64,

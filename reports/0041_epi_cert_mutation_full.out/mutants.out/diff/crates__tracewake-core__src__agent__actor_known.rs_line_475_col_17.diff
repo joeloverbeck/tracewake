@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ delete match arm "known_route_surface" in DerivedActorKnownFields::from_facts
+@@ -467,25 +467,17 @@
+     known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
+ }
+ 
+ impl DerivedActorKnownFields {
+     fn from_facts(facts: &[ActorKnownFact]) -> Self {
+         let mut derived = Self::default();
+         for fact in facts.iter().filter(|fact| fact.is_actor_known()) {
+             match fact.stable_id() {
+-                "known_route_surface" => {
+-                    if let Some((from, to)) =
+-                        fact.value().split_once("->").and_then(|(from, to)| {
+-                            Some((PlaceId::new(from).ok()?, PlaceId::new(to).ok()?))
+-                        })
+-                    {
+-                        derived.known_edges.entry(from).or_default().insert(to);
+-                    }
+-                }
++                 /* ~ changed by cargo-mutants ~ */
+                 "known_closed_door_surface" => {
+                     if let Some((edge, door_id)) = fact.value().split_once('@') {
+                         if let Some((from, to)) = edge.split_once("->").and_then(|(from, to)| {
+                             Some((PlaceId::new(from).ok()?, PlaceId::new(to).ok()?))
+                         }) {
+                             derived
+                                 .known_closed_doors
+                                 .insert((from, to), door_id.to_string());

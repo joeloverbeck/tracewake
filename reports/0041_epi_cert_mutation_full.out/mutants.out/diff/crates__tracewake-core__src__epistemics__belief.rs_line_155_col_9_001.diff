@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Belief::stale_after_tick -> Option<SimTick> with Some(Default::default())
+@@ -147,17 +147,17 @@
+         self.acquired_tick
+     }
+ 
+     pub fn last_verified_tick(&self) -> Option<SimTick> {
+         self.last_verified_tick
+     }
+ 
+     pub fn stale_after_tick(&self) -> Option<SimTick> {
+-        self.stale_after_tick
++        Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn observation_ids(&self) -> &BTreeSet<ObservationId> {
+         &self.observation_ids
+     }
+ 
+     pub fn contradiction_ids(&self) -> &BTreeSet<ContradictionId> {
+         &self.contradiction_ids

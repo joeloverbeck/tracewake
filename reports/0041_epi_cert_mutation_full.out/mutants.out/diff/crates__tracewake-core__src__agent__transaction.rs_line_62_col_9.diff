@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace SealedProposal::seal -> Self with Default::default()
+@@ -54,17 +54,17 @@
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct SealedProposal {
+     proposal: Proposal,
+ }
+ 
+ impl SealedProposal {
+     pub fn seal(proposal: Proposal) -> Self {
+-        Self { proposal }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn proposal_id(&self) -> &ProposalId {
+         &self.proposal.proposal_id
+     }
+ 
+     pub fn action_id(&self) -> &crate::ids::ActionId {
+         &self.proposal.action_id

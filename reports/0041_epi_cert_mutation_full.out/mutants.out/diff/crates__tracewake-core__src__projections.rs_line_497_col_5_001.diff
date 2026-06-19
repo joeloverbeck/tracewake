@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace payload_value -> Option<&'a str> with Some("")
+@@ -489,21 +489,17 @@
+     payload_value(event, "responsible_layer").and_then(|value| ResponsibleLayer::parse(value).ok())
+ }
+ 
+ fn typed_blocker_code(event: &EventEnvelope) -> Option<BlockerCode> {
+     payload_value(event, "blocker_code").and_then(|value| BlockerCode::parse(value).ok())
+ }
+ 
+ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+-    event
+-        .payload
+-        .iter()
+-        .find(|field| field.key == key)
+-        .map(|field| field.value.as_str())
++    Some("") /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_routine_event(kind: EventKind) -> bool {
+     matches!(
+         kind,
+         EventKind::RoutineStepStarted
+             | EventKind::RoutineStepCompleted
+             | EventKind::RoutineStepFailed

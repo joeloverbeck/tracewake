@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/state.rs
++++ replace PhysicalState::from_seed_parts -> Self with Default::default()
+@@ -226,27 +226,17 @@
+         doors: BTreeMap<DoorId, DoorState>,
+         containers: BTreeMap<ContainerId, ContainerState>,
+         items: BTreeMap<ItemId, ItemState>,
+         food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
+         workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+         sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
+         need_model: NeedModelState,
+     ) -> Self {
+-        Self {
+-            actors,
+-            places,
+-            doors,
+-            containers,
+-            items,
+-            food_supplies,
+-            workplaces,
+-            sleep_affordances,
+-            need_model,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn actors(&self) -> &BTreeMap<ActorId, ActorBody> {
+         &self.actors
+     }
+ 
+     pub fn places(&self) -> &BTreeMap<PlaceId, PlaceState> {
+         &self.places

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace += with *= in rebuild_projection
+@@ -102,17 +102,17 @@
+         let mut application_context = EventApplicationContext {
+             physical_state: &mut rebuilt,
+             agent_state: &mut rebuilt_agent,
+             epistemic_projection: Some(&mut epistemic_projection),
+         };
+         match apply_event_stream(&mut application_context, event) {
+             Ok(_) => match event.stream {
+                 EventStream::World => {
+-                    event_count_applied += 1;
++                    event_count_applied *= /* ~ changed by cargo-mutants ~ */ 1;
+                     last_event_id = Some(event.event_id.clone());
+                     last_stream_position = Some(event.stream_position);
+                 }
+                 EventStream::Epistemic => {
+                     epistemic_projection.record_applied_event(event.event_id.clone());
+                 }
+                 EventStream::Agent => {
+                     last_event_id = Some(event.event_id.clone());

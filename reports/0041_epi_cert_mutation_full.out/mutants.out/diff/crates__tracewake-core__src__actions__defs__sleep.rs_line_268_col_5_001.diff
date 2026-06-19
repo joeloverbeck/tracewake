@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace build_sleep_interruption_events -> Result<Vec<EventEnvelope>, ApplyError> with Ok(vec![Default::default()])
+@@ -260,26 +260,17 @@
+     agent_state: &AgentState,
+     sleep_started_event: &EventEnvelope,
+     log: &EventLog,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,
+     interruption_tick: SimTick,
+     reason: &str,
+ ) -> Result<Vec<EventEnvelope>, ApplyError> {
+-    build_sleep_end_events(
+-        agent_state,
+-        sleep_started_event,
+-        log,
+-        ordering_key,
+-        content_manifest_id,
+-        interruption_tick,
+-        EventKind::SleepInterrupted,
+-        reason,
+-    )
++    Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::too_many_arguments)]
+ fn build_sleep_end_events(
+     agent_state: &AgentState,
+     sleep_started_event: &EventEnvelope,
+     log: &EventLog,
+     ordering_key: &OrderingKey,

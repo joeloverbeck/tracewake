@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "authored_prehistory" in parse_source_kind
+@@ -689,17 +689,17 @@
+         _ => Err(SerializationError::BadLine(format!(
+             "bad source kind {kind}"
+         ))),
+     }
+ }
+ 
+ fn parse_source_kind(value: &str) -> Result<InitialBeliefSourceKind, SerializationError> {
+     match value {
+-        "authored_prehistory" => Ok(InitialBeliefSourceKind::AuthoredPrehistory),
++         /* ~ changed by cargo-mutants ~ */
+         _ => Err(SerializationError::BadLine(format!(
+             "bad source kind {value}"
+         ))),
+     }
+ }
+ 
+ fn serialize_privacy_scope(scope: &PrivacyScope) -> String {
+     match scope {

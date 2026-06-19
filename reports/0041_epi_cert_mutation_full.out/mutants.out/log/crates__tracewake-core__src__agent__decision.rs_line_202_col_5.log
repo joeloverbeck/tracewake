@@ -1,0 +1,84 @@
+
+*** crates/tracewake-core/src/agent/decision.rs:202:5: replace hidden_truth_audit_from_actor_known_inputs -> HiddenTruthAudit with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/decision.rs
++++ replace hidden_truth_audit_from_actor_known_inputs -> HiddenTruthAudit with Default::default()
+@@ -194,31 +194,17 @@
+         trace,
+         lifecycle_effects,
+     })
+ }
+ 
+ fn hidden_truth_audit_from_actor_known_inputs(
+     actor_known_inputs: &[ActorKnownInputRef],
+ ) -> HiddenTruthAudit {
+-    let actor_known_only = actor_known_inputs
+-        .iter()
+-        .all(|input| !input.source_class.is_forbidden_for_cognition() && !input.explicit_unknown);
+-    let forbidden_count = actor_known_inputs
+-        .iter()
+-        .filter(|input| input.source_class.is_forbidden_for_cognition() || input.explicit_unknown)
+-        .count();
+-    HiddenTruthAudit {
+-        actor_known_only,
+-        notes: format!(
+-            "candidate inputs supplied by actor-known generation boundary: count={} forbidden_source_classes={}",
+-            actor_known_inputs.len(),
+-            forbidden_count
+-        ),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn source_class_for_provenance(provenance: &ActorKnownProvenance) -> ActorKnownInputSourceClass {
+     match provenance {
+         ActorKnownProvenance::ObservedNow { .. } => {
+             ActorKnownInputSourceClass::ActorKnown(KnowledgeProvenanceKind::Observation)
+         }
+         ActorKnownProvenance::RememberedBelief { .. } => {
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/decision.rs` has changed (1781906522.435923975s, 5s after last build at 1781906517.023923994s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `HiddenTruthAudit: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/decision.rs:202:5
+    |
+202 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `HiddenTruthAudit`
+    |
+help: consider annotating `HiddenTruthAudit` with `#[derive(Default)]`
+   --> crates/tracewake-core/src/agent/trace.rs:50:1
+    |
+ 50 + #[derive(Default)]
+ 51 | pub struct HiddenTruthAudit {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `trace::HiddenTruthAudit: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/decision.rs:202:5
+    |
+202 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `trace::HiddenTruthAudit`
+    |
+help: consider annotating `trace::HiddenTruthAudit` with `#[derive(Default)]`
+   --> crates/tracewake-core/src/agent/trace.rs:50:1
+    |
+ 50 + #[derive(Default)]
+ 51 | pub struct HiddenTruthAudit {
+    |
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

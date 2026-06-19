@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ delete ! in current_place_knowledge_context
+@@ -331,17 +331,17 @@
+                     ));
+                 }
+             }
+             ActorKnownProjectionRecord::FoodSource {
+                 food_source_id,
+                 believed_servings,
+                 ..
+             } => {
+-                if !included_by_policy {
++                if  /* ~ changed by cargo-mutants ~ */included_by_policy {
+                     continue;
+                 }
+                 let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
+                     continue;
+                 };
+                 food_sources.push(ActorKnownFoodSourceFact::with_believed_servings(
+                     food_supply_id,
+                     *believed_servings,

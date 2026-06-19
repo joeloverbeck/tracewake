@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace select_phase3a_method -> Result<MethodSelection, MethodSelectionFailure> with Ok(Default::default())
+@@ -26,23 +26,17 @@
+ }
+ 
+ pub fn select_phase3a_method(
+     selected_goal: &CandidateGoal,
+     actor_known_state: &ActorKnownPlanningState,
+     actor_known_facts: &[ActorKnownFact],
+     tick: SimTick,
+ ) -> Result<MethodSelection, MethodSelectionFailure> {
+-    select_method_from_templates(
+-        selected_goal,
+-        actor_known_state,
+-        actor_known_facts,
+-        tick,
+-        &phase3a_routine_templates(),
+-    )
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn select_method_from_templates(
+     selected_goal: &CandidateGoal,
+     actor_known_state: &ActorKnownPlanningState,
+     actor_known_facts: &[ActorKnownFact],
+     tick: SimTick,
+     templates: &[RoutineTemplate],
