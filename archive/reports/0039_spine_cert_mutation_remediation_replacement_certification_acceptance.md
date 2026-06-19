@@ -1,6 +1,6 @@
 # 0039 SPINE-CERT mutation remediation replacement certification acceptance artifact
 
-Spec: `specs/0039_SPINE_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`
+Spec: `archive/specs/0039_SPINE_CERT_MUTATION_REMEDIATION_AND_REPLACEMENT_CERTIFICATION_SPEC.md`
 Supersedes: `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md`
 Supersession condition: this artifact renders SPINE-CERT passed after completing mutation remediation and live SPINE-01..SPINE-08 re-proof.
 Repository: `joeloverbeck/tracewake`

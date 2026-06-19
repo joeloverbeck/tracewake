@@ -5,7 +5,7 @@
 **Target repository:** `joeloverbeck/tracewake`  
 **Authoring and reassessment baseline:** `9648c8fb75f6de06c77da4b20b4c30b783cd9217`  
 **Spec series:** numbered implementation spec, staged under `specs/`, archived on acceptance closeout.  
-**Status:** implementation specification; non-executable; no certification result rendered.  
+**Status:** accepted; archived on closeout.
 **Work posture:** `Remediation`.  
 **Admissibility posture:** `SPINE-CERT scoped remediation`.  
 **Certification-line effect:** successful execution must produce a replacement SPINE-CERT acceptance artifact that renders `SPINE-CERT passed` and explicitly supersedes `archive/reports/0038_spine_cert_event_log_replay_projection_pipeline_and_no_direct_dispatch_certification_acceptance.md`.
@@ -1541,4 +1541,34 @@ The external method conclusions used by this spec are deliberately narrow:
 
 ## Expected closeout effect
 
-This spec commissions remediation; it records no implementation outcome. When the implementing session satisfies every checklist item and the replacement artifact renders `SPINE-CERT passed`, the 0038 scoped-remediation artifact is superseded and the certification ladder may advance to EPI-CERT. Until then, the live line remains `SPINE-CERT scoped remediation`.
+This spec commissioned remediation. Its implementation produced
+`archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md`,
+which renders `SPINE-CERT passed` for exact implementation commit
+`92ba47f14998e0ea2fc95502bc3b76c5909478ca` and supersedes the 0038
+scoped-remediation artifact for SPINE-CERT citation purposes.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Accepted by the `0039SPICERMUT` ticket series. The standing SPINE-CERT mutation
+perimeter was made permanent, the historical 296 Wave B survivor floor was
+remediated through per-file survivor tickets, ticket 020 established the full
+2625-mutant denominator, tickets 022 through 024 killed the additional
+standing-run survivors, and ticket 021 produced the replacement acceptance
+artifact.
+
+Final capstone evidence:
+
+- `cargo mutants --workspace --list-files`: 48 files.
+- `cargo mutants --workspace --list`: 2625 mutants.
+- `cargo mutants --workspace --no-shuffle -j 8 -o mutants-final-0039.out`:
+  2625 mutants tested; 2079 caught, 545 unviable, 0 missed, 1 timeout.
+- `cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'generate_candidate_goals' -o mutants-final-0039-timeout-retry.out`:
+  8 filtered mutants tested; 6 caught, 2 unviable, 0 missed, 0 timeouts.
+
+The final replacement artifact renders `SPINE-CERT passed` only for the scoped
+0039 SPINE-CERT mutation remediation line at the exact implementation commit
+named above. It does not certify latest main and does not advance EPI-CERT,
+ORD-LIFE-CERT, FIRST-PROOF-CERT, PHASE-4-ENTRY, SECOND-PROOF-ENTRY, or any
+future feature surface.
