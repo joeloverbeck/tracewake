@@ -1,0 +1,37 @@
+crates/tracewake-core/src/controller.rs:115:9: replace ControllerBindings::authorize -> Result<(), ControllerError> with Ok(())
+crates/tracewake-core/src/controller.rs:83:28: replace += with *= in ControllerBindings::detach
+crates/tracewake-core/src/controller.rs:50:28: replace += with *= in ControllerBindings::attach
+crates/tracewake-core/src/controller.rs:107:9: replace ControllerBindings::debug_bindings -> Vec<&RuntimeControllerBinding> with vec![]
+crates/tracewake-core/src/controller.rs:83:28: replace += with -= in ControllerBindings::detach
+crates/tracewake-core/src/state.rs:335:9: replace AgentState::need_threshold_crossings -> &BTreeMap<crate::ids::EventId, NeedThresholdCrossingRecord> with Box::leak(Box::new(BTreeMap::new()))
+crates/tracewake-core/src/state.rs:347:9: replace AgentState::candidate_goal_evaluations -> &BTreeMap<crate::ids::EventId, CandidateGoalEvaluationRecord> with Box::leak(Box::new(BTreeMap::new()))
+crates/tracewake-core/src/state.rs:422:9: replace DoorState::connects_place -> bool with true
+crates/tracewake-core/src/state.rs:422:58: replace == with != in DoorState::connects_place
+crates/tracewake-core/src/epistemics/projection.rs:292:9: replace EpistemicProjectionChecksum::as_str -> &str with "xyzzy"
+crates/tracewake-core/src/epistemics/projection.rs:299:22: replace ^= with |= in EpistemicProjectionChecksum::from_canonical_lines
+crates/tracewake-core/src/epistemics/projection.rs:343:38: replace += with *= in EpistemicProjection::record_applied_event
+crates/tracewake-core/src/epistemics/projection.rs:343:9: replace EpistemicProjection::record_applied_event with ()
+crates/tracewake-core/src/epistemics/projection.rs:442:9: replace EpistemicProjection::has_belief -> bool with true
+crates/tracewake-core/src/epistemics/projection.rs:446:9: replace EpistemicProjection::is_empty -> bool with true
+crates/tracewake-core/src/epistemics/projection.rs:450:13: replace && with || in EpistemicProjection::is_empty
+crates/tracewake-core/src/epistemics/projection.rs:447:13: replace && with || in EpistemicProjection::is_empty
+crates/tracewake-core/src/epistemics/projection.rs:449:13: replace && with || in EpistemicProjection::is_empty
+crates/tracewake-core/src/epistemics/projection.rs:448:13: replace && with || in EpistemicProjection::is_empty
+crates/tracewake-core/src/epistemics/projection.rs:499:9: replace EpistemicProjection::notebook_entries_for_context -> Vec<&NotebookEntry> with vec![]
+crates/tracewake-core/src/epistemics/projection.rs:744:9: replace ActorKnownProjectionSource::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/epistemics/projection.rs:744:9: replace ActorKnownProjectionSource::stable_id -> &'static str with ""
+crates/tracewake-core/src/epistemics/projection.rs:896:9: replace ActorKnownProjectionRecord::serialize_canonical -> String with String::new()
+crates/tracewake-core/src/epistemics/projection.rs:896:9: replace ActorKnownProjectionRecord::serialize_canonical -> String with "xyzzy".into()
+crates/tracewake-core/src/epistemics/projection.rs:1193:5: replace workplace_record_is_newer -> bool with true
+crates/tracewake-core/src/epistemics/projection.rs:1193:29: replace > with >= in workplace_record_is_newer
+crates/tracewake-core/src/epistemics/projection.rs:1195:13: replace && with || in workplace_record_is_newer
+crates/tracewake-core/src/epistemics/projection.rs:1195:44: replace > with >= in workplace_record_is_newer
+crates/tracewake-core/src/epistemics/projection.rs:1203:8: delete ! in reclassifying_record_freshness
+crates/tracewake-core/src/epistemics/projection.rs:1222:5: replace location_key -> String with String::new()
+crates/tracewake-core/src/epistemics/projection.rs:1222:5: replace location_key -> String with "xyzzy".into()
+crates/tracewake-core/src/epistemics/projection.rs:1410:9: delete match arm Some("visible_actor") in actor_known_records_from_observation
+crates/tracewake-core/src/epistemics/projection.rs:1500:9: delete match arm "place" in observation_item_location
+crates/tracewake-core/src/epistemics/projection.rs:1514:5: replace holder_key -> String with String::new()
+crates/tracewake-core/src/epistemics/projection.rs:1514:5: replace holder_key -> String with "xyzzy".into()
+crates/tracewake-core/src/epistemics/projection.rs:1561:5: replace source_summary -> String with String::new()
+crates/tracewake-core/src/epistemics/projection.rs:1561:5: replace source_summary -> String with "xyzzy".into()

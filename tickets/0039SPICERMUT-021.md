@@ -4,11 +4,11 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — verification/evidence-only; produces the replacement acceptance artifact and renders the aggregate verdict. No production logic.
-**Deps**: 0039SPICERMUT-020
+**Deps**: 0039SPICERMUT-020, 0039SPICERMUT-022, 0039SPICERMUT-023, 0039SPICERMUT-024
 
 ## Problem
 
-Once the perimeter is permanent (001), the per-file survivors are killed (002–019), and the full campaign + register are complete (020), the SPINE-01 through SPINE-08 seams must be re-proven live at the exact final implementation commit, and a replacement acceptance artifact must render `SPINE-CERT passed` (or remain `SPINE-CERT scoped remediation` with the responsible layer named) and explicitly supersede the 0038 acceptance artifact (spec §6, §7, §8). The 0038 per-seam rows are historical shape only; they must be re-established at the final commit.
+Once the perimeter is permanent (001), the per-file seed survivors are killed (002–019), the full campaign + register are complete (020), and the additional standing-run survivors are remediated (022–024), the SPINE-01 through SPINE-08 seams must be re-proven live at the exact final implementation commit, and a replacement acceptance artifact must render `SPINE-CERT passed` (or remain `SPINE-CERT scoped remediation` with the responsible layer named) and explicitly supersede the 0038 acceptance artifact (spec §6, §7, §8). The 0038 per-seam rows are historical shape only; they must be re-established at the final commit.
 
 ## Assumption Reassessment (2026-06-18)
 

@@ -3238,8 +3238,16 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         }
     }
 
-    if !mutants_toml.contains(r#"additional_cargo_args = ["--workspace", "--locked"]"#) {
-        violations.push("mutants.toml omits locked workspace cargo args".to_string());
+    if !mutants_toml.contains(r#"additional_cargo_args = ["--locked"]"#) {
+        violations.push("mutants.toml omits locked cargo args".to_string());
+    }
+    if mutants_toml.contains(r#"additional_cargo_args = ["--workspace", "--locked"]"#)
+        || mutants_toml.contains(r#"additional_cargo_args = ["--locked", "--workspace"]"#)
+    {
+        violations.push(
+            "mutants.toml duplicates cargo test workspace args; test_workspace supplies workspace testing"
+                .to_string(),
+        );
     }
     if !mutants_toml.contains("test_workspace = true") {
         violations.push("mutants.toml omits test_workspace = true".to_string());

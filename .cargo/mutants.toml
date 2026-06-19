@@ -2,7 +2,10 @@
 #
 # cargo-mutants 27.1.0 is the CI syntax baseline for this checked-in config.
 # CI jobs must load this file instead of maintaining independent `-f` lists.
-additional_cargo_args = ["--workspace", "--locked"]
+# `test_workspace = true` supplies cargo test's workspace flag; repeating it in
+# `additional_cargo_args` makes cargo-mutants 27.1.0 classify every mutant as
+# unviable because Cargo rejects duplicate `--workspace`.
+additional_cargo_args = ["--locked"]
 test_workspace = true
 
 examine_globs = [

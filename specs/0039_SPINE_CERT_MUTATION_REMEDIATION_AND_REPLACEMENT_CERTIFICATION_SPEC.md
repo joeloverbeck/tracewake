@@ -273,8 +273,8 @@ crates/tracewake-tui/src/transcript.rs
 
 At minimum, `.cargo/mutants.toml` must implement this posture with:
 
-- `additional_cargo_args = ["--workspace", "--locked"]` or an equivalent locked workspace test invocation;
-- `test_workspace = true`, so a mutant in `tracewake-core` is tested against `tracewake-content` and `tracewake-tui` integration witnesses rather than only the mutated package's tests;
+- `additional_cargo_args = ["--locked"]` or an equivalent locked test invocation;
+- `test_workspace = true`, so a mutant in `tracewake-core` is tested against `tracewake-content` and `tracewake-tui` integration witnesses rather than only the mutated package's tests; for cargo-mutants `27.1.0`, this supplies Cargo's workspace-test flag and must not be duplicated in `additional_cargo_args`;
 - `examine_globs` or the cargo-mutants version's equivalent checked-in include mechanism for the full standing list; and
 - exclusions narrowed so none overlap a required file.
 
@@ -283,7 +283,7 @@ Cargo-mutants supports checked-in configuration, file examination/exclusion glob
 A normative configuration shape is:
 
 ```toml
-additional_cargo_args = ["--workspace", "--locked"]
+additional_cargo_args = ["--locked"]
 test_workspace = true
 
 examine_globs = [

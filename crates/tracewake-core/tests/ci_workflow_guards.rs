@@ -307,7 +307,7 @@ fn doc_flag_posture_errors(doc10: &str) -> Vec<String> {
 fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String> {
     let mut errors = Vec::new();
     for required in [
-        r#"additional_cargo_args = ["--workspace", "--locked"]"#,
+        r#"additional_cargo_args = ["--locked"]"#,
         "test_workspace = true",
         "examine_globs = [",
     ] {

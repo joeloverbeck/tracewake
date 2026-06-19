@@ -1,6 +1,6 @@
 # 0039SPICERMUT-020: Full standing mutation campaign to completion + survivor reconciliation + triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — runs the standing configured mutation posture and produces the preflight/run evidence and triage register; any code fix for a newly-discovered behavior-relevant survivor is routed to a reserved follow-up ticket (`-022` onward).
@@ -28,6 +28,7 @@ The 296 Wave B survivors are a floor, not the acceptance target (spec §3, §4.1
 1. Census completeness (§4.4) -> `cargo mutants --workspace --list-files` + `--list` archived and mechanically compared to the standing file census; no required path absent, no exclusion overlap.
 2. Clean baseline (§4.5) -> the §7.1 command set (`fmt`/`clippy`/`build`/`test --workspace --locked`) plus the named SPINE suites pass before any mutation result is interpreted; no `--baseline=skip` or failure-discarding retry.
 3. Run completion + disposition (§4.6–§4.12) -> `cargo mutants --workspace --no-shuffle` (sharded per §4.6 if chosen) completes with zero unresolved timeouts/tool failures, no `--iterate` on the final run, and every survivor reconciled to killed / reviewer-approved-equivalent / reviewer-approved-non-critical in the register.
+4. Configuration correction surfaced during preflight: for cargo-mutants `27.1.0`, `test_workspace = true` already injects Cargo's workspace-test flag. `.cargo/mutants.toml` must keep `additional_cargo_args = ["--locked"]`, not a duplicate `--workspace`, so the standing run is certifiable instead of classifying every mutant as tool-unviable.
 
 ## What to Change
 
@@ -83,3 +84,69 @@ Any newly-discovered behavior-relevant survivor that needs a code/test fix is ro
 1. `cargo mutants --workspace --list-files && cargo mutants --workspace --list`
 2. `cargo mutants --workspace --no-shuffle`
 3. The whole-workspace standing campaign (not a per-file `-f` run) is the correct verification boundary for this ticket; per-file `-f` runs are tickets 002–019's boundary.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Produced the standing SPINE-CERT mutation evidence package and triage register:
+
+- `reports/0039_spine_cert_mutation_list_files.txt`
+- `reports/0039_spine_cert_mutation_list.txt`
+- `reports/0039_spine_cert_mutation_run.txt`
+- `reports/0039_spine_cert_mutation_missed.txt`
+- `reports/0039_spine_cert_mutation_timeout.txt`
+- `reports/0039_spine_cert_mutation_timeout_retry.txt`
+- `reports/0039_spine_cert_mutation_timeout_retry_missed.txt`
+- `reports/0039_spine_cert_mutation_timeout_retry_caught.txt`
+- `reports/0039_spine_cert_mutation_triage_register.md`
+
+Preflight found that ticket 001's cargo-mutants posture duplicated Cargo's
+workspace-test flag: `test_workspace = true` plus
+`additional_cargo_args = ["--workspace", "--locked"]` made cargo-mutants 27.1.0
+invoke `cargo test --workspace --workspace --locked`, classifying all 2625
+mutants as unviable. Corrected the checked-in posture to the equivalent locked
+workspace-test configuration, `test_workspace = true` plus
+`additional_cargo_args = ["--locked"]`, and updated the guard tests/spec text so
+the bad combination cannot return silently.
+
+The corrected standing census contains 48 files and 2625 mutants. The full
+standing run was executed as:
+
+```sh
+cargo mutants --workspace --no-shuffle -j 8 -o mutants-cert-j8.out
+```
+
+Result: 2625 mutants tested in 4h: 37 missed, 2040 caught, 545 unviable, 3
+timeouts. The three timeout identities were retried with:
+
+```sh
+cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'current_place_perception_events|visible_item_payload|EpistemicProjectionChecksum::as_str' -o mutants-timeout-retry.out
+```
+
+Retry result: 20 mutants tested in 3m: 2 missed, 16 caught, 2 unviable, 0
+timeouts. The effective unresolved set is therefore 38 actionable missed mutants
+and 0 unresolved timeouts/tool failures after retry. No survivor was accepted as
+equivalent/non-critical and `.cargo/mutants-baseline-misses.txt` remains
+unchanged/empty. The aggregate mutation row remains `SPINE-CERT scoped
+remediation`, with new remediation tickets opened:
+
+- `0039SPICERMUT-022` for controller binding survivors.
+- `0039SPICERMUT-023` for state accessor and door connectivity survivors.
+- `0039SPICERMUT-024` for epistemic projection/checksum survivors.
+
+`0039SPICERMUT-021` now depends on tickets 022-024 before attempting the
+capstone replacement artifact.
+
+Verification run:
+
+- `cargo mutants --workspace --list-files`
+- `cargo mutants --workspace --list`
+- `cargo mutants --workspace --no-shuffle -j 8 -o mutants-cert-j8.out`
+- `cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'current_place_perception_events|visible_item_payload|EpistemicProjectionChecksum::as_str' -o mutants-timeout-retry.out`
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards`
+- `cargo test --locked -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
