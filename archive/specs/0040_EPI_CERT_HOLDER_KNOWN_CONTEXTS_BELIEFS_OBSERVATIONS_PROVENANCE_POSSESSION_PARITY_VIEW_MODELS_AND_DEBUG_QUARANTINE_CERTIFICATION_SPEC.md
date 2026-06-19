@@ -6,7 +6,7 @@ Archive path on accepted closeout: archive/specs/0040_EPI_CERT_HOLDER_KNOWN_CONT
 Target repository: joeloverbeck/tracewake
 Target commit: ba9fe1c9ec3cfc18bf911e5aff7d97b8476175ab
 Spec series: numbered staging spec 0040; archived to archive/specs/ on accepted closeout
-Status: STAGED — awaiting implementing-session execution and acceptance evidence
+Status: COMPLETED — implementing-session acceptance artifact rendered EPI-CERT scoped remediation
 Work posture: Certification
 Admissibility posture: consumes P0-CERT passed from archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md and SPINE-CERT passed from archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md
 Phase-certification label: EPI-CERT, as defined by docs/2-execution/03; this document mints no new gate code, invariant ID, status enum, or obligation code
@@ -1472,4 +1472,15 @@ External sources inform audit method only; they do not establish any fact about 
 
 ## Outcome
 
-Not rendered by this document. This is the staged `EPI-CERT` audit and acceptance contract. The implementing session must execute it and produce the section 9 artifact. Until that artifact supplies certifying evidence and an allowed aggregate verdict, this document makes no claim that `EPI-CERT` passed or failed.
+Completed: 2026-06-19
+
+The implementing session executed the 0040 ticket series, produced the section 9 acceptance artifact at `archive/reports/0040_epi_cert_holder_known_contexts_beliefs_observations_provenance_possession_parity_view_models_and_debug_quarantine_certification_acceptance.md`, populated the EPI-01 through EPI-11 evidence sections, retained the §6.1 compile-fail matrix, expanded and ran the configured EPI mutation perimeter, packaged replay/provenance and EMERGE-OBS observer-only evidence, and rendered the aggregate verdict.
+
+Verdict: `EPI-CERT scoped remediation`. The configured EPI mutation perimeter left a 30-mutant survivor floor recorded in `reports/0040_epi_cert_mutation_final_missed.txt` and `reports/0040_epi_cert_mutation_triage_register.md`; no survivor was accepted as equivalent or non-critical. This spec therefore completed as a certification audit with scoped remediation required, not as `EPI-CERT passed`.
+
+Verification recorded by the ticket series:
+
+- `cargo test --workspace --locked` - passed for the capstone.
+- `cargo test --locked -p tracewake-core --test emergence_ledger` - passed for observer-only EMERGE-OBS packaging.
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` - passed for artifact wording/evidence honesty.
+- The full closeout gates were run after spec archival: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, and `cargo test --workspace`.

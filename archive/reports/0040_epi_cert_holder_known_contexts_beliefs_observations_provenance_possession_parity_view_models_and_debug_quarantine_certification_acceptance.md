@@ -1,7 +1,8 @@
 # 0040 EPI-CERT holder-known contexts, beliefs, observations, provenance, possession parity, view models, and debug-quarantine certification acceptance artifact
 
-Spec: `specs/0040_EPI_CERT_HOLDER_KNOWN_CONTEXTS_BELIEFS_OBSERVATIONS_PROVENANCE_POSSESSION_PARITY_VIEW_MODELS_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`
+Spec: `archive/specs/0040_EPI_CERT_HOLDER_KNOWN_CONTEXTS_BELIEFS_OBSERVATIONS_PROVENANCE_POSSESSION_PARITY_VIEW_MODELS_AND_DEBUG_QUARANTINE_CERTIFICATION_SPEC.md`
 Spec number: `0040`
+Status: COMPLETED
 Target/source baseline: `ba9fe1c9ec3cfc18bf911e5aff7d97b8476175ab`
 Implementation commit tested for scaffold baseline: `f9858fca35e6136bd825f59de95e6d8ff87f3a8d`
 Worktree at baseline command start: clean
@@ -702,3 +703,13 @@ Rows `EPI-01` through `EPI-11`, the §6 compile-fail matrix, the §9.5 replay/pr
 Responsible remediation layers named by the survivor register: epistemics observation/proposition/projection records, event/projection rebuild behavior, proposal/validation source checks, embodied/debug rendering and diagnostic formatting, content/schema validation, and replay-sensitive source/provenance boundaries. The exact survivor identities are recorded in `reports/0040_epi_cert_mutation_final_missed.txt` and triaged in `reports/0040_epi_cert_mutation_triage_register.md`.
 
 This verdict does not relabel the gate, does not grant a partial pass, and does not authorize skipping to ORD-LIFE-CERT, FIRST-PROOF-CERT, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, or LLM/speech surfaces. It certifies only the implementation-session evidence named in this artifact and does not independently verify current `main`.
+
+## Outcome
+
+Completed: 2026-06-19
+
+The 0040 ticket series populated this acceptance artifact with EPI-01 through EPI-11 evidence, the §6.1 compile-fail matrix, the §9.4 per-seam verdict table, the §9.5 replay/provenance package, the §9.6 mutation package, the §9.7 relational capstone package, §9.8 EMERGE-OBS observer-only handling, and the §9.9 aggregate verdict.
+
+Verdict: `EPI-CERT scoped remediation`, not `EPI-CERT passed`, because `MUT-WAVEB-001` left a 30-mutant survivor floor recorded in `reports/0040_epi_cert_mutation_final_missed.txt` and `reports/0040_epi_cert_mutation_triage_register.md`.
+
+Verification recorded by the capstone: `cargo test --workspace --locked`, `cargo test --locked -p tracewake-core --test emergence_ledger`, and `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` passed. Full post-archive closeout gates were run after this artifact moved to `archive/reports/`.
