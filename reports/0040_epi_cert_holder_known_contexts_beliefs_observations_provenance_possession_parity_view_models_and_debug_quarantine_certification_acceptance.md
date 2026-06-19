@@ -168,7 +168,62 @@ Status: evidence collected by `0040EPICERHOL-002`; aggregate row remains pending
 
 ## EPI-02 - Typed Propositions, Beliefs, Stance/Confidence, Privacy, And Freshness
 
-Status: pending. Owned by `0040EPICERHOL-003`.
+Status: evidence collected by `0040EPICERHOL-003`; aggregate row remains pending for the capstone and mutation package.
+
+- Evidence item ID: `EPI02-POS-001`
+- EPI cross-references: `EPI-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` exited 0 at commit `9acec3385b4f4eb925a1c58a37838ce124f108b6`; 42 tests passed, including `aged_food_record_surfaces_as_remembered_belief`, `phase2a_initial_beliefs_are_holder_and_source_backed`, `partial_food_source_knowledge_seeds_only_authored_actor_edge`, `seeded_food_source_unknown_to_all_actors_omits_seed_belief_and_actor_known_food`, and `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`.
+- Path under test and behavior witness: typed belief/proposition serialization, holder/source-backed initial belief projection, partial/absent knowledge preservation, and actor-known input hash recomputation; responsible layers `content/schema validation` and `projection/replay`.
+- Replay/provenance ancestry: content fixtures carry source files and event-backed actor-known inputs; replay-specific record equality is recorded in `EPI02-REPLAY-001`.
+- Sampling/exhaustiveness: finite named golden fixture runner required by ticket `0040EPICERHOL-003`.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-02 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI02-FRESH-001`
+- EPI cross-references: `EPI-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` and `cargo test --locked -p tracewake-tui --test embodied_flow` exited 0 at commit `9acec3385b4f4eb925a1c58a37838ce124f108b6`; relevant passing witnesses include `stale_workplace_notice_superseded_by_newer_001` through the content suite and TUI tests `embodied_workplace_availability_reflects_belief_not_truth` and `embodied_workplace_believed_open_truth_closed`.
+- Path under test and behavior witness: stale/superseded workplace belief handling, wrong-belief actor-visible availability, and authoritative validation rejection when truth diverges; responsible layers `projection/replay` and `view-model rendering`.
+- Replay/provenance ancestry: source tick and stable event identity are exercised by the fixture; TUI embodied-flow witnesses record actor-visible behavior separately from authoritative validation truth.
+- Sampling/exhaustiveness: finite named EPI-02 freshness and record-vs-truth fixture set.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for EPI-02 positive/adversarial freshness evidence; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI02-ADV-001`
+- EPI cross-references: `EPI-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates` exited 0 at commit `9acec3385b4f4eb925a1c58a37838ce124f108b6`; 16 tests passed, including `epistemic_confidence_paths_do_not_use_raw_floats_or_hash_ordering`, `debug_omniscience_facts_are_excluded_from_planner_context`, `context_rejects_hidden_counterpart_injection`, and hidden-food/route/workplace no-leak tests.
+- Path under test and behavior witness: hidden-truth changes and debug facts do not create, strengthen, refresh, or leak actor beliefs into holder-known context or planner inputs; responsible layers `actor-known context construction` and `projection/replay`.
+- Replay/provenance ancestry: event-backed epistemic fields and replay survival are covered by hidden-truth tests and `EPI02-REPLAY-001`.
+- Sampling/exhaustiveness: finite named hidden-truth EPI-02 adversarial perimeter.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-02 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI02-COMPILE-001`
+- EPI cross-references: `EPI-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test negative_fixture_runner` exited 0 at commit `9acec3385b4f4eb925a1c58a37838ce124f108b6`; 5 tests passed, including registered compile-fail coverage for `banned_float_confidence_types`, `external_crate_cannot_construct_belief_literal`, `external_crate_cannot_mutate_belief_source_or_scope`, and `external_crate_cannot_read_raw_epistemic_projection_maps`.
+- Path under test and behavior witness: external crates cannot introduce float confidence types, construct raw belief literals, mutate belief source/scope, or read raw epistemic projection maps; responsible layer `content/schema validation` / `actor-known context construction`.
+- Replay/provenance ancestry: not applicable to compile-fail evidence.
+- Sampling/exhaustiveness: registered negative-fixture corpus member set for EPI-02 belief boundaries.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-02 compile-fail negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI02-REPLAY-001`
+- EPI cross-references: `EPI-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates` exited 0 at commit `9acec3385b4f4eb925a1c58a37838ce124f108b6`; 30 tests passed, including `epistemic_apply_matrix_preserves_fields_and_rejects_unknown_tokens`, `starting_observation_and_contradiction_events_survive_replay_with_sources`, `unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied`, and `deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses`.
+- Path under test and behavior witness: epistemic record replay, unknown-token/schema rejection, source-backed replay survival, and deterministic context-hash rebuild; responsible layer `projection/replay`.
+- Replay/provenance ancestry: event envelope/source-event ancestry is exercised by `event_schema_replay_gates`; record-vs-truth view behavior is recorded in `EPI02-FRESH-001`.
+- Sampling/exhaustiveness: finite named replay command required by ticket `0040EPICERHOL-003`.
+- Pending or historical handling: none for this evidence row.
+- Certification use: counted as certifying pass for the EPI-02 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## EPI-03 - Observation Channels, Capture Boundaries, And Event-Backed Insertion
 
@@ -215,7 +270,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | Requirement | Responsible layer(s) | Positive evidence | Adversarial/negative evidence | Replay/provenance evidence | Mutation evidence | Result from certifying evidence |
 |---|---|---|---|---|---|---|
 | `EPI-01` sealed context identity/scope/hash/frontier | actor-known context construction; proposal construction | `EPI01-POS-001`, `EPI01-PROPOSAL-001` | `EPI01-ADV-001`, `EPI01-COMPILE-001` | `EPI01-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | pending | pending | pending | pending | pending |
+| `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | `EPI02-POS-001`, `EPI02-FRESH-001` | `EPI02-ADV-001`, `EPI02-COMPILE-001` | `EPI02-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-03` observation channels/event capture | event application; projection/replay | pending | pending | pending | pending | pending |
 | `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
 | `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | pending | pending | pending | pending | pending |
