@@ -2234,6 +2234,106 @@ fn belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay()
 }
 
 #[test]
+fn observation_confidence_debug_evidence_crosses_low_boundary_and_replays() {
+    let mut projection = EpistemicProjection::new(manifest_id());
+    let mut log = EventLog::new();
+    for (sequence, (observation_id, confidence)) in [
+        ("observation_confidence_low_250", 250_u16),
+        ("observation_confidence_low_boundary_350", 350),
+        ("observation_confidence_standard_boundary_351", 351),
+        ("observation_confidence_standard_875", 875),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let event = epistemic_event_with_payload(
+            &format!("event_{observation_id}"),
+            EventKind::ObservationRecorded,
+            sequence as u64,
+            observation_payload(
+                observation_id,
+                "direct_sight",
+                confidence,
+                "event_confidence_source",
+            ),
+        );
+        append_to_log(&mut log, event.clone());
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+    }
+
+    let debug_view = projection.debug_observations_view(actor_id());
+    let debug_entries = debug_view
+        .observations
+        .iter()
+        .map(|entry| {
+            (
+                entry.observation_id.as_str(),
+                entry.confidence_parts_per_thousand,
+                entry.confidence_class.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        debug_entries,
+        [
+            ("observation_confidence_low_250", 250, "low"),
+            ("observation_confidence_low_boundary_350", 350, "low"),
+            ("observation_confidence_standard_875", 875, "standard",),
+            (
+                "observation_confidence_standard_boundary_351",
+                351,
+                "standard",
+            ),
+        ]
+    );
+
+    let invalid = epistemic_event_with_payload(
+        "event_observation_confidence_invalid",
+        EventKind::ObservationRecorded,
+        99,
+        observation_payload(
+            "observation_confidence_invalid",
+            "direct_sight",
+            1001,
+            "event_confidence_source",
+        ),
+    );
+    assert!(matches!(
+        apply_epistemic_event(&mut projection, &invalid),
+        Err(EpistemicApplyError::BadPayload {
+            key: "confidence",
+            ..
+        })
+    ));
+
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let mut replayed_projection = EpistemicProjection::new(manifest_id());
+    for event in replayed_log.events() {
+        apply_epistemic_event(&mut replayed_projection, event).unwrap();
+    }
+    let replayed_debug_view = replayed_projection.debug_observations_view(actor_id());
+    let replayed_debug_entries = replayed_debug_view
+        .observations
+        .iter()
+        .map(|entry| {
+            (
+                entry.observation_id.as_str(),
+                entry.confidence_parts_per_thousand,
+                entry.confidence_class.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(replayed_debug_entries, debug_entries);
+    assert_eq!(
+        replayed_projection.compute_checksum().checksum,
+        projection.compute_checksum().checksum
+    );
+}
+
+#[test]
 fn agent_apply_matrix_observes_parser_arms_transitions_and_causality() {
     let mut state = agent_state_with_active_intention_and_routine();
     let need = agent_event_with_payload(

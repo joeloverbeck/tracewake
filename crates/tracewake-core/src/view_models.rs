@@ -732,6 +732,8 @@ pub struct DebugObservationEntry {
     pub observer_actor_id: ActorId,
     pub channel: String,
     pub confidence: String,
+    pub confidence_parts_per_thousand: u16,
+    pub confidence_class: String,
     pub source: String,
 }
 
@@ -878,6 +880,8 @@ mod tests {
                 observer_actor_id: ActorId::new("actor_tomas").unwrap(),
                 channel: "touch_or_search".to_string(),
                 confidence: "1000".to_string(),
+                confidence_parts_per_thousand: 1000,
+                confidence_class: "standard".to_string(),
                 source: "event:event_observation".to_string(),
             }],
             vec![

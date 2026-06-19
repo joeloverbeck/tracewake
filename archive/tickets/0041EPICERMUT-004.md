@@ -1,6 +1,6 @@
 # 0041EPICERMUT-004: Kill `observation.rs` `Confidence` survivors — numeric value and low-classification
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/observation.rs` (and its evidence/view consumer) only if a survivor reveals a real defect or a redundant API must be reconciled
@@ -91,3 +91,26 @@ Invalid values outside the bounded confidence domain stay rejected; hidden truth
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/observation.rs`
 2. `cargo test --workspace --locked`
 3. `cargo mutants -f <file>` is the correct per-ticket boundary: it regenerates this file's three mutants so each identity's catch/disposition is provable before the full campaign (ticket 009) reconciles them.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Established an additive production consumer for `Confidence::parts_per_thousand` and `Confidence::is_low` in the debug observation evidence surface. `DebugObservationEntry` now carries `confidence_parts_per_thousand` and `confidence_class`, and `debug_observation_entry` derives them from the existing typed `Confidence` accessors. This keeps canonical serialization unchanged while giving the EPI debug/evidence surface a replayable typed-confidence value and low/non-low class.
+
+Added `observation_confidence_debug_evidence_crosses_low_boundary_and_replays` in `crates/tracewake-core/tests/event_schema_replay_gates.rs`. The witness applies four event-backed observations at 250, 350, 351, and 875; verifies the low boundary (`250` and `350` low, `351` and `875` standard) through the debug evidence surface; verifies out-of-range confidence `1001` fails closed; and replays the event log to the same debug evidence and projection checksum.
+
+Verification:
+
+- `cargo test -p tracewake-core --test event_schema_replay_gates observation_confidence_debug_evidence_crosses_low_boundary_and_replays` passed.
+- `cargo test -p tracewake-core --test event_schema_replay_gates` passed.
+- `cargo test --workspace --locked` passed.
+- `cargo fmt --all --check` passed.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/observation.rs --test-workspace true -C=--locked` completed with 29 mutants tested: 14 caught, 15 unviable, 0 missed. `mutants.out/caught.txt` includes all three historical confidence identities:
+  - `Confidence::parts_per_thousand -> 0`
+  - `Confidence::parts_per_thousand -> 1`
+  - `Confidence::is_low -> true`
+
+Deviations: the file-local mutation proof used `--no-config` so `-f` scoped to `observation.rs` rather than expanding through the checked-in standing mutation perimeter. The full checked-in configuration remains owned by ticket 009.
+
+No `.cargo/mutants-baseline-misses.txt` entry was added. No §4.11 equivalent/non-critical disposition was used.

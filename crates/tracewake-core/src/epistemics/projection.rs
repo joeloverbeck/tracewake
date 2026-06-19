@@ -1564,6 +1564,13 @@ fn debug_observation_entry(observation: &Observation) -> DebugObservationEntry {
         observer_actor_id: observation.observer_actor_id().clone(),
         channel: observation.channel().stable_id().to_string(),
         confidence: observation.confidence().serialize_canonical(),
+        confidence_parts_per_thousand: observation.confidence().parts_per_thousand(),
+        confidence_class: if observation.confidence().is_low() {
+            "low"
+        } else {
+            "standard"
+        }
+        .to_string(),
         source: source_summary(observation.source()),
     }
 }
