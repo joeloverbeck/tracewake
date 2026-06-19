@@ -1,6 +1,6 @@
 # 0040EPICERHOL-007: EPI-06 — epistemic projection rebuild, checksum determinism, context filtering, and non-truth-writer quarantine
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,19 @@ Populate the EPI-06 section with the §9.2 ledger fields per witness (positive, 
 1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 2. `cargo test --locked -p tracewake-core --test spine_conformance && cargo test --locked -p tracewake-core --test hidden_truth_gates`
 3. `cargo test --locked -p tracewake-content --test golden_fixtures_run` (full registered-fixture rebuild boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-06 section of the acceptance artifact with projection/rebuild, hidden-state no-leak, raw-write negative, and replay-tamper evidence. The §9.4 EPI-06 row now cites `EPI06-POS-001`, `EPI06-ADV-001`, and `EPI06-REPLAY-001`, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-core --test spine_conformance`
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test golden_scenarios`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+
+No deviations. The projection-bookkeeping mutation campaign remains scoped to `0040EPICERHOL-014`.

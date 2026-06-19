@@ -382,7 +382,40 @@ Status: evidence collected by `0040EPICERHOL-006`; aggregate row remains pending
 
 ## EPI-06 - Epistemic Projection Rebuild, Checksum Determinism, Context Filtering, And Non-Truth-Writer Quarantine
 
-Status: pending. Owned by `0040EPICERHOL-007`.
+Status: evidence collected by `0040EPICERHOL-007`; aggregate row remains pending for the mutation package and capstone verdict.
+
+- Evidence item ID: `EPI06-POS-001`
+- EPI cross-references: `EPI-06`
+- Evidence status: pass
+- Fingerprint scope: `EpistemicProjection` version, content-manifest identity, applied event range/count, typed observation/belief/contradiction/notebook/actor-known records, context-filtered reads, freshness/supersession records, and canonical projection checksums.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, `cargo test --locked -p tracewake-core --test spine_conformance`, `cargo test --locked -p tracewake-core --test golden_scenarios`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. These gates prove live projections and clean rebuilds agree on replay-visible semantic fields and checksums, and that serialized accepted logs replay to identical projection/state outcomes.
+- Path under test and behavior witness: `epistemics/projection.rs`, `events/apply.rs`, `events/log.rs`, `replay/rebuild.rs`, `replay/report.rs`, `checksum.rs`, and fixture runners. Representative witnesses include `projection_rebuild_matches_live_state`, `phase3a_agent_state_replay_projection_is_deterministic`, `serialized_event_log_replays_to_identical_state`, `replay_rebuild_checksum_matches_original_after_no_human_day`, and `spine_conformance_maps_every_spine_requirement_to_named_evidence`.
+- Replay/provenance ancestry: accepted event prefixes, event envelope identity, source/cause fields, projection checksums, replay reports, and fixture fingerprints are reconstructed from the serialized log rather than direct projection writes.
+- Sampling/exhaustiveness: finite EPI-06 replay/projection command set required by ticket `0040EPICERHOL-007`.
+- Pending or historical handling: cross-seam replay package remains owned by the capstone; mutation proof for projection bookkeeping remains owned by `0040EPICERHOL-014`.
+- Certification use: counted as certifying pass for the EPI-06 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI06-ADV-001`
+- EPI cross-references: `EPI-06`
+- Evidence status: pass
+- Fingerprint scope: hidden-state no-leak boundary, context-filtered actor-known reads, debug-truth exclusion, raw projection insertion/read quarantine, and omitted/reordered/corrupt event replay controls.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates`, `cargo test --locked -p tracewake-core --test golden_scenarios`, `cargo test --locked -p tracewake-content --test golden_fixtures_run`, and `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed. These gates show hidden authoritative state does not rewrite focal actor projection/context without an admissible epistemic event, and raw insertion/read negative fixtures remain enforced.
+- Path under test and behavior witness: `actor_known_context_unforgeable_from_truth`, `debug_truth_never_enters_holder_known_context_hash`, `epistemic_context_projection_and_records_remain_sealed`, `replay_detects_missing_or_reordered_event`, `no_human_decision_context_hash_gate_fails_when_source_evidence_tampered`, and registered negative fixtures for external raw projection access.
+- Replay/provenance ancestry: malformed or tampered event streams are rejected or reported with divergence rather than silently preserving the original projection checksum; hidden/debug-only facts remain outside holder-known projections.
+- Sampling/exhaustiveness: finite named no-leak, replay-tamper, and compile-fail corpus required by ticket `0040EPICERHOL-007`.
+- Pending or historical handling: configured mutation campaign is not claimed here; this row only records existing adversarial/negative gates.
+- Certification use: counted as certifying pass for the EPI-06 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI06-REPLAY-001`
+- EPI cross-references: `EPI-06`
+- Evidence status: pass
+- Fingerprint scope: replay report match/mismatch pairs, first divergence, checksum sensitivity, event order/duplication/schema rejection, and canonical serialization round trips.
+- Evidence summary: `event_schema_replay_gates`, `golden_scenarios`, and `golden_fixtures_run` passed replay controls that remove, duplicate, reorder, corrupt, schema-change, or source-tamper relevant events. The controls either reject the input or produce replay divergence instead of retaining projection equality by coincidence.
+- Path under test and behavior witness: `replay_report_match_mismatch_pair_exposes_semantic_fingerprints`, `unsupported_event_schema_replay_rejected`, `stream_mismatch_replay_rejected`, `duplicate_duration_terminal_poisons_rebuild_001`, `replay_detects_missing_or_reordered_event`, and fixture tamper tests.
+- Replay/provenance ancestry: replay inputs and outputs remain bound to event envelope identity, payload schema, source/cause fields, and canonical projection/state checksum scope.
+- Sampling/exhaustiveness: finite EPI-06 replay-tamper command set required by ticket `0040EPICERHOL-007`.
+- Pending or historical handling: none for this evidence row beyond the separate mutation/capstone gates.
+- Certification use: counted as certifying pass for the EPI-06 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## EPI-07 - Actor Decision Transaction, Proposal Context Parity, Validation-Truth Firewall, And Feedback Split
 
@@ -417,7 +450,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | `EPI-03` observation channels/event capture | event application; projection/replay | `EPI03-POS-001`, `EPI03-STAGED-READING-001` | `EPI03-ADV-001`, `EPI03-COMPILE-001` | `EPI03-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | `EPI04-POS-001`, `EPI04-STAGED-001` | `EPI04-ADV-001`, `EPI04-COMPILE-001` | `EPI04-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | `EPI05-POS-001` | `EPI05-ADV-001` | `EPI05-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-06` projection rebuild/non-writer | event application; projection/replay | pending | pending | pending | pending | pending |
+| `EPI-06` projection rebuild/non-writer | event application; projection/replay | `EPI06-POS-001` | `EPI06-ADV-001` | `EPI06-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | pending | pending | pending | pending | pending |
 | `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | pending | pending | pending | pending | pending |
 | `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | pending | pending | pending | pending | pending |
