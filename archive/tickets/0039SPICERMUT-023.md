@@ -1,6 +1,6 @@
 # 0039SPICERMUT-023: State accessor and door connectivity mutation survivors
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — strengthens state accessor and connectivity tests. No schema changes.
@@ -78,3 +78,23 @@ crates/tracewake-core/src/state.rs:422:58: replace == with != in DoorState::conn
 1. `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/state.rs --no-shuffle`
 2. `cargo test --workspace --locked`
 3. Per-file mutation is the correct first proof boundary because ticket 020 already established the full standing denominator.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Added focused state tests for materialized `AgentState` record-map accessors and
+positive/negative `DoorState::connects_place` endpoint checks, killing the four
+state survivors routed from ticket 020. The first per-file mutation proof also
+exposed three additional `state.rs` misses in `PhysicalState::workplaces` and
+`VisibilityDefault::stable_id`; added narrow tests for those accessors/canonical
+IDs as required consequences of this ticket's state-file proof boundary.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core state::tests`
+- `cargo mutants --no-config --workspace -C=--locked -f crates/tracewake-core/src/state.rs --no-shuffle` (58 mutants tested in 2m: 33 caught, 25 unviable)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
