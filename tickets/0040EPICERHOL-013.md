@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-harness only: paired-run / metamorphic / property assertions added to the existing certification suites (no production logic; spec §2 authorizes evidence instrumentation, not remediation).
-**Deps**: 0040EPICERHOL-001
+**Deps**: archive/tickets/0040EPICERHOL-001.md
 
 ## Problem
 

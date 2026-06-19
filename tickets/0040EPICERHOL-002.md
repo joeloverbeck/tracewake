@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
-**Deps**: 0040EPICERHOL-001
+**Deps**: archive/tickets/0040EPICERHOL-001.md
 
 ## Problem
 

@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs the existing compile-fail corpus and records the case-by-case matrix. May add test-only instrumentation per spec §2.
-**Deps**: 0040EPICERHOL-001
+**Deps**: archive/tickets/0040EPICERHOL-001.md
 
 ## Problem
 

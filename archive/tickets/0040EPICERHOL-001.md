@@ -1,6 +1,6 @@
 # 0040EPICERHOL-001: Acceptance-artifact scaffold + §4 baseline command transcript and environment
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — creates the `reports/` EPI-CERT acceptance artifact and captures the §4 command transcript; runs existing tests only, changes no engine code.
@@ -90,3 +90,20 @@ Run and capture, with exact invocation, exit status, and output-artifact locatio
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace --locked && cargo test --locked -p tracewake-core --doc`
 3. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` (replay lock layer — narrower boundary for the global replay/fingerprint capture)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Created `reports/0040_epi_cert_holder_known_contexts_beliefs_observations_provenance_possession_parity_view_models_and_debug_quarantine_certification_acceptance.md` with the spec §9.1 identity/scope header, §9.2 evidence-item ledger legend, §9.3 command/environment ledger, pending section headers for EPI-01 through EPI-11, the §6.1 compile-fail matrix, §9.4 per-seam verdict table, §9.5 replay/provenance package, §9.6 mutation package, §9.7 relational package, §9.8 EMERGE-OBS handling, and §9.9 aggregate verdict. The artifact intentionally leaves the EPI seam rows and aggregate verdict pending for the downstream tickets; this ticket rendered no EPI-CERT verdict.
+
+Verification results:
+
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace --locked` passed.
+- `cargo test --locked -p tracewake-core --doc` passed.
+- Every spec §4.2 named test binary was run with its exact `cargo test --locked -p <crate> --test <binary>` command and passed; the command ledger in the artifact records the per-command results.
+
+No deviations from the ticket scope. No engine code was changed.

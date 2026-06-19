@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — modifies the checked-in mutation perimeter `.cargo/mutants.toml`; creates `reports/0040_epi_cert_mutation_triage_register.md`. No simulation/production logic changes.
-**Deps**: 0040EPICERHOL-001
+**Deps**: archive/tickets/0040EPICERHOL-001.md
 
 ## Problem
 
