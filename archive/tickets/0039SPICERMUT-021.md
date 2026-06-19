@@ -1,6 +1,6 @@
 # 0039SPICERMUT-021: Capstone — SPINE-01…08 live re-proof + replacement acceptance artifact + verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — verification/evidence-only; produces the replacement acceptance artifact and renders the aggregate verdict. No production logic.
@@ -77,3 +77,58 @@ Render `SPINE-CERT passed` only when every SPINE-01…08 row passes, the mutatio
 1. `cargo test --workspace --locked` (plus the per-crate named SPINE suites enumerated in spec §7.1)
 2. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording --test acceptance_gates`
 3. The whole-workspace re-proof at the final commit (not a per-file run) is the correct verification boundary for the capstone verdict.
+
+## Outcome
+
+Completed: 2026-06-18
+
+Produced
+`archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md`
+as the replacement SPINE-CERT acceptance artifact. The artifact renders
+`SPINE-CERT passed` for exact implementation commit
+`92ba47f14998e0ea2fc95502bc3b76c5909478ca`, explicitly supersedes the 0038
+artifact, preserves the user-supplied target-lineage limitation, and states that
+it advances no later gate.
+
+Updated `reports/0039_spine_cert_mutation_triage_register.md` with the capstone
+reconciliation addendum. The final standing mutation run enumerated 48 files and
+2625 mutants; the full run reported 2079 caught, 545 unviable, 0 missed, and 1
+timeout. The timeout retry over `generate_candidate_goals` completed with 6
+caught, 2 unviable, 0 missed, and 0 timeouts. No blocked/untriaged survivor,
+unresolved timeout, equivalent disposition, non-critical disposition, or
+baseline-miss laundering remains.
+
+Added acceptance wording coverage for the 0039 artifact. Verification passed:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace --locked`
+5. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
+6. `cargo test --locked -p tracewake-core --test acceptance_gates`
+7. `cargo test --locked -p tracewake-core --test anti_regression_guards`
+8. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
+9. `cargo test --locked -p tracewake-core --test doc_invariant_references`
+10. `cargo test --locked -p tracewake-core --test emergence_ledger`
+11. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+12. `cargo test --locked -p tracewake-core --test generative_lock`
+13. `cargo test --locked -p tracewake-core --test golden_scenarios`
+14. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+15. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+16. `cargo test --locked -p tracewake-core --test no_human_capstone`
+17. `cargo test --locked -p tracewake-core --test spine_conformance`
+18. `cargo test --locked -p tracewake-content --test fixtures_load`
+19. `cargo test --locked -p tracewake-content --test forbidden_content`
+20. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+21. `cargo test --locked -p tracewake-content --test schema_conformance`
+22. `cargo test --locked -p tracewake-tui --test adversarial_gates`
+23. `cargo test --locked -p tracewake-tui --test command_loop_session`
+24. `cargo test --locked -p tracewake-tui --test embodied_flow`
+25. `cargo test --locked -p tracewake-tui --test readme_sample_session`
+26. `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+27. `cargo test --locked -p tracewake-tui --test tui_acceptance`
+28. `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+29. `cargo mutants --workspace --list-files`
+30. `cargo mutants --workspace --list`
+31. `cargo mutants --workspace --no-shuffle -j 8 -o mutants-final-0039.out`
+32. `cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'generate_candidate_goals' -o mutants-final-0039-timeout-retry.out`

@@ -23,10 +23,17 @@ checked-in cargo-mutants configuration after correcting the cargo-mutants
   over the timed-out identities completed with 0 timeouts: 2 missed, 16 caught,
   2 unviable.
 
-Effective certification disposition: `SPINE-CERT scoped remediation`. There are
-38 actionable missed mutants and 0 unresolved timeouts after retry. No missed
-mutant was accepted as equivalent or non-critical, and
-`.cargo/mutants-baseline-misses.txt` remains unchanged/empty.
+Ticket 020 certification disposition: `SPINE-CERT scoped remediation`. At that
+point there were 38 actionable missed mutants and 0 unresolved timeouts after
+retry. No missed mutant was accepted as equivalent or non-critical, and
+`.cargo/mutants-baseline-misses.txt` remained unchanged/empty.
+
+Capstone disposition after tickets 022, 023, and 024: `SPINE-CERT passed` for
+the scoped 0039 replacement artifact. The final standing run at implementation
+commit `92ba47f14998e0ea2fc95502bc3b76c5909478ca` tested the same 2625-mutant
+denominator with 2079 caught, 545 unviable, 0 missed, and 1 timeout; the timeout
+retry completed with 6 caught, 2 unviable, 0 missed, and 0 timeouts. No blocked
+or untriaged survivor remains.
 
 ## Evidence Artifacts
 
@@ -154,3 +161,43 @@ cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'current_place_perc
 Retry outcome: 20 mutants tested in 3m: 2 missed, 16 caught, 2 unviable, 0
 timeouts. The two perception timeout identities were caught on retry. The
 checksum empty-string identity is included in `0039SPICERMUT-024`.
+
+## Capstone Reconciliation Addendum
+
+After archived tickets `0039SPICERMUT-022`, `0039SPICERMUT-023`, and
+`0039SPICERMUT-024` landed, the capstone reran the standing perimeter:
+
+```sh
+cargo mutants --workspace --list-files
+cargo mutants --workspace --list
+cargo mutants --workspace --no-shuffle -j 8 -o mutants-final-0039.out
+cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'generate_candidate_goals' -o mutants-final-0039-timeout-retry.out
+```
+
+Final standing census:
+
+- `cargo mutants --workspace --list-files`: 48 files.
+- `cargo mutants --workspace --list`: 2625 mutants.
+- Full run: 2625 mutants tested in 3h; 2079 caught, 545 unviable, 0 missed, 1 timeout.
+- Retry: 8 filtered mutants tested in 68s; 6 caught, 2 unviable, 0 missed, 0 timeouts.
+
+The only full-run timeout was:
+
+```text
+crates/tracewake-core/src/agent/generation.rs:101:13: delete match arm (NeedKind::Fatigue, NeedBand::Urgent) in generate_candidate_goals
+```
+
+The retry resolved that timeout. `missed.txt` was empty in the final standing
+run and in the timeout retry. The 38 actionable missed mutants from ticket 020
+are therefore reconciled as killed by remediation and final standing proof:
+
+| Responsible ticket | Count | Final disposition |
+| --- | ---: | --- |
+| `0039SPICERMUT-022` | 5 | killed; final standing run has zero missed controller mutants |
+| `0039SPICERMUT-023` | 4 | killed; final standing run has zero missed state mutants |
+| `0039SPICERMUT-024` | 29 full-run misses + 1 retry miss | killed; final standing run has zero missed projection mutants |
+
+No survivor was accepted as equivalent or non-critical. No baseline-miss file was
+used to launder a behavior-changing survivor. The capstone replacement
+acceptance artifact is
+`archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md`.
