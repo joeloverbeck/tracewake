@@ -1,6 +1,6 @@
 # 0041EPICERMUT-002: Kill `belief.rs` survivors — stale-frontier freshness and observation/contradiction witness links
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/belief.rs` (and its projection/view-model consumers) only if a survivor reveals a real contract/reachability defect
@@ -103,3 +103,27 @@ Build one event-backed belief whose support contains a known observation ID, the
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/belief.rs`
 2. `cargo test --workspace --locked`
 3. `cargo mutants -f <file>` is the correct per-ticket boundary: it regenerates exactly this file's mutants so the four identities' catch/disposition is provable in isolation before the full campaign (ticket 009) reconciles them against the complete denominator.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Implemented an additive production evidence path for the `belief.rs` stale-frontier and witness-link contract. `BeliefUpdated` event payload parsing now admits `last_verified_tick`, `stale_after_tick`, `observation_ids`, and `contradiction_ids`; `Belief` gained a `with_stale_after_tick` builder; projection checksums now serialize `stale_after`, observation links, and contradiction links; and `DebugBeliefEntry` now exposes the same witness-chain fields for debug evidence.
+
+Added `belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay` in `crates/tracewake-core/tests/event_schema_replay_gates.rs`. The witness applies event-backed observation, contradiction, and belief records; checks before/at/after stale-frontier ticks; proves the observation and contradiction IDs survive through context-filtered projection, canonical checksum input, debug belief view, and replay rebuild; and verifies another actor's embodied context does not receive the private belief.
+
+Verification:
+
+- `cargo test -p tracewake-core --test event_schema_replay_gates belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay` passed.
+- `cargo test -p tracewake-core --test event_schema_replay_gates` passed.
+- `cargo test --workspace --locked` passed.
+- `cargo fmt --all --check` passed.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/belief.rs --test-workspace true -C=--locked` completed with 34 mutants tested: 17 caught, 17 unviable, 0 missed. The four historical identities are listed in `mutants.out/caught.txt`:
+  - `Belief::stale_after_tick -> None`
+  - `Belief::stale_after_tick -> Some(Default::default())`
+  - `Belief::observation_ids -> Box::leak(Box::new(BTreeSet::new()))`
+  - `Belief::contradiction_ids -> Box::leak(Box::new(BTreeSet::new()))`
+
+Deviations: the literal `cargo mutants -f crates/tracewake-core/src/epistemics/belief.rs` command loaded the checked-in `.cargo/mutants.toml` and began the full configured 2776-mutant campaign; it was interrupted before final output because ticket 009 owns that full campaign. The file-local proof was rerun with `--no-config` so `-f` actually scoped to `belief.rs`; the checked-in config remains unchanged and will be exercised by ticket 009.
+
+No `.cargo/mutants-baseline-misses.txt` entry was added. No §4.11 equivalent or non-critical disposition was used.

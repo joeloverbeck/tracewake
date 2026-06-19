@@ -100,6 +100,11 @@ impl Belief {
         self
     }
 
+    pub fn with_stale_after_tick(mut self, stale_after_tick: Option<SimTick>) -> Self {
+        self.stale_after_tick = stale_after_tick;
+        self
+    }
+
     pub fn with_observation(mut self, observation_id: ObservationId) -> Self {
         self.observation_ids.insert(observation_id);
         self

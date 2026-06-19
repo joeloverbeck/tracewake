@@ -721,6 +721,9 @@ pub struct DebugBeliefEntry {
     pub stance: String,
     pub confidence: String,
     pub source: String,
+    pub stale_after_tick: Option<u64>,
+    pub observation_ids: Vec<String>,
+    pub contradiction_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -886,6 +889,9 @@ mod tests {
                         stance: "believes_true".to_string(),
                         confidence: "1000".to_string(),
                         source: "event:event_observation".to_string(),
+                        stale_after_tick: Some(12),
+                        observation_ids: vec!["obs_tomas_checked_strongbox".to_string()],
+                        contradiction_ids: vec!["contradiction_tomas_missing_coin".to_string()],
                     }],
                 },
                 DebugHolderBeliefs {

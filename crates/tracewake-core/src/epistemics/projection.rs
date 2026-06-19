@@ -661,13 +661,19 @@ impl EpistemicProjection {
 
         for (id, belief) in &self.beliefs_by_id {
             lines.push(format!(
-                "belief|id={}|holder={}|stance={}|confidence={}|proposition={}|source={:?}",
+                "belief|id={}|holder={}|stance={}|confidence={}|proposition={}|source={:?}|stale_after={}|observations={}|contradictions={}",
                 id.as_str(),
                 holder_key(belief.holder()),
                 belief.stance().stable_id(),
                 belief.confidence().serialize_canonical(),
                 belief.proposition().serialize_canonical(),
                 belief.source(),
+                belief
+                    .stale_after_tick()
+                    .map(|tick| tick.value().to_string())
+                    .unwrap_or_default(),
+                observation_id_set_key(belief.observation_ids()),
+                contradiction_id_set_key(belief.contradiction_ids()),
             ));
         }
 
@@ -1517,6 +1523,20 @@ fn holder_key(holder: &HolderKind) -> String {
     }
 }
 
+fn observation_id_set_key(ids: &std::collections::BTreeSet<ObservationId>) -> String {
+    ids.iter()
+        .map(|id| id.as_str())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn contradiction_id_set_key(ids: &std::collections::BTreeSet<ContradictionId>) -> String {
+    ids.iter()
+        .map(|id| id.as_str())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 fn debug_belief_entry(belief: &Belief) -> DebugBeliefEntry {
     DebugBeliefEntry {
         belief_id: belief.belief_id().as_str().to_string(),
@@ -1524,6 +1544,17 @@ fn debug_belief_entry(belief: &Belief) -> DebugBeliefEntry {
         stance: belief.stance().stable_id().to_string(),
         confidence: belief.confidence().serialize_canonical(),
         source: source_summary(belief.source()),
+        stale_after_tick: belief.stale_after_tick().map(|tick| tick.value()),
+        observation_ids: belief
+            .observation_ids()
+            .iter()
+            .map(|id| id.as_str().to_string())
+            .collect(),
+        contradiction_ids: belief
+            .contradiction_ids()
+            .iter()
+            .map(|id| id.as_str().to_string())
+            .collect(),
     }
 }
 

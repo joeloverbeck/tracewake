@@ -771,6 +771,16 @@ fn parse_tick(
     Ok(SimTick::new(parsed))
 }
 
+fn parse_optional_tick(
+    payload: &BTreeMap<&str, &str>,
+    key: &'static str,
+) -> Result<Option<SimTick>, EpistemicApplyError> {
+    payload
+        .get(key)
+        .map(|_| parse_tick(payload, key))
+        .transpose()
+}
+
 fn parse_confidence(payload: &BTreeMap<&str, &str>) -> Result<Confidence, EpistemicApplyError> {
     let value = required_epistemic(payload, "confidence")?;
     let parsed = value
@@ -844,7 +854,45 @@ fn parse_belief_payload(payload: &BTreeMap<&str, &str>) -> Result<Belief, Episte
     if payload.contains_key("channel") {
         belief = belief.with_channel(parse_channel(payload)?);
     }
+    belief = belief.with_last_verified_tick(parse_optional_tick(payload, "last_verified_tick")?);
+    belief = belief.with_stale_after_tick(parse_optional_tick(payload, "stale_after_tick")?);
+    if let Some(observation_ids) = payload.get("observation_ids") {
+        for observation_id in parse_observation_ids(observation_ids)? {
+            belief = belief.with_observation(observation_id);
+        }
+    }
+    if let Some(contradiction_ids) = payload.get("contradiction_ids") {
+        for contradiction_id in parse_contradiction_ids(contradiction_ids)? {
+            belief = belief.with_contradiction(contradiction_id);
+        }
+    }
     Ok(belief)
+}
+
+fn parse_observation_ids(value: &str) -> Result<Vec<ObservationId>, EpistemicApplyError> {
+    value
+        .split(',')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            ObservationId::new(part).map_err(|_| EpistemicApplyError::BadPayload {
+                key: "observation_ids",
+                value: part.to_string(),
+            })
+        })
+        .collect()
+}
+
+fn parse_contradiction_ids(value: &str) -> Result<Vec<ContradictionId>, EpistemicApplyError> {
+    value
+        .split(',')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            ContradictionId::new(part).map_err(|_| EpistemicApplyError::BadPayload {
+                key: "contradiction_ids",
+                value: part.to_string(),
+            })
+        })
+        .collect()
 }
 
 fn parse_observation_payload(
