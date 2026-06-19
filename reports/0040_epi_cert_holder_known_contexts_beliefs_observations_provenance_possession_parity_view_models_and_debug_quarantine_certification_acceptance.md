@@ -345,7 +345,40 @@ Status: evidence collected by `0040EPICERHOL-005`; aggregate row remains pending
 
 ## EPI-05 - Provenance Witnesses, Source-Event Sufficiency, Freshness, And Hidden-Truth Audit
 
-Status: pending. Owned by `0040EPICERHOL-006`.
+Status: evidence collected by `0040EPICERHOL-006`; aggregate row remains pending for the mutation package and capstone verdict.
+
+- Evidence item ID: `EPI05-POS-001`
+- EPI cross-references: `EPI-05`
+- Evidence status: pass
+- Fingerprint scope: `ActorKnownFact`/`ActorKnownProvenance` records, `HiddenTruthAudit`, proposal source-context tuple, accepted event ancestry, and actor-visible feedback.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates`, `cargo test --locked -p tracewake-core --test acceptance_gates`, and `cargo test --locked -p tracewake-core --test no_human_capstone` passed. These gates prove actor-known workplace, route, food, and embodied context facts remain source-backed, holder-scoped, and frontier-bounded; proposal consumers retain the sealed context ID/hash/frontier and source-event ancestry through validation, append, replay-visible diagnostics, and actor-safe feedback.
+- Path under test and behavior witness: `agent/actor_known.rs`, `agent/no_human_surface.rs`, `agent/transaction.rs`, `actions/proposal.rs`, `actions/pipeline.rs`, `agent/trace.rs`, and no-human capstone consumers. Representative witnesses include `workplace_requires_assignment_or_observation_provenance`, `actor_known_local_actor_reaches_embodied_view_model_with_context_provenance`, `holder_known_fact_family_report_fingerprint_covers_keys_fields_and_audit`, `integrated_no_human_day_capstone_emerges_from_one_autonomous_run`, and `no_human_capstone_proves_typed_ancestry_and_replay`.
+- Replay/provenance ancestry: every certified positive row is derived from accepted log events or declared starting evidence; source-event IDs remain non-empty where required, canonical, resolvable, and no later than the sealed context frontier.
+- Sampling/exhaustiveness: finite EPI-05 positive command set required by ticket `0040EPICERHOL-006`.
+- Pending or historical handling: ordinary-life completeness is not inferred from this row; it certifies only the EPI-05 provenance boundary.
+- Certification use: counted as certifying pass for the EPI-05 positive-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI05-ADV-001`
+- EPI cross-references: `EPI-05`
+- Evidence status: pass
+- Fingerprint scope: forbidden provenance, prose-born fact, hidden-truth-audit contamination, debug-only truth, validation-only truth, and unproven physical truth rejection surfaces.
+- Evidence summary: `cargo test --locked -p tracewake-content --test forbidden_content` and `cargo test --locked -p tracewake-core --test negative_fixture_runner` passed, including the semantic-contamination guards that reject typed-but-forbidden provenance even without relying on banned strings.
+- Path under test and behavior witness: `forbidden_content` covers `forbidden_content_hidden_truth_source_cannot_seed_actor_known_planner_input`, `forbidden_content_planner_intended_initial_facts_require_provenance`, and `content_prose_born_fact_rejected`; `negative_fixture_runner` confirms the registered negative corpus and compile-fail guards still fire.
+- Replay/provenance ancestry: adversarial inputs do not create accepted proposals/events or actor-known facts; typed diagnostics keep the responsible layer explicit.
+- Sampling/exhaustiveness: finite named forbidden-content and negative-fixture corpus required by ticket `0040EPICERHOL-006`.
+- Pending or historical handling: no mutation-survivor conclusion is made here; mutation package remains owned by `0040EPICERHOL-014`.
+- Certification use: counted as certifying pass for the EPI-05 adversarial/negative-evidence column; aggregate seam verdict remains pending until mutation/capstone consolidation.
+
+- Evidence item ID: `EPI05-REPLAY-001`
+- EPI cross-references: `EPI-05`
+- Evidence status: pass
+- Fingerprint scope: event envelope source/cause IDs, replay rebuilding, source-event tamper/deletion, dangling-provenance diagnostics, and deterministic context hashes.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates` and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. Replay gates prove epistemic event source fields survive accepted-log serialization/rebuild, deterministic context hashes use causal/latest witnesses, and source-event tampering or deletion poisons replay instead of preserving derived facts by checksum coincidence.
+- Path under test and behavior witness: `event_schema_replay_gates` covers `starting_observation_and_contradiction_events_survive_replay_with_sources`, `deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses`, and `typed_diagnostic_hidden_truth_true_is_validated_and_replayed`; `golden_fixtures_run` covers `no_human_decision_context_hash_gate_fails_when_source_evidence_tampered`, `no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash`, and provenance-bearing fixture families.
+- Replay/provenance ancestry: accepted log event IDs, payload schema, payload fingerprints, source ticks, context frontiers, freshness/supersession records, and downstream proposal consumers are exercised through replayed fixtures.
+- Sampling/exhaustiveness: finite EPI-05 replay/golden-fixture command set required by ticket `0040EPICERHOL-006`.
+- Pending or historical handling: replay evidence is current to this ticket's commands; full cross-seam replay package remains owned by the capstone.
+- Certification use: counted as certifying pass for the EPI-05 replay/provenance column; aggregate seam verdict remains pending until mutation/capstone consolidation.
 
 ## EPI-06 - Epistemic Projection Rebuild, Checksum Determinism, Context Filtering, And Non-Truth-Writer Quarantine
 
@@ -383,7 +416,7 @@ Status: pending. Owned by `0040EPICERHOL-012`.
 | `EPI-02` beliefs/privacy/freshness | content/schema validation; projection/replay | `EPI02-POS-001`, `EPI02-FRESH-001` | `EPI02-ADV-001`, `EPI02-COMPILE-001` | `EPI02-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-03` observation channels/event capture | event application; projection/replay | `EPI03-POS-001`, `EPI03-STAGED-READING-001` | `EPI03-ADV-001`, `EPI03-COMPILE-001` | `EPI03-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-04` contradiction/absence discipline | projection/replay; view-model rendering | `EPI04-POS-001`, `EPI04-STAGED-001` | `EPI04-ADV-001`, `EPI04-COMPILE-001` | `EPI04-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
-| `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | pending | pending | pending | pending | pending |
+| `EPI-05` provenance/witness sufficiency | actor-known context construction; proposal/action validation | `EPI05-POS-001` | `EPI05-ADV-001` | `EPI05-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-06` projection rebuild/non-writer | event application; projection/replay | pending | pending | pending | pending | pending |
 | `EPI-07` decision/proposal parity/truth firewall | candidate/planning/proposal/action validation | pending | pending | pending | pending | pending |
 | `EPI-08` possession parity | actor-known context; view-model; proposal/action validation | pending | pending | pending | pending | pending |

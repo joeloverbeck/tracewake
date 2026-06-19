@@ -1,6 +1,6 @@
 # 0040EPICERHOL-006: EPI-05 — provenance witnesses, source-event sufficiency, freshness, and hidden-truth audit
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2.
@@ -75,3 +75,20 @@ Populate the EPI-05 section with the §9.2 ledger fields per witness (positive, 
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
 2. `cargo test --locked -p tracewake-core --test no_human_capstone && cargo test --locked -p tracewake-content --test forbidden_content`
 3. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` (source-event deletion / dangling-provenance boundary)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Populated the EPI-05 section of the acceptance artifact with positive provenance, adversarial contamination, and replay/source-event sufficiency evidence. The §9.4 EPI-05 row now cites `EPI05-POS-001`, `EPI05-ADV-001`, and `EPI05-REPLAY-001`, while its aggregate result remains pending for the mutation package and capstone verdict. No production or test code was changed.
+
+Verification results:
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test no_human_capstone`
+- `cargo test --locked -p tracewake-content --test forbidden_content`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+No deviations. `negative_fixture_runner` was run because the ticket requires it in addition to the spec's EPI-05 exact-command set.
