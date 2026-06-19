@@ -142,7 +142,13 @@ Exactly what Session 2 outputs — leave no ambiguity:
   (the opposite of the per-epoch rule just above — e.g. a "Renamed specs" commit that renumbers a
   `0002 → 0006` re-hardening epoch onto the tail of an existing `0002…0008` series, yielding a single
   `0002…0013` whose next number is `0014`); a recent *restart* does not. The git evidence governs over
-  the filename pattern alone. Carry any
+  the filename pattern alone. **Lineage-predecessor short-circuit:** when a same-campaign lineage
+  predecessor brief (one gate/phase back on the *same* line — e.g. a `SPINE-CERT` brief preceding an
+  `EPI-CERT` brief on the certification ladder) already established the current staging epoch and
+  chose the prior gate's number, continue the sequence (N → N+1) and **cite that predecessor** instead
+  of re-deriving the full epoch/global-max/unification analysis — reserve that full derivation for when
+  no such predecessor exists, or when recent git history shows an intervening renumber/restart since
+  the predecessor was authored (re-run the recent-history check to confirm none did). Carry any
   residual placement ambiguity (`specs/` staging vs. final `docs/4-specs/`) as a labeled
   `assumption:` line rather than asserting it;
 - the **locked / no-questions** instruction, verbatim intent:

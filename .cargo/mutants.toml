@@ -26,6 +26,7 @@ examine_globs = [
   "crates/tracewake-core/src/debug_capability.rs",
   "crates/tracewake-core/src/controller.rs",
   "crates/tracewake-core/src/debug_reports.rs",
+  "crates/tracewake-core/src/epistemics/**",
   "crates/tracewake-core/src/epistemics/knowledge_context.rs",
   "crates/tracewake-core/src/epistemics/projection.rs",
   "crates/tracewake-content/src/manifest.rs",
