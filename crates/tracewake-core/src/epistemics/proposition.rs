@@ -1022,6 +1022,103 @@ mod tests {
     }
 
     #[test]
+    fn reference_validation_matrix_rejects_unknown_secondary_references() {
+        let known_actors = BTreeSet::from([actor_id("actor_tomas")]);
+        let known_places = BTreeSet::from([place_id("back_room")]);
+        let known_containers = BTreeSet::from([container_id("strongbox_tomas")]);
+        let known_items = BTreeSet::from([item_id("coin_stack_01")]);
+
+        let valid_controls = [
+            at_place_expected("coin_stack_01", "back_room"),
+            Proposition::ContainerContentsObserved {
+                container_id: container_id("strongbox_tomas"),
+            },
+            missing_from("coin_stack_01", Location::AtPlace(place_id("back_room"))),
+            missing_from(
+                "coin_stack_01",
+                Location::InContainer(container_id("strongbox_tomas")),
+            ),
+        ];
+        for proposition in valid_controls {
+            assert!(proposition
+                .validate_references(
+                    &known_actors,
+                    &known_places,
+                    &known_containers,
+                    &known_items
+                )
+                .is_ok());
+        }
+
+        let invalid_cases = [
+            (
+                missing_from("coin_stack_01", Location::AtPlace(place_id("hidden_room"))),
+                PropositionReferenceError::UnknownPlace(place_id("hidden_room")),
+            ),
+            (
+                missing_from(
+                    "coin_stack_01",
+                    Location::InContainer(container_id("hidden_strongbox")),
+                ),
+                PropositionReferenceError::UnknownContainer(container_id("hidden_strongbox")),
+            ),
+            (
+                Proposition::SoundHeardNearPlace {
+                    place_id: place_id("hidden_room"),
+                },
+                PropositionReferenceError::UnknownPlace(place_id("hidden_room")),
+            ),
+            (
+                Proposition::ContainerContentsObserved {
+                    container_id: container_id("hidden_strongbox"),
+                },
+                PropositionReferenceError::UnknownContainer(container_id("hidden_strongbox")),
+            ),
+            (
+                Proposition::ItemLocatedInContainer {
+                    item_id: item_id("coin_stack_01"),
+                    container_id: container_id("hidden_strongbox"),
+                },
+                PropositionReferenceError::UnknownContainer(container_id("hidden_strongbox")),
+            ),
+        ];
+
+        for (proposition, expected_error) in invalid_cases {
+            assert_eq!(
+                proposition.validate_references(
+                    &known_actors,
+                    &known_places,
+                    &known_containers,
+                    &known_items
+                ),
+                Err(expected_error)
+            );
+        }
+    }
+
+    #[test]
+    fn parse_and_reference_diagnostics_are_actionable() {
+        let reference_error =
+            PropositionReferenceError::UnknownContainer(container_id("hidden_strongbox"));
+        assert_eq!(
+            reference_error.to_string(),
+            "unknown container referenced by proposition: hidden_strongbox"
+        );
+
+        let parse_error = PropositionParseError::InvalidLocationShape;
+        assert_eq!(
+            parse_error.to_string(),
+            "invalid canonical proposition location shape"
+        );
+
+        let invalid_id = PropositionParseError::InvalidId(IdError::InvalidCharacter { found: ':' });
+        assert_eq!(
+            invalid_id.to_string(),
+            "stable ID contains invalid character ':'"
+        );
+    }
+
+    #[test]
     fn actor_was_near_place_is_structured_but_not_special_cased_as_knowledge() {
         let proposition = Proposition::ActorWasNearPlace {
             actor_id: actor_id("actor_mara"),

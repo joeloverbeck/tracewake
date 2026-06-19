@@ -1,6 +1,6 @@
 # 0041EPICERMUT-008: Kill `proposition.rs` reference-validation and typed-diagnostic survivors
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — behavior-witness tests by default; conditional production correction in `crates/tracewake-core/src/epistemics/proposition.rs` (and the content validation boundary) only if a survivor reveals a real defect
@@ -95,3 +95,18 @@ Cause one real unknown-reference failure and one real malformed-canonical-propos
 1. `cargo mutants -f crates/tracewake-core/src/epistemics/proposition.rs -F validate_location -F require_place -F require_container -F 'PropositionReferenceError::fmt' -F 'PropositionParseError::fmt'`
 2. `cargo test --workspace --locked`
 3. The `-f … -F` filter is the correct per-ticket boundary: it regenerates exactly the validation/diagnostic mutants in isolation so this family's catch is provable before the full campaign (ticket 009) reconciles the whole file.
+
+## Outcome
+
+Completed: 2026-06-19
+
+Implemented reference-validation and diagnostic certification in `crates/tracewake-core/src/epistemics/proposition.rs`. The new matrix covers valid controls and invalid secondary references for expected-location `AtPlace`, expected-location `InContainer`, a direct place-referencing proposition, `ContainerContentsObserved`, and a valid item with an invalid container reference. This pins `validate_location`, `require_place`, and `require_container` without adding any fallback or repair path. Added diagnostic assertions for `PropositionReferenceError` and `PropositionParseError` so the structured error kind remains actionable and display text cannot silently disappear.
+
+No production correction was needed. The content boundary already calls `Proposition::validate_references` for initial beliefs and formats the resulting error into the content validation diagnostic; for the per-mutant proof I kept the new cases in the proposition module to target the exact surviving helpers and Display impls. The broader content boundary remains covered by the existing workspace content validation tests run below.
+
+Verification:
+
+- `cargo test -p tracewake-core epistemics::proposition` — passed, 13 proposition tests including the new reference matrix and diagnostic assertions.
+- `cargo mutants --no-config -f crates/tracewake-core/src/epistemics/proposition.rs -F validate_location -F require_place -F require_container -F '<impl fmt::Display for PropositionReferenceError>::fmt' -F '<impl fmt::Display for PropositionParseError>::fmt' --test-workspace true -C=--locked` — passed, 5 mutants tested, 5 caught.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace --locked` — passed.
