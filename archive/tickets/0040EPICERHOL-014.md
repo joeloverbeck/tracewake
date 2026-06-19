@@ -1,6 +1,6 @@
 # 0040EPICERHOL-014: §7 mutation posture — Wave A continuity, Wave B EPI expansion, and triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — modifies the checked-in mutation perimeter `.cargo/mutants.toml`; creates `reports/0040_epi_cert_mutation_triage_register.md`. No simulation/production logic changes.
@@ -78,3 +78,19 @@ Record configured-census files + required-file omissions (if any), enumerated/te
 1. `cargo mutants --workspace --list-files` (prove the configured EPI union before the campaign)
 2. `cargo test --workspace --locked` (unmutated baseline must be green before mutation interpretation)
 3. `cargo mutants --workspace --no-shuffle` (the certifying Wave B census on the checked-in config; sharded equivalents only under §7.3 identical-environment conditions)
+
+## Outcome
+
+Completed: 2026-06-19
+
+Expanded `.cargo/mutants.toml` additively with `crates/tracewake-core/src/epistemics/**`, retained the existing standing perimeter, collected Wave A/Wave B censuses, ran the expanded Wave B mutation campaign, retried timeouts, created `reports/0040_epi_cert_mutation_triage_register.md`, and populated §9.6 of the acceptance artifact. No simulation or production logic was changed.
+
+Verification results:
+- `cargo mutants --workspace --list-files > reports/0040_epi_cert_mutation_wave_a_list_files.txt`: 48 files before the config edit.
+- `cargo mutants --workspace --list-files > reports/0040_epi_cert_mutation_wave_b_list_files.txt`: 54 files after the config edit, including the added epistemics union.
+- `cargo mutants --workspace --list > reports/0040_epi_cert_mutation_wave_b_list.txt`: 2763 mutants.
+- `cargo test --workspace --locked`: pass.
+- `cargo mutants --workspace --no-shuffle -j 8 -o reports/0040_epi_cert_mutation_wave_b_j8.out`: 2763 tested, 27 missed, 2143 caught, 589 unviable, 4 timeouts.
+- `cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'current_place_perception_events|Confidence::parts_per_thousand|PropositionParseError|PropositionReferenceError' -o reports/0040_epi_cert_mutation_wave_b_timeout_retry.out`: 22 tested, 7 missed, 10 caught, 5 unviable, 0 timeouts.
+
+Outcome routing: `EPI-CERT scoped remediation`. The final unique missed-mutant floor contains 30 behavior-relevant missed mutants recorded in `reports/0040_epi_cert_mutation_final_missed.txt` and the triage register. No missed mutant was accepted as equivalent or non-critical. The first serial Wave B attempt was interrupted for runtime after partial progress and is retained only as non-certifying scratch output; it is not counted in the mutation verdict.

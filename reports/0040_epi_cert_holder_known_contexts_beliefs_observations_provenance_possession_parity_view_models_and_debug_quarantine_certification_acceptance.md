@@ -637,7 +637,7 @@ Status: evidence collected by `0040EPICERHOL-012`; aggregate use remains pending
 | `EPI-09` embodied view/notebook/why-not | projection/replay; view-model rendering | `EPI09-POS-001` | `EPI09-ADV-001` | `EPI09-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-10` debug quarantine | debug quarantine; view-model rendering | `EPI10-POS-001` | `EPI10-ADV-001` | `EPI10-REPLAY-001` | pending `0040EPICERHOL-014` | pending |
 | `EPI-11` relational capstone | actor-known context; proposal construction; view-model rendering; projection/replay; debug quarantine | `EPI11-REL-001`, `EPI11-GEN-001` | `EPI11-REL-001` | `EPI11-REL-001`, `EPI11-GEN-001` | pending `0040EPICERHOL-014` | pending |
-| Configured EPI mutation perimeter | layer by survivor | pending | pending | pending | pending | pending |
+| Configured EPI mutation perimeter | projection/replay; content/schema validation; diagnostics; view-model rendering | `MUT-WAVEB-001` | `MUT-WAVEB-001` | `MUT-WAVEB-001` | `MUT-WAVEB-001`, `reports/0040_epi_cert_mutation_triage_register.md` | fail - scoped remediation |
 | Artifact/evidence honesty | documentation status; tests/fixtures | `0040-BASELINE-001`, `0040-NAMED-BINS-001` | pending | pending | pending | pending |
 
 ## Section 9.5 Replay And Provenance Package
@@ -646,7 +646,18 @@ Status: pending. Owned by `0040EPICERHOL-015` after the EPI sections, compile-fa
 
 ## Section 9.6 Mutation Package
 
-Status: pending. Owned by `0040EPICERHOL-014`.
+Status: evidence collected by `0040EPICERHOL-014`; result routes `EPI-CERT scoped remediation`.
+
+- Evidence item ID: `MUT-WAVEB-001`
+- EPI cross-references: mutation, `EPI-02`, `EPI-03`, `EPI-04`, `EPI-05`, `EPI-06`, `EPI-07`, `EPI-09`, `EPI-10`, `EPI-11`
+- Evidence status: fail
+- Fingerprint scope: checked-in `.cargo/mutants.toml`, `.github/workflows/ci.yml`, `Cargo.lock`, Wave A file census, Wave B expanded file/mutant census, Wave B run output, timeout retry output, final missed set, and survivor register.
+- Evidence summary: `.cargo/mutants.toml` was expanded additively with `crates/tracewake-core/src/epistemics/**`, increasing the configured file census from 48 to 54 files and Wave B mutant census to 2763 mutants. `cargo test --workspace --locked` passed before mutation interpretation. Final Wave B ran with `cargo mutants --workspace --no-shuffle -j 8 -o reports/0040_epi_cert_mutation_wave_b_j8.out`: 2763 tested, 2143 caught, 589 unviable, 27 missed, 4 timeouts. Timeout retry ran with `cargo mutants --workspace --no-shuffle -j 1 --timeout 600 -F 'current_place_perception_events|Confidence::parts_per_thousand|PropositionParseError|PropositionReferenceError' -o reports/0040_epi_cert_mutation_wave_b_timeout_retry.out`: 22 tested, 10 caught, 5 unviable, 7 missed, 0 timeouts. Unique final missed-mutant floor: 30.
+- Path under test and behavior witness: `reports/0040_epi_cert_mutation_wave_a_list_files.txt`, `reports/0040_epi_cert_mutation_wave_b_list_files.txt`, `reports/0040_epi_cert_mutation_wave_b_list.txt`, `reports/0040_epi_cert_mutation_wave_b_missed.txt`, `reports/0040_epi_cert_mutation_wave_b_timeout.txt`, `reports/0040_epi_cert_mutation_timeout_retry_missed.txt`, `reports/0040_epi_cert_mutation_timeout_retry_timeout.txt`, `reports/0040_epi_cert_mutation_final_missed.txt`, and `reports/0040_epi_cert_mutation_triage_register.md`.
+- Replay/provenance ancestry: mutation command used the checked-in config, `test_workspace = true`, `additional_cargo_args = ["--locked"]`, no `--no-config`, no `-f` final file list, and no `--iterate`; baseline was not skipped. CI mutation jobs use the checked-in config and do not pin a narrower standing file list, so `.github/workflows/ci.yml` was not changed.
+- Sampling/exhaustiveness: exhaustive Wave B configured union census for the expanded checked-in perimeter; interrupted serial output in `reports/0040_epi_cert_mutation_wave_b.out` is non-certifying scratch and is not counted.
+- Pending or historical handling: no unresolved timeouts remain after retry; no missed mutant is accepted as equivalent/non-critical; all 30 unique missed mutants are routed to later separate EPI-CERT mutation remediation.
+- Certification use: certifying mutation evidence fails the configured EPI mutation requirement and forces `EPI-CERT scoped remediation` in the capstone.
 
 ## Section 9.7 Relational Capstone Package
 

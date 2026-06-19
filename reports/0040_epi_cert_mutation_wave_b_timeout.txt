@@ -1,0 +1,4 @@
+crates/tracewake-core/src/agent/perception.rs:172:73: replace == with != in current_place_perception_events
+crates/tracewake-core/src/epistemics/observation.rs:25:9: replace Confidence::parts_per_thousand -> u16 with 1
+crates/tracewake-core/src/epistemics/proposition.rs:83:9: replace <impl fmt::Display for PropositionParseError>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/epistemics/proposition.rs:51:9: replace <impl fmt::Display for PropositionReferenceError>::fmt -> fmt::Result with Ok(Default::default())

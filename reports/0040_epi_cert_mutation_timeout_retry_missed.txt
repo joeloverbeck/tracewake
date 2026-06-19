@@ -1,0 +1,7 @@
+crates/tracewake-core/src/epistemics/observation.rs:25:9: replace Confidence::parts_per_thousand -> u16 with 0
+crates/tracewake-core/src/epistemics/observation.rs:25:9: replace Confidence::parts_per_thousand -> u16 with 1
+crates/tracewake-core/src/epistemics/proposition.rs:51:9: replace <impl fmt::Display for PropositionReferenceError>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/epistemics/proposition.rs:83:9: replace <impl fmt::Display for PropositionParseError>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/epistemics/proposition.rs:370:5: replace validate_location -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/epistemics/proposition.rs:392:5: replace require_place -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/epistemics/proposition.rs:403:5: replace require_container -> Result<(), PropositionReferenceError> with Ok(())
