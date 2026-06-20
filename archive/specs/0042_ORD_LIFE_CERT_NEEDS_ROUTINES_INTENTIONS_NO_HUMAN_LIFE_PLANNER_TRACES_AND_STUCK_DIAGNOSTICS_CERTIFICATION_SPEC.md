@@ -6,7 +6,7 @@ Archive path on accepted closeout: archive/specs/0042_ORD_LIFE_CERT_NEEDS_ROUTIN
 Target repository: joeloverbeck/tracewake
 Target commit: 98dc0421211e6c9881d9c6679b9df74525e392bb
 Spec series: numbered staging spec 0042; archived to archive/specs/ on accepted closeout
-Status: PROPOSED — non-executable certification audit contract; implementing-session verdict pending
+Status: ACCEPTED — executed by the `0042ORDLIFCER` ticket series; verdict `ORD-LIFE-CERT scoped remediation`
 Work posture: Certification
 Admissibility posture: consumes P0-CERT passed from archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md, SPINE-CERT passed from archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md, and EPI-CERT passed from archive/reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md
 Phase-certification label: ORD-LIFE-CERT, as defined by docs/2-execution/03 and docs/2-execution/06; this document mints no new gate code, invariant ID, status enum, or obligation code
@@ -1548,4 +1548,10 @@ External sources inform audit method only. They establish no fact about Tracewak
 
 ## Outcome
 
-This specification authors the ORD-LIFE-CERT audit and acceptance contract only. Certification remains pending execution by an implementing session. No current-code pass, failure, mutation floor, latest-main claim, Phase-4 entry, or downstream certification is asserted here.
+Completed: 2026-06-20
+
+This specification was executed by the `0042ORDLIFCER-001` through `0042ORDLIFCER-016` ticket series. The acceptance evidence lives in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md`, and the mutation posture evidence lives in `reports/0042_ord_life_cert_mutation_triage_register.md`.
+
+Final verdict: `ORD-LIFE-CERT scoped remediation`, not `ORD-LIFE-CERT passed`. Local ORD-LIFE-01 through ORD-LIFE-12 evidence, the ten live pass conditions, the seven mandatory fixture families, generated/metamorphic evidence, replay/provenance packaging, staged-abstraction handling, and observer-only `EMERGE-OBS` handling were recorded. The aggregate pass is blocked because the configured mutation lane did not complete and the partial exact run exposed three actionable missed `need_accounting.rs` mutants mapped to `ORD-LIFE-01`, `ORD-LIFE-08`, and `ORD-LIFE-12`.
+
+Remediation is routed to a later separately numbered ORD-LIFE-CERT mutation remediation/replacement spec. `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, latest-main certification, and full-project certification remain unasserted.
