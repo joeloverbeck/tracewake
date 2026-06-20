@@ -169,6 +169,18 @@ These commands were run for `0042ORDLIFCER-011` against commit `ac7de05b7a4ac35b
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:28:47+02:00` to `2026-06-20T12:28:47+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-event-schema-replay-gates.txt` | 2692 | `854fc640a820b84bd90e1f8bf166c714445bd1600a41c2fb6964c0a821ac17f5` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:28:55+02:00` to `2026-06-20T12:28:56+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-golden-fixtures-run.txt` | 3008 | `112260705493344587faf2be81933acb469fc36ec08331e37f1e393879816f66` |
 
+### ORD-LIFE-11 command ledger
+
+These commands were run for `0042ORDLIFCER-012` against commit `3b60fa0898922e4db2dd5b20dcdc7ac07c5c0d9b` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test spine_conformance` | `2026-06-20T12:33:36+02:00` to `2026-06-20T12:33:36+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-spine-conformance.txt` | 697 | `db416d620979af7bbe50a8381118856d429cdce1ad3965bf259c9c7b5506368f` |
+| `cargo test --locked -p tracewake-core --test anti_regression_guards` | `2026-06-20T12:33:45+02:00` to `2026-06-20T12:33:46+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-anti-regression-guards.txt` | 6049 | `a8fa7d2aff953733933e2dc2334992bf311b940814893158cf1838b11a58de9c` |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | `2026-06-20T12:33:53+02:00` to `2026-06-20T12:33:53+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-acceptance-gates.txt` | 1102 | `39c1c98dcd82f47ea80c7a8aec908c78fccb42bb7160a9f8f61372f7e2c3fd46` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:34:00+02:00` to `2026-06-20T12:34:01+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-no-human-capstone.txt` | 343 | `a8912d26b6db69d4a44c6b57a81965194660bc10c4e284745b6f63d0854f7594` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:34:09+02:00` to `2026-06-20T12:34:09+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-golden-fixtures-run.txt` | 3008 | `fde3e96d5c6931b8ea8959d85c8e65580cdf81881ac0b1c0cccd8cb8a9789a6b` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -187,7 +199,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-08` | ordinary actions/movement/durations | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS` | `pass` |
 | `ORD-LIFE-09` | no-human orchestration/metrics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD09-CANONICAL-REPLAY` | `pass` |
 | `ORD-LIFE-10` | stuck diagnostics/no-progress | `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR`, `0042-ORD10-REPLAY-ATTRIBUTION` | `pass` |
-| `ORD-LIFE-11` | scheduler/proposal ancestry | `pending` | `pending` |
+| `ORD-LIFE-11` | scheduler/proposal ancestry | `0042-ORD11-AUTHORITY-CHAIN`, `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`, `0042-ORD11-FORGED-STALE` | `pass` |
 | `ORD-LIFE-12` | replay-derived projections/phase lock | `pending` | `pending` |
 
 ### Ten live pass conditions
@@ -973,6 +985,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: code-level `ResponsibleLayer` is narrower than the review vocabulary; this evidence records concrete diagnostic/stuck attribution while broader document/test layers remain represented in report responsible-layer fields.
 - Certification use: counted as certifying pass for `ORD-LIFE-10`.
 
+### `0042-ORD11-AUTHORITY-CHAIN`
+
+- Evidence item ID: `0042-ORD11-AUTHORITY-CHAIN`
+- Requirement IDs: `ORD-LIFE-11`, `ORD-LIFE-PASS-04`, `ORD-LIFE-PASS-05`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed no-human, acceptance, and content tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test acceptance_gates`, `cargo test --locked -p tracewake-core --test no_human_capstone`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. No-human capstone verifies ordinary no-human events with proposal IDs and process IDs carry `EventCause::Proposal(proposal_id)`, verifies decision trace ancestry, rebuilds projection and agent state, and confirms no marker-agent errors beyond no-human start/end markers. Acceptance gates cover eat/sleep/work/move/wait/continue-routine event families and source context parity through the shared pipeline.
+- Path under test and behavior witness:
+  - path under test: scheduler actor selection, `ActorDecisionTransaction::run`, sealed proposal/stuck outcome, action pipeline, append/apply, replay;
+  - command/event/trigger/emitter/scheduler entry: no-human windows, actor-known transaction, proposal validation;
+  - responsible layer: `holder_known_context`, `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: ordinary actions flow transaction to sealed proposal to validation to append to apply;
+  - live negative, mutation-style failure, or reason no negative is applicable: proposal ancestry is required for ordinary no-human events and replay confirms final checksums/state;
+  - checked facts or invariants: context parity, proposal ancestry, append-before-apply, possessed/no-human seam convergence.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `DecisionTraceRecorded`, ordinary action events with proposal IDs, no-human start/end markers;
+  - replay artifact or serialized-log reference: no-human capstone rebuild and content fixture replay passed;
+  - seed, randomness, content version, or ruleset version: capstone and golden fixtures;
+  - extraction/projection version: current scheduler, transaction, pipeline, and replay code;
+  - source provenance: proposal IDs, process IDs, actor-known input refs, context ID/hash/frontier.
+- Sampling/exhaustiveness scope: finite live ordinary-action paths named by ORD-LIFE-11.
+- Pending or historical handling: general SPINE-CERT pipeline correctness is consumed; this row certifies ordinary-life seam usage.
+- Certification use: counted as certifying pass for `ORD-LIFE-11`.
+
+### `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`
+
+- Evidence item ID: `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`
+- Requirement IDs: `ORD-LIFE-11`, `ORD-LIFE-PASS-04`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed spine and anti-regression tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test spine_conformance` and `cargo test --locked -p tracewake-core --test anti_regression_guards` passed. `scheduler_never_direct_dispatches_primitive_action` asserts scheduler production code omits primitive action builder/definition calls for eat, movement, wait, continue-routine, container/open/take actions, requires `run_pipeline(&mut context, &proposal)`, requires `ActorDecisionTransaction::run`, and limits scheduler-owned builders to documented duration completion and marker/agent-diagnostic paths. Spine conformance maps `scheduler_never_direct_dispatches_primitive_action`, `guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass`, and `guard_006_scheduler_has_no_routine_family_to_primitive_dispatch` to named negative evidence.
+- Path under test and behavior witness:
+  - path under test: scheduler source, anti-regression guard matrix, spine conformance registry;
+  - command/event/trigger/emitter/scheduler entry: scheduler no-human action ordering and bypass-guard source scans;
+  - responsible layer: `doctrine`, `scheduler`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: scheduler cannot convert hunger/fatigue/safety/routine family/time/window directly into a primitive action;
+  - live negative, mutation-style failure, or reason no negative is applicable: synthetic direct scheduler dispatch and routine-family-to-primitive dispatch are enrolled as guard negatives;
+  - checked facts or invariants: no direct dispatch, no state apply outside replay/pipeline, no direct primitive action builder path.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: structural guard plus live no-human ancestry from `0042-ORD11-AUTHORITY-CHAIN`;
+  - replay artifact or serialized-log reference: anti-regression and spine conformance gates passed;
+  - seed, randomness, content version, or ruleset version: current scheduler and guard source;
+  - extraction/projection version: current scheduler/no-human and pipeline source;
+  - source provenance: guard registry lock IDs and reviewed scheduler production source.
+- Sampling/exhaustiveness scope: static structural guard matrix plus live no-human seam witness.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-11`.
+
+### `0042-ORD11-FORGED-STALE`
+
+- Evidence item ID: `0042-ORD11-FORGED-STALE`
+- Requirement IDs: `ORD-LIFE-11`, `ORD-LIFE-PASS-05`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed source-context and scheduler-reason tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test anti_regression_guards`, `cargo test --locked -p tracewake-core --test acceptance_gates`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. `forged_or_stale_source_context_rejected_by_reason_code` rejects missing source, stale frontier, forged semantic action, actor mismatch, stale context tick, and forged holder-known context ID with typed reason codes such as `ProposalSourceMissing`, `ProposalSourceStale`, `ProposalSourceForged`, `ProposalSourceActorMismatch`, and `ProposalSourceContextMismatch`. `accepted_action_appends_before_authoritative_apply` verifies `context.log.append(event)` occurs before `apply_event_stream`. `scheduler_cannot_rewrite_wait_reason_after_transaction` preserves the actor transaction wait reason and forbids no-human window injection.
+- Path under test and behavior witness:
+  - path under test: proposal source context validation, action pipeline append/apply order, scheduler post-processing;
+  - command/event/trigger/emitter/scheduler entry: human source proposals, no-human wait transaction, action pipeline;
+  - responsible layer: `proposal_construction`, `scheduler`, `action_validation`, `event_append`, `event_application`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: forged/stale source parameters reject before accepted ordinary event append; validation truth may reject but cannot schedule a replacement;
+  - live negative, mutation-style failure, or reason no negative is applicable: stale/forged context and scheduler reason rewrite attempts fail closed;
+  - checked facts or invariants: sealed proposal ancestry, source-context parity, append-before-apply, no scheduler rewrite.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `ActorWaited` with reason `actor_decision_reevaluation`, rejection reports, accepted-event append/apply path;
+  - replay artifact or serialized-log reference: acceptance, content fixture, and anti-regression gates passed;
+  - seed, randomness, content version, or ruleset version: current pipeline and scheduler tests;
+  - extraction/projection version: proposal source context, pipeline validation, scheduler wait path;
+  - source provenance: holder-known context ID/hash/frontier, actor ID, semantic action ID, proposal source fields.
+- Sampling/exhaustiveness scope: finite source-context perturbation matrix plus scheduler reason-preservation fixture.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-11`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -1188,7 +1272,23 @@ Replay and attribution witnesses:
 
 ## ORD-LIFE-11: scheduler no-direct-dispatch, sealed proposal ancestry, and forged/stale validation rejection
 
-Pending; owned by `0042ORDLIFCER-012`.
+Result: `pass` for the ORD-LIFE-11 local audit point.
+
+Authority-chain witnesses:
+
+- No-human capstone verifies ordinary no-human events carry proposal ancestry and rebuild to matching live physical/agent state.
+- Accepted ordinary actions flow through shared proposal validation, append, application, and replay; `continue_routine` remains a marker/arbitration path, not a scheduler-dispatched primitive.
+
+Direct-dispatch negatives:
+
+- Spine and anti-regression guards prove scheduler production code uses `ActorDecisionTransaction::run` and shared `run_pipeline`, not primitive action builders or direct routine/need/window dispatch.
+- Scheduler-owned duration completion and marker/agent diagnostic paths remain documented allowlist cases, not cognition or primitive ordinary-action dispatch.
+
+Forged/stale and reason-integrity witnesses:
+
+- Missing, stale, forged, actor-mismatched, stale-tick, and context-mismatched source contexts reject with typed reason codes before accepted ordinary-action append.
+- Append-before-apply source ordering is guarded.
+- Scheduler wait post-processing preserves the sealed transaction reason and does not inject no-human window IDs.
 
 ## ORD-LIFE-12: deterministic replay-derived ordinary-life projections, metrics, diagnostics, and phase-entry lock
 

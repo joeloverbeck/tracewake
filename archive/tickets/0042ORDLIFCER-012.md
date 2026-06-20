@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-012: ORD-LIFE-11 — scheduler no-direct-dispatch, sealed proposal ancestry, and forged/stale validation rejection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -69,6 +69,22 @@ Record the §5 adversarial cases: scheduler-side direct action construction/disp
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test spine_conformance`
+2. `cargo test --locked -p tracewake-core --test anti_regression_guards`
+3. `cargo test --locked -p tracewake-core --test acceptance_gates`
+4. `cargo test --locked -p tracewake-core --test no_human_capstone`
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-11 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD11-AUTHORITY-CHAIN`, `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`, and `0042-ORD11-FORGED-STALE`.
+
+The evidence records the scheduler-to-transaction-to-sealed-proposal-to-validation-to-append/apply authority chain, structural no-direct-dispatch guards, forged/stale source-context rejection, append-before-apply ordering, and scheduler wait-reason integrity. General SPINE-CERT pipeline correctness remains consumed from predecessor evidence as scoped; no ORD-LIFE-11 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test spine_conformance`
 2. `cargo test --locked -p tracewake-core --test anti_regression_guards`
