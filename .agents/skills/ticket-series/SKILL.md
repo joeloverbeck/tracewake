@@ -220,9 +220,23 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    format, and refresh the committed baseline when that file is the intended
    truth source. Leave transient output directories untracked unless the
    ticket/spec explicitly requires archiving them.
-5. Run the relevant final gates after the last tracked closeout edit and before
-   the final commit. For full completion, use the exact commands named by
-   repository guidance such as `AGENTS.md`. In this repo, those are:
+   When long-running evidence tools write ignored or very large output
+   directories, commit the stable evidence package rather than the whole
+   transient tree: command transcripts, summary outcome files, list/denominator
+   files, manifests or locks, and any report-cited hashes. Force-add ignored
+   files only when they are required summary evidence. Leave bulky per-case
+   logs, diffs, caches, and scratch outputs untracked unless the ticket/spec
+   explicitly requires archiving them.
+5. Run the relevant final gates after the last tracked closeout edit. The gate
+   evidence must cover the exact closeout tree that will be claimed complete.
+   Either:
+   - run the gates before the final commit, then confirm no tracked or generated
+     content changed between the gate run and the committed tree; or
+   - commit the final closeout first, then run the gates against that committed
+     tree and confirm the post-gate status is clean or contains only documented
+     unrelated pre-existing changes.
+   For full completion, use the exact commands named by repository guidance such
+   as `AGENTS.md`. In this repo, those are:
 
 ```sh
 cargo fmt --all --check
@@ -231,7 +245,6 @@ cargo build --workspace --all-targets --locked
 cargo test --workspace
 ```
 
-   The final gate evidence must cover the exact closeout tree that is committed.
    If any tracked or generated content changes after the gates, treat that run
    as an early confirmation and rerun the exact required gates after the last
    closeout edit that the repo checks could cover. If any required final gate is
@@ -284,7 +297,8 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    from prior intent. Check whether the process is still running, then rerun the
    exact required gate if completion evidence is unavailable.
 
-7. Run a final status/diff check and commit the spec archive/truthing work.
+7. Run a final status/diff check and commit the spec archive/truthing work if it
+   has not already been committed before the final gates.
 8. Before sending the final response or marking a `/goal` complete, confirm:
    - no matching active ticket paths remain under `tickets/`;
    - the reference spec no longer exists under `specs/` or `docs/4-specs/`;
@@ -337,6 +351,21 @@ final response, draft or mentally check the final answer against this list with
 literal labels and `None` values where applicable; do not omit a field because
 it seems obvious from the prose. For active `/goal` runs, include the goal-tool
 usage summary after marking the goal complete.
+
+Use this scaffold for final responses unless the user requested a narrower
+status-only reply:
+
+```md
+Tickets completed and archived: <list or None>.
+Spec archived: <archive path, explicit user no-archive instruction, or live blocking evidence>.
+Verification commands run: <commands>.
+Checks not run: <commands and why, or None>.
+Required AGENTS gate deviations: <command/flag differences and why, or None>.
+Enumerated-criterion members deferred/dropped: <recorded dispositions, or None>.
+Unrelated pre-existing changes left untouched: <paths/summary, or None>.
+Commits made: <list or None>.
+Goal usage: <goal-tool usage summary, or N/A>.
+```
 
 ## Maintenance
 
