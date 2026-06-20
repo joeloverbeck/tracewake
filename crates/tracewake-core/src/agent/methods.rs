@@ -221,6 +221,71 @@ mod tests {
     }
 
     #[test]
+    fn phase3a_template_census_has_defeasible_machinery_for_each_family() {
+        let templates = phase3a_routine_templates();
+        let expected = [
+            ("routine_morning_wake", RoutineFamily::MorningWake),
+            ("routine_eat_meal", RoutineFamily::EatMeal),
+            ("routine_go_to_work", RoutineFamily::GoToWork),
+            ("routine_work_block", RoutineFamily::WorkBlock),
+            ("routine_return_home", RoutineFamily::ReturnHome),
+            ("routine_sleep_night", RoutineFamily::SleepNight),
+            ("routine_find_food", RoutineFamily::FindFood),
+            (
+                "routine_leave_unsafe_place",
+                RoutineFamily::LeaveUnsafePlace,
+            ),
+            (
+                "routine_continue_current_intention",
+                RoutineFamily::ContinueCurrentIntention,
+            ),
+            ("routine_wait_idle", RoutineFamily::Wait),
+        ];
+
+        assert_eq!(
+            templates.len(),
+            expected.len(),
+            "unexpected phase3a routine template count"
+        );
+
+        for (template_id, family) in expected {
+            let template = templates
+                .iter()
+                .find(|candidate| {
+                    candidate.template_id.as_str() == template_id && candidate.family == family
+                })
+                .unwrap_or_else(|| panic!("missing template {template_id} / {family:?}"));
+            assert!(
+                !template.steps.is_empty(),
+                "{template_id} must expose at least one method/proposal step"
+            );
+            assert!(
+                all_steps_are_proposals(template),
+                "{template_id} must not encode empty routine proposals"
+            );
+            assert!(
+                !template.interruption_points.is_empty(),
+                "{template_id} must expose at least one interruptor checkpoint"
+            );
+            assert!(
+                !template.failure_modes.is_empty(),
+                "{template_id} must have explicit failure modes"
+            );
+            assert!(
+                !template.fallback_rules.is_empty(),
+                "{template_id} must have explicit fallback rules"
+            );
+            assert!(
+                template
+                    .debug_labels
+                    .iter()
+                    .any(|label| label == &format!("phase3a_{}", family.stable_id())),
+                "{template_id} must carry a trace/debug label for its family"
+            );
+        }
+    }
+
+    #[test]
     fn find_food_method_is_actor_known_only() {
         let template = phase3a_routine_templates()
             .into_iter()

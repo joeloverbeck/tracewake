@@ -126,6 +126,14 @@ pub const GENERATIVE_SEEDS: &[u64] = &[
     0x18_00_00_57,
 ];
 
+pub const GENERATIVE_EVIDENCE_VERSION: &str = "ordinary-life-generative-v1";
+pub const GENERATIVE_SHRINK_RESULT: &str = "not-run-green-sampled-corpus";
+pub const GENERATIVE_OMITTED_POPULATION: &[&str] = &[
+    "unbounded authored content manifests",
+    "all possible wall-clock schedules",
+    "all possible actor rosters",
+];
+
 #[derive(Clone, Debug)]
 pub struct Lcg {
     state: u64,

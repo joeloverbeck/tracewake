@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use support::generative::{
     actor_id, content_manifest_id, generate_case, initial_agent_state, initial_world,
-    no_human_state_mut, registry, scheduled_proposals, windows, GENERATIVE_SEEDS,
+    no_human_state_mut, registry, scheduled_proposals, windows, GENERATIVE_EVIDENCE_VERSION,
+    GENERATIVE_OMITTED_POPULATION, GENERATIVE_SEEDS, GENERATIVE_SHRINK_RESULT,
     SLEEP_INTERRUPT_HUNGER_VALUE, WORK_FAILURE_HUNGER_VALUE,
 };
 use tracewake_core::agent::NeedBand;
@@ -13,7 +14,8 @@ use tracewake_core::checksum::{
 };
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
-use tracewake_core::ids::{ContentVersion, FixtureId};
+use tracewake_core::ids::{ContentVersion, EventId, FixtureId};
+use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::time::SimTick;
@@ -319,6 +321,86 @@ fn duration_terminal_targeted_tamper_requires_duration_terminal() {
     );
 }
 
+#[test]
+fn generated_evidence_package_metadata_is_explicit_and_sampled() {
+    assert_eq!(GENERATIVE_EVIDENCE_VERSION, "ordinary-life-generative-v1");
+    assert_eq!(GENERATIVE_SEEDS.len(), 12);
+    assert_eq!(
+        GENERATIVE_SHRINK_RESULT, "not-run-green-sampled-corpus",
+        "green sampled corpus has no failing case to shrink"
+    );
+    assert!(
+        GENERATIVE_OMITTED_POPULATION
+            .iter()
+            .any(|entry| entry.contains("unbounded authored content")),
+        "generated evidence must record omitted population instead of claiming exhaustion"
+    );
+}
+
+#[test]
+fn generated_runs_are_deterministic_under_seed_order_permutation() {
+    let forward = generated_log_fingerprints(GENERATIVE_SEEDS.iter().copied());
+    let reversed = generated_log_fingerprints(GENERATIVE_SEEDS.iter().rev().copied());
+    assert_eq!(forward, reversed);
+}
+
+#[test]
+fn generated_progress_classification_and_lifecycle_properties_are_relational() {
+    let run = GENERATIVE_SEEDS
+        .iter()
+        .copied()
+        .map(|seed| (seed, run_case(&generate_case(seed))))
+        .find(|(_, run)| {
+            has_event(&run.log, EventKind::FoodConsumed)
+                && has_event(&run.log, EventKind::NoHumanAdvanceCompleted)
+                && has_event(&run.log, EventKind::SleepCompleted)
+        })
+        .expect("generated corpus must include food, marker, and sleep terminal");
+
+    let base_metrics = no_human_day_metrics(&run.1.log);
+    let marker_log = with_cloned_event_id(
+        &run.1.log,
+        EventKind::NoHumanAdvanceCompleted,
+        "event.generated.extra_marker",
+    );
+    let marker_metrics = no_human_day_metrics(&marker_log);
+    assert_eq!(marker_metrics.meals_completed, base_metrics.meals_completed);
+    assert_eq!(marker_metrics.sleep_completed, base_metrics.sleep_completed);
+    assert_eq!(
+        marker_metrics.work_blocks_completed,
+        base_metrics.work_blocks_completed
+    );
+    assert_eq!(
+        marker_metrics.work_blocks_failed,
+        base_metrics.work_blocks_failed
+    );
+
+    let committed_log = with_cloned_event_id(
+        &run.1.log,
+        EventKind::FoodConsumed,
+        "event.generated.extra_food_consumed",
+    );
+    let committed_metrics = no_human_day_metrics(&committed_log);
+    assert_eq!(
+        committed_metrics.meals_completed,
+        base_metrics.meals_completed + 1
+    );
+    assert_eq!(
+        committed_metrics.sleep_completed,
+        base_metrics.sleep_completed
+    );
+
+    let duplicate_terminal_log = with_cloned_event_id(
+        &run.1.log,
+        EventKind::SleepCompleted,
+        "event.generated.illegal_sleep_reactivation",
+    );
+    assert!(
+        replay_is_poisoned(&run.1, &duplicate_terminal_log, run.0),
+        "duplicating a legal terminal must not replay as a legal lifecycle"
+    );
+}
+
 fn record_seed_contribution(
     contributors: &mut BTreeMap<&'static str, BTreeSet<u64>>,
     seed: u64,
@@ -328,6 +410,28 @@ fn record_seed_contribution(
     if contributed {
         contributors.entry(flag).or_default().insert(seed);
     }
+}
+
+fn generated_log_fingerprints(seeds: impl Iterator<Item = u64>) -> BTreeMap<u64, Vec<u8>> {
+    seeds
+        .map(|seed| {
+            let run = run_case(&generate_case(seed));
+            (seed, run.log.serialize_canonical())
+        })
+        .collect()
+}
+
+fn with_cloned_event_id(log: &EventLog, kind: EventKind, event_id: &str) -> EventLog {
+    let mut cloned = log.clone();
+    let mut event = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == kind)
+        .cloned()
+        .unwrap_or_else(|| panic!("generated log missing event kind {kind:?}"));
+    event.event_id = EventId::new(event_id).unwrap();
+    cloned.append(event).unwrap();
+    cloned
 }
 
 fn assert_multi_seed_contributors(

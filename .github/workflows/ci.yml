@@ -147,6 +147,16 @@ jobs:
             find mutants.out -maxdepth 2 -type f -print || true
             exit "$mutants_status"
           fi
+          # A guarded file can change with no mutable production lines in the
+          # diff (test-only or comment-only edits — cargo-mutants logs "No
+          # mutants to filter", exits 0, and writes no output). That is a
+          # legitimate pass, not a tool failure: there is no production logic to
+          # cover. Only the genuine anomaly (a miss-bearing status with no
+          # artifacts) should fall through to the failure guard below.
+          if [ "$mutants_status" -eq 0 ] && { [ ! -d mutants.out ] || ! find mutants.out -type f -print -quit | grep -q .; }; then
+            echo "No mutable production lines in the guarded diff (e.g. test-only or comment-only changes); nothing to mutate. Gate passes."
+            exit 0
+          fi
           if [ ! -d mutants.out ] || ! find mutants.out -type f -print -quit | grep -q .; then
             echo "cargo-mutants produced no output artifacts for a guarded diff."
             exit 1

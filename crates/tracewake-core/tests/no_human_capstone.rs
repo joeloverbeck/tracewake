@@ -21,7 +21,7 @@ use tracewake_core::ids::{
 };
 use tracewake_core::location::Location;
 use tracewake_core::projections::no_human_day_metrics;
-use tracewake_core::replay::rebuild_projection;
+use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{run_no_human_day, DayWindow, NoHumanDayConfig};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{
@@ -155,6 +155,122 @@ fn no_human_capstone_proves_typed_ancestry_and_replay() {
             .serialize_canonical(),
         metrics.serialize_canonical()
     );
+}
+
+#[test]
+fn no_human_capstone_debug_and_replay_perturbation_are_non_interfering() {
+    let run = run_capstone_case();
+    let rendered = format!("{:?}", run.log.events()).to_ascii_lowercase();
+    assert!(!rendered.contains("previous_possessed_actor_knowledge"));
+    assert!(!rendered.contains("debug_omniscience"));
+    let metrics_before_debug = no_human_day_metrics(&run.log).serialize_canonical();
+    let debug_view = tracewake_core::projections::build_debug_event_log_view(&run.log);
+    assert_eq!(debug_view.events.len(), run.log.events().len());
+    assert_eq!(
+        no_human_day_metrics(&run.log).serialize_canonical(),
+        metrics_before_debug,
+        "debug event rendering must not feed back into no-human metrics"
+    );
+    assert_no_controller_or_hidden_truth_leak(&run.log);
+
+    let context = ChecksumContext {
+        fixture_id: FixtureId::new("phase3a_capstone_perturbed").unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick: run.final_tick,
+        world_stream_position_applied: run
+            .log
+            .events()
+            .iter()
+            .filter(|event| event.stream == EventStream::World)
+            .count()
+            .saturating_sub(1) as u64,
+    };
+    let live_physical_checksum = compute_physical_checksum(&run.final_world, &context).checksum;
+    let live_agent_checksum =
+        compute_agent_state_checksum(&run.final_agent_state, &context).checksum;
+
+    let replay = run_replay(
+        &run.initial_world,
+        &run.initial_agent_state,
+        &run.log,
+        &context,
+        Some(&run.final_world),
+        Some(live_physical_checksum.clone()),
+        Some(live_agent_checksum.clone()),
+    );
+    assert!(replay.matches_expected, "{replay:?}");
+
+    let perturbed = without_first_event(&run.log, EventKind::FoodConsumed);
+    let perturbed_replay = run_replay(
+        &run.initial_world,
+        &run.initial_agent_state,
+        &perturbed,
+        &context,
+        Some(&run.final_world),
+        Some(live_physical_checksum),
+        Some(live_agent_checksum),
+    );
+    assert!(
+        !perturbed_replay.matches_expected,
+        "removing a committed ordinary event must not converge by replay normalization"
+    );
+    assert!(
+        perturbed_replay.first_divergence.is_some()
+            || !perturbed_replay.agent_application_errors.is_empty()
+            || !perturbed_replay.decision_context_hash_failures.is_empty(),
+        "perturbed replay must attribute the first divergence or responsible replay failure: {perturbed_replay:?}"
+    );
+}
+
+struct CapstoneRun {
+    initial_world: PhysicalState,
+    initial_agent_state: AgentState,
+    final_world: PhysicalState,
+    final_agent_state: AgentState,
+    log: EventLog,
+    final_tick: SimTick,
+}
+
+fn run_capstone_case() -> CapstoneRun {
+    let (mut world, mut agent_state, expected_roster) = capstone_world_and_agents();
+    let initial_world = world.clone();
+    let initial_agent_state = agent_state.clone();
+    let registry = capstone_registry();
+    let content_manifest_id = ContentManifestId::new("phase3a_capstone_manifest").unwrap();
+    let mut log = capstone_seed_log(&content_manifest_id);
+    let report = run_no_human_day(
+        &mut world,
+        &mut agent_state,
+        &mut log,
+        &registry,
+        content_manifest_id,
+        NoHumanDayConfig {
+            actor_ids: expected_roster,
+            windows: capstone_windows(),
+        },
+    );
+    CapstoneRun {
+        initial_world,
+        initial_agent_state,
+        final_world: world,
+        final_agent_state: agent_state,
+        log,
+        final_tick: report.final_tick,
+    }
+}
+
+fn without_first_event(log: &EventLog, kind: EventKind) -> EventLog {
+    let mut skipped = false;
+    let mut perturbed = EventLog::new();
+    for event in log.events().iter().cloned() {
+        if !skipped && event.event_type == kind {
+            skipped = true;
+            continue;
+        }
+        perturbed.append(event).unwrap();
+    }
+    assert!(skipped, "capstone log missing event kind {kind:?}");
+    perturbed
 }
 
 fn assert_required_acceptance_events(log: &EventLog) {
