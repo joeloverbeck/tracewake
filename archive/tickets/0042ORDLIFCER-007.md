@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-007: ORD-LIFE-06 — actor-known method selection, bounded local planning, planner-budget discipline, and coherent fallback
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -69,6 +69,22 @@ Record the §5 adversarial cases: remove/stale/reorder/wrong-kind one source wit
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test generative_lock`
+2. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+3. `cargo test --locked -p tracewake-core --test no_human_capstone`
+4. `cargo test --locked -p tracewake-core --test golden_scenarios`
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-06 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-BUDGET-PROVENANCE`, and `0042-ORD06-FALLBACK-NEGATIVES`.
+
+The live supported `PlannerGoal` member list was enumerated as `ReachPlace`, `CheckContainer`, `EatKnownFood`, `StartSleep`, `StartWorkBlock`, `LeaveUnsafePlace`, and `WaitWithReason`. The report records finite fixture coverage for route/open/move, check-container, known-food, sleep, work-block, unsafe-place leave, modeled wait, budget exhaustion, hidden-truth, planner-trace, food-unavailable, routine-blocked, and method-fallback cases. No enumerated ORD-LIFE-06 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test generative_lock`
 2. `cargo test --locked -p tracewake-core --test hidden_truth_gates`

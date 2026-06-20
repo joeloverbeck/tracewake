@@ -108,6 +108,18 @@ These commands were run for `0042ORDLIFCER-006` against commit `7665965ed44fc653
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:08:31+02:00` to `2026-06-20T12:08:32+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-golden-fixtures-run.txt` | 3008 | `45086854ba93315d8448fcf4880062cfaf268ab6d344b58aa929d8c82ba8688a` |
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:08:38+02:00` to `2026-06-20T12:08:38+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-event-schema-replay-gates.txt` | 2692 | `6323a4382023ce3ca8285686bafd81670489a7dad96b9de015c21dcd676376c8` |
 
+### ORD-LIFE-06 command ledger
+
+These commands were run for `0042ORDLIFCER-007` against commit `4a4245ec4192ebac19b141628f035ed69927d180` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test generative_lock` | `2026-06-20T12:13:19+02:00` to `2026-06-20T12:13:19+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-generative-lock.txt` | 419 | `e71a584cc1ea58adaa1a6ed0467a220afad808e9c879920b326e47d2ee8d1ee3` |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | `2026-06-20T12:13:24+02:00` to `2026-06-20T12:13:24+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-hidden-truth-gates.txt` | 1434 | `4eff75d221f9935d8b61c8deea984d3719822fd634fb82153298ad2c79a545ed` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:13:30+02:00` to `2026-06-20T12:13:31+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | `2026-06-20T12:13:40+02:00` to `2026-06-20T12:13:40+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-golden-scenarios.txt` | 1273 | `9af5b1eaae17a746974eba0de9b1809b2ebafdadd1a62bcae07021baefed78ba` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:13:48+02:00` to `2026-06-20T12:13:49+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-golden-fixtures-run.txt` | 3008 | `470937860a45a0c9aa612ee6e745557fec296107e54eca79a3070ee575ee557e` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -121,7 +133,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-03` | intention lifecycle | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | `pass` |
 | `ORD-LIFE-04` | routines/HTN/fallback | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | `pass` |
 | `ORD-LIFE-05` | routine temporal premises | `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE`, `0042-ORD05-STALE-REPLAY` | `pass` |
-| `ORD-LIFE-06` | method selection/local planner | `pending` | `pending` |
+| `ORD-LIFE-06` | method selection/local planner | `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-BUDGET-PROVENANCE`, `0042-ORD06-FALLBACK-NEGATIVES` | `pass` |
 | `ORD-LIFE-07` | planner and decision trace/debug | `pending` | `pending` |
 | `ORD-LIFE-08` | ordinary actions/movement/durations | `pending` | `pending` |
 | `ORD-LIFE-09` | no-human orchestration/metrics | `pending` | `pending` |
@@ -552,6 +564,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-05`.
 
+### `0042-ORD06-GOAL-CENSUS`
+
+- Evidence item ID: `0042-ORD06-GOAL-CENSUS`
+- Requirement IDs: `ORD-LIFE-06`, `ORD-LIFE-PASS-03`, `ORD-LIFE-PASS-05`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed planner and fixture tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test generative_lock`, `cargo test --locked -p tracewake-core --test no_human_capstone`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. The supported `PlannerGoal` member list is `ReachPlace`, `CheckContainer`, `EatKnownFood`, `StartSleep`, `StartWorkBlock`, `LeaveUnsafePlace`, and `WaitWithReason`. The planner tests and content fixtures cover route/open/move proposals, known food proposals, sleep-at-current-known-place proposals, work-block-at-known-workplace proposals, unsafe-place leave via known route, and modeled waits; `CheckContainer` is a supported planner branch with an explicit `check_container` proposal path when a known container target is requested.
+- Path under test and behavior witness:
+  - path under test: `PlannerGoal`, `LocalPlanRequest`, `plan_local_actions`, `PlannedProposal`, `LocalPlanTrace`, actor-known context construction;
+  - command/event/trigger/emitter/scheduler entry: generated candidates, selected method goal, local planner request, proposal construction;
+  - responsible layer: `method_selection`, `local_planning`, `proposal_construction`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: planned route/eat/sleep/work/wait proposals remain proposal-based and reach ordinary validation rather than direct state mutation;
+  - live negative, mutation-style failure, or reason no negative is applicable: unsupported or non-actor-known targets fail closed through typed planner failure rather than hidden search;
+  - checked facts or invariants: every planner goal member is enumerated and local-plan output is derived from actor-known inputs.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: actor-known input refs, selected method trace, proposal source context, local-plan trace;
+  - replay artifact or serialized-log reference: golden scenarios and no-human capstone passed;
+  - seed, randomness, content version, or ruleset version: committed core tests and content fixtures;
+  - extraction/projection version: current planner, decision, method-selection, and actor-known context code;
+  - source provenance: actor-known fact provenance, proof sources, and selected method refs.
+- Sampling/exhaustiveness scope: exhaustive live `PlannerGoal` enum member census, with finite fixture coverage for ordinary goal families.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-06`.
+
+### `0042-ORD06-BUDGET-PROVENANCE`
+
+- Evidence item ID: `0042-ORD06-BUDGET-PROVENANCE`
+- Requirement IDs: `ORD-LIFE-06`, `ORD-LIFE-PASS-03`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed planner, hidden-truth, and transaction tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test generative_lock`, `cargo test --locked -p tracewake-core --test hidden_truth_gates`, and `cargo test --locked -p tracewake-core --test no_human_capstone` passed. `DEFAULT_PLANNER_BUDGET` is `8`; explicit budget tests use `1` and small local-planner boundaries to produce deterministic success or `PlannerBudgetExhausted`. `budget_exhaustion_reports_candidates_tried` verifies a route plan with budget `1` fails with `PlannerBudgetExhausted`, non-empty `candidates_tried`, and the same blocker recorded in the trace. `hidden_truth_audit_is_derived_from_fact_provenance` proves unproven actor-known facts mark the trace audit as not actor-known-only rather than being laundered into provenance.
+- Path under test and behavior witness:
+  - path under test: route planner expansion, budget guard, hidden-truth audit, `dangling_provenance_diagnostic`, stuck diagnostics;
+  - command/event/trigger/emitter/scheduler entry: planner request budget, actor-known fact list, transaction failure-to-stuck path;
+  - responsible layer: `local_planning`, `proposal_construction`, `action_validation`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: source-free or dangling provenance fails before proposal acceptance, and budget exhaustion produces a typed blocker;
+  - live negative, mutation-style failure, or reason no negative is applicable: hidden food, hidden route edge, true workplace without assignment, and unproven wait provenance do not alter planning until modeled evidence changes;
+  - checked facts or invariants: hard budget bound, actor-known-only provenance, source-event citation discipline.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `DecisionTraceRecorded`, `StuckDiagnosticRecorded`, local-plan trace blocker fields;
+  - replay artifact or serialized-log reference: no-human capstone and golden scenario gates passed;
+  - seed, randomness, content version, or ruleset version: committed planner and hidden-truth fixtures;
+  - extraction/projection version: current planner, transaction, hidden-truth audit, and trace code;
+  - source provenance: source-event-backed actor-known facts, rejected unproven facts, and blocker provenance.
+- Sampling/exhaustiveness scope: finite budget-boundary tests plus hidden-truth negative families named by ORD-LIFE-06.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-06`.
+
+### `0042-ORD06-FALLBACK-NEGATIVES`
+
+- Evidence item ID: `0042-ORD06-FALLBACK-NEGATIVES`
+- Requirement IDs: `ORD-LIFE-06`, `ORD-LIFE-PASS-05`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed content fixtures and hidden-truth tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test golden_scenarios` and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. `food_unavailable_replan_001` records `EatFailed` with blocker kind `resource`, no `FoodConsumed`, and no `NeedDeltaApplied`; `routine_blocked_diagnostic_001` records `WorkBlockFailed` with blocker kind `access` and no `WorkBlockStarted`; `planner_trace_001` exposes selected method, rejected methods, actor-known proof sources, and an unproven-source negative; `method_fallback_requires_new_trace_or_stuck_001` is included in the golden fixture manifest and fixture run.
+- Path under test and behavior witness:
+  - path under test: method selection, local-plan failure, action validation, fixture runner, decision trace;
+  - command/event/trigger/emitter/scheduler entry: food-unavailable, routine-blocked, planner-trace, and method-fallback fixtures;
+  - responsible layer: `method_selection`, `local_planning`, `action_validation`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: failed primary methods yield typed failure/stuck/fallback evidence rather than silent success or loop;
+  - live negative, mutation-style failure, or reason no negative is applicable: empty/no-applicable/unsupported/failing branches are represented by trace or typed failure status;
+  - checked facts or invariants: coherent fallback, rejected-method trace, no hidden truth in proposal construction.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `EatFailed`, `WorkBlockFailed`, selected/rejected method traces, stuck diagnostic records;
+  - replay artifact or serialized-log reference: golden scenarios and content golden fixtures passed;
+  - seed, randomness, content version, or ruleset version: committed fixture manifests and `ContentVersion::new("content_v1")` fixture loads where applicable;
+  - extraction/projection version: current content loader, method selection, planner, and action validation code;
+  - source provenance: actor-known state proof sources and fixture manifest IDs.
+- Sampling/exhaustiveness scope: mandatory ORD-LIFE-06 finite fixture families: Food unavailable, Hidden-truth planning, Planner trace, Routine blocker.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-06`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -662,7 +746,25 @@ Staleness/replay witnesses:
 
 ## ORD-LIFE-06: actor-known method selection, bounded local planning, planner-budget discipline, and coherent fallback
 
-Pending; owned by `0042ORDLIFCER-007`.
+Result: `pass` for the ORD-LIFE-06 local audit point.
+
+PlannerGoal member census:
+
+- The live supported `PlannerGoal` members are `ReachPlace`, `CheckContainer`, `EatKnownFood`, `StartSleep`, `StartWorkBlock`, `LeaveUnsafePlace`, and `WaitWithReason`.
+- Route planning emits local open/move proposals over actor-known edges and records candidates tried; known food, sleep, work, and wait goals emit proposal records only from actor-known targets or modeled reasons.
+- `CheckContainer` remains a supported local planner branch for opening a known container target; unsupported or unknown targets fail as local-plan failures rather than falling through to world search.
+
+Budget and provenance witnesses:
+
+- `DEFAULT_PLANNER_BUDGET` is `8`; explicit budget-boundary tests produce deterministic success or `PlannerBudgetExhausted`.
+- `budget_exhaustion_reports_candidates_tried` verifies budget `1` on a route plan records non-empty candidates tried and the `PlannerBudgetExhausted` blocker in the trace.
+- Hidden food, hidden route edges, unknown workplace targets, remote sleep targets, and unproven actor-known facts do not become proposal provenance; they fail with typed knowledge/resource blockers or a hidden-truth audit failure before proposal acceptance.
+
+Fallback and validation witnesses:
+
+- `food_unavailable_replan_001` records `EatFailed` with resource blocker, no `FoodConsumed`, and no `NeedDeltaApplied`.
+- `routine_blocked_diagnostic_001` records `WorkBlockFailed` with access blocker and no `WorkBlockStarted`.
+- `planner_trace_001` records selected and rejected methods plus actor-known proof sources; `method_fallback_requires_new_trace_or_stuck_001` is in the golden fixture manifest and passed in the content fixture run.
 
 ## ORD-LIFE-07: planner and decision trace honesty, rejected alternatives, and debug quarantine
 
