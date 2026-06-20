@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-002: ORD-LIFE-01 — bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -75,3 +75,21 @@ Record the §5 adversarial cases: overlapping passive-window + action-emitted co
 3. `cargo test --locked -p tracewake-core --test generative_lock`
 4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Populated the ORD-LIFE-01 section of `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with command transcript fingerprints, behavior witnesses, adversarial negatives, replay coverage, and the scheduler/action-pipeline ownership boundary for need accounting. The per-point result is recorded as `pass`; aggregate live pass-condition and fixture-family verdicts remain pending for `0042ORDLIFCER-016`.
+
+The report cites the existing semantic ledger expansion in `crates/tracewake-content/tests/golden_fixtures_run.rs`, including `assert_no_duplicate_need_regime_charges`, `sleep_spanning_window_boundary_charges_each_tick_once`, `wait_then_window_passive_charges_each_tick_once`, `no_human_need_ledger_has_no_duplicate_regime_charges`, and `episode_tamper_proration_poisons_replay`. It also records duplicate charge and duplicate terminal negatives from `event_schema_replay_gates`, plus no-human, golden scenario, and generated replay lock coverage.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test no_human_capstone` — passed.
+- `cargo test --locked -p tracewake-core --test golden_scenarios` — passed.
+- `cargo test --locked -p tracewake-core --test generative_lock` — passed.
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed.
+
+No production or engine code changed. No remediation was needed or performed.
