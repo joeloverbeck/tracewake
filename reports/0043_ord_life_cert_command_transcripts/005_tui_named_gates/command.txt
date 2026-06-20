@@ -1,0 +1,2 @@
+cwd=/home/joeloverbeck/projects/tracewake
+command=cargo test --locked -p tracewake-tui --test adversarial_gates --test command_loop_session --test embodied_flow --test readme_sample_session --test transcript_snapshot --test tui_acceptance --test tui_seam_conformance
