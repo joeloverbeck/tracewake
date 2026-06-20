@@ -1,6 +1,6 @@
 # 0043ORDLIFCER-006: Kill movement door endpoint survivor cluster from the completed mutation campaign
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — focused anti-regression tests for `crates/tracewake-core/src/actions/defs/movement.rs`; production change only if required by the tests.
@@ -72,3 +72,26 @@ Run a focused cargo-mutants command for `crates/tracewake-core/src/actions/defs/
 
 1. `cargo test --locked -p tracewake-core --test anti_regression_guards movement_door_endpoint_mismatch_rejects_partial_connections`
 2. `cargo mutants --workspace --no-shuffle -F 'crates/tracewake-core/src/actions/defs/movement\.rs'`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Added `movement_door_endpoint_mismatch_rejects_partial_connections` in
+`crates/tracewake-core/tests/anti_regression_guards.rs`, with a ticket-owned
+meta-lock census exemption. The witness rejects all one-sided door endpoint
+matches across both predicate orientations and accepts both valid unordered door
+orientations while preserving proposal ancestry.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-core --test anti_regression_guards movement_door_endpoint_mismatch_rejects_partial_connections` — passed.
+2. `cargo mutants --workspace --no-shuffle -F 'crates/tracewake-core/src/actions/defs/movement\.rs' -o /tmp/tracewake-0043-006-movement-mutants.out` — passed with `13 mutants tested in 86s: 12 caught, 1 unviable`, `0 missed`.
+
+The focused mutation run caught all four movement identities recorded by the
+completed `-004` campaign:
+
+1. `movement.rs:77:43 replace && with || in build_move_event`
+2. `movement.rs:78:50 replace && with || in build_move_event`
+3. `movement.rs:78:33 replace == with != in build_move_event`
+4. `movement.rs:78:69 replace == with != in build_move_event`

@@ -2155,6 +2155,10 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
         rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for event-id membership over unrelated log events.",
     },
     MetaLockCensusExemption {
+        test_name: "movement_door_endpoint_mismatch_rejects_partial_connections",
+        rationale: "0043ORDLIFCER-006 ticket-owned mutation witness for exact unordered movement-door endpoint matching.",
+    },
+    MetaLockCensusExemption {
         test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
         rationale: "Empty-baseline governance entry is enrolled under a zero-minimum registry exemption.",
     },
@@ -6624,6 +6628,130 @@ fn accepted_action_appends_before_authoritative_apply() {
     let synthetic_direct_apply =
         "Adding apply_event(&mut authoritative_state, event) outside actions/pipeline, events, or replay must fail the source scan.";
     assert!(synthetic_direct_apply.contains("must fail"));
+}
+
+#[test]
+fn movement_door_endpoint_mismatch_rejects_partial_connections() {
+    use tracewake_core::actions::defs::movement::build_move_event;
+    use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
+    use tracewake_core::actions::ReasonCode;
+    use tracewake_core::ids::{DoorId, PlaceId};
+    use tracewake_core::state::{ActorBody, DoorState, PhysicalState, PlaceState};
+
+    fn ids() -> (ActorId, PlaceId, PlaceId, PlaceId) {
+        (
+            ActorId::new("actor_tomas").unwrap(),
+            PlaceId::new("shop_front").unwrap(),
+            PlaceId::new("back_room").unwrap(),
+            PlaceId::new("side_room").unwrap(),
+        )
+    }
+
+    fn proposal() -> Proposal {
+        let (actor_id, _, to_place_id, _) = ids();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_move_door_endpoint_guard").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id),
+            ActionId::new("move").unwrap(),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push(to_place_id.to_string());
+        proposal
+    }
+
+    fn ordering_key(target_id: &PlaceId) -> OrderingKey {
+        let (actor_id, _, _, _) = ids();
+        OrderingKey::new(
+            SimTick::ZERO,
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id),
+            ProposalSequence::new(0),
+            ActionId::new("move").unwrap(),
+            vec![target_id.to_string()],
+            "door-endpoint-guard",
+        )
+    }
+
+    fn state_with_door(endpoint_a: &PlaceId, endpoint_b: &PlaceId) -> PhysicalState {
+        let (actor_id, from_place_id, to_place_id, side_place_id) = ids();
+        let mut seed = PhysicalSeed::default();
+        seed.places_mut().insert(
+            from_place_id.clone(),
+            PlaceState::new(from_place_id.clone(), "Shop front"),
+        );
+        seed.places_mut().insert(
+            to_place_id.clone(),
+            PlaceState::new(to_place_id.clone(), "Back room"),
+        );
+        seed.places_mut().insert(
+            side_place_id.clone(),
+            PlaceState::new(side_place_id, "Side room"),
+        );
+        seed.actors_mut()
+            .insert(actor_id.clone(), ActorBody::new(actor_id, from_place_id));
+        let mut door = DoorState::new(
+            DoorId::new("door_under_test").unwrap(),
+            endpoint_a.clone(),
+            endpoint_b.clone(),
+        );
+        door.is_open = true;
+        seed.doors_mut().insert(door.door_id.clone(), door);
+        seed.build()
+    }
+
+    fn rejection_reason_for_door(endpoint_a: &PlaceId, endpoint_b: &PlaceId) -> ReasonCode {
+        let (_, _, to_place_id, _) = ids();
+        build_move_event(
+            &state_with_door(endpoint_a, endpoint_b),
+            &proposal(),
+            &ordering_key(&to_place_id),
+            &ContentManifestId::new("phase1_manifest").unwrap(),
+        )
+        .unwrap_err()
+        .reason_code
+    }
+
+    let (_, from_place_id, to_place_id, side_place_id) = ids();
+
+    assert_eq!(
+        rejection_reason_for_door(&from_place_id, &side_place_id),
+        ReasonCode::NotAdjacent,
+        "a door sharing only the origin endpoint must not authorize movement to another destination"
+    );
+    assert_eq!(
+        rejection_reason_for_door(&side_place_id, &to_place_id),
+        ReasonCode::NotAdjacent,
+        "a door sharing only the destination endpoint must not authorize movement from another origin"
+    );
+    assert_eq!(
+        rejection_reason_for_door(&side_place_id, &from_place_id),
+        ReasonCode::NotAdjacent,
+        "a reverse-branch door sharing only the origin endpoint must not authorize movement"
+    );
+    assert_eq!(
+        rejection_reason_for_door(&to_place_id, &side_place_id),
+        ReasonCode::NotAdjacent,
+        "a reverse-branch door sharing only the destination endpoint must not authorize movement"
+    );
+
+    for (endpoint_a, endpoint_b) in [
+        (&from_place_id, &to_place_id),
+        (&to_place_id, &from_place_id),
+    ] {
+        let event = build_move_event(
+            &state_with_door(endpoint_a, endpoint_b),
+            &proposal(),
+            &ordering_key(&to_place_id),
+            &ContentManifestId::new("phase1_manifest").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(event.event_type, EventKind::ActorMoved);
+        assert_eq!(event.proposal_id, Some(proposal().proposal_id));
+        assert!(event.participants.contains(&from_place_id.to_string()));
+        assert!(event.participants.contains(&to_place_id.to_string()));
+    }
 }
 
 #[test]
