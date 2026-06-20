@@ -2159,6 +2159,10 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
         rationale: "0043ORDLIFCER-006 ticket-owned mutation witness for exact unordered movement-door endpoint matching.",
     },
     MetaLockCensusExemption {
+        test_name: "user_origin_wait_keeps_candidate_goal_reevaluation_false",
+        rationale: "0043ORDLIFCER-007 ticket-owned mutation witness for user-origin wait autonomy classification; scan-shaped payload checks are covered by lock_id guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass.",
+    },
+    MetaLockCensusExemption {
         test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
         rationale: "Empty-baseline governance entry is enrolled under a zero-minimum registry exemption.",
     },
@@ -6752,6 +6756,134 @@ fn movement_door_endpoint_mismatch_rejects_partial_connections() {
         assert!(event.participants.contains(&from_place_id.to_string()));
         assert!(event.participants.contains(&to_place_id.to_string()));
     }
+}
+
+#[test]
+fn user_origin_wait_keeps_candidate_goal_reevaluation_false() {
+    use tracewake_core::actions::defs::wait::build_wait_events;
+    use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
+    use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+    use tracewake_core::ids::PlaceId;
+    use tracewake_core::state::ActorBody;
+
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let place_id = PlaceId::new("shop_front").unwrap();
+    let mut physical_seed = PhysicalSeed::default();
+    physical_seed
+        .actors_mut()
+        .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), place_id));
+    let physical_state = physical_seed.build();
+
+    let mut agent_seed = AgentSeed::default();
+    agent_seed.needs_by_actor_mut().insert(
+        actor_id.clone(),
+        BTreeMap::from([
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 249, NeedChangeCause::TickDelta),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::TickDelta),
+            ),
+        ]),
+    );
+    let agent_state = agent_seed.build();
+
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_human_wait_threshold").unwrap(),
+        ProposalOrigin::Human,
+        Some(actor_id.clone()),
+        ActionId::new("wait").unwrap(),
+        SimTick::new(4),
+    );
+    proposal
+        .parameters
+        .insert("ticks".to_string(), "1".to_string());
+    proposal
+        .parameters
+        .insert("reason".to_string(), "taking a moment".to_string());
+    let ordering_key = OrderingKey::new(
+        SimTick::new(4),
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id.clone()),
+        ProposalSequence::new(0),
+        ActionId::new("wait").unwrap(),
+        vec!["1_tick".to_string()],
+        "human-wait-origin-guard",
+    );
+
+    let events = build_wait_events(
+        &physical_state,
+        &agent_state,
+        &proposal,
+        &ordering_key,
+        &ContentManifestId::new("phase1_manifest").unwrap(),
+    )
+    .unwrap();
+
+    let wait_event = events
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorWaited)
+        .expect("wait event emitted");
+    assert!(wait_event
+        .payload
+        .iter()
+        .any(|field| field.key == "candidate_goal_reevaluation" && field.value == "false"));
+    assert_eq!(wait_event.proposal_id, Some(proposal.proposal_id.clone()));
+    assert!(events
+        .iter()
+        .any(|event| event.event_type == EventKind::NeedThresholdCrossed));
+    assert!(events.iter().all(|event| event
+        .causes
+        .iter()
+        .any(|cause| cause == &EventCause::Proposal(proposal.proposal_id.clone()))));
+
+    let mut low_pressure_agent_seed = AgentSeed::default();
+    low_pressure_agent_seed.needs_by_actor_mut().insert(
+        actor_id.clone(),
+        BTreeMap::from([
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 10, NeedChangeCause::TickDelta),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::TickDelta),
+            ),
+        ]),
+    );
+    let mut autonomous_proposal = proposal.clone();
+    autonomous_proposal.proposal_id =
+        ProposalId::new("proposal_scheduler_wait_no_threshold").unwrap();
+    autonomous_proposal.origin = ProposalOrigin::Scheduler;
+    let autonomous_events = build_wait_events(
+        &physical_state,
+        &low_pressure_agent_seed.build(),
+        &autonomous_proposal,
+        &ordering_key,
+        &ContentManifestId::new("phase1_manifest").unwrap(),
+    )
+    .unwrap();
+    let autonomous_wait = autonomous_events
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorWaited)
+        .expect("autonomous wait event emitted");
+
+    assert!(autonomous_wait
+        .payload
+        .iter()
+        .any(|field| field.key == "candidate_goal_reevaluation" && field.value == "false"));
+    assert!(!autonomous_events
+        .iter()
+        .any(|event| event.event_type == EventKind::NeedThresholdCrossed));
+    assert_eq!(
+        autonomous_events
+            .iter()
+            .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+            .count(),
+        2
+    );
 }
 
 #[test]

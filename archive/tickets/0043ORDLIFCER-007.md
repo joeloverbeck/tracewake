@@ -1,6 +1,6 @@
 # 0043ORDLIFCER-007: Kill wait autonomous-origin survivor from the completed mutation campaign
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — focused anti-regression test for `crates/tracewake-core/src/actions/defs/wait.rs`; production change only if required by the test.
@@ -72,3 +72,34 @@ Run a focused cargo-mutants command for `crates/tracewake-core/src/actions/defs/
 
 1. `cargo test --locked -p tracewake-core --test anti_regression_guards user_origin_wait_keeps_candidate_goal_reevaluation_false`
 2. `cargo mutants --workspace --no-shuffle -F 'crates/tracewake-core/src/actions/defs/wait\.rs'`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Changed `build_wait_events` so `candidate_goal_reevaluation` requires both an
+autonomous proposal origin and an emitted need-threshold crossing. Updated the
+existing positive wait unit to use a scheduler-origin proposal, then added
+`user_origin_wait_keeps_candidate_goal_reevaluation_false` in
+`crates/tracewake-core/tests/anti_regression_guards.rs` with a ticket-owned
+meta-lock census exemption. The anti-regression witness covers both:
+
+1. Human/user-origin waits with emitted threshold-crossing events keep
+   `candidate_goal_reevaluation=false`.
+2. Scheduler/autonomous waits without threshold-crossing events keep
+   `candidate_goal_reevaluation=false`.
+
+Verification:
+
+1. `cargo test --locked -p tracewake-core --test anti_regression_guards user_origin_wait_keeps_candidate_goal_reevaluation_false` — passed.
+2. `cargo test --locked -p tracewake-core --test anti_regression_guards meta_lock_registry_covers_structural_locks_and_negatives` — passed.
+3. `cargo test --locked -p tracewake-core actions::defs::wait::tests::wait_threshold_crossing_sets_reevaluation_flag` — passed.
+4. `cargo mutants --workspace --no-shuffle -F 'crates/tracewake-core/src/actions/defs/wait\.rs' -o /tmp/tracewake-0043-007-wait-mutants.out` — passed with `15 mutants tested in 82s: 12 caught, 3 unviable`, `0 missed`.
+
+The focused mutation run caught the final-run wait identity:
+
+1. `wait.rs:170:5 replace is_autonomous_wait -> bool with true`
+
+It also caught the newly exposed threshold-scan identity from the focused run:
+
+1. `wait.rs:133:43 replace == with != in build_wait_events`

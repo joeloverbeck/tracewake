@@ -126,10 +126,11 @@ pub fn build_wait_events(
         NeedKind::Fatigue,
         deltas.fatigue_delta,
     );
-    let reevaluate = hunger_events
-        .iter()
-        .chain(fatigue_events.iter())
-        .any(|event| event.event_type == EventKind::NeedThresholdCrossed);
+    let reevaluate = is_autonomous_wait(proposal)
+        && hunger_events
+            .iter()
+            .chain(fatigue_events.iter())
+            .any(|event| event.event_type == EventKind::NeedThresholdCrossed);
 
     let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
@@ -410,10 +411,12 @@ mod tests {
 
     #[test]
     fn wait_threshold_crossing_sets_reevaluation_flag() {
+        let mut proposal = reasoned_threshold_proposal();
+        proposal.origin = ProposalOrigin::Scheduler;
         let events = build_wait_events(
             &state(),
             &agent_state(),
-            &reasoned_threshold_proposal(),
+            &proposal,
             &ordering_key(),
             &ContentManifestId::new("phase1_manifest").unwrap(),
         )
