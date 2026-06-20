@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-013: ORD-LIFE-12 — deterministic replay-derived ordinary-life projections, metrics, diagnostics, and phase-entry lock
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -77,3 +77,21 @@ Record the §5 adversarial cases: delete/duplicate/reorder/alter-schema-handling
 5. `cargo test --locked -p tracewake-core --test doc_invariant_references`
 6. `cargo test --locked -p tracewake-core --test no_human_capstone`
 7. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Evidence-only ticket completed by updating `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` for `ORD-LIFE-12`. The report now records the local pass row with evidence IDs `0042-ORD12-REPLAY-DERIVATION`, `0042-ORD12-FIRST-DIVERGENCE`, and `0042-ORD12-PHASE-LOCK`, plus the command transcript ledger.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+2. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
+3. `cargo test --locked -p tracewake-core --test acceptance_gates`
+4. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
+5. `cargo test --locked -p tracewake-core --test doc_invariant_references`
+6. `cargo test --locked -p tracewake-core --test no_human_capstone`
+7. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+All seven commands passed against commit `6346aa8afb269bbf377eec6da16a8705c22a8295` plus this ticket's uncommitted report edits. Transcript files were captured under `/tmp/0042-013-*.txt`; the committed report records byte counts and SHA-256 digests. The `docs/4-specs/SPEC_LEDGER.md` row, spec archival, mutation floor, and aggregate certification verdict remain intentionally out of scope for this ticket and are left to the later series tickets/spec closeout.

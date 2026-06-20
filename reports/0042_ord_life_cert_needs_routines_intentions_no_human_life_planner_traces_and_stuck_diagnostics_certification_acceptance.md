@@ -181,9 +181,23 @@ These commands were run for `0042ORDLIFCER-012` against commit `3b60fa0898922e4d
 | `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:34:00+02:00` to `2026-06-20T12:34:01+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-no-human-capstone.txt` | 343 | `a8912d26b6db69d4a44c6b57a81965194660bc10c4e284745b6f63d0854f7594` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:34:09+02:00` to `2026-06-20T12:34:09+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-012-golden-fixtures-run.txt` | 3008 | `fde3e96d5c6931b8ea8959d85c8e65580cdf81881ac0b1c0cccd8cb8a9789a6b` |
 
+### ORD-LIFE-12 command ledger
+
+These commands were run for `0042ORDLIFCER-013` against commit `6346aa8afb269bbf377eec6da16a8705c22a8295` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:39:31+02:00` to `2026-06-20T12:39:31+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-event-schema-replay-gates.txt` | 2692 | `65b501cdaf0dfc742588f857c26d528c8a63d9fa7c6d0de08477005490cec0ff` |
+| `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` | `2026-06-20T12:39:38+02:00` to `2026-06-20T12:39:38+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-acceptance-artifact-wording.txt` | 736 | `369c2e17c4fa462f7e2840024937ab7f3f645c6f0b9106972691bc3e2af8e6db` |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | `2026-06-20T12:39:44+02:00` to `2026-06-20T12:39:44+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-acceptance-gates.txt` | 1102 | `3f9b44f08fc18d6002dd998b33b3411f80765a38506b7d62e5b4ad2f6baa94e0` |
+| `cargo test --locked -p tracewake-core --test ci_workflow_guards` | `2026-06-20T12:39:50+02:00` to `2026-06-20T12:39:50+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-ci-workflow-guards.txt` | 338 | `d9ffa97353e709ccc4bca01ce9100642750872bdec45a31f35e97227fc5611a8` |
+| `cargo test --locked -p tracewake-core --test doc_invariant_references` | `2026-06-20T12:39:56+02:00` to `2026-06-20T12:39:56+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-doc-invariant-references.txt` | 514 | `dae28096bd1dd4023071d8f14288272f8e258095b61aac27e17ed306b5c7fca5` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:40:02+02:00` to `2026-06-20T12:40:02+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:40:08+02:00` to `2026-06-20T12:40:08+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-golden-fixtures-run.txt` | 3008 | `ac7ad8b9d04daf8f89ff25a02f79de22e3c59983e4d98c499c51ad1dedee6e7a` |
+
 ## Per-requirement acceptance evidence
 
-Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
+Rows record completed local audit-point evidence as the series advances. Aggregate certification remains pending until `0042ORDLIFCER-016` computes the capstone verdict from these rows, generated/metamorphic evidence, mutation evidence, and staged-abstraction review.
 
 ### ORD-LIFE-01 through ORD-LIFE-12
 
@@ -200,7 +214,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-09` | no-human orchestration/metrics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD09-CANONICAL-REPLAY` | `pass` |
 | `ORD-LIFE-10` | stuck diagnostics/no-progress | `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR`, `0042-ORD10-REPLAY-ATTRIBUTION` | `pass` |
 | `ORD-LIFE-11` | scheduler/proposal ancestry | `0042-ORD11-AUTHORITY-CHAIN`, `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`, `0042-ORD11-FORGED-STALE` | `pass` |
-| `ORD-LIFE-12` | replay-derived projections/phase lock | `pending` | `pending` |
+| `ORD-LIFE-12` | replay-derived projections/phase lock | `0042-ORD12-REPLAY-DERIVATION`, `0042-ORD12-FIRST-DIVERGENCE`, `0042-ORD12-PHASE-LOCK` | `pass` |
 
 ### Ten live pass conditions
 
@@ -1292,7 +1306,28 @@ Forged/stale and reason-integrity witnesses:
 
 ## ORD-LIFE-12: deterministic replay-derived ordinary-life projections, metrics, diagnostics, and phase-entry lock
 
-Pending; owned by `0042ORDLIFCER-013`.
+Result: `pass` for the ORD-LIFE-12 local audit point. This does not certify `ORD-LIFE-CERT`, the mutation floor, or `PHASE-4-ENTRY`; those remain owned by `0042ORDLIFCER-015` and `0042ORDLIFCER-016`.
+
+Replay-derivation witnesses:
+
+- `event_schema_replay_gates` proves empty-projection rebuild and replay routing across ordinary-life event families: no-human markers, need deltas and thresholds, intention/routine transitions, continuation markers, sleep/work duration terminals, decision traces, stuck diagnostics, and replay projection markers.
+- `replay_rebuild_checksum_matches_original_after_no_human_day`, `replay_report_match_mismatch_pair_exposes_semantic_fingerprints`, `checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints`, `no_human_metrics_rebuild_from_typed_diagnostic_fields`, and `deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses` cover live/replay semantic fingerprints, no-human metrics, stuck diagnostic reconstruction, and deterministic decision-context hash rebuild.
+- `no_human_capstone_proves_typed_ancestry_and_replay` rebuilds the no-human capstone from accepted events and compares final physical state, agent state, typed stuck diagnostics, serialized metrics, and absence of replay context-hash failures.
+- `golden_fixtures_run` covers deterministic fixture loading, serialized event-log replay, sleep/eat/work replay, failed food/source cases, routine blockers, no-teleport movement failures, possession continuity, hidden-truth exclusion, real no-human day metric replay, and decision-context hash recomputation from cited source events.
+
+First-divergence and adversarial witnesses:
+
+- `replay_report_match_mismatch_pair_exposes_semantic_fingerprints` records matching replay with no first divergence, then a corrupted expected-state comparison with a populated first-divergence field family and event ID.
+- `checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints` distinguishes canonical semantic equality from semantic field changes: equivalent ordering remains equal while changed location/routine status changes the semantic checksum and replay report.
+- Replay and fixture negatives reject or diverge loudly for duplicate need tick charges, malformed elapsed ticks, missing routine/intention progress fields, duplicate duration terminals, forged payload schema versions, stream mismatch, continue-routine kind/reason tampering, episode tag/proration tampering, and decision-trace source-event tampering.
+- `acceptance_gates` keeps Phase-3A agent events replay-visible and proves the integrated no-human day metrics survive canonical log deserialize/replay without post-replay normalization.
+
+Phase-entry and admissibility witnesses:
+
+- `acceptance_artifact_wording` rejects unscoped certification language and requires scoped exact-commit wording; historical predecessor artifacts are consumed only through their own scoped acceptance text.
+- `ci_workflow_guards` keeps required gate commands, workflow/doc parity, mutation posture, standing mutation perimeter, and mask/permission/pinning/cache guardrails live.
+- `doc_invariant_references` keeps live invariant references and structured spec requirement/finding invariant coverage valid.
+- The live phase ladder remains `P0-DOC -> P0-CERT -> SPINE-CERT -> EPI-CERT -> ORD-LIFE-CERT -> FIRST-PROOF-CERT -> PHASE-4-ENTRY -> SECOND-PROOF-ENTRY`; `PHASE-4-ENTRY` is not declared by this row and remains blocked behind the aggregate ORD-LIFE result, mutation floor, and predecessor-gate evidence.
 
 ## Generated and metamorphic evidence package
 
