@@ -82,6 +82,14 @@ For each ticket:
    For acceptance-artifact or report tickets, run the checks the artifact claims
    after composing or amending it, unless intentionally combining that ticket
    with the spec archive/truthing commit and recording that choice.
+   For required long-running evidence commands such as mutation, soak, or
+   generator runs, preserve enough evidence to classify the result honestly:
+   capture a transcript when practical, check process liveness before
+   interrupting a hung wrapper, retain partial output, and record
+   `tool-failure/incomplete` in the ticket/report rather than converting an
+   incomplete run into a pass. Deterministic reruns or narrower variants may be
+   useful supplemental evidence, but they do not replace the exact required
+   command unless the ticket/spec explicitly allows that substitution.
 5. Update the ticket with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
    The archived ticket outcome must use the canonical heading and completion
@@ -324,8 +332,11 @@ Final responses must include:
   per-ticket or spec-closeout commits.
 
 These fields may be embedded in concise prose, but the final answer must make
-each answer explicit. For active `/goal` runs, include the goal-tool usage
-summary after marking the goal complete.
+each answer explicit. Before calling the goal completion tool or sending the
+final response, draft or mentally check the final answer against this list with
+literal labels and `None` values where applicable; do not omit a field because
+it seems obvious from the prose. For active `/goal` runs, include the goal-tool
+usage summary after marking the goal complete.
 
 ## Maintenance
 
