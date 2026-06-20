@@ -71,6 +71,18 @@ These commands were run for `0042ORDLIFCER-003` against commit `689d712de31dd96b
 | `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T11:55:14+02:00` to `2026-06-20T11:55:14+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T11:55:22+02:00` to `2026-06-20T11:55:23+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-golden-fixtures-run.txt` | 3008 | `f3597867089f948ea34487873520f8614604de0cc33587e65c0191be2a92a802` |
 
+### ORD-LIFE-03 command ledger
+
+These commands were run for `0042ORDLIFCER-004` against commit `608f16c0729963f051ac13c23368b3537228029d` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts. Embedded unit tests in `agent/intention.rs` and `agent/decision.rs` were covered by the green `cargo test --workspace --locked` scaffold baseline.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T11:58:37+02:00` to `2026-06-20T11:58:38+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-no-human-capstone.txt` | 343 | `ca089e3f43af4319627d4d8c2c57f1e9351a023ab0ef33d6f9ef3707e09bb9ea` |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | `2026-06-20T11:58:48+02:00` to `2026-06-20T11:58:48+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-acceptance-gates.txt` | 1102 | `ce7f52ca91de13128c4a8d358ecca613f53438e18ad0b1f6ebce37bbf1718e67` |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T11:58:58+02:00` to `2026-06-20T11:58:58+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-event-schema-replay-gates.txt` | 2692 | `0bba3da5453280b8fa4ea1a279f5bdf58f8124b12c6ad717f6d098b1955bd418` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T11:59:24+02:00` to `2026-06-20T11:59:25+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-golden-fixtures-run.txt` | 3008 | `8a5000b37c0e6610017a93ce7be926cc8837ddeb85f0db0e9444d708ac1e67a4` |
+| `cargo test --locked -p tracewake-tui --test embodied_flow` | `2026-06-20T11:59:32+02:00` to `2026-06-20T11:59:32+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-embodied-flow.txt` | 682 | `7742004884d470e69c4179f3321e95a0fb345bbaffd6c00b336f35327164d910` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -81,7 +93,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 |---|---|---|---|
 | `ORD-LIFE-01` | needs/accounting/event ledger | `0042-ORD01-LEDGER`, `0042-ORD01-NEGATIVE`, `0042-ORD01-REPLAY` | `pass` |
 | `ORD-LIFE-02` | actor-known candidate generation | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | `pass` |
-| `ORD-LIFE-03` | intention lifecycle | `pending` | `pending` |
+| `ORD-LIFE-03` | intention lifecycle | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | `pass` |
 | `ORD-LIFE-04` | routines/HTN/fallback | `pending` | `pending` |
 | `ORD-LIFE-05` | routine temporal premises | `pending` | `pending` |
 | `ORD-LIFE-06` | method selection/local planner | `pending` | `pending` |
@@ -289,6 +301,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-02`; not counted as a substitute for the later mutation or capstone packages.
 
+### `0042-ORD03-LIFECYCLE`
+
+- Evidence item ID: `0042-ORD03-LIFECYCLE`
+- Requirement IDs: `ORD-LIFE-03`, `ORD-LIFE-PASS-01`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, `cargo test --locked -p tracewake-core --test no_human_capstone`, and the `0042-BASELINE-001` workspace run passed. The workspace baseline covers `agent/intention.rs` unit tests for reason-bearing suspended/completed/failed/abandoned/interrupted transitions, illegal reactivation from completed state, suspended reactivation with reason, one active intention, and stable IDs for all variants. It also covers `agent/decision.rs` tests proving mild hunger continues an active intention while urgent/severe hunger interrupts it and adopts a new need-pressure intention with trace ancestry.
+- Path under test and behavior witness:
+  - path under test: `crates/tracewake-core/src/agent/intention.rs`, `crates/tracewake-core/src/agent/decision.rs`, `crates/tracewake-core/tests/event_schema_replay_gates.rs`, `crates/tracewake-core/tests/no_human_capstone.rs`;
+  - command/event/trigger/emitter/scheduler entry: intention-started, intention-transition, intention-continued, and no-human decision trace events;
+  - responsible layer: `intention_lifecycle`, `event_append`, `event_application`, `replay`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: reason-bearing transitions apply only from legal source states; illegal statuses reject before state change;
+  - live negative, mutation-style failure, or reason no negative is applicable: illegal transition tests and `intention_transition_wrong_status_rejects_before_state_change` reject wrong lifecycle paths;
+  - checked facts or invariants: typed reasons, predecessor/successor ancestry, active/continued/interrupted/adopted lifecycle effects, and durable active-intention continuity under mild pressure.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: no-human capstone `assert_intention_and_routine_ancestry` checks intention/routine ancestry events; event-schema tests apply and replay intention payload matrices;
+  - replay artifact or serialized-log reference: `event_schema_replay_gates` and `no_human_capstone` commands passed;
+  - seed, randomness, content version, or ruleset version: current committed test fixtures and no-human corpus;
+  - extraction/projection version: current agent lifecycle and replay code;
+  - source provenance: typed event payload fields and decision trace IDs.
+- Sampling/exhaustiveness scope: lifecycle enum variants and transition matrix covered by unit/workspace baseline plus named integration replay tests.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-03`; capstone aggregate rows remain pending.
+
+### `0042-ORD03-POSSESSION`
+
+- Evidence item ID: `0042-ORD03-POSSESSION`
+- Requirement IDs: `ORD-LIFE-03`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` and `cargo test --locked -p tracewake-tui --test embodied_flow` passed. The content suite includes `possession_fixture_preserves_intention_needs_and_can_continue`, which loads `possession_does_not_reset_intention_001`, attaches and detaches `controller_human`, verifies `agent_state` is unchanged, sees `ControllerAttached` and `ControllerDetached`, then successfully proposes `continue_routine` with `active_intention_id=intention_mara_work`, `intention_status=active`, and `routine_execution_id=routine_exec_mara_work`.
+- Path under test and behavior witness:
+  - path under test: `ControllerBindings`, possession fixtures, content golden fixture runner, and TUI embodied flow;
+  - command/event/trigger/emitter/scheduler entry: controller attach/detach plus possessed `continue_routine`;
+  - responsible layer: `view_model`, `intention_lifecycle`, `event_application`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: possession changes controller binding and command authority but does not mutate agent needs, intentions, routine executions, memory, or actor-known state;
+  - live negative, mutation-style failure, or reason no negative is applicable: equality assertions compare before/bind/detach/continue state; any reset or rewrite would fail the fixture;
+  - checked facts or invariants: possession neutrality under `INV-006` and ordinary-action parity through the TUI boundary.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `ControllerAttached`, `ControllerDetached`, `ContinueRoutineProposed`, and continue-routine acceptance/rejection events;
+  - replay artifact or serialized-log reference: possession replay tamper tests described in `0042-ORD03-REPLAY-NEGATIVES`;
+  - seed, randomness, content version, or ruleset version: `possession_does_not_reset_intention_001` and `possession_parity_001`;
+  - extraction/projection version: current controller, content, and TUI code;
+  - source provenance: typed proposal parameters and controller binding events.
+- Sampling/exhaustiveness scope: finite possession fixtures named by the spec plus TUI embodied-flow suite. Full EPI possession certification is consumed from predecessor artifacts and not re-audited here.
+- Pending or historical handling: predecessor EPI possession guarantee is historical/scoped context only; this row counts only the live ORD-LIFE possession/intention evidence.
+- Certification use: counted as certifying pass for `ORD-LIFE-03`.
+
+### `0042-ORD03-REPLAY-NEGATIVES`
+
+- Evidence item ID: `0042-ORD03-REPLAY-NEGATIVES`
+- Requirement IDs: `ORD-LIFE-03`, `ORD-LIFE-PASS-01`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` and `cargo test --locked -p tracewake-core --test event_schema_replay_gates` passed. The content suite includes `continue_routine_tamper_kind_flip_poisons_replay` and `continue_routine_tamper_reason_rewrite_poisons_replay`, both derived from `possession_continue_routine_replay_fixture`; tampering the continue-routine event kind or reason causes replay mismatch and agent checksum mismatch. Event schema tests include missing current-step rejection, transition status matrices, resume sequencing, and wrong-status rejection.
+- Path under test and behavior witness:
+  - path under test: continue-routine event replay, intention transition apply/rebuild, and agent checksum comparison;
+  - command/event/trigger/emitter/scheduler entry: tampered `ContinueRoutine` event kind/reason and malformed intention transition payloads;
+  - responsible layer: `event_application`, `replay`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: illegal or tampered lifecycle ancestry does not reconstruct as a plausible legal intention;
+  - live negative, mutation-style failure, or reason no negative is applicable: tampered replay fails `matches_expected` and `agent_checksum_matches`; wrong-status transitions reject before state change;
+  - checked facts or invariants: final-state equality cannot substitute for legal transition history.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `possession_continue_routine_replay_fixture` log, intention transition matrix events, and continue-routine arbitration records;
+  - replay artifact or serialized-log reference: live vs tampered replay reports and agent checksum comparisons;
+  - seed, randomness, content version, or ruleset version: committed fixture/test data;
+  - extraction/projection version: current replay/rebuild implementation;
+  - source provenance: typed event payloads, transition reasons, and event IDs.
+- Sampling/exhaustiveness scope: finite lifecycle/adversarial cases named by ORD-LIFE-03.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-03`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -333,7 +417,24 @@ Projection/replay note:
 
 ## ORD-LIFE-03: durable intention lifecycle, typed ancestry, replacement semantics, and possession neutrality
 
-Pending; owned by `0042ORDLIFCER-004`.
+Result: `pass` for the ORD-LIFE-03 local audit point.
+
+Lifecycle witnesses:
+
+- Unit and workspace baseline coverage prove all `IntentionStatus` variants have stable IDs and terminal semantics, every non-active transition records a reason, suspended intentions can reactivate with a reason, completed intentions cannot reactivate or fail without fresh adoption, and `ActorIntentions` permits at most one active intention.
+- Decision lifecycle tests prove mild hunger continues an active work intention, while urgent/severe hunger interrupts it with a typed reason and adopts a new need-pressure intention whose `trace_ancestry` points at the selected decision trace.
+- Event-schema replay gates apply intention started/transition/continued matrices, reject missing current-step continuation live and in replay, and reject wrong-status transitions before state change.
+- No-human capstone checks intention and routine ancestry and proves replay preserves final agent intentions.
+
+Possession witnesses:
+
+- `possession_fixture_preserves_intention_needs_and_can_continue` proves attach/detach events occur without changing agent state, intentions, routine executions, or needs, and that `continue_routine` remains valid afterward with the same active intention and routine execution.
+- `possession_parity_001` and TUI `embodied_flow` preserve ordinary embodied action behavior across the controller/view boundary. This row consumes, but does not re-audit, predecessor EPI possession certification.
+
+Replay/adversarial witnesses:
+
+- `continue_routine_tamper_kind_flip_poisons_replay` and `continue_routine_tamper_reason_rewrite_poisons_replay` prove replay is sensitive to lifecycle event kind and reason ancestry.
+- Event-schema lifecycle negatives prove illegal status transitions and malformed lifecycle references fail loudly rather than being inferred from the final intention state.
 
 ## ORD-LIFE-04: defeasible routine templates, HTN method families, interruptors, failure modes, and fallback
 

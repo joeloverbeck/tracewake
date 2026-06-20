@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-004: ORD-LIFE-03 — durable intention lifecycle, typed ancestry, replacement semantics, and possession neutrality
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -75,3 +75,21 @@ Record the §5 adversarial cases: bind/unbind at each lifecycle stage (any reset
 3. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 4. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 5. `cargo test --locked -p tracewake-tui --test embodied_flow`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Populated the ORD-LIFE-03 section of `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with command transcript fingerprints, lifecycle evidence, possession-neutrality witnesses, replay/tamper negatives, and a local `pass` result. The report records that embedded unit tests in `agent/intention.rs` and `agent/decision.rs` were covered by the `0042ORDLIFCER-001` `cargo test --workspace --locked` baseline; this ticket's targeted commands provide the integration evidence.
+
+The evidence cites reason-bearing intention status transitions, illegal transition rejection, mild-pressure continuation, urgent/severe-pressure interruption and adoption, event-schema lifecycle matrices, no-human intention/routine ancestry, `possession_fixture_preserves_intention_needs_and_can_continue`, `possession_parity_001`, TUI embodied flow, and continue-routine replay tamper negatives.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test no_human_capstone` — passed.
+- `cargo test --locked -p tracewake-core --test acceptance_gates` — passed.
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed.
+- `cargo test --locked -p tracewake-tui --test embodied_flow` — passed.
+
+No production or engine code changed. No remediation was needed or performed.
