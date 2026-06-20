@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -658,17 +658,17 @@
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("sleep_places[{index}].actor_id"),
+                 sleep_place.actor_id.as_str(),
+                 "actor",
+             );
+         }
+-        if !places.contains(&sleep_place.place_id) {
++        if  /* ~ changed by cargo-mutants ~ */places.contains(&sleep_place.place_id) {
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("sleep_places[{index}].place_id"),
+                 sleep_place.place_id.as_str(),
+                 "place",
+             );
+         }

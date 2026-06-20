@@ -1,0 +1,94 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace DecisionTraceRecord::deserialize_canonical -> Result<Self, DecisionTraceRecordParseError> with Ok(Default::default())
+@@ -319,90 +319,17 @@
+             encode_text_payload(&self.typed_diagnostic.input_source),
+             encode_text_payload(&self.typed_diagnostic.actual_source),
+             encode_bool(self.typed_diagnostic.hidden_truth_referenced),
+             encode_text_payload(&self.typed_diagnostic.remediation_hint)
+         )
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, DecisionTraceRecordParseError> {
+-        let value =
+-            std::str::from_utf8(value).map_err(|_| DecisionTraceRecordParseError::InvalidUtf8)?;
+-        let fields: Vec<_> = value.split('|').collect();
+-        if !matches!(fields.len(), 9 | 11 | 15 | 17) || fields[0] != "decision_trace_v1" {
+-            return Err(DecisionTraceRecordParseError::InvalidShape);
+-        }
+-        let (actor_known_context_hash, actor_known_inputs, audit_index, typed_index) =
+-            if matches!(fields.len(), 11 | 17) {
+-                let actor_known_inputs = decode_text_payload(fields[8])?
+-                    .lines()
+-                    .filter(|line| !line.is_empty())
+-                    .map(ToString::to_string)
+-                    .collect::<Vec<_>>();
+-                let actor_known_context_hash =
+-                    compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
+-                // This checks trace serialization integrity. Replay derivability from the event
+-                // log is enforced by the replay context-hash rebuild gate.
+-                if fields[7] != actor_known_context_hash.as_str() {
+-                    return Err(DecisionTraceRecordParseError::InvalidContextHash);
+-                }
+-                (
+-                    Some(actor_known_context_hash),
+-                    actor_known_inputs,
+-                    9,
+-                    (fields.len() == 17).then_some(11),
+-                )
+-            } else {
+-                (None, Vec::new(), 7, (fields.len() == 15).then_some(9))
+-            };
+-        let actor_known_only =
+-            decode_bool(fields[audit_index]).ok_or(DecisionTraceRecordParseError::InvalidBool)?;
+-        Ok(Self {
+-            trace_id: DecisionTraceId::new(fields[1])
+-                .map_err(DecisionTraceRecordParseError::InvalidId)?,
+-            actor_id: ActorId::new(fields[2]).map_err(DecisionTraceRecordParseError::InvalidId)?,
+-            window_start_tick: SimTick::new(
+-                fields[3]
+-                    .parse()
+-                    .map_err(|_| DecisionTraceRecordParseError::InvalidTick)?,
+-            ),
+-            window_end_tick: SimTick::new(
+-                fields[4]
+-                    .parse()
+-                    .map_err(|_| DecisionTraceRecordParseError::InvalidTick)?,
+-            ),
+-            outcome: DecisionOutcome::parse(fields[5])
+-                .ok_or(DecisionTraceRecordParseError::InvalidOutcome)?,
+-            candidate_goal_count: fields[6]
+-                .parse()
+-                .map_err(|_| DecisionTraceRecordParseError::InvalidCount)?,
+-            actor_known_context_hash,
+-            actor_known_inputs,
+-            hidden_truth_audit_result: HiddenTruthAudit {
+-                actor_known_only,
+-                notes: decode_text_payload(fields[audit_index + 1])?,
+-            },
+-            typed_diagnostic: if let Some(typed_index) = typed_index {
+-                TypedDiagnosticFields {
+-                    responsible_layer: ResponsibleLayer::parse(fields[typed_index])?,
+-                    blocker_code: BlockerCode::parse(fields[typed_index + 1])?,
+-                    input_source: decode_text_payload(fields[typed_index + 2])?,
+-                    actual_source: decode_text_payload(fields[typed_index + 3])?,
+-                    hidden_truth_referenced: decode_bool(fields[typed_index + 4])
+-                        .ok_or(DecisionTraceRecordParseError::InvalidBool)?,
+-                    remediation_hint: decode_text_payload(fields[typed_index + 5])?,
+-                }
+-            } else {
+-                TypedDiagnosticFields::from_decision_outcome(
+-                    DecisionOutcome::parse(fields[5])
+-                        .ok_or(DecisionTraceRecordParseError::InvalidOutcome)?,
+-                    !actor_known_only,
+-                )
+-            },
+-        })
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum DecisionTraceRecordParseError {
+     InvalidUtf8,
+     InvalidShape,
+     InvalidTick,

@@ -1,0 +1,122 @@
+
+*** crates/tracewake-core/src/agent/routine.rs:128:9: replace RoutineStep::deserialize_canonical -> Result<Self, RoutineStepParseError> with Ok(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineStep::deserialize_canonical -> Result<Self, RoutineStepParseError> with Ok(Default::default())
+@@ -120,71 +120,17 @@
+         }
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+         self.serialize_canonical().into_bytes()
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, RoutineStepParseError> {
+-        let value = std::str::from_utf8(value).map_err(|_| RoutineStepParseError::InvalidUtf8)?;
+-        let mut fields = value.split('|');
+-        let version = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+-        let kind = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+-        let payload = fields.next().ok_or(RoutineStepParseError::InvalidShape)?;
+-        if fields.next().is_some() || version != "routine_step_v1" {
+-            return Err(RoutineStepParseError::InvalidShape);
+-        }
+-
+-        let action = || {
+-            SemanticActionId::new(payload).map_err(RoutineStepParseError::InvalidSemanticActionId)
+-        };
+-        let text = || decode_text_payload(payload);
+-
+-        match kind {
+-            "select_known_place" => Ok(Self::SelectKnownPlace {
+-                action_id: action()?,
+-            }),
+-            "move_toward_place" => Ok(Self::MoveTowardPlace {
+-                action_id: action()?,
+-            }),
+-            "open_known_container" => Ok(Self::OpenKnownContainer {
+-                action_id: action()?,
+-            }),
+-            "check_known_container" => Ok(Self::CheckKnownContainer {
+-                action_id: action()?,
+-            }),
+-            "consume_accessible_food" => Ok(Self::ConsumeAccessibleFood {
+-                action_id: action()?,
+-            }),
+-            "start_scheduled_sleep" => Ok(Self::StartScheduledSleep {
+-                action_id: action()?,
+-            }),
+-            "complete_scheduled_sleep" => Ok(Self::CompleteScheduledSleep {
+-                action_id: action()?,
+-            }),
+-            "start_work_block" => Ok(Self::StartWorkBlock {
+-                action_id: action()?,
+-            }),
+-            "complete_work_block" => Ok(Self::CompleteWorkBlock {
+-                action_id: action()?,
+-            }),
+-            "wait_until" => Ok(Self::WaitUntil { reason: text()? }),
+-            "continue_current_step" => Ok(Self::ContinueCurrentStep {
+-                action_id: action()?,
+-            }),
+-            "fallback_to_find_food" => Ok(Self::FallbackToFindFood {
+-                action_id: action()?,
+-            }),
+-            "fail_with_typed_diagnostic" => Ok(Self::FailWithTypedDiagnostic {
+-                diagnostic: RoutineDiagnosticKind::parse(text()?.as_str())
+-                    .map_err(|_| RoutineStepParseError::InvalidDiagnosticKind)?,
+-            }),
+-            _ => Err(RoutineStepParseError::InvalidStepKind),
+-        }
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub enum RoutineStepProposal<'a> {
+     Action(&'a SemanticActionId),
+     Wait(&'a str),
+     Diagnostic(&'a RoutineDiagnosticKind),
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/routine.rs` has changed (1781907363.619925016s, 4s after last build at 1781907359.167924887s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `RoutineStep: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/routine.rs:128:12
+    |
+128 |         Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |            ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `RoutineStep`
+   --> crates/tracewake-core/src/agent/routine.rs:42:1
+    |
+ 42 | pub enum RoutineStep {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `routine::RoutineStep: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/routine.rs:128:12
+    |
+128 |         Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |            ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `routine::RoutineStep`
+   --> crates/tracewake-core/src/agent/routine.rs:42:1
+    |
+ 42 | pub enum RoutineStep {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

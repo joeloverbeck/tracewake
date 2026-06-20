@@ -1,0 +1,71 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace target_kind -> Option<&'static str> with None
+@@ -1710,67 +1710,17 @@
+     }
+ }
+ 
+ fn parse_place_target(value: &str) -> Option<PlaceId> {
+     PlaceId::new(value).ok()
+ }
+ 
+ fn target_kind(fixture: &FixtureSchema, target_id: &str) -> Option<&'static str> {
+-    if fixture
+-        .actors
+-        .iter()
+-        .any(|actor| actor.actor_id.as_str() == target_id)
+-    {
+-        Some("actor")
+-    } else if fixture
+-        .places
+-        .iter()
+-        .any(|place| place.place_id.as_str() == target_id)
+-    {
+-        Some("place")
+-    } else if fixture
+-        .doors
+-        .iter()
+-        .any(|door| door.door_id.as_str() == target_id)
+-    {
+-        Some("door")
+-    } else if fixture
+-        .containers
+-        .iter()
+-        .any(|container| container.container_id.as_str() == target_id)
+-    {
+-        Some("container")
+-    } else if fixture
+-        .items
+-        .iter()
+-        .any(|item| item.item_id.as_str() == target_id)
+-    {
+-        Some("item")
+-    } else if fixture
+-        .food_supplies
+-        .iter()
+-        .any(|food| food.food_supply_id.as_str() == target_id)
+-    {
+-        Some("food_supply")
+-    } else if fixture
+-        .workplaces
+-        .iter()
+-        .any(|workplace| workplace.workplace_id.as_str() == target_id)
+-    {
+-        Some("workplace")
+-    } else if fixture
+-        .routine_templates
+-        .iter()
+-        .any(|template| template.template_id.as_str() == target_id)
+-    {
+-        Some("routine_template")
+-    } else {
+-        None
+-    }
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_semantic_ids(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+     for (index, affordance) in fixture.affordances.iter().enumerate() {
+         if affordance.action_id.as_str().parse::<u64>().is_ok() {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::SemanticView,
+                 format!("affordances[{index}].action_id"),

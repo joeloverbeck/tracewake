@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace && with || in apply_epistemic_event
+@@ -209,17 +209,17 @@
+     if event.stream != event.event_type.stream() {
+         return Err(EpistemicApplyError::EventKindStreamMismatch);
+     }
+ 
+     if event.stream != EventStream::Epistemic {
+         return Ok(ApplyOutcome::NonWorldNoOp);
+     }
+ 
+-    if event.event_type.requires_cause() && event.causes.is_empty() {
++    if event.event_type.requires_cause() || /* ~ changed by cargo-mutants ~ */ event.causes.is_empty() {
+         return Err(EpistemicApplyError::MissingCause);
+     }
+ 
+     let payload = payload_map(&event.payload);
+     let payload_schema_version = required_epistemic(&payload, "schema_version")?;
+     if payload_schema_version != EVENT_SCHEMA_V1 {
+         return Err(EpistemicApplyError::UnsupportedPayloadSchemaVersion(
+             payload_schema_version.to_string(),

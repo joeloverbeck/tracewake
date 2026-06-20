@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ delete ! in no_human::eligible_routine_execution_for_actor
+@@ -860,17 +860,17 @@
+             .filter(|(_, execution)| &execution.actor_id == actor_id)
+             .filter(|(_, execution)| {
+                 execution.start_tick <= window.start_tick
+                     && execution
+                         .deadline_tick
+                         .is_none_or(|deadline| window.start_tick < deadline)
+             })
+             .filter(|(_, execution)| {
+-                !matches!(
++                 /* ~ changed by cargo-mutants ~ */matches!(
+                     execution.step_status,
+                     crate::agent::RoutineStepStatus::Completed
+                         | crate::agent::RoutineStepStatus::Failed
+                         | crate::agent::RoutineStepStatus::Interrupted
+                         | crate::agent::RoutineStepStatus::Abandoned
+                 )
+             })
+             .min_by(|(_, left), (_, right)| {

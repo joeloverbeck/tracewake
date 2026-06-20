@@ -1,0 +1,43 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace append_rejection_event -> EventEnvelope with Default::default()
+@@ -1089,39 +1089,17 @@
+     }
+ }
+ 
+ fn append_rejection_event(
+     context: &mut PipelineContext<'_>,
+     proposal: &Proposal,
+     report: &ValidationReport,
+ ) -> EventEnvelope {
+-    let event_id = rejection_event_id(proposal);
+-
+-    let mut event = EventEnvelope::new_v1(
+-        event_id,
+-        EventKind::ActionRejected,
+-        0,
+-        0,
+-        proposal.requested_tick,
+-        context.ordering_key.clone(),
+-        context.content_manifest_id.clone(),
+-    );
+-    event.actor_id = proposal.actor_id.clone();
+-    event.proposal_id = Some(proposal.proposal_id.clone());
+-    event.validation_report_id = Some(report.validation_report_id.clone());
+-    event.payload = report
+-        .reason_codes
+-        .iter()
+-        .map(|code| PayloadField::new("reason_code", code.stable_id()))
+-        .collect();
+-    event.effects_summary = "rejected before world mutation".to_string();
+-
+-    let _ = context.log.append(event.clone());
+-    event
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn report_id(proposal: &Proposal) -> ValidationReportId {
+     ValidationReportId::new(format!("report.{}", proposal.proposal_id.as_str())).unwrap()
+ }
+ 
+ fn rejection_event_id(proposal: &Proposal) -> EventId {
+     EventId::new(format!("event.rejection.{}", proposal.proposal_id.as_str())).unwrap()

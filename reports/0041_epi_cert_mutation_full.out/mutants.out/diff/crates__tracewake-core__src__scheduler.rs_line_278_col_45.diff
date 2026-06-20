@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace <= with > in no_human::DayWindow::contains_tick
+@@ -270,17 +270,17 @@
+         pub start_tick: SimTick,
+         pub end_tick: SimTick,
+     }
+ 
+     impl DayWindow {
+         /// True when `tick` falls within this window's inclusive
+         /// `[start_tick, end_tick]` range.
+         fn contains_tick(&self, tick: SimTick) -> bool {
+-            self.start_tick <= tick && tick <= self.end_tick
++            self.start_tick <= tick && tick > /* ~ changed by cargo-mutants ~ */ self.end_tick
+         }
+     }
+ 
+     #[derive(Clone, Debug, PartialEq, Eq)]
+     pub struct NoHumanDayConfig {
+         pub actor_ids: Vec<ActorId>,
+         pub windows: Vec<DayWindow>,
+     }

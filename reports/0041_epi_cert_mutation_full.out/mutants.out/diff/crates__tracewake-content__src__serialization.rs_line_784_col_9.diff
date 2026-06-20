@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "true" in parse_bool
+@@ -776,17 +776,17 @@
+                     .map_err(|_| SerializationError::BadU64(part.to_string()))
+             })
+             .collect()
+     }
+ }
+ 
+ fn parse_bool(value: &str) -> Result<bool, SerializationError> {
+     match value {
+-        "true" => Ok(true),
++         /* ~ changed by cargo-mutants ~ */
+         "false" => Ok(false),
+         _ => Err(SerializationError::BadBool(value.to_string())),
+     }
+ }
+ 
+ fn encode(value: &str) -> String {
+     value
+         .as_bytes()

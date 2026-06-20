@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace PhysicalState::containers -> &BTreeMap<ContainerId, ContainerState> with Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())])))
+@@ -252,17 +252,17 @@
+         &self.places
+     }
+ 
+     pub fn doors(&self) -> &BTreeMap<DoorId, DoorState> {
+         &self.doors
+     }
+ 
+     pub fn containers(&self) -> &BTreeMap<ContainerId, ContainerState> {
+-        &self.containers
++        Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), Default::default())]))) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn items(&self) -> &BTreeMap<ItemId, ItemState> {
+         &self.items
+     }
+ 
+     pub fn food_supplies(&self) -> &BTreeMap<FoodSupplyId, FoodSupplyState> {
+         &self.food_supplies

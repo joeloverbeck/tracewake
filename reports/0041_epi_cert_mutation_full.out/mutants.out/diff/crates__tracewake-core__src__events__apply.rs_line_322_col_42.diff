@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace && with || in apply_agent_event_with_capability
+@@ -314,17 +314,17 @@
+     if event.stream != event.event_type.stream() {
+         return Err(ApplyError::EventKindStreamMismatch);
+     }
+ 
+     if event.stream != EventStream::Agent {
+         return Ok(ApplyOutcome::NonWorldNoOp);
+     }
+ 
+-    if event.event_type.requires_cause() && event.causes.is_empty() {
++    if event.event_type.requires_cause() || /* ~ changed by cargo-mutants ~ */ event.causes.is_empty() {
+         return Err(ApplyError::MissingCause);
+     }
+ 
+     let payload = payload_map(&event.payload);
+     match event.event_type {
+         EventKind::NeedDeltaApplied => {
+             apply_need_delta(state, event, &payload).map(|_| ApplyOutcome::Applied)
+         }

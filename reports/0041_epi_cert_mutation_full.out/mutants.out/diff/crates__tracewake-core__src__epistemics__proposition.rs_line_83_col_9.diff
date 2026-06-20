@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace <impl fmt::Display for PropositionParseError>::fmt -> fmt::Result with Ok(Default::default())
+@@ -75,26 +75,17 @@
+     InvalidUtf8,
+     InvalidShape,
+     InvalidLocationShape,
+     InvalidId(IdError),
+ }
+ 
+ impl fmt::Display for PropositionParseError {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        match self {
+-            PropositionParseError::InvalidUtf8 => {
+-                write!(f, "canonical proposition bytes must be UTF-8")
+-            }
+-            PropositionParseError::InvalidShape => write!(f, "invalid canonical proposition shape"),
+-            PropositionParseError::InvalidLocationShape => {
+-                write!(f, "invalid canonical proposition location shape")
+-            }
+-            PropositionParseError::InvalidId(err) => write!(f, "{err}"),
+-        }
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl std::error::Error for PropositionParseError {}
+ 
+ impl From<IdError> for PropositionParseError {
+     fn from(value: IdError) -> Self {
+         Self::InvalidId(value)

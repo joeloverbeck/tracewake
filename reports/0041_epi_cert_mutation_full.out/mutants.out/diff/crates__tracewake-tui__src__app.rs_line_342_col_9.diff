@@ -1,0 +1,32 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::checksum_context -> ChecksumContext with Default::default()
+@@ -334,28 +334,17 @@
+         Ok(report)
+     }
+ 
+     pub fn physical_checksum(&self) -> PhysicalChecksum {
+         compute_physical_checksum(&self.state, &self.checksum_context()).checksum
+     }
+ 
+     pub fn checksum_context(&self) -> ChecksumContext {
+-        ChecksumContext {
+-            fixture_id: self.fixture_id.clone(),
+-            content_version: self.content_version.clone(),
+-            sim_tick: self.scheduler.current_tick,
+-            world_stream_position_applied: self
+-                .log
+-                .events()
+-                .iter()
+-                .filter(|event| event.stream == tracewake_core::events::EventStream::World)
+-                .count()
+-                .saturating_sub(1) as u64,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn render_debug_event_log_panel(&self) -> String {
+         render_event_log_panel(&build_debug_event_log_view(&self.log))
+     }
+ 
+     pub fn render_debug_controller_binding_panel(&self) -> String {
+         let report = controller_binding_report(

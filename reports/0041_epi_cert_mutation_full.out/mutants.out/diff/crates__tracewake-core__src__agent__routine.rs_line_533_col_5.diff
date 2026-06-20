@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace encode_text_payload -> String with String::new()
+@@ -525,21 +525,17 @@
+     )
+ }
+ 
+ fn encode_text_step(kind: &str, value: &str) -> String {
+     format!("routine_step_v1|{}|{}", kind, encode_text_payload(value))
+ }
+ 
+ fn encode_text_payload(value: &str) -> String {
+-    value
+-        .as_bytes()
+-        .iter()
+-        .map(|byte| format!("{byte:02x}"))
+-        .collect()
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn decode_text_payload(value: &str) -> Result<String, RoutineStepParseError> {
+     if !value.len().is_multiple_of(2) {
+         return Err(RoutineStepParseError::InvalidTextPayload);
+     }
+ 
+     let bytes = value

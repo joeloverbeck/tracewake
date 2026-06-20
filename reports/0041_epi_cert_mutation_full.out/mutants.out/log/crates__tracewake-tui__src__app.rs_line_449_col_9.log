@@ -1,0 +1,60 @@
+
+*** crates/tracewake-tui/src/app.rs:449:9: replace TuiApp::debug_beliefs_view -> Result<DebugBeliefsView, AppError> with Ok(Default::default())
+
+*** mutation diff:
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::debug_beliefs_view -> Result<DebugBeliefsView, AppError> with Ok(Default::default())
+@@ -441,22 +441,17 @@
+         self.current_view()?.notebook.ok_or(AppError::ActorNotBound)
+     }
+ 
+     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
+         self.epistemic_projection.debug_epistemics_view()
+     }
+ 
+     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
+-        if !self.state.actors().contains_key(actor_id) {
+-            return Err(AppError::ActorNotFound(actor_id.clone()));
+-        }
+-        Ok(self
+-            .epistemic_projection
+-            .debug_beliefs_view(actor_id.clone()))
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn debug_observations_view(
+         &self,
+         actor_id: &ActorId,
+     ) -> Result<DebugObservationsView, AppError> {
+         if !self.state.actors().contains_key(actor_id) {
+             return Err(AppError::ActorNotFound(actor_id.clone()));
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-tui v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-tui): couldn't read metadata for file `target/debug/deps/libtracewake_tui-26d4c3d96c485778.rlib`
+   Compiling tracewake-tui v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-tui)
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/tests/../../tracewake-tui/src/app.rs` has changed (1781912113.287910505s, 1s after last build at 1781912112.585910518s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_tui --edition=2021 crates/tracewake-tui/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f4c586c4612564df -C extra-filename=-26d4c3d96c485778 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_content=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_content-052d9f0ddd5654e3.rmeta --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rmeta`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_tui --edition=2021 crates/tracewake-tui/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fa47a30827e2f80 -C extra-filename=-3fdb9d62463ec1e0 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_content=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_content-052d9f0ddd5654e3.rlib --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+       Fresh tracewake-content v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-content)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name anti_regression_guards --edition=2021 crates/tracewake-core/tests/anti_regression_guards.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=1562fde6eff0478d -C extra-filename=-1920b6d35b25dcfe --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name hidden_truth_gates --edition=2021 crates/tracewake-core/tests/hidden_truth_gates.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=6827b5805fd85fab -C extra-filename=-499dcae7fdb8d686 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+error[E0277]: the trait bound `DebugBeliefsView: Default` is not satisfied
+   --> crates/tracewake-tui/src/app.rs:449:12
+    |
+449 |         Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+    |            ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `DebugBeliefsView`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-tui` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_tui --edition=2021 crates/tracewake-tui/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=f4c586c4612564df -C extra-filename=-26d4c3d96c485778 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_content=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_content-052d9f0ddd5654e3.rmeta --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rmeta` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `tracewake-tui` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_tui --edition=2021 crates/tracewake-tui/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fa47a30827e2f80 -C extra-filename=-3fdb9d62463ec1e0 --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps --extern tracewake_content=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_content-052d9f0ddd5654e3.rlib --extern tracewake_core=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib` (exit status: 1)
+
+*** result: Failure(101)

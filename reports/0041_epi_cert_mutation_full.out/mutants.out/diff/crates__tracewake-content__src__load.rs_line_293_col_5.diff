@@ -1,0 +1,50 @@
+--- crates/tracewake-content/src/load.rs
++++ replace append_starting_belief with ()
+@@ -285,46 +285,17 @@
+     log: &mut EventLog,
+     sequence: &mut u64,
+     manifest_id: ContentManifestId,
+     actor_id: ActorId,
+     belief_kind: &str,
+     subject_id: &str,
+     value: impl Into<String>,
+ ) {
+-    let value = value.into();
+-    let mut event = seed_event(
+-        EventId::new(format!(
+-            "event_seed_starting_belief_{}_{}_{}",
+-            actor_id.as_str(),
+-            belief_kind,
+-            subject_id
+-        ))
+-        .expect("fixture ids form valid starting-belief event ids"),
+-        EventKind::StartingBeliefRecorded,
+-        actor_id.clone(),
+-        None,
+-        *sequence,
+-        manifest_id,
+-    );
+-    event.payload = vec![
+-        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+-        PayloadField::new("source_kind", "authored_prehistory"),
+-        PayloadField::new("actor_id", actor_id.as_str()),
+-        PayloadField::new("belief_kind", belief_kind),
+-        PayloadField::new("subject_id", subject_id),
+-        PayloadField::new("value", value),
+-    ];
+-    event.effects_summary = format!(
+-        "authored prehistory recorded {belief_kind} for {}",
+-        actor_id.as_str()
+-    );
+-    log.append(event)
+-        .expect("starting belief seed event is versioned");
+-    *sequence += 1;
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn append_role_assignment_notices(
+     log: &mut EventLog,
+     sequence: &mut u64,
+     manifest_id: ContentManifestId,
+     workplace: &WorkplaceSchema,
+ ) {

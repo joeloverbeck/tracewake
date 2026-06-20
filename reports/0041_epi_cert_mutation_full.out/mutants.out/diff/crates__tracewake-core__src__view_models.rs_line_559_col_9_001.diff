@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace DebugReplayReportView::debug_only -> bool with false
+@@ -551,17 +551,17 @@
+     pub fn new(summary: impl Into<String>) -> Self {
+         Self {
+             debug_capability: DebugCapability::mint(),
+             summary: summary.into(),
+         }
+     }
+ 
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl DebugEpistemicsView {
+     pub fn new(
+         context_mode: impl Into<String>,
+         observations: Vec<DebugObservationEntry>,
+         beliefs_by_holder: Vec<DebugHolderBeliefs>,

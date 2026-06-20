@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeContext::current_tick -> SimTick with Default::default()
+@@ -1031,17 +1031,17 @@
+         &self.bound_actor_id
+     }
+ 
+     pub fn mode(&self) -> ViewMode {
+         self.mode
+     }
+ 
+     pub fn current_tick(&self) -> SimTick {
+-        self.current_tick
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn event_frontier(&self) -> u64 {
+         self.event_frontier
+     }
+ 
+     pub fn allowed_sources(&self) -> &BTreeSet<AllowedKnowledgeSource> {
+         &self.allowed_sources

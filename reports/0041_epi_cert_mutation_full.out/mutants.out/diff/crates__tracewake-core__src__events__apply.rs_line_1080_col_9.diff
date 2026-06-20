@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "action_effect" in parse_need_change_cause
+@@ -1072,20 +1072,17 @@
+     })
+ }
+ 
+ fn parse_need_change_cause(payload: &BTreeMap<&str, &str>) -> Result<NeedChangeCause, ApplyError> {
+     let cause_kind = required(payload, "cause_kind")?;
+     match cause_kind {
+         "fixture_initial" => Ok(NeedChangeCause::FixtureInitial),
+         "tick_delta" => Ok(NeedChangeCause::TickDelta),
+-        "action_effect" => Ok(NeedChangeCause::ActionEffect(parse_action_id_for_agent(
+-            payload,
+-            "cause_action_id",
+-        )?)),
++         /* ~ changed by cargo-mutants ~ */
+         "routine_effect" => Ok(NeedChangeCause::RoutineEffect(parse_routine_execution_id(
+             payload,
+         )?)),
+         _ => Err(ApplyError::BadPayload {
+             key: "cause_kind",
+             value: cause_kind.to_string(),
+         }),
+     }

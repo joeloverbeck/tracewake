@@ -1,0 +1,85 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace no_human_day_metrics -> NoHumanDayMetrics with Default::default()
+@@ -386,81 +386,17 @@
+             self.tui_action_coverage,
+             self.player_conditioned_event_count,
+             self.player_conditioned_event_rate_per_1000
+         )
+     }
+ }
+ 
+ pub fn no_human_day_metrics(log: &EventLog) -> NoHumanDayMetrics {
+-    let events = log.events();
+-    let player_conditioned_event_count = events
+-        .iter()
+-        .filter(|event| contains_player_conditioned_fact(event))
+-        .count();
+-    let player_conditioned_event_rate_per_1000 = if events.is_empty() {
+-        0
+-    } else {
+-        (player_conditioned_event_count as u64 * 1000) / events.len() as u64
+-    };
+-    let start_tick = events
+-        .iter()
+-        .find(|event| event.event_type == EventKind::NoHumanDayStarted)
+-        .map(|event| event.sim_tick)
+-        .unwrap_or(SimTick::ZERO);
+-    let end_tick = events
+-        .iter()
+-        .rev()
+-        .find(|event| event.event_type == EventKind::NoHumanDayCompleted)
+-        .map(|event| event.sim_tick)
+-        .unwrap_or(start_tick);
+-    let mut stuck_actor_ids = events
+-        .iter()
+-        .filter(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+-        .filter_map(|event| event.actor_id.clone())
+-        .collect::<Vec<_>>();
+-    stuck_actor_ids.sort();
+-    stuck_actor_ids.dedup();
+-
+-    NoHumanDayMetrics {
+-        projection_version: "no_human_day_metrics_v1".to_string(),
+-        events_per_day: events.len(),
+-        routine_event_count: events
+-            .iter()
+-            .filter(|event| is_routine_event(event.event_type))
+-            .count(),
+-        meals_completed: count_kind(events, EventKind::FoodConsumed),
+-        meals_missed: count_kind(events, EventKind::EatFailed),
+-        sleep_completed: count_kind(events, EventKind::SleepCompleted),
+-        sleep_interrupted: count_kind(events, EventKind::SleepInterrupted),
+-        work_blocks_completed: count_kind(events, EventKind::WorkBlockCompleted),
+-        work_blocks_failed: count_kind(events, EventKind::WorkBlockFailed),
+-        need_threshold_crossings: count_kind(events, EventKind::NeedThresholdCrossed),
+-        routine_interruptions: count_kind(events, EventKind::IntentionInterrupted)
+-            + count_kind(events, EventKind::RoutineStepFailed),
+-        planner_failures: events
+-            .iter()
+-            .filter(|event| is_typed_planner_failure_event(event))
+-            .count(),
+-        stuck_actor_count: stuck_actor_ids.len(),
+-        run_duration_ticks: end_tick.value().saturating_sub(start_tick.value()),
+-        replay_failure_count: events
+-            .iter()
+-            .filter(|event| {
+-                event.event_type == EventKind::ReplayProjectionRebuilt
+-                    && event
+-                        .payload
+-                        .iter()
+-                        .any(|field| field.value.contains("failure"))
+-            })
+-            .count(),
+-        tui_action_coverage: unique_action_count(events),
+-        player_conditioned_event_count,
+-        player_conditioned_event_rate_per_1000,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn count_kind(events: &[EventEnvelope], kind: EventKind) -> usize {
+     events
+         .iter()
+         .filter(|event| event.event_type == kind)
+         .count()
+ }

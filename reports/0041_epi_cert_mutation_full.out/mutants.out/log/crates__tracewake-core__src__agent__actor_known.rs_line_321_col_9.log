@@ -1,0 +1,81 @@
+
+*** crates/tracewake-core/src/agent/actor_known.rs:321:9: replace ActorKnownPlanningContext::from_observed_parts -> Self with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownPlanningContext::from_observed_parts -> Self with Default::default()
+@@ -313,30 +313,17 @@
+         _known_edges: BTreeMap<PlaceId, BTreeSet<PlaceId>>,
+         _known_closed_doors: BTreeMap<(PlaceId, PlaceId), String>,
+         _known_containers_by_place: BTreeMap<PlaceId, BTreeSet<ContainerId>>,
+         _known_food_sources: BTreeSet<String>,
+         _known_sleep_places: BTreeSet<PlaceId>,
+         _known_workplaces: BTreeMap<WorkplaceId, PlaceId>,
+         facts: Vec<ActorKnownFact>,
+     ) -> Self {
+-        let derived = DerivedActorKnownFields::from_facts(&facts);
+-        let mut context = Self {
+-            actor_id,
+-            current_place_id,
+-            known_edges: derived.known_edges,
+-            known_closed_doors: derived.known_closed_doors,
+-            known_containers_by_place: derived.known_containers_by_place,
+-            known_food_sources: derived.known_food_sources,
+-            known_sleep_places: derived.known_sleep_places,
+-            known_workplaces: derived.known_workplaces,
+-            facts,
+-        };
+-        context.sort_facts();
+-        context
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn actor_id(&self) -> &ActorId {
+         &self.actor_id
+     }
+ 
+     pub fn current_place_id(&self) -> &PlaceId {
+         &self.current_place_id
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/actor_known.rs` has changed (1781906282.619925769s, 3s after last build at 1781906279.267925767s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ActorKnownPlanningContext: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/actor_known.rs:321:9
+    |
+321 |         Default::default() /* ~ changed by cargo-mutants ~ */
+    |         ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ActorKnownPlanningContext`
+   --> crates/tracewake-core/src/agent/actor_known.rs:295:1
+    |
+295 | pub struct ActorKnownPlanningContext {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `actor_known::ActorKnownPlanningContext: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/actor_known.rs:321:9
+    |
+321 |         Default::default() /* ~ changed by cargo-mutants ~ */
+    |         ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `actor_known::ActorKnownPlanningContext`
+   --> crates/tracewake-core/src/agent/actor_known.rs:295:1
+    |
+295 | pub struct ActorKnownPlanningContext {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

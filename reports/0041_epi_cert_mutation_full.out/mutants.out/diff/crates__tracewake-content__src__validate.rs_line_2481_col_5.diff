@@ -1,0 +1,79 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_phase3a_no_shortcuts with ()
+@@ -2473,75 +2473,17 @@
+             .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+             .any(|token| is_script_key(token) || is_player_key(token))
+ }
+ 
+ fn validate_phase3a_no_shortcuts(
+     fixture: &FixtureSchema,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+-    for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
+-        reject_shortcut_text(
+-            sleep_place.sleep_place_id.as_str(),
+-            format!("sleep_places[{index}].sleep_place_id"),
+-            errors,
+-        );
+-    }
+-    for (index, workplace) in fixture.workplaces.iter().enumerate() {
+-        reject_text_by_policy(
+-            &workplace.output_tag,
+-            format!("workplaces[{index}].output_tag"),
+-            StringScanPolicy::Union,
+-            errors,
+-        );
+-    }
+-    for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+-        for (index, value) in template.applicability_conditions.iter().enumerate() {
+-            reject_shortcut_text(
+-                value.stable_id(),
+-                format!("routine_templates[{template_index}].applicability_conditions[{index}]"),
+-                errors,
+-            );
+-        }
+-        for (index, value) in template.preconditions.iter().enumerate() {
+-            reject_shortcut_text(
+-                value.stable_id(),
+-                format!("routine_templates[{template_index}].preconditions[{index}]"),
+-                errors,
+-            );
+-        }
+-        for (index, value) in template.failure_modes.iter().enumerate() {
+-            reject_shortcut_text(
+-                value,
+-                format!("routine_templates[{template_index}].failure_modes[{index}]"),
+-                errors,
+-            );
+-        }
+-        for (index, value) in template.fallback_rules.iter().enumerate() {
+-            reject_shortcut_text(
+-                value,
+-                format!("routine_templates[{template_index}].fallback_rules[{index}]"),
+-                errors,
+-            );
+-        }
+-        for (index, value) in template.debug_labels.iter().enumerate() {
+-            reject_shortcut_text(
+-                value,
+-                format!("routine_templates[{template_index}].debug_labels[{index}]"),
+-                errors,
+-            );
+-        }
+-        if let Some(value) = &template.reservable_resource {
+-            reject_shortcut_text(
+-                value,
+-                format!("routine_templates[{template_index}].reservable_resource"),
+-                errors,
+-            );
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn reject_shortcut_text(value: &str, path: String, errors: &mut Vec<ContentValidationError>) {
+     if value
+         .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+         .any(is_phase3a_shortcut_marker)
+     {
+         errors.push(ContentValidationError::new(

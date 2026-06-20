@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace != with == in ActorDecisionTransaction::run
+@@ -133,17 +133,17 @@
+                 .and_then(goal_for_routine_family),
+         });
+         let mut candidates = if input.include_idle_fallback {
+             generated.candidates
+         } else {
+             generated
+                 .candidates
+                 .into_iter()
+-                .filter(|candidate| candidate.goal_kind != GoalKind::IdleWithReason)
++                .filter(|candidate| candidate.goal_kind == /* ~ changed by cargo-mutants ~ */ GoalKind::IdleWithReason)
+                 .collect()
+         };
+         let mut last_method_failure: Option<(CandidateGoal, String)> = None;
+         let max_method_attempts = candidates.len().saturating_add(1);
+         let mut method_attempts = 0usize;
+         let (selection, method) = loop {
+             method_attempts = method_attempts.saturating_add(1);
+             if method_attempts > max_method_attempts {

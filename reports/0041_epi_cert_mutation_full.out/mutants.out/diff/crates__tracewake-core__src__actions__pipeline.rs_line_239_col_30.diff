@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace == with != in run_pipeline
+@@ -231,17 +231,17 @@
+                 proposal,
+                 PipelineStage::EventApplication,
+                 vec![ReasonCode::WorldStateMismatch],
+                 checked_facts,
+                 "The world state did not match that action.",
+                 "event application rejected an event that passed dry-run",
+             );
+         }
+-        if definition.effect == ActionEffect::CheckContainer {
++        if definition.effect != /* ~ changed by cargo-mutants ~ */ ActionEffect::CheckContainer {
+             let observation_event = build_observation_recorded_event(
+                 &appended,
+                 &context.ordering_key,
+                 &context.content_manifest_id,
+             );
+             let appended_observation = match context.log.append(observation_event) {
+                 Ok(appended) => appended,
+                 Err(_) => {

@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace match guard belief.source_kind == InitialBeliefSourceKind::AuthoredPrehistory with false in validate_epistemic_seeds
+@@ -2606,17 +2606,17 @@
+                     format!("initial_beliefs[{index}].last_verified_tick"),
+                     "bad_tick_order",
+                     "last_verified_tick must not precede acquired_tick",
+                 ));
+             }
+         }
+         match &belief.source {
+             SourceRef::Event(event_id)
+-                if belief.source_kind == InitialBeliefSourceKind::AuthoredPrehistory =>
++                if false /* ~ changed by cargo-mutants ~ */ =>
+             {
+                 if is_forbidden_key(event_id.as_str())
+                     || contains_direct_state_or_script_marker(event_id.as_str())
+                 {
+                     errors.push(ContentValidationError::new(
+                         ValidationPhase::NoScript,
+                         format!("initial_beliefs[{index}].source_id"),
+                         "shortcut_truth_field",

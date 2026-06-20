@@ -1,0 +1,44 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace phase3a_failure -> Phase3AReplayFailure with Default::default()
+@@ -423,40 +423,17 @@
+     event
+         .payload
+         .iter()
+         .find(|field| field.key == key)
+         .map(|field| field.value.as_str())
+ }
+ 
+ fn phase3a_failure(event: &EventEnvelope, issue: impl Into<String>) -> Phase3AReplayFailure {
+-    let payload = event
+-        .payload
+-        .iter()
+-        .map(|field| (field.key.as_str(), field.value.as_str()))
+-        .collect::<std::collections::BTreeMap<_, _>>();
+-    Phase3AReplayFailure {
+-        event_position: event.global_order,
+-        event_kind: event.event_type,
+-        schema_version: event.event_schema_version.as_str().to_string(),
+-        issue: issue.into(),
+-        actor_id: event
+-            .actor_id
+-            .as_ref()
+-            .map(|id| id.as_str().to_string())
+-            .or_else(|| payload.get("actor_id").map(|value| (*value).to_string())),
+-        routine_id: payload
+-            .get("routine_execution_id")
+-            .or_else(|| payload.get("routine_id"))
+-            .map(|value| (*value).to_string()),
+-        trace_id: payload
+-            .get("trace_id")
+-            .or_else(|| payload.get("decision_trace_id"))
+-            .map(|value| (*value).to_string()),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn diff_physical_state(expected: &PhysicalState, actual: &PhysicalState) -> Vec<String> {
+     let mut diffs = Vec::new();
+     if expected.actors != actual.actors {
+         diffs.push(format!(
+             "actors expected={:?} actual={:?}",
+             expected.actors, actual.actors

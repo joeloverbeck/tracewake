@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace workplace_availability_provenance_refs -> Vec<ActionAvailabilityProvenance> with vec![]
+@@ -984,27 +984,17 @@
+ 
+     actions
+ }
+ 
+ fn workplace_availability_provenance_refs(
+     context_id: &HolderKnownContextId,
+     source_event_ids: &[EventId],
+ ) -> Vec<ActionAvailabilityProvenance> {
+-    let mut refs = vec![ActionAvailabilityProvenance::new(
+-        ActionAvailabilityProvenanceKind::HolderKnownContext,
+-        context_id.as_str(),
+-    )];
+-    refs.extend(source_event_ids.iter().map(|event_id| {
+-        ActionAvailabilityProvenance::new(
+-            ActionAvailabilityProvenanceKind::SourceEvent,
+-            event_id.as_str(),
+-        )
+-    }));
+-    refs
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
+     DebugEventLogView::new(log.events().iter().map(DebugEventSummary::from).collect())
+ }
+ 
+ fn visible_item_source(location: &Location) -> VisibleItemSource {
+     match location {

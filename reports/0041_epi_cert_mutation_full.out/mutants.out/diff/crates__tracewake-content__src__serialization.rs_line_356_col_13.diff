@@ -1,0 +1,24 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["affordance", action_id, target_id] in deserialize_fixture
+@@ -348,20 +348,17 @@
+                     contents: split_ids(contents, |part| ItemId::new(part))?,
+                 })
+             }
+             ["item", item_id, portable, location] => items.push(ItemSchema {
+                 item_id: ItemId::new(*item_id)?,
+                 portable: parse_bool(portable)?,
+                 location: deserialize_location(location)?,
+             }),
+-            ["affordance", action_id, target_id] => affordances.push(ActionAffordanceSchema {
+-                action_id: ActionId::new(*action_id)?,
+-                target_id: (*target_id).to_string(),
+-            }),
++             /* ~ changed by cargo-mutants ~ */
+             ["initial_belief", belief_id, holder_actor_id, proposition, stance, confidence, source_kind, source_id, channel, acquired_tick, last_verified_tick, privacy_scope, schema_version] => {
+                 initial_beliefs.push(InitialBeliefSchema {
+                     belief_id: BeliefId::new(*belief_id)?,
+                     holder_actor_id: ActorId::new(*holder_actor_id)?,
+                     proposition: Proposition::from_str(&decode(proposition)?)?,
+                     stance: parse_stance(stance)?,
+                     confidence: parse_confidence(confidence)?,
+                     source_kind: parse_source_kind(source_kind)?,

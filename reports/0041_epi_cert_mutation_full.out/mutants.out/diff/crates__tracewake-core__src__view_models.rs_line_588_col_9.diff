@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace DebugEpistemicsView::non_diegetic_marker -> &'static str with ""
+@@ -580,17 +580,17 @@
+         }
+     }
+ 
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ 
+     pub fn non_diegetic_marker(&self) -> &'static str {
+-        DEBUG_EPISTEMICS_MARKER
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl DebugBeliefsView {
+     pub fn new(holder_actor_id: ActorId, beliefs: Vec<DebugBeliefEntry>) -> Self {
+         Self {
+             debug_capability: DebugCapability::mint(),
+             holder_actor_id,

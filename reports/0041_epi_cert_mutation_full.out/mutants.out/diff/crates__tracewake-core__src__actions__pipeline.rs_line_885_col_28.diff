@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace != with == in source_context_check
+@@ -877,17 +877,17 @@
+             proposal,
+             PipelineStage::SourceContextValidation,
+             vec![ReasonCode::ProposalSourceActorMismatch],
+             checked_facts,
+             "That action belongs to another actor's view.",
+             "proposal source actor did not match proposal actor",
+         ));
+     }
+-    if source.context_tick != proposal.requested_tick
++    if source.context_tick == /* ~ changed by cargo-mutants ~ */ proposal.requested_tick
+         || source.context_tick != context.ordering_key.sim_tick
+     {
+         return Some(reject(
+             context,
+             proposal,
+             PipelineStage::SourceContextValidation,
+             vec![ReasonCode::ProposalSourceStale],
+             checked_facts,

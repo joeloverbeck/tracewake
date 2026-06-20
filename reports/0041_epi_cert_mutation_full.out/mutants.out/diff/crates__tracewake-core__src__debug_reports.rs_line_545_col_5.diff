@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace decision_trace_view -> Phase3ADecisionTraceView with Default::default()
+@@ -537,26 +537,17 @@
+         .decision_traces
+         .values()
+         .filter(|trace| &trace.actor_id == actor_id)
+         .map(decision_trace_view)
+         .collect()
+ }
+ 
+ fn decision_trace_view(trace: &crate::agent::DecisionTraceRecord) -> Phase3ADecisionTraceView {
+-    Phase3ADecisionTraceView {
+-        trace_id: trace.trace_id.as_str().to_string(),
+-        actor_id: trace.actor_id.clone(),
+-        window_start_tick: trace.window_start_tick,
+-        window_end_tick: trace.window_end_tick,
+-        outcome: trace.outcome.stable_id().to_string(),
+-        candidate_goal_count: trace.candidate_goal_count,
+-        hidden_truth_actor_known_only: trace.hidden_truth_audit_result.actor_known_only,
+-        hidden_truth_notes: trace.hidden_truth_audit_result.notes.clone(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stuck_views(agent_state: &AgentState) -> Vec<Phase3AStuckDiagnosticView> {
+     agent_state
+         .stuck_diagnostics
+         .values()
+         .map(stuck_view)
+         .collect()

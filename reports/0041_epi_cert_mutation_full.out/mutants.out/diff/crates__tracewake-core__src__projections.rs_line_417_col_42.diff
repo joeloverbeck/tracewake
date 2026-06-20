@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in no_human_day_metrics
+@@ -409,17 +409,17 @@
+     let end_tick = events
+         .iter()
+         .rev()
+         .find(|event| event.event_type == EventKind::NoHumanDayCompleted)
+         .map(|event| event.sim_tick)
+         .unwrap_or(start_tick);
+     let mut stuck_actor_ids = events
+         .iter()
+-        .filter(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
++        .filter(|event| event.event_type != /* ~ changed by cargo-mutants ~ */ EventKind::StuckDiagnosticRecorded)
+         .filter_map(|event| event.actor_id.clone())
+         .collect::<Vec<_>>();
+     stuck_actor_ids.sort();
+     stuck_actor_ids.dedup();
+ 
+     NoHumanDayMetrics {
+         projection_version: "no_human_day_metrics_v1".to_string(),
+         events_per_day: events.len(),

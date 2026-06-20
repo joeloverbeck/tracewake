@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeProvenanceKind::stable_id -> &'static str with "xyzzy"
+@@ -97,25 +97,17 @@
+     Record,
+     Belief,
+     Reservation,
+     ActionAffordanceFact,
+ }
+ 
+ impl KnowledgeProvenanceKind {
+     pub const fn stable_id(&self) -> &'static str {
+-        match self {
+-            KnowledgeProvenanceKind::Perception => "perception",
+-            KnowledgeProvenanceKind::Memory => "memory",
+-            KnowledgeProvenanceKind::Observation => "observation",
+-            KnowledgeProvenanceKind::Record => "record",
+-            KnowledgeProvenanceKind::Belief => "belief",
+-            KnowledgeProvenanceKind::Reservation => "reservation",
+-            KnowledgeProvenanceKind::ActionAffordanceFact => "action_affordance_fact",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct KnowledgeProvenanceEntry {
+     kind: KnowledgeProvenanceKind,
+     source: AllowedKnowledgeSource,
+     source_key: String,

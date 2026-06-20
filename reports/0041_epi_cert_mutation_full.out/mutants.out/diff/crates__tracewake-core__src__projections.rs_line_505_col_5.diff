@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace is_routine_event -> bool with true
+@@ -497,24 +497,17 @@
+     event
+         .payload
+         .iter()
+         .find(|field| field.key == key)
+         .map(|field| field.value.as_str())
+ }
+ 
+ fn is_routine_event(kind: EventKind) -> bool {
+-    matches!(
+-        kind,
+-        EventKind::RoutineStepStarted
+-            | EventKind::RoutineStepCompleted
+-            | EventKind::RoutineStepFailed
+-            | EventKind::ContinueRoutineAccepted
+-            | EventKind::ContinueRoutineRejected
+-    )
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn unique_action_count(events: &[EventEnvelope]) -> usize {
+     let mut action_ids = events
+         .iter()
+         .map(|event| event.ordering_key.action_id.clone())
+         .collect::<Vec<_>>();
+     action_ids.sort();

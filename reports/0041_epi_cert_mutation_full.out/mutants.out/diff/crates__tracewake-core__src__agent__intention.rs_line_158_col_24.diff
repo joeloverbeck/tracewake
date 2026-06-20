@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/intention.rs
++++ replace == with != in Intention::transition
+@@ -150,17 +150,17 @@
+     ) -> Result<(), IntentionTransitionError> {
+         if self.status.is_terminal() {
+             return Err(IntentionTransitionError::IllegalTransition {
+                 from: self.status,
+                 to,
+             });
+         }
+ 
+-        if self.status == to {
++        if self.status != /* ~ changed by cargo-mutants ~ */ to {
+             return Err(IntentionTransitionError::NoopTransition {
+                 status: self.status,
+             });
+         }
+ 
+         self.status = to;
+         self.status_reason = Some(reason.into());
+         Ok(())

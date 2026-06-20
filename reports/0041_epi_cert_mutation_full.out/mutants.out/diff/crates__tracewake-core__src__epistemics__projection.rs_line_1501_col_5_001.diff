@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace observation_payload_bool -> Option<bool> with Some(true)
+@@ -1493,17 +1493,17 @@
+     observation
+         .raw_payload()
+         .iter()
+         .find(|field| field.key == key)
+         .map(|field| field.value.as_str())
+ }
+ 
+ fn observation_payload_bool(observation: &Observation, key: &str) -> Option<bool> {
+-    observation_payload_value(observation, key).and_then(|value| value.parse::<bool>().ok())
++    Some(true) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn observation_item_location(observation: &Observation) -> Option<Location> {
+     match observation_payload_value(observation, "item_source_kind")? {
+         "place" => observation_payload_value(observation, "item_source_place_id")
+             .and_then(|value| PlaceId::new(value).ok())
+             .map(Location::AtPlace),
+         "container" => observation_payload_value(observation, "item_source_container_id")

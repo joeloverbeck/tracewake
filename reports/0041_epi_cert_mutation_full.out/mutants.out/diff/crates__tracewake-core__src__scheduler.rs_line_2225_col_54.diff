@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace == with != in no_human::advance_no_human
+@@ -2217,17 +2217,17 @@
+                 content_manifest_id: content_manifest_id.clone(),
+                 ordering_key,
+             };
+             let result = run_pipeline(&mut context, &proposal);
+             pending_sleep_starts.extend(
+                 result
+                     .appended_events
+                     .iter()
+-                    .filter(|event| event.event_type == EventKind::SleepStarted)
++                    .filter(|event| event.event_type != /* ~ changed by cargo-mutants ~ */ EventKind::SleepStarted)
+                     .cloned(),
+             );
+             pending_work_starts.extend(
+                 result
+                     .appended_events
+                     .iter()
+                     .filter(|event| event.event_type == EventKind::WorkBlockStarted)
+                     .cloned(),

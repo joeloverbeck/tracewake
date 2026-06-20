@@ -1,0 +1,52 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionRecord::source_event_id -> &EventId with Box::leak(Box::new(Default::default()))
+@@ -820,48 +820,17 @@
+             | Self::LocalDoor { source, .. }
+             | Self::LocalItem { source, .. }
+             | Self::SleepPlace { source, .. }
+             | Self::Workplace { source, .. } => source,
+         }
+     }
+ 
+     pub fn source_event_id(&self) -> &EventId {
+-        match self {
+-            Self::Route {
+-                source_event_id, ..
+-            }
+-            | Self::CurrentPlace {
+-                source_event_id, ..
+-            }
+-            | Self::CarriedItem {
+-                source_event_id, ..
+-            }
+-            | Self::FoodSource {
+-                source_event_id, ..
+-            }
+-            | Self::LocalActor {
+-                source_event_id, ..
+-            }
+-            | Self::LocalContainer {
+-                source_event_id, ..
+-            }
+-            | Self::LocalDoor {
+-                source_event_id, ..
+-            }
+-            | Self::LocalItem {
+-                source_event_id, ..
+-            }
+-            | Self::SleepPlace {
+-                source_event_id, ..
+-            }
+-            | Self::Workplace {
+-                source_event_id, ..
+-            } => source_event_id,
+-        }
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn source_tick(&self) -> SimTick {
+         match self {
+             Self::Route { source_tick, .. }
+             | Self::CurrentPlace { source_tick, .. }
+             | Self::CarriedItem { source_tick, .. }
+             | Self::FoodSource { source_tick, .. }

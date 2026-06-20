@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace match guard AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) with true in apply_agent_event_with_capability
+@@ -520,17 +520,17 @@
+                     caused_event_ids: caused_event_ids(event),
+                     sim_tick: event.sim_tick,
+                     payload_fields: payload_fields(event),
+                     summary: event.effects_summary.clone(),
+                 },
+             );
+             Ok(ApplyOutcome::Applied)
+         }
+-        kind if AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) => Ok(ApplyOutcome::WorldNoOp),
++        kind if true /* ~ changed by cargo-mutants ~ */ => Ok(ApplyOutcome::WorldNoOp),
+         _ => Err(ApplyError::NonAgentEvent),
+     }
+ }
+ 
+ fn caused_event_ids(event: &EventEnvelope) -> Vec<EventId> {
+     event
+         .causes
+         .iter()

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ delete ! in ActorDecisionTransaction::run
+@@ -211,17 +211,17 @@
+                     for candidate in candidates.iter_mut().filter(|candidate| {
+                         candidate.candidate_goal_id == failed_goal.candidate_goal_id
+                     }) {
+                         retired_failed_goal = true;
+                         candidate.applicability = ApplicabilityResult::Inapplicable;
+                         candidate.rejection_reason =
+                             Some(format!("method_selection_rejected:{error}"));
+                     }
+-                    if !retired_failed_goal {
++                    if  /* ~ changed by cargo-mutants ~ */retired_failed_goal {
+                         return ActorDecisionTransactionOutcome::Stuck {
+                             diagnostic: Box::new(stuck_diagnostic(
+                                 &input.actor_id,
+                                 input.decision_tick,
+                                 Some(&failed_goal),
+                                 None,
+                                 "empty local plan",
+                                 format!("method failure did not retire selected goal: {error}"),

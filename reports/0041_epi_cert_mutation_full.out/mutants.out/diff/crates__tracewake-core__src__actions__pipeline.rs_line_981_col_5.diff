@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace reject_action -> PipelineDecision with Default::default()
+@@ -973,25 +973,17 @@
+     semantic == dotted_action || semantic.starts_with(&format!("{dotted_action}."))
+ }
+ 
+ fn reject_action(
+     context: PipelineReadContext<'_>,
+     proposal: &Proposal,
+     rejection: ActionRejection,
+ ) -> PipelineDecision {
+-    reject(
+-        context,
+-        proposal,
+-        rejection.failed_stage,
+-        vec![rejection.reason_code],
+-        rejection.checked_facts,
+-        rejection.actor_visible_summary,
+-        rejection.debug_summary,
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn reject(
+     _context: PipelineReadContext<'_>,
+     proposal: &Proposal,
+     failed_stage: PipelineStage,
+     reason_codes: Vec<ReasonCode>,
+     checked_facts: Vec<CheckedFact>,

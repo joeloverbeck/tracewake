@@ -1,0 +1,79 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace StuckDiagnostic::deserialize_canonical -> Result<Self, StuckDiagnosticParseError> with Ok(Default::default())
+@@ -765,75 +765,17 @@
+         )
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+         self.serialize_canonical().into_bytes()
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, StuckDiagnosticParseError> {
+-        let value =
+-            std::str::from_utf8(value).map_err(|_| StuckDiagnosticParseError::InvalidUtf8)?;
+-        let fields: Vec<_> = value.split('|').collect();
+-        if !matches!(fields.len(), 18 | 24) || fields[0] != "stuck_diagnostic_v1" {
+-            return Err(StuckDiagnosticParseError::InvalidShape);
+-        }
+-        let blocker_category = BlockerCategory::parse(fields[12])?;
+-
+-        Ok(Self {
+-            diagnostic_id: StuckDiagnosticId::new(fields[1])
+-                .map_err(StuckDiagnosticParseError::InvalidId)?,
+-            actor_id: ActorId::new(fields[2]).map_err(StuckDiagnosticParseError::InvalidId)?,
+-            window_start_tick: SimTick::new(
+-                fields[3]
+-                    .parse()
+-                    .map_err(|_| StuckDiagnosticParseError::InvalidTick)?,
+-            ),
+-            window_end_tick: SimTick::new(
+-                fields[4]
+-                    .parse()
+-                    .map_err(|_| StuckDiagnosticParseError::InvalidTick)?,
+-            ),
+-            active_need: decode_opt_need(fields[5])?,
+-            active_goal_id: decode_opt_id(fields[6], |value| CandidateGoalId::new(value))?,
+-            active_intention_id: decode_opt_id(fields[7], |value| IntentionId::new(value))?,
+-            routine_template_id: decode_opt_id(fields[8], |value| RoutineTemplateId::new(value))?,
+-            routine_execution_id: decode_opt_id(fields[9], |value| RoutineExecutionId::new(value))?,
+-            routine_step: decode_opt_text(fields[10])?
+-                .map(|step| RoutineStep::deserialize_canonical(step.as_bytes()))
+-                .transpose()
+-                .map_err(|_| StuckDiagnosticParseError::InvalidRoutineStep)?,
+-            attempted_action: decode_opt_id(fields[11], |value| SemanticActionId::new(value))?,
+-            blocker_category,
+-            concrete_blocker: decode_text_payload(fields[13])?,
+-            actor_known_explanation: decode_text_payload(fields[14])?,
+-            debug_only_details: decode_text_payload(fields[15])?,
+-            retry_abandon_fallback_outcome: decode_text_payload(fields[16])?,
+-            resulting_status: StuckResultingStatus::parse(
+-                fields
+-                    .get(17)
+-                    .copied()
+-                    .ok_or(StuckDiagnosticParseError::InvalidShape)?,
+-            )?,
+-            typed_diagnostic: if fields.len() == 24 {
+-                TypedDiagnosticFields {
+-                    responsible_layer: ResponsibleLayer::parse(fields[18])?,
+-                    blocker_code: BlockerCode::parse(fields[19])?,
+-                    input_source: decode_text_payload(fields[20])?,
+-                    actual_source: decode_text_payload(fields[21])?,
+-                    hidden_truth_referenced: decode_bool(fields[22])
+-                        .ok_or(StuckDiagnosticParseError::InvalidBool)?,
+-                    remediation_hint: decode_text_payload(fields[23])?,
+-                }
+-            } else {
+-                let mut typed = TypedDiagnosticFields::stuck_default();
+-                typed.blocker_code = blocker_category.blocker_code();
+-                typed
+-            },
+-        })
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum StuckDiagnosticParseError {
+     InvalidUtf8,
+     InvalidShape,
+     InvalidTick,

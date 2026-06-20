@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedChangeCause::stable_id -> String with "xyzzy".into()
+@@ -132,29 +132,17 @@
+     FixtureInitial,
+     TickDelta,
+     ActionEffect(ActionId),
+     RoutineEffect(RoutineExecutionId),
+ }
+ 
+ impl NeedChangeCause {
+     pub fn stable_id(&self) -> String {
+-        match self {
+-            NeedChangeCause::FixtureInitial => "fixture_initial".to_string(),
+-            NeedChangeCause::TickDelta => "tick_delta".to_string(),
+-            NeedChangeCause::ActionEffect(action_id) => {
+-                format!("action_effect:{}", action_id.serialize_canonical())
+-            }
+-            NeedChangeCause::RoutineEffect(routine_execution_id) => {
+-                format!(
+-                    "routine_effect:{}",
+-                    routine_execution_id.serialize_canonical()
+-                )
+-            }
+-        }
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn parse(value: &str) -> Result<Self, NeedParseError> {
+         if value == "fixture_initial" {
+             return Ok(Self::FixtureInitial);
+         }
+         if value == "tick_delta" {
+             return Ok(Self::TickDelta);

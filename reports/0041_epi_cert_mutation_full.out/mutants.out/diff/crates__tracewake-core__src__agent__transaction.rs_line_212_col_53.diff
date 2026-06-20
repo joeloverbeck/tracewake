@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace == with != in ActorDecisionTransaction::run
+@@ -204,17 +204,17 @@
+                 input.decision_tick,
+             ) {
+                 Ok(method) => break (selection, method),
+                 Err(error) => {
+                     let failed_goal = selection.selected_goal.clone();
+                     let error = format!("{error:?}");
+                     let mut retired_failed_goal = false;
+                     for candidate in candidates.iter_mut().filter(|candidate| {
+-                        candidate.candidate_goal_id == failed_goal.candidate_goal_id
++                        candidate.candidate_goal_id != /* ~ changed by cargo-mutants ~ */ failed_goal.candidate_goal_id
+                     }) {
+                         retired_failed_goal = true;
+                         candidate.applicability = ApplicabilityResult::Inapplicable;
+                         candidate.rejection_reason =
+                             Some(format!("method_selection_rejected:{error}"));
+                     }
+                     if !retired_failed_goal {
+                         return ActorDecisionTransactionOutcome::Stuck {

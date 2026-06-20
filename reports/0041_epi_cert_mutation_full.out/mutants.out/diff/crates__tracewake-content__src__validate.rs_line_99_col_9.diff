@@ -1,0 +1,34 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace ContentValidationFailure::from_errors -> Self with Default::default()
+@@ -91,30 +91,17 @@
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ContentValidationFailure {
+     pub report: ContentValidationReport,
+ }
+ 
+ impl ContentValidationFailure {
+     fn from_errors(mut errors: Vec<ContentValidationError>) -> Self {
+-        errors.sort_by(|left, right| {
+-            (left.phase, &left.path, left.code, &left.message).cmp(&(
+-                right.phase,
+-                &right.path,
+-                right.code,
+-                &right.message,
+-            ))
+-        });
+-        Self {
+-            report: ContentValidationReport {
+-                status: ValidationStatus::Rejected,
+-                errors,
+-            },
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub fn validate_fixture_bytes(
+     bytes: &[u8],
+     registry: &ActionRegistry,
+ ) -> Result<InitialWorld, ContentValidationFailure> {
+     let mut errors = validate_raw_lines(bytes);

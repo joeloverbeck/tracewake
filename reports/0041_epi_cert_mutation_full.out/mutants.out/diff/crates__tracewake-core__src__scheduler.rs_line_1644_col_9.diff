@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::try_append_and_apply_agent_event -> Result<EventEnvelope, ()> with Ok(Default::default())
+@@ -1636,38 +1636,17 @@
+     }
+ 
+     fn try_append_and_apply_agent_event(
+         log: &mut EventLog,
+         agent_state: &mut AgentState,
+         event: EventEnvelope,
+         scheduler_errors: &mut Vec<NoHumanSchedulerError>,
+     ) -> Result<EventEnvelope, ()> {
+-        let event_id = event.event_id.clone();
+-        let appended = match log.append(event) {
+-            Ok(appended) => appended,
+-            Err(error) => {
+-                scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+-                    event_id,
+-                    error: ApplyError::BadPayload {
+-                        key: "event_log_append",
+-                        value: format!("{error:?}"),
+-                    },
+-                });
+-                return Err(());
+-            }
+-        };
+-        if let Err(error) = apply_agent_event(agent_state, &appended) {
+-            scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+-                event_id: appended.event_id.clone(),
+-                error,
+-            });
+-            return Err(());
+-        }
+-        Ok(appended)
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn latest_action_tick_delta_tick(
+         events: &[EventEnvelope],
+         actor_id: &ActorId,
+     ) -> Option<SimTick> {
+         events
+             .iter()

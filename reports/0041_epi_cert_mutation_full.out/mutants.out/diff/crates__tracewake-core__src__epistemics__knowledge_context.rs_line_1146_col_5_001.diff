@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace forbidden_sources -> BTreeSet<ForbiddenKnowledgeSource> with BTreeSet::from_iter([Default::default()])
+@@ -1138,23 +1138,17 @@
+         AllowedKnowledgeSource::OwnSearchOrTouchObservation,
+         AllowedKnowledgeSource::OwnSoundObservation,
+         AllowedKnowledgeSource::OwnAbsenceMarker,
+         AllowedKnowledgeSource::OwnSourceBackedBelief,
+     ])
+ }
+ 
+ fn forbidden_sources() -> BTreeSet<ForbiddenKnowledgeSource> {
+-    BTreeSet::from([
+-        ForbiddenKnowledgeSource::UnobservedEventLogTruth,
+-        ForbiddenKnowledgeSource::HiddenItemLocation,
+-        ForbiddenKnowledgeSource::OtherActorsPrivateBeliefs,
+-        ForbiddenKnowledgeSource::HumanDebugNotes,
+-        ForbiddenKnowledgeSource::PreviousPossessedActorKnowledge,
+-    ])
++    BTreeSet::from_iter([Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn baseline_embodied_provenance() -> Vec<KnowledgeProvenanceEntry> {
+     vec![
+         KnowledgeProvenanceEntry::actor_known_source(
+             KnowledgeProvenanceKind::Perception,
+             AllowedKnowledgeSource::OwnDirectObservation,
+             "context_source_policy",

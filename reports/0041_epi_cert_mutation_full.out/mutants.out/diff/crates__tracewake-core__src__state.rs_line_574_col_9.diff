@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace FoodSupplyState::is_empty -> bool with true
+@@ -566,17 +566,17 @@
+             food_supply_id,
+             location,
+             servings,
+             hunger_reduction_per_serving,
+         }
+     }
+ 
+     pub fn is_empty(&self) -> bool {
+-        self.servings == 0
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl ItemState {
+     pub fn new(item_id: ItemId, location: Location) -> Self {
+         Self {
+             item_id,
+             portable: true,

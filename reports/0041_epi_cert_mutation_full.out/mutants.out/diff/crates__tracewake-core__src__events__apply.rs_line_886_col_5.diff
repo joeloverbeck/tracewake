@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_contradiction_ids -> Result<Vec<ContradictionId>, EpistemicApplyError> with Ok(vec![])
+@@ -878,26 +878,17 @@
+                 key: "observation_ids",
+                 value: part.to_string(),
+             })
+         })
+         .collect()
+ }
+ 
+ fn parse_contradiction_ids(value: &str) -> Result<Vec<ContradictionId>, EpistemicApplyError> {
+-    value
+-        .split(',')
+-        .filter(|part| !part.is_empty())
+-        .map(|part| {
+-            ContradictionId::new(part).map_err(|_| EpistemicApplyError::BadPayload {
+-                key: "contradiction_ids",
+-                value: part.to_string(),
+-            })
+-        })
+-        .collect()
++    Ok(vec![]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_observation_payload(
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<Observation, EpistemicApplyError> {
+     let observer_actor_id = parse_actor_id_epistemic(payload, "observer_actor_id")?;
+     let observer_place_id = parse_place_id_epistemic(payload, "observer_place_id")?;
+     let source_event_id = parse_event_id_epistemic(payload, "source_event_id")

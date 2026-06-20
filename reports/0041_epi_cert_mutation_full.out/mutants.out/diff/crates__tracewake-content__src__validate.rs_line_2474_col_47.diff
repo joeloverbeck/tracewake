@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace || with && in contains_authored_outcome_marker
+@@ -2466,17 +2466,17 @@
+         "player_conditioned",
+         "protagonist_conditioned",
+         "player_only",
+         "protagonist_only",
+     ];
+     markers.iter().any(|marker| value.contains(marker))
+         || value
+             .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+-            .any(|token| is_script_key(token) || is_player_key(token))
++            .any(|token| is_script_key(token) && /* ~ changed by cargo-mutants ~ */ is_player_key(token))
+ }
+ 
+ fn validate_phase3a_no_shortcuts(
+     fixture: &FixtureSchema,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+     for (index, sleep_place) in fixture.sleep_places.iter().enumerate() {
+         reject_shortcut_text(

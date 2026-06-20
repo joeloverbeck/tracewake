@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "false" in validate_typed_diagnostic_payload
+@@ -611,17 +611,17 @@
+                 key: "blocker_code",
+                 value: (*value).to_string(),
+             });
+         }
+     }
+     if let Some(value) = payload.get("hidden_truth_referenced") {
+         let parsed = match *value {
+             "true" => true,
+-            "false" => false,
++             /* ~ changed by cargo-mutants ~ */
+             _ => {
+                 return Err(ApplyError::BadPayload {
+                     key: "hidden_truth_referenced",
+                     value: (*value).to_string(),
+                 });
+             }
+         };
+         if parsed != typed.hidden_truth_referenced {

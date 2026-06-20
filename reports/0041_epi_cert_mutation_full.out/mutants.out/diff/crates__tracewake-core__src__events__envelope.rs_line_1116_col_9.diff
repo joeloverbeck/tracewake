@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ delete match arm "validation_report" in deserialize_cause
+@@ -1108,19 +1108,17 @@
+ 
+ fn deserialize_cause(value: &str) -> Result<EventCause, EventEnvelopeParseError> {
+     let (kind, value) = value
+         .split_once(':')
+         .ok_or(EventEnvelopeParseError::UnknownCause)?;
+     match kind {
+         "event" => Ok(EventCause::Event(EventId::new(value)?)),
+         "proposal" => Ok(EventCause::Proposal(ProposalId::new(value)?)),
+-        "validation_report" => Ok(EventCause::ValidationReport(ValidationReportId::new(
+-            value,
+-        )?)),
++         /* ~ changed by cargo-mutants ~ */
+         "process" => Ok(EventCause::Process(ProcessId::new(value)?)),
+         _ => Err(EventEnvelopeParseError::UnknownCause),
+     }
+ }
+ 
+ fn serialize_random_draw(draw: &RandomDrawRef) -> String {
+     [draw.scope.clone(), draw.draw_id.clone(), draw.value.clone()]
+         .into_iter()

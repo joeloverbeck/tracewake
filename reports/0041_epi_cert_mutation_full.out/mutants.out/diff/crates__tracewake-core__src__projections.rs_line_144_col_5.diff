@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace actor_known_carried_item -> Option<&'a ActorKnownCarriedItemFact> with None
+@@ -136,20 +136,17 @@
+         .find(|fact| fact.place_id() == current_place_id)
+         .map(ActorKnownCurrentPlaceFact::display_label)
+ }
+ 
+ fn actor_known_carried_item<'a>(
+     context: &'a KnowledgeContext,
+     item_id: &ItemId,
+ ) -> Option<&'a ActorKnownCarriedItemFact> {
+-    context
+-        .actor_known_carried_items()
+-        .iter()
+-        .find(|fact| fact.item_id() == item_id)
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub struct EmbodiedPreflightSource<'a> {
+     state: &'a PhysicalState,
+     registry: &'a ActionRegistry,
+     content_manifest_id: &'a ContentManifestId,
+ }
+ 

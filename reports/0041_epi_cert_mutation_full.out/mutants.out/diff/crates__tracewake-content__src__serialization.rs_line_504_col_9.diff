@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "phase3a_historical" in parse_fixture_scope
+@@ -496,17 +496,17 @@
+     fixture.canonicalize();
+     Ok(fixture)
+ }
+ 
+ fn parse_fixture_scope(value: &str) -> Result<FixtureScope, SerializationError> {
+     match value {
+         "phase1" => Ok(FixtureScope::Phase1),
+         "phase2a_historical" => Ok(FixtureScope::Phase2AHistorical),
+-        "phase3a_historical" => Ok(FixtureScope::Phase3AHistorical),
++         /* ~ changed by cargo-mutants ~ */
+         _ => Err(SerializationError::BadLine(format!(
+             "bad fixture scope {value}"
+         ))),
+     }
+ }
+ 
+ fn parse_visibility_default(value: &str) -> Result<VisibilityDefault, SerializationError> {
+     match value {

@@ -1,0 +1,48 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace apply_intention_started -> Result<(), ApplyError> with Ok(())
+@@ -1247,44 +1247,17 @@
+     }
+     Ok(())
+ }
+ 
+ fn apply_intention_started(
+     state: &mut AgentState,
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<(), ApplyError> {
+-    let intention_id = parse_intention_id(payload, "intention_id")?;
+-    let actor_id = parse_actor_id(payload)?;
+-    let status = parse_intention_status(payload)?;
+-    if status != IntentionStatus::Active {
+-        return Err(ApplyError::PreconditionMismatch {
+-            field: "status",
+-            expected: IntentionStatus::Active.stable_id().to_string(),
+-            actual: status.stable_id().to_string(),
+-        });
+-    }
+-    let intention = Intention::adopt(
+-        intention_id.clone(),
+-        actor_id.clone(),
+-        parse_intention_source(payload)?,
+-        parse_candidate_goal_id(payload)?,
+-        parse_optional_routine_template_id(payload)?,
+-        payload
+-            .get("current_step")
+-            .map(|value| (*value).to_string()),
+-        parse_u8(payload, "durability_level")?,
+-        SimTick::new(parse_u64_agent(payload, "start_tick")?),
+-        parse_decision_trace_id(payload)?,
+-    );
+-    state
+-        .active_intention_by_actor
+-        .insert(actor_id, intention_id.clone());
+-    state.intentions.insert(intention_id, intention);
+-    Ok(())
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn apply_intention_transition(
+     state: &mut AgentState,
+     event_type: EventKind,
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<(), ApplyError> {
+     let intention_id = parse_intention_id(payload, "intention_id")?;

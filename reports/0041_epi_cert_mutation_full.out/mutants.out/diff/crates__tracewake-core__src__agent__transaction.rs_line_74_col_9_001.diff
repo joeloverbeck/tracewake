@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace SealedProposal::target_ids -> &[String] with Vec::leak(vec![String::new()])
+@@ -66,17 +66,17 @@
+         &self.proposal.proposal_id
+     }
+ 
+     pub fn action_id(&self) -> &crate::ids::ActionId {
+         &self.proposal.action_id
+     }
+ 
+     pub fn target_ids(&self) -> &[String] {
+-        &self.proposal.target_ids
++        Vec::leak(vec![String::new()]) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn parameters(&self) -> &BTreeMap<String, String> {
+         &self.proposal.parameters
+     }
+ 
+     pub fn into_proposal(self) -> Proposal {
+         self.proposal

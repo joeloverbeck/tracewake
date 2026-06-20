@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "candidate_generation" in ResponsibleLayer::parse
+@@ -95,17 +95,17 @@
+             Self::ViewModel => "view_model",
+             Self::TestOracle => "test_oracle",
+             Self::DebugQuarantine => "debug_quarantine",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+         match value {
+-            "candidate_generation" => Ok(Self::CandidateGeneration),
++             /* ~ changed by cargo-mutants ~ */
+             "intention_lifecycle" => Ok(Self::IntentionLifecycle),
+             "method_selection" => Ok(Self::MethodSelection),
+             "local_planning" => Ok(Self::LocalPlanning),
+             "proposal_construction" => Ok(Self::ProposalConstruction),
+             "scheduler" => Ok(Self::Scheduler),
+             "action_validation" => Ok(Self::ActionValidation),
+             "projection" => Ok(Self::Projection),
+             "view_model" => Ok(Self::ViewModel),

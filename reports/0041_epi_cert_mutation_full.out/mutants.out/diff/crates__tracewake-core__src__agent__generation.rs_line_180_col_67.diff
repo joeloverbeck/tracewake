@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/generation.rs
++++ replace && with || in hunger_candidate
+@@ -172,17 +172,17 @@
+ fn hunger_candidate(
+     input: &CandidateGenerationInput,
+     priority: GoalPriority,
+     reason: &str,
+ ) -> CandidateGoal {
+     let knows_food = input
+         .actor_known_facts
+         .iter()
+-        .any(|fact| fact.stable_id() == "actor_knows_food_source" && fact.is_actor_known());
++        .any(|fact| fact.stable_id() == "actor_knows_food_source" || /* ~ changed by cargo-mutants ~ */ fact.is_actor_known());
+     candidate(
+         input,
+         if knows_food { "eat" } else { "find_food" },
+         CandidateGoalSource::NeedPressure,
+         if knows_food {
+             GoalKind::Eat
+         } else {
+             GoalKind::FindFood

@@ -1,0 +1,44 @@
+--- crates/tracewake-core/src/controller.rs
++++ replace ControllerBindings::attach -> EventEnvelope with Default::default()
+@@ -41,40 +41,17 @@
+         &mut self,
+         controller_id: ControllerId,
+         actor_id: ActorId,
+         mode: ControllerMode,
+         tick: SimTick,
+         log: &mut EventLog,
+         content_manifest_id: ContentManifestId,
+     ) -> EventEnvelope {
+-        let sequence = self.next_sequence;
+-        self.next_sequence += 1;
+-        let binding = ControllerBinding {
+-            controller_id: controller_id.clone(),
+-            bound_actor_id: Some(actor_id.clone()),
+-            mode,
+-            binding_sequence: sequence,
+-        };
+-        self.bindings.insert(
+-            controller_id.clone(),
+-            RuntimeControllerBinding {
+-                binding,
+-                created_at_tick: tick,
+-            },
+-        );
+-        let event = controller_event(
+-            EventKind::ControllerAttached,
+-            controller_id,
+-            Some(actor_id),
+-            sequence,
+-            tick,
+-            content_manifest_id,
+-        );
+-        log.append(event).expect("controller event is versioned")
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn detach(
+         &mut self,
+         controller_id: &ControllerId,
+         tick: SimTick,
+         log: &mut EventLog,
+         content_manifest_id: ContentManifestId,

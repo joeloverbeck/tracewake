@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::provenance -> &ActorKnownProvenance with Box::leak(Box::new(Default::default()))
+@@ -208,17 +208,17 @@
+         self.provenance.actor_known()
+     }
+ 
+     pub fn proof_note(&self) -> String {
+         format!("{}={}", self.stable_id, self.provenance.note())
+     }
+ 
+     pub fn provenance(&self) -> &ActorKnownProvenance {
+-        &self.provenance
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn source_event_ids(&self) -> &[EventId] {
+         self.source_event_ids.as_slice()
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]

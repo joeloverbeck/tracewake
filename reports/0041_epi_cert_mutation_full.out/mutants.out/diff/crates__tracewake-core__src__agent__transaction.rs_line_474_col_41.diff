@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace == with != in actor_known_food_source_for_goal
+@@ -466,17 +466,17 @@
+ }
+ 
+ fn actor_known_food_source_for_goal(context: &ActorKnownPlanningContext) -> Option<String> {
+     context
+         .actor_known_facts()
+         .iter()
+         .find(|fact| {
+             fact.stable_id() == "actor_knows_food_source"
+-                && fact.semantic_kind() == "observed_now"
++                && fact.semantic_kind() != /* ~ changed by cargo-mutants ~ */ "observed_now"
+                 && fact.is_actor_known()
+         })
+         .map(|fact| fact.value().to_string())
+         .or_else(|| context.known_food_sources().iter().next().cloned())
+ }
+ 
+ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
+     match family {

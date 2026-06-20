@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace ExpectationContradictedPayload::new_v1 -> Self with Default::default()
+@@ -631,20 +631,17 @@
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ExpectationContradictedPayload {
+     pub schema_version: SchemaVersion,
+     pub contradiction: Contradiction,
+ }
+ 
+ impl ExpectationContradictedPayload {
+     pub fn new_v1(contradiction: Contradiction) -> Self {
+-        Self {
+-            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+-            contradiction,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ContainerCheckedPayload {
+     pub schema_version: SchemaVersion,
+     pub actor_id: ActorId,
+     pub container_id: ContainerId,

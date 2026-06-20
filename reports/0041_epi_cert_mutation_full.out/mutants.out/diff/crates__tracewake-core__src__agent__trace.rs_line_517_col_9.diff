@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace DecisionTrace::render_summary -> String with String::new()
+@@ -509,24 +509,17 @@
+             fallback_considered,
+             hidden_truth_audit_result,
+             outcome,
+             debug_only_details: debug_only_details.into(),
+         }
+     }
+ 
+     pub fn render_summary(&self) -> String {
+-        format!(
+-            "trace={} actor={} outcome={} candidates={} actor_known_only={}",
+-            self.trace_id.serialize_canonical(),
+-            self.actor_id.serialize_canonical(),
+-            self.outcome.stable_id(),
+-            self.candidate_goals_considered.len(),
+-            self.hidden_truth_audit_result.actor_known_only
+-        )
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn serialize_canonical(&self) -> String {
+         format!(
+             "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}",
+             self.trace_id.serialize_canonical(),
+             self.actor_id.serialize_canonical(),
+             self.window_start_tick.value(),

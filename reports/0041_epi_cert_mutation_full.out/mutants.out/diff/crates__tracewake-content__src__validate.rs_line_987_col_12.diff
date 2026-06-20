@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_topology
+@@ -979,17 +979,17 @@
+             missing(
+                 errors,
+                 ValidationPhase::PhysicalTopology,
+                 format!("doors[{index}].endpoint_a"),
+                 door.endpoint_a.as_str(),
+                 "place",
+             );
+         }
+-        if !places.contains(&door.endpoint_b) {
++        if  /* ~ changed by cargo-mutants ~ */places.contains(&door.endpoint_b) {
+             missing(
+                 errors,
+                 ValidationPhase::PhysicalTopology,
+                 format!("doors[{index}].endpoint_b"),
+                 door.endpoint_b.as_str(),
+                 "place",
+             );
+         }

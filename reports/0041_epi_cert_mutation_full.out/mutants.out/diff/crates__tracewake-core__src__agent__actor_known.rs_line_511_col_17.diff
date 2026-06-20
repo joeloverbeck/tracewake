@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ delete match arm "actor_knows_sleep_place" in DerivedActorKnownFields::from_facts
+@@ -503,21 +503,17 @@
+                                 .or_default()
+                                 .insert(container_id);
+                         }
+                     }
+                 }
+                 "actor_knows_food_source" => {
+                     derived.known_food_sources.insert(fact.value().to_string());
+                 }
+-                "actor_knows_sleep_place" => {
+-                    if let Ok(place_id) = PlaceId::new(fact.value()) {
+-                        derived.known_sleep_places.insert(place_id);
+-                    }
+-                }
++                 /* ~ changed by cargo-mutants ~ */
+                 "actor_knows_workplace" => {
+                     if let Some((workplace_id, place_id)) = fact.value().split_once('@') {
+                         if let (Ok(workplace_id), Ok(place_id)) =
+                             (WorkplaceId::new(workplace_id), PlaceId::new(place_id))
+                         {
+                             derived.known_workplaces.insert(workplace_id, place_id);
+                         }
+                     }

@@ -1,0 +1,28 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace reject_script_marker_text with ()
+@@ -2438,24 +2438,17 @@
+         StringScanPolicy::Union => {
+             reject_script_marker_text(value, path.clone(), errors);
+             reject_shortcut_text(value, path, errors);
+         }
+     }
+ }
+ 
+ fn reject_script_marker_text(value: &str, path: String, errors: &mut Vec<ContentValidationError>) {
+-    if contains_authored_outcome_marker(value) {
+-        errors.push(ContentValidationError::new(
+-            ValidationPhase::NoScript,
+-            path,
+-            "authored_outcome_chain",
+-            format!("authored outcome-chain marker {value} is forbidden"),
+-        ));
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn contains_authored_outcome_marker(value: &str) -> bool {
+     let markers = [
+         "guaranteed_success",
+         "always_succeeds",
+         "success_without_action",
+         "without_pipeline",

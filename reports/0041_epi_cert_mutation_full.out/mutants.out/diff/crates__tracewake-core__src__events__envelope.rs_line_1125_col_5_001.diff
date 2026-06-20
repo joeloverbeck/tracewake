@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace serialize_random_draw -> String with "xyzzy".into()
+@@ -1117,21 +1117,17 @@
+             value,
+         )?)),
+         "process" => Ok(EventCause::Process(ProcessId::new(value)?)),
+         _ => Err(EventEnvelopeParseError::UnknownCause),
+     }
+ }
+ 
+ fn serialize_random_draw(draw: &RandomDrawRef) -> String {
+-    [draw.scope.clone(), draw.draw_id.clone(), draw.value.clone()]
+-        .into_iter()
+-        .map(|part| encode(&part))
+-        .collect::<Vec<_>>()
+-        .join(":")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn deserialize_random_draw(value: &str) -> Result<RandomDrawRef, EventEnvelopeParseError> {
+     let parts = value
+         .split(':')
+         .map(decode)
+         .collect::<Result<Vec<_>, _>>()?;
+     if parts.len() != 3 {

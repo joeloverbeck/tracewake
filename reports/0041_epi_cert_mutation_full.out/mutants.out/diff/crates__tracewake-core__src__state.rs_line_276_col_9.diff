@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace PhysicalState::sleep_affordances -> &BTreeMap<SleepAffordanceId, SleepAffordanceState> with Box::leak(Box::new(BTreeMap::new()))
+@@ -268,17 +268,17 @@
+         &self.food_supplies
+     }
+ 
+     pub fn workplaces(&self) -> &BTreeMap<WorkplaceId, WorkplaceState> {
+         &self.workplaces
+     }
+ 
+     pub fn sleep_affordances(&self) -> &BTreeMap<SleepAffordanceId, SleepAffordanceState> {
+-        &self.sleep_affordances
++        Box::leak(Box::new(BTreeMap::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn need_model(&self) -> &NeedModelState {
+         &self.need_model
+     }
+ }
+ 
+ impl AgentState {

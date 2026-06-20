@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace DecisionOutcome::parse -> Option<Self> with None
+@@ -29,25 +29,17 @@
+             DecisionOutcome::Waited => "waited",
+             DecisionOutcome::Replanned => "replanned",
+             DecisionOutcome::Failed => "failed",
+             DecisionOutcome::Completed => "completed",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Option<Self> {
+-        match value {
+-            "continued" => Some(Self::Continued),
+-            "switched" => Some(Self::Switched),
+-            "waited" => Some(Self::Waited),
+-            "replanned" => Some(Self::Replanned),
+-            "failed" => Some(Self::Failed),
+-            "completed" => Some(Self::Completed),
+-            _ => None,
+-        }
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct HiddenTruthAudit {
+     pub actor_known_only: bool,
+     pub notes: String,
+ }

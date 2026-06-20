@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace schedule_phase_id -> &'static str with ""
+@@ -1054,22 +1054,17 @@
+         } else {
+             parts[5].split(',').map(ToString::to_string).collect()
+         },
+         parts[6].clone(),
+     ))
+ }
+ 
+ fn schedule_phase_id(phase: &SchedulePhase) -> &'static str {
+-    match phase {
+-        SchedulePhase::HumanCommand => "human_command",
+-        SchedulePhase::NoHumanProcess => "no_human_process",
+-        SchedulePhase::DeferredProcess => "deferred_process",
+-        SchedulePhase::Replay => "replay",
+-    }
++    "" /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn schedule_phase_from_id(value: &str) -> Option<SchedulePhase> {
+     match value {
+         "human_command" => Some(SchedulePhase::HumanCommand),
+         "no_human_process" => Some(SchedulePhase::NoHumanProcess),
+         "deferred_process" => Some(SchedulePhase::DeferredProcess),
+         "replay" => Some(SchedulePhase::Replay),

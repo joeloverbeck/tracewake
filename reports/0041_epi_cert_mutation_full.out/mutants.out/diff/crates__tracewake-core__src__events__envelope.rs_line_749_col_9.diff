@@ -1,0 +1,41 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventEnvelope::new_v1 -> Self with Default::default()
+@@ -741,37 +741,17 @@
+         event_id: EventId,
+         event_type: EventKind,
+         stream_position: u64,
+         global_order: u64,
+         sim_tick: SimTick,
+         ordering_key: OrderingKey,
+         content_manifest_id: ContentManifestId,
+     ) -> Self {
+-        Self {
+-            event_id,
+-            event_type,
+-            event_schema_version: EventSchemaVersion::V1.to_schema_version(),
+-            stream: event_type.stream(),
+-            stream_position,
+-            global_order,
+-            sim_tick,
+-            ordering_key,
+-            actor_id: None,
+-            process_id: None,
+-            participants: Vec::new(),
+-            place_id: None,
+-            causes: Vec::new(),
+-            proposal_id: None,
+-            validation_report_id: None,
+-            random_draws: Vec::new(),
+-            payload: Vec::new(),
+-            effects_summary: String::new(),
+-            content_manifest_id,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn has_supported_schema_version(&self) -> bool {
+         event_schema_registry_entry(&self.event_schema_version).is_some()
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     pub fn new_caused_v1(

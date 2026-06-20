@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace routine_step_status_id -> &'static str with "xyzzy"
+@@ -575,26 +575,17 @@
+     match location {
+         Location::AtPlace(id) => format!("at_place:{}", id.as_str()),
+         Location::InContainer(id) => format!("in_container:{}", id.as_str()),
+         Location::CarriedBy(id) => format!("carried_by:{}", id.as_str()),
+     }
+ }
+ 
+ fn routine_step_status_id(status: RoutineStepStatus) -> &'static str {
+-    match status {
+-        RoutineStepStatus::NotStarted => "not_started",
+-        RoutineStepStatus::InProgress => "in_progress",
+-        RoutineStepStatus::Waiting => "waiting",
+-        RoutineStepStatus::Completed => "completed",
+-        RoutineStepStatus::Failed => "failed",
+-        RoutineStepStatus::Interrupted => "interrupted",
+-        RoutineStepStatus::Suspended => "suspended",
+-        RoutineStepStatus::Abandoned => "abandoned",
+-    }
++    "xyzzy" /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::agent::{
+         BlockerCategory, DecisionOutcome, DecisionTraceRecord, HiddenTruthAudit, Intention,
+         IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution, RoutineFamily,

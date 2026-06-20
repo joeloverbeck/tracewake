@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventReplayHandling::for_stream -> Self with Default::default()
+@@ -503,24 +503,17 @@
+     ApplyWorld,
+     ApplyAgent,
+     ApplyEpistemicProjection,
+     NonMutatingNoOp,
+ }
+ 
+ impl EventReplayHandling {
+     pub const fn for_stream(stream: EventStream) -> Self {
+-        match stream {
+-            EventStream::World => EventReplayHandling::ApplyWorld,
+-            EventStream::Agent => EventReplayHandling::ApplyAgent,
+-            EventStream::Epistemic => EventReplayHandling::ApplyEpistemicProjection,
+-            EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {
+-                EventReplayHandling::NonMutatingNoOp
+-            }
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum InitialBeliefSourceKind {
+     AuthoredPrehistory,
+ }
+ 

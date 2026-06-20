@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownRouteFact::to_place_id -> &PlaceId with Box::leak(Box::new(Default::default()))
+@@ -633,17 +633,17 @@
+         }
+     }
+ 
+     pub fn from_place_id(&self) -> &PlaceId {
+         &self.from_place_id
+     }
+ 
+     pub fn to_place_id(&self) -> &PlaceId {
+-        &self.to_place_id
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn source_key(&self) -> &str {
+         &self.source_key
+     }
+ 
+     fn canonical_key(&self) -> String {
+         format!(

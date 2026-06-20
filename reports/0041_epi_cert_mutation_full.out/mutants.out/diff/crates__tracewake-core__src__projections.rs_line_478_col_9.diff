@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace || with && in is_typed_planner_failure_event
+@@ -470,17 +470,17 @@
+         event.event_type,
+         EventKind::DecisionTraceRecorded | EventKind::StuckDiagnosticRecorded
+     ) {
+         return false;
+     }
+     let responsible_layer = typed_responsible_layer(event);
+     let blocker_code = typed_blocker_code(event);
+     matches!(responsible_layer, Some(ResponsibleLayer::LocalPlanning))
+-        || matches!(
++        && /* ~ changed by cargo-mutants ~ */ matches!(
+             blocker_code,
+             Some(
+                 BlockerCode::PlannerBudgetExhausted
+                     | BlockerCode::EmptyLocalPlan
+                     | BlockerCode::LocalPlanFailed
+             )
+         )
+ }

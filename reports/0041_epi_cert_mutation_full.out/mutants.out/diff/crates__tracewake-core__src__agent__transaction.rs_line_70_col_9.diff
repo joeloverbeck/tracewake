@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace SealedProposal::action_id -> &crate::ids::ActionId with Box::leak(Box::new(Default::default()))
+@@ -62,17 +62,17 @@
+         Self { proposal }
+     }
+ 
+     pub fn proposal_id(&self) -> &ProposalId {
+         &self.proposal.proposal_id
+     }
+ 
+     pub fn action_id(&self) -> &crate::ids::ActionId {
+-        &self.proposal.action_id
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn target_ids(&self) -> &[String] {
+         &self.proposal.target_ids
+     }
+ 
+     pub fn parameters(&self) -> &BTreeMap<String, String> {
+         &self.proposal.parameters

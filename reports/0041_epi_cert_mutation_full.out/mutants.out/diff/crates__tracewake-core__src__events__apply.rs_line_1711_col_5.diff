@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace require_item_location -> Result<(), ApplyError> with Ok(())
+@@ -1703,29 +1703,17 @@
+     }
+ }
+ 
+ fn require_item_location(
+     state: &PhysicalState,
+     item_id: &ItemId,
+     expected: Location,
+ ) -> Result<(), ApplyError> {
+-    let item = state
+-        .items
+-        .get(item_id)
+-        .ok_or_else(|| ApplyError::MissingItem(item_id.clone()))?;
+-    if item.location == expected {
+-        Ok(())
+-    } else {
+-        Err(ApplyError::PreconditionMismatch {
+-            field: "item.location",
+-            expected: format!("{expected:?}"),
+-            actual: format!("{:?}", item.location),
+-        })
+-    }
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::agent::{
+         Intention, IntentionSource, NeedChangeCause, NeedKind, NeedState, RoutineExecution,
+         RoutineFamily,

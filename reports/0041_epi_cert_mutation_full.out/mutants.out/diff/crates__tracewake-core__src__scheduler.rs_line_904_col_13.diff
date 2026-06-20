@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::PendingCompletion::event_id -> &EventId with Box::leak(Box::new(Default::default()))
+@@ -896,19 +896,17 @@
+     impl PendingCompletion {
+         fn tick(&self) -> Option<SimTick> {
+             match self {
+                 Self::Sleep(event) | Self::Work(event) => scheduled_completion_tick(event),
+             }
+         }
+ 
+         fn event_id(&self) -> &EventId {
+-            match self {
+-                Self::Sleep(event) | Self::Work(event) => &event.event_id,
+-            }
++            Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+         }
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn append_due_completions(
+         state: &PhysicalState,
+         log: &mut EventLog,
+         agent_state: &mut AgentState,

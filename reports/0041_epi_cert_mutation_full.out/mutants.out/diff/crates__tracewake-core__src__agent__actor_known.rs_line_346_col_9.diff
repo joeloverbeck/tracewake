@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownPlanningContext::known_edges -> &BTreeMap<PlaceId, BTreeSet<PlaceId>> with Box::leak(Box::new(BTreeMap::new()))
+@@ -338,17 +338,17 @@
+         &self.actor_id
+     }
+ 
+     pub fn current_place_id(&self) -> &PlaceId {
+         &self.current_place_id
+     }
+ 
+     pub fn known_edges(&self) -> &BTreeMap<PlaceId, BTreeSet<PlaceId>> {
+-        &self.known_edges
++        Box::leak(Box::new(BTreeMap::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn known_closed_doors(&self) -> &BTreeMap<(PlaceId, PlaceId), String> {
+         &self.known_closed_doors
+     }
+ 
+     pub fn known_containers_by_place(&self) -> &BTreeMap<PlaceId, BTreeSet<ContainerId>> {
+         &self.known_containers_by_place

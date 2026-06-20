@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::proof_note -> String with "xyzzy".into()
+@@ -204,17 +204,17 @@
+         &self.actor_id
+     }
+ 
+     pub fn is_actor_known(&self) -> bool {
+         self.provenance.actor_known()
+     }
+ 
+     pub fn proof_note(&self) -> String {
+-        format!("{}={}", self.stable_id, self.provenance.note())
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn provenance(&self) -> &ActorKnownProvenance {
+         &self.provenance
+     }
+ 
+     pub fn source_event_ids(&self) -> &[EventId] {
+         self.source_event_ids.as_slice()

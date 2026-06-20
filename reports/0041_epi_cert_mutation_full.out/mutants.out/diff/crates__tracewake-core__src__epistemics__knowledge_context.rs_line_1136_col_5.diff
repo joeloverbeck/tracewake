@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace embodied_allowed_sources -> BTreeSet<AllowedKnowledgeSource> with BTreeSet::new()
+@@ -1128,23 +1128,17 @@
+     }
+ 
+     pub fn status(&self) -> KnowledgeContextStatus {
+         self.status
+     }
+ }
+ 
+ fn embodied_allowed_sources() -> BTreeSet<AllowedKnowledgeSource> {
+-    BTreeSet::from([
+-        AllowedKnowledgeSource::OwnDirectObservation,
+-        AllowedKnowledgeSource::OwnSearchOrTouchObservation,
+-        AllowedKnowledgeSource::OwnSoundObservation,
+-        AllowedKnowledgeSource::OwnAbsenceMarker,
+-        AllowedKnowledgeSource::OwnSourceBackedBelief,
+-    ])
++    BTreeSet::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn forbidden_sources() -> BTreeSet<ForbiddenKnowledgeSource> {
+     BTreeSet::from([
+         ForbiddenKnowledgeSource::UnobservedEventLogTruth,
+         ForbiddenKnowledgeSource::HiddenItemLocation,
+         ForbiddenKnowledgeSource::OtherActorsPrivateBeliefs,
+         ForbiddenKnowledgeSource::HumanDebugNotes,

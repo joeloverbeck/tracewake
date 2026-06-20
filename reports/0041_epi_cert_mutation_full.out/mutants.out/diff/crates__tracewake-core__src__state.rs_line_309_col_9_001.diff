@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::needs_by_actor -> &BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> with Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), BTreeMap::new())])))
+@@ -301,17 +301,17 @@
+             need_threshold_crossings: BTreeMap::new(),
+             ordinary_life_episodes: BTreeMap::new(),
+             candidate_goal_evaluations: BTreeMap::new(),
+             continue_routine_arbitrations: BTreeMap::new(),
+         }
+     }
+ 
+     pub fn needs_by_actor(&self) -> &BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
+-        &self.needs_by_actor
++        Box::leak(Box::new(BTreeMap::from_iter([(Default::default(), BTreeMap::new())]))) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn intentions(&self) -> &BTreeMap<IntentionId, Intention> {
+         &self.intentions
+     }
+ 
+     pub fn active_intention_by_actor(&self) -> &BTreeMap<ActorId, IntentionId> {
+         &self.active_intention_by_actor

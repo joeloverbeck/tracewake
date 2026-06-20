@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -618,17 +618,17 @@
+                 ValidationPhase::EpistemicSeed,
+                 format!("initial_beliefs[{index}].proposition"),
+                 "bad_reference",
+                 format!("{error}"),
+             ));
+         }
+     }
+     for (index, need) in fixture.initial_needs.iter().enumerate() {
+-        if !actors.contains(&need.actor_id) {
++        if  /* ~ changed by cargo-mutants ~ */actors.contains(&need.actor_id) {
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("initial_needs[{index}].actor_id"),
+                 need.actor_id.as_str(),
+                 "actor",
+             );
+         }

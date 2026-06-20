@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_item_id -> Result<ItemId, ApplyError> with Ok(Default::default())
+@@ -991,21 +991,17 @@
+     let value = required(payload, "container_id")?;
+     ContainerId::new(value).map_err(|_| ApplyError::BadPayload {
+         key: "container_id",
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_item_id(payload: &BTreeMap<&str, &str>) -> Result<ItemId, ApplyError> {
+-    let value = required(payload, "item_id")?;
+-    ItemId::new(value).map_err(|_| ApplyError::BadPayload {
+-        key: "item_id",
+-        value: value.to_string(),
+-    })
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_food_supply_id(payload: &BTreeMap<&str, &str>) -> Result<FoodSupplyId, ApplyError> {
+     let value = required(payload, "food_supply_id")?;
+     FoodSupplyId::new(value).map_err(|_| ApplyError::BadPayload {
+         key: "food_supply_id",
+         value: value.to_string(),
+     })

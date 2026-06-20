@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "intention_lifecycle" in ResponsibleLayer::parse
+@@ -96,17 +96,17 @@
+             Self::TestOracle => "test_oracle",
+             Self::DebugQuarantine => "debug_quarantine",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+         match value {
+             "candidate_generation" => Ok(Self::CandidateGeneration),
+-            "intention_lifecycle" => Ok(Self::IntentionLifecycle),
++             /* ~ changed by cargo-mutants ~ */
+             "method_selection" => Ok(Self::MethodSelection),
+             "local_planning" => Ok(Self::LocalPlanning),
+             "proposal_construction" => Ok(Self::ProposalConstruction),
+             "scheduler" => Ok(Self::Scheduler),
+             "action_validation" => Ok(Self::ActionValidation),
+             "projection" => Ok(Self::Projection),
+             "view_model" => Ok(Self::ViewModel),
+             "test_oracle" => Ok(Self::TestOracle),

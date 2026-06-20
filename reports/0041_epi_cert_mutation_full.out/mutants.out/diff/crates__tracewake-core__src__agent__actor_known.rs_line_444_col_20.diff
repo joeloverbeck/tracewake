@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ delete ! in ActorKnownPlanningContext::structured_fact_gaps
+@@ -436,17 +436,17 @@
+             let door_value = format!("{edge_value}@{door_id}");
+             if !self.has_fact("known_closed_door_surface", &door_value) {
+                 gaps.push(format!("known_closed_doors:{door_value}"));
+             }
+         }
+         for (place_id, containers) in &self.known_containers_by_place {
+             for container_id in containers {
+                 let value = format!("{}@{}", container_id.as_str(), place_id.as_str());
+-                if !self.has_fact("known_container_surface", &value) {
++                if  /* ~ changed by cargo-mutants ~ */self.has_fact("known_container_surface", &value) {
+                     gaps.push(format!("known_containers_by_place:{value}"));
+                 }
+             }
+         }
+         gaps.sort();
+         gaps
+     }
+ 

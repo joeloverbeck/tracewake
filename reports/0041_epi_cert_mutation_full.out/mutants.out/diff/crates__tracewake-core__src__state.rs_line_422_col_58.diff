@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace == with != in DoorState::connects_place
+@@ -414,17 +414,17 @@
+             is_open: false,
+             is_locked: false,
+             access_key_item_id: None,
+             blocks_movement_when_closed: true,
+         }
+     }
+ 
+     pub fn connects_place(&self, place_id: &PlaceId) -> bool {
+-        &self.endpoint_a == place_id || &self.endpoint_b == place_id
++        &self.endpoint_a == place_id || &self.endpoint_b != /* ~ changed by cargo-mutants ~ */ place_id
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ContainerState {
+     pub container_id: ContainerId,
+     pub location: Location,
+     pub is_open: bool,

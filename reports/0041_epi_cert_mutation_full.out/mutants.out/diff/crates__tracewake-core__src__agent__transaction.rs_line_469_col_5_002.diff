@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace actor_known_food_source_for_goal -> Option<String> with Some("xyzzy".into())
+@@ -461,26 +461,17 @@
+         GoalKind::ContinueCurrentIntention | GoalKind::IdleWithReason => {
+             PlannerGoal::WaitWithReason("actor_decision_reevaluation".to_string())
+         }
+         GoalKind::LeaveUnsafePlace => PlannerGoal::LeaveUnsafePlace,
+     }
+ }
+ 
+ fn actor_known_food_source_for_goal(context: &ActorKnownPlanningContext) -> Option<String> {
+-    context
+-        .actor_known_facts()
+-        .iter()
+-        .find(|fact| {
+-            fact.stable_id() == "actor_knows_food_source"
+-                && fact.semantic_kind() == "observed_now"
+-                && fact.is_actor_known()
+-        })
+-        .map(|fact| fact.value().to_string())
+-        .or_else(|| context.known_food_sources().iter().next().cloned())
++    Some("xyzzy".into()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
+     match family {
+         RoutineFamily::SleepNight => Some(GoalKind::SleepOrRest),
+         RoutineFamily::EatMeal => Some(GoalKind::Eat),
+         RoutineFamily::FindFood => Some(GoalKind::FindFood),
+         RoutineFamily::LeaveUnsafePlace => Some(GoalKind::LeaveUnsafePlace),

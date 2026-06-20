@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace payload_fields -> Vec<(String, String)> with vec![]
+@@ -537,23 +537,17 @@
+         .filter_map(|cause| match cause {
+             EventCause::Event(event_id) => Some(event_id.clone()),
+             _ => None,
+         })
+         .collect()
+ }
+ 
+ fn payload_fields(event: &EventEnvelope) -> Vec<(String, String)> {
+-    let mut fields = event
+-        .payload
+-        .iter()
+-        .map(|field| (field.key.clone(), field.value.clone()))
+-        .collect::<Vec<_>>();
+-    fields.sort();
+-    fields
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn reject_duplicate_duration_terminal(
+     state: &AgentState,
+     event: &EventEnvelope,
+ ) -> Result<(), ApplyError> {
+     if !is_duration_terminal(event.event_type) {
+         return Ok(());

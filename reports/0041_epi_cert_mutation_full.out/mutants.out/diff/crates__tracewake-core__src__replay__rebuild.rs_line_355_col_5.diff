@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace replay_prefix -> Result<(EventLog, PhysicalState, AgentState, EpistemicProjection), String> with Ok((Default::default(), Default::default(), Default::default(), Default::default()))
+@@ -347,38 +347,17 @@
+         .map_err(|_| "invalid_trace_canonical")
+ }
+ 
+ fn replay_prefix(
+     initial_state: &PhysicalState,
+     initial_agent_state: &AgentState,
+     events: &[EventEnvelope],
+ ) -> Result<(EventLog, PhysicalState, AgentState, EpistemicProjection), String> {
+-    let mut prefix_log = EventLog::new();
+-    let mut state = initial_state.clone();
+-    let mut agent_state = initial_agent_state.clone();
+-    let mut epistemic_projection = EpistemicProjection::new(
+-        events
+-            .first()
+-            .map(|event| event.content_manifest_id.clone())
+-            .unwrap_or_else(|| ContentManifestId::new("empty_prefix").unwrap()),
+-    );
+-    for event in events {
+-        let appended = prefix_log
+-            .append(event.clone())
+-            .map_err(|error| format!("prefix_append_error:{error:?}"))?;
+-        let mut application_context = EventApplicationContext {
+-            physical_state: &mut state,
+-            agent_state: &mut agent_state,
+-            epistemic_projection: Some(&mut epistemic_projection),
+-        };
+-        apply_event_stream(&mut application_context, &appended)
+-            .map_err(|error| format!("prefix_apply_error:{error:?}"))?;
+-    }
+-    Ok((prefix_log, state, agent_state, epistemic_projection))
++    Ok((Default::default(), Default::default(), Default::default(), Default::default())) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+     log.events()
+         .iter()
+         .rev()
+         .find(|event| {
+             matches!(

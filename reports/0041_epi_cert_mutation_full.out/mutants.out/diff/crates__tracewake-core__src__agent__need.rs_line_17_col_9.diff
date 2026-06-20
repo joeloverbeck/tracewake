@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedKind::stable_id -> &'static str with ""
+@@ -9,21 +9,17 @@
+ pub enum NeedKind {
+     Hunger,
+     Fatigue,
+     Safety,
+ }
+ 
+ impl NeedKind {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            NeedKind::Hunger => "hunger",
+-            NeedKind::Fatigue => "fatigue",
+-            NeedKind::Safety => "safety",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn parse(value: &str) -> Result<Self, NeedParseError> {
+         match value {
+             "hunger" => Ok(Self::Hunger),
+             "fatigue" => Ok(Self::Fatigue),
+             "safety" => Ok(Self::Safety),
+             _ => Err(NeedParseError::InvalidNeedKind),

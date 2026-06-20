@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/contradiction.rs
++++ replace != with == in detect_expected_absences
+@@ -115,17 +115,17 @@
+     observation_id: &ObservationId,
+     source_event_id: &EventId,
+     detected_tick: SimTick,
+     confidence: Confidence,
+ ) -> Vec<ExpectedAbsenceDetection> {
+     let mut detections = Vec::new();
+     for belief in expectation_beliefs {
+         if belief.holder() != &HolderKind::Actor(holder_actor_id.clone())
+-            || belief.stance() != Stance::ExpectsTrue
++            || belief.stance() == /* ~ changed by cargo-mutants ~ */ Stance::ExpectsTrue
+         {
+             continue;
+         }
+         let Proposition::ItemLocatedInContainer {
+             item_id,
+             container_id,
+         } = belief.proposition()
+         else {

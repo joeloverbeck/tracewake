@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ delete ! in build_work_start_events
+@@ -41,17 +41,17 @@
+             proposal,
+             ordering_key,
+             content_manifest_id,
+             workplace,
+             "access",
+             "actor not at workplace",
+         )]);
+     }
+-    if !workplace.access_open {
++    if  /* ~ changed by cargo-mutants ~ */workplace.access_open {
+         return Ok(vec![work_failed_event(
+             proposal,
+             ordering_key,
+             content_manifest_id,
+             workplace,
+             "access",
+             "workplace access closed",
+         )]);

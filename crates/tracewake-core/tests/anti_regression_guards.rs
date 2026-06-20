@@ -2377,7 +2377,8 @@ fn in_diff_filter_matches_path(filter_line: &str, required_path: &str) -> bool {
         "crates/tracewake-core/src/epistemics/knowledge_context.rs"
             | "crates/tracewake-core/src/epistemics/projection.rs"
     ) {
-        grouped_regex_contains_stem(filter_line, "epistemics/(", ")\\.rs", required_path)
+        filter_line.contains("crates/tracewake-core/src/epistemics/")
+            || grouped_regex_contains_stem(filter_line, "epistemics/(", ")\\.rs", required_path)
     } else if required_path.starts_with("crates/tracewake-content/src/") {
         grouped_regex_contains_stem(
             filter_line,

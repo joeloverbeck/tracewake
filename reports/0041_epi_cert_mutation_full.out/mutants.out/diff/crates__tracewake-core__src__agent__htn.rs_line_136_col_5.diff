@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace mark_mid_method_failure -> RoutineExecution with Default::default()
+@@ -128,19 +128,17 @@
+     })
+ }
+ 
+ pub fn mark_mid_method_failure(
+     mut execution: RoutineExecution,
+     tick: SimTick,
+     reason: &str,
+ ) -> RoutineExecution {
+-    execution.record_fallback_attempt();
+-    execution.interrupt(tick, reason);
+-    execution
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum ConditionResolution {
+     Satisfied { proof_source: String },
+     Rejected { reason: String },
+     Unknown { reason: String },
+ }

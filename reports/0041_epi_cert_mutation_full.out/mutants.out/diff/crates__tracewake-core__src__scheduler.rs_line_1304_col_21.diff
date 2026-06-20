@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace && with || in no_human::routine_stuck_diagnostic_kinds
+@@ -1296,17 +1296,17 @@
+                     })
+                 {
+                     diagnostics.push((
+                         StuckDiagnosticKind::PastExpectedProgressWindow,
+                         execution_id.clone(),
+                     ));
+                 }
+                 if execution.step_status == RoutineStepStatus::Waiting
+-                    && execution.fallback_attempts > 0
++                    || /* ~ changed by cargo-mutants ~ */ execution.fallback_attempts > 0
+                     && execution.last_progress_tick < window.start_tick
+                 {
+                     diagnostics.push((StuckDiagnosticKind::RepeatedIdleWait, execution_id.clone()));
+                 }
+                 diagnostics
+             })
+             .filter(|(kind, execution_id)| {
+                 !agent_state.stuck_diagnostics().contains_key(

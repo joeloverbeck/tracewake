@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace is_player_term -> bool with true
+@@ -527,18 +527,17 @@
+         || event
+             .payload
+             .iter()
+             .any(|field| is_player_term(&field.key) || is_player_term(&field.value))
+         || is_player_term(&event.effects_summary)
+ }
+ 
+ fn is_player_term(value: &str) -> bool {
+-    let lowered = value.to_ascii_lowercase();
+-    lowered.contains("player") || lowered.contains("controller")
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn build_embodied_view_model(
+     context: &KnowledgeContext,
+     source: &EmbodiedProjectionSource<'_>,
+     preflight_source: &EmbodiedPreflightSource<'_>,
+     last_rejection: Option<&ValidationReport>,
+ ) -> Result<EmbodiedViewModel, ProjectionError> {

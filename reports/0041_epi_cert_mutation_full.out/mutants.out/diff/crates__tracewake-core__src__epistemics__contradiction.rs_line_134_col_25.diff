@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/contradiction.rs
++++ replace != with == in detect_expected_absences
+@@ -126,17 +126,17 @@
+         }
+         let Proposition::ItemLocatedInContainer {
+             item_id,
+             container_id,
+         } = belief.proposition()
+         else {
+             continue;
+         };
+-        if container_id != checked_container_id || observed_item_ids.contains(item_id) {
++        if container_id == /* ~ changed by cargo-mutants ~ */ checked_container_id || observed_item_ids.contains(item_id) {
+             continue;
+         }
+ 
+         let observed_proposition = Proposition::ItemMissingFromExpectedLocation {
+             item_id: item_id.clone(),
+             expected_location: Location::InContainer(checked_container_id.clone()),
+         };
+         let contradiction_id = ContradictionId::new(format!(

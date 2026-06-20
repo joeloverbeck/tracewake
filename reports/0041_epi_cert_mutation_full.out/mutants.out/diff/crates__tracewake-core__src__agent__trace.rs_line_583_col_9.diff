@@ -1,0 +1,32 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace BlockerCategory::parse -> Result<Self, StuckDiagnosticParseError> with Ok(Default::default())
+@@ -575,28 +575,17 @@
+             BlockerCategory::SchedulingReservation => "scheduling_reservation",
+             BlockerCategory::UnsupportedAction => "unsupported_action",
+             BlockerCategory::PlannerBudgetExhausted => "planner_budget_exhausted",
+             BlockerCategory::FixtureAuthoringError => "fixture_authoring_error",
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, StuckDiagnosticParseError> {
+-        match value {
+-            "physical" => Ok(Self::Physical),
+-            "access" => Ok(Self::Access),
+-            "knowledge" => Ok(Self::Knowledge),
+-            "resource" => Ok(Self::Resource),
+-            "social_norm_placeholder" => Ok(Self::SocialNormPlaceholder),
+-            "scheduling_reservation" => Ok(Self::SchedulingReservation),
+-            "unsupported_action" => Ok(Self::UnsupportedAction),
+-            "planner_budget_exhausted" => Ok(Self::PlannerBudgetExhausted),
+-            "fixture_authoring_error" => Ok(Self::FixtureAuthoringError),
+-            _ => Err(StuckDiagnosticParseError::InvalidBlockerCategory),
+-        }
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn blocker_code(self) -> BlockerCode {
+         match self {
+             Self::Physical => BlockerCode::Physical,
+             Self::Access => BlockerCode::Access,
+             Self::Knowledge => BlockerCode::Knowledge,
+             Self::Resource => BlockerCode::Resource,

@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace active_intention_for_actor -> Option<crate::agent::Intention> with None
+@@ -383,18 +383,17 @@
+         .find(|fact| fact.stable_id() == "actor_knows_sleep_affordance" && fact.is_actor_known())
+         .map(|fact| fact.value().to_string())
+ }
+ 
+ fn active_intention_for_actor(
+     agent_state: &AgentState,
+     actor_id: &ActorId,
+ ) -> Option<crate::agent::Intention> {
+-    let intention_id = agent_state.active_intention_by_actor.get(actor_id)?;
+-    agent_state.intentions.get(intention_id).cloned()
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn planner_goal_for(
+     selected_goal: &CandidateGoal,
+     actor_known_context: &ActorKnownPlanningContext,
+ ) -> PlannerGoal {
+     match selected_goal.goal_kind {
+         GoalKind::Eat | GoalKind::FindFood => actor_known_food_source_for_goal(actor_known_context)

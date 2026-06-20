@@ -1,0 +1,26 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_fixture -> Result<InitialWorld, ContentValidationFailure> with Ok(Default::default())
+@@ -132,22 +132,17 @@
+         Err(ContentValidationFailure::from_errors(errors))
+     }
+ }
+ 
+ pub fn validate_fixture(
+     fixture: &FixtureSchema,
+     registry: &ActionRegistry,
+ ) -> Result<InitialWorld, ContentValidationFailure> {
+-    let errors = validate_fixture_errors(fixture, registry);
+-    if errors.is_empty() {
+-        Ok(accepted_world(fixture.clone()))
+-    } else {
+-        Err(ContentValidationFailure::from_errors(errors))
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn accepted_world(mut fixture: FixtureSchema) -> InitialWorld {
+     fixture.canonicalize();
+     let physical_state = fixture.to_physical_state();
+     InitialWorld {
+         fixture,
+         physical_state,

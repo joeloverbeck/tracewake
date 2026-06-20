@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeContext::allowed_sources -> &BTreeSet<AllowedKnowledgeSource> with Box::leak(Box::new(BTreeSet::new()))
+@@ -1039,17 +1039,17 @@
+         self.current_tick
+     }
+ 
+     pub fn event_frontier(&self) -> u64 {
+         self.event_frontier
+     }
+ 
+     pub fn allowed_sources(&self) -> &BTreeSet<AllowedKnowledgeSource> {
+-        &self.allowed_sources
++        Box::leak(Box::new(BTreeSet::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn forbidden_sources(&self) -> &BTreeSet<ForbiddenKnowledgeSource> {
+         &self.forbidden_sources
+     }
+ 
+     pub fn perception_scope(&self) -> &ScopeFilter {
+         &self.perception_scope

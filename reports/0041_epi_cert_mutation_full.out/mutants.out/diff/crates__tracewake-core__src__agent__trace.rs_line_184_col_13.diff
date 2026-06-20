@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "provenance_witness_mismatch" in BlockerCode::parse
+@@ -176,17 +176,17 @@
+             "fixture_authoring_error" => Ok(Self::FixtureAuthoringError),
+             "no_applicable_candidate" => Ok(Self::NoApplicableCandidate),
+             "no_applicable_method" => Ok(Self::NoApplicableMethod),
+             "empty_local_plan" => Ok(Self::EmptyLocalPlan),
+             "local_plan_failed" => Ok(Self::LocalPlanFailed),
+             "hidden_truth_input" => Ok(Self::HiddenTruthInput),
+             "provenance_dangling" => Ok(Self::ProvenanceDangling),
+             "provenance_class_mismatch" => Ok(Self::ProvenanceClassMismatch),
+-            "provenance_witness_mismatch" => Ok(Self::ProvenanceWitnessMismatch),
++             /* ~ changed by cargo-mutants ~ */
+             _ => Err(DiagnosticFieldParseError::InvalidBlockerCode),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct TypedDiagnosticFields {
+     pub responsible_layer: ResponsibleLayer,

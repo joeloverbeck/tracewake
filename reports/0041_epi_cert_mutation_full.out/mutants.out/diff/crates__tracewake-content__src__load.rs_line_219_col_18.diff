@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/load.rs
++++ replace += with -= in seed_event_log
+@@ -211,17 +211,17 @@
+                 .push(PayloadField::new("channel", channel.stable_id()));
+         }
+         event.effects_summary = format!(
+             "authored prehistory seeded belief {} for {}",
+             belief.belief_id.as_str(),
+             belief.holder_actor_id.as_str()
+         );
+         log.append(event).expect("seed belief event is versioned");
+-        sequence += 1;
++        sequence -= /* ~ changed by cargo-mutants ~ */ 1;
+     }
+ 
+     for home in &fixture.homes {
+         append_starting_belief(
+             &mut log,
+             &mut sequence,
+             manifest_id.clone(),
+             home.actor_id.clone(),

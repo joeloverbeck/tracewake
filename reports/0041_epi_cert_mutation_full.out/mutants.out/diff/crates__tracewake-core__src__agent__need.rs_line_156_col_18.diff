@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace == with != in NeedChangeCause::parse
+@@ -148,17 +148,17 @@
+                     "routine_effect:{}",
+                     routine_execution_id.serialize_canonical()
+                 )
+             }
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, NeedParseError> {
+-        if value == "fixture_initial" {
++        if value != /* ~ changed by cargo-mutants ~ */ "fixture_initial" {
+             return Ok(Self::FixtureInitial);
+         }
+         if value == "tick_delta" {
+             return Ok(Self::TickDelta);
+         }
+         if let Some(action_id) = value.strip_prefix("action_effect:") {
+             return Ok(Self::ActionEffect(
+                 ActionId::new(action_id).map_err(NeedParseError::InvalidId)?,

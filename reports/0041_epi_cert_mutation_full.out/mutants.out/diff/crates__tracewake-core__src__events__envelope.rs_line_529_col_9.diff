@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace InitialBeliefSourceKind::stable_id -> &'static str with ""
+@@ -521,19 +521,17 @@
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum InitialBeliefSourceKind {
+     AuthoredPrehistory,
+ }
+ 
+ impl InitialBeliefSourceKind {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            InitialBeliefSourceKind::AuthoredPrehistory => "authored_prehistory",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct InitialBeliefSeededPayload {
+     pub schema_version: SchemaVersion,
+     pub source_kind: InitialBeliefSourceKind,
+     pub belief: Belief,

@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_determinism
+@@ -2666,17 +2666,17 @@
+                 ValidationPhase::DeterminismHazard,
+                 format!("places[{index}].adjacent_place_ids"),
+                 "non_canonical_ordering",
+                 "adjacent place IDs must be canonical sorted without duplicates",
+             ));
+         }
+     }
+     for (index, container) in fixture.containers.iter().enumerate() {
+-        if !is_sorted_unique(&container.contents) {
++        if  /* ~ changed by cargo-mutants ~ */is_sorted_unique(&container.contents) {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::DeterminismHazard,
+                 format!("containers[{index}].contents"),
+                 "non_canonical_ordering",
+                 "container contents must be canonical sorted without duplicates",
+             ));
+         }
+     }

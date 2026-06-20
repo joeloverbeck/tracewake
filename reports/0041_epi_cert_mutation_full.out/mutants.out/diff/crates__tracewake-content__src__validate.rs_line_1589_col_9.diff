@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete match arm "check_container" | "truthful_accuse_probe" in known_action_scope
+@@ -1581,17 +1581,17 @@
+ fn is_no_sleep_diagnostic(value: RoutineDiagnosticKind) -> bool {
+     matches!(value, RoutineDiagnosticKind::NoSleepAffordance)
+ }
+ 
+ fn known_action_scope(action_id: &ActionId) -> Option<ActionScope> {
+     match action_id.as_str() {
+         "move" | "open" | "close" | "take" | "place" | "look" | "inspect_place"
+         | "inspect_entity" | "wait" => Some(ActionScope::Phase1),
+-        "check_container" | "truthful_accuse_probe" => Some(ActionScope::Phase2AHistorical),
++         /* ~ changed by cargo-mutants ~ */
+         "sleep" | "eat" | "work_block" | "continue_routine" => Some(ActionScope::Phase3AHistorical),
+         _ => None,
+     }
+ }
+ 
+ fn semantic_action_base(value: &str) -> Option<ActionId> {
+     let base = value.split('.').next().unwrap_or(value);
+     ActionId::new(base).ok()

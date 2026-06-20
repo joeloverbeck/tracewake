@@ -1,0 +1,24 @@
+--- crates/tracewake-tui/src/debug_panels.rs
++++ replace render_controller_binding_panel -> String with String::new()
+@@ -67,20 +67,17 @@
+             "{}:{}:{}:{:?}",
+             event.global_order, event.stream_position, event.event_type, event.stream
+         )
+     }));
+     lines("Event Log", rows)
+ }
+ 
+ pub fn render_controller_binding_panel(report: &ControllerBindingDebugReport) -> String {
+-    assert!(report.debug_only());
+-    let mut rows = vec![format!("binding_count={}", report.bindings.len())];
+-    rows.extend(report.bindings.iter().cloned());
+-    lines("Controller Binding", rows)
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn render_projection_rebuild_panel(report: &ProjectionRebuildDebugReport) -> String {
+     assert!(report.debug_only());
+     lines(
+         "Projection Rebuild",
+         vec![
+             format!("events_applied={}", report.rebuild.event_count_applied),

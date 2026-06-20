@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace != with == in apply_intention_started
+@@ -1250,17 +1250,17 @@
+ 
+ fn apply_intention_started(
+     state: &mut AgentState,
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<(), ApplyError> {
+     let intention_id = parse_intention_id(payload, "intention_id")?;
+     let actor_id = parse_actor_id(payload)?;
+     let status = parse_intention_status(payload)?;
+-    if status != IntentionStatus::Active {
++    if status == /* ~ changed by cargo-mutants ~ */ IntentionStatus::Active {
+         return Err(ApplyError::PreconditionMismatch {
+             field: "status",
+             expected: IntentionStatus::Active.stable_id().to_string(),
+             actual: status.stable_id().to_string(),
+         });
+     }
+     let intention = Intention::adopt(
+         intention_id.clone(),

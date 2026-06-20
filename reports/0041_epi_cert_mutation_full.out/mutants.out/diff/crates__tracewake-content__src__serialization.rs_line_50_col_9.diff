@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace <impl From<tracewake_core::epistemics::observation::ConfidenceError> for SerializationError>::from -> Self with Default::default()
+@@ -42,17 +42,17 @@
+ impl From<tracewake_core::epistemics::proposition::PropositionParseError> for SerializationError {
+     fn from(value: tracewake_core::epistemics::proposition::PropositionParseError) -> Self {
+         Self::Proposition(value)
+     }
+ }
+ 
+ impl From<tracewake_core::epistemics::observation::ConfidenceError> for SerializationError {
+     fn from(value: tracewake_core::epistemics::observation::ConfidenceError) -> Self {
+-        Self::Confidence(value)
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
+     let mut fixture = fixture.clone();
+     fixture.canonicalize();
+     let mut lines = vec![
+         format!(

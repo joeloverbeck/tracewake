@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownDoorFact::endpoint_b -> &PlaceId with Box::leak(Box::new(Default::default()))
+@@ -455,17 +455,17 @@
+         &self.door_id
+     }
+ 
+     pub fn endpoint_a(&self) -> &PlaceId {
+         &self.endpoint_a
+     }
+ 
+     pub fn endpoint_b(&self) -> &PlaceId {
+-        &self.endpoint_b
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn is_open(&self) -> bool {
+         self.is_open
+     }
+ 
+     pub fn is_locked(&self) -> bool {
+         self.is_locked

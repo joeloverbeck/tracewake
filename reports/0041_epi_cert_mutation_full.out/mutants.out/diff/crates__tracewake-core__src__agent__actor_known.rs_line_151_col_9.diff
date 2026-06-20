@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::unproven -> Self with Default::default()
+@@ -143,30 +143,17 @@
+             ActorKnownProvenance::FixturePossibility {
+                 source: source.into(),
+             },
+             source_event_ids,
+         )
+     }
+ 
+     pub fn unproven(stable_id: impl Into<String>, note: impl Into<String>) -> Self {
+-        let source_event_ids = SourceEventIds::checked(vec![EventId::new(
+-            "event_unproven_physical_truth_rejected_test_only",
+-        )
+-        .unwrap()])
+-        .unwrap();
+-        Self::new(
+-            ActorId::new("actor_unknown").unwrap(),
+-            stable_id,
+-            "unproven",
+-            "",
+-            None,
+-            ActorKnownProvenance::UnprovenPhysicalTruth { note: note.into() },
+-            source_event_ids,
+-        )
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn new(
+         actor_id: ActorId,
+         stable_id: impl Into<String>,
+         semantic_kind: impl Into<String>,
+         value: impl Into<String>,
+         tick: Option<SimTick>,

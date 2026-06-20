@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ delete ! in current_place_knowledge_context
+@@ -348,17 +348,17 @@
+                     source_key,
+                 ));
+             }
+             ActorKnownProjectionRecord::SleepPlace {
+                 place_id,
+                 sleep_affordance_id,
+                 ..
+             } => {
+-                if !included_by_policy {
++                if  /* ~ changed by cargo-mutants ~ */included_by_policy {
+                     continue;
+                 }
+                 let Some(sleep_affordance_id) = sleep_affordance_id
+                     .as_deref()
+                     .and_then(|value| SleepAffordanceId::new(value).ok())
+                 else {
+                     continue;
+                 };

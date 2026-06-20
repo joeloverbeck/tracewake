@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/log.rs
++++ replace != with == in EventLog::append_deserialized
+@@ -53,17 +53,17 @@
+                 actual: event.global_order,
+             });
+         }
+         let expected_stream_position = self
+             .events
+             .iter()
+             .filter(|existing| existing.stream == event.stream)
+             .count() as u64;
+-        if event.stream_position != expected_stream_position {
++        if event.stream_position == /* ~ changed by cargo-mutants ~ */ expected_stream_position {
+             return Err(EventLogError::StreamPositionMismatch {
+                 expected: expected_stream_position,
+                 actual: event.stream_position,
+             });
+         }
+         self.events.push(event.clone());
+         Ok(event)
+     }

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace event_schema_registry -> &'static[EventSchemaRegistryEntry] with Vec::leak(vec![Default::default()])
+@@ -48,17 +48,17 @@
+         EVENT_SCHEMA_REGISTRY
+             .iter()
+             .find(|entry| entry.version.as_str() == version.as_str())
+             .map(|entry| entry.version)
+     }
+ }
+ 
+ pub fn event_schema_registry() -> &'static [EventSchemaRegistryEntry] {
+-    EVENT_SCHEMA_REGISTRY
++    Vec::leak(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn event_schema_registry_entry(
+     version: &SchemaVersion,
+ ) -> Option<&'static EventSchemaRegistryEntry> {
+     EVENT_SCHEMA_REGISTRY
+         .iter()
+         .find(|entry| entry.version.as_str() == version.as_str())

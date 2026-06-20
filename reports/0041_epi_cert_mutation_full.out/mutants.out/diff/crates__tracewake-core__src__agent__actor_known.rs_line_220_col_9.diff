@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::source_event_ids -> &[EventId] with Vec::leak(Vec::new())
+@@ -212,17 +212,17 @@
+         format!("{}={}", self.stable_id, self.provenance.note())
+     }
+ 
+     pub fn provenance(&self) -> &ActorKnownProvenance {
+         &self.provenance
+     }
+ 
+     pub fn source_event_ids(&self) -> &[EventId] {
+-        self.source_event_ids.as_slice()
++        Vec::leak(Vec::new()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum ActorKnownProvenance {
+     ObservedNow { source: String },
+     RememberedBelief { source: String },
+     RoutineAssignment { source: String },

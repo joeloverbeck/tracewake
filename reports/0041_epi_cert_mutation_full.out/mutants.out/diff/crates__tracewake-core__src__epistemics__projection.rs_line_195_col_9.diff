@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionKindPolicy::includes_in_embodied_context -> bool with true
+@@ -187,22 +187,17 @@
+         self.accessibility_scope
+     }
+ 
+     pub fn includes_in_embodied_context(
+         &self,
+         current_place_record: bool,
+         latest_current_place_record: bool,
+     ) -> bool {
+-        match self.embodied_scope {
+-            ActorKnownProjectionEmbodiedScope::LatestCurrentPlaceOnly => {
+-                latest_current_place_record
+-            }
+-            ActorKnownProjectionEmbodiedScope::CurrentPlaceOnly => current_place_record,
+-        }
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn includes_classified_record(
+         &self,
+         record: &ActorKnownProjectionRecord,
+         selected_workplaces: &BTreeMap<WorkplaceId, &ActorKnownProjectionRecord>,
+     ) -> bool {
+         match self.classification {

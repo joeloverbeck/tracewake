@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::RoutineStepStarted in apply_routine_step_transition
+@@ -1394,26 +1394,17 @@
+             value: tick_value.to_string(),
+         })?;
+     let execution = state
+         .routine_executions
+         .get_mut(&routine_execution_id)
+         .ok_or_else(|| ApplyError::MissingRoutineExecution(routine_execution_id.clone()))?;
+ 
+     match event_type {
+-        EventKind::RoutineStepStarted => {
+-            let action_id = crate::ids::SemanticActionId::new(required(payload, "action_id")?)
+-                .map_err(|_| ApplyError::BadPayload {
+-                    key: "action_id",
+-                    value: required(payload, "action_id")
+-                        .unwrap_or_default()
+-                        .to_string(),
+-                })?;
+-            execution.start_step(SimTick::new(tick), action_id);
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::RoutineStepCompleted => execution.complete_step(SimTick::new(tick)),
+         EventKind::RoutineStepFailed => {
+             execution.fail(SimTick::new(tick), required(payload, "reason")?)
+         }
+         _ => {}
+     }
+     if let Some(fallback_attempts) = payload.get("fallback_attempts") {
+         let attempts = fallback_attempts

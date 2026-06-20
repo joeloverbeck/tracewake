@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace render_stuck_row -> String with "xyzzy".into()
+@@ -624,26 +624,17 @@
+         trace.outcome,
+         trace.candidate_goal_count,
+         trace.hidden_truth_actor_known_only,
+         trace.hidden_truth_notes
+     )
+ }
+ 
+ fn render_stuck_row(diagnostic: &Phase3AStuckDiagnosticView) -> String {
+-    format!(
+-        "stuck={} actor={} blocker_category={} outcome={} concrete_blocker={} actor_known={} debug_detail={}",
+-        diagnostic.diagnostic_id,
+-        diagnostic.actor_id.as_str(),
+-        diagnostic.blocker_category,
+-        diagnostic.resulting_status,
+-        diagnostic.concrete_blocker,
+-        diagnostic.actor_known_explanation,
+-        diagnostic.debug_only_details
+-    )
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn location_summary(state: &PhysicalState, location: &Location) -> String {
+     location_chain(state, location).join(" -> ")
+ }
+ 
+ fn location_chain(state: &PhysicalState, location: &Location) -> Vec<String> {
+     match location {

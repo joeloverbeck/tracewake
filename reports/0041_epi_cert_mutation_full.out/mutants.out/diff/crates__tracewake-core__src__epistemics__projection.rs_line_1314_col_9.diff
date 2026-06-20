@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ delete match arm Some("visible_food_supply") in actor_known_records_from_observation
+@@ -1306,31 +1306,17 @@
+                 actor_id,
+                 from_place_id,
+                 to_place_id,
+                 source: ActorKnownProjectionSource::VisibleExit,
+                 source_event_id,
+                 source_tick: observation.observed_tick(),
+             }]
+         }
+-        Some("visible_food_supply") => {
+-            let Some(food_source_id) = observation_payload_value(observation, "target_id") else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::FoodSource {
+-                actor_id,
+-                food_source_id: food_source_id.to_string(),
+-                place_id: Some(observation.observer_place_id().clone()),
+-                believed_servings: observation_payload_value(observation, "servings")
+-                    .and_then(|value| value.parse::<u32>().ok()),
+-                source: ActorKnownProjectionSource::VisibleFoodSupply,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         Some("visible_door") => {
+             let Some(door_id) = observation_payload_value(observation, "target_id")
+                 .and_then(|value| DoorId::new(value).ok())
+             else {
+                 return Vec::new();
+             };
+             let Some(endpoint_a) = observation_payload_value(observation, "endpoint_a")
+                 .and_then(|value| PlaceId::new(value).ok())

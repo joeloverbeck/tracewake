@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ replace payload_value -> Option<&'a str> with None
+@@ -507,21 +507,17 @@
+ fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
+     let Some(place) = state.places().get(place_id) else {
+         return false;
+     };
+     place.visibility_default.is_visible()
+ }
+ 
+ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+-    event
+-        .payload
+-        .iter()
+-        .find(|field| field.key == key)
+-        .map(|field| field.value.as_str())
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ struct PerceivedThing {
+     kind: &'static str,
+     subject_id: String,
+     target_id: String,
+     place_id: PlaceId,

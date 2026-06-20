@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ delete - in build_sleep_end_events
+@@ -298,17 +298,17 @@
+     let sleep_ticks = classify_actor_tick_regimes_with_start(
+         log,
+         &actor_id,
+         sleep_started_event.sim_tick,
+         end_tick,
+         Some(sleep_started_event),
+     )
+     .asleep_ticks;
+-    let fatigue_delta = -(sleep_ticks as i32).saturating_mul(payload_i32(
++    let fatigue_delta =  /* ~ changed by cargo-mutants ~ */(sleep_ticks as i32).saturating_mul(payload_i32(
+         sleep_started_event,
+         "fatigue_recovery_per_tick",
+     )?);
+     let hunger_delta = (sleep_ticks as i32)
+         .saturating_mul(payload_i32(sleep_started_event, "hunger_rise_per_tick")?);
+     let mut lifecycle = EventEnvelope::new_caused_v1(
+         EventId::new(format!(
+             "event.{}.{}",

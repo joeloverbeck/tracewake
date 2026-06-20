@@ -1,0 +1,199 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionRecord::serialize_canonical -> String with String::new()
+@@ -894,195 +894,17 @@
+             | Self::LocalDoor { place_id, .. }
+             | Self::LocalContainer { place_id, .. }
+             | Self::LocalItem { place_id, .. }
+             | Self::LocalActor { place_id, .. } => place_id,
+         }
+     }
+ 
+     fn serialize_canonical(&self) -> String {
+-        match self {
+-            Self::CurrentPlace {
+-                place_id,
+-                display_label,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "current_place|place={}|label={}|source={}|event={}|tick={}",
+-                place_id.as_str(),
+-                display_label,
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::CarriedItem {
+-                item_id,
+-                place_id,
+-                source_location,
+-                portable,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "carried_item|id={}|place={}|location={}|portable={}|source={}|event={}|tick={}",
+-                item_id.as_str(),
+-                place_id.as_str(),
+-                location_key(source_location),
+-                portable,
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::Route {
+-                from_place_id,
+-                to_place_id,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "route|from={}|to={}|source={}|event={}|tick={}",
+-                from_place_id.as_str(),
+-                to_place_id.as_str(),
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::FoodSource {
+-                food_source_id,
+-                place_id,
+-                believed_servings,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "food|id={food_source_id}|place={}|servings={}|source={}|event={}|tick={}",
+-                place_id.as_ref().map(|id| id.as_str()).unwrap_or(""),
+-                believed_servings
+-                    .map(|servings| servings.to_string())
+-                    .unwrap_or_else(|| "-".to_string()),
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::SleepPlace {
+-                place_id,
+-                sleep_affordance_id,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "sleep|place={}|affordance={}|source={}|event={}|tick={}",
+-                place_id.as_str(),
+-                sleep_affordance_id.as_deref().unwrap_or(""),
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::Workplace {
+-                workplace_id,
+-                place_id,
+-                believed_access_open,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "workplace|id={}|place={}|access_open={}|source={}|event={}|tick={}",
+-                workplace_id.as_str(),
+-                place_id.as_str(),
+-                believed_access_open,
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::LocalDoor {
+-                door_id,
+-                place_id,
+-                endpoint_a,
+-                endpoint_b,
+-                is_open,
+-                is_locked,
+-                blocks_movement_when_closed,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "local_door|id={}|place={}|a={}|b={}|open={}|locked={}|blocks={}|source={}|event={}|tick={}",
+-                door_id.as_str(),
+-                place_id.as_str(),
+-                endpoint_a.as_str(),
+-                endpoint_b.as_str(),
+-                is_open,
+-                is_locked,
+-                blocks_movement_when_closed,
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::LocalContainer {
+-                container_id,
+-                place_id,
+-                is_open,
+-                is_locked,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "local_container|id={}|place={}|open={}|locked={}|source={}|event={}|tick={}",
+-                container_id.as_str(),
+-                place_id.as_str(),
+-                is_open,
+-                is_locked,
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::LocalItem {
+-                item_id,
+-                place_id,
+-                source_location,
+-                portable,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "local_item|id={}|place={}|location={}|portable={}|source={}|event={}|tick={}",
+-                item_id.as_str(),
+-                place_id.as_str(),
+-                location_key(source_location),
+-                portable,
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-            Self::LocalActor {
+-                observed_actor_id,
+-                place_id,
+-                source,
+-                source_event_id,
+-                source_tick,
+-                ..
+-            } => format!(
+-                "local_actor|id={}|place={}|source={}|event={}|tick={}",
+-                observed_actor_id.as_str(),
+-                place_id.as_str(),
+-                source.stable_id(),
+-                source_event_id.as_str(),
+-                source_tick.value()
+-            ),
+-        }
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub fn actor_known_projection_policy_kinds(
+ ) -> BTreeMap<&'static str, ActorKnownProjectionKindPolicy> {
+     BTreeMap::from([
+         (
+             "current_place",

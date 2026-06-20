@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace AgentStateChecksum::from_canonical_lines -> Self with Default::default()
+@@ -297,21 +297,17 @@
+ pub struct AgentStateChecksum(String);
+ 
+ impl AgentStateChecksum {
+     pub fn as_str(&self) -> &str {
+         &self.0
+     }
+ 
+     pub fn from_canonical_lines(lines: &[String]) -> Self {
+-        let physical = PhysicalChecksum::from_canonical_lines(lines);
+-        Self(format!(
+-            "twa1-{}",
+-            physical.as_str().trim_start_matches("twc1-")
+-        ))
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct AgentStateChecksumReport {
+     pub projection_version: AgentProjectionVersion,
+     pub checksum: AgentStateChecksum,
+     pub canonical_input: Vec<String>,

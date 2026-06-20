@@ -1,0 +1,39 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ delete match arm Some("current_place") in actor_known_records_from_observation
+@@ -1244,35 +1244,17 @@
+ fn actor_known_records_from_observation(
+     observation: &Observation,
+ ) -> Vec<ActorKnownProjectionRecord> {
+     let Some(source_event_id) = source_event_id(observation.source()) else {
+         return Vec::new();
+     };
+     let actor_id = observation.observer_actor_id().clone();
+     match observation_payload_value(observation, "perceived_kind") {
+-        Some("current_place") => {
+-            let Some(place_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(display_label) = observation_payload_value(observation, "display_label")
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::CurrentPlace {
+-                actor_id,
+-                place_id,
+-                display_label: display_label.to_string(),
+-                source: ActorKnownProjectionSource::CurrentPlace,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         Some("carried_item") => {
+             let Some(item_id) = observation_payload_value(observation, "target_id")
+                 .and_then(|value| ItemId::new(value).ok())
+             else {
+                 return Vec::new();
+             };
+             let Some(source_location) = observation_item_location(observation) else {
+                 return Vec::new();

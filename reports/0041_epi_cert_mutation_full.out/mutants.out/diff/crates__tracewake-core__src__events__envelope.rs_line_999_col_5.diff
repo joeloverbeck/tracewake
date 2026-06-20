@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace stream_id -> &'static str with ""
+@@ -991,24 +991,17 @@
+     key: &'static str,
+ ) -> Result<&'a str, EventEnvelopeParseError> {
+     map.get(key)
+         .copied()
+         .ok_or(EventEnvelopeParseError::MissingField(key))
+ }
+ 
+ fn stream_id(stream: EventStream) -> &'static str {
+-    match stream {
+-        EventStream::World => "world",
+-        EventStream::Agent => "agent",
+-        EventStream::Epistemic => "epistemic",
+-        EventStream::Diagnostic => "diagnostic",
+-        EventStream::Controller => "controller",
+-        EventStream::ReplayDebug => "replay_debug",
+-    }
++    "" /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stream_from_id(value: &str) -> Option<EventStream> {
+     match value {
+         "world" => Some(EventStream::World),
+         "agent" => Some(EventStream::Agent),
+         "epistemic" => Some(EventStream::Epistemic),
+         "diagnostic" => Some(EventStream::Diagnostic),

@@ -1,0 +1,23 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace content_field_by_canonical_key -> Option<&'static ContentFieldRegistration> with None
+@@ -219,19 +219,17 @@
+     CONTENT_FIELD_REGISTRY
+         .iter()
+         .find(|registration| registration.schema_field == schema_field)
+ }
+ 
+ pub fn content_field_by_canonical_key(
+     canonical_key: &str,
+ ) -> Option<&'static ContentFieldRegistration> {
+-    CONTENT_FIELD_REGISTRY
+-        .iter()
+-        .find(|registration| registration.canonical_serialization_key == canonical_key)
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn canonical_key_for_schema_field(schema_field: &str) -> &'static str {
+     content_field_by_schema_field(schema_field)
+         .unwrap_or_else(|| panic!("FixtureSchema field {schema_field} must be registered"))
+         .canonical_serialization_key
+ }
+ 

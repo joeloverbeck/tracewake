@@ -1,0 +1,36 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ delete match arm Some("visible_sleep_affordance") in actor_known_records_from_observation
+@@ -1423,32 +1423,17 @@
+                 actor_id,
+                 observed_actor_id,
+                 place_id: observation.observer_place_id().clone(),
+                 source: ActorKnownProjectionSource::VisibleActor,
+                 source_event_id,
+                 source_tick: observation.observed_tick(),
+             }]
+         }
+-        Some("visible_sleep_affordance") => {
+-            let Some(place_id) = observation_payload_value(observation, "place_id")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::SleepPlace {
+-                actor_id,
+-                place_id,
+-                sleep_affordance_id: observation_payload_value(observation, "target_id")
+-                    .map(ToString::to_string),
+-                source: ActorKnownProjectionSource::VisibleSleepAffordance,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         _ => Vec::new(),
+     }
+ }
+ 
+ fn actor_known_record_from_starting_belief(
+     actor_id: ActorId,
+     belief_kind: &str,
+     subject_id: &str,

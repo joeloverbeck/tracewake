@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Belief::with_last_verified_tick -> Self with Default::default()
+@@ -91,18 +91,17 @@
+     }
+ 
+     pub fn with_channel(mut self, channel: Channel) -> Self {
+         self.channel = Some(channel);
+         self
+     }
+ 
+     pub fn with_last_verified_tick(mut self, last_verified_tick: Option<SimTick>) -> Self {
+-        self.last_verified_tick = last_verified_tick;
+-        self
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn with_stale_after_tick(mut self, stale_after_tick: Option<SimTick>) -> Self {
+         self.stale_after_tick = stale_after_tick;
+         self
+     }
+ 
+     pub fn with_observation(mut self, observation_id: ObservationId) -> Self {

@@ -59,7 +59,7 @@ const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/debug_capability\\.rs",
     "crates/tracewake-core/src/controller\\.rs",
     "crates/tracewake-core/src/debug_reports\\.rs",
-    "crates/tracewake-core/src/epistemics/(knowledge_context|projection)\\.rs",
+    "crates/tracewake-core/src/epistemics/",
     "crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\\.rs",
     "crates/tracewake-tui/src/(app|debug_panels|render|transcript)\\.rs",
 ];

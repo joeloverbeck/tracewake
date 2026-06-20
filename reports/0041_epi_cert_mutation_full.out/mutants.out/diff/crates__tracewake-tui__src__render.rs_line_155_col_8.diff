@@ -1,0 +1,21 @@
+--- crates/tracewake-tui/src/render.rs
++++ delete ! in render_debug_overlay
+@@ -147,17 +147,17 @@
+             disabled
+         ));
+     }
+     lines.join("\n")
+ }
+ 
+ pub fn render_debug_overlay(view: &EmbodiedViewModel) -> String {
+     let mut lines = Vec::new();
+-    if !view.debug_available {
++    if  /* ~ changed by cargo-mutants ~ */view.debug_available {
+         return lines.join("\n");
+     }
+     lines.push(format!("{}: Embodied Overlay", DEBUG_TOKENS[0]));
+     lines.push(format!(
+         "{}: id={} hash={} tick={} frontier={} sources={}",
+         DEBUG_TOKENS[1],
+         view.holder_known_context_id.as_str(),
+         view.holder_known_context_hash.as_str(),

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace != with == in validate_typed_diagnostic_payload
+@@ -632,17 +632,17 @@
+         }
+     }
+     for (key, expected) in [
+         ("input_source", typed.input_source.as_str()),
+         ("actual_source", typed.actual_source.as_str()),
+         ("remediation_hint", typed.remediation_hint.as_str()),
+     ] {
+         if let Some(value) = payload.get(key) {
+-            if *value != expected {
++            if *value == /* ~ changed by cargo-mutants ~ */ expected {
+                 return Err(ApplyError::BadPayload {
+                     key,
+                     value: (*value).to_string(),
+                 });
+             }
+         }
+     }
+     Ok(())

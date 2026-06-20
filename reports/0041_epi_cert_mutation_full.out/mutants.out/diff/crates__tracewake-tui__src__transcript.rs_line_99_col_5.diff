@@ -1,0 +1,24 @@
+--- crates/tracewake-tui/src/transcript.rs
++++ replace section -> TranscriptSection with Default::default()
+@@ -91,20 +91,17 @@
+     sections
+         .iter()
+         .map(|section| format!("== {} ==\n{}", section.name, section.body))
+         .collect::<Vec<_>>()
+         .join("\n\n")
+ }
+ 
+ fn section(name: &str, body: String) -> TranscriptSection {
+-    TranscriptSection {
+-        name: name.to_string(),
+-        body,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
+     #[test]
+     fn representative_transcript_is_deterministic() {

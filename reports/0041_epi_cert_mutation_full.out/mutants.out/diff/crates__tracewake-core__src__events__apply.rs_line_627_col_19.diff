@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace != with == in validate_typed_diagnostic_payload
+@@ -619,17 +619,17 @@
+             "false" => false,
+             _ => {
+                 return Err(ApplyError::BadPayload {
+                     key: "hidden_truth_referenced",
+                     value: (*value).to_string(),
+                 });
+             }
+         };
+-        if parsed != typed.hidden_truth_referenced {
++        if parsed == /* ~ changed by cargo-mutants ~ */ typed.hidden_truth_referenced {
+             return Err(ApplyError::BadPayload {
+                 key: "hidden_truth_referenced",
+                 value: (*value).to_string(),
+             });
+         }
+     }
+     for (key, expected) in [
+         ("input_source", typed.input_source.as_str()),

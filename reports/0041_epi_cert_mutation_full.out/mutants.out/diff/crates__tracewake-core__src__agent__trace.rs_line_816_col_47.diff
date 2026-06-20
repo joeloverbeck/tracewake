@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace == with != in StuckDiagnostic::deserialize_canonical
+@@ -808,17 +808,17 @@
+             debug_only_details: decode_text_payload(fields[15])?,
+             retry_abandon_fallback_outcome: decode_text_payload(fields[16])?,
+             resulting_status: StuckResultingStatus::parse(
+                 fields
+                     .get(17)
+                     .copied()
+                     .ok_or(StuckDiagnosticParseError::InvalidShape)?,
+             )?,
+-            typed_diagnostic: if fields.len() == 24 {
++            typed_diagnostic: if fields.len() != /* ~ changed by cargo-mutants ~ */ 24 {
+                 TypedDiagnosticFields {
+                     responsible_layer: ResponsibleLayer::parse(fields[18])?,
+                     blocker_code: BlockerCode::parse(fields[19])?,
+                     input_source: decode_text_payload(fields[20])?,
+                     actual_source: decode_text_payload(fields[21])?,
+                     hidden_truth_referenced: decode_bool(fields[22])
+                         .ok_or(StuckDiagnosticParseError::InvalidBool)?,
+                     remediation_hint: decode_text_payload(fields[23])?,

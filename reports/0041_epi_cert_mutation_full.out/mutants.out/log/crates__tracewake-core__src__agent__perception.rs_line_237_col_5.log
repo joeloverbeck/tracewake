@@ -1,0 +1,339 @@
+
+*** crates/tracewake-core/src/agent/perception.rs:237:5: replace current_place_knowledge_context -> KnowledgeContext with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/perception.rs
++++ replace current_place_knowledge_context -> KnowledgeContext with Default::default()
+@@ -229,250 +229,17 @@
+ pub fn current_place_knowledge_context(
+     state: &PhysicalState,
+     epistemic_projection: Option<&EpistemicProjection>,
+     actor_id: &ActorId,
+     decision_tick: SimTick,
+     _content_manifest_id: &ContentManifestId,
+     event_frontier: u64,
+ ) -> KnowledgeContext {
+-    let mut food_sources = Vec::new();
+-    let mut current_places = Vec::new();
+-    let mut carried_items = Vec::new();
+-    let mut sleep_affordances = Vec::new();
+-    let mut routes = Vec::new();
+-    let mut workplaces = Vec::new();
+-    let mut doors = Vec::new();
+-    let mut containers = Vec::new();
+-    let mut items = Vec::new();
+-    let mut local_actors = Vec::new();
+-
+-    let Some(actor) = state.actors().get(actor_id) else {
+-        return KnowledgeContext::embodied_at_frontier_with_all_facts(
+-            actor_id.clone(),
+-            decision_tick,
+-            event_frontier,
+-            Vec::new(),
+-            food_sources,
+-            sleep_affordances,
+-            routes,
+-            doors,
+-            containers,
+-            items,
+-            local_actors,
+-        );
+-    };
+-    let Some(epistemic_projection) = epistemic_projection else {
+-        return KnowledgeContext::embodied_at_frontier_with_all_facts(
+-            actor_id.clone(),
+-            decision_tick,
+-            event_frontier,
+-            Vec::new(),
+-            food_sources,
+-            sleep_affordances,
+-            routes,
+-            doors,
+-            containers,
+-            items,
+-            local_actors,
+-        );
+-    };
+-    let filter_context =
+-        KnowledgeContext::embodied_at_frontier(actor_id.clone(), decision_tick, event_frontier);
+-    for classified in epistemic_projection
+-        .classified_actor_known_records_for_context(&filter_context, &actor.current_place_id)
+-    {
+-        let source_key = format!(
+-            "epistemic_projection:{}",
+-            classified.record().source_event_id().as_str()
+-        );
+-        let included_by_policy = classified.record().policy().includes_in_embodied_context(
+-            classified.is_current_place_record(),
+-            classified.is_latest_current_place_record(),
+-        );
+-        match classified.record() {
+-            ActorKnownProjectionRecord::Route {
+-                from_place_id,
+-                to_place_id,
+-                ..
+-            } => {
+-                if !included_by_policy {
+-                    continue;
+-                }
+-                routes.push(ActorKnownRouteFact::new(
+-                    from_place_id.clone(),
+-                    to_place_id.clone(),
+-                    source_key,
+-                ));
+-            }
+-            ActorKnownProjectionRecord::CurrentPlace {
+-                place_id,
+-                display_label,
+-                ..
+-            } => {
+-                if included_by_policy {
+-                    current_places.push(ActorKnownCurrentPlaceFact::new(
+-                        place_id.clone(),
+-                        display_label.clone(),
+-                        source_key,
+-                    ));
+-                }
+-            }
+-            ActorKnownProjectionRecord::CarriedItem {
+-                item_id,
+-                source_location,
+-                portable,
+-                ..
+-            } => {
+-                if included_by_policy {
+-                    carried_items.push(ActorKnownCarriedItemFact::new(
+-                        item_id.clone(),
+-                        source_location.clone(),
+-                        *portable,
+-                        source_key,
+-                    ));
+-                }
+-            }
+-            ActorKnownProjectionRecord::FoodSource {
+-                food_source_id,
+-                believed_servings,
+-                ..
+-            } => {
+-                if !included_by_policy {
+-                    continue;
+-                }
+-                let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
+-                    continue;
+-                };
+-                food_sources.push(ActorKnownFoodSourceFact::with_believed_servings(
+-                    food_supply_id,
+-                    *believed_servings,
+-                    source_key,
+-                ));
+-            }
+-            ActorKnownProjectionRecord::SleepPlace {
+-                place_id,
+-                sleep_affordance_id,
+-                ..
+-            } => {
+-                if !included_by_policy {
+-                    continue;
+-                }
+-                let Some(sleep_affordance_id) = sleep_affordance_id
+-                    .as_deref()
+-                    .and_then(|value| SleepAffordanceId::new(value).ok())
+-                else {
+-                    continue;
+-                };
+-                sleep_affordances.push(ActorKnownSleepAffordanceFact::new(
+-                    sleep_affordance_id,
+-                    place_id.clone(),
+-                    source_key,
+-                ));
+-            }
+-            ActorKnownProjectionRecord::Workplace {
+-                workplace_id,
+-                place_id,
+-                believed_access_open,
+-                ..
+-            } => {
+-                if included_by_policy {
+-                    workplaces.push(ActorKnownWorkplaceFact::new(
+-                        workplace_id.clone(),
+-                        place_id.clone(),
+-                        *believed_access_open,
+-                        source_key,
+-                        crate::agent::SourceEventIds::checked(vec![classified
+-                            .record()
+-                            .source_event_id()
+-                            .clone()])
+-                        .expect("projection workplace records carry a source event"),
+-                        classified.source_tick(),
+-                    ));
+-                }
+-            }
+-            ActorKnownProjectionRecord::LocalDoor {
+-                door_id,
+-                endpoint_a,
+-                endpoint_b,
+-                is_open,
+-                is_locked,
+-                blocks_movement_when_closed,
+-                ..
+-            } => {
+-                if included_by_policy {
+-                    doors.push(ActorKnownDoorFact::new(
+-                        door_id.clone(),
+-                        endpoint_a.clone(),
+-                        endpoint_b.clone(),
+-                        *is_open,
+-                        *is_locked,
+-                        *blocks_movement_when_closed,
+-                        source_key,
+-                    ));
+-                }
+-            }
+-            ActorKnownProjectionRecord::LocalContainer {
+-                container_id,
+-                is_open,
+-                is_locked,
+-                ..
+-            } => {
+-                if included_by_policy {
+-                    containers.push(ActorKnownContainerFact::new(
+-                        container_id.clone(),
+-                        *is_open,
+-                        *is_locked,
+-                        source_key,
+-                    ));
+-                }
+-            }
+-            ActorKnownProjectionRecord::LocalItem {
+-                item_id,
+-                source_location,
+-                portable,
+-                ..
+-            } => {
+-                if included_by_policy {
+-                    items.push(ActorKnownItemFact::new(
+-                        item_id.clone(),
+-                        source_location.clone(),
+-                        *portable,
+-                        source_key,
+-                    ));
+-                }
+-            }
+-            ActorKnownProjectionRecord::LocalActor {
+-                observed_actor_id, ..
+-            } => {
+-                if included_by_policy {
+-                    local_actors.push(ActorKnownLocalActorFact::new(
+-                        observed_actor_id.clone(),
+-                        source_key,
+-                    ));
+-                }
+-            }
+-        }
+-    }
+-
+-    KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+-        actor_id.clone(),
+-        decision_tick,
+-        event_frontier,
+-        workplaces,
+-        current_places,
+-        carried_items,
+-        food_sources,
+-        sleep_affordances,
+-        routes,
+-        doors,
+-        containers,
+-        items,
+-        local_actors,
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn project_perception_event(projection: &mut EpistemicProjection, event: &EventEnvelope) {
+     let Some(actor_id) = event.actor_id.clone() else {
+         return;
+     };
+     let Some(place_id) = event.place_id.clone() else {
+         return;
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/agent/perception.rs` has changed (1781907189.487926611s, 3s after last build at 1781907186.575926538s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused imports: `ActorKnownCarriedItemFact`, `ActorKnownContainerFact`, `ActorKnownCurrentPlaceFact`, `ActorKnownDoorFact`, `ActorKnownFoodSourceFact`, `ActorKnownItemFact`, `ActorKnownLocalActorFact`, `ActorKnownProjectionRecord`, `ActorKnownRouteFact`, `ActorKnownSleepAffordanceFact`, and `ActorKnownWorkplaceFact`
+ --> crates/tracewake-core/src/agent/perception.rs:2:5
+  |
+2 |     ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 |     ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+  |     ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+4 |     ActorKnownProjectionRecord, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 |     ActorKnownWorkplaceFact, Channel, Confidence, EpistemicProjection, KnowledgeContext,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `FoodSupplyId` and `SleepAffordanceId`
+  --> crates/tracewake-core/src/agent/perception.rs:11:52
+   |
+11 |     ActionId, ActorId, ContentManifestId, EventId, FoodSupplyId, ObservationId, PlaceId, ProcessId,
+   |                                                    ^^^^^^^^^^^^
+12 |     SleepAffordanceId,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ActorKnownCarriedItemFact`, `ActorKnownContainerFact`, `ActorKnownCurrentPlaceFact`, `ActorKnownDoorFact`, `ActorKnownFoodSourceFact`, `ActorKnownItemFact`, `ActorKnownLocalActorFact`, `ActorKnownRouteFact`, `ActorKnownSleepAffordanceFact`, and `ActorKnownWorkplaceFact`
+ --> crates/tracewake-core/src/agent/perception.rs:2:5
+  |
+2 |     ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 |     ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+  |     ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+4 |     ActorKnownProjectionRecord, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
+  |                                 ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 |     ActorKnownWorkplaceFact, Channel, Confidence, EpistemicProjection, KnowledgeContext,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `KnowledgeContext: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/perception.rs:237:5
+    |
+237 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `KnowledgeContext`
+   --> crates/tracewake-core/src/epistemics/knowledge_context.rs:699:1
+    |
+699 | pub struct KnowledgeContext {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 2 warnings
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 2 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `knowledge_context::KnowledgeContext: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/perception.rs:237:5
+    |
+237 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `knowledge_context::KnowledgeContext`
+   --> crates/tracewake-core/src/epistemics/knowledge_context.rs:699:1
+    |
+699 | pub struct KnowledgeContext {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `tracewake-core` (lib test) generated 2 warnings (1 duplicate)
+error: could not compile `tracewake-core` (lib test) due to 1 previous error; 2 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

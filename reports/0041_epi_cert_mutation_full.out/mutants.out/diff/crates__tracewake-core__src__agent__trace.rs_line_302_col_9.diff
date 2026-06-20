@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace DecisionTraceRecord::serialize_canonical -> String with String::new()
+@@ -294,38 +294,17 @@
+             typed_diagnostic: TypedDiagnosticFields::from_decision_outcome(
+                 trace.outcome,
+                 !trace.hidden_truth_audit_result.actor_known_only,
+             ),
+         }
+     }
+ 
+     pub fn serialize_canonical(&self) -> String {
+-        format!(
+-            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+-            self.trace_id.serialize_canonical(),
+-            self.actor_id.serialize_canonical(),
+-            self.window_start_tick.value(),
+-            self.window_end_tick.value(),
+-            self.outcome.stable_id(),
+-            self.candidate_goal_count,
+-            self.actor_known_context_hash
+-                .as_ref()
+-                .map(HolderKnownContextHash::as_str)
+-                .unwrap_or("-"),
+-            encode_text_payload(&self.actor_known_inputs.join("\n")),
+-            encode_bool(self.hidden_truth_audit_result.actor_known_only),
+-            encode_text_payload(&self.hidden_truth_audit_result.notes),
+-            self.typed_diagnostic.responsible_layer.stable_id(),
+-            self.typed_diagnostic.blocker_code.stable_id(),
+-            encode_text_payload(&self.typed_diagnostic.input_source),
+-            encode_text_payload(&self.typed_diagnostic.actual_source),
+-            encode_bool(self.typed_diagnostic.hidden_truth_referenced),
+-            encode_text_payload(&self.typed_diagnostic.remediation_hint)
+-        )
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, DecisionTraceRecordParseError> {
+         let value =
+             std::str::from_utf8(value).map_err(|_| DecisionTraceRecordParseError::InvalidUtf8)?;
+         let fields: Vec<_> = value.split('|').collect();
+         if !matches!(fields.len(), 9 | 11 | 15 | 17) || fields[0] != "decision_trace_v1" {
+             return Err(DecisionTraceRecordParseError::InvalidShape);

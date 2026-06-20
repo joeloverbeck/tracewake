@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/agent/perception.rs
++++ replace is_visible_exit_target -> bool with false
+@@ -500,20 +500,17 @@
+         SourceRef::Event(event.event_id.clone()),
+     )
+     .with_raw_payload(event.payload.clone());
+     projection.insert_observation(observation);
+     projection.record_applied_event(event.event_id.clone());
+ }
+ 
+ fn is_visible_exit_target(state: &PhysicalState, place_id: &PlaceId) -> bool {
+-    let Some(place) = state.places().get(place_id) else {
+-        return false;
+-    };
+-    place.visibility_default.is_visible()
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+     event
+         .payload
+         .iter()
+         .find(|field| field.key == key)
+         .map(|field| field.value.as_str())

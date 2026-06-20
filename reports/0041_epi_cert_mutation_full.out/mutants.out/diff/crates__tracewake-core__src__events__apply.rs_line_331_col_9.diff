@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::IntentionStarted in apply_agent_event_with_capability
+@@ -323,19 +323,17 @@
+         return Err(ApplyError::MissingCause);
+     }
+ 
+     let payload = payload_map(&event.payload);
+     match event.event_type {
+         EventKind::NeedDeltaApplied => {
+             apply_need_delta(state, event, &payload).map(|_| ApplyOutcome::Applied)
+         }
+-        EventKind::IntentionStarted => {
+-            apply_intention_started(state, &payload).map(|_| ApplyOutcome::Applied)
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::IntentionSuspended
+         | EventKind::IntentionResumed
+         | EventKind::IntentionCompleted
+         | EventKind::IntentionFailed
+         | EventKind::IntentionAbandoned
+         | EventKind::IntentionInterrupted
+         | EventKind::IntentionContinued => {
+             apply_intention_transition(state, event.event_type, &payload)

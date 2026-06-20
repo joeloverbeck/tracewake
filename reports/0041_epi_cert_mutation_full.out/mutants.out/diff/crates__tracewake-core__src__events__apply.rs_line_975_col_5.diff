@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_place_id -> Result<PlaceId, ApplyError> with Ok(Default::default())
+@@ -967,21 +967,17 @@
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_place_id(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<PlaceId, ApplyError> {
+-    let value = required(payload, key)?;
+-    PlaceId::new(value).map_err(|_| ApplyError::BadPayload {
+-        key,
+-        value: value.to_string(),
+-    })
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_door_id(payload: &BTreeMap<&str, &str>) -> Result<DoorId, ApplyError> {
+     let value = required(payload, "door_id")?;
+     DoorId::new(value).map_err(|_| ApplyError::BadPayload {
+         key: "door_id",
+         value: value.to_string(),
+     })

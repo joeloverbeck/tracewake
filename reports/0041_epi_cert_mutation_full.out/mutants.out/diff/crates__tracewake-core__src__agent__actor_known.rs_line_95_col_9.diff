@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::remembered_belief -> Self with Default::default()
+@@ -87,27 +87,17 @@
+     pub fn remembered_belief(
+         actor_id: ActorId,
+         stable_id: impl Into<String>,
+         value: impl Into<String>,
+         source: impl Into<String>,
+         tick: Option<SimTick>,
+         source_event_ids: SourceEventIds,
+     ) -> Self {
+-        Self::new(
+-            actor_id,
+-            stable_id,
+-            "remembered_belief",
+-            value,
+-            tick,
+-            ActorKnownProvenance::RememberedBelief {
+-                source: source.into(),
+-            },
+-            source_event_ids,
+-        )
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn routine_assignment(
+         actor_id: ActorId,
+         stable_id: impl Into<String>,
+         value: impl Into<String>,
+         source: impl Into<String>,
+         tick: Option<SimTick>,

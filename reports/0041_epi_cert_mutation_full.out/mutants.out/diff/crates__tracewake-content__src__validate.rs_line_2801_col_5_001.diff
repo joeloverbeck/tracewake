@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace is_forbidden_key -> bool with false
+@@ -2793,17 +2793,17 @@
+             "bad_confidence",
+             format!("{error:?}"),
+         ),
+     };
+     ContentValidationError::new(ValidationPhase::ParseSchema, path, code, message)
+ }
+ 
+ fn is_forbidden_key(value: &str) -> bool {
+-    is_player_key(value) || is_script_key(value)
++    false /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn is_player_key(value: &str) -> bool {
+     matches!(
+         value,
+         "player"
+             | "player_character"
+             | "player_only"

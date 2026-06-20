@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_phase3a_sleep_surface_contract
+@@ -1541,17 +1541,17 @@
+ 
+ fn validate_phase3a_sleep_surface_contract(
+     fixture: &FixtureSchema,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+     if fixture.fixture_scope != FixtureScope::Phase3AHistorical {
+         return;
+     }
+-    if !has_sleep_routine_template(fixture) || !fixture.sleep_places.is_empty() {
++    if !has_sleep_routine_template(fixture) ||  /* ~ changed by cargo-mutants ~ */fixture.sleep_places.is_empty() {
+         return;
+     }
+     if has_explicit_no_sleep_diagnostic(fixture) {
+         return;
+     }
+     errors.push(ContentValidationError::new(
+         ValidationPhase::State,
+         "sleep_places",

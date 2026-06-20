@@ -1,0 +1,43 @@
+--- crates/tracewake-tui/src/debug_panels.rs
++++ replace render_action_rejection_panel -> String with "xyzzy".into()
+@@ -29,39 +29,17 @@
+                     .unwrap_or("none")
+             ),
+             format!("checksum={}", report.physical_checksum.as_str()),
+         ],
+     )
+ }
+ 
+ pub fn render_action_rejection_panel(report: &ActionRejectionDebugReport) -> String {
+-    assert!(report.debug_only());
+-    lines(
+-        "Action Rejection",
+-        vec![
+-            format!("proposal={}", report.proposal_id.as_str()),
+-            format!("validation={}", report.validation_report_id.as_str()),
+-            format!("failed_stage={:?}", report.failed_stage),
+-            format!(
+-                "reason_codes={}",
+-                report
+-                    .reason_codes
+-                    .iter()
+-                    .map(|reason| reason.stable_id())
+-                    .collect::<Vec<_>>()
+-                    .join(",")
+-            ),
+-            format!("actor_summary={}", report.actor_visible_summary),
+-            format!("debug_summary={}", report.debug_summary),
+-            format!("actor_fact_count={}", report.actor_visible_facts.len()),
+-            format!("debug_fact_count={}", report.debug_only_facts.len()),
+-            format!("mutation_attempted={}", report.mutation_attempted),
+-        ],
+-    )
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn render_event_log_panel(view: &DebugEventLogView) -> String {
+     assert!(view.debug_only());
+     let mut rows = vec![format!("event_count={}", view.events.len())];
+     rows.extend(view.events.iter().map(|event| {
+         format!(
+             "{}:{}:{}:{:?}",

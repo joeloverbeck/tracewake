@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ delete match arm "at_place" in deserialize_location
+@@ -341,17 +341,17 @@
+ }
+ 
+ fn deserialize_location(value: &str) -> Result<Location, PropositionParseError> {
+     let Some((kind, id)) = value.split_once(':') else {
+         return Err(PropositionParseError::InvalidLocationShape);
+     };
+ 
+     match kind {
+-        "at_place" => Ok(Location::AtPlace(PlaceId::new(id)?)),
++         /* ~ changed by cargo-mutants ~ */
+         "in_container" => Ok(Location::InContainer(ContainerId::new(id)?)),
+         "carried_by" => Ok(Location::CarriedBy(ActorId::new(id)?)),
+         _ => Err(PropositionParseError::InvalidLocationShape),
+     }
+ }
+ 
+ fn render_location(location: &Location) -> String {
+     match location {

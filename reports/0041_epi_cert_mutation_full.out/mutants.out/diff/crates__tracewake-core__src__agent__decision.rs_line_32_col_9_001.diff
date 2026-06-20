@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/agent/decision.rs
++++ replace ActorKnownInputSourceClass::is_forbidden_for_cognition -> bool with false
+@@ -24,20 +24,17 @@
+             Self::FixturePossibility => "fixture_possibility",
+             Self::PipelineValidationTruth => "pipeline_validation_truth",
+             Self::DebugOmniscience => "debug_omniscience",
+             Self::UnprovenPhysicalTruth => "unproven_physical_truth",
+         }
+     }
+ 
+     pub const fn is_forbidden_for_cognition(&self) -> bool {
+-        matches!(
+-            self,
+-            Self::PipelineValidationTruth | Self::DebugOmniscience | Self::UnprovenPhysicalTruth
+-        )
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ActorKnownInputRef {
+     pub fact_id: String,
+     pub proposition_id: Option<String>,
+     pub provenance_edge_ids: Vec<String>,

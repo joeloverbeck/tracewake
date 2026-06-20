@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace PipelineStage::all -> &'static[PipelineStage] with Vec::leak(vec![Default::default()])
+@@ -51,38 +51,17 @@
+     EventAppend,
+     EventApplication,
+     ProjectionViewUpdate,
+     DebugLinkage,
+ }
+ 
+ impl PipelineStage {
+     pub const fn all() -> &'static [PipelineStage] {
+-        &[
+-            PipelineStage::OriginIntake,
+-            PipelineStage::ControllerBindingCheck,
+-            PipelineStage::SourceContextValidation,
+-            PipelineStage::ActionDefinitionLookup,
+-            PipelineStage::ActorLookup,
+-            PipelineStage::TargetBinding,
+-            PipelineStage::LocalityReachabilityValidation,
+-            PipelineStage::PhysicalPreconditionValidation,
+-            PipelineStage::KnowledgePerceptionPlaceholder,
+-            PipelineStage::SocialNormPlaceholder,
+-            PipelineStage::CostDurationCheck,
+-            PipelineStage::ReservationConflictCheck,
+-            PipelineStage::PhaseBoundaryValidation,
+-            PipelineStage::MutationPlanConstruction,
+-            PipelineStage::ValidationReportCreation,
+-            PipelineStage::EventEnvelopeConstruction,
+-            PipelineStage::EventAppend,
+-            PipelineStage::EventApplication,
+-            PipelineStage::ProjectionViewUpdate,
+-            PipelineStage::DebugLinkage,
+-        ]
++        Vec::leak(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub struct PipelineContext<'a> {
+     pub registry: &'a ActionRegistry,
+     pub state: &'a mut PhysicalState,
+     pub agent_state: &'a mut AgentState,
+     pub log: &'a mut EventLog,

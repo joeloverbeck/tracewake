@@ -1,0 +1,42 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace NoHumanActorKnownSurfaceBuilder::push_projection_fact with ()
+@@ -258,38 +258,17 @@
+         &mut self,
+         freshness: ActorKnownProjectionFreshness,
+         stable_id: impl Into<String>,
+         value: impl Into<String>,
+         source: impl Into<String>,
+         source_tick: SimTick,
+         source_event_ids: SourceEventIds,
+     ) {
+-        match freshness {
+-            ActorKnownProjectionFreshness::CurrentlyPerceived => {
+-                self.facts.push(ActorKnownFact::observed_now(
+-                    self.actor_id.clone(),
+-                    stable_id,
+-                    value,
+-                    source,
+-                    Some(source_tick),
+-                    source_event_ids,
+-                ));
+-            }
+-            ActorKnownProjectionFreshness::Remembered => {
+-                self.facts.push(ActorKnownFact::remembered_belief(
+-                    self.actor_id.clone(),
+-                    stable_id,
+-                    value,
+-                    source,
+-                    Some(source_tick),
+-                    source_event_ids,
+-                ));
+-            }
+-        }
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn add_role_assignment_notice(
+         &mut self,
+         workplace_id: WorkplaceId,
+         place_id: PlaceId,
+         believed_access_open: bool,
+         source: impl Into<String>,

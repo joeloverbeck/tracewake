@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace > with == in validate_need_band_u16
+@@ -1368,17 +1368,17 @@
+     }
+ }
+ 
+ fn validate_need_band_u16(
+     value: u16,
+     path: impl Into<String>,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+-    if value > NEED_MAX {
++    if value == /* ~ changed by cargo-mutants ~ */ NEED_MAX {
+         errors.push(ContentValidationError::new(
+             ValidationPhase::State,
+             path,
+             "invalid_need_band",
+             format!("need-band values must be between 0 and {NEED_MAX}"),
+         ));
+     }
+ }

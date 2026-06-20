@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -556,17 +556,17 @@
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("containers[{index}].place_id"),
+                 container.place_id.as_str(),
+                 "place",
+             );
+         }
+         for item_id in &container.contents {
+-            if !items.contains(item_id) {
++            if  /* ~ changed by cargo-mutants ~ */items.contains(item_id) {
+                 missing(
+                     errors,
+                     ValidationPhase::Referential,
+                     format!("containers[{index}].contents"),
+                     item_id.as_str(),
+                     "item",
+                 );
+             }

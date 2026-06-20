@@ -1,0 +1,36 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace proposals_for_path -> Vec<PlannedProposal> with vec![]
+@@ -266,32 +266,17 @@
+     ))
+ }
+ 
+ fn proposals_for_path(
+     state: &ActorKnownPlanningContext,
+     start: &PlaceId,
+     path: &[PlaceId],
+ ) -> Vec<PlannedProposal> {
+-    let mut proposals = Vec::new();
+-    let mut from = start.clone();
+-    for to in path {
+-        if let Some(door_id) = state.known_closed_doors().get(&(from.clone(), to.clone())) {
+-            proposals.push(PlannedProposal {
+-                action_id: ActionId::new("open").unwrap(),
+-                target_ids: vec![door_id.clone()],
+-            });
+-        }
+-        proposals.push(PlannedProposal {
+-            action_id: ActionId::new("move").unwrap(),
+-            target_ids: vec![to.to_string()],
+-        });
+-        from = to.clone();
+-    }
+-    proposals
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_check_container(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     container_id: &ContainerId,
+ ) -> Result<LocalPlan, LocalPlanFailure> {

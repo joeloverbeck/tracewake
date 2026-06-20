@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/eat.rs
++++ delete ! in access_failure
+@@ -244,17 +244,17 @@
+                 });
+             };
+             if container.location != Location::AtPlace(actor_place_id.clone()) {
+                 return Some(EatAccessFailure {
+                     actor_visible_reason: "food source not reachable",
+                     absence_ancestry: "food source container not reachable",
+                 });
+             }
+-            if !container.is_open {
++            if  /* ~ changed by cargo-mutants ~ */container.is_open {
+                 return Some(EatAccessFailure {
+                     actor_visible_reason: "food source not reachable",
+                     absence_ancestry: "food source container closed",
+                 });
+             }
+             None
+         }
+     }

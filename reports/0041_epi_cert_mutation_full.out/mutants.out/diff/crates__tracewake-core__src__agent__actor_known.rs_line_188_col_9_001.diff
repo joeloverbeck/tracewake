@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::stable_id -> &str with "xyzzy"
+@@ -180,17 +180,17 @@
+             tick,
+             actor_id,
+             provenance,
+             source_event_ids,
+         }
+     }
+ 
+     pub fn stable_id(&self) -> &str {
+-        &self.stable_id
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn semantic_kind(&self) -> &str {
+         &self.semantic_kind
+     }
+ 
+     pub fn value(&self) -> &str {
+         &self.value

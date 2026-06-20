@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace && with || in plan_start_sleep
+@@ -119,17 +119,17 @@
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_start_sleep(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     sleep_place_id: &PlaceId,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+     if state.current_place_id() == sleep_place_id
+-        && state.known_sleep_places().contains(sleep_place_id)
++        || /* ~ changed by cargo-mutants ~ */ state.known_sleep_places().contains(sleep_place_id)
+     {
+         let proposal = PlannedProposal {
+             action_id: ActionId::new("sleep").unwrap(),
+             target_ids: vec![sleep_place_id.as_str().to_string()],
+         };
+         return Ok(LocalPlan {
+             proposals: vec![proposal.clone()],
+             trace: trace(

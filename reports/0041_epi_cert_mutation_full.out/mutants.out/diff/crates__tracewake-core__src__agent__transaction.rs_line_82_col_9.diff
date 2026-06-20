@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace SealedProposal::into_proposal -> Proposal with Default::default()
+@@ -74,17 +74,17 @@
+         &self.proposal.target_ids
+     }
+ 
+     pub fn parameters(&self) -> &BTreeMap<String, String> {
+         &self.proposal.parameters
+     }
+ 
+     pub fn into_proposal(self) -> Proposal {
+-        self.proposal
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub struct ActorDecisionTransaction;
+ 
+ impl ActorDecisionTransaction {
+     pub fn run(input: ActorDecisionTransactionInput<'_>) -> ActorDecisionTransactionOutcome {
+         let active_intention = active_intention_for_actor(input.agent_state, &input.actor_id);

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace location_summary -> String with "xyzzy".into()
+@@ -637,17 +637,17 @@
+         diagnostic.resulting_status,
+         diagnostic.concrete_blocker,
+         diagnostic.actor_known_explanation,
+         diagnostic.debug_only_details
+     )
+ }
+ 
+ fn location_summary(state: &PhysicalState, location: &Location) -> String {
+-    location_chain(state, location).join(" -> ")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn location_chain(state: &PhysicalState, location: &Location) -> Vec<String> {
+     match location {
+         Location::AtPlace(place_id) => vec![format!("place:{}", place_id.as_str())],
+         Location::CarriedBy(actor_id) => {
+             let mut chain = vec![format!("actor:{}", actor_id.as_str())];
+             if let Some(actor) = state.actors.get(actor_id) {

@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace KnowledgeContext::embodied_at_frontier_with_all_facts -> Self with Default::default()
+@@ -797,31 +797,17 @@
+         actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+         actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+         actor_known_routes: Vec<ActorKnownRouteFact>,
+         actor_known_doors: Vec<ActorKnownDoorFact>,
+         actor_known_containers: Vec<ActorKnownContainerFact>,
+         actor_known_items: Vec<ActorKnownItemFact>,
+         actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
+     ) -> Self {
+-        Self::embodied_at_frontier_with_all_facts_and_observations(
+-            viewer_actor_id,
+-            current_tick,
+-            event_frontier,
+-            actor_known_workplaces,
+-            Vec::new(),
+-            Vec::new(),
+-            actor_known_food_sources,
+-            actor_known_sleep_affordances,
+-            actor_known_routes,
+-            actor_known_doors,
+-            actor_known_containers,
+-            actor_known_items,
+-            actor_known_local_actors,
+-        )
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     pub fn embodied_at_frontier_with_all_facts_and_observations(
+         viewer_actor_id: ActorId,
+         current_tick: SimTick,
+         event_frontier: u64,
+         actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,

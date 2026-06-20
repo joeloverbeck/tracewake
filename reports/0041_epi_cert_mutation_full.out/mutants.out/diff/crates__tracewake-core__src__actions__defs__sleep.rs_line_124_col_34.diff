@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ replace != with == in require_sleep_affordance
+@@ -116,17 +116,17 @@
+         })?;
+     let Some(sleep_affordance) = state.sleep_affordances.get(&sleep_affordance_id) else {
+         return Err(no_sleep_affordance_rejection(
+             "unknown_sleep_affordance_id",
+             actor_place_id,
+             sleep_affordance_id.as_str(),
+         ));
+     };
+-    if sleep_affordance.place_id != *actor_place_id || !sleep_affordance.access_open {
++    if sleep_affordance.place_id == /* ~ changed by cargo-mutants ~ */ *actor_place_id || !sleep_affordance.access_open {
+         return Err(no_sleep_affordance_rejection(
+             "sleep_affordance_not_open_at_actor_place",
+             actor_place_id,
+             sleep_affordance_id.as_str(),
+         ));
+     }
+     if let Some(sleep_place_id) = proposal.parameters.get("sleep_place_id") {
+         if sleep_place_id != sleep_affordance.place_id.as_str() {

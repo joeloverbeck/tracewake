@@ -1,0 +1,105 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ replace build_work_completion_events -> Result<Vec<EventEnvelope>, ApplyError> with Ok(vec![Default::default()])
+@@ -120,101 +120,17 @@
+     state: &PhysicalState,
+     agent_state: &AgentState,
+     log: &EventLog,
+     work_started_event: &EventEnvelope,
+     ordering_key: &OrderingKey,
+     content_manifest_id: &ContentManifestId,
+     completion_tick: SimTick,
+ ) -> Result<Vec<EventEnvelope>, ApplyError> {
+-    let actor_id = work_started_event
+-        .actor_id
+-        .clone()
+-        .ok_or_else(|| ApplyError::BadPayload {
+-            key: "actor_id",
+-            value: "missing".to_string(),
+-        })?;
+-    let working_ticks = classify_actor_tick_regimes_with_start(
+-        log,
+-        &actor_id,
+-        work_started_event.sim_tick,
+-        completion_tick,
+-        Some(work_started_event),
+-    )
+-    .working_ticks;
+-    let fatigue_delta =
+-        payload_i32(work_started_event, "fatigue_delta_per_tick")? * working_ticks as i32;
+-    let hunger_delta =
+-        payload_i32(work_started_event, "hunger_delta_per_tick")? * working_ticks as i32;
+-    if let Some((blocker_kind, reason)) =
+-        work_completion_failure(state, agent_state, work_started_event)?
+-    {
+-        let mut events = vec![work_failed_from_start_event(
+-            work_started_event,
+-            ordering_key,
+-            content_manifest_id,
+-            completion_tick,
+-            working_ticks,
+-            fatigue_delta,
+-            hunger_delta,
+-            blocker_kind,
+-            reason,
+-        )?];
+-        events.extend(work_need_events(
+-            agent_state,
+-            work_started_event,
+-            ordering_key,
+-            content_manifest_id,
+-            completion_tick,
+-            NeedKind::Fatigue,
+-            fatigue_delta,
+-            working_ticks,
+-        )?);
+-        events.extend(work_need_events(
+-            agent_state,
+-            work_started_event,
+-            ordering_key,
+-            content_manifest_id,
+-            completion_tick,
+-            NeedKind::Hunger,
+-            hunger_delta,
+-            working_ticks,
+-        )?);
+-        return Ok(events);
+-    }
+-    let mut events = vec![work_completed_event(
+-        work_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        completion_tick,
+-        working_ticks,
+-        fatigue_delta,
+-        hunger_delta,
+-    )?];
+-    events.extend(work_need_events(
+-        agent_state,
+-        work_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        completion_tick,
+-        NeedKind::Fatigue,
+-        fatigue_delta,
+-        working_ticks,
+-    )?);
+-    events.extend(work_need_events(
+-        agent_state,
+-        work_started_event,
+-        ordering_key,
+-        content_manifest_id,
+-        completion_tick,
+-        NeedKind::Hunger,
+-        hunger_delta,
+-        working_ticks,
+-    )?);
+-    Ok(events)
++    Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn work_completion_failure(
+     state: &PhysicalState,
+     agent_state: &AgentState,
+     work_started_event: &EventEnvelope,
+ ) -> Result<Option<(&'static str, &'static str)>, ApplyError> {
+     let Some(actor_id) = work_started_event.actor_id.as_ref() else {

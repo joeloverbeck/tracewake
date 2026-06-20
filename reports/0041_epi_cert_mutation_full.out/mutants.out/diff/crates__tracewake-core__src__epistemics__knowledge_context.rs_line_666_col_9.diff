@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ForbiddenTruthAudit::passed_excluding -> Self with Default::default()
+@@ -658,20 +658,17 @@
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ForbiddenTruthAudit {
+     excluded_sources: BTreeSet<ForbiddenKnowledgeSource>,
+     passed: bool,
+ }
+ 
+ impl ForbiddenTruthAudit {
+     fn passed_excluding(excluded_sources: BTreeSet<ForbiddenKnowledgeSource>) -> Self {
+-        Self {
+-            excluded_sources,
+-            passed: true,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn passed(&self) -> bool {
+         self.passed
+     }
+ 
+     pub fn excluded_sources(&self) -> &BTreeSet<ForbiddenKnowledgeSource> {
+         &self.excluded_sources

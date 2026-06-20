@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_state
+@@ -1031,17 +1031,17 @@
+     }
+     let seeded_needs = fixture
+         .initial_needs
+         .iter()
+         .map(|need| (need.actor_id.clone(), need.kind))
+         .collect::<BTreeSet<_>>();
+     for actor in &fixture.actors {
+         for kind in [NeedKind::Hunger, NeedKind::Fatigue, NeedKind::Safety] {
+-            if !seeded_needs.contains(&(actor.actor_id.clone(), kind)) {
++            if  /* ~ changed by cargo-mutants ~ */seeded_needs.contains(&(actor.actor_id.clone(), kind)) {
+                 errors.push(ContentValidationError::new(
+                     ValidationPhase::State,
+                     format!(
+                         "initial_needs.{}.{}",
+                         actor.actor_id.as_str(),
+                         kind.stable_id()
+                     ),
+                     "missing_actor_need_seed",

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace DebugEpistemicsView::debug_only -> bool with true
+@@ -576,17 +576,17 @@
+             beliefs_by_holder,
+             contradictions,
+             possession_metadata,
+             projection_summary: projection_summary.into(),
+         }
+     }
+ 
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn non_diegetic_marker(&self) -> &'static str {
+         DEBUG_EPISTEMICS_MARKER
+     }
+ }
+ 
+ impl DebugBeliefsView {

@@ -1,0 +1,31 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::render_debug_projection_rebuild_panel -> String with "xyzzy".into()
+@@ -376,27 +376,17 @@
+         Some(render_action_rejection_panel(&action_rejection_report(
+             report,
+             &self.state,
+             &self.checksum_context(),
+         )))
+     }
+ 
+     pub fn render_debug_projection_rebuild_panel(&self) -> String {
+-        let report = rebuild_projection(
+-            &self.initial_state,
+-            &self.initial_agent_state,
+-            &self.log,
+-            &self.checksum_context(),
+-            Some(&self.state),
+-        );
+-        render_projection_rebuild_panel(&projection_rebuild_debug_report(
+-            DebugReportId::new("debug.projection_rebuild").unwrap(),
+-            report,
+-        ))
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn render_debug_replay_panel(&self) -> String {
+         let expected_checksum = self.physical_checksum();
+         let expected_agent_checksum =
+             compute_agent_state_checksum(&self.agent_state, &self.checksum_context()).checksum;
+         let report = run_replay(
+             &self.initial_state,

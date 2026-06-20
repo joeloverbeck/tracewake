@@ -1,0 +1,33 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_no_player with ()
+@@ -1777,29 +1777,17 @@
+                 "menu_position_action_id",
+                 "fixture action IDs must be semantic IDs, not menu positions",
+             ));
+         }
+     }
+ }
+ 
+ fn validate_no_player(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+-    for (index, affordance) in fixture.affordances.iter().enumerate() {
+-        if is_player_key(affordance.action_id.as_str()) {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::NoPlayer,
+-                format!("affordances[{index}].action_id"),
+-                "player_only_verb",
+-                format!(
+-                    "player-only action {} is forbidden",
+-                    affordance.action_id.as_str()
+-                ),
+-            ));
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+     for (index, place) in fixture.places.iter().enumerate() {
+         reject_text_by_policy(
+             &place.display_label,
+             format!("places[{index}].display_label"),
+             StringScanPolicy::Union,

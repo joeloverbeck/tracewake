@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace DeterministicScheduler::advance_one_tick -> SimTick with Default::default()
+@@ -205,18 +205,17 @@
+         }
+     }
+ 
+     pub fn assign_proposal_sequence(&mut self) -> ProposalSequence {
+         self.proposal_sequences.assign_next()
+     }
+ 
+     pub fn advance_one_tick(&mut self) -> SimTick {
+-        self.current_tick = self.current_tick.next();
+-        self.current_tick
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ pub mod no_human {
+     use std::collections::{BTreeMap, BTreeSet};
+ 
+     use crate::actions::defs::need_events::{
+         build_need_delta_and_threshold_events, NeedDeltaEventSpec,

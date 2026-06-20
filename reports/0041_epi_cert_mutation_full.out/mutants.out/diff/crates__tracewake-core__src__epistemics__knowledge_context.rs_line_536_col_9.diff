@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownContainerFact::canonical_key -> String with String::new()
+@@ -528,23 +528,17 @@
+         self.is_locked
+     }
+ 
+     pub fn source_key(&self) -> &str {
+         &self.source_key
+     }
+ 
+     fn canonical_key(&self) -> String {
+-        format!(
+-            "{}:open={}:locked={}:{}",
+-            self.container_id.as_str(),
+-            self.is_open,
+-            self.is_locked,
+-            self.source_key
+-        )
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct ActorKnownItemFact {
+     item_id: ItemId,
+     source: Location,
+     portable: bool,

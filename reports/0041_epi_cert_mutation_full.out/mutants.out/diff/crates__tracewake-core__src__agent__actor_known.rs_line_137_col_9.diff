@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::fixture_possibility -> Self with Default::default()
+@@ -129,27 +129,17 @@
+     pub fn fixture_possibility(
+         actor_id: ActorId,
+         stable_id: impl Into<String>,
+         value: impl Into<String>,
+         source: impl Into<String>,
+         tick: Option<SimTick>,
+         source_event_ids: SourceEventIds,
+     ) -> Self {
+-        Self::new(
+-            actor_id,
+-            stable_id,
+-            "fixture_possibility",
+-            value,
+-            tick,
+-            ActorKnownProvenance::FixturePossibility {
+-                source: source.into(),
+-            },
+-            source_event_ids,
+-        )
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn unproven(stable_id: impl Into<String>, note: impl Into<String>) -> Self {
+         let source_event_ids = SourceEventIds::checked(vec![EventId::new(
+             "event_unproven_physical_truth_rejected_test_only",
+         )
+         .unwrap()])
+         .unwrap();

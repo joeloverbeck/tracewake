@@ -1,0 +1,34 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_fixture_bytes -> Result<InitialWorld, ContentValidationFailure> with Ok(Default::default())
+@@ -112,30 +112,17 @@
+         }
+     }
+ }
+ 
+ pub fn validate_fixture_bytes(
+     bytes: &[u8],
+     registry: &ActionRegistry,
+ ) -> Result<InitialWorld, ContentValidationFailure> {
+-    let mut errors = validate_raw_lines(bytes);
+-    let fixture = match deserialize_fixture(bytes) {
+-        Ok(fixture) => fixture,
+-        Err(error) => {
+-            errors.push(serialization_error(error));
+-            return Err(ContentValidationFailure::from_errors(errors));
+-        }
+-    };
+-    errors.extend(validate_fixture_errors(&fixture, registry));
+-    if errors.is_empty() {
+-        Ok(accepted_world(fixture))
+-    } else {
+-        Err(ContentValidationFailure::from_errors(errors))
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn validate_fixture(
+     fixture: &FixtureSchema,
+     registry: &ActionRegistry,
+ ) -> Result<InitialWorld, ContentValidationFailure> {
+     let errors = validate_fixture_errors(fixture, registry);
+     if errors.is_empty() {

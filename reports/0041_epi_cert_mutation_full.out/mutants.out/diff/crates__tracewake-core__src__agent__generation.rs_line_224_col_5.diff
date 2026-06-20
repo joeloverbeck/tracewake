@@ -1,0 +1,47 @@
+--- crates/tracewake-core/src/agent/generation.rs
++++ replace candidate -> CandidateGoal with Default::default()
+@@ -216,43 +216,17 @@
+     source: CandidateGoalSource,
+     goal_kind: GoalKind,
+     priority: GoalPriority,
+     reason: &str,
+     belief_inputs: Vec<String>,
+     applicability: ApplicabilityResult,
+     rejection_reason: Option<String>,
+ ) -> CandidateGoal {
+-    CandidateGoal::new(
+-        CandidateGoalId::new(format!(
+-            "goal_{}_{}_{}",
+-            input.actor_id.as_str(),
+-            input.decision_tick.value(),
+-            suffix
+-        ))
+-        .unwrap(),
+-        input.actor_id.clone(),
+-        input.decision_tick,
+-        input.decision_tick.advance_by(1),
+-        source,
+-        goal_kind,
+-        priority,
+-        reason,
+-        belief_inputs,
+-        applicability,
+-        rejection_reason,
+-        None,
+-        DecisionTraceId::new(format!(
+-            "trace_{}_{}_{}",
+-            input.actor_id.as_str(),
+-            input.decision_tick.value(),
+-            suffix
+-        ))
+-        .unwrap(),
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn pressure_for_need(actor_id: &ActorId, need: &NeedState) -> NeedPressure {
+     NeedPressure {
+         actor_id: actor_id.clone(),
+         need_kind: need.kind(),
+         value: need.value(),
+         band: need.band(),

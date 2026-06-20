@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/sleep.rs
++++ delete ! in sleep_interruption_reason
+@@ -213,17 +213,17 @@
+         return Some("sleep_affordance_missing");
+     };
+     let Some(sleep_affordance) = state.sleep_affordances.get(&sleep_affordance_id) else {
+         return Some("sleep_affordance_missing");
+     };
+     if actor.current_place_id != sleep_affordance.place_id {
+         return Some("actor_displaced");
+     }
+-    if !sleep_affordance.access_open {
++    if  /* ~ changed by cargo-mutants ~ */sleep_affordance.access_open {
+         return Some("sleep_affordance_closed");
+     }
+     if has_severe_interrupting_need(agent_state, actor_id) {
+         return Some("severe_need_pressure");
+     }
+     None
+ }
+ 

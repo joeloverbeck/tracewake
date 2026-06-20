@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineExecution::complete_step with ()
+@@ -431,19 +431,17 @@
+     }
+ 
+     pub fn wait(&mut self, tick: SimTick) {
+         self.step_status = RoutineStepStatus::Waiting;
+         self.last_progress_tick = tick;
+     }
+ 
+     pub fn complete_step(&mut self, tick: SimTick) {
+-        self.step_status = RoutineStepStatus::Completed;
+-        self.last_progress_tick = tick;
+-        self.failure_interruption_reason = None;
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn fail(&mut self, tick: SimTick, reason: impl Into<String>) {
+         self.step_status = RoutineStepStatus::Failed;
+         self.last_progress_tick = tick;
+         self.failure_interruption_reason = Some(reason.into());
+     }
+ 

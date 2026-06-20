@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedState::serialize_canonical_bytes -> Vec<u8> with vec![0]
+@@ -280,17 +280,17 @@
+             self.last_threshold_crossing
+                 .as_ref()
+                 .map(NeedThresholdCrossing::stable_id)
+                 .unwrap_or_else(|| "none".to_string())
+         )
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+-        self.serialize_canonical().into_bytes()
++        vec![0] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, NeedParseError> {
+         let value = std::str::from_utf8(value).map_err(|_| NeedParseError::InvalidUtf8)?;
+         let mut fields = value.split('|');
+         let version = fields.next().ok_or(NeedParseError::InvalidShape)?;
+         let kind = fields.next().ok_or(NeedParseError::InvalidShape)?;
+         let need_value = fields.next().ok_or(NeedParseError::InvalidShape)?;

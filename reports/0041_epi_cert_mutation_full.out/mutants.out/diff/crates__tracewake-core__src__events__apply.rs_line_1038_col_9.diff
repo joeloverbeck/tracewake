@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm "hunger" in parse_need_kind
+@@ -1030,17 +1030,17 @@
+         key: "routine_execution_id",
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_need_kind(payload: &BTreeMap<&str, &str>) -> Result<NeedKind, ApplyError> {
+     let value = required(payload, "need_kind")?;
+     match value {
+-        "hunger" => Ok(NeedKind::Hunger),
++         /* ~ changed by cargo-mutants ~ */
+         "fatigue" => Ok(NeedKind::Fatigue),
+         "safety" => Ok(NeedKind::Safety),
+         _ => Err(ApplyError::BadPayload {
+             key: "need_kind",
+             value: value.to_string(),
+         }),
+     }
+ }

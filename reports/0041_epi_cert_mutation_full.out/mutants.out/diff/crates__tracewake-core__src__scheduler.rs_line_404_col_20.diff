@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ delete ! in no_human::run_no_human_day
+@@ -396,17 +396,17 @@
+         let mut last_decision_tick_by_actor = config
+             .actor_ids
+             .iter()
+             .cloned()
+             .map(|actor_id| (actor_id, SimTick::ZERO))
+             .collect::<BTreeMap<_, _>>();
+         for window in &config.windows {
+             for actor_id in &config.actor_ids {
+-                if !state.actors.contains_key(actor_id) {
++                if  /* ~ changed by cargo-mutants ~ */state.actors.contains_key(actor_id) {
+                     continue;
+                 }
+                 if let Err(error) = crate::need_accounting::open_body_exclusive_starts(
+                     log,
+                     actor_id,
+                     window.start_tick,
+                 ) {
+                     scheduler_errors.push(error.into());

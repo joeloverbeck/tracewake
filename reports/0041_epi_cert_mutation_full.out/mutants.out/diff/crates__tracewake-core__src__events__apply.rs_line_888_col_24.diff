@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete ! in parse_contradiction_ids
+@@ -880,17 +880,17 @@
+             })
+         })
+         .collect()
+ }
+ 
+ fn parse_contradiction_ids(value: &str) -> Result<Vec<ContradictionId>, EpistemicApplyError> {
+     value
+         .split(',')
+-        .filter(|part| !part.is_empty())
++        .filter(|part|  /* ~ changed by cargo-mutants ~ */part.is_empty())
+         .map(|part| {
+             ContradictionId::new(part).map_err(|_| EpistemicApplyError::BadPayload {
+                 key: "contradiction_ids",
+                 value: part.to_string(),
+             })
+         })
+         .collect()
+ }

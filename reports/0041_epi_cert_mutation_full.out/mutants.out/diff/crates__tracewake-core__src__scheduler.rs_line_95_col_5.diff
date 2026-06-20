@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace sort_scheduled with ()
+@@ -87,17 +87,17 @@
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct Scheduled<T> {
+     pub ordering_key: OrderingKey,
+     pub payload: T,
+ }
+ 
+ pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
+-    scheduled.sort_by(|left, right| left.ordering_key.cmp(&right.ordering_key));
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn build_passive_need_delta_events(
+     need_model: &NeedModelState,
+     actor_ids: impl IntoIterator<Item = ActorId>,
+     process_id: &ProcessId,
+     start_tick: SimTick,
+     elapsed_ticks: u64,

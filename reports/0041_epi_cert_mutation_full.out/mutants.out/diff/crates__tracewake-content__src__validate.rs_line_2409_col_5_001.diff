@@ -1,0 +1,26 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace stable_event_cause_id -> String with "xyzzy".into()
+@@ -2401,22 +2401,17 @@
+             SourceRef::Action(action_id) => action_id.as_str().to_string(),
+             SourceRef::Cause(cause) => stable_event_cause_id(cause),
+         },
+     ]
+     .into_iter()
+ }
+ 
+ fn stable_event_cause_id(cause: &EventCause) -> String {
+-    match cause {
+-        EventCause::Event(id) => format!("event:{}", id.as_str()),
+-        EventCause::Proposal(id) => format!("proposal:{}", id.as_str()),
+-        EventCause::ValidationReport(id) => format!("validation_report:{}", id.as_str()),
+-        EventCause::Process(id) => format!("process:{}", id.as_str()),
+-    }
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn contains_planner_seed_marker(value: String) -> bool {
+     let markers = [
+         "actor_known",
+         "planner_visible",
+         "known_food",
+         "known_route",

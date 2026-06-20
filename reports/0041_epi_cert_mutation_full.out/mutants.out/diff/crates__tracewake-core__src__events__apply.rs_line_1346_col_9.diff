@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete match arm EventKind::IntentionCompleted in apply_intention_transition
+@@ -1338,24 +1338,17 @@
+         EventKind::IntentionSuspended => {
+             intention
+                 .suspend(reason)
+                 .map_err(|err| ApplyError::BadPayload {
+                     key: "status",
+                     value: format!("{err:?}"),
+                 })?
+         }
+-        EventKind::IntentionCompleted => {
+-            intention
+-                .complete(reason)
+-                .map_err(|err| ApplyError::BadPayload {
+-                    key: "status",
+-                    value: format!("{err:?}"),
+-                })?
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         EventKind::IntentionFailed => {
+             intention
+                 .fail(reason)
+                 .map_err(|err| ApplyError::BadPayload {
+                     key: "status",
+                     value: format!("{err:?}"),
+                 })?
+         }

@@ -1,0 +1,110 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace apply_epistemic_event -> Result<ApplyOutcome, EpistemicApplyError> with Ok(Default::default())
+@@ -195,106 +195,17 @@
+         other => Err(ApplyError::UnhandledWorldEventKind(other)),
+     }
+ }
+ 
+ pub fn apply_epistemic_event(
+     projection: &mut EpistemicProjection,
+     event: &EventEnvelope,
+ ) -> Result<ApplyOutcome, EpistemicApplyError> {
+-    if !event.has_supported_schema_version() {
+-        return Err(EpistemicApplyError::UnsupportedEventSchemaVersion(
+-            event.event_schema_version.as_str().to_string(),
+-        ));
+-    }
+-
+-    if event.stream != event.event_type.stream() {
+-        return Err(EpistemicApplyError::EventKindStreamMismatch);
+-    }
+-
+-    if event.stream != EventStream::Epistemic {
+-        return Ok(ApplyOutcome::NonWorldNoOp);
+-    }
+-
+-    if event.event_type.requires_cause() && event.causes.is_empty() {
+-        return Err(EpistemicApplyError::MissingCause);
+-    }
+-
+-    let payload = payload_map(&event.payload);
+-    let payload_schema_version = required_epistemic(&payload, "schema_version")?;
+-    if payload_schema_version != EVENT_SCHEMA_V1 {
+-        return Err(EpistemicApplyError::UnsupportedPayloadSchemaVersion(
+-            payload_schema_version.to_string(),
+-        ));
+-    }
+-
+-    match event.event_type {
+-        EventKind::InitialBeliefSeeded | EventKind::BeliefUpdated => {
+-            let belief = parse_belief_payload(&payload)?;
+-            projection.insert_belief(belief);
+-            Ok(ApplyOutcome::Applied)
+-        }
+-        EventKind::ObservationRecorded => {
+-            let observation =
+-                parse_observation_payload(&payload)?.with_raw_payload(event.payload.clone());
+-            projection.insert_observation(observation);
+-            Ok(ApplyOutcome::Applied)
+-        }
+-        EventKind::RoleAssignmentNoticeRecorded => {
+-            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+-            let workplace_id = required_epistemic(&payload, "workplace_id").and_then(|value| {
+-                crate::ids::WorkplaceId::new(value).map_err(|_| EpistemicApplyError::BadPayload {
+-                    key: "workplace_id",
+-                    value: value.to_string(),
+-                })
+-            })?;
+-            let place_id = parse_place_id_epistemic(&payload, "place_id")?;
+-            let access_open = match required_epistemic(&payload, "access_open")? {
+-                "true" => true,
+-                "false" => false,
+-                value => {
+-                    return Err(EpistemicApplyError::BadPayload {
+-                        key: "access_open",
+-                        value: value.to_string(),
+-                    })
+-                }
+-            };
+-            projection.insert_role_assignment_notice(
+-                actor_id,
+-                workplace_id,
+-                place_id,
+-                access_open,
+-                event.event_id.clone(),
+-                event.sim_tick,
+-            );
+-            Ok(ApplyOutcome::Applied)
+-        }
+-        EventKind::StartingBeliefRecorded => {
+-            let actor_id = parse_actor_id_epistemic(&payload, "actor_id")?;
+-            let belief_kind = required_epistemic(&payload, "belief_kind")?;
+-            let subject_id = required_epistemic(&payload, "subject_id")?;
+-            let value = required_epistemic(&payload, "value")?;
+-            projection.insert_starting_belief(
+-                actor_id,
+-                belief_kind,
+-                subject_id,
+-                value,
+-                event.event_id.clone(),
+-                event.sim_tick,
+-            );
+-            Ok(ApplyOutcome::Applied)
+-        }
+-        EventKind::ExpectationContradicted => {
+-            let contradiction = parse_contradiction_payload(&payload)?;
+-            projection.insert_contradiction(contradiction);
+-            Ok(ApplyOutcome::Applied)
+-        }
+-        EventKind::ContainerChecked => Ok(ApplyOutcome::WorldNoOp),
+-        _ => Err(EpistemicApplyError::NonEpistemicEvent),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn apply_agent_event(
+     state: &mut AgentState,
+     event: &EventEnvelope,
+ ) -> Result<ApplyOutcome, ApplyError> {
+     let capability = AgentMutationCapability::mint();
+     apply_agent_event_with_capability(state, event, capability)

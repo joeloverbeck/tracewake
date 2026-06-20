@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace staleness_label -> String with "xyzzy".into()
+@@ -797,25 +797,17 @@
+     match source {
+         SourceRef::Event(event_id) => format!("event:{}", event_id.as_str()),
+         SourceRef::Action(action_id) => format!("action:{}", action_id.as_str()),
+         SourceRef::Cause(cause) => format!("cause:{cause:?}"),
+     }
+ }
+ 
+ fn staleness_label(context: &KnowledgeContext, detected_tick: SimTick) -> String {
+-    let elapsed = context
+-        .current_tick()
+-        .value()
+-        .saturating_sub(detected_tick.value());
+-    if elapsed == 0 {
+-        "current_tick".to_string()
+-    } else {
+-        format!("{} ticks old", elapsed)
+-    }
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn phase3a_salient_interruption(
+     agent_state: &AgentState,
+     viewer_actor_id: &ActorId,
+ ) -> Option<String> {
+     agent_state
+         .ordinary_life_episodes()

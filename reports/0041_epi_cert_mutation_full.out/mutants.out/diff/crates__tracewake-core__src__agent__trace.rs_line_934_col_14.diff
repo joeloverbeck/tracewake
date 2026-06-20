@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace == with != in decode_opt_id
+@@ -926,17 +926,17 @@
+ fn encode_opt_id(value: Option<&str>) -> String {
+     value.unwrap_or("-").to_string()
+ }
+ 
+ fn decode_opt_id<T>(
+     value: &str,
+     parse: impl FnOnce(&str) -> Result<T, crate::ids::IdError>,
+ ) -> Result<Option<T>, StuckDiagnosticParseError> {
+-    if value == "-" {
++    if value != /* ~ changed by cargo-mutants ~ */ "-" {
+         Ok(None)
+     } else {
+         Ok(Some(
+             parse(value).map_err(StuckDiagnosticParseError::InvalidId)?,
+         ))
+     }
+ }
+ 

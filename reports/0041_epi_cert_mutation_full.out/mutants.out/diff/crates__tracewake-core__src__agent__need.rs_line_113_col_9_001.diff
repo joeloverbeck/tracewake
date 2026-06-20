@@ -1,0 +1,34 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedThresholdCrossing::parse -> Result<Option<Self>, NeedParseError> with Ok(Some(Default::default()))
+@@ -105,30 +105,17 @@
+             "{}>{}:{}",
+             self.from.stable_id(),
+             self.to.stable_id(),
+             self.direction.stable_id()
+         )
+     }
+ 
+     fn parse(value: &str) -> Result<Option<Self>, NeedParseError> {
+-        if value == "none" {
+-            return Ok(None);
+-        }
+-        let (bands, direction) = value
+-            .split_once(':')
+-            .ok_or(NeedParseError::InvalidThresholdCrossing)?;
+-        let (from, to) = bands
+-            .split_once('>')
+-            .ok_or(NeedParseError::InvalidThresholdCrossing)?;
+-        Ok(Some(Self {
+-            from: NeedBand::parse(from)?,
+-            to: NeedBand::parse(to)?,
+-            direction: ThresholdDirection::parse(direction)?,
+-        }))
++        Ok(Some(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum NeedChangeCause {
+     FixtureInitial,
+     TickDelta,
+     ActionEffect(ActionId),

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ delete match arm "no_sleep_affordance" in RoutineDiagnosticKind::parse
+@@ -199,17 +199,17 @@
+     pub const fn stable_id(self) -> &'static str {
+         match self {
+             Self::NoSleepAffordance => "no_sleep_affordance",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Result<Self, RoutineDiagnosticKindParseError> {
+         match value {
+-            "no_sleep_affordance" => Ok(Self::NoSleepAffordance),
++             /* ~ changed by cargo-mutants ~ */
+             _ => Err(RoutineDiagnosticKindParseError),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub struct RoutineDiagnosticKindParseError;
+ 

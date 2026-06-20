@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ delete match arm "event" in deserialize_cause
+@@ -1106,17 +1106,17 @@
+     }
+ }
+ 
+ fn deserialize_cause(value: &str) -> Result<EventCause, EventEnvelopeParseError> {
+     let (kind, value) = value
+         .split_once(':')
+         .ok_or(EventEnvelopeParseError::UnknownCause)?;
+     match kind {
+-        "event" => Ok(EventCause::Event(EventId::new(value)?)),
++         /* ~ changed by cargo-mutants ~ */
+         "proposal" => Ok(EventCause::Proposal(ProposalId::new(value)?)),
+         "validation_report" => Ok(EventCause::ValidationReport(ValidationReportId::new(
+             value,
+         )?)),
+         "process" => Ok(EventCause::Process(ProcessId::new(value)?)),
+         _ => Err(EventEnvelopeParseError::UnknownCause),
+     }
+ }

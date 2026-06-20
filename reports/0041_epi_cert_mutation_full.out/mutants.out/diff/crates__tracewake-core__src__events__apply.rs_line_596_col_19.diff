@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace != with == in validate_typed_diagnostic_payload
+@@ -588,17 +588,17 @@
+     typed: &crate::agent::TypedDiagnosticFields,
+ ) -> Result<(), ApplyError> {
+     if let Some(value) = payload.get("responsible_layer") {
+         let parsed =
+             crate::agent::ResponsibleLayer::parse(value).map_err(|_| ApplyError::BadPayload {
+                 key: "responsible_layer",
+                 value: (*value).to_string(),
+             })?;
+-        if parsed != typed.responsible_layer {
++        if parsed == /* ~ changed by cargo-mutants ~ */ typed.responsible_layer {
+             return Err(ApplyError::BadPayload {
+                 key: "responsible_layer",
+                 value: (*value).to_string(),
+             });
+         }
+     }
+     if let Some(value) = payload.get("blocker_code") {
+         let parsed =

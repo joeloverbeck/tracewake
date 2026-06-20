@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_basis.rs
++++ replace && with || in actor_has_source_backed_support
+@@ -7,17 +7,17 @@
+     projection: &EpistemicProjection,
+     proposition: &Proposition,
+ ) -> bool {
+     projection
+         .beliefs_for_context(context)
+         .into_iter()
+         .any(|belief| {
+             belief.proposition() == proposition
+-                && matches!(
++                || /* ~ changed by cargo-mutants ~ */ matches!(
+                     belief.stance(),
+                     crate::epistemics::Stance::BelievesTrue
+                         | crate::epistemics::Stance::ExpectsTrue
+                         | crate::epistemics::Stance::Plausible
+                 )
+         })
+ }
+ 

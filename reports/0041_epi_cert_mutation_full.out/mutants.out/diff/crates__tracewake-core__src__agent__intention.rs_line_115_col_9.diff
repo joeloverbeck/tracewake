@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/intention.rs
++++ replace Intention::complete -> Result<(), IntentionTransitionError> with Ok(())
+@@ -107,17 +107,17 @@
+         self.current_step = Some(step.into());
+     }
+ 
+     pub fn suspend(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {
+         self.transition(IntentionStatus::Suspended, reason)
+     }
+ 
+     pub fn complete(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {
+-        self.transition(IntentionStatus::Completed, reason)
++        Ok(()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn fail(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {
+         self.transition(IntentionStatus::Failed, reason)
+     }
+ 
+     pub fn abandon(&mut self, reason: impl Into<String>) -> Result<(), IntentionTransitionError> {
+         self.transition(IntentionStatus::Abandoned, reason)

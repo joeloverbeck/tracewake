@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace == with != in target_kind
+@@ -1713,17 +1713,17 @@
+ fn parse_place_target(value: &str) -> Option<PlaceId> {
+     PlaceId::new(value).ok()
+ }
+ 
+ fn target_kind(fixture: &FixtureSchema, target_id: &str) -> Option<&'static str> {
+     if fixture
+         .actors
+         .iter()
+-        .any(|actor| actor.actor_id.as_str() == target_id)
++        .any(|actor| actor.actor_id.as_str() != /* ~ changed by cargo-mutants ~ */ target_id)
+     {
+         Some("actor")
+     } else if fixture
+         .places
+         .iter()
+         .any(|place| place.place_id.as_str() == target_id)
+     {
+         Some("place")

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Belief::observation_ids -> &BTreeSet<ObservationId> with Box::leak(Box::new(BTreeSet::new()))
+@@ -151,17 +151,17 @@
+         self.last_verified_tick
+     }
+ 
+     pub fn stale_after_tick(&self) -> Option<SimTick> {
+         self.stale_after_tick
+     }
+ 
+     pub fn observation_ids(&self) -> &BTreeSet<ObservationId> {
+-        &self.observation_ids
++        Box::leak(Box::new(BTreeSet::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn contradiction_ids(&self) -> &BTreeSet<ContradictionId> {
+         &self.contradiction_ids
+     }
+ 
+     pub fn schema_version(&self) -> &SchemaVersion {
+         &self.schema_version

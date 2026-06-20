@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ delete ! in rebuild_projection
+@@ -72,17 +72,17 @@
+     for issue in verify_event_ordering(log) {
+         invariant_violations.push(issue);
+     }
+     for issue in crate::need_accounting::duplicate_duration_terminal_violations(log) {
+         invariant_violations.push(issue);
+     }
+ 
+     for event in log.events() {
+-        if !invariant_violations.is_empty() {
++        if  /* ~ changed by cargo-mutants ~ */invariant_violations.is_empty() {
+             break;
+         }
+         if !event.has_supported_schema_version() {
+             let message = format!(
+                 "event_position={} event_id={} version={}",
+                 event.global_order,
+                 event.event_id.as_str(),
+                 event.event_schema_version.as_str()

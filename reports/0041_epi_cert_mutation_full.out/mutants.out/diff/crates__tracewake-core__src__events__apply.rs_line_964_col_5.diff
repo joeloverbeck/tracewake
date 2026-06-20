@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_actor_id -> Result<ActorId, ApplyError> with Ok(Default::default())
+@@ -956,21 +956,17 @@
+         parse_observation_id(payload, "contradicting_observation_id")?,
+         parse_proposition(payload, "expected_proposition")?,
+         parse_proposition(payload, "observed_proposition")?,
+         parse_tick(payload, "detected_tick")?,
+     ))
+ }
+ 
+ fn parse_actor_id(payload: &BTreeMap<&str, &str>) -> Result<ActorId, ApplyError> {
+-    let value = required(payload, "actor_id")?;
+-    ActorId::new(value).map_err(|_| ApplyError::BadPayload {
+-        key: "actor_id",
+-        value: value.to_string(),
+-    })
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_place_id(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+ ) -> Result<PlaceId, ApplyError> {
+     let value = required(payload, key)?;
+     PlaceId::new(value).map_err(|_| ApplyError::BadPayload {

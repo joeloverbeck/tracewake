@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventEnvelope::has_supported_schema_version -> bool with true
+@@ -765,17 +765,17 @@
+             random_draws: Vec::new(),
+             payload: Vec::new(),
+             effects_summary: String::new(),
+             content_manifest_id,
+         }
+     }
+ 
+     pub fn has_supported_schema_version(&self) -> bool {
+-        event_schema_registry_entry(&self.event_schema_version).is_some()
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     pub fn new_caused_v1(
+         event_id: EventId,
+         event_type: EventKind,
+         stream_position: u64,
+         global_order: u64,

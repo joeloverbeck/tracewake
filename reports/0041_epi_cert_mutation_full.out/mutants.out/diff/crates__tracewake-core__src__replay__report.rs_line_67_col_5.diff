@@ -1,0 +1,95 @@
+--- crates/tracewake-core/src/replay/report.rs
++++ replace run_replay -> ReplayReport with Default::default()
+@@ -59,91 +59,17 @@
+     initial_state: &PhysicalState,
+     initial_agent_state: &AgentState,
+     log: &EventLog,
+     context: &ChecksumContext,
+     expected_final_state: Option<&PhysicalState>,
+     expected_checksum: Option<PhysicalChecksum>,
+     expected_agent_checksum: Option<AgentStateChecksum>,
+ ) -> ReplayReport {
+-    let initial_checksum = compute_physical_checksum(initial_state, context).checksum;
+-    let rebuild = rebuild_projection(
+-        initial_state,
+-        initial_agent_state,
+-        log,
+-        context,
+-        expected_final_state,
+-    );
+-    let diagnostic_event_count = log
+-        .events()
+-        .iter()
+-        .filter(|event| event.stream != EventStream::World)
+-        .count();
+-    let expected_state_diff = expected_final_state
+-        .map(|expected| diff_physical_state(expected, &rebuild.final_state))
+-        .unwrap_or_default();
+-    let state_diff = if expected_state_diff.is_empty() {
+-        rebuild.state_diff.clone()
+-    } else {
+-        expected_state_diff
+-    };
+-    let first_divergence = first_divergence_detail(&state_diff, log, rebuild.event_count_applied);
+-    let checksum_matches = expected_checksum
+-        .as_ref()
+-        .map(|expected| expected == &rebuild.final_checksum)
+-        .unwrap_or(true);
+-    let agent_checksum_matches = expected_agent_checksum
+-        .as_ref()
+-        .map(|expected| expected == &rebuild.final_agent_checksum)
+-        .unwrap_or(true);
+-    let matches_expected = checksum_matches
+-        && agent_checksum_matches
+-        && state_diff.is_empty()
+-        && rebuild.unsupported_versions.is_empty()
+-        && rebuild.unsupported_epistemic_versions.is_empty()
+-        && rebuild.unsupported_agent_versions.is_empty()
+-        && rebuild.invariant_violations.is_empty()
+-        && rebuild.epistemic_application_errors.is_empty()
+-        && rebuild.agent_application_errors.is_empty()
+-        && rebuild.decision_context_hash_failures.is_empty();
+-    let epistemic_projection_version = rebuild
+-        .final_epistemic_projection
+-        .projection_version()
+-        .as_str()
+-        .to_string();
+-
+-    ReplayReport {
+-        fixture_id: context.fixture_id.clone(),
+-        content_manifest_id: ContentManifestId::new(context.content_version.as_str()).unwrap(),
+-        initial_checksum,
+-        event_count: rebuild.event_count_applied,
+-        diagnostic_event_count,
+-        unsupported_versions: rebuild.unsupported_versions,
+-        unsupported_epistemic_versions: rebuild.unsupported_epistemic_versions,
+-        application_errors: rebuild.invariant_violations,
+-        epistemic_application_errors: rebuild.epistemic_application_errors,
+-        unsupported_agent_versions: rebuild.unsupported_agent_versions,
+-        agent_application_errors: rebuild.agent_application_errors,
+-        decision_context_hash_failures: rebuild.decision_context_hash_failures,
+-        final_checksum: rebuild.final_checksum,
+-        final_epistemic_checksum: rebuild.final_epistemic_checksum,
+-        epistemic_projection_version,
+-        final_agent_checksum: rebuild.final_agent_checksum,
+-        agent_projection_version: rebuild
+-            .final_agent_checksum_report
+-            .projection_version
+-            .as_str()
+-            .to_string(),
+-        expected_agent_checksum,
+-        agent_checksum_matches,
+-        expected_checksum,
+-        matches_expected,
+-        state_diff,
+-        first_divergence,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn first_divergence_detail(
+     state_diff: &[String],
+     log: &EventLog,
+     event_count_applied: usize,
+ ) -> Option<ReplayDivergenceDetail> {
+     let first_diff = state_diff.first()?;

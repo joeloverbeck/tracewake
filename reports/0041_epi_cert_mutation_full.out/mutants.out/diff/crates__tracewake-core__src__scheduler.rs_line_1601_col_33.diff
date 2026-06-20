@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace != with == in no_human::build_window_passive_need_events
+@@ -1593,17 +1593,17 @@
+                     "{} crossed threshold before {} decision",
+                     need_kind.stable_id(),
+                     window.window_id
+                 ),
+             },
+             current_value,
+         );
+         for event in &mut events {
+-            if event.event_type != EventKind::NeedThresholdCrossed {
++            if event.event_type == /* ~ changed by cargo-mutants ~ */ EventKind::NeedThresholdCrossed {
+                 continue;
+             }
+             let severe_need_interrupts = event
+                 .payload
+                 .iter()
+                 .any(|field| field.key == "to_band" && field.value == "severe")
+                 && has_active_intention;
+             event

@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace BeliefDraft::with_source -> Self with Default::default()
+@@ -209,18 +209,17 @@
+     }
+ 
+     pub fn with_confidence(mut self, confidence: Confidence) -> Self {
+         self.confidence = Some(confidence);
+         self
+     }
+ 
+     pub fn with_source(mut self, source: SourceRef) -> Self {
+-        self.source = Some(source);
+-        self
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn with_acquired_tick(mut self, acquired_tick: SimTick) -> Self {
+         self.acquired_tick = Some(acquired_tick);
+         self
+     }
+ 
+     pub fn build(self) -> Result<Belief, BeliefBuildError> {

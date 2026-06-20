@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace <= with > in validate_numeric_i32
+@@ -1312,17 +1312,17 @@
+                     "invalid_tuning_magnitude",
+                     format!(
+                         "need and routine tuning values must not exceed {NEED_MAX} per tick or serving"
+                     ),
+                 ));
+             }
+         }
+         NumericFieldPolicy::ReliefPositive => {
+-            if value <= 0 {
++            if value > /* ~ changed by cargo-mutants ~ */ 0 {
+                 errors.push(ContentValidationError::new(
+                     ValidationPhase::State,
+                     path,
+                     "invalid_relief_magnitude",
+                     "relief-direction tuning values must be greater than zero",
+                 ));
+             } else if value > i32::from(NEED_MAX) {
+                 errors.push(ContentValidationError::new(

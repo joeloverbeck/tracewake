@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownSleepAffordanceFact::sleep_affordance_id -> &SleepAffordanceId with Box::leak(Box::new(Default::default()))
+@@ -386,17 +386,17 @@
+         Self {
+             sleep_affordance_id,
+             place_id,
+             source_key: source_key.into(),
+         }
+     }
+ 
+     pub fn sleep_affordance_id(&self) -> &SleepAffordanceId {
+-        &self.sleep_affordance_id
++        Box::leak(Box::new(Default::default())) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn place_id(&self) -> &PlaceId {
+         &self.place_id
+     }
+ 
+     pub fn source_key(&self) -> &str {
+         &self.source_key

@@ -1,0 +1,170 @@
+
+*** crates/tracewake-core/src/scheduler.rs:106:5: replace build_passive_need_delta_events -> Vec<EventEnvelope> with vec![Default::default()]
+
+*** mutation diff:
+--- crates/tracewake-core/src/scheduler.rs
++++ replace build_passive_need_delta_events -> Vec<EventEnvelope> with vec![Default::default()]
+@@ -98,85 +98,17 @@
+ pub fn build_passive_need_delta_events(
+     need_model: &NeedModelState,
+     actor_ids: impl IntoIterator<Item = ActorId>,
+     process_id: &ProcessId,
+     start_tick: SimTick,
+     elapsed_ticks: u64,
+     content_manifest_id: &ContentManifestId,
+ ) -> Vec<EventEnvelope> {
+-    let deltas = passive_awake_need_deltas(need_model, elapsed_ticks);
+-    actor_ids
+-        .into_iter()
+-        .flat_map(|actor_id| {
+-            [
+-                (NeedKind::Hunger, deltas.hunger_delta),
+-                (NeedKind::Fatigue, deltas.fatigue_delta),
+-            ]
+-            .into_iter()
+-            .flat_map(move |(need_kind, delta)| {
+-                build_need_delta_and_threshold_events(
+-                    NeedDeltaEventSpec {
+-                        event_id: EventId::new(format!(
+-                            "event.passive_need_delta.{}.{}.{}.{}",
+-                            need_kind.stable_id(),
+-                            actor_id.as_str(),
+-                            start_tick.value(),
+-                            elapsed_ticks
+-                        ))
+-                        .unwrap(),
+-                        threshold_event_id: EventId::new(format!(
+-                            "event.passive_need_threshold.{}.{}.{}.{}",
+-                            need_kind.stable_id(),
+-                            actor_id.as_str(),
+-                            start_tick.value(),
+-                            elapsed_ticks
+-                        ))
+-                        .unwrap(),
+-                        tick: start_tick.advance_by(elapsed_ticks),
+-                        ordering_key: OrderingKey::new(
+-                            start_tick.advance_by(elapsed_ticks),
+-                            SchedulePhase::NoHumanProcess,
+-                            SchedulerSourceId::Process(process_id.clone()),
+-                            ProposalSequence::new(0),
+-                            ActionId::new("passive_need_delta").unwrap(),
+-                            vec![
+-                                actor_id.as_str().to_string(),
+-                                need_kind.stable_id().to_string(),
+-                            ],
+-                            format!("{}:{}", actor_id.as_str(), need_kind.stable_id()),
+-                        ),
+-                        content_manifest_id: content_manifest_id.clone(),
+-                        causes: vec![EventCause::Process(process_id.clone())],
+-                        actor_id: actor_id.clone(),
+-                        proposal_id: None,
+-                        process_id: Some(process_id.clone()),
+-                        participants: vec![actor_id.to_string()],
+-                        need_kind,
+-                        delta,
+-                        elapsed_ticks,
+-                        cause_kind: "tick_delta".to_string(),
+-                        cause_action_id: None,
+-                        extra_payload: Vec::new(),
+-                        delta_effects_summary: format!(
+-                            "{} rose by {} over {} elapsed ticks",
+-                            need_kind.stable_id(),
+-                            delta,
+-                            elapsed_ticks
+-                        ),
+-                        threshold_effects_summary: format!(
+-                            "{} crossed threshold during passive ticks",
+-                            need_kind.stable_id()
+-                        ),
+-                    },
+-                    None,
+-                )
+-            })
+-        })
+-        .collect()
++    vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn duration_completion_ordering_key(
+     actor_id: &ActorId,
+     action_id: &ActionId,
+     completion_tick: SimTick,
+     sequence: u64,
+ ) -> OrderingKey {
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/scheduler.rs` has changed (1781904882.231922586s, 4s after last build at 1781904878.007922571s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+warning: unused imports: `NeedDeltaEventSpec` and `build_need_delta_and_threshold_events`
+ --> crates/tracewake-core/src/scheduler.rs:2:5
+  |
+2 |     build_need_delta_and_threshold_events, NeedDeltaEventSpec,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::agent::NeedKind`
+ --> crates/tracewake-core/src/scheduler.rs:4:5
+  |
+4 | use crate::agent::NeedKind;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `EventCause`
+ --> crates/tracewake-core/src/scheduler.rs:5:21
+  |
+5 | use crate::events::{EventCause, EventEnvelope};
+  |                     ^^^^^^^^^^
+
+warning: unused import: `EventId`
+ --> crates/tracewake-core/src/scheduler.rs:6:70
+  |
+6 | use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, ProcessId};
+  |                                                                      ^^^^^^^
+
+warning: unused import: `passive_awake_need_deltas`
+ --> crates/tracewake-core/src/scheduler.rs:8:19
+  |
+8 | use crate::time::{passive_awake_need_deltas, SimTick};
+  |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `EventEnvelope: Default` is not satisfied
+   --> crates/tracewake-core/src/scheduler.rs:106:10
+    |
+106 |     vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+    |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `EventEnvelope`
+   --> crates/tracewake-core/src/events/envelope.rs:717:1
+    |
+717 | pub struct EventEnvelope {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `tracewake-core` (lib) generated 5 warnings
+error: could not compile `tracewake-core` (lib) due to 1 previous error; 5 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `envelope::EventEnvelope: Default` is not satisfied
+   --> crates/tracewake-core/src/scheduler.rs:106:10
+    |
+106 |     vec![Default::default()] /* ~ changed by cargo-mutants ~ */
+    |          ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `envelope::EventEnvelope`
+   --> crates/tracewake-core/src/events/envelope.rs:717:1
+    |
+717 | pub struct EventEnvelope {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `tracewake-core` (lib test) generated 5 warnings (5 duplicates)
+error: could not compile `tracewake-core` (lib test) due to 1 previous error; 5 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

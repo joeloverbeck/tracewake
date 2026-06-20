@@ -1,0 +1,34 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace InitialBeliefSchema::new_expectation -> Self with Default::default()
+@@ -449,30 +449,17 @@
+     pub fn new_expectation(
+         belief_id: BeliefId,
+         holder_actor_id: ActorId,
+         proposition: Proposition,
+         confidence: Confidence,
+         source: SourceRef,
+         acquired_tick: SimTick,
+     ) -> Self {
+-        Self {
+-            belief_id,
+-            privacy_scope: PrivacyScope::ActorPrivate(holder_actor_id.clone()),
+-            holder_actor_id,
+-            proposition,
+-            stance: Stance::ExpectsTrue,
+-            confidence,
+-            source_kind: InitialBeliefSourceKind::AuthoredPrehistory,
+-            source,
+-            channel: None,
+-            acquired_tick,
+-            last_verified_tick: None,
+-            schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl FixtureSchema {
+     pub fn canonicalize(&mut self) {
+         self.actors
+             .sort_by(|left, right| left.actor_id.cmp(&right.actor_id));
+         self.places

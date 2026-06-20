@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace != with == in validate_topology
+@@ -994,17 +994,17 @@
+             );
+         }
+         let a_to_b = adjacency
+             .get(&door.endpoint_a)
+             .is_some_and(|ids| ids.contains(&door.endpoint_b));
+         let b_to_a = adjacency
+             .get(&door.endpoint_b)
+             .is_some_and(|ids| ids.contains(&door.endpoint_a));
+-        if a_to_b != b_to_a {
++        if a_to_b == /* ~ changed by cargo-mutants ~ */ b_to_a {
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::PhysicalTopology,
+                 format!("doors[{index}]"),
+                 "door_adjacency_inconsistency",
+                 format!(
+                     "door {} endpoints must have symmetric adjacency",
+                     door.door_id.as_str()
+                 ),

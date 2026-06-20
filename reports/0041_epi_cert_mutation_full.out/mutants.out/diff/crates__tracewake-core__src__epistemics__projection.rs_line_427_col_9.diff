@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace EpistemicProjection::insert_contradiction with ()
+@@ -419,24 +419,17 @@
+         let actor_id = record.actor_id().clone();
+         self.actor_known_records_by_actor
+             .entry(actor_id)
+             .or_default()
+             .insert(record);
+     }
+ 
+     pub(crate) fn insert_contradiction(&mut self, contradiction: Contradiction) {
+-        let contradiction_id = contradiction.contradiction_id().clone();
+-        let holder_actor_id = contradiction.holder_actor_id().clone();
+-        self.contradictions_by_holder
+-            .entry(holder_actor_id)
+-            .or_default()
+-            .insert(contradiction_id.clone());
+-        self.contradictions_by_id
+-            .insert(contradiction_id, contradiction);
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub(crate) fn observation(&self, observation_id: &ObservationId) -> Option<&Observation> {
+         self.observations_by_id.get(observation_id)
+     }
+ 
+     pub fn has_belief(&self, belief_id: &BeliefId) -> bool {
+         self.beliefs_by_id.contains_key(belief_id)

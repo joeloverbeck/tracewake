@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/observation.rs
++++ replace Observation::with_raw_payload -> Self with Default::default()
+@@ -149,18 +149,17 @@
+             source,
+             alternatives: BTreeSet::new(),
+             schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+             privacy_scope: PrivacyScope::ActorPrivate(observer_actor_id),
+         }
+     }
+ 
+     pub fn with_raw_payload(mut self, raw_payload: Vec<PayloadField>) -> Self {
+-        self.raw_payload = raw_payload;
+-        self
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn with_alternatives(mut self, alternatives: BTreeSet<String>) -> Self {
+         self.alternatives = alternatives;
+         self
+     }
+ 
+     pub fn observation_id(&self) -> &crate::ids::ObservationId {

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace == with != in source_context_check
+@@ -789,17 +789,17 @@
+     }
+ }
+ 
+ fn source_context_check(
+     context: PipelineReadContext<'_>,
+     proposal: &Proposal,
+     mut checked_facts: Vec<CheckedFact>,
+ ) -> Option<PipelineDecision> {
+-    if proposal.origin == ProposalOrigin::Agent {
++    if proposal.origin != /* ~ changed by cargo-mutants ~ */ ProposalOrigin::Agent {
+         if proposal
+             .parameters
+             .get("hidden_truth_audit_actor_known_only")
+             .is_none_or(|value| value != "true")
+         {
+             return Some(reject(
+                 context,
+                 proposal,

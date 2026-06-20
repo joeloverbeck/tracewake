@@ -1,0 +1,36 @@
+--- crates/tracewake-tui/src/debug_panels.rs
++++ replace render_debug_observations_panel -> String with String::new()
+@@ -173,32 +173,17 @@
+             "belief={} stance={} confidence={} source={} :: {}",
+             belief.belief_id, belief.stance, belief.confidence, belief.source, belief.proposition
+         )
+     }));
+     lines("Beliefs", rows)
+ }
+ 
+ pub fn render_debug_observations_panel(view: &DebugObservationsView) -> String {
+-    assert!(view.debug_only());
+-    assert_eq!(view.non_diegetic_marker(), DEBUG_EPISTEMICS_MARKER);
+-    let mut rows = vec![
+-        format!("actor={}", view.observer_actor_id.as_str()),
+-        format!("observation_count={}", view.observations.len()),
+-    ];
+-    rows.extend(view.observations.iter().map(|observation| {
+-        format!(
+-            "observation={} channel={} confidence={} source={}",
+-            observation.observation_id,
+-            observation.channel,
+-            observation.confidence,
+-            observation.source
+-        )
+-    }));
+-    lines("Observations", rows)
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn render_phase3a_debug_panel(report: &Phase3ADebugReport) -> String {
+     assert!(report.debug_only());
+     let mut rows = vec![
+         format!("typed_decision_traces={}", report.decision_traces.len()),
+         format!("typed_stuck_diagnostics={}", report.stuck_diagnostics.len()),
+     ];

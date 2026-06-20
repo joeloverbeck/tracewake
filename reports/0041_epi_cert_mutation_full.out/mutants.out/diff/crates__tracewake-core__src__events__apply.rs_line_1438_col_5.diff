@@ -1,0 +1,40 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace expect_bool -> Result<(), ApplyError> with Ok(())
+@@ -1430,36 +1430,17 @@
+     Ok(())
+ }
+ 
+ fn expect_bool(
+     payload: &BTreeMap<&str, &str>,
+     key: &'static str,
+     expected: bool,
+ ) -> Result<(), ApplyError> {
+-    let value = required(payload, key)?;
+-    let actual = match value {
+-        "true" => true,
+-        "false" => false,
+-        _ => {
+-            return Err(ApplyError::BadPayload {
+-                key,
+-                value: value.to_string(),
+-            })
+-        }
+-    };
+-    if actual == expected {
+-        Ok(())
+-    } else {
+-        Err(ApplyError::PreconditionMismatch {
+-            field: key,
+-            expected: expected.to_string(),
+-            actual: actual.to_string(),
+-        })
+-    }
++    Ok(()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn apply_actor_moved(
+     state: &mut PhysicalState,
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<(), ApplyError> {
+     let actor_id = parse_actor_id(payload)?;
+     let from_place_id = parse_place_id(payload, "from_place_id")?;

@@ -1,0 +1,30 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace planner_intended_seed_text -> impl Iterator<Item = String>+'_ with ::std::iter::once(String::new())
+@@ -2388,26 +2388,17 @@
+             errors,
+         ),
+     }
+ }
+ 
+ fn planner_intended_seed_text(
+     belief: &crate::schema::InitialBeliefSchema,
+ ) -> impl Iterator<Item = String> + '_ {
+-    [
+-        belief.belief_id.as_str().to_string(),
+-        belief.proposition.serialize_canonical(),
+-        match &belief.source {
+-            SourceRef::Event(event_id) => event_id.as_str().to_string(),
+-            SourceRef::Action(action_id) => action_id.as_str().to_string(),
+-            SourceRef::Cause(cause) => stable_event_cause_id(cause),
+-        },
+-    ]
+-    .into_iter()
++    ::std::iter::once(String::new()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn stable_event_cause_id(cause: &EventCause) -> String {
+     match cause {
+         EventCause::Event(id) => format!("event:{}", id.as_str()),
+         EventCause::Proposal(id) => format!("proposal:{}", id.as_str()),
+         EventCause::ValidationReport(id) => format!("validation_report:{}", id.as_str()),
+         EventCause::Process(id) => format!("process:{}", id.as_str()),

@@ -1,0 +1,43 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace phase3a_salient_interruption -> Option<String> with Some(String::new())
+@@ -812,39 +812,17 @@
+         format!("{} ticks old", elapsed)
+     }
+ }
+ 
+ fn phase3a_salient_interruption(
+     agent_state: &AgentState,
+     viewer_actor_id: &ActorId,
+ ) -> Option<String> {
+-    agent_state
+-        .ordinary_life_episodes()
+-        .values()
+-        .filter(|episode| episode.actor_id.as_ref() == Some(viewer_actor_id))
+-        .filter(|episode| {
+-            matches!(
+-                episode.event_kind.as_str(),
+-                "sleep_interrupted" | "work_block_failed"
+-            )
+-        })
+-        .max_by(|left, right| {
+-            left.sim_tick
+-                .cmp(&right.sim_tick)
+-                .then_with(|| left.event_id.cmp(&right.event_id))
+-        })
+-        .map(|episode| {
+-            format!(
+-                "{} at tick {}: {}",
+-                episode.event_kind,
+-                episode.sim_tick.value(),
+-                episode.summary
+-            )
+-        })
++    Some(String::new()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3AEmbodiedStatus {
+     let mut need_summaries = agent_state
+         .needs_by_actor
+         .get(viewer_actor_id)
+         .into_iter()
+         .flat_map(|needs| needs.values())

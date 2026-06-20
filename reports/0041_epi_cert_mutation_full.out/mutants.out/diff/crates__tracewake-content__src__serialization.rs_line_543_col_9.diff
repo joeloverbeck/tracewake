@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "in" in deserialize_location
+@@ -535,17 +535,17 @@
+ }
+ 
+ fn deserialize_location(value: &str) -> Result<Location, SerializationError> {
+     let (kind, id) = value
+         .split_once(':')
+         .ok_or_else(|| SerializationError::BadLine(value.to_string()))?;
+     match kind {
+         "at" => Ok(Location::AtPlace(PlaceId::new(id)?)),
+-        "in" => Ok(Location::InContainer(ContainerId::new(id)?)),
++         /* ~ changed by cargo-mutants ~ */
+         "carried" => Ok(Location::CarriedBy(ActorId::new(id)?)),
+         _ => Err(SerializationError::BadLine(value.to_string())),
+     }
+ }
+ 
+ fn channel_id(channel: Channel) -> &'static str {
+     channel.stable_id()
+ }

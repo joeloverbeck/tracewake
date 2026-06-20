@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownItemFact::source_key -> &str with ""
+@@ -574,17 +574,17 @@
+         &self.source
+     }
+ 
+     pub fn portable(&self) -> bool {
+         self.portable
+     }
+ 
+     pub fn source_key(&self) -> &str {
+-        &self.source_key
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn canonical_key(&self) -> String {
+         format!(
+             "{}:{}:portable={}:{}",
+             self.item_id.as_str(),
+             location_key(&self.source),
+             self.portable,

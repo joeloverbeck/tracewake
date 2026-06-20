@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace observation_id_set_key -> String with String::new()
+@@ -1519,20 +1519,17 @@
+ fn holder_key(holder: &HolderKind) -> String {
+     match holder {
+         HolderKind::Actor(actor_id) => format!("actor:{}", actor_id.as_str()),
+         HolderKind::InstitutionPlaceholder(id) => format!("institution_placeholder:{id}"),
+     }
+ }
+ 
+ fn observation_id_set_key(ids: &std::collections::BTreeSet<ObservationId>) -> String {
+-    ids.iter()
+-        .map(|id| id.as_str())
+-        .collect::<Vec<_>>()
+-        .join(",")
++    String::new() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn contradiction_id_set_key(ids: &std::collections::BTreeSet<ContradictionId>) -> String {
+     ids.iter()
+         .map(|id| id.as_str())
+         .collect::<Vec<_>>()
+         .join(",")
+ }

@@ -1,0 +1,132 @@
+--- crates/tracewake-core/src/agent/methods.rs
++++ replace phase3a_routine_templates -> Vec<RoutineTemplate> with vec![]
+@@ -1,128 +1,15 @@
+ use crate::agent::{
+     GoalKind, RoutineCondition, RoutineFamily, RoutineStep, RoutineStepProposal, RoutineTemplate,
+ };
+ use crate::ids::{RoutineTemplateId, SemanticActionId};
+ 
+ pub fn phase3a_routine_templates() -> Vec<RoutineTemplate> {
+-    vec![
+-        template(
+-            "routine_morning_wake",
+-            RoutineFamily::MorningWake,
+-            vec![RoutineCondition::ActorKnowsSleepPlace],
+-            vec![RoutineCondition::SleepStateCanEnd],
+-            vec![
+-                step("continue_current_step", "continue_routine"),
+-                wait("morning reevaluation"),
+-            ],
+-            vec!["sleep_end_blocked"],
+-            vec!["fallback_wait_with_reason"],
+-            None,
+-        ),
+-        template(
+-            "routine_eat_meal",
+-            RoutineFamily::EatMeal,
+-            vec![RoutineCondition::ActorKnowsFoodSource],
+-            vec![RoutineCondition::FoodSourceBelievedAccessible],
+-            vec![
+-                step("check_known_container", "check_container"),
+-                step("consume_accessible_food", "eat"),
+-            ],
+-            vec!["food_missing", "food_inaccessible"],
+-            vec!["fallback_find_food", "wait_with_reason"],
+-            Some("food_source"),
+-        ),
+-        template(
+-            "routine_go_to_work",
+-            RoutineFamily::GoToWork,
+-            vec![RoutineCondition::ActorKnowsWorkplace],
+-            vec![RoutineCondition::KnownRouteSurface],
+-            vec![step("move_toward_place", "move")],
+-            vec!["route_blocked", "workplace_unknown"],
+-            vec!["fallback_wait_with_reason"],
+-            None,
+-        ),
+-        template(
+-            "routine_work_block",
+-            RoutineFamily::WorkBlock,
+-            vec![RoutineCondition::WorkplaceAssignmentActive],
+-            vec![RoutineCondition::ActorAtWorkplace],
+-            vec![step("start_work_block", "work_block")],
+-            vec!["workplace_closed", "need_blocked"],
+-            vec!["fallback_wait_with_reason"],
+-            Some("workstation"),
+-        ),
+-        template(
+-            "routine_return_home",
+-            RoutineFamily::ReturnHome,
+-            vec![RoutineCondition::ActorKnowsHome],
+-            vec![RoutineCondition::KnownRouteSurface],
+-            vec![step("move_toward_place", "move")],
+-            vec!["route_home_blocked"],
+-            vec!["fallback_wait_with_reason"],
+-            None,
+-        ),
+-        template(
+-            "routine_sleep_night",
+-            RoutineFamily::SleepNight,
+-            vec![RoutineCondition::ActorKnowsSleepPlace],
+-            vec![RoutineCondition::SleepPlaceBelievedAccessible],
+-            vec![
+-                step("move_toward_place", "move"),
+-                step("start_scheduled_sleep", "sleep"),
+-            ],
+-            vec!["sleep_place_blocked", "sleep_interrupted"],
+-            vec!["fallback_wait_with_reason"],
+-            Some("sleep_place"),
+-        ),
+-        template(
+-            "routine_find_food",
+-            RoutineFamily::FindFood,
+-            vec![RoutineCondition::ActorHasFoodSearchKnowledge],
+-            vec![RoutineCondition::SearchSurfaceActorKnown],
+-            vec![
+-                step("check_known_container", "check_container"),
+-                step("fallback_to_find_food", "eat"),
+-            ],
+-            vec!["no_known_food_sources", "search_blocked"],
+-            vec!["fallback_wait_with_reason"],
+-            None,
+-        ),
+-        template(
+-            "routine_leave_unsafe_place",
+-            RoutineFamily::LeaveUnsafePlace,
+-            Vec::new(),
+-            Vec::new(),
+-            vec![step("move_toward_place", "move")],
+-            vec!["no_actor_known_exit", "route_blocked"],
+-            vec!["wait_with_reason", "fallback_stuck_diagnostic"],
+-            None,
+-        ),
+-        template(
+-            "routine_continue_current_intention",
+-            RoutineFamily::ContinueCurrentIntention,
+-            vec![RoutineCondition::ActiveIntentionPresent],
+-            vec![RoutineCondition::NextStepAvailable],
+-            vec![step("continue_current_step", "continue_routine")],
+-            vec!["no_current_intention", "step_blocked"],
+-            vec!["fallback_wait_with_reason"],
+-            None,
+-        ),
+-        template(
+-            "routine_wait_idle",
+-            RoutineFamily::Wait,
+-            vec![RoutineCondition::ModeledWaitReason],
+-            vec![RoutineCondition::ReevaluationWindowKnown],
+-            vec![wait("bounded idle with reevaluation")],
+-            vec!["wait_interrupted"],
+-            vec!["fallback_stuck_diagnostic"],
+-            None,
+-        ),
+-    ]
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn family_for_goal(goal_kind: GoalKind) -> RoutineFamily {
+     match goal_kind {
+         GoalKind::Eat => RoutineFamily::EatMeal,
+         GoalKind::FindFood => RoutineFamily::FindFood,
+         GoalKind::SleepOrRest => RoutineFamily::SleepNight,
+         GoalKind::GoToWork => RoutineFamily::GoToWork,

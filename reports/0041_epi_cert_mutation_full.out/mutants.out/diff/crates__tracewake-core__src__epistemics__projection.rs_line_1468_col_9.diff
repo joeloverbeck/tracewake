@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ delete match arm "household_food_source" in actor_known_record_from_starting_belief
+@@ -1460,29 +1460,17 @@
+         "sleep_place" => Some(ActorKnownProjectionRecord::SleepPlace {
+             actor_id,
+             place_id: PlaceId::new(value).ok()?,
+             sleep_affordance_id: Some(subject_id.to_string()),
+             source: ActorKnownProjectionSource::StartingBelief,
+             source_event_id,
+             source_tick,
+         }),
+-        "household_food_source" => {
+-            let place_value = value.strip_prefix("place:")?;
+-            let place_id = PlaceId::new(place_value).ok()?;
+-            Some(ActorKnownProjectionRecord::FoodSource {
+-                actor_id,
+-                food_source_id: subject_id.to_string(),
+-                place_id: Some(place_id),
+-                believed_servings: None,
+-                source: ActorKnownProjectionSource::StartingBelief,
+-                source_event_id,
+-                source_tick,
+-            })
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         _ => None,
+     }
+ }
+ 
+ fn source_event_id(source: &SourceRef) -> Option<EventId> {
+     match source {
+         SourceRef::Event(event_id) => Some(event_id.clone()),
+         SourceRef::Action(_) | SourceRef::Cause(_) => None,

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace == with != in ActorKnownProjectionKindPolicy::includes_classified_record
+@@ -211,17 +211,17 @@
+                 let workplace_id = record.supersede_workplace_subject().unwrap_or_else(|| {
+                     panic!(
+                         "actor-known projection kind with SupersedeNewestBySubject lacks a subject extractor: {}",
+                         record.kind()
+                     )
+                 });
+                 selected_workplaces
+                     .get(workplace_id)
+-                    .is_some_and(|selected| *selected == record)
++                    .is_some_and(|selected| *selected != /* ~ changed by cargo-mutants ~ */ record)
+             }
+         }
+     }
+ 
+     fn freshness(
+         &self,
+         record: &ActorKnownProjectionRecord,
+         latest_current_place_record: bool,

@@ -1,0 +1,49 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace plan_check_container -> Result<LocalPlan, LocalPlanFailure> with Ok(Default::default())
+@@ -290,45 +290,17 @@
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_check_container(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     container_id: &ContainerId,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+-    if state
+-        .known_containers_by_place()
+-        .get(state.current_place_id())
+-        .is_some_and(|containers| containers.contains(container_id))
+-    {
+-        let proposal = PlannedProposal {
+-            action_id: ActionId::new("check_container").unwrap(),
+-            target_ids: vec![container_id.to_string()],
+-        };
+-        return Ok(LocalPlan {
+-            proposals: vec![proposal.clone()],
+-            trace: trace(
+-                state,
+-                request,
+-                vec![format!("container:{}", container_id.as_str())],
+-                vec![proposal],
+-                Vec::new(),
+-                None,
+-            ),
+-        });
+-    }
+-
+-    Err(failure(
+-        state,
+-        request,
+-        BlockerCategory::Knowledge,
+-        "container is not actor-known at current place",
+-        vec![format!("container:{}", container_id.as_str())],
+-    ))
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_known_food(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     food_source: &str,
+ ) -> Result<LocalPlan, LocalPlanFailure> {

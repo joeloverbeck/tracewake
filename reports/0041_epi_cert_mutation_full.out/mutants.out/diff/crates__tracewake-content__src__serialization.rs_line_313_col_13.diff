@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["fixture", id] in deserialize_fixture
+@@ -305,17 +305,17 @@
+     let mut workplaces = Vec::new();
+     let mut routine_templates = Vec::new();
+     let mut routine_assignments = Vec::new();
+     let mut day_windows = Vec::new();
+ 
+     for line in text.lines() {
+         let parts = line.split('|').collect::<Vec<_>>();
+         match parts.as_slice() {
+-            ["fixture", id] => fixture_id = Some(FixtureId::new(*id)?),
++             /* ~ changed by cargo-mutants ~ */
+             ["schema", version] => schema_version = Some(SchemaVersion::new(*version)?),
+             ["fixture_scope", scope] => fixture_scope = Some(parse_fixture_scope(scope)?),
+             ["need_model", awake_hunger_delta_per_tick, awake_fatigue_delta_per_tick] => {
+                 need_model = Some(NeedModelSchema {
+                     awake_hunger_delta_per_tick: parse_i32(awake_hunger_delta_per_tick)?,
+                     awake_fatigue_delta_per_tick: parse_i32(awake_fatigue_delta_per_tick)?,
+                 })
+             }

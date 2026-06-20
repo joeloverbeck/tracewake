@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace EpistemicProjection::insert_belief with ()
+@@ -359,24 +359,17 @@
+         self.observations_by_actor
+             .entry(actor_id)
+             .or_default()
+             .insert(observation_id.clone());
+         self.observations_by_id.insert(observation_id, observation);
+     }
+ 
+     pub(crate) fn insert_belief(&mut self, belief: Belief) {
+-        let belief_id = belief.belief_id().clone();
+-        if let HolderKind::Actor(actor_id) = &belief.holder() {
+-            self.beliefs_by_holder
+-                .entry(actor_id.clone())
+-                .or_default()
+-                .insert(belief_id.clone());
+-        }
+-        self.beliefs_by_id.insert(belief_id, belief);
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub(crate) fn insert_role_assignment_notice(
+         &mut self,
+         actor_id: ActorId,
+         workplace_id: WorkplaceId,
+         place_id: PlaceId,
+         believed_access_open: bool,

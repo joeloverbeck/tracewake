@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace SourceEventIds::checked -> Result<Self, SourceEventIdsError> with Ok(Default::default())
+@@ -12,23 +12,17 @@
+ impl SourceEventIds {
+     pub fn from_event(event: &crate::events::EventEnvelope) -> Self {
+         Self {
+             ids: vec![event.event_id.clone()],
+         }
+     }
+ 
+     pub fn checked(mut ids: Vec<EventId>) -> Result<Self, SourceEventIdsError> {
+-        ids.sort();
+-        ids.dedup();
+-        if ids.is_empty() {
+-            Err(SourceEventIdsError::Empty)
+-        } else {
+-            Ok(Self { ids })
+-        }
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn as_slice(&self) -> &[EventId] {
+         &self.ids
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]

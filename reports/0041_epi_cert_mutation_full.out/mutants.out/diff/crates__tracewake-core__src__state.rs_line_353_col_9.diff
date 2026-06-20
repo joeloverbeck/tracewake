@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/state.rs
++++ replace AgentState::continue_routine_arbitrations -> &BTreeMap<crate::ids::EventId, ContinueRoutineArbitrationRecord> with Box::leak(Box::new(BTreeMap::new()))
+@@ -345,17 +345,17 @@
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, CandidateGoalEvaluationRecord> {
+         &self.candidate_goal_evaluations
+     }
+ 
+     pub fn continue_routine_arbitrations(
+         &self,
+     ) -> &BTreeMap<crate::ids::EventId, ContinueRoutineArbitrationRecord> {
+-        &self.continue_routine_arbitrations
++        Box::leak(Box::new(BTreeMap::new())) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl PlaceState {
+     /// Constructs an in-code place with a visible default for fixture/test assembly
+     /// convenience. Authored content must still pass the fail-closed loader
+     /// `visibility_default` column; this constructor is not an authoring fallback.
+     pub fn new(place_id: PlaceId, display_label: impl Into<String>) -> Self {

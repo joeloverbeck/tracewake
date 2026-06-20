@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace <impl From<IdError> for PropositionParseError>::from -> Self with Default::default()
+@@ -92,17 +92,17 @@
+         }
+     }
+ }
+ 
+ impl std::error::Error for PropositionParseError {}
+ 
+ impl From<IdError> for PropositionParseError {
+     fn from(value: IdError) -> Self {
+-        Self::InvalidId(value)
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl Proposition {
+     pub fn serialize_canonical(&self) -> String {
+         match self {
+             Proposition::ItemLocatedInContainer {
+                 item_id,

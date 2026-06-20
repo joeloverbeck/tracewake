@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace NeedState::serialize_canonical -> String with "xyzzy".into()
+@@ -267,26 +267,17 @@
+             source_ancestry: self.last_change_cause.clone(),
+             interrupt_eligible: matches!(band, NeedBand::Urgent | NeedBand::Severe),
+             actor_known_explanation: actor_known_explanation.into(),
+             debug_detail: debug_detail.into(),
+         }
+     }
+ 
+     pub fn serialize_canonical(&self) -> String {
+-        format!(
+-            "need_state_v2|{}|{:04}|{}|{}",
+-            self.kind.stable_id(),
+-            self.value,
+-            self.last_change_cause.stable_id(),
+-            self.last_threshold_crossing
+-                .as_ref()
+-                .map(NeedThresholdCrossing::stable_id)
+-                .unwrap_or_else(|| "none".to_string())
+-        )
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+         self.serialize_canonical().into_bytes()
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, NeedParseError> {
+         let value = std::str::from_utf8(value).map_err(|_| NeedParseError::InvalidUtf8)?;

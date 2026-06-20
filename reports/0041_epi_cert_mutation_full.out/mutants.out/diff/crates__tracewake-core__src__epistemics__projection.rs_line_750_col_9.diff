@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace ActorKnownProjectionSource::stable_id -> &'static str with ""
+@@ -742,29 +742,17 @@
+             Self::VisibleContainer => "evented_perception:visible_container",
+             Self::VisibleItem => "evented_perception:visible_item",
+             Self::VisibleActor => "evented_perception:visible_actor",
+             Self::VisibleSleepAffordance => "evented_perception:visible_sleep_affordance",
+         }
+     }
+ 
+     fn stable_id(&self) -> &'static str {
+-        match self {
+-            Self::RoleAssignmentNotice => "role_assignment_notice",
+-            Self::StartingBelief => "starting_belief",
+-            Self::CurrentPlace => "current_place",
+-            Self::CarriedItem => "carried_item",
+-            Self::VisibleExit => "visible_exit",
+-            Self::VisibleFoodSupply => "visible_food_supply",
+-            Self::VisibleDoor => "visible_door",
+-            Self::VisibleContainer => "visible_container",
+-            Self::VisibleItem => "visible_item",
+-            Self::VisibleActor => "visible_actor",
+-            Self::VisibleSleepAffordance => "visible_sleep_affordance",
+-        }
++        "" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl ActorKnownProjectionRecord {
+     pub fn kind(&self) -> &'static str {
+         match self {
+             Self::CurrentPlace { .. } => "current_place",
+             Self::CarriedItem { .. } => "carried_item",

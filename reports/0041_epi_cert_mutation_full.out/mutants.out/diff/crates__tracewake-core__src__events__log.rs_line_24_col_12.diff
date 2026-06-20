@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/log.rs
++++ delete ! in EventLog::append
+@@ -16,17 +16,17 @@
+ }
+ 
+ impl EventLog {
+     pub fn new() -> Self {
+         Self { events: Vec::new() }
+     }
+ 
+     pub fn append(&mut self, mut event: EventEnvelope) -> Result<EventEnvelope, EventLogError> {
+-        if !event.has_supported_schema_version() {
++        if  /* ~ changed by cargo-mutants ~ */event.has_supported_schema_version() {
+             return Err(EventLogError::UnsupportedSchemaVersion(
+                 event.event_schema_version.as_str().to_string(),
+             ));
+         }
+ 
+         event.global_order = self.events.len() as u64;
+         event.stream_position = self
+             .events

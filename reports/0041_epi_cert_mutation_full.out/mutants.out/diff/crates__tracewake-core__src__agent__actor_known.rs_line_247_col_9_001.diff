@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownProvenance::note -> String with "xyzzy".into()
+@@ -239,27 +239,17 @@
+             Self::ObservedNow { .. }
+                 | Self::RememberedBelief { .. }
+                 | Self::RoutineAssignment { .. }
+                 | Self::FixturePossibility { .. }
+         )
+     }
+ 
+     fn note(&self) -> String {
+-        match self {
+-            Self::ObservedNow { source } => format!("observed_now:{source}"),
+-            Self::RememberedBelief { source } => format!("remembered_belief:{source}"),
+-            Self::RoutineAssignment { source } => format!("routine_assignment:{source}"),
+-            Self::FixturePossibility { source } => format!("fixture_possibility:{source}"),
+-            Self::PipelineValidationTruth(source) => {
+-                format!("pipeline_validation_truth:{}", source.note)
+-            }
+-            Self::DebugOmniscience(source) => format!("debug_omniscience:{}", source.note),
+-            Self::UnprovenPhysicalTruth { note } => format!("unproven:{note}"),
+-        }
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct RestrictedProvenance {
+     note: String,
+ }
+ 

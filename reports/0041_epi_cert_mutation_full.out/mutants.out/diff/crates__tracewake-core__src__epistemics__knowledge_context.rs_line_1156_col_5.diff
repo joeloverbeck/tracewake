@@ -1,0 +1,47 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace baseline_embodied_provenance -> Vec<KnowledgeProvenanceEntry> with vec![]
+@@ -1148,43 +1148,17 @@
+         ForbiddenKnowledgeSource::HiddenItemLocation,
+         ForbiddenKnowledgeSource::OtherActorsPrivateBeliefs,
+         ForbiddenKnowledgeSource::HumanDebugNotes,
+         ForbiddenKnowledgeSource::PreviousPossessedActorKnowledge,
+     ])
+ }
+ 
+ fn baseline_embodied_provenance() -> Vec<KnowledgeProvenanceEntry> {
+-    vec![
+-        KnowledgeProvenanceEntry::actor_known_source(
+-            KnowledgeProvenanceKind::Perception,
+-            AllowedKnowledgeSource::OwnDirectObservation,
+-            "context_source_policy",
+-        ),
+-        KnowledgeProvenanceEntry::actor_known_source(
+-            KnowledgeProvenanceKind::Observation,
+-            AllowedKnowledgeSource::OwnSearchOrTouchObservation,
+-            "context_source_policy",
+-        ),
+-        KnowledgeProvenanceEntry::actor_known_source(
+-            KnowledgeProvenanceKind::Observation,
+-            AllowedKnowledgeSource::OwnSoundObservation,
+-            "context_source_policy",
+-        ),
+-        KnowledgeProvenanceEntry::actor_known_source(
+-            KnowledgeProvenanceKind::Record,
+-            AllowedKnowledgeSource::OwnAbsenceMarker,
+-            "context_source_policy",
+-        ),
+-        KnowledgeProvenanceEntry::actor_known_source(
+-            KnowledgeProvenanceKind::Belief,
+-            AllowedKnowledgeSource::OwnSourceBackedBelief,
+-            "context_source_policy",
+-        ),
+-    ]
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[allow(clippy::too_many_arguments)]
+ fn canonical_hash_inputs(
+     holder_known_context_id: &HolderKnownContextId,
+     viewer_actor_id: &ActorId,
+     bound_actor_id: &ActorId,
+     mode: ViewMode,

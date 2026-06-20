@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace location_key -> String with "xyzzy".into()
+@@ -567,21 +567,17 @@
+     pairs
+         .iter()
+         .map(|(key, value)| format!("{}:{}={}:{}", key.len(), key, value.len(), value))
+         .collect::<Vec<_>>()
+         .join(";")
+ }
+ 
+ fn location_key(location: &Location) -> String {
+-    match location {
+-        Location::AtPlace(id) => format!("at_place:{}", id.as_str()),
+-        Location::InContainer(id) => format!("in_container:{}", id.as_str()),
+-        Location::CarriedBy(id) => format!("carried_by:{}", id.as_str()),
+-    }
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn routine_step_status_id(status: RoutineStepStatus) -> &'static str {
+     match status {
+         RoutineStepStatus::NotStarted => "not_started",
+         RoutineStepStatus::InProgress => "in_progress",
+         RoutineStepStatus::Waiting => "waiting",
+         RoutineStepStatus::Completed => "completed",

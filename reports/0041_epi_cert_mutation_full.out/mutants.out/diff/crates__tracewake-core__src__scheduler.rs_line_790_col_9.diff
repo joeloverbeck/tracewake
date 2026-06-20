@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::latest_frame_event_id -> Option<EventId> with None
+@@ -782,26 +782,17 @@
+             if apply_epistemic_event(&mut projection, event).is_err() {
+                 continue;
+             }
+         }
+         projection
+     }
+ 
+     fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+-        log.events()
+-            .iter()
+-            .rev()
+-            .find(|event| {
+-                matches!(
+-                    event.event_type,
+-                    EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+-                )
+-            })
+-            .map(|event| event.event_id.clone())
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn latest_current_place_perception_event_id(
+         log: &EventLog,
+         actor_id: &ActorId,
+         tick: SimTick,
+         place_id: &PlaceId,
+     ) -> Option<EventId> {

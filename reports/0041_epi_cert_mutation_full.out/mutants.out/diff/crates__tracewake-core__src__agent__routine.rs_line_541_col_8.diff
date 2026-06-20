@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ delete ! in decode_text_payload
+@@ -533,17 +533,17 @@
+     value
+         .as_bytes()
+         .iter()
+         .map(|byte| format!("{byte:02x}"))
+         .collect()
+ }
+ 
+ fn decode_text_payload(value: &str) -> Result<String, RoutineStepParseError> {
+-    if !value.len().is_multiple_of(2) {
++    if  /* ~ changed by cargo-mutants ~ */value.len().is_multiple_of(2) {
+         return Err(RoutineStepParseError::InvalidTextPayload);
+     }
+ 
+     let bytes = value
+         .as_bytes()
+         .chunks_exact(2)
+         .map(|pair| {
+             let hex = std::str::from_utf8(pair).map_err(|_| RoutineStepParseError::InvalidUtf8)?;

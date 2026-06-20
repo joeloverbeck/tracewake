@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/agent/htn.rs
++++ replace satisfied -> ConditionResolution with Default::default()
+@@ -284,19 +284,17 @@
+ fn modeled_fact_proof(actor_known_facts: &[ActorKnownFact], expected: &str) -> Option<String> {
+     actor_known_facts
+         .iter()
+         .find(|fact| fact.stable_id() == expected && fact.is_actor_known())
+         .map(|fact| fact.proof_note())
+ }
+ 
+ fn satisfied(condition: &RoutineCondition, proof_source: impl Into<String>) -> ConditionResolution {
+-    ConditionResolution::Satisfied {
+-        proof_source: format!("{}:{}", condition.stable_id(), proof_source.into()),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn rejected(condition: &RoutineCondition, reason: impl Into<String>) -> ConditionResolution {
+     ConditionResolution::Rejected {
+         reason: format!("{} rejected: {}", condition.stable_id(), reason.into()),
+     }
+ }
+ 

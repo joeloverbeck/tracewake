@@ -1,0 +1,33 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace trace -> LocalPlanTrace with Default::default()
+@@ -383,29 +383,17 @@
+ fn trace(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     candidates_tried: Vec<String>,
+     selected_plan: Vec<PlannedProposal>,
+     rejected_steps: Vec<String>,
+     blocker: Option<BlockerCategory>,
+ ) -> LocalPlanTrace {
+-    LocalPlanTrace {
+-        actor_id: state.actor_id().clone(),
+-        inputs: request
+-            .actor_known_facts
+-            .iter()
+-            .map(ActorKnownFact::proof_note)
+-            .collect(),
+-        candidates_tried,
+-        selected_plan,
+-        rejected_steps,
+-        blocker,
+-        hidden_truth_audit_result: derive_hidden_truth_audit(state, &request.actor_known_facts),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::ids::SemanticActionId;
+     use std::collections::BTreeMap;
+ 

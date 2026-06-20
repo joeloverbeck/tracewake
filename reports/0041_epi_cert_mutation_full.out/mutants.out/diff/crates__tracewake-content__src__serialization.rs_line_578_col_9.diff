@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "doubts" in parse_stance
+@@ -570,17 +570,17 @@
+ }
+ 
+ fn parse_stance(value: &str) -> Result<Stance, SerializationError> {
+     match value {
+         "believes_true" => Ok(Stance::BelievesTrue),
+         "believes_false" => Ok(Stance::BelievesFalse),
+         "expects_true" => Ok(Stance::ExpectsTrue),
+         "plausible" => Ok(Stance::Plausible),
+-        "doubts" => Ok(Stance::Doubts),
++         /* ~ changed by cargo-mutants ~ */
+         "unknown_or_unresolved" => Ok(Stance::UnknownOrUnresolved),
+         _ => Err(SerializationError::BadLine(format!("bad stance {value}"))),
+     }
+ }
+ 
+ fn parse_confidence(value: &str) -> Result<Confidence, SerializationError> {
+     Confidence::new(
+         value

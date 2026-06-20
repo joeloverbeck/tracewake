@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "resource" in BlockerCategory::parse
+@@ -579,17 +579,17 @@
+         }
+     }
+ 
+     fn parse(value: &str) -> Result<Self, StuckDiagnosticParseError> {
+         match value {
+             "physical" => Ok(Self::Physical),
+             "access" => Ok(Self::Access),
+             "knowledge" => Ok(Self::Knowledge),
+-            "resource" => Ok(Self::Resource),
++             /* ~ changed by cargo-mutants ~ */
+             "social_norm_placeholder" => Ok(Self::SocialNormPlaceholder),
+             "scheduling_reservation" => Ok(Self::SchedulingReservation),
+             "unsupported_action" => Ok(Self::UnsupportedAction),
+             "planner_budget_exhausted" => Ok(Self::PlannerBudgetExhausted),
+             "fixture_authoring_error" => Ok(Self::FixtureAuthoringError),
+             _ => Err(StuckDiagnosticParseError::InvalidBlockerCategory),
+         }
+     }

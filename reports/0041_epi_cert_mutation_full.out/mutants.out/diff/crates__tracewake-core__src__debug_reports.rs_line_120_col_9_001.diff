@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace ReplayDebugReport::debug_only -> bool with false
+@@ -112,17 +112,17 @@
+ impl ProjectionRebuildDebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }
+ 
+ impl ReplayDebugReport {
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl ControllerBindingDebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }

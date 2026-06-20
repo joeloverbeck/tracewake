@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace && with || in latest_current_place_perception_event_id
+@@ -396,17 +396,17 @@
+     place_id: &PlaceId,
+ ) -> Option<EventId> {
+     log.events()
+         .iter()
+         .rev()
+         .find(|event| {
+             event.event_type == EventKind::ObservationRecorded
+                 && event.actor_id.as_ref() == Some(actor_id)
+-                && event.sim_tick == tick
++                || /* ~ changed by cargo-mutants ~ */ event.sim_tick == tick
+                 && event.place_id.as_ref() == Some(place_id)
+         })
+         .map(|event| event.event_id.clone())
+ }
+ 
+ fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+     log.events()
+         .iter()

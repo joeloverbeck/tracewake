@@ -1,0 +1,113 @@
+
+*** crates/tracewake-core/src/debug_reports.rs:189:5: replace item_location_report -> ItemLocationDebugReport with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace item_location_report -> ItemLocationDebugReport with Default::default()
+@@ -181,62 +181,17 @@
+ }
+ 
+ pub fn item_location_report(
+     state: &PhysicalState,
+     log: &EventLog,
+     item_id: &ItemId,
+     checksum_context: &ChecksumContext,
+ ) -> ItemLocationDebugReport {
+-    let physical_checksum = compute_physical_checksum(state, checksum_context).checksum;
+-    let item = state.items.get(item_id);
+-    let location_chain = item
+-        .map(|item| location_chain(state, &item.location))
+-        .unwrap_or_default();
+-    let current_location = item.map(|item| location_summary(state, &item.location));
+-    let relevant_events = log
+-        .events()
+-        .iter()
+-        .filter(|event| is_item_location_event(event, item_id))
+-        .map(|event| DebugEventSummary {
+-            event_id: event.event_id.clone(),
+-            event_type: event.event_type,
+-            stream: event.stream,
+-            stream_position: event.stream_position,
+-        })
+-        .collect::<Vec<_>>();
+-    let location_event_chain = relevant_events
+-        .iter()
+-        .map(|event| event.event_id.clone())
+-        .collect::<Vec<_>>();
+-    let last_location_event_id = location_event_chain
+-        .last()
+-        .cloned()
+-        .or_else(|| Some(EventId::new(format!("fixture_origin.{}", item_id.as_str())).unwrap()));
+-    let current_projection_position = log
+-        .events()
+-        .iter()
+-        .filter(|event| event.stream == EventStream::World)
+-        .map(|event| event.stream_position)
+-        .max();
+-
+-    ItemLocationDebugReport {
+-        report_id: DebugReportId::new(format!("debug.item_location.{}", item_id.as_str())).unwrap(),
+-        item_id: item_id.clone(),
+-        exists: item.is_some(),
+-        current_location,
+-        location_chain,
+-        current_projection_position,
+-        last_location_event_id,
+-        location_event_chain,
+-        relevant_events,
+-        inconsistencies: Vec::new(),
+-        physical_checksum,
+-        debug_capability: DebugCapability::mint(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn action_rejection_report(
+     validation_report: &ValidationReport,
+     state: &PhysicalState,
+     checksum_context: &ChecksumContext,
+ ) -> ActionRejectionDebugReport {
+     let checksum = compute_physical_checksum(state, checksum_context).checksum;
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/debug_reports.rs` has changed (1781904367.951923400s, 3s after last build at 1781904364.751923380s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ItemLocationDebugReport: Default` is not satisfied
+   --> crates/tracewake-core/src/debug_reports.rs:189:5
+    |
+189 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ItemLocationDebugReport`
+   --> crates/tracewake-core/src/debug_reports.rs:16:1
+    |
+ 16 | pub struct ItemLocationDebugReport {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `debug_reports::ItemLocationDebugReport: Default` is not satisfied
+   --> crates/tracewake-core/src/debug_reports.rs:189:5
+    |
+189 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `debug_reports::ItemLocationDebugReport`
+   --> crates/tracewake-core/src/debug_reports.rs:16:1
+    |
+ 16 | pub struct ItemLocationDebugReport {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

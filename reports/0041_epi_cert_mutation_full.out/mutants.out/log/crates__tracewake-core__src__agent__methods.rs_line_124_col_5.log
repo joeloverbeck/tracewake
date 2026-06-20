@@ -1,0 +1,78 @@
+
+*** crates/tracewake-core/src/agent/methods.rs:124:5: replace family_for_goal -> RoutineFamily with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/methods.rs
++++ replace family_for_goal -> RoutineFamily with Default::default()
+@@ -116,27 +116,17 @@
+             vec!["wait_interrupted"],
+             vec!["fallback_stuck_diagnostic"],
+             None,
+         ),
+     ]
+ }
+ 
+ pub fn family_for_goal(goal_kind: GoalKind) -> RoutineFamily {
+-    match goal_kind {
+-        GoalKind::Eat => RoutineFamily::EatMeal,
+-        GoalKind::FindFood => RoutineFamily::FindFood,
+-        GoalKind::SleepOrRest => RoutineFamily::SleepNight,
+-        GoalKind::GoToWork => RoutineFamily::GoToWork,
+-        GoalKind::PerformWorkBlock => RoutineFamily::WorkBlock,
+-        GoalKind::ReturnHome => RoutineFamily::ReturnHome,
+-        GoalKind::LeaveUnsafePlace => RoutineFamily::LeaveUnsafePlace,
+-        GoalKind::ContinueCurrentIntention => RoutineFamily::ContinueCurrentIntention,
+-        GoalKind::IdleWithReason => RoutineFamily::Wait,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn all_steps_are_proposals(template: &RoutineTemplate) -> bool {
+     template.steps.iter().all(|step| match step.proposed() {
+         RoutineStepProposal::Action(action_id) => !action_id.as_str().is_empty(),
+         RoutineStepProposal::Wait(reason) => !reason.is_empty(),
+         RoutineStepProposal::Diagnostic(diagnostic) => !diagnostic.stable_id().is_empty(),
+     })
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): couldn't read metadata for file `target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `RoutineFamily: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/methods.rs:124:5
+    |
+124 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `RoutineFamily`
+   --> crates/tracewake-core/src/agent/routine.rs:9:1
+    |
+  9 | pub enum RoutineFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `routine::RoutineFamily: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/methods.rs:124:5
+    |
+124 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `routine::RoutineFamily`
+   --> crates/tracewake-core/src/agent/routine.rs:9:1
+    |
+  9 | pub enum RoutineFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

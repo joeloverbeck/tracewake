@@ -1,0 +1,28 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] in deserialize_fixture
+@@ -388,24 +388,17 @@
+                     place_id: PlaceId::new(*place_id)?,
+                     sleep_place_id: SleepAffordanceId::new(*sleep_place_id)?,
+                     access_open: parse_bool(access_open)?,
+                     duration_ticks: parse_u64(duration_ticks)?,
+                     fatigue_recovery_per_tick: parse_i32(fatigue_recovery_per_tick)?,
+                     hunger_rise_per_tick: parse_i32(hunger_rise_per_tick)?,
+                 })
+             }
+-            ["food_supply", food_supply_id, location, servings, hunger_reduction_per_serving] => {
+-                food_supplies.push(FoodSupplySchema {
+-                    food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+-                    location: deserialize_location(location)?,
+-                    servings: parse_u32(servings)?,
+-                    hunger_reduction_per_serving: parse_i32(hunger_reduction_per_serving)?,
+-                })
+-            }
++             /* ~ changed by cargo-mutants ~ */
+             ["known_food_source", actor_id, food_supply_id] => {
+                 known_food_sources.push(KnownFoodSourceSchema {
+                     actor_id: ActorId::new(*actor_id)?,
+                     food_supply_id: FoodSupplyId::new(*food_supply_id)?,
+                 })
+             }
+             ["workplace", workplace_id, place_id, assigned_actor_ids, work_duration_ticks, fatigue_delta_per_tick, hunger_delta_per_tick, max_fatigue_to_start, max_hunger_to_start, access_open, role_notice_access_open, output_tag] => {
+                 workplaces.push(WorkplaceSchema {

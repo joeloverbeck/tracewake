@@ -1,0 +1,32 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_optional_routine_template_id -> Result<Option<crate::ids::RoutineTemplateId>, ApplyError> with Ok(None)
+@@ -1141,28 +1141,17 @@
+         key: "trace_id",
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_optional_routine_template_id(
+     payload: &BTreeMap<&str, &str>,
+ ) -> Result<Option<crate::ids::RoutineTemplateId>, ApplyError> {
+-    let Some(value) = payload.get("selected_routine_method").copied() else {
+-        return Ok(None);
+-    };
+-    if value.is_empty() {
+-        return Ok(None);
+-    }
+-    crate::ids::RoutineTemplateId::new(value)
+-        .map(Some)
+-        .map_err(|_| ApplyError::BadPayload {
+-            key: "selected_routine_method",
+-            value: value.to_string(),
+-        })
++    Ok(None) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_u8(payload: &BTreeMap<&str, &str>, key: &'static str) -> Result<u8, ApplyError> {
+     let value = required(payload, key)?;
+     value.parse::<u8>().map_err(|_| ApplyError::BadPayload {
+         key,
+         value: value.to_string(),
+     })

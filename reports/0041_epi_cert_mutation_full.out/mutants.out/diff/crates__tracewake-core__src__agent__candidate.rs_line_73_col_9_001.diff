@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/candidate.rs
++++ replace GoalPriority::stable_id -> &'static str with "xyzzy"
+@@ -65,27 +65,17 @@
+     RoutineWindowDuty,
+     ReturnHomeOrSleepWindow,
+     IdleWithReason,
+     MildNeedPressure,
+ }
+ 
+ impl GoalPriority {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            GoalPriority::SevereSafety => "severe_safety",
+-            GoalPriority::SevereHunger => "severe_hunger",
+-            GoalPriority::SevereFatigue => "severe_fatigue",
+-            GoalPriority::ActiveIntentionContinuation => "active_intention_continuation",
+-            GoalPriority::UrgentHungerOrFatigue => "urgent_hunger_or_fatigue",
+-            GoalPriority::RoutineWindowDuty => "routine_window_duty",
+-            GoalPriority::ReturnHomeOrSleepWindow => "return_home_or_sleep_window",
+-            GoalPriority::IdleWithReason => "idle_with_reason",
+-            GoalPriority::MildNeedPressure => "mild_need_pressure",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub const fn selection_rank(self) -> u8 {
+         match self {
+             GoalPriority::SevereSafety => 0,
+             GoalPriority::SevereHunger => 1,
+             GoalPriority::SevereFatigue => 2,
+             GoalPriority::UrgentHungerOrFatigue => 3,

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace != with == in diff_physical_state
+@@ -469,17 +469,17 @@
+         ));
+     }
+     if expected.doors != actual.doors {
+         diffs.push(format!(
+             "doors expected={:?} actual={:?}",
+             expected.doors, actual.doors
+         ));
+     }
+-    if expected.containers != actual.containers {
++    if expected.containers == /* ~ changed by cargo-mutants ~ */ actual.containers {
+         diffs.push(format!(
+             "containers expected={:?} actual={:?}",
+             expected.containers, actual.containers
+         ));
+     }
+     if expected.items != actual.items {
+         diffs.push(format!(
+             "items expected={:?} actual={:?}",

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/knowledge_context.rs
++++ replace ActorKnownWorkplaceFact::acquired_tick -> SimTick with Default::default()
+@@ -294,17 +294,17 @@
+         &self.source_key
+     }
+ 
+     pub fn source_event_ids(&self) -> &SourceEventIds {
+         &self.source_event_ids
+     }
+ 
+     pub fn acquired_tick(&self) -> SimTick {
+-        self.acquired_tick
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn canonical_key(&self) -> String {
+         let source_events = self
+             .source_event_ids
+             .as_slice()
+             .iter()
+             .map(|event_id| event_id.as_str())

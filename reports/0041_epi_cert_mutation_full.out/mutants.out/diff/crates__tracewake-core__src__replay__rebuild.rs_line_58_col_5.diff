@@ -1,0 +1,138 @@
+--- crates/tracewake-core/src/replay/rebuild.rs
++++ replace rebuild_projection -> ProjectionRebuildReport with Default::default()
+@@ -50,134 +50,17 @@
+ 
+ pub fn rebuild_projection(
+     initial_state: &PhysicalState,
+     initial_agent_state: &AgentState,
+     log: &EventLog,
+     context: &ChecksumContext,
+     expected_final_state: Option<&PhysicalState>,
+ ) -> ProjectionRebuildReport {
+-    let mut rebuilt = initial_state.clone();
+-    let mut rebuilt_agent = initial_agent_state.clone();
+-    let mut event_count_applied = 0;
+-    let mut last_event_id = None;
+-    let mut last_stream_position = None;
+-    let mut unsupported_versions = Vec::new();
+-    let mut unsupported_epistemic_versions = Vec::new();
+-    let mut unsupported_agent_versions = Vec::new();
+-    let mut invariant_violations = Vec::new();
+-    let mut epistemic_application_errors = Vec::new();
+-    let mut agent_application_errors = Vec::new();
+-    let content_manifest_id = ContentManifestId::new(context.content_version.as_str()).unwrap();
+-    let mut epistemic_projection = EpistemicProjection::new(content_manifest_id.clone());
+-
+-    for issue in verify_event_ordering(log) {
+-        invariant_violations.push(issue);
+-    }
+-    for issue in crate::need_accounting::duplicate_duration_terminal_violations(log) {
+-        invariant_violations.push(issue);
+-    }
+-
+-    for event in log.events() {
+-        if !invariant_violations.is_empty() {
+-            break;
+-        }
+-        if !event.has_supported_schema_version() {
+-            let message = format!(
+-                "event_position={} event_id={} version={}",
+-                event.global_order,
+-                event.event_id.as_str(),
+-                event.event_schema_version.as_str()
+-            );
+-            match event.stream {
+-                EventStream::Epistemic => unsupported_epistemic_versions.push(message),
+-                EventStream::Agent => unsupported_agent_versions
+-                    .push(phase3a_failure(event, "unsupported_schema_version")),
+-                EventStream::World => {
+-                    unsupported_versions.push(event.event_schema_version.as_str().to_string())
+-                }
+-                EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
+-            }
+-            continue;
+-        }
+-
+-        let mut application_context = EventApplicationContext {
+-            physical_state: &mut rebuilt,
+-            agent_state: &mut rebuilt_agent,
+-            epistemic_projection: Some(&mut epistemic_projection),
+-        };
+-        match apply_event_stream(&mut application_context, event) {
+-            Ok(_) => match event.stream {
+-                EventStream::World => {
+-                    event_count_applied += 1;
+-                    last_event_id = Some(event.event_id.clone());
+-                    last_stream_position = Some(event.stream_position);
+-                }
+-                EventStream::Epistemic => {
+-                    epistemic_projection.record_applied_event(event.event_id.clone());
+-                }
+-                EventStream::Agent => {
+-                    last_event_id = Some(event.event_id.clone());
+-                    last_stream_position = Some(event.stream_position);
+-                }
+-                EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {}
+-            },
+-            Err(EventApplicationError::World(error)) => {
+-                invariant_violations.push(format!("{}: {:?}", event.event_id.as_str(), error));
+-                break;
+-            }
+-            Err(EventApplicationError::Epistemic(error)) => {
+-                epistemic_application_errors.push(format!(
+-                    "event_position={} event_id={}: {:?}",
+-                    event.global_order,
+-                    event.event_id.as_str(),
+-                    error
+-                ));
+-                break;
+-            }
+-            Err(EventApplicationError::Agent(error)) => {
+-                let mut failure = phase3a_failure(event, "agent_application_error");
+-                failure.issue = format!("agent_application_error:{error:?}");
+-                agent_application_errors.push(failure);
+-                break;
+-            }
+-        }
+-    }
+-
+-    let final_checksum = compute_physical_checksum(&rebuilt, context).checksum;
+-    let final_epistemic_checksum = epistemic_projection.compute_checksum().checksum;
+-    let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, context);
+-    let final_agent_checksum = final_agent_checksum_report.checksum.clone();
+-    let decision_context_hash_failures =
+-        rebuild_decision_context_hashes(initial_state, initial_agent_state, log);
+-    let state_diff = expected_final_state
+-        .map(|expected| diff_physical_state(expected, &rebuilt))
+-        .unwrap_or_default();
+-
+-    ProjectionRebuildReport {
+-        final_state: rebuilt,
+-        event_count_applied,
+-        last_event_id,
+-        last_stream_position,
+-        content_manifest_id,
+-        final_checksum,
+-        final_epistemic_projection: epistemic_projection,
+-        final_epistemic_checksum,
+-        final_agent_state: rebuilt_agent,
+-        final_agent_checksum,
+-        final_agent_checksum_report,
+-        unsupported_versions,
+-        unsupported_epistemic_versions,
+-        unsupported_agent_versions,
+-        invariant_violations,
+-        epistemic_application_errors,
+-        agent_application_errors,
+-        decision_context_hash_failures,
+-        state_diff,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn verify_event_ordering(log: &EventLog) -> Vec<String> {
+     let mut issues = Vec::new();
+     let mut stream_positions = std::collections::BTreeMap::<EventStream, u64>::new();
+     for (index, event) in log.events().iter().enumerate() {
+         let expected_global = index as u64;
+         if event.global_order != expected_global {

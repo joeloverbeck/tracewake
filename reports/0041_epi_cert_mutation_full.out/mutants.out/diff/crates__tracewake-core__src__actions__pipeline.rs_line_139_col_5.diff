@@ -1,0 +1,38 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace validate_proposal -> ValidationReport with Default::default()
+@@ -131,34 +131,17 @@
+     pub ordering_key: &'a OrderingKey,
+     pub current_event_frontier: u64,
+ }
+ 
+ pub fn validate_proposal(
+     validation_context: ProposalValidationContext<'_>,
+     proposal: &Proposal,
+ ) -> ValidationReport {
+-    let context = PipelineReadContext {
+-        registry: validation_context.registry,
+-        state: validation_context.state,
+-        agent_state: validation_context.agent_state,
+-        controller_bindings: validation_context.controller_bindings,
+-        epistemic_projection: validation_context.epistemic_projection,
+-        content_manifest_id: validation_context.content_manifest_id,
+-        ordering_key: validation_context.ordering_key,
+-        current_event_frontier: validation_context.current_event_frontier,
+-    };
+-    match decide_proposal(context, proposal) {
+-        PipelineDecision::Accepted {
+-            candidate_events,
+-            checked_facts,
+-            would_mutate,
+-        } => accepted_report(proposal, checked_facts, would_mutate, candidate_events),
+-        PipelineDecision::Rejected(report) => *report,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> PipelineResult {
+     let read_context = PipelineReadContext {
+         registry: context.registry,
+         state: context.state,
+         agent_state: context.agent_state,
+         controller_bindings: context.controller_bindings,

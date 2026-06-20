@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace == with != in expect_bool
+@@ -1441,17 +1441,17 @@
+         "false" => false,
+         _ => {
+             return Err(ApplyError::BadPayload {
+                 key,
+                 value: value.to_string(),
+             })
+         }
+     };
+-    if actual == expected {
++    if actual != /* ~ changed by cargo-mutants ~ */ expected {
+         Ok(())
+     } else {
+         Err(ApplyError::PreconditionMismatch {
+             field: key,
+             expected: expected.to_string(),
+             actual: actual.to_string(),
+         })
+     }

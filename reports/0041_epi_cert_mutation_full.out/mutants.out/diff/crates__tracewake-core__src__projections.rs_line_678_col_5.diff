@@ -1,0 +1,80 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace build_notebook_view -> NotebookView with Default::default()
+@@ -670,76 +670,17 @@
+         debug_available: false,
+     })
+ }
+ 
+ pub fn build_notebook_view(
+     projection: &EpistemicProjection,
+     context: &KnowledgeContext,
+ ) -> NotebookView {
+-    let mut beliefs = projection
+-        .beliefs_for_context(context)
+-        .into_iter()
+-        .map(|belief| NotebookBeliefEntry {
+-            belief_id: belief.belief_id().as_str().to_string(),
+-            summary: belief.proposition().render(),
+-            source_summary: source_summary(belief.source()),
+-            confidence_label: belief.confidence().serialize_canonical(),
+-            acquired_tick: belief.acquired_tick().value(),
+-            contradiction_ids: belief
+-                .contradiction_ids()
+-                .iter()
+-                .map(|id| id.as_str().to_string())
+-                .collect(),
+-        })
+-        .collect::<Vec<_>>();
+-    beliefs.sort();
+-
+-    let mut observations = projection
+-        .observations_for_context(context)
+-        .into_iter()
+-        .map(|observation| NotebookObservationEntry {
+-            observation_id: observation.observation_id().as_str().to_string(),
+-            channel: observation.channel().stable_id().to_string(),
+-            summary: format!("{} observation", observation.channel().stable_id()),
+-            confidence_label: observation.confidence().serialize_canonical(),
+-            observed_tick: observation.observed_tick().value(),
+-        })
+-        .collect::<Vec<_>>();
+-    observations.sort();
+-
+-    let mut contradictions = projection
+-        .contradictions_for_context(context)
+-        .into_iter()
+-        .map(|contradiction| NotebookContradictionEntry {
+-            contradiction_id: contradiction.contradiction_id().as_str().to_string(),
+-            summary: "Contradicts your earlier expectation.".to_string(),
+-        })
+-        .collect::<Vec<_>>();
+-    contradictions.sort();
+-
+-    let mut typed_leads = projection
+-        .contradictions_for_context(context)
+-        .into_iter()
+-        .filter_map(|contradiction| typed_notebook_lead(projection, context, contradiction))
+-        .collect::<Vec<_>>();
+-    typed_leads.sort();
+-    let possible_leads = typed_leads
+-        .iter()
+-        .map(|lead| lead.summary.clone())
+-        .collect();
+-
+-    NotebookView {
+-        viewer_actor_id: context.viewer_actor_id().clone(),
+-        source_bound_beliefs: beliefs,
+-        recent_observations: observations,
+-        known_contradictions: contradictions,
+-        typed_leads,
+-        possible_leads,
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn typed_notebook_lead(
+     projection: &EpistemicProjection,
+     context: &KnowledgeContext,
+     contradiction: &Contradiction,
+ ) -> Option<NotebookLeadEntry> {
+     if contradiction.kind() != ContradictionKind::ExpectedItemAbsentFromContainer {

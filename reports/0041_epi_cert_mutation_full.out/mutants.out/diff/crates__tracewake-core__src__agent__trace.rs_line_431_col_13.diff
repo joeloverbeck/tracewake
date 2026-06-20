@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm StuckDiagnosticParseError::InvalidTextPayload | StuckDiagnosticParseError::InvalidUtf8 in <impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError>::from
+@@ -423,18 +423,17 @@
+             DiagnosticFieldParseError::InvalidBlockerCode => Self::InvalidBlockerCode,
+         }
+     }
+ }
+ 
+ impl From<StuckDiagnosticParseError> for DecisionTraceRecordParseError {
+     fn from(value: StuckDiagnosticParseError) -> Self {
+         match value {
+-            StuckDiagnosticParseError::InvalidTextPayload
+-            | StuckDiagnosticParseError::InvalidUtf8 => Self::InvalidTextPayload,
++             /* ~ changed by cargo-mutants ~ */
+             _ => Self::InvalidShape,
+         }
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct RejectedDecisionItem {
+     pub stable_ref: String,

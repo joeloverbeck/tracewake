@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/actor_known.rs
++++ replace ActorKnownFact::is_actor_known -> bool with true
+@@ -200,17 +200,17 @@
+         self.tick
+     }
+ 
+     pub fn actor_id(&self) -> &ActorId {
+         &self.actor_id
+     }
+ 
+     pub fn is_actor_known(&self) -> bool {
+-        self.provenance.actor_known()
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn proof_note(&self) -> String {
+         format!("{}={}", self.stable_id, self.provenance.note())
+     }
+ 
+     pub fn provenance(&self) -> &ActorKnownProvenance {
+         &self.provenance

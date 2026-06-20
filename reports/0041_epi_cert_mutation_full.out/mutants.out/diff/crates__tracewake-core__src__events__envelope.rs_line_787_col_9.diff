@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace EventEnvelope::new_caused_v1 -> Result<Self, EventEnvelopeBuildError> with Ok(Default::default())
+@@ -779,31 +779,17 @@
+         event_type: EventKind,
+         stream_position: u64,
+         global_order: u64,
+         sim_tick: SimTick,
+         ordering_key: OrderingKey,
+         content_manifest_id: ContentManifestId,
+         causes: Vec<EventCause>,
+     ) -> Result<Self, EventEnvelopeBuildError> {
+-        if event_type.requires_cause() && causes.is_empty() {
+-            return Err(EventEnvelopeBuildError::MissingRequiredCause);
+-        }
+-
+-        let mut envelope = Self::new_v1(
+-            event_id,
+-            event_type,
+-            stream_position,
+-            global_order,
+-            sim_tick,
+-            ordering_key,
+-            content_manifest_id,
+-        );
+-        envelope.causes = causes;
+-        Ok(envelope)
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn serialize_canonical(&self) -> Vec<u8> {
+         let fields = [
+             ("event_id", encode(self.event_id.as_str())),
+             ("event_type", encode(self.event_type.stable_id())),
+             (
+                 "event_schema_version",

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace == with != in no_human::scheduled_completion_tick
+@@ -1209,17 +1209,17 @@
+             "duration routine step completed with ordinary completion ancestry".to_string();
+         event
+     }
+ 
+     fn scheduled_completion_tick(event: &EventEnvelope) -> Option<SimTick> {
+         event
+             .payload
+             .iter()
+-            .find(|field| field.key == "expected_completion_tick")
++            .find(|field| field.key != /* ~ changed by cargo-mutants ~ */ "expected_completion_tick")
+             .and_then(|field| field.value.parse::<u64>().ok())
+             .map(SimTick::new)
+     }
+ 
+     fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+         event
+             .payload
+             .iter()

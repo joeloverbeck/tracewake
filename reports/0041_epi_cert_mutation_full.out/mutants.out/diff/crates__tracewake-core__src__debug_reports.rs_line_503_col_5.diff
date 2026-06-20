@@ -1,0 +1,30 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace is_item_location_event -> bool with true
+@@ -495,26 +495,17 @@
+         report_id: DebugReportId::new("debug.phase3a.no_human_day").unwrap(),
+         metrics,
+         canonical_summary,
+         debug_capability: DebugCapability::mint(),
+     }
+ }
+ 
+ fn is_item_location_event(event: &EventEnvelope, item_id: &ItemId) -> bool {
+-    matches!(
+-        event.event_type,
+-        EventKind::ItemRemovedFromContainer
+-            | EventKind::ItemTakenFromPlace
+-            | EventKind::ItemPlacedInContainer
+-            | EventKind::ItemPlacedInPlace
+-    ) && event
+-        .payload
+-        .iter()
+-        .any(|field| field.key == "item_id" && field.value == item_id.as_str())
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn phase3a_report(
+     report_id: &str,
+     title: &str,
+     rows: Vec<String>,
+     decision_traces: Vec<Phase3ADecisionTraceView>,
+     stuck_diagnostics: Vec<Phase3AStuckDiagnosticView>,

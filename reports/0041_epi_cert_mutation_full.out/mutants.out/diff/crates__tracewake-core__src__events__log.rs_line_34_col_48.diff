@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/log.rs
++++ replace == with != in EventLog::append
+@@ -26,17 +26,17 @@
+                 event.event_schema_version.as_str().to_string(),
+             ));
+         }
+ 
+         event.global_order = self.events.len() as u64;
+         event.stream_position = self
+             .events
+             .iter()
+-            .filter(|existing| existing.stream == event.stream)
++            .filter(|existing| existing.stream != /* ~ changed by cargo-mutants ~ */ event.stream)
+             .count() as u64;
+         self.events.push(event.clone());
+         Ok(event)
+     }
+ 
+     fn append_deserialized(
+         &mut self,
+         event: EventEnvelope,

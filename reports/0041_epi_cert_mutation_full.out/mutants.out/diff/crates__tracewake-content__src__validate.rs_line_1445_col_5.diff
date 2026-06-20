@@ -1,0 +1,115 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_routine_rules with ()
+@@ -1437,111 +1437,17 @@
+     }
+ }
+ 
+ fn validate_routine_rules(
+     fixture: &FixtureSchema,
+     registry: &ActionRegistry,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+-    for (template_index, template) in fixture.routine_templates.iter().enumerate() {
+-        let has_explicit_diagnostic = template.steps.iter().any(|step| {
+-            matches!(
+-                step.proposed(),
+-                RoutineStepProposal::Diagnostic(diagnostic) if !diagnostic.stable_id().is_empty()
+-            )
+-        });
+-        if template.fallback_rules.is_empty() && !has_explicit_diagnostic {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::State,
+-                format!("routine_templates[{template_index}].fallback_rules"),
+-                "missing_fallback_or_diagnostic",
+-                "routine templates must declare fallback rules or an explicit diagnostic failure",
+-            ));
+-        }
+-
+-        for (step_index, step) in template.steps.iter().enumerate() {
+-            let RoutineStepProposal::Action(semantic_action_id) = step.proposed() else {
+-                continue;
+-            };
+-            if contains_direct_state_or_script_marker(semantic_action_id.as_str()) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::NoScript,
+-                    format!("routine_templates[{template_index}].steps[{step_index}]"),
+-                    "authored_shortcut_effect",
+-                    format!(
+-                        "routine step action {} contains a direct state/script operation",
+-                        semantic_action_id.as_str()
+-                    ),
+-                ));
+-                continue;
+-            }
+-            let Some(action_id) = semantic_action_base(semantic_action_id.as_str()) else {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::ActionRegistryParity,
+-                    format!("routine_templates[{template_index}].steps[{step_index}]"),
+-                    "unknown_action",
+-                    format!(
+-                        "routine step action {} has no stable base action",
+-                        semantic_action_id.as_str()
+-                    ),
+-                ));
+-                continue;
+-            };
+-            if registry.get(&action_id).is_none() {
+-                let (code, message) = if let Some(scope) = known_action_scope(&action_id) {
+-                    (
+-                        "phase_unsupported_action",
+-                        format!(
+-                            "routine step action {} maps to {} in {:?}, outside this fixture scope",
+-                            semantic_action_id.as_str(),
+-                            action_id.as_str(),
+-                            scope
+-                        ),
+-                    )
+-                } else {
+-                    (
+-                        "unknown_action",
+-                        format!(
+-                            "routine step action {} maps to unregistered action {}",
+-                            semantic_action_id.as_str(),
+-                            action_id.as_str()
+-                        ),
+-                    )
+-                };
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::ActionRegistryParity,
+-                    format!("routine_templates[{template_index}].steps[{step_index}]"),
+-                    code,
+-                    message,
+-                ));
+-            }
+-        }
+-
+-        for (mode_index, failure_mode) in template.failure_modes.iter().enumerate() {
+-            if !is_known_routine_failure_mode(failure_mode) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    format!("routine_templates[{template_index}].failure_modes[{mode_index}]"),
+-                    "unknown_failure_mode",
+-                    format!("unknown routine failure mode {failure_mode}"),
+-                ));
+-            }
+-        }
+-        for (rule_index, fallback_rule) in template.fallback_rules.iter().enumerate() {
+-            if !is_known_routine_fallback_rule(fallback_rule) {
+-                errors.push(ContentValidationError::new(
+-                    ValidationPhase::State,
+-                    format!("routine_templates[{template_index}].fallback_rules[{rule_index}]"),
+-                    "unknown_fallback_rule",
+-                    format!("unknown routine fallback rule {fallback_rule}"),
+-                ));
+-            }
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_phase3a_sleep_surface_contract(
+     fixture: &FixtureSchema,
+     errors: &mut Vec<ContentValidationError>,
+ ) {
+     if fixture.fixture_scope != FixtureScope::Phase3AHistorical {
+         return;

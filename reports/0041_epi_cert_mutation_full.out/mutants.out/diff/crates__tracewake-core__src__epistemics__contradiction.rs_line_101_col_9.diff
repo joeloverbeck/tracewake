@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/contradiction.rs
++++ replace Contradiction::detected_tick -> SimTick with Default::default()
+@@ -93,17 +93,17 @@
+         &self.expected_proposition
+     }
+ 
+     pub fn observed_proposition(&self) -> &Proposition {
+         &self.observed_proposition
+     }
+ 
+     pub fn detected_tick(&self) -> SimTick {
+-        self.detected_tick
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn schema_version(&self) -> &SchemaVersion {
+         &self.schema_version
+     }
+ }
+ 
+ #[allow(clippy::too_many_arguments)]

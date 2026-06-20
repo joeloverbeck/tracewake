@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/transaction.rs
++++ replace == with != in ActorDecisionTransaction::run
+@@ -312,17 +312,17 @@
+                 planned.action_id.as_str()
+             ))
+             .unwrap(),
+             ProposalOrigin::Agent,
+             Some(input.actor_id.clone()),
+             planned.action_id.clone(),
+             input.decision_tick,
+         );
+-        if planned.action_id.as_str() == "wait" {
++        if planned.action_id.as_str() != /* ~ changed by cargo-mutants ~ */ "wait" {
+             let reason = planned
+                 .target_ids
+                 .first()
+                 .cloned()
+                 .unwrap_or_else(|| "actor_decision_idle".to_string());
+             proposal.parameters.insert("reason".to_string(), reason);
+         } else if planned.action_id.as_str() == "sleep" {
+             proposal.target_ids = planned.target_ids.clone();

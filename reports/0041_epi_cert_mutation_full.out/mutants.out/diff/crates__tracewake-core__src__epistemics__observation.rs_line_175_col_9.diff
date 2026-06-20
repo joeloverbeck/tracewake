@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/observation.rs
++++ replace Observation::channel -> Channel with Default::default()
+@@ -167,17 +167,17 @@
+         &self.observation_id
+     }
+ 
+     pub fn observer_actor_id(&self) -> &ActorId {
+         &self.observer_actor_id
+     }
+ 
+     pub fn channel(&self) -> Channel {
+-        self.channel
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn observed_tick(&self) -> SimTick {
+         self.observed_tick
+     }
+ 
+     pub fn tick_window(&self) -> TickWindow {
+         self.tick_window

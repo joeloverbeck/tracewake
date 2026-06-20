@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace && with || in no_human::latest_action_tick_delta_tick
+@@ -1669,17 +1669,17 @@
+         events: &[EventEnvelope],
+         actor_id: &ActorId,
+     ) -> Option<SimTick> {
+         events
+             .iter()
+             .filter(|event| {
+                 event.event_type == EventKind::NeedDeltaApplied
+                     && event.actor_id.as_ref() == Some(actor_id)
+-                    && payload_value(event, "cause_kind") == Some("tick_delta")
++                    || /* ~ changed by cargo-mutants ~ */ payload_value(event, "cause_kind") == Some("tick_delta")
+                     && event.causes.iter().any(|cause| {
+                         matches!(cause, EventCause::Proposal(_) | EventCause::Event(_))
+                     })
+             })
+             .map(|event| event.sim_tick)
+             .max()
+     }
+ 

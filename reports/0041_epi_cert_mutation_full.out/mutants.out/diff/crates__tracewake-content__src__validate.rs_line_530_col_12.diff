@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -522,17 +522,17 @@
+                         actor.actor_id.as_str()
+                     ),
+                 ));
+             }
+         }
+     }
+ 
+     for (index, actor) in fixture.actors.iter().enumerate() {
+-        if !places.contains(&actor.current_place_id) {
++        if  /* ~ changed by cargo-mutants ~ */places.contains(&actor.current_place_id) {
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("actors[{index}].current_place_id"),
+                 actor.current_place_id.as_str(),
+                 "place",
+             );
+         }

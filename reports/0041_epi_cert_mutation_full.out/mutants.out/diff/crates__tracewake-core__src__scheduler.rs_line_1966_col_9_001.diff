@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::is_routine_failure_event -> bool with false
+@@ -1958,23 +1958,17 @@
+         actor_id: &ActorId,
+         window: &DayWindow,
+     ) -> Option<RoutineExecutionId> {
+         eligible_routine_execution_for_actor(agent_state, actor_id, window)
+             .map(|(execution_id, _)| execution_id.clone())
+     }
+ 
+     fn is_routine_failure_event(event: &EventEnvelope) -> bool {
+-        matches!(
+-            event.event_type,
+-            EventKind::ActionRejected
+-                | EventKind::EatFailed
+-                | EventKind::WorkBlockFailed
+-                | EventKind::ContinueRoutineRejected
+-        )
++        false /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn is_instant_routine_progress_event(
+         execution_family: RoutineFamily,
+         proposal: &Proposal,
+         event: &EventEnvelope,
+     ) -> bool {
+         if execution_family == RoutineFamily::WorkBlock && proposal.action_id.as_str() == "move" {

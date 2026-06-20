@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace == with != in plan_route
+@@ -192,17 +192,17 @@
+ }
+ 
+ #[allow(clippy::result_large_err)]
+ fn plan_route(
+     state: &ActorKnownPlanningContext,
+     request: &LocalPlanRequest,
+     target: &PlaceId,
+ ) -> Result<LocalPlan, LocalPlanFailure> {
+-    if state.current_place_id() == target {
++    if state.current_place_id() != /* ~ changed by cargo-mutants ~ */ target {
+         return Ok(LocalPlan {
+             proposals: Vec::new(),
+             trace: trace(
+                 state,
+                 request,
+                 vec!["already_at_target".to_string()],
+                 Vec::new(),
+                 Vec::new(),

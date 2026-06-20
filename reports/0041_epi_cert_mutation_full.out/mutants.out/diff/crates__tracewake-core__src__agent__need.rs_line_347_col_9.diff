@@ -1,0 +1,35 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace <impl fmt::Display for NeedParseError>::fmt -> fmt::Result with Ok(Default::default())
+@@ -339,31 +339,17 @@
+     InvalidThresholdCrossing,
+     InvalidValue,
+     InvalidCause,
+     InvalidId(crate::ids::IdError),
+ }
+ 
+ impl fmt::Display for NeedParseError {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        match self {
+-            NeedParseError::InvalidUtf8 => write!(f, "canonical need bytes must be UTF-8"),
+-            NeedParseError::InvalidShape => write!(f, "invalid canonical need shape"),
+-            NeedParseError::InvalidNeedKind => write!(f, "invalid need kind"),
+-            NeedParseError::InvalidNeedBand => write!(f, "invalid need band"),
+-            NeedParseError::InvalidThresholdDirection => {
+-                write!(f, "invalid need threshold direction")
+-            }
+-            NeedParseError::InvalidThresholdCrossing => {
+-                write!(f, "invalid need threshold crossing")
+-            }
+-            NeedParseError::InvalidValue => write!(f, "invalid need value"),
+-            NeedParseError::InvalidCause => write!(f, "invalid need change cause"),
+-            NeedParseError::InvalidId(err) => write!(f, "invalid need cause ID: {err}"),
+-        }
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl std::error::Error for NeedParseError {}
+ 
+ fn clamp_need_value(value: i32) -> u16 {
+     value.clamp(i32::from(NEED_MIN), i32::from(NEED_MAX)) as u16
+ }

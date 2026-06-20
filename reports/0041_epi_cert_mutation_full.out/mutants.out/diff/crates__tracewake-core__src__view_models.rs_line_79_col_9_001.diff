@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/view_models.rs
++++ replace WhyNotFailureKind::stable_id -> &'static str with "xyzzy"
+@@ -71,24 +71,17 @@
+     Access,
+     ReservationOrBodyConstraint,
+     AuthoredContentInvalidity,
+     UnsupportedAction,
+ }
+ 
+ impl WhyNotFailureKind {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            Self::ActorKnownUncertainty => "actor_known_uncertainty",
+-            Self::GroundTruthValidationFailure => "ground_truth_validation_failure",
+-            Self::Access => "access",
+-            Self::ReservationOrBodyConstraint => "reservation_or_body_constraint",
+-            Self::AuthoredContentInvalidity => "authored_content_invalidity",
+-            Self::UnsupportedAction => "unsupported_action",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ impl From<&ValidationReport> for WhyNotView {
+     fn from(report: &ValidationReport) -> Self {
+         Self {
+             failure_kind: classify_why_not(report),
+             actor_known_summary: report.actor_visible_summary.clone(),

@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace ObservationRecordedPayload::new_v1 -> Self with Default::default()
+@@ -601,20 +601,17 @@
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct ObservationRecordedPayload {
+     pub schema_version: SchemaVersion,
+     pub observation: Observation,
+ }
+ 
+ impl ObservationRecordedPayload {
+     pub fn new_v1(observation: Observation) -> Self {
+-        Self {
+-            schema_version: SchemaVersion::new(EVENT_SCHEMA_V1).unwrap(),
+-            observation,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub struct BeliefUpdatedPayload {
+     pub schema_version: SchemaVersion,
+     pub belief: Belief,
+ }

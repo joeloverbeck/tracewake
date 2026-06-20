@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/log.rs
++++ replace != with == in EventLog::append_deserialized
+@@ -42,17 +42,17 @@
+         event: EventEnvelope,
+     ) -> Result<EventEnvelope, EventLogError> {
+         if !event.has_supported_schema_version() {
+             return Err(EventLogError::UnsupportedSchemaVersion(
+                 event.event_schema_version.as_str().to_string(),
+             ));
+         }
+         let expected_global_order = self.events.len() as u64;
+-        if event.global_order != expected_global_order {
++        if event.global_order == /* ~ changed by cargo-mutants ~ */ expected_global_order {
+             return Err(EventLogError::GlobalOrderMismatch {
+                 expected: expected_global_order,
+                 actual: event.global_order,
+             });
+         }
+         let expected_stream_position = self
+             .events
+             .iter()

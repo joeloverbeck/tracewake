@@ -1,0 +1,30 @@
+--- crates/tracewake-tui/src/render.rs
++++ replace render_rejection -> String with "xyzzy".into()
+@@ -268,26 +268,17 @@
+             lines.push(format!("- {lead}"));
+         }
+     }
+ 
+     lines.join("\n")
+ }
+ 
+ pub fn render_rejection(report: &ValidationReport) -> String {
+-    format!(
+-        "Why-not: {} ({})",
+-        report.actor_visible_summary,
+-        report
+-            .reason_codes
+-            .iter()
+-            .map(|reason| reason.stable_id())
+-            .collect::<Vec<_>>()
+-            .join(",")
+-    )
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use tracewake_core::actions::report::ReasonCode;
+     use tracewake_core::epistemics::KnowledgeContext;
+     use tracewake_core::ids::{

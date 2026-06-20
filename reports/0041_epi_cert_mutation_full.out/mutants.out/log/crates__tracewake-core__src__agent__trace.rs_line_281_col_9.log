@@ -1,0 +1,85 @@
+
+*** crates/tracewake-core/src/agent/trace.rs:281:9: replace DecisionTraceRecord::from_trace -> Self with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/agent/trace.rs
++++ replace DecisionTraceRecord::from_trace -> Self with Default::default()
+@@ -273,34 +273,17 @@
+     pub actor_known_context_hash: Option<HolderKnownContextHash>,
+     pub actor_known_inputs: Vec<String>,
+     pub hidden_truth_audit_result: HiddenTruthAudit,
+     pub typed_diagnostic: TypedDiagnosticFields,
+ }
+ 
+ impl DecisionTraceRecord {
+     pub fn from_trace(trace: &DecisionTrace) -> Self {
+-        let actor_known_inputs = trace.beliefs_perceptions_known_places_used.clone();
+-        let actor_known_context_hash =
+-            compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
+-        Self {
+-            trace_id: trace.trace_id.clone(),
+-            actor_id: trace.actor_id.clone(),
+-            window_start_tick: trace.window_start_tick,
+-            window_end_tick: trace.window_end_tick,
+-            outcome: trace.outcome,
+-            candidate_goal_count: trace.candidate_goals_considered.len(),
+-            actor_known_context_hash: Some(actor_known_context_hash),
+-            actor_known_inputs,
+-            hidden_truth_audit_result: trace.hidden_truth_audit_result.clone(),
+-            typed_diagnostic: TypedDiagnosticFields::from_decision_outcome(
+-                trace.outcome,
+-                !trace.hidden_truth_audit_result.actor_known_only,
+-            ),
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn serialize_canonical(&self) -> String {
+         format!(
+             "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+             self.trace_id.serialize_canonical(),
+             self.actor_id.serialize_canonical(),
+             self.window_start_tick.value(),
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): couldn't read metadata for file `target/debug/deps/libtracewake_core-95b4b25dfac705df.rlib`
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `DecisionTraceRecord: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/trace.rs:281:9
+    |
+281 |         Default::default() /* ~ changed by cargo-mutants ~ */
+    |         ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `DecisionTraceRecord`
+   --> crates/tracewake-core/src/agent/trace.rs:266:1
+    |
+266 | pub struct DecisionTraceRecord {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `trace::DecisionTraceRecord: Default` is not satisfied
+   --> crates/tracewake-core/src/agent/trace.rs:281:9
+    |
+281 |         Default::default() /* ~ changed by cargo-mutants ~ */
+    |         ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `trace::DecisionTraceRecord`
+   --> crates/tracewake-core/src/agent/trace.rs:266:1
+    |
+266 | pub struct DecisionTraceRecord {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)

@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace + with * in validate_raw_lines
+@@ -206,17 +206,17 @@
+                 "non_utf8",
+                 "fixture source must be UTF-8",
+             ));
+             return errors;
+         }
+     };
+ 
+     for (index, line) in text.lines().enumerate() {
+-        let line_no = index + 1;
++        let line_no = index * /* ~ changed by cargo-mutants ~ */ 1;
+         let tag = line.split('|').next().unwrap_or_default();
+         if is_forbidden_key(tag) {
+             let phase = if is_player_key(tag) {
+                 ValidationPhase::NoPlayer
+             } else {
+                 ValidationPhase::NoScript
+             };
+             errors.push(ContentValidationError::new(

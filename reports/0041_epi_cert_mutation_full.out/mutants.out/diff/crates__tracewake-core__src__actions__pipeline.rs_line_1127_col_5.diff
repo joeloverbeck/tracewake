@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace rejection_event_id -> EventId with Default::default()
+@@ -1119,17 +1119,17 @@
+     event
+ }
+ 
+ fn report_id(proposal: &Proposal) -> ValidationReportId {
+     ValidationReportId::new(format!("report.{}", proposal.proposal_id.as_str())).unwrap()
+ }
+ 
+ fn rejection_event_id(proposal: &Proposal) -> EventId {
+-    EventId::new(format!("event.rejection.{}", proposal.proposal_id.as_str())).unwrap()
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn build_absence_detection_events(
+     projection: &EpistemicProjection,
+     state: &PhysicalState,
+     check_event: &EventEnvelope,
+     observation_event: &EventEnvelope,
+     ordering_key: &OrderingKey,

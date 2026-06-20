@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace == with != in Proposition::contradicts_one_way
+@@ -265,17 +265,17 @@
+                 },
+             ) => item_id == missing_item_id && place_id == expected_place_id,
+             (
+                 Proposition::ItemCarriedByActor { item_id, actor_id },
+                 Proposition::ItemMissingFromExpectedLocation {
+                     item_id: missing_item_id,
+                     expected_location: Location::CarriedBy(expected_actor_id),
+                 },
+-            ) => item_id == missing_item_id && actor_id == expected_actor_id,
++            ) => item_id != /* ~ changed by cargo-mutants ~ */ missing_item_id && actor_id == expected_actor_id,
+             _ => false,
+         }
+     }
+ }
+ 
+ impl fmt::Display for Proposition {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         f.write_str(&self.render())

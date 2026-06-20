@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ replace report_id -> ValidationReportId with Default::default()
+@@ -1115,17 +1115,17 @@
+         .collect();
+     event.effects_summary = "rejected before world mutation".to_string();
+ 
+     let _ = context.log.append(event.clone());
+     event
+ }
+ 
+ fn report_id(proposal: &Proposal) -> ValidationReportId {
+-    ValidationReportId::new(format!("report.{}", proposal.proposal_id.as_str())).unwrap()
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn rejection_event_id(proposal: &Proposal) -> EventId {
+     EventId::new(format!("event.rejection.{}", proposal.proposal_id.as_str())).unwrap()
+ }
+ 
+ fn build_absence_detection_events(
+     projection: &EpistemicProjection,

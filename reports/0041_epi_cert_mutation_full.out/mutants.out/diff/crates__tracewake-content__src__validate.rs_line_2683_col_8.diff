@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_determinism
+@@ -2675,17 +2675,17 @@
+             errors.push(ContentValidationError::new(
+                 ValidationPhase::DeterminismHazard,
+                 format!("containers[{index}].contents"),
+                 "non_canonical_ordering",
+                 "container contents must be canonical sorted without duplicates",
+             ));
+         }
+     }
+-    if !fixture
++    if  /* ~ changed by cargo-mutants ~ */fixture
+         .initial_beliefs
+         .windows(2)
+         .all(|window| window[0].belief_id < window[1].belief_id)
+     {
+         errors.push(ContentValidationError::new(
+             ValidationPhase::DeterminismHazard,
+             "initial_beliefs",
+             "non_canonical_ordering",

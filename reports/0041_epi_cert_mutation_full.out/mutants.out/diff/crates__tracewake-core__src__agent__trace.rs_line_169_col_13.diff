@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "access" in BlockerCode::parse
+@@ -161,17 +161,17 @@
+             Self::ProvenanceWitnessMismatch => "provenance_witness_mismatch",
+         }
+     }
+ 
+     pub fn parse(value: &str) -> Result<Self, DiagnosticFieldParseError> {
+         match value {
+             "none" => Ok(Self::None),
+             "physical" => Ok(Self::Physical),
+-            "access" => Ok(Self::Access),
++             /* ~ changed by cargo-mutants ~ */
+             "knowledge" => Ok(Self::Knowledge),
+             "resource" => Ok(Self::Resource),
+             "social_norm_placeholder" => Ok(Self::SocialNormPlaceholder),
+             "scheduling_reservation" => Ok(Self::SchedulingReservation),
+             "unsupported_action" => Ok(Self::UnsupportedAction),
+             "planner_budget_exhausted" => Ok(Self::PlannerBudgetExhausted),
+             "fixture_authoring_error" => Ok(Self::FixtureAuthoringError),
+             "no_applicable_candidate" => Ok(Self::NoApplicableCandidate),

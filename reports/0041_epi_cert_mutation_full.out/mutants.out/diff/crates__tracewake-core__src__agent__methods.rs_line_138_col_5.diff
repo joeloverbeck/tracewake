@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/agent/methods.rs
++++ replace all_steps_are_proposals -> bool with true
+@@ -130,21 +130,17 @@
+         GoalKind::ReturnHome => RoutineFamily::ReturnHome,
+         GoalKind::LeaveUnsafePlace => RoutineFamily::LeaveUnsafePlace,
+         GoalKind::ContinueCurrentIntention => RoutineFamily::ContinueCurrentIntention,
+         GoalKind::IdleWithReason => RoutineFamily::Wait,
+     }
+ }
+ 
+ pub fn all_steps_are_proposals(template: &RoutineTemplate) -> bool {
+-    template.steps.iter().all(|step| match step.proposed() {
+-        RoutineStepProposal::Action(action_id) => !action_id.as_str().is_empty(),
+-        RoutineStepProposal::Wait(reason) => !reason.is_empty(),
+-        RoutineStepProposal::Diagnostic(diagnostic) => !diagnostic.stable_id().is_empty(),
+-    })
++    true /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn step(kind: &str, action_id: &str) -> RoutineStep {
+     let action_id = SemanticActionId::new(action_id).unwrap();
+     match kind {
+         "move_toward_place" => RoutineStep::MoveTowardPlace { action_id },
+         "check_known_container" => RoutineStep::CheckKnownContainer { action_id },
+         "consume_accessible_food" => RoutineStep::ConsumeAccessibleFood { action_id },

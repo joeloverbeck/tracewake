@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace == with != in parse_privacy_scope
+@@ -705,17 +705,17 @@
+     match scope {
+         PrivacyScope::ActorPrivate(actor_id) => format!("actor:{}", actor_id.as_str()),
+         PrivacyScope::PublicPlaceholder => "public".to_string(),
+         PrivacyScope::InstitutionPlaceholder(value) => format!("institution:{}", encode(value)),
+     }
+ }
+ 
+ fn parse_privacy_scope(value: &str) -> Result<PrivacyScope, SerializationError> {
+-    if value == "public" {
++    if value != /* ~ changed by cargo-mutants ~ */ "public" {
+         return Ok(PrivacyScope::PublicPlaceholder);
+     }
+     let (kind, id) = value
+         .split_once(':')
+         .ok_or_else(|| SerializationError::BadLine(value.to_string()))?;
+     match kind {
+         "actor" => Ok(PrivacyScope::ActorPrivate(ActorId::new(id)?)),
+         "institution" => Ok(PrivacyScope::InstitutionPlaceholder(decode(id)?)),

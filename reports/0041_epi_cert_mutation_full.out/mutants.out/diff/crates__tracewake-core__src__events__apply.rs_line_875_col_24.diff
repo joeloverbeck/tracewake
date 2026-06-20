@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ delete ! in parse_observation_ids
+@@ -867,17 +867,17 @@
+         }
+     }
+     Ok(belief)
+ }
+ 
+ fn parse_observation_ids(value: &str) -> Result<Vec<ObservationId>, EpistemicApplyError> {
+     value
+         .split(',')
+-        .filter(|part| !part.is_empty())
++        .filter(|part|  /* ~ changed by cargo-mutants ~ */part.is_empty())
+         .map(|part| {
+             ObservationId::new(part).map_err(|_| EpistemicApplyError::BadPayload {
+                 key: "observation_ids",
+                 value: part.to_string(),
+             })
+         })
+         .collect()
+ }

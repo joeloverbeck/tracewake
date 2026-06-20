@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_locations
+@@ -897,17 +897,17 @@
+         .items
+         .iter()
+         .map(|item| (item.item_id.clone(), item.location.clone()))
+         .collect::<BTreeMap<_, _>>();
+     let mut listed_contents = BTreeSet::new();
+     for (container_index, container) in fixture.containers.iter().enumerate() {
+         let mut local_contents = BTreeSet::new();
+         for item_id in &container.contents {
+-            if !local_contents.insert(item_id.clone()) {
++            if  /* ~ changed by cargo-mutants ~ */local_contents.insert(item_id.clone()) {
+                 errors.push(ContentValidationError::new(
+                     ValidationPhase::DeterminismHazard,
+                     format!("containers[{container_index}].contents"),
+                     "duplicate_contents",
+                     format!("container contents duplicate item {}", item_id.as_str()),
+                 ));
+             }
+             if !listed_contents.insert(item_id.clone()) {

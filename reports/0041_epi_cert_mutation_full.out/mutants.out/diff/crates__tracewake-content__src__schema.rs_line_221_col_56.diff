@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace == with != in content_field_by_schema_field
+@@ -213,17 +213,17 @@
+     CONTENT_FIELD_REGISTRY
+ }
+ 
+ pub fn content_field_by_schema_field(
+     schema_field: &str,
+ ) -> Option<&'static ContentFieldRegistration> {
+     CONTENT_FIELD_REGISTRY
+         .iter()
+-        .find(|registration| registration.schema_field == schema_field)
++        .find(|registration| registration.schema_field != /* ~ changed by cargo-mutants ~ */ schema_field)
+ }
+ 
+ pub fn content_field_by_canonical_key(
+     canonical_key: &str,
+ ) -> Option<&'static ContentFieldRegistration> {
+     CONTENT_FIELD_REGISTRY
+         .iter()
+         .find(|registration| registration.canonical_serialization_key == canonical_key)

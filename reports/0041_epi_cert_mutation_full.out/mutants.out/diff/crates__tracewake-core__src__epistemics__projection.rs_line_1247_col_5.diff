@@ -1,0 +1,222 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace actor_known_records_from_observation -> Vec<ActorKnownProjectionRecord> with vec![]
+@@ -1239,218 +1239,17 @@
+ ) -> bool {
+     record.relevant_place_id() == current_place_id
+         && Some(record.source_tick()) == latest_current_place_tick
+ }
+ 
+ fn actor_known_records_from_observation(
+     observation: &Observation,
+ ) -> Vec<ActorKnownProjectionRecord> {
+-    let Some(source_event_id) = source_event_id(observation.source()) else {
+-        return Vec::new();
+-    };
+-    let actor_id = observation.observer_actor_id().clone();
+-    match observation_payload_value(observation, "perceived_kind") {
+-        Some("current_place") => {
+-            let Some(place_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(display_label) = observation_payload_value(observation, "display_label")
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::CurrentPlace {
+-                actor_id,
+-                place_id,
+-                display_label: display_label.to_string(),
+-                source: ActorKnownProjectionSource::CurrentPlace,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("carried_item") => {
+-            let Some(item_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| ItemId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(source_location) = observation_item_location(observation) else {
+-                return Vec::new();
+-            };
+-            let Some(portable) = observation_payload_bool(observation, "portable") else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::CarriedItem {
+-                actor_id,
+-                item_id,
+-                place_id: observation.observer_place_id().clone(),
+-                source_location,
+-                portable,
+-                source: ActorKnownProjectionSource::CarriedItem,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_exit") => {
+-            let Some(from_place_id) = observation_payload_value(observation, "subject_id")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(to_place_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::Route {
+-                actor_id,
+-                from_place_id,
+-                to_place_id,
+-                source: ActorKnownProjectionSource::VisibleExit,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_food_supply") => {
+-            let Some(food_source_id) = observation_payload_value(observation, "target_id") else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::FoodSource {
+-                actor_id,
+-                food_source_id: food_source_id.to_string(),
+-                place_id: Some(observation.observer_place_id().clone()),
+-                believed_servings: observation_payload_value(observation, "servings")
+-                    .and_then(|value| value.parse::<u32>().ok()),
+-                source: ActorKnownProjectionSource::VisibleFoodSupply,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_door") => {
+-            let Some(door_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| DoorId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(endpoint_a) = observation_payload_value(observation, "endpoint_a")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(endpoint_b) = observation_payload_value(observation, "endpoint_b")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(is_open) = observation_payload_bool(observation, "is_open") else {
+-                return Vec::new();
+-            };
+-            let Some(is_locked) = observation_payload_bool(observation, "is_locked") else {
+-                return Vec::new();
+-            };
+-            let Some(blocks_movement_when_closed) =
+-                observation_payload_bool(observation, "blocks_movement_when_closed")
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::LocalDoor {
+-                actor_id,
+-                door_id,
+-                place_id: observation.observer_place_id().clone(),
+-                endpoint_a,
+-                endpoint_b,
+-                is_open,
+-                is_locked,
+-                blocks_movement_when_closed,
+-                source: ActorKnownProjectionSource::VisibleDoor,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_container") => {
+-            let Some(container_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| ContainerId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(is_open) = observation_payload_bool(observation, "is_open") else {
+-                return Vec::new();
+-            };
+-            let Some(is_locked) = observation_payload_bool(observation, "is_locked") else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::LocalContainer {
+-                actor_id,
+-                container_id,
+-                place_id: observation.observer_place_id().clone(),
+-                is_open,
+-                is_locked,
+-                source: ActorKnownProjectionSource::VisibleContainer,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_item") => {
+-            let Some(item_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| ItemId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            let Some(source_location) = observation_item_location(observation) else {
+-                return Vec::new();
+-            };
+-            let Some(portable) = observation_payload_bool(observation, "portable") else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::LocalItem {
+-                actor_id,
+-                item_id,
+-                place_id: observation.observer_place_id().clone(),
+-                source_location,
+-                portable,
+-                source: ActorKnownProjectionSource::VisibleItem,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_actor") => {
+-            let Some(observed_actor_id) = observation_payload_value(observation, "target_id")
+-                .and_then(|value| ActorId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::LocalActor {
+-                actor_id,
+-                observed_actor_id,
+-                place_id: observation.observer_place_id().clone(),
+-                source: ActorKnownProjectionSource::VisibleActor,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        Some("visible_sleep_affordance") => {
+-            let Some(place_id) = observation_payload_value(observation, "place_id")
+-                .and_then(|value| PlaceId::new(value).ok())
+-            else {
+-                return Vec::new();
+-            };
+-            vec![ActorKnownProjectionRecord::SleepPlace {
+-                actor_id,
+-                place_id,
+-                sleep_affordance_id: observation_payload_value(observation, "target_id")
+-                    .map(ToString::to_string),
+-                source: ActorKnownProjectionSource::VisibleSleepAffordance,
+-                source_event_id,
+-                source_tick: observation.observed_tick(),
+-            }]
+-        }
+-        _ => Vec::new(),
+-    }
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn actor_known_record_from_starting_belief(
+     actor_id: ActorId,
+     belief_kind: &str,
+     subject_id: &str,
+     value: &str,
+     source_event_id: EventId,

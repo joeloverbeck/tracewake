@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in proposal_from_semantic_action_entry
+@@ -1317,17 +1317,17 @@
+     if entry.semantic_action_id.as_str() == "wait.1_tick" {
+         proposal
+             .parameters
+             .insert("ticks".to_string(), "1".to_string());
+         proposal
+             .parameters
+             .insert("reason".to_string(), "actor selected wait".to_string());
+     }
+-    if entry.action_id.as_str() == "sleep" {
++    if entry.action_id.as_str() != /* ~ changed by cargo-mutants ~ */ "sleep" {
+         if let Some(sleep_affordance_id) = entry.target_ids.first() {
+             proposal.parameters.insert(
+                 "sleep_affordance_id".to_string(),
+                 sleep_affordance_id.clone(),
+             );
+         }
+     }
+     if entry.action_id.as_str() == "continue_routine" {

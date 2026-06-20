@@ -1,0 +1,67 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace validate_topology with ()
+@@ -959,63 +959,17 @@
+                     ),
+                 ));
+             }
+         }
+     }
+ }
+ 
+ fn validate_topology(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+-    let places = fixture
+-        .places
+-        .iter()
+-        .map(|place| place.place_id.clone())
+-        .collect::<BTreeSet<_>>();
+-    let adjacency = fixture
+-        .places
+-        .iter()
+-        .map(|place| (place.place_id.clone(), place.adjacent_place_ids.clone()))
+-        .collect::<BTreeMap<_, _>>();
+-    for (index, door) in fixture.doors.iter().enumerate() {
+-        if !places.contains(&door.endpoint_a) {
+-            missing(
+-                errors,
+-                ValidationPhase::PhysicalTopology,
+-                format!("doors[{index}].endpoint_a"),
+-                door.endpoint_a.as_str(),
+-                "place",
+-            );
+-        }
+-        if !places.contains(&door.endpoint_b) {
+-            missing(
+-                errors,
+-                ValidationPhase::PhysicalTopology,
+-                format!("doors[{index}].endpoint_b"),
+-                door.endpoint_b.as_str(),
+-                "place",
+-            );
+-        }
+-        let a_to_b = adjacency
+-            .get(&door.endpoint_a)
+-            .is_some_and(|ids| ids.contains(&door.endpoint_b));
+-        let b_to_a = adjacency
+-            .get(&door.endpoint_b)
+-            .is_some_and(|ids| ids.contains(&door.endpoint_a));
+-        if a_to_b != b_to_a {
+-            errors.push(ContentValidationError::new(
+-                ValidationPhase::PhysicalTopology,
+-                format!("doors[{index}]"),
+-                "door_adjacency_inconsistency",
+-                format!(
+-                    "door {} endpoints must have symmetric adjacency",
+-                    door.door_id.as_str()
+-                ),
+-            ));
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn validate_state(fixture: &FixtureSchema, errors: &mut Vec<ContentValidationError>) {
+     validate_numeric_i32(
+         fixture.need_model.awake_hunger_delta_per_tick,
+         "need_model.awake_hunger_delta_per_tick",
+         NumericFieldPolicy::PressureNonnegative,
+         errors,

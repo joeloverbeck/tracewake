@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace BeliefDraft::with_acquired_tick -> Self with Default::default()
+@@ -214,18 +214,17 @@
+     }
+ 
+     pub fn with_source(mut self, source: SourceRef) -> Self {
+         self.source = Some(source);
+         self
+     }
+ 
+     pub fn with_acquired_tick(mut self, acquired_tick: SimTick) -> Self {
+-        self.acquired_tick = Some(acquired_tick);
+-        self
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn build(self) -> Result<Belief, BeliefBuildError> {
+         Ok(Belief::new(
+             self.belief_id.ok_or(BeliefBuildError::MissingBeliefId)?,
+             self.holder.ok_or(BeliefBuildError::MissingHolder)?,
+             self.proposition
+                 .ok_or(BeliefBuildError::MissingProposition)?,

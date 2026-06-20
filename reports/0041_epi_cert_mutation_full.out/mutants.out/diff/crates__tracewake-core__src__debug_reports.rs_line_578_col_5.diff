@@ -1,0 +1,59 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace stuck_view -> Phase3AStuckDiagnosticView with Default::default()
+@@ -570,55 +570,17 @@
+         .stuck_diagnostics
+         .values()
+         .filter(|diagnostic| &diagnostic.actor_id == actor_id)
+         .map(stuck_view)
+         .collect()
+ }
+ 
+ fn stuck_view(diagnostic: &crate::agent::StuckDiagnosticRecord) -> Phase3AStuckDiagnosticView {
+-    Phase3AStuckDiagnosticView {
+-        diagnostic_id: diagnostic.diagnostic_id.as_str().to_string(),
+-        actor_id: diagnostic.actor_id.clone(),
+-        window_start_tick: diagnostic.window_start_tick,
+-        window_end_tick: diagnostic.window_end_tick,
+-        active_need: diagnostic
+-            .active_need
+-            .map(|need| need.stable_id().to_string()),
+-        active_goal_id: diagnostic
+-            .active_goal_id
+-            .as_ref()
+-            .map(|id| id.as_str().to_string()),
+-        active_intention_id: diagnostic
+-            .active_intention_id
+-            .as_ref()
+-            .map(|id| id.as_str().to_string()),
+-        routine_template_id: diagnostic
+-            .routine_template_id
+-            .as_ref()
+-            .map(|id| id.as_str().to_string()),
+-        routine_execution_id: diagnostic
+-            .routine_execution_id
+-            .as_ref()
+-            .map(|id| id.as_str().to_string()),
+-        routine_step: diagnostic
+-            .routine_step
+-            .as_ref()
+-            .map(crate::agent::RoutineStep::serialize_canonical),
+-        attempted_action: diagnostic
+-            .attempted_action
+-            .as_ref()
+-            .map(|id| id.as_str().to_string()),
+-        blocker_category: diagnostic.blocker_category.stable_id().to_string(),
+-        concrete_blocker: diagnostic.concrete_blocker.clone(),
+-        actor_known_explanation: diagnostic.actor_known_explanation.clone(),
+-        debug_only_details: diagnostic.debug_only_details.clone(),
+-        retry_abandon_fallback_outcome: diagnostic.retry_abandon_fallback_outcome.clone(),
+-        resulting_status: diagnostic.resulting_status.stable_id().to_string(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn render_decision_trace_row(trace: &Phase3ADecisionTraceView) -> String {
+     format!(
+         "trace={} actor={} outcome={} candidates={} actor_known_only={} hidden_truth_notes={}",
+         trace.trace_id,
+         trace.actor_id.as_str(),
+         trace.outcome,

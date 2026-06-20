@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in staleness_label
+@@ -801,17 +801,17 @@
+     }
+ }
+ 
+ fn staleness_label(context: &KnowledgeContext, detected_tick: SimTick) -> String {
+     let elapsed = context
+         .current_tick()
+         .value()
+         .saturating_sub(detected_tick.value());
+-    if elapsed == 0 {
++    if elapsed != /* ~ changed by cargo-mutants ~ */ 0 {
+         "current_tick".to_string()
+     } else {
+         format!("{} ticks old", elapsed)
+     }
+ }
+ 
+ fn phase3a_salient_interruption(
+     agent_state: &AgentState,

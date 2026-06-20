@@ -1,0 +1,22 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Belief::with_channel -> Self with Default::default()
+@@ -86,18 +86,17 @@
+             observation_ids: BTreeSet::new(),
+             contradiction_ids: BTreeSet::new(),
+             schema_version: SchemaVersion::new(EPISTEMIC_RECORD_SCHEMA_V1).unwrap(),
+             privacy_scope,
+         }
+     }
+ 
+     pub fn with_channel(mut self, channel: Channel) -> Self {
+-        self.channel = Some(channel);
+-        self
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn with_last_verified_tick(mut self, last_verified_tick: Option<SimTick>) -> Self {
+         self.last_verified_tick = last_verified_tick;
+         self
+     }
+ 
+     pub fn with_stale_after_tick(mut self, stale_after_tick: Option<SimTick>) -> Self {

@@ -1,0 +1,21 @@
+--- crates/tracewake-tui/src/render.rs
++++ replace && with || in render_notebook
+@@ -238,17 +238,17 @@
+     for contradiction in &view.known_contradictions {
+         lines.push(format!(
+             "- {} :: {}",
+             contradiction.contradiction_id, contradiction.summary
+         ));
+     }
+ 
+     lines.push("Leads:".to_string());
+-    if view.typed_leads.is_empty() && view.possible_leads.is_empty() {
++    if view.typed_leads.is_empty() || /* ~ changed by cargo-mutants ~ */ view.possible_leads.is_empty() {
+         lines.push("- none".to_string());
+     }
+     for lead in &view.typed_leads {
+         lines.push(format!(
+             "- {} contradiction={} belief={} observation={} source_kind={} source={} confidence={} detected_tick={} staleness={} wrong_if={} next_actions={} :: {}",
+             lead.lead_id,
+             lead.contradiction_id,
+             lead.belief_id,

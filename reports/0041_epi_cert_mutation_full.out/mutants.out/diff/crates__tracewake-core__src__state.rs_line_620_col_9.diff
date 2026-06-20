@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/state.rs
++++ replace ControllerBinding::detached -> Self with Default::default()
+@@ -612,22 +612,17 @@
+     pub controller_id: ControllerId,
+     pub bound_actor_id: Option<ActorId>,
+     pub mode: ControllerMode,
+     pub binding_sequence: u64,
+ }
+ 
+ impl ControllerBinding {
+     pub fn detached(controller_id: ControllerId, binding_sequence: u64) -> Self {
+-        Self {
+-            controller_id,
+-            bound_actor_id: None,
+-            mode: ControllerMode::Detached,
+-            binding_sequence,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum ControllerMode {
+     Embodied,
+     Debug,
+     Detached,

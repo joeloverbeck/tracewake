@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/report.rs
++++ delete match arm "action_id" in CheckedFactKey::from_stable_key
+@@ -113,17 +113,17 @@
+     ToPlaceId,
+     Unsupported(String),
+ }
+ 
+ impl CheckedFactKey {
+     pub fn from_stable_key(key: impl Into<String>) -> Self {
+         let key = key.into();
+         match key.as_str() {
+-            "action_id" => Self::ActionId,
++             /* ~ changed by cargo-mutants ~ */
+             "actor_id" => Self::ActorId,
+             "body_exclusive" => Self::BodyExclusive,
+             "container_id" => Self::ContainerId,
+             "door_id" => Self::DoorId,
+             "duration_ticks" => Self::DurationTicks,
+             "from_place_id" => Self::FromPlaceId,
+             "item_id" => Self::ItemId,
+             "need_kind" => Self::NeedKind,

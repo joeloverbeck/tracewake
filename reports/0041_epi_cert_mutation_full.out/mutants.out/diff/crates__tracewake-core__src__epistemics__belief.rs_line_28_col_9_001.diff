@@ -1,0 +1,28 @@
+--- crates/tracewake-core/src/epistemics/belief.rs
++++ replace Stance::stable_id -> &'static str with "xyzzy"
+@@ -20,24 +20,17 @@
+     ExpectsTrue,
+     Plausible,
+     Doubts,
+     UnknownOrUnresolved,
+ }
+ 
+ impl Stance {
+     pub const fn stable_id(self) -> &'static str {
+-        match self {
+-            Stance::BelievesTrue => "believes_true",
+-            Stance::BelievesFalse => "believes_false",
+-            Stance::ExpectsTrue => "expects_true",
+-            Stance::Plausible => "plausible",
+-            Stance::Doubts => "doubts",
+-            Stance::UnknownOrUnresolved => "unknown_or_unresolved",
+-        }
++        "xyzzy" /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct Belief {
+     belief_id: BeliefId,
+     holder: HolderKind,
+     proposition: Proposition,

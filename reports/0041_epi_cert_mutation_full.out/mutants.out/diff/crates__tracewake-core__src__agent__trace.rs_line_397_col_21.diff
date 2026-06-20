@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete ! in DecisionTraceRecord::deserialize_canonical
+@@ -389,17 +389,17 @@
+                     hidden_truth_referenced: decode_bool(fields[typed_index + 4])
+                         .ok_or(DecisionTraceRecordParseError::InvalidBool)?,
+                     remediation_hint: decode_text_payload(fields[typed_index + 5])?,
+                 }
+             } else {
+                 TypedDiagnosticFields::from_decision_outcome(
+                     DecisionOutcome::parse(fields[5])
+                         .ok_or(DecisionTraceRecordParseError::InvalidOutcome)?,
+-                    !actor_known_only,
++                     /* ~ changed by cargo-mutants ~ */actor_known_only,
+                 )
+             },
+         })
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum DecisionTraceRecordParseError {

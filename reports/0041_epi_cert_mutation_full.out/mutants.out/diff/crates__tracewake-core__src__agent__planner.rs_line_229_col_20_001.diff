@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/planner.rs
++++ replace += with *= in plan_route
+@@ -221,17 +221,17 @@
+             return Err(failure(
+                 state,
+                 request,
+                 BlockerCategory::PlannerBudgetExhausted,
+                 "planner budget exhausted",
+                 candidates,
+             ));
+         }
+-        expansions += 1;
++        expansions *= /* ~ changed by cargo-mutants ~ */ 1;
+         let neighbors = state
+             .known_edges()
+             .get(&place_id)
+             .cloned()
+             .unwrap_or_default();
+         for neighbor in neighbors {
+             candidates.push(format!("edge:{}->{}", place_id.as_str(), neighbor.as_str()));
+             if !visited.insert(neighbor.clone()) {

@@ -1,0 +1,25 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace decode_opt -> Result<Option<String>, EventEnvelopeParseError> with Ok(Some(String::new()))
+@@ -1151,21 +1151,17 @@
+     Ok(PayloadField::new(decode(key)?, decode(value)?))
+ }
+ 
+ fn encode_opt(value: Option<&str>) -> String {
+     value.map(encode).unwrap_or_default()
+ }
+ 
+ fn decode_opt(value: &str) -> Result<Option<String>, EventEnvelopeParseError> {
+-    if value.is_empty() {
+-        Ok(None)
+-    } else {
+-        Ok(Some(decode(value)?))
+-    }
++    Ok(Some(String::new())) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn encode_vec(values: &[String]) -> String {
+     values
+         .iter()
+         .map(|value| encode(value))
+         .collect::<Vec<_>>()
+         .join(";")

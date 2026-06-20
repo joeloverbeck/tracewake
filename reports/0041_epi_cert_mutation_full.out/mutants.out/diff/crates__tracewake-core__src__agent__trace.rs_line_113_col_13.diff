@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/trace.rs
++++ delete match arm "debug_quarantine" in ResponsibleLayer::parse
+@@ -105,17 +105,17 @@
+             "method_selection" => Ok(Self::MethodSelection),
+             "local_planning" => Ok(Self::LocalPlanning),
+             "proposal_construction" => Ok(Self::ProposalConstruction),
+             "scheduler" => Ok(Self::Scheduler),
+             "action_validation" => Ok(Self::ActionValidation),
+             "projection" => Ok(Self::Projection),
+             "view_model" => Ok(Self::ViewModel),
+             "test_oracle" => Ok(Self::TestOracle),
+-            "debug_quarantine" => Ok(Self::DebugQuarantine),
++             /* ~ changed by cargo-mutants ~ */
+             _ => Err(DiagnosticFieldParseError::InvalidResponsibleLayer),
+         }
+     }
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum BlockerCode {
+     None,

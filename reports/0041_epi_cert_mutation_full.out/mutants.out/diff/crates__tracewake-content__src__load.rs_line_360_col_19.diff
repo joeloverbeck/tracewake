@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/load.rs
++++ replace += with -= in append_role_assignment_notices
+@@ -352,17 +352,17 @@
+         ];
+         event.effects_summary = format!(
+             "authored prehistory recorded workplace assignment {} for {}",
+             workplace.workplace_id.as_str(),
+             actor_id.as_str()
+         );
+         log.append(event)
+             .expect("role assignment seed event is versioned");
+-        *sequence += 1;
++        *sequence -= /* ~ changed by cargo-mutants ~ */ 1;
+     }
+ }
+ 
+ fn seed_event(
+     event_id: EventId,
+     event_type: EventKind,
+     actor_id: ActorId,
+     place_id: Option<PlaceId>,

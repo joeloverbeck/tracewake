@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm "absence_marker" in parse_channel
+@@ -558,17 +558,17 @@
+     }
+ }
+ 
+ fn parse_channel(value: &str) -> Result<Channel, SerializationError> {
+     match value {
+         "direct_sight" => Ok(Channel::DirectSight),
+         "touch_or_search" => Ok(Channel::TouchOrSearch),
+         "simple_sound" => Ok(Channel::SimpleSound),
+-        "absence_marker" => Ok(Channel::AbsenceMarker),
++         /* ~ changed by cargo-mutants ~ */
+         "reading_placeholder_schema_only" => Ok(Channel::ReadingPlaceholderSchemaOnly),
+         _ => Err(SerializationError::BadLine(format!("bad channel {value}"))),
+     }
+ }
+ 
+ fn parse_stance(value: &str) -> Result<Stance, SerializationError> {
+     match value {
+         "believes_true" => Ok(Stance::BelievesTrue),

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/defs/work.rs
++++ delete ! in work_completion_failure
+@@ -229,17 +229,17 @@
+     }
+     let workplace_id = payload_value(work_started_event, "workplace_id")?;
+     let Some(workplace) = WorkplaceId::new(workplace_id)
+         .ok()
+         .and_then(|id| state.workplaces.get(&id))
+     else {
+         return Ok(Some(("continuity", "workplace_missing")));
+     };
+-    if workplace.place_id.as_str() != place_id || !workplace.access_open {
++    if workplace.place_id.as_str() != place_id ||  /* ~ changed by cargo-mutants ~ */workplace.access_open {
+         return Ok(Some(("continuity", "workplace_unusable")));
+     }
+     if has_severe_interrupting_need(agent_state, actor_id) {
+         return Ok(Some(("need", "severe_need_pressure")));
+     }
+     Ok(None)
+ }
+ 

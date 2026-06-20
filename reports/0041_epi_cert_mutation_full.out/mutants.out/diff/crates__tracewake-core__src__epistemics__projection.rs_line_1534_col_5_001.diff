@@ -1,0 +1,24 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace contradiction_id_set_key -> String with "xyzzy".into()
+@@ -1526,20 +1526,17 @@
+ fn observation_id_set_key(ids: &std::collections::BTreeSet<ObservationId>) -> String {
+     ids.iter()
+         .map(|id| id.as_str())
+         .collect::<Vec<_>>()
+         .join(",")
+ }
+ 
+ fn contradiction_id_set_key(ids: &std::collections::BTreeSet<ContradictionId>) -> String {
+-    ids.iter()
+-        .map(|id| id.as_str())
+-        .collect::<Vec<_>>()
+-        .join(",")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn debug_belief_entry(belief: &Belief) -> DebugBeliefEntry {
+     DebugBeliefEntry {
+         belief_id: belief.belief_id().as_str().to_string(),
+         proposition: belief.proposition().render(),
+         stance: belief.stance().stable_id().to_string(),
+         confidence: belief.confidence().serialize_canonical(),

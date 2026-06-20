@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace deserialize_source_id -> Result<SchedulerSourceId, EventEnvelopeParseError> with Ok(Default::default())
+@@ -1081,25 +1081,17 @@
+     match source_id {
+         SchedulerSourceId::Actor(id) => format!("actor:{}", id.as_str()),
+         SchedulerSourceId::Controller(id) => format!("controller:{}", id.as_str()),
+         SchedulerSourceId::Process(id) => format!("process:{}", id.as_str()),
+     }
+ }
+ 
+ fn deserialize_source_id(value: &str) -> Result<SchedulerSourceId, EventEnvelopeParseError> {
+-    let (kind, value) = value
+-        .split_once(':')
+-        .ok_or(EventEnvelopeParseError::UnknownSchedulerSource)?;
+-    match kind {
+-        "actor" => Ok(SchedulerSourceId::Actor(ActorId::new(value)?)),
+-        "controller" => Ok(SchedulerSourceId::Controller(ControllerId::new(value)?)),
+-        "process" => Ok(SchedulerSourceId::Process(ProcessId::new(value)?)),
+-        _ => Err(EventEnvelopeParseError::UnknownSchedulerSource),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn serialize_cause(cause: &EventCause) -> String {
+     match cause {
+         EventCause::Event(id) => format!("event:{}", id.as_str()),
+         EventCause::Proposal(id) => format!("proposal:{}", id.as_str()),
+         EventCause::ValidationReport(id) => format!("validation_report:{}", id.as_str()),
+         EventCause::Process(id) => format!("process:{}", id.as_str()),

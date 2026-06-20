@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace == with != in count_kind
+@@ -456,17 +456,17 @@
+         player_conditioned_event_count,
+         player_conditioned_event_rate_per_1000,
+     }
+ }
+ 
+ fn count_kind(events: &[EventEnvelope], kind: EventKind) -> usize {
+     events
+         .iter()
+-        .filter(|event| event.event_type == kind)
++        .filter(|event| event.event_type != /* ~ changed by cargo-mutants ~ */ kind)
+         .count()
+ }
+ 
+ fn is_typed_planner_failure_event(event: &EventEnvelope) -> bool {
+     if !matches!(
+         event.event_type,
+         EventKind::DecisionTraceRecorded | EventKind::StuckDiagnosticRecorded
+     ) {

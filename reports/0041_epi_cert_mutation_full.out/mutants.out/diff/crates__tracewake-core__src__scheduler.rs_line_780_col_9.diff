@@ -1,0 +1,27 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::epistemic_projection_from_log -> EpistemicProjection with Default::default()
+@@ -772,23 +772,17 @@
+             ActorDecisionTransactionOutcome::Stuck { .. } => None,
+         }
+     }
+ 
+     fn epistemic_projection_from_log(
+         log: &EventLog,
+         content_manifest_id: &ContentManifestId,
+     ) -> EpistemicProjection {
+-        let mut projection = EpistemicProjection::new(content_manifest_id.clone());
+-        for event in log.events() {
+-            if apply_epistemic_event(&mut projection, event).is_err() {
+-                continue;
+-            }
+-        }
+-        projection
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+         log.events()
+             .iter()
+             .rev()
+             .find(|event| {
+                 matches!(

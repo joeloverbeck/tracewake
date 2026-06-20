@@ -1,0 +1,28 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::current_view_context -> KnowledgeContext with Default::default()
+@@ -201,24 +201,17 @@
+ 
+     pub fn debug_available(&self) -> bool {
+         self.bound_actor_id
+             .as_ref()
+             .is_some_and(|actor_id| self.debug_available_for(actor_id))
+     }
+ 
+     fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
+-        current_place_knowledge_context(
+-            &self.state,
+-            Some(&self.epistemic_projection),
+-            actor_id,
+-            self.scheduler.current_tick,
+-            &self.content_manifest_id,
+-            self.log.events().len() as u64,
+-        )
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn render_current_view(&self) -> Result<String, AppError> {
+         Ok(render_embodied_view(&self.current_view()?))
+     }
+ 
+     pub fn render_debug_embodied_overlay(&self) -> Result<Option<String>, AppError> {
+         let view = self.current_view()?;

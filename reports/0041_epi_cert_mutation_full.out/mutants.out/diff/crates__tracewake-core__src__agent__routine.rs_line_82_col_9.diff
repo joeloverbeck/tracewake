@@ -1,0 +1,59 @@
+--- crates/tracewake-core/src/agent/routine.rs
++++ replace RoutineStep::serialize_canonical -> String with String::new()
+@@ -74,55 +74,17 @@
+             RoutineStep::WaitUntil { reason } => RoutineStepProposal::Wait(reason),
+             RoutineStep::FailWithTypedDiagnostic { diagnostic } => {
+                 RoutineStepProposal::Diagnostic(diagnostic)
+             }
+         }
+     }
+ 
+     pub fn serialize_canonical(&self) -> String {
+-        match self {
+-            RoutineStep::SelectKnownPlace { action_id } => {
+-                encode_action_step("select_known_place", action_id)
+-            }
+-            RoutineStep::MoveTowardPlace { action_id } => {
+-                encode_action_step("move_toward_place", action_id)
+-            }
+-            RoutineStep::OpenKnownContainer { action_id } => {
+-                encode_action_step("open_known_container", action_id)
+-            }
+-            RoutineStep::CheckKnownContainer { action_id } => {
+-                encode_action_step("check_known_container", action_id)
+-            }
+-            RoutineStep::ConsumeAccessibleFood { action_id } => {
+-                encode_action_step("consume_accessible_food", action_id)
+-            }
+-            RoutineStep::StartScheduledSleep { action_id } => {
+-                encode_action_step("start_scheduled_sleep", action_id)
+-            }
+-            RoutineStep::CompleteScheduledSleep { action_id } => {
+-                encode_action_step("complete_scheduled_sleep", action_id)
+-            }
+-            RoutineStep::StartWorkBlock { action_id } => {
+-                encode_action_step("start_work_block", action_id)
+-            }
+-            RoutineStep::CompleteWorkBlock { action_id } => {
+-                encode_action_step("complete_work_block", action_id)
+-            }
+-            RoutineStep::WaitUntil { reason } => encode_text_step("wait_until", reason),
+-            RoutineStep::ContinueCurrentStep { action_id } => {
+-                encode_action_step("continue_current_step", action_id)
+-            }
+-            RoutineStep::FallbackToFindFood { action_id } => {
+-                encode_action_step("fallback_to_find_food", action_id)
+-            }
+-            RoutineStep::FailWithTypedDiagnostic { diagnostic } => {
+-                encode_text_step("fail_with_typed_diagnostic", diagnostic.stable_id())
+-            }
+-        }
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn serialize_canonical_bytes(&self) -> Vec<u8> {
+         self.serialize_canonical().into_bytes()
+     }
+ 
+     pub fn deserialize_canonical(value: &[u8]) -> Result<Self, RoutineStepParseError> {
+         let value = std::str::from_utf8(value).map_err(|_| RoutineStepParseError::InvalidUtf8)?;

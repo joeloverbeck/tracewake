@@ -1,0 +1,44 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace apply_event_stream -> Result<ApplyOutcome, EventApplicationError> with Ok(Default::default())
+@@ -40,40 +40,17 @@
+     Agent(ApplyError),
+     Epistemic(EpistemicApplyError),
+ }
+ 
+ pub fn apply_event_stream(
+     context: &mut EventApplicationContext<'_>,
+     event: &EventEnvelope,
+ ) -> Result<ApplyOutcome, EventApplicationError> {
+-    if event.stream != event.event_type.stream() {
+-        return Err(EventApplicationError::World(
+-            ApplyError::EventKindStreamMismatch,
+-        ));
+-    }
+-
+-    match event.stream {
+-        EventStream::World => {
+-            apply_event(context.physical_state, event).map_err(EventApplicationError::World)
+-        }
+-        EventStream::Agent => {
+-            apply_agent_event(context.agent_state, event).map_err(EventApplicationError::Agent)
+-        }
+-        EventStream::Epistemic => {
+-            if let Some(projection) = context.epistemic_projection.as_deref_mut() {
+-                apply_epistemic_event(projection, event).map_err(EventApplicationError::Epistemic)
+-            } else {
+-                Ok(ApplyOutcome::NonWorldNoOp)
+-            }
+-        }
+-        EventStream::Diagnostic | EventStream::Controller | EventStream::ReplayDebug => {
+-            Ok(ApplyOutcome::NonWorldNoOp)
+-        }
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum ApplyError {
+     UnsupportedSchemaVersion(String),
+     MissingPayload(&'static str),
+     BadPayload {
+         key: &'static str,

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace && with || in EventEnvelope::new_caused_v1
+@@ -779,17 +779,17 @@
+         event_type: EventKind,
+         stream_position: u64,
+         global_order: u64,
+         sim_tick: SimTick,
+         ordering_key: OrderingKey,
+         content_manifest_id: ContentManifestId,
+         causes: Vec<EventCause>,
+     ) -> Result<Self, EventEnvelopeBuildError> {
+-        if event_type.requires_cause() && causes.is_empty() {
++        if event_type.requires_cause() || /* ~ changed by cargo-mutants ~ */ causes.is_empty() {
+             return Err(EventEnvelopeBuildError::MissingRequiredCause);
+         }
+ 
+         let mut envelope = Self::new_v1(
+             event_id,
+             event_type,
+             stream_position,
+             global_order,

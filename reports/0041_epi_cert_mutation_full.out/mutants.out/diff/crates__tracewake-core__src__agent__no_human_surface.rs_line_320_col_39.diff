@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/no_human_surface.rs
++++ replace == with != in NoHumanActorKnownSurfaceBuilder::add_role_assignment_notice
+@@ -312,17 +312,17 @@
+         self.facts.push(ActorKnownFact::routine_assignment(
+             self.actor_id.clone(),
+             "workplace_assignment_active",
+             workplace_id.as_str(),
+             format!("role_assignment_notice:{source}"),
+             Some(policy.source_tick),
+             source_event_ids.clone(),
+         ));
+-        if policy.accessibility_scope == ActorKnownProjectionAccessibilityScope::FromAnyPlace {
++        if policy.accessibility_scope != /* ~ changed by cargo-mutants ~ */ ActorKnownProjectionAccessibilityScope::FromAnyPlace {
+             self.facts.push(ActorKnownFact::routine_assignment(
+                 self.actor_id.clone(),
+                 "workplace_believed_accessible",
+                 format!("{}:{}", workplace_id.as_str(), believed_access_open),
+                 format!("role_assignment_notice:{source}"),
+                 Some(policy.source_tick),
+                 source_event_ids.clone(),
+             ));

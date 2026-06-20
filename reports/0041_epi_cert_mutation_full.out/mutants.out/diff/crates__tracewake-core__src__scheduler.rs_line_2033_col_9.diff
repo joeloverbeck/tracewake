@@ -1,0 +1,40 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::build_routine_step_completed_event -> EventEnvelope with Default::default()
+@@ -2025,36 +2025,17 @@
+         process_id: &ProcessId,
+         execution_id: &RoutineExecutionId,
+         actor_id: &ActorId,
+         window: &DayWindow,
+         proposal: &Proposal,
+         content_manifest_id: &ContentManifestId,
+         ordinary_event: &EventEnvelope,
+     ) -> EventEnvelope {
+-        let mut event = routine_step_event(
+-            EventKind::RoutineStepCompleted,
+-            process_id,
+-            execution_id,
+-            actor_id,
+-            window,
+-            proposal,
+-            content_manifest_id,
+-            ordinary_event,
+-            "routine_step_completed",
+-        );
+-        event.payload = vec![
+-            PayloadField::new("routine_execution_id", execution_id.as_str()),
+-            PayloadField::new("actor_id", actor_id.as_str()),
+-            PayloadField::new("progress_tick", window.start_tick.value().to_string()),
+-            PayloadField::new("ordinary_event_id", ordinary_event.event_id.as_str()),
+-            PayloadField::new("ordinary_action_id", proposal.action_id.as_str()),
+-        ];
+-        event.effects_summary = "routine step completed with ordinary action ancestry".to_string();
+-        event
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[allow(clippy::too_many_arguments)]
+     fn build_routine_step_failed_event(
+         process_id: &ProcessId,
+         execution_id: &RoutineExecutionId,
+         actor_id: &ActorId,
+         window: &DayWindow,

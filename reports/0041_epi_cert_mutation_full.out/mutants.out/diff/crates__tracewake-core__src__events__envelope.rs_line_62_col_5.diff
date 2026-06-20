@@ -1,0 +1,23 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ replace event_schema_registry_entry -> Option<&'static EventSchemaRegistryEntry> with None
+@@ -54,19 +54,17 @@
+ 
+ pub fn event_schema_registry() -> &'static [EventSchemaRegistryEntry] {
+     EVENT_SCHEMA_REGISTRY
+ }
+ 
+ pub fn event_schema_registry_entry(
+     version: &SchemaVersion,
+ ) -> Option<&'static EventSchemaRegistryEntry> {
+-    EVENT_SCHEMA_REGISTRY
+-        .iter()
+-        .find(|entry| entry.version.as_str() == version.as_str())
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum EventStream {
+     World,
+     Agent,
+     Epistemic,
+     Diagnostic,

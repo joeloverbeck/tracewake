@@ -1,0 +1,61 @@
+--- crates/tracewake-core/src/epistemics/proposition.rs
++++ replace <impl FromStr for Proposition>::from_str -> Result<Self, Self::Err> with Ok(Default::default())
+@@ -281,57 +281,17 @@
+         f.write_str(&self.render())
+     }
+ }
+ 
+ impl FromStr for Proposition {
+     type Err = PropositionParseError;
+ 
+     fn from_str(value: &str) -> Result<Self, Self::Err> {
+-        let parts: Vec<_> = value.split('|').collect();
+-        let proposition = match parts.as_slice() {
+-            ["item_located_in_container", item_id, container_id] => {
+-                Proposition::ItemLocatedInContainer {
+-                    item_id: ItemId::new(*item_id)?,
+-                    container_id: ContainerId::new(*container_id)?,
+-                }
+-            }
+-            ["item_located_at_place", item_id, place_id] => Proposition::ItemLocatedAtPlace {
+-                item_id: ItemId::new(*item_id)?,
+-                place_id: PlaceId::new(*place_id)?,
+-            },
+-            ["item_carried_by_actor", item_id, actor_id] => Proposition::ItemCarriedByActor {
+-                item_id: ItemId::new(*item_id)?,
+-                actor_id: ActorId::new(*actor_id)?,
+-            },
+-            ["container_contents_observed", container_id] => {
+-                Proposition::ContainerContentsObserved {
+-                    container_id: ContainerId::new(*container_id)?,
+-                }
+-            }
+-            ["item_missing_from_expected_location", item_id, expected_location] => {
+-                Proposition::ItemMissingFromExpectedLocation {
+-                    item_id: ItemId::new(*item_id)?,
+-                    expected_location: deserialize_location(expected_location)?,
+-                }
+-            }
+-            ["sound_heard_near_place", place_id] => Proposition::SoundHeardNearPlace {
+-                place_id: PlaceId::new(*place_id)?,
+-            },
+-            ["possible_movement_near_place", place_id] => Proposition::PossibleMovementNearPlace {
+-                place_id: PlaceId::new(*place_id)?,
+-            },
+-            ["actor_was_near_place", actor_id, place_id] => Proposition::ActorWasNearPlace {
+-                actor_id: ActorId::new(*actor_id)?,
+-                place_id: PlaceId::new(*place_id)?,
+-            },
+-            _ => return Err(PropositionParseError::InvalidShape),
+-        };
+-
+-        Ok(proposition)
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ fn serialize_location(location: &Location) -> String {
+     match location {
+         Location::AtPlace(place_id) => format!("at_place:{}", place_id.serialize_canonical()),
+         Location::InContainer(container_id) => {
+             format!("in_container:{}", container_id.serialize_canonical())

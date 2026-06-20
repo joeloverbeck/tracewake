@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/decision.rs
++++ replace == with != in select_goal_and_trace
+@@ -116,17 +116,17 @@
+         reason: String,
+     },
+ }
+ 
+ pub fn select_goal_and_trace(input: DecisionInput) -> Option<DecisionSelection> {
+     let mut applicable = input
+         .candidates
+         .iter()
+-        .filter(|candidate| candidate.applicability == ApplicabilityResult::Applicable)
++        .filter(|candidate| candidate.applicability != /* ~ changed by cargo-mutants ~ */ ApplicabilityResult::Applicable)
+         .cloned()
+         .collect::<Vec<_>>();
+     applicable.sort();
+     let selected = applicable.into_iter().next()?;
+     let active_intention = input.active_intention.clone();
+     let outcome = if selected.goal_kind == crate::agent::GoalKind::ContinueCurrentIntention {
+         DecisionOutcome::Continued
+     } else if active_intention.is_some() {

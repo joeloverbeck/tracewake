@@ -1,0 +1,28 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace split_ids -> Result<Vec<T>, SerializationError> with Ok(vec![Default::default()])
+@@ -722,24 +722,17 @@
+         _ => Err(SerializationError::BadLine(value.to_string())),
+     }
+ }
+ 
+ fn split_ids<T>(
+     value: &str,
+     parse: impl Fn(&str) -> Result<T, tracewake_core::ids::IdError>,
+ ) -> Result<Vec<T>, SerializationError> {
+-    if value.is_empty() {
+-        Ok(Vec::new())
+-    } else {
+-        value
+-            .split(',')
+-            .map(|part| parse(part).map_err(Into::into))
+-            .collect()
+-    }
++    Ok(vec![Default::default()]) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn join<'a>(values: impl Iterator<Item = &'a str>) -> String {
+     values.collect::<Vec<_>>().join(",")
+ }
+ 
+ fn join_encoded(values: &[String]) -> String {
+     values

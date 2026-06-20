@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace NoHumanDayDebugReport::debug_only -> bool with true
+@@ -130,17 +130,17 @@
+ impl Phase3ADebugReport {
+     pub fn debug_only(&self) -> bool {
+         self.debug_capability.debug_only()
+     }
+ }
+ 
+ impl NoHumanDayDebugReport {
+     pub fn debug_only(&self) -> bool {
+-        self.debug_capability.debug_only()
++        true /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+ pub struct Phase3ADecisionTraceView {
+     pub trace_id: String,
+     pub actor_id: ActorId,
+     pub window_start_tick: SimTick,

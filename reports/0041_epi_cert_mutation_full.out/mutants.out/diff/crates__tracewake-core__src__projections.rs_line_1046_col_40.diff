@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace && with || in door_connects_edge
+@@ -1038,17 +1038,17 @@
+         })
+ }
+ 
+ fn door_connects_edge(
+     door: &ActorKnownDoorSurface,
+     from_place_id: &PlaceId,
+     to_place_id: &PlaceId,
+ ) -> bool {
+-    (&door.endpoint_a == from_place_id && &door.endpoint_b == to_place_id)
++    (&door.endpoint_a == from_place_id || /* ~ changed by cargo-mutants ~ */ &door.endpoint_b == to_place_id)
+         || (&door.endpoint_b == from_place_id && &door.endpoint_a == to_place_id)
+ }
+ 
+ #[derive(Clone)]
+ struct SemanticActionPreflightContext<'a> {
+     state: &'a PhysicalState,
+     agent_state: &'a AgentState,
+     registry: &'a ActionRegistry,

@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/serialization.rs
++++ delete match arm ["fixture_scope", scope] in deserialize_fixture
+@@ -307,17 +307,17 @@
+     let mut routine_assignments = Vec::new();
+     let mut day_windows = Vec::new();
+ 
+     for line in text.lines() {
+         let parts = line.split('|').collect::<Vec<_>>();
+         match parts.as_slice() {
+             ["fixture", id] => fixture_id = Some(FixtureId::new(*id)?),
+             ["schema", version] => schema_version = Some(SchemaVersion::new(*version)?),
+-            ["fixture_scope", scope] => fixture_scope = Some(parse_fixture_scope(scope)?),
++             /* ~ changed by cargo-mutants ~ */
+             ["need_model", awake_hunger_delta_per_tick, awake_fatigue_delta_per_tick] => {
+                 need_model = Some(NeedModelSchema {
+                     awake_hunger_delta_per_tick: parse_i32(awake_hunger_delta_per_tick)?,
+                     awake_fatigue_delta_per_tick: parse_i32(awake_fatigue_delta_per_tick)?,
+                 })
+             }
+             ["actor", actor_id, place_id] => actors.push(ActorSchema {
+                 actor_id: ActorId::new(*actor_id)?,

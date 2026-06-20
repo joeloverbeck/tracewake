@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace || with && in contains_prose_born_fact_marker
+@@ -1607,17 +1607,17 @@
+ }
+ 
+ fn contains_prose_born_fact_marker(value: &str) -> bool {
+     let normalized = value.to_ascii_lowercase();
+     let has_prose_field = normalized.starts_with("note|")
+         || normalized.starts_with("notes|")
+         || normalized.starts_with("prose|")
+         || normalized.starts_with("description|")
+-        || normalized.starts_with("flavor_text|");
++        && /* ~ changed by cargo-mutants ~ */ normalized.starts_with("flavor_text|");
+     let implies_simulation_fact = [
+         "culprit",
+         "true culprit",
+         "hidden truth",
+         "hidden_true",
+         "did it",
+         "stole",
+         "scripted outcome",

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace || with && in no_human::latest_need_event_id
+@@ -819,17 +819,17 @@
+ 
+     fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+         log.events()
+             .iter()
+             .rev()
+             .find(|event| {
+                 event.event_type == EventKind::NeedDeltaApplied
+                     && (event.actor_id.as_ref() == Some(actor_id)
+-                        || payload_value(event, "actor_id") == Some(actor_id.as_str()))
++                        && /* ~ changed by cargo-mutants ~ */ payload_value(event, "actor_id") == Some(actor_id.as_str()))
+             })
+             .map(|event| event.event_id.clone())
+     }
+ 
+     fn routine_window_family(
+         agent_state: &AgentState,
+         actor_id: &ActorId,
+         window: &DayWindow,

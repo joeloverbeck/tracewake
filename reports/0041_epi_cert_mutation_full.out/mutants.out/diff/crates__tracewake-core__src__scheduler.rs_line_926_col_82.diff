@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace <= with > in no_human::append_due_completions
+@@ -918,17 +918,17 @@
+         pending_sleep_starts: &mut Vec<EventEnvelope>,
+         pending_work_starts: &mut Vec<EventEnvelope>,
+         due_tick: SimTick,
+         scheduler_errors: &mut Vec<NoHumanSchedulerError>,
+     ) -> Vec<(ActorId, SimTick)> {
+         let mut due_completions = Vec::new();
+         let mut retained_sleep_starts = Vec::new();
+         for sleep_started in pending_sleep_starts.drain(..) {
+-            if scheduled_completion_tick(&sleep_started).is_some_and(|tick| tick <= due_tick) {
++            if scheduled_completion_tick(&sleep_started).is_some_and(|tick| tick > /* ~ changed by cargo-mutants ~ */ due_tick) {
+                 due_completions.push(PendingCompletion::Sleep(sleep_started));
+             } else {
+                 retained_sleep_starts.push(sleep_started);
+             }
+         }
+         *pending_sleep_starts = retained_sleep_starts;
+ 
+         let mut retained_work_starts = Vec::new();

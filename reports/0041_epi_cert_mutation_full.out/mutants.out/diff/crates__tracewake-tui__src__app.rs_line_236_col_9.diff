@@ -1,0 +1,28 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::submit_semantic_action -> Result<PipelineResult, AppError> with Ok(Default::default())
+@@ -228,24 +228,17 @@
+             Ok(None)
+         }
+     }
+ 
+     pub fn submit_semantic_action(
+         &mut self,
+         semantic_action_id: &SemanticActionId,
+     ) -> Result<PipelineResult, AppError> {
+-        let view = self.current_view()?;
+-        let entry = view
+-            .semantic_actions
+-            .iter()
+-            .find(|entry| &entry.semantic_action_id == semantic_action_id)
+-            .cloned()
+-            .ok_or_else(|| AppError::SemanticActionNotFound(semantic_action_id.to_string()))?;
+-        self.submit_entry(&entry, &view)
++        Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn submit_entry(
+         &mut self,
+         entry: &SemanticActionEntry,
+         source_view: &EmbodiedViewModel,
+     ) -> Result<PipelineResult, AppError> {
+         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;

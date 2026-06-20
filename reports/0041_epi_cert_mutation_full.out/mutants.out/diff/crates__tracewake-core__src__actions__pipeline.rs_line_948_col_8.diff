@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/actions/pipeline.rs
++++ delete ! in source_context_check
+@@ -940,17 +940,17 @@
+             PipelineStage::SourceContextValidation,
+             vec![ReasonCode::ProposalSourceContextMismatch],
+             checked_facts,
+             "That action does not match the actor's current knowledge context.",
+             "proposal source context id/hash did not match reconstructed sealed context",
+         ));
+     }
+ 
+-    if !semantic_action_matches_action(&source.semantic_action_id, &proposal.action_id) {
++    if  /* ~ changed by cargo-mutants ~ */semantic_action_matches_action(&source.semantic_action_id, &proposal.action_id) {
+         return Some(reject(
+             context,
+             proposal,
+             PipelineStage::SourceContextValidation,
+             vec![ReasonCode::ProposalSourceForged],
+             checked_facts,
+             "That action token does not match the requested action.",
+             "semantic action id did not match proposal action id",

@@ -1,0 +1,31 @@
+--- crates/tracewake-core/src/agent/generation.rs
++++ delete match arm (NeedKind::Fatigue, NeedBand::Severe) in generate_candidate_goals
+@@ -104,27 +104,17 @@
+                 CandidateGoalSource::NeedPressure,
+                 GoalKind::SleepOrRest,
+                 GoalPriority::UrgentHungerOrFatigue,
+                 "fatigue is urgent",
+                 actor_known_fact_notes(&input.actor_known_facts),
+                 ApplicabilityResult::Applicable,
+                 None,
+             )),
+-            (NeedKind::Fatigue, NeedBand::Severe) => candidates.push(candidate(
+-                input,
+-                "sleep_or_rest",
+-                CandidateGoalSource::NeedPressure,
+-                GoalKind::SleepOrRest,
+-                GoalPriority::SevereFatigue,
+-                "fatigue is severe",
+-                actor_known_fact_notes(&input.actor_known_facts),
+-                ApplicabilityResult::Applicable,
+-                None,
+-            )),
++             /* ~ changed by cargo-mutants ~ */
+             (NeedKind::Safety, NeedBand::Severe) => candidates.push(candidate(
+                 input,
+                 "leave_unsafe_place",
+                 CandidateGoalSource::SafetyInterruption,
+                 GoalKind::LeaveUnsafePlace,
+                 GoalPriority::SevereSafety,
+                 "safety is severe",
+                 actor_known_fact_notes(&input.actor_known_facts),

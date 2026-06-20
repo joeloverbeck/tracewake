@@ -1,0 +1,26 @@
+--- crates/tracewake-content/src/validate.rs
++++ replace missing with ()
+@@ -2738,22 +2738,17 @@
+ 
+ fn missing(
+     errors: &mut Vec<ContentValidationError>,
+     phase: ValidationPhase,
+     path: String,
+     value: &str,
+     expected: &str,
+ ) {
+-    errors.push(ContentValidationError::new(
+-        phase,
+-        path,
+-        "bad_reference",
+-        format!("missing {expected} reference {value}"),
+-    ));
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn serialization_error(error: SerializationError) -> ContentValidationError {
+     let (path, code, message) = match error {
+         SerializationError::MissingField(field) => (
+             format!("fixture.{field}"),
+             "missing_field",
+             format!("missing required field {field}"),

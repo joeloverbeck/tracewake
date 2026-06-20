@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/checksum.rs
++++ replace join_ids -> String with "xyzzy".into()
+@@ -555,17 +555,17 @@
+     let hash = HolderKnownContextHash::from_canonical_lines(&lines);
+     HolderKnownContextHashReport {
+         hash,
+         canonical_input: lines,
+     }
+ }
+ 
+ fn join_ids<'a>(ids: impl Iterator<Item = &'a str>) -> String {
+-    ids.collect::<Vec<_>>().join(",")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn join_pairs(pairs: &[(String, String)]) -> String {
+     pairs
+         .iter()
+         .map(|(key, value)| format!("{}:{}={}:{}", key.len(), key, value.len(), value))
+         .collect::<Vec<_>>()
+         .join(";")

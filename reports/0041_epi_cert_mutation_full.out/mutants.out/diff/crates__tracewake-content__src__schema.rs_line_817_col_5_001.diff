@@ -1,0 +1,24 @@
+--- crates/tracewake-content/src/schema.rs
++++ replace routine_assignment_actor_suffix -> &str with "xyzzy"
+@@ -809,20 +809,17 @@
+             routine_executions,
+             BTreeMap::new(),
+             BTreeMap::new(),
+         )
+     }
+ }
+ 
+ pub(crate) fn routine_assignment_actor_suffix(actor_id: &ActorId) -> &str {
+-    actor_id
+-        .as_str()
+-        .strip_prefix("actor_")
+-        .unwrap_or(actor_id.as_str())
++    "xyzzy" /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub(crate) fn routine_family_assignment_suffix(family: RoutineFamily) -> &'static str {
+     match family {
+         RoutineFamily::MorningWake => "wake",
+         RoutineFamily::EatMeal => "eat",
+         RoutineFamily::GoToWork => "go_work",
+         RoutineFamily::WorkBlock => "work",

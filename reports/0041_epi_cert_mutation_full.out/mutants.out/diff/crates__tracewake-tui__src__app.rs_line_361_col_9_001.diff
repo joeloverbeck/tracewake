@@ -1,0 +1,25 @@
+--- crates/tracewake-tui/src/app.rs
++++ replace TuiApp::render_debug_controller_binding_panel -> String with "xyzzy".into()
+@@ -353,21 +353,17 @@
+         }
+     }
+ 
+     pub fn render_debug_event_log_panel(&self) -> String {
+         render_event_log_panel(&build_debug_event_log_view(&self.log))
+     }
+ 
+     pub fn render_debug_controller_binding_panel(&self) -> String {
+-        let report = controller_binding_report(
+-            DebugReportId::new("debug.controller_bindings").unwrap(),
+-            &self.controller_bindings,
+-        );
+-        render_controller_binding_panel(&report)
++        "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn render_debug_item_location_panel(&self, item_id: &ItemId) -> String {
+         let report =
+             item_location_report(&self.state, &self.log, item_id, &self.checksum_context());
+         render_item_location_panel(&report)
+     }
+ 

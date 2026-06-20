@@ -1,0 +1,61 @@
+--- crates/tracewake-core/src/epistemics/projection.rs
++++ replace EpistemicProjection::classified_actor_known_records_for_context -> Vec<ClassifiedActorKnownProjectionRecord<'_>> with vec![]
+@@ -511,57 +511,17 @@
+         }
+     }
+ 
+     pub fn classified_actor_known_records_for_context(
+         &self,
+         context: &KnowledgeContext,
+         current_place_id: &PlaceId,
+     ) -> Vec<ClassifiedActorKnownProjectionRecord<'_>> {
+-        let latest_current_place_tick = self
+-            .observations_for_context(context)
+-            .into_iter()
+-            .filter(|observation| observation.observer_place_id() == current_place_id)
+-            .filter(|observation| observation.observed_tick() <= context.current_tick())
+-            .map(|observation| observation.observed_tick())
+-            .max();
+-
+-        let selected_workplaces = newest_workplace_records(
+-            self.actor_known_records_by_actor
+-                .get(context.viewer_actor_id()),
+-        );
+-
+-        self.actor_known_records_by_actor
+-            .get(context.viewer_actor_id())
+-            .into_iter()
+-            .flat_map(|records| records.iter())
+-            .filter(|record| {
+-                record
+-                    .policy()
+-                    .includes_classified_record(record, &selected_workplaces)
+-            })
+-            .map(|record| {
+-                let current_place_record = record.relevant_place_id() == current_place_id;
+-                let latest_current_place_record = is_latest_current_place_record(
+-                    record,
+-                    current_place_id,
+-                    latest_current_place_tick,
+-                );
+-                ClassifiedActorKnownProjectionRecord {
+-                    record,
+-                    freshness: record.policy().freshness(
+-                        record,
+-                        latest_current_place_record,
+-                        context.current_tick(),
+-                    ),
+-                    current_place_record,
+-                    latest_current_place_record,
+-                }
+-            })
+-            .collect()
++        vec![] /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
+         let observations = self
+             .observations_by_id
+             .values()
+             .map(debug_observation_entry)
+             .collect();

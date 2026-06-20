@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace / with * in no_human_day_metrics
+@@ -394,17 +394,17 @@
+     let events = log.events();
+     let player_conditioned_event_count = events
+         .iter()
+         .filter(|event| contains_player_conditioned_fact(event))
+         .count();
+     let player_conditioned_event_rate_per_1000 = if events.is_empty() {
+         0
+     } else {
+-        (player_conditioned_event_count as u64 * 1000) / events.len() as u64
++        (player_conditioned_event_count as u64 * 1000) * /* ~ changed by cargo-mutants ~ */ events.len() as u64
+     };
+     let start_tick = events
+         .iter()
+         .find(|event| event.event_type == EventKind::NoHumanDayStarted)
+         .map(|event| event.sim_tick)
+         .unwrap_or(SimTick::ZERO);
+     let end_tick = events
+         .iter()

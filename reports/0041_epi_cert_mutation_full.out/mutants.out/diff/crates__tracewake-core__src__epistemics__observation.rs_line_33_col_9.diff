@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/epistemics/observation.rs
++++ replace Confidence::serialize_canonical -> String with String::new()
+@@ -25,17 +25,17 @@
+         self.0
+     }
+ 
+     pub const fn is_low(self) -> bool {
+         self.0 <= 350
+     }
+ 
+     pub fn serialize_canonical(self) -> String {
+-        format!("{:04}", self.0)
++        String::new() /* ~ changed by cargo-mutants ~ */
+     }
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum ConfidenceError {
+     OutOfRange { parts_per_thousand: u16 },
+ }
+ 

@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/events/envelope.rs
++++ delete match arm "human_command" in schedule_phase_from_id
+@@ -1064,17 +1064,17 @@
+         SchedulePhase::NoHumanProcess => "no_human_process",
+         SchedulePhase::DeferredProcess => "deferred_process",
+         SchedulePhase::Replay => "replay",
+     }
+ }
+ 
+ fn schedule_phase_from_id(value: &str) -> Option<SchedulePhase> {
+     match value {
+-        "human_command" => Some(SchedulePhase::HumanCommand),
++         /* ~ changed by cargo-mutants ~ */
+         "no_human_process" => Some(SchedulePhase::NoHumanProcess),
+         "deferred_process" => Some(SchedulePhase::DeferredProcess),
+         "replay" => Some(SchedulePhase::Replay),
+         _ => None,
+     }
+ }
+ 
+ fn serialize_source_id(source_id: &SchedulerSourceId) -> String {

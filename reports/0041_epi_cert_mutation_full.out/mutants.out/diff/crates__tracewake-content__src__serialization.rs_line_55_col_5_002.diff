@@ -1,0 +1,249 @@
+--- crates/tracewake-content/src/serialization.rs
++++ replace serialize_fixture -> Vec<u8> with vec![1]
+@@ -47,245 +47,17 @@
+ 
+ impl From<tracewake_core::epistemics::observation::ConfidenceError> for SerializationError {
+     fn from(value: tracewake_core::epistemics::observation::ConfidenceError) -> Self {
+         Self::Confidence(value)
+     }
+ }
+ 
+ pub fn serialize_fixture(fixture: &FixtureSchema) -> Vec<u8> {
+-    let mut fixture = fixture.clone();
+-    fixture.canonicalize();
+-    let mut lines = vec![
+-        format!(
+-            "{}|{}",
+-            canonical_key_for_schema_field("fixture_id"),
+-            fixture.fixture_id.as_str()
+-        ),
+-        format!(
+-            "{}|{}",
+-            canonical_key_for_schema_field("schema_version"),
+-            fixture.schema_version.as_str()
+-        ),
+-        format!(
+-            "{}|{}",
+-            canonical_key_for_schema_field("fixture_scope"),
+-            fixture.fixture_scope.stable_id()
+-        ),
+-        format!(
+-            "{}|{}|{}",
+-            canonical_key_for_schema_field("need_model"),
+-            fixture.need_model.awake_hunger_delta_per_tick,
+-            fixture.need_model.awake_fatigue_delta_per_tick
+-        ),
+-    ];
+-    for actor in fixture.actors {
+-        lines.push(format!(
+-            "{}|{}|{}",
+-            canonical_key_for_schema_field("actors"),
+-            actor.actor_id.as_str(),
+-            actor.current_place_id.as_str()
+-        ));
+-    }
+-    for place in fixture.places {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("places"),
+-            place.place_id.as_str(),
+-            encode(&place.display_label),
+-            join(place.adjacent_place_ids.iter().map(|id| id.as_str())),
+-            place.visibility_default.stable_id()
+-        ));
+-    }
+-    for door in fixture.doors {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("doors"),
+-            door.door_id.as_str(),
+-            door.endpoint_a.as_str(),
+-            door.endpoint_b.as_str(),
+-            door.is_open,
+-            door.is_locked
+-        ));
+-    }
+-    for container in fixture.containers {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("containers"),
+-            container.container_id.as_str(),
+-            container.place_id.as_str(),
+-            container.is_open,
+-            container.is_locked,
+-            container.contents_visible_when_closed,
+-            join(container.contents.iter().map(|id| id.as_str()))
+-        ));
+-    }
+-    for item in fixture.items {
+-        lines.push(format!(
+-            "{}|{}|{}|{}",
+-            canonical_key_for_schema_field("items"),
+-            item.item_id.as_str(),
+-            item.portable,
+-            serialize_location(&item.location)
+-        ));
+-    }
+-    for affordance in fixture.affordances {
+-        lines.push(format!(
+-            "{}|{}|{}",
+-            canonical_key_for_schema_field("affordances"),
+-            affordance.action_id.as_str(),
+-            affordance.target_id
+-        ));
+-    }
+-    for belief in fixture.initial_beliefs {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("initial_beliefs"),
+-            belief.belief_id.as_str(),
+-            belief.holder_actor_id.as_str(),
+-            encode(&belief.proposition.serialize_canonical()),
+-            belief.stance.stable_id(),
+-            belief.confidence.serialize_canonical(),
+-            belief.source_kind.stable_id(),
+-            source_id(&belief.source),
+-            belief.channel.map(channel_id).unwrap_or(""),
+-            belief.acquired_tick.value(),
+-            belief
+-                .last_verified_tick
+-                .map(|tick| tick.value().to_string())
+-                .unwrap_or_default(),
+-            serialize_privacy_scope(&belief.privacy_scope),
+-            belief.schema_version.as_str(),
+-        ));
+-    }
+-    for need in fixture.initial_needs {
+-        lines.push(format!(
+-            "{}|{}|{}|{}",
+-            canonical_key_for_schema_field("initial_needs"),
+-            need.actor_id.as_str(),
+-            need.kind.stable_id(),
+-            need.value
+-        ));
+-    }
+-    for home in fixture.homes {
+-        lines.push(format!(
+-            "{}|{}|{}",
+-            canonical_key_for_schema_field("homes"),
+-            home.actor_id.as_str(),
+-            home.place_id.as_str()
+-        ));
+-    }
+-    for sleep_place in fixture.sleep_places {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("sleep_places"),
+-            sleep_place.actor_id.as_str(),
+-            sleep_place.place_id.as_str(),
+-            sleep_place.sleep_place_id.as_str(),
+-            sleep_place.access_open,
+-            sleep_place.duration_ticks,
+-            sleep_place.fatigue_recovery_per_tick,
+-            sleep_place.hunger_rise_per_tick
+-        ));
+-    }
+-    for food in fixture.food_supplies {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("food_supplies"),
+-            food.food_supply_id.as_str(),
+-            serialize_location(&food.location),
+-            food.servings,
+-            food.hunger_reduction_per_serving
+-        ));
+-    }
+-    for edge in fixture.known_food_sources {
+-        lines.push(format!(
+-            "{}|{}|{}",
+-            canonical_key_for_schema_field("known_food_sources"),
+-            edge.actor_id.as_str(),
+-            edge.food_supply_id.as_str()
+-        ));
+-    }
+-    for workplace in fixture.workplaces {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("workplaces"),
+-            workplace.workplace_id.as_str(),
+-            workplace.place_id.as_str(),
+-            join(workplace.assigned_actor_ids.iter().map(|id| id.as_str())),
+-            workplace.work_duration_ticks,
+-            workplace.fatigue_delta_per_tick,
+-            workplace.hunger_delta_per_tick,
+-            workplace.max_fatigue_to_start,
+-            workplace.max_hunger_to_start,
+-            workplace.access_open,
+-            workplace.role_notice_access_open,
+-            encode(&workplace.output_tag)
+-        ));
+-    }
+-    for template in fixture.routine_templates {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("routine_templates"),
+-            template.template_id.as_str(),
+-            template.family.stable_id(),
+-            join_encoded(
+-                &template
+-                    .applicability_conditions
+-                    .iter()
+-                    .map(|condition| condition.stable_id().to_string())
+-                    .collect::<Vec<_>>()
+-            ),
+-            join_encoded(
+-                &template
+-                    .preconditions
+-                    .iter()
+-                    .map(|condition| condition.stable_id().to_string())
+-                    .collect::<Vec<_>>()
+-            ),
+-            join_encoded(
+-                &template
+-                    .steps
+-                    .iter()
+-                    .map(RoutineStep::serialize_canonical)
+-                    .collect::<Vec<_>>()
+-            ),
+-            template.min_duration_ticks,
+-            template.max_duration_ticks,
+-            join_usize(&template.interruption_points),
+-            join_encoded(&template.failure_modes),
+-            join_encoded(&template.fallback_rules),
+-            join_encoded(&template.debug_labels),
+-            template
+-                .reservable_resource
+-                .as_ref()
+-                .map(|value| encode(value))
+-                .unwrap_or_default()
+-        ));
+-    }
+-    for assignment in fixture.routine_assignments {
+-        lines.push(format!(
+-            "{}|{}|{}|{}|{}",
+-            canonical_key_for_schema_field("routine_assignments"),
+-            assignment.actor_id.as_str(),
+-            assignment.template_id.as_str(),
+-            assignment.start_tick.value(),
+-            assignment.end_tick.value()
+-        ));
+-    }
+-    for window in fixture.day_windows {
+-        lines.push(format!(
+-            "{}|{}|{}|{}",
+-            canonical_key_for_schema_field("day_windows"),
+-            window.actor_id.as_str(),
+-            window.start_tick.value(),
+-            window.end_tick.value()
+-        ));
+-    }
+-    lines.join("\n").into_bytes()
++    vec![1] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn deserialize_fixture(bytes: &[u8]) -> Result<FixtureSchema, SerializationError> {
+     let text = std::str::from_utf8(bytes)
+         .map_err(|_| SerializationError::BadLine("non-utf8 fixture".to_string()))?;
+     let mut fixture_id = None;
+     let mut schema_version = None;
+     let mut fixture_scope = None;

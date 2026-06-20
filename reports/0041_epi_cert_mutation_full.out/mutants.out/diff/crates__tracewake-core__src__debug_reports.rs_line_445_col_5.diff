@@ -1,0 +1,48 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace phase3a_planner_report -> Phase3ADebugReport with Default::default()
+@@ -437,44 +437,17 @@
+         "Actor",
+         rows,
+         decision_traces,
+         stuck_diagnostics,
+     )
+ }
+ 
+ pub fn phase3a_planner_report(agent_state: &AgentState, actor_id: &ActorId) -> Phase3ADebugReport {
+-    let mut rows = vec![
+-        format!("actor={}", actor_id.as_str()),
+-        "candidate_goals=typed_decision_trace_records".to_string(),
+-        "selected_method=typed_decision_trace_records".to_string(),
+-        "rejected_reasons=typed_decision_trace_records".to_string(),
+-        "blocked_preconditions=typed_stuck_diagnostic_records".to_string(),
+-        "hidden_truth_audit=typed_decision_trace_records".to_string(),
+-        "omniscient_comparison=debug_only_non_authoritative".to_string(),
+-    ];
+-    let decision_traces = decision_trace_views_for_actor(agent_state, actor_id);
+-    if decision_traces.is_empty() {
+-        rows.push("trace=none".to_string());
+-    } else {
+-        rows.extend(decision_traces.iter().map(render_decision_trace_row));
+-    }
+-    let stuck_diagnostics = stuck_views_for_actor(agent_state, actor_id);
+-    if stuck_diagnostics.is_empty() {
+-        rows.push("blocked=none".to_string());
+-    } else {
+-        rows.extend(stuck_diagnostics.iter().map(render_stuck_row));
+-    }
+-    phase3a_report(
+-        &format!("debug.phase3a.planner.{}", actor_id.as_str()),
+-        "Planner",
+-        rows,
+-        decision_traces,
+-        stuck_diagnostics,
+-    )
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn phase3a_stuck_report(agent_state: &AgentState) -> Phase3ADebugReport {
+     let mut rows = vec![format!(
+         "stuck_diagnostic_count={}",
+         agent_state.stuck_diagnostics.len()
+     )];
+     let mut stuck_diagnostics = stuck_views(agent_state);

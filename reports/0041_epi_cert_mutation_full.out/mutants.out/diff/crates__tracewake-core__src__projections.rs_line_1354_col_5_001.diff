@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/projections.rs
++++ replace visible_open_sleep_affordance -> Option<SleepAffordanceId> with Some(Default::default())
+@@ -1346,17 +1346,17 @@
+             .insert("intention_status".to_string(), "active".to_string());
+     }
+     proposal
+ }
+ 
+ fn visible_open_sleep_affordance(
+     source: &EmbodiedProjectionSource<'_>,
+ ) -> Option<SleepAffordanceId> {
+-    source.actor_known_sleep_affordances.first().cloned()
++    Some(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn proposal_from_current_view_semantic_action(
+     proposal_id: ProposalId,
+     actor_id: ActorId,
+     requested_tick: SimTick,
+     entry: &SemanticActionEntry,
+     source_view: &EmbodiedViewModel,

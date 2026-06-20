@@ -1,0 +1,352 @@
+--- crates/tracewake-core/src/scheduler.rs
++++ replace no_human::run_no_human_day -> NoHumanDayReport with Default::default()
+@@ -344,348 +344,17 @@
+     pub fn run_no_human_day(
+         state: &mut PhysicalState,
+         agent_state: &mut AgentState,
+         log: &mut EventLog,
+         registry: &ActionRegistry,
+         content_manifest_id: ContentManifestId,
+         mut config: NoHumanDayConfig,
+     ) -> NoHumanDayReport {
+-        config.windows.sort_by(|left, right| {
+-            (left.start_tick, left.end_tick, &left.window_id).cmp(&(
+-                right.start_tick,
+-                right.end_tick,
+-                &right.window_id,
+-            ))
+-        });
+-        if config.actor_ids.is_empty() {
+-            config
+-                .actor_ids
+-                .extend(state.actors.keys().cloned().collect::<Vec<_>>());
+-        }
+-        config.actor_ids.sort();
+-        config.actor_ids.dedup();
+-
+-        let process_id = ProcessId::new("no_human_day").unwrap();
+-        let start_tick = config
+-            .windows
+-            .first()
+-            .map(|window| window.start_tick)
+-            .unwrap_or(SimTick::ZERO);
+-        let final_tick = config
+-            .windows
+-            .last()
+-            .map(|window| window.end_tick)
+-            .unwrap_or(start_tick);
+-        let mut scheduler = DeterministicScheduler::new(start_tick);
+-        let started = append_marker(
+-            log,
+-            EventKind::NoHumanDayStarted,
+-            &process_id,
+-            start_tick,
+-            0,
+-            final_tick.value().saturating_sub(start_tick.value()),
+-            content_manifest_id.clone(),
+-        );
+-
+-        let mut ordinary_pipeline_events = 0;
+-        let mut progress_by_window_actor: BTreeMap<(String, ActorId), usize> = BTreeMap::new();
+-        let mut duration_skip_by_window_actor: BTreeSet<(String, ActorId)> = BTreeSet::new();
+-        let mut stuck_diagnostic_event_ids = Vec::new();
+-        let mut scheduler_errors = Vec::new();
+-        let mut pending_sleep_starts = Vec::new();
+-        let mut pending_work_starts = Vec::new();
+-        let mut last_decision_tick_by_actor = config
+-            .actor_ids
+-            .iter()
+-            .cloned()
+-            .map(|actor_id| (actor_id, SimTick::ZERO))
+-            .collect::<BTreeMap<_, _>>();
+-        for window in &config.windows {
+-            for actor_id in &config.actor_ids {
+-                if !state.actors.contains_key(actor_id) {
+-                    continue;
+-                }
+-                if let Err(error) = crate::need_accounting::open_body_exclusive_starts(
+-                    log,
+-                    actor_id,
+-                    window.start_tick,
+-                ) {
+-                    scheduler_errors.push(error.into());
+-                    continue;
+-                }
+-                let previous_decision_tick = last_decision_tick_by_actor
+-                    .get(actor_id)
+-                    .copied()
+-                    .unwrap_or(start_tick);
+-                let elapsed_ticks = window
+-                    .start_tick
+-                    .value()
+-                    .saturating_sub(previous_decision_tick.value());
+-                let passive_context = PassiveNeedDecisionContext {
+-                    process_id: &process_id,
+-                    actor_id,
+-                    window,
+-                    content_manifest_id: &content_manifest_id,
+-                };
+-                append_passive_need_events_before_decision(
+-                    state,
+-                    log,
+-                    agent_state,
+-                    &passive_context,
+-                    elapsed_ticks,
+-                );
+-                last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
+-                let completed_durations = append_due_completions(
+-                    state,
+-                    log,
+-                    agent_state,
+-                    &process_id,
+-                    &mut scheduler,
+-                    &content_manifest_id,
+-                    &mut pending_sleep_starts,
+-                    &mut pending_work_starts,
+-                    window.start_tick,
+-                    &mut scheduler_errors,
+-                );
+-                for (completed_actor_id, completion_tick) in completed_durations {
+-                    credit_completion(
+-                        &mut progress_by_window_actor,
+-                        std::slice::from_ref(window),
+-                        &completed_actor_id,
+-                        completion_tick,
+-                    );
+-                }
+-                record_current_place_perception(
+-                    log,
+-                    state,
+-                    actor_id,
+-                    window.start_tick,
+-                    &content_manifest_id,
+-                );
+-                let has_open_duration = match actor_has_open_body_exclusive_duration(
+-                    log,
+-                    actor_id,
+-                    window.start_tick,
+-                ) {
+-                    Ok(has_open_duration) => has_open_duration,
+-                    Err(error) => {
+-                        scheduler_errors.push(error.into());
+-                        true
+-                    }
+-                };
+-                if has_open_duration {
+-                    duration_skip_by_window_actor
+-                        .insert((window.window_id.clone(), actor_id.clone()));
+-                    append_routine_stuck_diagnostics(
+-                        log,
+-                        agent_state,
+-                        &process_id,
+-                        actor_id,
+-                        window,
+-                        &content_manifest_id,
+-                        &mut stuck_diagnostic_event_ids,
+-                        &mut scheduler_errors,
+-                    );
+-                    continue;
+-                }
+-                append_routine_stuck_diagnostics(
+-                    log,
+-                    agent_state,
+-                    &process_id,
+-                    actor_id,
+-                    window,
+-                    &content_manifest_id,
+-                    &mut stuck_diagnostic_event_ids,
+-                    &mut scheduler_errors,
+-                );
+-                let Some(agent_proposal) = build_agent_proposal(
+-                    state,
+-                    agent_state,
+-                    log,
+-                    actor_id,
+-                    window,
+-                    &content_manifest_id,
+-                ) else {
+-                    continue;
+-                };
+-                let proposal = agent_proposal.proposal;
+-                let decision_trace_record = agent_proposal.decision_trace_record;
+-                let active_before_proposal = active_intention_for_actor(agent_state, actor_id);
+-                let ordering_key = OrderingKey::new(
+-                    window.start_tick,
+-                    SchedulePhase::NoHumanProcess,
+-                    SchedulerSourceId::Actor(actor_id.clone()),
+-                    scheduler.assign_proposal_sequence(),
+-                    proposal.action_id.clone(),
+-                    proposal.target_ids.clone(),
+-                    format!("{}:{}", window.window_id, actor_id.as_str()),
+-                );
+-                let mut context = PipelineContext {
+-                    registry,
+-                    state,
+-                    agent_state,
+-                    log,
+-                    controller_bindings: None,
+-                    epistemic_projection: None,
+-                    content_manifest_id: content_manifest_id.clone(),
+-                    ordering_key,
+-                };
+-                let result = run_pipeline(&mut context, &proposal);
+-                if let Some(latest_charged_tick) =
+-                    latest_action_tick_delta_tick(&result.appended_events, actor_id)
+-                {
+-                    last_decision_tick_by_actor.insert(actor_id.clone(), latest_charged_tick);
+-                }
+-                pending_sleep_starts.extend(
+-                    result
+-                        .appended_events
+-                        .iter()
+-                        .filter(|event| is_due_sleep_start(event, final_tick))
+-                        .cloned(),
+-                );
+-                pending_work_starts.extend(
+-                    result
+-                        .appended_events
+-                        .iter()
+-                        .filter(|event| is_due_work_start(event, final_tick))
+-                        .cloned(),
+-                );
+-                let progress_events = no_human_progress_event_count(&result.appended_events);
+-                ordinary_pipeline_events += progress_events;
+-                record_window_progress(
+-                    &mut progress_by_window_actor,
+-                    &window.window_id,
+-                    actor_id,
+-                    progress_events,
+-                );
+-                append_intention_lifecycle_after_proposal(
+-                    log,
+-                    agent_state,
+-                    &process_id,
+-                    actor_id,
+-                    window,
+-                    &proposal,
+-                    &content_manifest_id,
+-                    &decision_trace_record,
+-                    active_before_proposal.as_ref(),
+-                    result.appended_events.first(),
+-                );
+-                append_routine_step_events_after_proposal(
+-                    log,
+-                    agent_state,
+-                    &process_id,
+-                    actor_id,
+-                    window,
+-                    &proposal,
+-                    &content_manifest_id,
+-                    result.appended_events.first(),
+-                );
+-                append_decision_trace_after_proposal(
+-                    log,
+-                    agent_state,
+-                    &process_id,
+-                    actor_id,
+-                    window,
+-                    &proposal,
+-                    &decision_trace_record,
+-                    &content_manifest_id,
+-                    result.appended_events.first(),
+-                );
+-                append_routine_stuck_diagnostics(
+-                    log,
+-                    agent_state,
+-                    &process_id,
+-                    actor_id,
+-                    window,
+-                    &content_manifest_id,
+-                    &mut stuck_diagnostic_event_ids,
+-                    &mut scheduler_errors,
+-                );
+-            }
+-        }
+-
+-        let completed_durations = append_due_completions(
+-            state,
+-            log,
+-            agent_state,
+-            &process_id,
+-            &mut scheduler,
+-            &content_manifest_id,
+-            &mut pending_sleep_starts,
+-            &mut pending_work_starts,
+-            final_tick,
+-            &mut scheduler_errors,
+-        );
+-        for (completed_actor_id, completion_tick) in completed_durations {
+-            credit_completion(
+-                &mut progress_by_window_actor,
+-                &config.windows,
+-                &completed_actor_id,
+-                completion_tick,
+-            );
+-        }
+-
+-        for window in &config.windows {
+-            for actor_id in &config.actor_ids {
+-                if !state.actors.contains_key(actor_id) {
+-                    continue;
+-                }
+-                if duration_skip_by_window_actor
+-                    .contains(&(window.window_id.clone(), actor_id.clone()))
+-                {
+-                    continue;
+-                }
+-                if !progress_by_window_actor
+-                    .contains_key(&(window.window_id.clone(), actor_id.clone()))
+-                {
+-                    let event = append_stuck_diagnostic(
+-                        log,
+-                        &process_id,
+-                        actor_id,
+-                        window,
+-                        &content_manifest_id,
+-                        StuckDiagnosticKind::WindowNoProgress,
+-                        None,
+-                    );
+-                    match apply_agent_event(agent_state, &event) {
+-                        Ok(_) => stuck_diagnostic_event_ids.push(event.event_id),
+-                        Err(error) => scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+-                            event_id: event.event_id,
+-                            error,
+-                        }),
+-                    }
+-                }
+-            }
+-        }
+-
+-        let completed = append_marker(
+-            log,
+-            EventKind::NoHumanDayCompleted,
+-            &process_id,
+-            final_tick,
+-            1,
+-            final_tick.value().saturating_sub(start_tick.value()),
+-            content_manifest_id,
+-        );
+-
+-        NoHumanDayReport {
+-            start_tick,
+-            final_tick,
+-            actor_decision_order: config.actor_ids,
+-            window_ids: config
+-                .windows
+-                .iter()
+-                .map(|window| window.window_id.clone())
+-                .collect(),
+-            marker_event_ids: vec![started.event_id, completed.event_id],
+-            ordinary_pipeline_events,
+-            stuck_diagnostic_event_ids,
+-            scheduler_errors,
+-        }
++        Default::default() /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     fn is_due_sleep_start(event: &EventEnvelope, final_tick: SimTick) -> bool {
+         event.event_type == EventKind::SleepStarted
+             && scheduled_completion_tick(event).is_some_and(|tick| tick <= final_tick)
+     }
+ 
+     fn is_due_work_start(event: &EventEnvelope, final_tick: SimTick) -> bool {

@@ -721,6 +721,9 @@ pub struct DebugBeliefEntry {
     pub stance: String,
     pub confidence: String,
     pub source: String,
+    pub stale_after_tick: Option<u64>,
+    pub observation_ids: Vec<String>,
+    pub contradiction_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -729,6 +732,8 @@ pub struct DebugObservationEntry {
     pub observer_actor_id: ActorId,
     pub channel: String,
     pub confidence: String,
+    pub confidence_parts_per_thousand: u16,
+    pub confidence_class: String,
     pub source: String,
 }
 
@@ -875,6 +880,8 @@ mod tests {
                 observer_actor_id: ActorId::new("actor_tomas").unwrap(),
                 channel: "touch_or_search".to_string(),
                 confidence: "1000".to_string(),
+                confidence_parts_per_thousand: 1000,
+                confidence_class: "standard".to_string(),
                 source: "event:event_observation".to_string(),
             }],
             vec![
@@ -886,6 +893,9 @@ mod tests {
                         stance: "believes_true".to_string(),
                         confidence: "1000".to_string(),
                         source: "event:event_observation".to_string(),
+                        stale_after_tick: Some(12),
+                        observation_ids: vec!["obs_tomas_checked_strongbox".to_string()],
+                        contradiction_ids: vec!["contradiction_tomas_missing_coin".to_string()],
                     }],
                 },
                 DebugHolderBeliefs {

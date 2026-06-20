@@ -1,0 +1,29 @@
+--- crates/tracewake-core/src/replay/report.rs
++++ replace first_divergence_detail -> Option<ReplayDivergenceDetail> with None
+@@ -141,25 +141,17 @@
+     }
+ }
+ 
+ fn first_divergence_detail(
+     state_diff: &[String],
+     log: &EventLog,
+     event_count_applied: usize,
+ ) -> Option<ReplayDivergenceDetail> {
+-    let first_diff = state_diff.first()?;
+-    let first_divergent_event_id = event_count_applied
+-        .checked_sub(1)
+-        .and_then(|index| log.events().get(index))
+-        .map(|event| event.event_id.as_str().to_string());
+-    Some(ReplayDivergenceDetail {
+-        first_divergent_event_id,
+-        field_family: classify_state_diff_family(first_diff),
+-    })
++    None /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn classify_state_diff_family(diff: &str) -> ReplayDivergenceFieldFamily {
+     if diff.starts_with("actors ") {
+         ReplayDivergenceFieldFamily::Actor
+     } else if diff.starts_with("places ") {
+         ReplayDivergenceFieldFamily::Place
+     } else if diff.starts_with("doors ") {

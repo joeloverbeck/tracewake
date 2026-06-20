@@ -2101,6 +2101,239 @@ fn starting_observation_and_contradiction_events_survive_replay_with_sources() {
 }
 
 #[test]
+fn belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay() {
+    let mut projection = EpistemicProjection::new(manifest_id());
+    let mut log = EventLog::new();
+    let observation = epistemic_event_with_payload(
+        "event_belief_link_observation",
+        EventKind::ObservationRecorded,
+        0,
+        observation_payload(
+            "observation_belief_link",
+            "touch_or_search",
+            905,
+            "event_search_container",
+        ),
+    );
+    let contradiction = epistemic_event_with_payload(
+        "event_belief_link_contradiction",
+        EventKind::ExpectationContradicted,
+        1,
+        contradiction_payload(
+            "contradiction_belief_link",
+            "belief_frontier_and_links",
+            "observation_belief_link",
+        ),
+    );
+    let mut belief_payload = belief_payload(
+        "belief_frontier_and_links",
+        "expects_true",
+        Some("touch_or_search"),
+        940,
+        "event_belief_link_observation",
+    );
+    belief_payload.push(PayloadField::new("last_verified_tick", "12"));
+    belief_payload.push(PayloadField::new("stale_after_tick", "17"));
+    belief_payload.push(PayloadField::new(
+        "observation_ids",
+        "observation_belief_link",
+    ));
+    belief_payload.push(PayloadField::new(
+        "contradiction_ids",
+        "contradiction_belief_link",
+    ));
+    let belief = epistemic_event_with_payload(
+        "event_belief_frontier_and_links",
+        EventKind::BeliefUpdated,
+        2,
+        belief_payload,
+    );
+
+    for event in [observation.clone(), contradiction.clone(), belief.clone()] {
+        append_to_log(&mut log, event.clone());
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+    }
+
+    let embodied_before_frontier = KnowledgeContext::embodied(actor_id(), SimTick::new(16));
+    let belief_before = projection
+        .beliefs_for_context(&embodied_before_frontier)
+        .into_iter()
+        .find(|belief| belief.belief_id() == &BeliefId::new("belief_frontier_and_links").unwrap())
+        .expect("belief visible to holder before frontier");
+    assert_eq!(belief_before.stale_after_tick(), Some(SimTick::new(17)));
+    assert!(embodied_before_frontier.current_tick() < belief_before.stale_after_tick().unwrap());
+
+    let embodied_at_frontier = KnowledgeContext::embodied(actor_id(), SimTick::new(17));
+    let belief_at = projection
+        .beliefs_for_context(&embodied_at_frontier)
+        .into_iter()
+        .find(|belief| belief.belief_id() == &BeliefId::new("belief_frontier_and_links").unwrap())
+        .expect("belief visible to holder at frontier");
+    assert_eq!(belief_at.stale_after_tick(), Some(SimTick::new(17)));
+
+    let embodied_after_frontier = KnowledgeContext::embodied(actor_id(), SimTick::new(18));
+    let belief_after = projection
+        .beliefs_for_context(&embodied_after_frontier)
+        .into_iter()
+        .find(|belief| belief.belief_id() == &BeliefId::new("belief_frontier_and_links").unwrap())
+        .expect("belief visible to holder after frontier");
+    assert_eq!(belief_after.stale_after_tick(), Some(SimTick::new(17)));
+    assert!(belief_after.stale_after_tick().unwrap() < embodied_after_frontier.current_tick());
+
+    let observation_id = ObservationId::new("observation_belief_link").unwrap();
+    let contradiction_id = ContradictionId::new("contradiction_belief_link").unwrap();
+    assert!(belief_after.observation_ids().contains(&observation_id));
+    assert!(belief_after.contradiction_ids().contains(&contradiction_id));
+
+    let checksum = projection.compute_checksum();
+    let belief_line = checksum
+        .canonical_input
+        .iter()
+        .find(|line| line.starts_with("belief|id=belief_frontier_and_links|"))
+        .expect("belief contributes canonical checksum evidence");
+    assert!(belief_line.contains("|stale_after=17|"));
+    assert!(belief_line.contains("|observations=observation_belief_link|"));
+    assert!(belief_line.contains("|contradictions=contradiction_belief_link"));
+
+    let debug_view = projection.debug_beliefs_view(actor_id());
+    let debug_belief = debug_view
+        .beliefs
+        .iter()
+        .find(|belief| belief.belief_id == "belief_frontier_and_links")
+        .expect("debug belief view exposes witness chain");
+    assert_eq!(debug_belief.stale_after_tick, Some(17));
+    assert_eq!(debug_belief.observation_ids, ["observation_belief_link"]);
+    assert_eq!(
+        debug_belief.contradiction_ids,
+        ["contradiction_belief_link"]
+    );
+
+    let other_actor_context =
+        KnowledgeContext::embodied(ActorId::new("actor_elena").unwrap(), SimTick::new(18));
+    assert!(projection
+        .beliefs_for_context(&other_actor_context)
+        .into_iter()
+        .all(|belief| belief.belief_id() != &BeliefId::new("belief_frontier_and_links").unwrap()));
+
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let mut replayed_projection = EpistemicProjection::new(manifest_id());
+    for event in replayed_log.events() {
+        apply_epistemic_event(&mut replayed_projection, event).unwrap();
+    }
+    assert_eq!(
+        replayed_projection.compute_checksum().canonical_input,
+        checksum.canonical_input
+    );
+    assert_eq!(
+        replayed_projection.compute_checksum().checksum,
+        checksum.checksum
+    );
+}
+
+#[test]
+fn observation_confidence_debug_evidence_crosses_low_boundary_and_replays() {
+    let mut projection = EpistemicProjection::new(manifest_id());
+    let mut log = EventLog::new();
+    for (sequence, (observation_id, confidence)) in [
+        ("observation_confidence_low_250", 250_u16),
+        ("observation_confidence_low_boundary_350", 350),
+        ("observation_confidence_standard_boundary_351", 351),
+        ("observation_confidence_standard_875", 875),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let event = epistemic_event_with_payload(
+            &format!("event_{observation_id}"),
+            EventKind::ObservationRecorded,
+            sequence as u64,
+            observation_payload(
+                observation_id,
+                "direct_sight",
+                confidence,
+                "event_confidence_source",
+            ),
+        );
+        append_to_log(&mut log, event.clone());
+        assert_eq!(
+            apply_epistemic_event(&mut projection, &event),
+            Ok(ApplyOutcome::Applied)
+        );
+    }
+
+    let debug_view = projection.debug_observations_view(actor_id());
+    let debug_entries = debug_view
+        .observations
+        .iter()
+        .map(|entry| {
+            (
+                entry.observation_id.as_str(),
+                entry.confidence_parts_per_thousand,
+                entry.confidence_class.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        debug_entries,
+        [
+            ("observation_confidence_low_250", 250, "low"),
+            ("observation_confidence_low_boundary_350", 350, "low"),
+            ("observation_confidence_standard_875", 875, "standard",),
+            (
+                "observation_confidence_standard_boundary_351",
+                351,
+                "standard",
+            ),
+        ]
+    );
+
+    let invalid = epistemic_event_with_payload(
+        "event_observation_confidence_invalid",
+        EventKind::ObservationRecorded,
+        99,
+        observation_payload(
+            "observation_confidence_invalid",
+            "direct_sight",
+            1001,
+            "event_confidence_source",
+        ),
+    );
+    assert!(matches!(
+        apply_epistemic_event(&mut projection, &invalid),
+        Err(EpistemicApplyError::BadPayload {
+            key: "confidence",
+            ..
+        })
+    ));
+
+    let replayed_log = EventLog::deserialize_canonical(&log.serialize_canonical()).unwrap();
+    let mut replayed_projection = EpistemicProjection::new(manifest_id());
+    for event in replayed_log.events() {
+        apply_epistemic_event(&mut replayed_projection, event).unwrap();
+    }
+    let replayed_debug_view = replayed_projection.debug_observations_view(actor_id());
+    let replayed_debug_entries = replayed_debug_view
+        .observations
+        .iter()
+        .map(|entry| {
+            (
+                entry.observation_id.as_str(),
+                entry.confidence_parts_per_thousand,
+                entry.confidence_class.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(replayed_debug_entries, debug_entries);
+    assert_eq!(
+        replayed_projection.compute_checksum().checksum,
+        projection.compute_checksum().checksum
+    );
+}
+
+#[test]
 fn agent_apply_matrix_observes_parser_arms_transitions_and_causality() {
     let mut state = agent_state_with_active_intention_and_routine();
     let need = agent_event_with_payload(

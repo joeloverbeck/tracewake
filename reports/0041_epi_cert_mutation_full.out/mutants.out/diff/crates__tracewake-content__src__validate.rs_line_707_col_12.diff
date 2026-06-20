@@ -1,0 +1,21 @@
+--- crates/tracewake-content/src/validate.rs
++++ delete ! in validate_references
+@@ -699,17 +699,17 @@
+                 ValidationPhase::Referential,
+                 format!("known_food_sources[{index}].food_supply_id"),
+                 edge.food_supply_id.as_str(),
+                 "food_supply",
+             );
+         }
+     }
+     for (index, workplace) in fixture.workplaces.iter().enumerate() {
+-        if !places.contains(&workplace.place_id) {
++        if  /* ~ changed by cargo-mutants ~ */places.contains(&workplace.place_id) {
+             missing(
+                 errors,
+                 ValidationPhase::Referential,
+                 format!("workplaces[{index}].place_id"),
+                 workplace.place_id.as_str(),
+                 "place",
+             );
+         }

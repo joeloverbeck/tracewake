@@ -1,0 +1,26 @@
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace decision_trace_views_for_actor -> Vec<Phase3ADecisionTraceView> with vec![]
+@@ -528,22 +528,17 @@
+         debug_capability: DebugCapability::mint(),
+     }
+ }
+ 
+ fn decision_trace_views_for_actor(
+     agent_state: &AgentState,
+     actor_id: &ActorId,
+ ) -> Vec<Phase3ADecisionTraceView> {
+-    agent_state
+-        .decision_traces
+-        .values()
+-        .filter(|trace| &trace.actor_id == actor_id)
+-        .map(decision_trace_view)
+-        .collect()
++    vec![] /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn decision_trace_view(trace: &crate::agent::DecisionTraceRecord) -> Phase3ADecisionTraceView {
+     Phase3ADecisionTraceView {
+         trace_id: trace.trace_id.as_str().to_string(),
+         actor_id: trace.actor_id.clone(),
+         window_start_tick: trace.window_start_tick,
+         window_end_tick: trace.window_end_tick,

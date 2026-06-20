@@ -1,0 +1,25 @@
+--- crates/tracewake-tui/src/transcript.rs
++++ replace render_transcript_sections -> String with "xyzzy".into()
+@@ -83,21 +83,17 @@
+             &app.debug_observations_view(&ActorId::new("actor_sena").unwrap())?,
+         ),
+     ));
+ 
+     Ok(sections)
+ }
+ 
+ pub fn render_transcript_sections(sections: &[TranscriptSection]) -> String {
+-    sections
+-        .iter()
+-        .map(|section| format!("== {} ==\n{}", section.name, section.body))
+-        .collect::<Vec<_>>()
+-        .join("\n\n")
++    "xyzzy".into() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn section(name: &str, body: String) -> TranscriptSection {
+     TranscriptSection {
+         name: name.to_string(),
+         body,
+     }
+ }

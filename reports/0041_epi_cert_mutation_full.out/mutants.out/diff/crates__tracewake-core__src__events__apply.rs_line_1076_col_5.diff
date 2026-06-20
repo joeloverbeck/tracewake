@@ -1,0 +1,36 @@
+--- crates/tracewake-core/src/events/apply.rs
++++ replace parse_need_change_cause -> Result<NeedChangeCause, ApplyError> with Ok(Default::default())
+@@ -1068,32 +1068,17 @@
+     let value = required(payload, key)?;
+     ActionId::new(value).map_err(|_| ApplyError::BadPayload {
+         key,
+         value: value.to_string(),
+     })
+ }
+ 
+ fn parse_need_change_cause(payload: &BTreeMap<&str, &str>) -> Result<NeedChangeCause, ApplyError> {
+-    let cause_kind = required(payload, "cause_kind")?;
+-    match cause_kind {
+-        "fixture_initial" => Ok(NeedChangeCause::FixtureInitial),
+-        "tick_delta" => Ok(NeedChangeCause::TickDelta),
+-        "action_effect" => Ok(NeedChangeCause::ActionEffect(parse_action_id_for_agent(
+-            payload,
+-            "cause_action_id",
+-        )?)),
+-        "routine_effect" => Ok(NeedChangeCause::RoutineEffect(parse_routine_execution_id(
+-            payload,
+-        )?)),
+-        _ => Err(ApplyError::BadPayload {
+-            key: "cause_kind",
+-            value: cause_kind.to_string(),
+-        }),
+-    }
++    Ok(Default::default()) /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ fn parse_intention_status(payload: &BTreeMap<&str, &str>) -> Result<IntentionStatus, ApplyError> {
+     let value = required(payload, "status")?;
+     match value {
+         "active" => Ok(IntentionStatus::Active),
+         "suspended" => Ok(IntentionStatus::Suspended),
+         "completed" => Ok(IntentionStatus::Completed),

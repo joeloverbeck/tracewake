@@ -1,0 +1,21 @@
+--- crates/tracewake-core/src/agent/need.rs
++++ replace clamp_need_value -> u16 with 0
+@@ -360,17 +360,17 @@
+             NeedParseError::InvalidId(err) => write!(f, "invalid need cause ID: {err}"),
+         }
+     }
+ }
+ 
+ impl std::error::Error for NeedParseError {}
+ 
+ fn clamp_need_value(value: i32) -> u16 {
+-    value.clamp(i32::from(NEED_MIN), i32::from(NEED_MAX)) as u16
++    0 /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
+     #[test]
+     fn need_state_round_trips_through_canonical_bytes() {

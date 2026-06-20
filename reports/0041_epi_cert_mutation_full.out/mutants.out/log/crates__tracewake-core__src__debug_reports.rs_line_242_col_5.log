@@ -1,0 +1,93 @@
+
+*** crates/tracewake-core/src/debug_reports.rs:242:5: replace action_rejection_report -> ActionRejectionDebugReport with Default::default()
+
+*** mutation diff:
+--- crates/tracewake-core/src/debug_reports.rs
++++ replace action_rejection_report -> ActionRejectionDebugReport with Default::default()
+@@ -234,42 +234,17 @@
+     }
+ }
+ 
+ pub fn action_rejection_report(
+     validation_report: &ValidationReport,
+     state: &PhysicalState,
+     checksum_context: &ChecksumContext,
+ ) -> ActionRejectionDebugReport {
+-    let checksum = compute_physical_checksum(state, checksum_context).checksum;
+-    ActionRejectionDebugReport {
+-        report_id: DebugReportId::new(format!(
+-            "debug.action_rejection.{}",
+-            validation_report.proposal_id.as_str()
+-        ))
+-        .unwrap(),
+-        proposal_id: validation_report.proposal_id.clone(),
+-        validation_report_id: validation_report.validation_report_id.clone(),
+-        failed_stage: validation_report.failed_stage,
+-        reason_codes: validation_report.reason_codes.clone(),
+-        actor_visible_summary: validation_report.actor_visible_summary.clone(),
+-        debug_summary: validation_report.debug_summary.clone(),
+-        actor_visible_facts: validation_report.actor_visible_facts.clone(),
+-        debug_only_facts: validation_report.debug_only_facts.clone(),
+-        precondition_trace: validation_report
+-            .debug_only_facts
+-            .iter()
+-            .map(CheckedFact::render_pair)
+-            .collect(),
+-        events_created: validation_report.event_ids.clone(),
+-        mutation_attempted: false,
+-        checksum_before: checksum.clone(),
+-        checksum_after: checksum,
+-        debug_capability: DebugCapability::mint(),
+-    }
++    Default::default() /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ pub fn projection_rebuild_debug_report(
+     report_id: DebugReportId,
+     rebuild: ProjectionRebuildReport,
+ ) -> ProjectionRebuildDebugReport {
+     ProjectionRebuildDebugReport {
+         report_id,
+
+
+*** /home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --verbose --workspace --locked
+       Dirty tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core): the file `crates/tracewake-core/src/debug_reports.rs` has changed (1781904371.839923410s, 3s after last build at 1781904368.719923405s)
+   Compiling tracewake-core v0.1.0 (/tmp/cargo-mutants-tracewake-KPbovd.tmp/crates/tracewake-core)
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+     Running `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps`
+error[E0277]: the trait bound `ActionRejectionDebugReport: Default` is not satisfied
+   --> crates/tracewake-core/src/debug_reports.rs:242:5
+    |
+242 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `ActionRejectionDebugReport`
+   --> crates/tracewake-core/src/debug_reports.rs:32:1
+    |
+ 32 | pub struct ActionRejectionDebugReport {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `tracewake-core` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=e33c3a3bd335069b -C extra-filename=-95b4b25dfac705df --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `debug_reports::ActionRejectionDebugReport: Default` is not satisfied
+   --> crates/tracewake-core/src/debug_reports.rs:242:5
+    |
+242 |     Default::default() /* ~ changed by cargo-mutants ~ */
+    |     ^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |
+help: the trait `Default` is not implemented for `debug_reports::ActionRejectionDebugReport`
+   --> crates/tracewake-core/src/debug_reports.rs:32:1
+    |
+ 32 | pub struct ActionRejectionDebugReport {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `tracewake-core` (lib test) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/joeloverbeck/.rustup/toolchains/1.93.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name tracewake_core --edition=2021 crates/tracewake-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C embed-bitcode=no -C debuginfo=2 --test --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=2fc44e5b19aef358 -C extra-filename=-b96b951b3689326d --out-dir /tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps -C incremental=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/incremental -L dependency=/tmp/cargo-mutants-tracewake-KPbovd.tmp/target/debug/deps` (exit status: 1)
+
+*** result: Failure(101)
