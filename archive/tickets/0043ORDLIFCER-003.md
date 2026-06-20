@@ -1,6 +1,6 @@
 # 0043ORDLIFCER-003: Diagnose the configured mutation lane's PTY non-completion and establish a transport-honest supervised launch
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — diagnostic report, supervised-launch mechanism, and regression controls; no production/simulation logic change.
@@ -87,3 +87,41 @@ Add regression controls (transcripts retained under `reports/0043_ord_life_cert_
 1. Supervisor regression: run the four controlled children (normal-exit / nonzero-exit / stalled / killed) under the supervisor and confirm four distinct recorded statuses; retain transcripts.
 2. Direct/replacement-supervised non-PTY launch of `cargo mutants --workspace --no-shuffle` (with `.cargo/mutants.toml` in effect) reaches a terminal, complete summary where the historical wrapper did not — or, if external, the bounded-diagnosis equivalent is recorded. (The full certifying run and its reconciliation are -004's scope.)
 3. `grep -RIl . reports/0043_ord_life_cert_command_transcripts/` — confirm regression/reproduction transcripts are retained at stable paths.
+
+## Outcome
+
+Completed: 2026-06-20
+
+Added a repository-owned non-PTY supervisor at `tools/supervise-command.sh`.
+The supervisor uses GNU `timeout --kill-after`, records command metadata,
+stdout/stderr, and `status.env`, distinguishes child exit, child nonzero,
+wrapper wall timeout, supervisor/spawn failure, forced kill, and signal-derived
+child termination, and snapshots default `mutants.out` when present.
+
+Authored `reports/0043_ord_life_cert_mutation_lane_completion_diagnostic.md`.
+The diagnostic bounds the historical 0042 non-completion to an external
+PTY/session transport that is not repository-owned or inspectable in this
+checkout. It records the permanent certification bypass: use the repository
+non-PTY supervisor (or an equivalent direct non-PTY launch) for the final
+configured campaign, and never treat process-list absence as completion proof.
+
+Retained command transcripts under
+`reports/0043_ord_life_cert_command_transcripts/` for:
+
+- `supervisor_normal_exit` — exit `0`, `child_exit_0`.
+- `supervisor_nonzero_exit` — exit `7`, `child_nonzero_exit`.
+- `supervisor_stalled_timeout` — exit `124`, `wrapper_wall_timeout`.
+- `supervisor_killed_child` — exit `143`, `child_signal_or_forced_exit`.
+- `supervisor_mutants_list` — supervised `cargo mutants --workspace --no-shuffle --list`, exit `0`, `child_exit_0`, 2877 stdout lines.
+
+Verification:
+
+- `tools/supervise-command.sh reports/0043_ord_life_cert_command_transcripts/supervisor_normal_exit 10 1 -- bash -lc 'printf normal-ok'` — produced exit `0` and `child_exit_0`.
+- `tools/supervise-command.sh reports/0043_ord_life_cert_command_transcripts/supervisor_nonzero_exit 10 1 -- bash -lc 'printf nonzero >&2; exit 7'` — intentionally exited `7` and recorded `child_nonzero_exit`.
+- `tools/supervise-command.sh reports/0043_ord_life_cert_command_transcripts/supervisor_stalled_timeout 1 1 -- bash -lc 'printf stall-start; sleep 5; printf stall-end'` — intentionally exited `124` and recorded `wrapper_wall_timeout`.
+- `tools/supervise-command.sh reports/0043_ord_life_cert_command_transcripts/supervisor_killed_child 10 1 -- bash -lc 'printf kill-start; kill -TERM $$; sleep 1'` — intentionally exited `143` and recorded `child_signal_or_forced_exit`.
+- `tools/supervise-command.sh reports/0043_ord_life_cert_command_transcripts/supervisor_mutants_list 60 5 -- cargo mutants --workspace --no-shuffle --list` — passed and emitted 2877 configured mutant identities.
+- `grep -RIl . reports/0043_ord_life_cert_command_transcripts/` / direct file inspection — confirmed retained transcript files at stable paths.
+
+Scope note: the full certifying `cargo mutants --workspace --no-shuffle`
+campaign was not run here; it remains `0043ORDLIFCER-004` scope.
