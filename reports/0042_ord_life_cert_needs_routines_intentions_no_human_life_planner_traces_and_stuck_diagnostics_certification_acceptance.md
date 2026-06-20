@@ -1367,7 +1367,33 @@ Property-family witnesses:
 
 ## Mutation package
 
-Pending; owned by `0042ORDLIFCER-015`.
+Result: `scoped remediation`, not `pass`. The checked-in cargo-mutants perimeter was expanded additively for ORD-LIFE §7.2 and the census commands prove the required union is present, but the configured full mutation lane did not complete and the partial exact run exposed actionable missed mutants. The survivor/tool-failure floor is recorded in `reports/0042_ord_life_cert_mutation_triage_register.md` and routes the aggregate result toward `ORD-LIFE-CERT scoped remediation` unless a later remediation spec replaces this evidence with a complete clean configured rerun.
+
+Perimeter evidence:
+
+- `.cargo/mutants.toml` SHA-256: `258109189fc4500ab88c6fa28f47d06292632ac9b274a237589e49a90ef05b11`.
+- `.cargo/mutants-baseline-misses.txt` remained empty/unchanged; SHA-256: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+- `cargo mutants --workspace --list-files` returned 60 files and explicitly included the ORD-LIFE §7.2 union: `need_accounting.rs`, `actions/registry.rs`, `actions/defs/need_events.rs`, `actions/defs/wait.rs`, `actions/defs/continue_routine.rs`, `actions/defs/movement.rs`, plus the standing agent, scheduler, projections, pipeline, proposal, report, events, replay, checksum, state, eat, sleep, and work surfaces.
+- `cargo mutants --workspace --list` returned 2877 mutants for the expanded configured perimeter.
+
+Command ledger:
+
+| Command | Result | Evidence |
+|---|---|---|
+| `cargo install cargo-mutants --version 27.1.0 --locked` | initial sandbox run failed with DNS while downloading from `index.crates.io`; approved network rerun passed, `2026-06-20T13:22:05+02:00` to `2026-06-20T13:22:05+02:00` | failed transcript `/tmp/0042-015-cargo-install-mutants.txt` before rerun: 606 bytes, SHA-256 `2bcb2dedca687ffbe5926d7679df91fb278e3dcf8188a94cdeea7da2fd10e86d`; final transcript: 91 bytes, SHA-256 `927b01f06a469ebfdff63c0bdd18d8b755fd948d47b76557f14e93e2d40ad1bc` |
+| `cargo mutants --version` | passed, `2026-06-20T13:22:13+02:00` to `2026-06-20T13:22:13+02:00` | `/tmp/0042-015-cargo-mutants-version.txt`, 21 bytes, SHA-256 `ba3c35073708a1da94eef75cafca1e263013077a73d090b5a798135dac2ffbe5` |
+| `cargo mutants --workspace --list-files` | passed, `2026-06-20T13:22:24+02:00` to `2026-06-20T13:22:25+02:00` | `/tmp/0042-015-mutants-list-files.txt`, 2666 bytes, SHA-256 `510a1c626efda2b5118a6244184bf071c1a1fcda5237d9fa572861938046e50e` |
+| `cargo mutants --workspace --list` | passed, `2026-06-20T13:22:32+02:00` to `2026-06-20T13:22:32+02:00` | `/tmp/0042-015-mutants-list.txt`, 350469 bytes, SHA-256 `d9b430fbe111f5ea9a8c9db70bec032b3296444b38dac7a78aeecf672444c0a7` |
+| `cargo mutants --workspace --no-shuffle` | incomplete/tool-failure; wrapper was interrupted after no cargo-mutants process was visible; partial transcript found three missed `need_accounting.rs` mutants | `/tmp/0042-015-mutants-no-shuffle.txt`, 504 bytes, SHA-256 `89f1b0632896dae694d1f04b2cdf0041ab8d0cb4b7c6868964bfe799478c6108` |
+| `cargo mutants --workspace --no-shuffle -j 8` | deterministic rerun also incomplete/tool-failure; wrapper was interrupted after no cargo-mutants process was visible | `/tmp/0042-015-mutants-no-shuffle-j8.txt`, 115 bytes, SHA-256 `203c5371724d970ddb1dbd0ec4bcb5d0b112f87f1dbdd4008ba169f32a71850c` |
+| `cargo test --workspace --locked` | passed, `2026-06-20T14:54:50+02:00` to `2026-06-20T14:54:58+02:00` | `/tmp/0042-015-workspace-test.txt`, 79819 bytes, SHA-256 `a770a77041c9d6b22dc8f87cef4cb09ed79de2093a74b8caea0989cc26fc4756` |
+
+Mutation survivor/tool-failure floor:
+
+- `need_accounting.rs:88:25 replace < with <= in DurationInterval::contains_tick` missed; mapped to `ORD-LIFE-01`, `ORD-LIFE-08`, and `ORD-LIFE-12`; routed remediation.
+- `need_accounting.rs:106:13 replace && with || in duration_intervals` missed; mapped to `ORD-LIFE-01`, `ORD-LIFE-08`, and `ORD-LIFE-12`; routed remediation.
+- `need_accounting.rs:109:45 replace == with != in duration_intervals` missed; mapped to `ORD-LIFE-01`, `ORD-LIFE-08`, and `ORD-LIFE-12`; routed remediation.
+- The exact configured `--no-shuffle` lane and deterministic `-j 8` rerun remain tool-failure/incomplete evidence and are not accepted for certification.
 
 ## Staged-abstraction declaration
 

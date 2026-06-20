@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-015: §7 mutation posture — target-baseline continuity, configured ORD-LIFE expansion, and survivor triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — modifies the checked-in mutation perimeter `.cargo/mutants.toml` (and `.cargo/mutants-baseline-misses.txt` as the configured union shifts the accepted baseline); creates `reports/0042_ord_life_cert_mutation_triage_register.md`. No simulation/production logic changes.
@@ -78,3 +78,20 @@ Run, in order: unmutated workspace + named-suite baseline; committed in-diff/rat
 3. `cargo mutants --workspace --list`
 4. `cargo mutants --workspace --no-shuffle`
 5. `cargo test --workspace --locked`
+
+## Outcome
+
+Completed: 2026-06-20
+
+The checked-in mutation perimeter was expanded additively in `.cargo/mutants.toml` to include the ORD-LIFE §7.2 missing entries: `need_accounting.rs`, `actions/registry.rs`, `actions/defs/need_events.rs`, `actions/defs/wait.rs`, `actions/defs/continue_routine.rs`, and `actions/defs/movement.rs`. `.cargo/mutants-baseline-misses.txt` remained unchanged and empty.
+
+Verification:
+
+- `cargo install cargo-mutants --version 27.1.0 --locked`: first sandbox run failed on DNS while downloading from `index.crates.io`; approved rerun passed (`/tmp/0042-015-cargo-install-mutants.txt`, final SHA-256 `927b01f06a469ebfdff63c0bdd18d8b755fd948d47b76557f14e93e2d40ad1bc`).
+- `cargo mutants --workspace --list-files`: passed, 60-file census including the required ORD-LIFE §7.2 union (`/tmp/0042-015-mutants-list-files.txt`, SHA-256 `510a1c626efda2b5118a6244184bf071c1a1fcda5237d9fa572861938046e50e`).
+- `cargo mutants --workspace --list`: passed, 2877-mutant census (`/tmp/0042-015-mutants-list.txt`, SHA-256 `d9b430fbe111f5ea9a8c9db70bec032b3296444b38dac7a78aeecf672444c0a7`).
+- `cargo mutants --workspace --no-shuffle`: exact configured lane did not complete; after no cargo-mutants process was visible, the wrapper was interrupted and retained as tool-failure evidence. The partial transcript exposed three missed `need_accounting.rs` mutants (`/tmp/0042-015-mutants-no-shuffle.txt`, SHA-256 `89f1b0632896dae694d1f04b2cdf0041ab8d0cb4b7c6868964bfe799478c6108`).
+- `cargo mutants --workspace --no-shuffle -j 8`: deterministic rerun also did not complete; after no cargo-mutants process was visible, the wrapper was interrupted and retained as tool-failure evidence (`/tmp/0042-015-mutants-no-shuffle-j8.txt`, SHA-256 `203c5371724d970ddb1dbd0ec4bcb5d0b112f87f1dbdd4008ba169f32a71850c`).
+- `cargo test --workspace --locked`: passed after the config/report updates (`/tmp/0042-015-workspace-test.txt`, SHA-256 `a770a77041c9d6b22dc8f87cef4cb09ed79de2093a74b8caea0989cc26fc4756`).
+
+The mutation posture is therefore `ORD-LIFE-CERT scoped remediation`, not `passed`. The missed mutants and tool-failure floor are recorded in `reports/0042_ord_life_cert_mutation_triage_register.md`; survivor remediation remains out of scope for this ticket and is routed to later scoped remediation work.
