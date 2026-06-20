@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-001: Acceptance-artifact scaffold + §4.1 clean baseline transcript and environment
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: None — creates the `reports/` ORD-LIFE-CERT acceptance artifact and captures the §4.1 clean-baseline command transcript and environment; runs existing tests only, changes no engine code.
@@ -80,3 +80,21 @@ Run the spec §4.1 commands against the tested tree and record, per command: exa
 3. `cargo build --workspace --all-targets --locked`
 4. `cargo test --workspace --locked`
 5. `cargo test --locked -p tracewake-core --doc`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Created `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with the required §9.1 identity/scope fields, predecessor-artifact scoping, clean/dirty and target/tested commit honesty, and stable stubs for ORD-LIFE-01 through ORD-LIFE-12, generated/metamorphic evidence, mutation evidence, staged abstraction, EMERGE-OBS, and the capstone aggregate verdict.
+
+The §4.1 clean baseline ran green against tested commit `f7d8d666a8baa220b87d5e037e3eb50c8bf088c5`, which does not equal the spec target `98dc0421211e6c9881d9c6679b9df74525e392bb`; the artifact records that divergence explicitly. The direct first pass and the fingerprinted transcript-capture rerun both passed. Transcript capture files were written under `/tmp` and are not committed artifacts; their byte counts and SHA-256 values are recorded in the report.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace --locked` — passed.
+- `cargo test --locked -p tracewake-core --doc` — passed.
+
+No production or engine code changed. No ORD-LIFE-01 through ORD-LIFE-12 verdict, mutation verdict, generated/metamorphic verdict, or aggregate certification verdict was rendered by this ticket.
