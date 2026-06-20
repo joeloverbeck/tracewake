@@ -1,6 +1,6 @@
 # 0043ORDLIFCER-001: Converge the in-diff mutation trigger on the standing perimeter and make the guard drift-proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — CI workflow (`.github/workflows/ci.yml`) and the core CI guard test (`crates/tracewake-core/tests/ci_workflow_guards.rs`); no production/simulation logic change.
@@ -91,3 +91,30 @@ Confirm `.cargo/mutants.toml` still expands to the standing 60-file seam (no shr
 1. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked`
 3. `grep -nE 'need_accounting|actions/registry|need_events|continue_routine|movement|defs/[^ ]*wait' .github/workflows/ci.yml` — confirm the six 0042 paths now appear in the in-diff trigger expression.
+
+## Outcome
+
+Completed: 2026-06-20
+
+Implemented the in-diff trigger convergence for the standing ORD-LIFE mutation
+perimeter. The `mutants-in-diff` guarded-path regex now covers
+`need_accounting.rs`, `actions/registry.rs`, and the `need_events`, `wait`,
+`continue_routine`, and `movement` action definitions alongside the existing
+ordinary-life action definitions.
+
+Tightened the CI workflow guard so `STANDING_MUTATION_PERIMETER` matches the
+checked-in `.cargo/mutants.toml` standing seam and every perimeter path must map
+to a covering in-diff trigger fragment. Added a synthetic negative case proving
+that removing a standing path from the workflow trigger fails the guard. Updated
+the existing anti-regression synthetic in-diff cases to use the widened
+action-definition trigger expression.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards` — passed.
+- `cargo fmt --all --check` — passed after applying rustfmt to the new test.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace --locked` — passed.
+- `grep -nE 'need_accounting|actions/registry|need_events|continue_routine|movement|defs/[^ ]*wait' .github/workflows/ci.yml` — confirmed the six 0042 paths in the in-diff trigger expression.
+- `rg -n 'need_accounting|actions/registry|need_events|continue_routine|movement|wait' .cargo/mutants.toml` — confirmed the standing perimeter entries remain present.
+- `wc -c .cargo/mutants-baseline-misses.txt` — confirmed `0` bytes; no survivor laundering.

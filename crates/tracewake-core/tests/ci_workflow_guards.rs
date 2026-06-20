@@ -15,12 +15,18 @@ const REQUIRED_GATE_COMMANDS: &[&str] = &[
 
 const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/agent/**",
+    "crates/tracewake-core/src/need_accounting.rs",
     "crates/tracewake-core/src/scheduler.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
+    "crates/tracewake-core/src/actions/registry.rs",
+    "crates/tracewake-core/src/actions/defs/need_events.rs",
     "crates/tracewake-core/src/actions/defs/eat.rs",
     "crates/tracewake-core/src/actions/defs/sleep.rs",
     "crates/tracewake-core/src/actions/defs/work.rs",
+    "crates/tracewake-core/src/actions/defs/wait.rs",
+    "crates/tracewake-core/src/actions/defs/continue_routine.rs",
+    "crates/tracewake-core/src/actions/defs/movement.rs",
     "crates/tracewake-core/src/events/**",
     "crates/tracewake-core/src/replay/**",
     "crates/tracewake-core/src/checksum.rs",
@@ -31,6 +37,7 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/debug_capability.rs",
     "crates/tracewake-core/src/controller.rs",
     "crates/tracewake-core/src/debug_reports.rs",
+    "crates/tracewake-core/src/epistemics/**",
     "crates/tracewake-core/src/epistemics/knowledge_context.rs",
     "crates/tracewake-core/src/epistemics/projection.rs",
     "crates/tracewake-content/src/manifest.rs",
@@ -46,10 +53,12 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
 
 const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/agent/",
+    "crates/tracewake-core/src/need_accounting\\.rs",
     "crates/tracewake-core/src/scheduler\\.rs",
     "crates/tracewake-core/src/projections\\.rs",
     "crates/tracewake-core/src/actions/pipeline\\.rs",
-    "crates/tracewake-core/src/actions/defs/(eat|sleep|work)\\.rs",
+    "crates/tracewake-core/src/actions/registry\\.rs",
+    "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
     "crates/tracewake-core/src/events/",
     "crates/tracewake-core/src/replay/",
     "crates/tracewake-core/src/checksum\\.rs",
@@ -161,6 +170,15 @@ fn ci_workflow_guards_cover_workflow_integrity() {
             .iter()
             .any(|error| error.contains("missing standing mutation perimeter path")),
         "synthetic missing SPINE perimeter path must fail"
+    );
+
+    let missing_perimeter_trigger =
+        CI_YML.replace("crates/tracewake-core/src/need_accounting\\.rs|", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_perimeter_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("does not cover standing perimeter path")),
+        "synthetic in-diff trigger missing a standing path must fail"
     );
 }
 
@@ -322,6 +340,12 @@ fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String
         if !mutants_config.contains(&format!(r#""{path}""#)) {
             errors.push(format!("missing standing mutation perimeter path: {path}"));
         }
+        let trigger = in_diff_trigger_fragment_for_perimeter_path(path);
+        if !workflow.contains(trigger) {
+            errors.push(format!(
+                "in-diff mutation trigger does not cover standing perimeter path {path} with fragment: {trigger}"
+            ));
+        }
     }
     for trigger in STANDING_MUTATION_TRIGGER_FRAGMENTS {
         if !workflow.contains(trigger) {
@@ -357,6 +381,77 @@ fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String
         }
     }
     errors
+}
+
+fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
+    match path {
+        "crates/tracewake-core/src/agent/**" => "crates/tracewake-core/src/agent/",
+        "crates/tracewake-core/src/need_accounting.rs" => {
+            "crates/tracewake-core/src/need_accounting\\.rs"
+        }
+        "crates/tracewake-core/src/scheduler.rs" => {
+            "crates/tracewake-core/src/scheduler\\.rs"
+        }
+        "crates/tracewake-core/src/projections.rs" => {
+            "crates/tracewake-core/src/projections\\.rs"
+        }
+        "crates/tracewake-core/src/actions/pipeline.rs" => {
+            "crates/tracewake-core/src/actions/pipeline\\.rs"
+        }
+        "crates/tracewake-core/src/actions/registry.rs" => {
+            "crates/tracewake-core/src/actions/registry\\.rs"
+        }
+        "crates/tracewake-core/src/actions/defs/need_events.rs"
+        | "crates/tracewake-core/src/actions/defs/eat.rs"
+        | "crates/tracewake-core/src/actions/defs/sleep.rs"
+        | "crates/tracewake-core/src/actions/defs/work.rs"
+        | "crates/tracewake-core/src/actions/defs/wait.rs"
+        | "crates/tracewake-core/src/actions/defs/continue_routine.rs"
+        | "crates/tracewake-core/src/actions/defs/movement.rs" => {
+            "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs"
+        }
+        "crates/tracewake-core/src/events/**" => "crates/tracewake-core/src/events/",
+        "crates/tracewake-core/src/replay/**" => "crates/tracewake-core/src/replay/",
+        "crates/tracewake-core/src/checksum.rs" => {
+            "crates/tracewake-core/src/checksum\\.rs"
+        }
+        "crates/tracewake-core/src/state.rs" => "crates/tracewake-core/src/state\\.rs",
+        "crates/tracewake-core/src/actions/proposal.rs"
+        | "crates/tracewake-core/src/actions/report.rs" => {
+            "crates/tracewake-core/src/actions/(proposal|report)\\.rs"
+        }
+        "crates/tracewake-core/src/view_models.rs" => {
+            "crates/tracewake-core/src/view_models\\.rs"
+        }
+        "crates/tracewake-core/src/debug_capability.rs" => {
+            "crates/tracewake-core/src/debug_capability\\.rs"
+        }
+        "crates/tracewake-core/src/controller.rs" => {
+            "crates/tracewake-core/src/controller\\.rs"
+        }
+        "crates/tracewake-core/src/debug_reports.rs" => {
+            "crates/tracewake-core/src/debug_reports\\.rs"
+        }
+        "crates/tracewake-core/src/epistemics/**"
+        | "crates/tracewake-core/src/epistemics/knowledge_context.rs"
+        | "crates/tracewake-core/src/epistemics/projection.rs" => {
+            "crates/tracewake-core/src/epistemics/"
+        }
+        "crates/tracewake-content/src/manifest.rs"
+        | "crates/tracewake-content/src/load.rs"
+        | "crates/tracewake-content/src/schema.rs"
+        | "crates/tracewake-content/src/serialization.rs"
+        | "crates/tracewake-content/src/validate.rs" => {
+            "crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\\.rs"
+        }
+        "crates/tracewake-tui/src/app.rs"
+        | "crates/tracewake-tui/src/debug_panels.rs"
+        | "crates/tracewake-tui/src/render.rs"
+        | "crates/tracewake-tui/src/transcript.rs" => {
+            "crates/tracewake-tui/src/(app|debug_panels|render|transcript)\\.rs"
+        }
+        _ => panic!("standing mutation perimeter has no in-diff trigger mapping: {path}"),
+    }
 }
 
 fn workflow_job_ids(workflow: &str) -> BTreeSet<String> {
