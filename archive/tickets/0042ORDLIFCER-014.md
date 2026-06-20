@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-014: §6.4 generated/metamorphic evidence + cross-gate relational hidden-truth / possession / debug harness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-harness only: paired-run / metamorphic / property assertions added to the existing certification suites (no production logic; spec §2 authorizes evidence instrumentation, not remediation).
@@ -80,3 +80,20 @@ For each property family record: seeds, generator version, case count, shrink re
 2. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
 3. `cargo test --locked -p tracewake-core --test no_human_capstone`
 4. `cargo test --workspace --locked`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Implemented the §6.4 generated/metamorphic evidence package with test-harness-only changes. `generative_lock` now records explicit generated evidence metadata, seed-order determinism, progress-classification, and lifecycle-terminal relational checks. `hidden_truth_gates` now includes a paired hidden-truth metamorphism and provenance deletion/substitution fail-closed test. `no_human_capstone` now includes debug/possession non-interference plus replay perturbation evidence. Shared generator support records the evidence version, shrink result, and omitted population.
+
+Updated `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with the generated/metamorphic command ledger and sampled evidence package. The package is recorded as sampled, not exhaustive, and does not replace the mutation floor or aggregate verdict.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test generative_lock`
+2. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+3. `cargo test --locked -p tracewake-core --test no_human_capstone`
+4. `cargo test --workspace --locked`
+
+All four required commands passed. Transcript files were captured under `/tmp/0042-014-*.txt`; the committed report records byte counts and SHA-256 digests. Production logic was not changed.

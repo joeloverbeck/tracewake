@@ -195,6 +195,17 @@ These commands were run for `0042ORDLIFCER-013` against commit `6346aa8afb269bbf
 | `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:40:02+02:00` to `2026-06-20T12:40:02+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:40:08+02:00` to `2026-06-20T12:40:08+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-013-golden-fixtures-run.txt` | 3008 | `ac7ad8b9d04daf8f89ff25a02f79de22e3c59983e4d98c499c51ad1dedee6e7a` |
 
+### Generated/metamorphic command ledger
+
+These commands were run for `0042ORDLIFCER-014` against commit `9516c32b4dc0f6874a1653184ee1e6d3061b2423` plus the uncommitted test-harness and report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test generative_lock` | `2026-06-20T12:46:34+02:00` to `2026-06-20T12:46:34+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-014-generative-lock.txt` | 651 | `e3cae8c4acbe783514c5d333b0ad0049e5eccd2fd5a3da8631d365bd904f43f0` |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | `2026-06-20T12:46:41+02:00` to `2026-06-20T12:46:41+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-014-hidden-truth-gates.txt` | 1511 | `38f612ea37f9e35fff3a1504d9c404ace328b8c37299beeec954cb3871fe8dc7` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:48:12+02:00` to `2026-06-20T12:48:12+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-014-no-human-capstone.txt` | 521 | `943c981dda9d9be7f22001cd03a7253aeccad2f3357cdd8fc274110eb377d502` |
+| `cargo test --workspace --locked` | `2026-06-20T12:48:18+02:00` to `2026-06-20T12:48:24+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-014-workspace-test.txt` | 79722 | `6a34485dd88568f02c8dbdcedf175ddbbda641cd83125ad7cf6cc1aae125bbf0` |
+
 ## Per-requirement acceptance evidence
 
 Rows record completed local audit-point evidence as the series advances. Aggregate certification remains pending until `0042ORDLIFCER-016` computes the capstone verdict from these rows, generated/metamorphic evidence, mutation evidence, and staged-abstraction review.
@@ -1331,7 +1342,28 @@ Phase-entry and admissibility witnesses:
 
 ## Generated and metamorphic evidence package
 
-Pending; owned by `0042ORDLIFCER-014`.
+Result: `pass` for the §6.4 generated/metamorphic evidence package. This package is `sampled`, not exhaustive; it supports the later aggregate verdict but does not by itself certify `ORD-LIFE-CERT` or replace the mutation floor.
+
+Evidence package manifest:
+
+- Generator version: `ordinary-life-generative-v1`.
+- Seeds: `0x18000010`, `0x18000011`, `0x18000012`, `0x18000013`, `0x18000014`, `0x18000015`, `0x18000021`, `0x18000023`, `0x18000024`, `0x18000029`, `0x1800002a`, `0x18000057`.
+- Case count: 12 generated ordinary-life cases, plus paired hidden-truth/provenance cases and the no-human capstone perturbation case.
+- Shrink result: `not-run-green-sampled-corpus`; no failing generated case was found to shrink.
+- Omitted population: unbounded authored content manifests, all possible wall-clock schedules, and all possible actor rosters.
+- Sampling/exhaustiveness: sampled generated corpus with recorded mask diversity 7, sequence-length diversity 4, and multi-seed contributors for wait, need delta, food, sleep, work, duration terminal, interruption, work failure, and continuity-failure branches.
+
+Property-family witnesses:
+
+- Actor/need/tick single-charge conservation: `generated_sequences_replay_and_satisfy_metamorphic_locks` keeps one `NeedDeltaApplied` key per actor/tick/need and exercises window partitioning, sleep/work duration insertion, interruption, displacement, replay, and duplicate-charge rejection.
+- Determinism under map/set/input-order permutation: `generated_runs_are_deterministic_under_seed_order_permutation` compares canonical generated logs from forward and reversed seed order; `generated_evidence_package_metadata_is_explicit_and_sampled` records the sampled perimeter.
+- Hidden-truth metamorphism: `hidden_truth_metamorphism_and_provenance_deletion_are_relational` changes unobserved truth while requiring equal actor-known planner output from the unchanged actor-known packet.
+- Provenance deletion/substitution fail-closed: the same hidden-truth test removes food, route, and workplace provenance one family at a time and requires typed planner failures rather than fallback to truth.
+- Lifecycle sequence generation: `generated_progress_classification_and_lifecycle_properties_are_relational` duplicates a legal sleep terminal and requires replay poisoning instead of legal reactivation; the baseline generated corpus still replays legal lifecycle sequences identically.
+- Planner-budget boundaries and coherent fallback: hidden-truth paired requests use finite budgets for eat, route, and work; missing provenance fails with responsible planner reasons rather than hidden-truth fallback.
+- Progress classification: `generated_progress_classification_and_lifecycle_properties_are_relational` proves an added no-human completion marker does not increase meal/sleep/work progress, while adding a committed food-consumed event increments meals exactly once.
+- Debug/possession non-interference: `no_human_capstone_debug_and_replay_perturbation_are_non_interfering` renders debug event-log output without changing no-human metrics, keeps controller/debug streams out of the no-human log, and asserts previous-possessed/debug-omniscience knowledge is absent from the no-human run.
+- Replay prefix/suffix perturbation with first-divergence attribution: `no_human_capstone_debug_and_replay_perturbation_are_non_interfering` removes a committed food-consumed event and requires replay mismatch with a first-divergence or responsible replay failure; generated terminal and payload perturbations poison replay rather than converging by normalization.
 
 ## Mutation package
 

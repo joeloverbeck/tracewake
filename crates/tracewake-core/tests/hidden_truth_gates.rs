@@ -909,6 +909,53 @@ fn proof_sources_are_actor_known(context: &tracewake_core::agent::ActorKnownPlan
         .any(|source| source.contains("debug_omniscience") || source.contains("unproven")));
 }
 
+fn actor_known_cognition_fingerprint(
+    context: &tracewake_core::agent::ActorKnownPlanningState,
+) -> Vec<String> {
+    let requests = [
+        LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_visible_table".to_string()),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+        LocalPlanRequest {
+            routine_step: RoutineStep::MoveTowardPlace {
+                action_id: "move".parse().unwrap(),
+            },
+            goal: PlannerGoal::ReachPlace(place_id("known_market")),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+        LocalPlanRequest {
+            routine_step: RoutineStep::StartWorkBlock {
+                action_id: "work_block".parse().unwrap(),
+            },
+            goal: PlannerGoal::StartWorkBlock("workplace_visible_notice".to_string()),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+    ];
+    requests
+        .into_iter()
+        .map(|request| match plan_local_actions(context, &request) {
+            Ok(success) => format!(
+                "ok:{}:{}",
+                success.proposals.len(),
+                success
+                    .proposals
+                    .iter()
+                    .map(|proposal| proposal.action_id.as_str().to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            Err(failure) => format!("err:{}", failure.reason),
+        })
+        .collect()
+}
+
 #[test]
 fn holder_known_fact_family_report_fingerprint_covers_keys_fields_and_audit() {
     let context = fact_family_context();
@@ -1342,6 +1389,117 @@ fn hidden_route_edge_absent_from_actor_context_blocks_route_plan() {
     )
     .unwrap_err();
     assert_eq!(failure.reason, "no actor-known route to target");
+}
+
+#[test]
+fn hidden_truth_metamorphism_and_provenance_deletion_are_relational() {
+    let known_route_from = place_id("home_mara");
+    let known_route_to = place_id("known_market");
+    let known_workplace = workplace_id("workplace_visible_notice");
+    let context_with_all_provenance = context(
+        BTreeMap::from([(
+            known_route_from.clone(),
+            BTreeSet::from([known_route_to.clone()]),
+        )]),
+        BTreeSet::from(["food_visible_table".to_string()]),
+        BTreeMap::from([(known_workplace.clone(), known_route_to.clone())]),
+    );
+
+    let baseline_cognition = actor_known_cognition_fingerprint(&context_with_all_provenance);
+    let base_world = adversarial_truth_world();
+    let mut mutated_truth = PhysicalSeed::from_state(&base_world);
+    mutated_truth.food_supplies_mut().insert(
+        food_supply_id("food_unobserved_variant"),
+        FoodSupplyState::new(
+            food_supply_id("food_unobserved_variant"),
+            Location::AtPlace(place_id("hidden_workshop")),
+            7,
+            300,
+        ),
+    );
+    let mutated_truth = mutated_truth.build();
+    for world in [&base_world, &mutated_truth] {
+        let errors = planner_hidden_truth_fixture_witness_errors(
+            world,
+            &context_with_all_provenance,
+            "food_visible_table",
+            "food_hidden_pantry",
+            (&known_route_from, &known_route_to),
+            (&known_route_from, &place_id("hidden_workshop")),
+        );
+        assert!(
+            errors.is_empty(),
+            "hidden-truth fixture witness must stay satisfied: {errors:#?}"
+        );
+        assert_eq!(
+            actor_known_cognition_fingerprint(&context_with_all_provenance),
+            baseline_cognition,
+            "unobserved truth changes must not alter actor-known planner output"
+        );
+    }
+
+    let without_food_source = context(
+        BTreeMap::from([(
+            known_route_from.clone(),
+            BTreeSet::from([known_route_to.clone()]),
+        )]),
+        BTreeSet::new(),
+        BTreeMap::from([(known_workplace.clone(), known_route_to.clone())]),
+    );
+    let food_failure = plan_local_actions(
+        &without_food_source,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::ConsumeAccessibleFood {
+                action_id: "eat".parse().unwrap(),
+            },
+            goal: PlannerGoal::EatKnownFood("food_visible_table".to_string()),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(food_failure.reason, "food source is not actor-known");
+
+    let without_route_source = context(
+        BTreeMap::new(),
+        BTreeSet::from(["food_visible_table".to_string()]),
+        BTreeMap::from([(known_workplace.clone(), known_route_to.clone())]),
+    );
+    let route_failure = plan_local_actions(
+        &without_route_source,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::MoveTowardPlace {
+                action_id: "move".parse().unwrap(),
+            },
+            goal: PlannerGoal::ReachPlace(known_route_to.clone()),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(route_failure.reason, "no actor-known route to target");
+
+    let wrong_kind_substitution = context(
+        BTreeMap::from([(known_route_from, BTreeSet::from([known_route_to.clone()]))]),
+        BTreeSet::from(["food_visible_table".to_string()]),
+        BTreeMap::new(),
+    );
+    let workplace_failure = plan_local_actions(
+        &wrong_kind_substitution,
+        &LocalPlanRequest {
+            routine_step: RoutineStep::StartWorkBlock {
+                action_id: "work_block".parse().unwrap(),
+            },
+            goal: PlannerGoal::StartWorkBlock(known_workplace.as_str().to_string()),
+            budget: 2,
+            actor_known_facts: Vec::new(),
+        },
+    )
+    .unwrap_err();
+    assert_eq!(
+        workplace_failure.reason,
+        "workplace is not actor-known at current place"
+    );
 }
 
 #[test]
