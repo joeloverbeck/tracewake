@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-005: ORD-LIFE-04 — defeasible routine templates, HTN method families, interruptors, failure modes, and fallback
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -66,7 +66,7 @@ Record the §5 adversarial cases: a routine with no failure modes / empty non-di
 
 ### New/Modified Tests
 
-1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
+1. Added `phase3a_template_census_has_defeasible_machinery_for_each_family` in `crates/tracewake-core/src/agent/methods.rs` as test-only instrumentation to enumerate every current `phase3a_routine_templates()` family and prove each has proposal steps, interruptor checkpoints, explicit failure modes, fallback rules, and family trace/debug labels. This is not production remediation and does not alter routine behavior.
 
 ### Commands
 
@@ -75,3 +75,23 @@ Record the §5 adversarial cases: a routine with no failure modes / empty non-di
 3. `cargo test --locked -p tracewake-core --test no_human_capstone`
 4. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 5. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Populated the ORD-LIFE-04 section of `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with command transcript fingerprints, an exhaustive `phase3a_routine_templates()` family census, routine behavior witnesses, replay/negative evidence, and a local `pass` result.
+
+Added the test-only `phase3a_template_census_has_defeasible_machinery_for_each_family` unit test in `crates/tracewake-core/src/agent/methods.rs` to satisfy the ticket's enumerated-family criterion. The current census is: `MorningWake`, `EatMeal`, `GoToWork`, `WorkBlock`, `ReturnHome`, `SleepNight`, `FindFood`, `LeaveUnsafePlace`, `ContinueCurrentIntention`, and `Wait`. The report also records live routine evidence from `routine_blocked_fixture_records_access_failure_without_silent_loop`, `routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry`, `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, `severe_safety_with_known_exit_produces_move_and_replays`, `work_block_failed_then_sleep_succeeds_fixture_closes_reservation`, no-human routine ancestry, event-schema replay gates, generated locks, and content validation negatives.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core phase3a_template_census_has_defeasible_machinery_for_each_family` — passed.
+- `cargo fmt --all --check` — passed after the test-only edit.
+- `cargo test --locked -p tracewake-core --test generative_lock` — passed after the test-only edit.
+- `cargo test --locked -p tracewake-core --test golden_scenarios` — passed after the test-only edit.
+- `cargo test --locked -p tracewake-core --test no_human_capstone` — passed after the test-only edit.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed after the test-only edit.
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates` — passed after the test-only edit.
+
+No production behavior changed. No remediation was needed or performed.

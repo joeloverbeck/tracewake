@@ -83,6 +83,19 @@ These commands were run for `0042ORDLIFCER-004` against commit `608f16c0729963f0
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T11:59:24+02:00` to `2026-06-20T11:59:25+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-golden-fixtures-run.txt` | 3008 | `8a5000b37c0e6610017a93ce7be926cc8837ddeb85f0db0e9444d708ac1e67a4` |
 | `cargo test --locked -p tracewake-tui --test embodied_flow` | `2026-06-20T11:59:32+02:00` to `2026-06-20T11:59:32+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-004-embodied-flow.txt` | 682 | `7742004884d470e69c4179f3321e95a0fb345bbaffd6c00b336f35327164d910` |
 
+### ORD-LIFE-04 command ledger
+
+These commands were run for `0042ORDLIFCER-005` against commit `9ae209d8a20060ff54bf4b8ede6b2b2c2121442a` plus the uncommitted test-only template-census edit and report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts. The first command is an added targeted unit proof for the ticket's enumerated `phase3a_routine_templates` family criterion; the remaining five are the ticket-required commands rerun after that tracked edit.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core phase3a_template_census_has_defeasible_machinery_for_each_family` | `2026-06-20T12:04:13+02:00` to `2026-06-20T12:04:16+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-template-census.txt` | 3245 | `f874c6ce1288bdf3f540feb912fa8b9f68d90cfc69112a1e655b069fd7bc1551` |
+| `cargo test --locked -p tracewake-core --test generative_lock` | `2026-06-20T12:04:34+02:00` to `2026-06-20T12:04:34+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-generative-lock-post.txt` | 419 | `e71a584cc1ea58adaa1a6ed0467a220afad808e9c879920b326e47d2ee8d1ee3` |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | `2026-06-20T12:04:40+02:00` to `2026-06-20T12:04:40+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-golden-scenarios-post.txt` | 1273 | `18e8246cf31dbf4258e04895ccba5e72473aabac6f298af31d1c8307e5912f52` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:04:49+02:00` to `2026-06-20T12:04:50+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-no-human-capstone-post.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:04:56+02:00` to `2026-06-20T12:04:57+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-golden-fixtures-run-post.txt` | 3111 | `69080062ca12c6b69c77f76e03d5b4a78a4115e2d68a8bd3b334d0af31116f8e` |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:05:10+02:00` to `2026-06-20T12:05:10+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-event-schema-replay-gates-post.txt` | 2692 | `4e76e82b304633445c6ce01d5a6d6eb8a28bced772173a052675f415211a8bc9` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -94,7 +107,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-01` | needs/accounting/event ledger | `0042-ORD01-LEDGER`, `0042-ORD01-NEGATIVE`, `0042-ORD01-REPLAY` | `pass` |
 | `ORD-LIFE-02` | actor-known candidate generation | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | `pass` |
 | `ORD-LIFE-03` | intention lifecycle | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | `pass` |
-| `ORD-LIFE-04` | routines/HTN/fallback | `pending` | `pending` |
+| `ORD-LIFE-04` | routines/HTN/fallback | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | `pass` |
 | `ORD-LIFE-05` | routine temporal premises | `pending` | `pending` |
 | `ORD-LIFE-06` | method selection/local planner | `pending` | `pending` |
 | `ORD-LIFE-07` | planner and decision trace/debug | `pending` | `pending` |
@@ -373,6 +386,88 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-03`.
 
+### `0042-ORD04-TEMPLATE-CENSUS`
+
+- Evidence item ID: `0042-ORD04-TEMPLATE-CENSUS`
+- Requirement IDs: `ORD-LIFE-04`, `ORD-LIFE-PASS-03`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: Added and ran `phase3a_template_census_has_defeasible_machinery_for_each_family`. It enumerates every current `phase3a_routine_templates()` family and fails if any family is missing, duplicated by count, lacks proposal steps, lacks interruptor checkpoints, lacks explicit failure modes, lacks fallback rules, or lacks a family trace/debug label.
+- Path under test and behavior witness:
+  - path under test: `crates/tracewake-core/src/agent/methods.rs`;
+  - command/event/trigger/emitter/scheduler entry: static phase-3A template registry returned by `phase3a_routine_templates`;
+  - responsible layer: `method_selection`, `content_schema`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: template registry structure, not a committed action;
+  - live negative, mutation-style failure, or reason no negative is applicable: removing a required family or clearing steps/interruptors/failure modes/fallback/debug labels fails the unit census;
+  - checked facts or invariants: routines expose defeasible machinery instead of only a label or happy-path step.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: not applicable to static template census;
+  - replay artifact or serialized-log reference: behavior/replay rows below cover event execution;
+  - seed, randomness, content version, or ruleset version: current in-code template registry;
+  - extraction/projection version: current `methods.rs`;
+  - source provenance: direct registry entries.
+- Sampling/exhaustiveness scope: exhaustive over the ten current `phase3a_routine_templates()` members:
+  - `routine_morning_wake` / `MorningWake`
+  - `routine_eat_meal` / `EatMeal`
+  - `routine_go_to_work` / `GoToWork`
+  - `routine_work_block` / `WorkBlock`
+  - `routine_return_home` / `ReturnHome`
+  - `routine_sleep_night` / `SleepNight`
+  - `routine_find_food` / `FindFood`
+  - `routine_leave_unsafe_place` / `LeaveUnsafePlace`
+  - `routine_continue_current_intention` / `ContinueCurrentIntention`
+  - `routine_wait_idle` / `Wait`
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for the ORD-LIFE-04 template-census criterion; live reachability comes from `0042-ORD04-ROUTINE-BEHAVIOR`.
+
+### `0042-ORD04-ROUTINE-BEHAVIOR`
+
+- Evidence item ID: `0042-ORD04-ROUTINE-BEHAVIOR`
+- Requirement IDs: `ORD-LIFE-04`, `ORD-LIFE-PASS-01`, `ORD-LIFE-PASS-03`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run`, `cargo test --locked -p tracewake-core --test golden_scenarios`, and `cargo test --locked -p tracewake-core --test no_human_capstone` passed. The content suite includes `routine_blocked_fixture_records_access_failure_without_silent_loop`, `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, `routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry`, `severe_safety_with_known_exit_produces_move_and_replays`, and `work_block_failed_then_sleep_succeeds_fixture_closes_reservation`.
+- Path under test and behavior witness:
+  - path under test: routine/method selection, no-human day routines, content fixtures, action validation;
+  - command/event/trigger/emitter/scheduler entry: work-block, move, wait, continue-routine, method selection, no-human scheduler;
+  - responsible layer: `method_selection`, `local_planning`, `intention_lifecycle`, `event_application`, `fixture_contract`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: blocked work records `WorkBlockFailed` with `blocker_kind=access` instead of silent looping; no-teleport remote work records `WorkBlockFailed` without `ActorMoved` or `WorkBlockStarted`; severe safety with known exit commits an `ActorMoved` event and replays; method selection records selected/rejected method traces;
+  - live negative, mutation-style failure, or reason no negative is applicable: routine blocked/no-teleport fixtures are live negatives for script dispatch and movement/affordance skipping;
+  - checked facts or invariants: routine machinery includes applicability, selected/rejected methods, interruptor/failure/fallback outcomes, and no label-based primitive dispatch.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `WorkBlockFailed`, `ActorMoved`, `DecisionTraceRecorded`, routine step events, no-human routine events;
+  - replay artifact or serialized-log reference: severe-safety fixture replays; no-human capstone compares final routine executions after replay;
+  - seed, randomness, content version, or ruleset version: committed content fixtures and current action registry;
+  - extraction/projection version: current routine/method and replay code;
+  - source provenance: typed actor-known context and fixture contract fields.
+- Sampling/exhaustiveness scope: finite behavior fixture set required by ORD-LIFE-04 plus integrated no-human routine corpus. The template census is exhaustive over families; behavior fixtures exercise representative positive/negative routine paths across work, movement, safety, method selection, fallback, and no-human routine execution.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-04`.
+
+### `0042-ORD04-REPLAY-NEGATIVES`
+
+- Evidence item ID: `0042-ORD04-REPLAY-NEGATIVES`
+- Requirement IDs: `ORD-LIFE-04`, `ORD-LIFE-PASS-01`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, `cargo test --locked -p tracewake-core --test generative_lock`, and the content validation unit tests from `0042-BASELINE-001` passed. Event schema tests cover missing routine step progress tick live/replay rejection, routine execution status/fallback-attempt matrices, continue-routine arbitration records, checksum distinction for routine status, and routine-effect need cause handling. Content validation tests reject routine templates with missing failure modes, unknown fallback rules, direct state/script operations, bad tick order, and shortcut markers.
+- Path under test and behavior witness:
+  - path under test: routine event apply/replay, content routine validation, generated sequence replay locks;
+  - command/event/trigger/emitter/scheduler entry: `RoutineStepStarted`, `RoutineStepCompleted`, `RoutineStepFailed`, `ContinueRoutineAccepted`, content validation;
+  - responsible layer: `event_application`, `replay`, `content_validation`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: malformed routine progress and content shortcut attempts fail instead of producing plausible routine state;
+  - live negative, mutation-style failure, or reason no negative is applicable: `phase3a_routine_structure_failures_are_rejected`, `phase3a_routine_typed_modes_windows_and_direct_ops_are_rejected`, and `phase3a_routine_shortcut_effects_are_rejected` were covered by the scaffold baseline;
+  - checked facts or invariants: source shape alone is not certifying, and illegal routine histories/content cannot be normalized.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: routine step and continue-routine event matrices;
+  - replay artifact or serialized-log reference: event schema replay gates and generated replay locks;
+  - seed, randomness, content version, or ruleset version: current test fixtures and content validator;
+  - extraction/projection version: current replay and content validation code;
+  - source provenance: typed routine template, assignment, and event payload fields.
+- Sampling/exhaustiveness scope: finite adversarial cases named by ORD-LIFE-04 plus content validation negative families.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-04`; not counted as a substitute for later mutation proof.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -438,7 +533,26 @@ Replay/adversarial witnesses:
 
 ## ORD-LIFE-04: defeasible routine templates, HTN method families, interruptors, failure modes, and fallback
 
-Pending; owned by `0042ORDLIFCER-005`.
+Result: `pass` for the ORD-LIFE-04 local audit point.
+
+Template census:
+
+- Current `phase3a_routine_templates()` members are `MorningWake`, `EatMeal`, `GoToWork`, `WorkBlock`, `ReturnHome`, `SleepNight`, `FindFood`, `LeaveUnsafePlace`, `ContinueCurrentIntention`, and `Wait`.
+- The added census test proves each member has at least one proposal step, a non-empty interruptor checkpoint list, explicit failure modes, fallback rules, and a `phase3a_<family>` debug/trace label.
+- The existing `all_required_families_have_proposal_steps`, `find_food_method_is_actor_known_only`, `leave_unsafe_place_uses_flight_family_and_move_step`, and proposal-step validation tests continue to cover proposal shape and actor-known/no-hidden-truth method constraints.
+
+Behavior witnesses:
+
+- `routine_blocked_fixture_records_access_failure_without_silent_loop` proves blocked workplace access records `WorkBlockFailed` with typed `blocker_kind=access` and no silent loop/start.
+- `routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry` proves a remote work routine cannot skip movement ancestry or affordance validation.
+- `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit` proves selected and rejected routine methods are traced, actor-known-only, and fail closed on unproven food-source facts.
+- `severe_safety_with_known_exit_produces_move_and_replays` proves the severe-safety interruptor/flight family commits a causal move and replays.
+- `work_block_failed_then_sleep_succeeds_fixture_closes_reservation` proves failure closes the work reservation so a later routine can proceed.
+
+Replay/adversarial witnesses:
+
+- Event schema replay gates cover routine step apply/replay matrices, fallback attempts, routine-effect cause handling, continue-routine arbitration, and missing progress tick rejection.
+- Content validation negatives reject missing failure modes, unknown fallback rules, direct state/script operations, bad tick order, shortcut markers, and invalid sleep routine surface/diagnostic shape.
 
 ## ORD-LIFE-05: routine temporal premises and modeled adaptation without ground-truth schedule cognition
 
