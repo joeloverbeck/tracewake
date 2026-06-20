@@ -96,6 +96,18 @@ These commands were run for `0042ORDLIFCER-005` against commit `9ae209d8a20060ff
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:04:56+02:00` to `2026-06-20T12:04:57+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-golden-fixtures-run-post.txt` | 3111 | `69080062ca12c6b69c77f76e03d5b4a78a4115e2d68a8bd3b334d0af31116f8e` |
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:05:10+02:00` to `2026-06-20T12:05:10+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-005-event-schema-replay-gates-post.txt` | 2692 | `4e76e82b304633445c6ce01d5a6d6eb8a28bced772173a052675f415211a8bc9` |
 
+### ORD-LIFE-05 command ledger
+
+These commands were run for `0042ORDLIFCER-006` against commit `7665965ed44fc653ffbf61f784bfcd0d2379f6b1` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | `2026-06-20T12:08:02+02:00` to `2026-06-20T12:08:02+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-hidden-truth-gates.txt` | 1434 | `18214bffdce6185b49eaa480e7d823d8a7c3c24aa71e9750f459496c325b2bff` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:08:18+02:00` to `2026-06-20T12:08:18+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | `2026-06-20T12:08:25+02:00` to `2026-06-20T12:08:25+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-acceptance-gates.txt` | 1102 | `25f97575dbd37e58ce57fc8816d37b10b74d6c7f8882d5251260e5af5714018c` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:08:31+02:00` to `2026-06-20T12:08:32+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-golden-fixtures-run.txt` | 3008 | `45086854ba93315d8448fcf4880062cfaf268ab6d344b58aa929d8c82ba8688a` |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:08:38+02:00` to `2026-06-20T12:08:38+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-006-event-schema-replay-gates.txt` | 2692 | `6323a4382023ce3ca8285686bafd81670489a7dad96b9de015c21dcd676376c8` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -108,7 +120,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-02` | actor-known candidate generation | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | `pass` |
 | `ORD-LIFE-03` | intention lifecycle | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | `pass` |
 | `ORD-LIFE-04` | routines/HTN/fallback | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | `pass` |
-| `ORD-LIFE-05` | routine temporal premises | `pending` | `pending` |
+| `ORD-LIFE-05` | routine temporal premises | `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE`, `0042-ORD05-STALE-REPLAY` | `pass` |
 | `ORD-LIFE-06` | method selection/local planner | `pending` | `pending` |
 | `ORD-LIFE-07` | planner and decision trace/debug | `pending` | `pending` |
 | `ORD-LIFE-08` | ordinary actions/movement/durations | `pending` | `pending` |
@@ -468,6 +480,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-04`; not counted as a substitute for later mutation proof.
 
+### `0042-ORD05-PREMISE-PROVENANCE`
+
+- Evidence item ID: `0042-ORD05-PREMISE-PROVENANCE`
+- Requirement IDs: `ORD-LIFE-05`, `ORD-LIFE-PASS-02`, `ORD-LIFE-PASS-03`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run`, `cargo test --locked -p tracewake-core --test hidden_truth_gates`, and `cargo test --locked -p tracewake-core --test no_human_capstone` passed. The live surfaces prove raw workplace assignment is not actor-known without a modeled notice, workplace facts become actor-known only from `RoleAssignmentNoticeRecorded` source events, no-human workplace knowledge requires a notice channel, and no-human decision traces cite source event IDs with rebuilt context hashes.
+- Path under test and behavior witness:
+  - path under test: `NoHumanActorKnownSurfaceBuilder`, actor decision transaction, hidden-truth gates, no-human decision trace records;
+  - command/event/trigger/emitter/scheduler entry: role assignment notices, no-human day decision path, holder-known context projection;
+  - responsible layer: `holder_known_context`, `candidate_generation`, `method_selection`, `scheduler`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: work/sleep routine premises are admitted only through source-backed facts; missing premise yields wait/stuck/failure rather than work planning;
+  - live negative, mutation-style failure, or reason no negative is applicable: `raw_workplace_assignment_is_not_actor_known_without_notice` and `no_human_workplace_knowledge_requires_notice_channel` reject raw schedule/assignment truth as cognition authority;
+  - checked facts or invariants: temporal premise provenance, source-event citation, and context-hash replay.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `RoleAssignmentNoticeRecorded`, decision trace actor-known inputs, source-event IDs;
+  - replay artifact or serialized-log reference: no-human capstone and event schema replay gates passed;
+  - seed, randomness, content version, or ruleset version: committed content fixtures and current epistemic projection code;
+  - extraction/projection version: current no-human surface and actor decision transaction code;
+  - source provenance: holder-known facts and source-event IDs, not scheduler windows.
+- Sampling/exhaustiveness scope: finite workplace/sleep provenance fixtures and hidden-truth gates named by ORD-LIFE-05.
+- Pending or historical handling: consolidated cross-seam temporal bundle is explicitly out of scope and routed to FIRST-PROOF-CERT; this row certifies only the ORD-LIFE routine-premise mechanism.
+- Certification use: counted as certifying pass for `ORD-LIFE-05`.
+
+### `0042-ORD05-SCHEDULER-NEGATIVE`
+
+- Evidence item ID: `0042-ORD05-SCHEDULER-NEGATIVE`
+- Requirement IDs: `ORD-LIFE-05`, `ORD-LIFE-PASS-02`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` and `cargo test --locked -p tracewake-core --test acceptance_gates` passed. The content suite includes `no_human_unseen_workplace_assignment_does_not_plan_work_001`, `no_human_workplace_knowledge_requires_notice_event_001`, `scheduler_cannot_rewrite_wait_reason_after_transaction_001`, and hidden-truth planning fixtures. Scheduler day-window metadata appears only as scheduler metadata; the actor-visible wait reason remains actor-decision provenance.
+- Path under test and behavior witness:
+  - path under test: scheduler to actor decision transaction boundary;
+  - command/event/trigger/emitter/scheduler entry: no-human day windows, wait proposals, routine-window family input;
+  - responsible layer: `scheduler`, `holder_known_context`, `candidate_generation`, `method_selection`;
+  - accepted/rejected action or validation stage witnessed: objectively work-appropriate schedule position cannot create a work plan without actor-known notice/assignment evidence;
+  - live negative, mutation-style failure, or reason no negative is applicable: actor waits or records a holder-known-context stuck diagnostic instead of planning work when modeled premise sources are absent;
+  - checked facts or invariants: scheduler wake/day-window/elapsed tick is not temporal-premise provenance.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `ActorWaited`, `StuckDiagnosticRecorded`, scheduler no-human windows;
+  - replay artifact or serialized-log reference: no-human capstone and event schema replay gates passed;
+  - seed, randomness, content version, or ruleset version: committed no-human fixtures;
+  - extraction/projection version: current scheduler and actor transaction code;
+  - source provenance: actor-known context facts and absence thereof.
+- Sampling/exhaustiveness scope: finite no-human schedule-negative fixtures named by ORD-LIFE-05.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-05`.
+
+### `0042-ORD05-STALE-REPLAY`
+
+- Evidence item ID: `0042-ORD05-STALE-REPLAY`
+- Requirement IDs: `ORD-LIFE-05`, `ORD-LIFE-PASS-01`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run` and `cargo test --locked -p tracewake-core --test event_schema_replay_gates` passed. The content loader test `stale_workplace_notice_superseded_by_newer_001` and no-human surface tests prove newer notices supersede stale workplace notices before actor-known facts are minted. `provenance_class_mismatch_diagnostic` in the actor transaction emits a typed diagnostic when an `observed_now` fact is stale for the decision tick.
+- Path under test and behavior witness:
+  - path under test: epistemic projection, no-human surface, actor transaction, event schema replay;
+  - command/event/trigger/emitter/scheduler entry: workplace notice supersession, stale fact classification, replay of source-event-backed decision context;
+  - responsible layer: `holder_known_context`, `action_validation`, `replay`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: stale-premise classification remains distinct from validation truth, and stale `observed_now` provenance yields a typed diagnostic;
+  - live negative, mutation-style failure, or reason no negative is applicable: stale facts are not repaired from ground truth; tampered decision trace source evidence causes replay/context-hash failure;
+  - checked facts or invariants: stale is not false, supersession is modeled, and clean replay rebuilds premise source selection.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: workplace notice events, decision trace actor-known input source events, stale-after tick payloads;
+  - replay artifact or serialized-log reference: `belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay` and decision context hash tests in the event schema suite;
+  - seed, randomness, content version, or ruleset version: committed fixtures and content version;
+  - extraction/projection version: current epistemic projection and replay code;
+  - source provenance: source-event IDs and freshness fields.
+- Sampling/exhaustiveness scope: finite stale/supersession and replay provenance cases named by ORD-LIFE-05.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-05`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -556,7 +640,25 @@ Replay/adversarial witnesses:
 
 ## ORD-LIFE-05: routine temporal premises and modeled adaptation without ground-truth schedule cognition
 
-Pending; owned by `0042ORDLIFCER-006`.
+Result: `pass` for the ORD-LIFE-05 local audit point.
+
+Temporal-premise witnesses:
+
+- Raw workplace assignment is not actor-known without modeled notice; workplace knowledge is minted only from role/notice source events.
+- `no_human_workplace_knowledge_requires_notice_channel` proves a no-human actor with missing modeled workplace premise performs no work event and records a holder-known-context stuck diagnostic.
+- `ordinary_workday_001`, `workplace_assignment_provenance_001`, and `no_human_known_workplace_requires_provenance_001` are included in the content golden fixture suite and remain scoped to premise/source provenance rather than schedule truth.
+
+Scheduler-boundary negatives:
+
+- `no_human_unseen_workplace_assignment_does_not_plan_work_001` and related hidden-truth fixtures prove an objectively appropriate schedule tick/window cannot make an unobserved workplace into a candidate or method premise.
+- `scheduler_cannot_rewrite_wait_reason_after_transaction_001` proves the scheduler window ID remains metadata and cannot rewrite the sealed actor decision transaction's wait reason.
+- `routine_window_family` may supply a candidate hint only when actor-known facts support the corresponding premise; scheduler input is not recorded as actor-known provenance.
+
+Staleness/replay witnesses:
+
+- `stale_workplace_notice_superseded_by_newer_001` and no-human surface tests prove newer workplace notices supersede stale notices before actor-known facts are minted.
+- Stale `observed_now` facts at a later decision tick produce a typed `ProvenanceClassMismatch` diagnostic with `input_source=actor_known_context`.
+- Event-schema replay gates preserve stale frontier/witness links and fail decision context hashes when source evidence is tampered.
 
 ## ORD-LIFE-06: actor-known method selection, bounded local planning, planner-budget discipline, and coherent fallback
 

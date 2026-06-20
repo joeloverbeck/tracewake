@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-006: ORD-LIFE-05 — routine temporal premises and modeled adaptation without ground-truth schedule cognition
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -69,6 +69,22 @@ Record the §5 adversarial cases: same world at a schedule tick where work would
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+2. `cargo test --locked -p tracewake-core --test no_human_capstone`
+3. `cargo test --locked -p tracewake-core --test acceptance_gates`
+4. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+5. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-05 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE`, and `0042-ORD05-STALE-REPLAY`.
+
+The evidence records temporal-premise provenance from modeled holder-known sources, scheduler-boundary negatives where true schedule/day-window facts do not become actor cognition, and stale/supersession replay witnesses. The consolidated cross-seam temporal bundle remains explicitly routed to FIRST-PROOF-CERT per the ticket and spec; no ORD-LIFE-05 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
 2. `cargo test --locked -p tracewake-core --test no_human_capstone`
