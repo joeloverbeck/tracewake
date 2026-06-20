@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-011: ORD-LIFE-10 — typed stuck diagnostics, blocker taxonomy, and cross-tick no-progress detection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -68,6 +68,22 @@ Record the §5 adversarial cases: `scheduler_cannot_rewrite_wait_reason_after_tr
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test no_human_capstone`
+2. `cargo test --locked -p tracewake-core --test golden_scenarios`
+3. `cargo test --locked -p tracewake-core --test generative_lock`
+4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-10 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR`, and `0042-ORD10-REPLAY-ATTRIBUTION`.
+
+The evidence records typed blocker/layer/status diagnostics, distinct no-progress-past-window and repeated-idle detection, scheduler wait-reason preservation, and replayed metric classification for typed stuck diagnostics. The narrower code-level `ResponsibleLayer` vocabulary is recorded in the report evidence and broader review layers remain represented in report responsible-layer fields. No ORD-LIFE-10 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test no_human_capstone`
 2. `cargo test --locked -p tracewake-core --test golden_scenarios`

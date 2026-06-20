@@ -157,6 +157,18 @@ These commands were run for `0042ORDLIFCER-010` against commit `04fc5ae5ce37a5ea
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:25:06+02:00` to `2026-06-20T12:25:06+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-event-schema-replay-gates.txt` | 2692 | `16ff3e0666479b7a5b27ccf1268e0a79ca48a4a12b5f960cda38773b2204ea86` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:25:12+02:00` to `2026-06-20T12:25:13+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-golden-fixtures-run.txt` | 3008 | `80159b6c6e46642506abf164dced261494e2a1426eafe8aa9548af881e7138ad` |
 
+### ORD-LIFE-10 command ledger
+
+These commands were run for `0042ORDLIFCER-011` against commit `ac7de05b7a4ac35b47de0160c02559bd7393f5c1` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:28:22+02:00` to `2026-06-20T12:28:22+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-no-human-capstone.txt` | 343 | `0b0dc927fcc1681d1a3e1530aeb74a9c45c024cc0bba5d43b2a367f35ca08c66` |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | `2026-06-20T12:28:29+02:00` to `2026-06-20T12:28:29+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-golden-scenarios.txt` | 1273 | `238e4805c9f0542dd7da9e86b486460d3956f4dad5e25a800210ce78f6a493b7` |
+| `cargo test --locked -p tracewake-core --test generative_lock` | `2026-06-20T12:28:41+02:00` to `2026-06-20T12:28:41+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-generative-lock.txt` | 419 | `d84810847b58359b2c26655aec9b3cbb95798751cb93942ecf98587f700381d0` |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:28:47+02:00` to `2026-06-20T12:28:47+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-event-schema-replay-gates.txt` | 2692 | `854fc640a820b84bd90e1f8bf166c714445bd1600a41c2fb6964c0a821ac17f5` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:28:55+02:00` to `2026-06-20T12:28:56+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-011-golden-fixtures-run.txt` | 3008 | `112260705493344587faf2be81933acb469fc36ec08331e37f1e393879816f66` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -174,7 +186,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-07` | planner and decision trace/debug | `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE`, `0042-ORD07-FEEDBACK-NEGATIVES` | `pass` |
 | `ORD-LIFE-08` | ordinary actions/movement/durations | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS` | `pass` |
 | `ORD-LIFE-09` | no-human orchestration/metrics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD09-CANONICAL-REPLAY` | `pass` |
-| `ORD-LIFE-10` | stuck diagnostics/no-progress | `pending` | `pending` |
+| `ORD-LIFE-10` | stuck diagnostics/no-progress | `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR`, `0042-ORD10-REPLAY-ATTRIBUTION` | `pass` |
 | `ORD-LIFE-11` | scheduler/proposal ancestry | `pending` | `pending` |
 | `ORD-LIFE-12` | replay-derived projections/phase lock | `pending` | `pending` |
 
@@ -889,6 +901,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: success-recovery variant remains staged to Phase 3B; this row certifies only fail-only canonical recovery and metric honesty.
 - Certification use: counted as certifying pass for `ORD-LIFE-09`.
 
+### `0042-ORD10-TYPED-DIAGNOSTICS`
+
+- Evidence item ID: `0042-ORD10-TYPED-DIAGNOSTICS`
+- Requirement IDs: `ORD-LIFE-10`, `ORD-LIFE-PASS-01`, `ORD-LIFE-PASS-06`, `ORD-LIFE-PASS-08`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed trace, transaction, and fixture tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test no_human_capstone`, `cargo test --locked -p tracewake-core --test generative_lock`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. `routine_blocked_diagnostic_001` records `WorkBlockFailed` with access blocker and no silent `WorkBlockStarted`; `severe_safety_without_known_exit_waits_with_knowledge_blocker_001` produces an actor transaction stuck diagnostic with `BlockerCategory::Knowledge`, concrete blocker `no actor-known exit from unsafe place`, and `ResponsibleLayer::LocalPlanning`; `food_unavailable_replan_001` records `EatFailed` with resource blocker and reason `food source empty`.
+- Path under test and behavior witness:
+  - path under test: stuck diagnostics, blocker taxonomy, local planner failure, action validation failures;
+  - command/event/trigger/emitter/scheduler entry: routine blocked, severe safety without known exit, food unavailable, planner-budget/fallback cases;
+  - responsible layer: `candidate_generation`, `method_selection`, `local_planning`, `action_validation`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: stuck/failure paths produce typed blocker/layer/status instead of silent wait or loop;
+  - live negative, mutation-style failure, or reason no negative is applicable: missing knowledge and blocked affordance do not become progress events;
+  - checked facts or invariants: typed blocker code, responsible layer, actor, resulting status, source/event ancestry.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `StuckDiagnosticRecorded`, `WorkBlockFailed`, `EatFailed`, decision trace and local-plan failure payloads;
+  - replay artifact or serialized-log reference: no-human capstone and content fixture suite passed;
+  - seed, randomness, content version, or ruleset version: committed routine-blocker, safety, and food-unavailable fixtures;
+  - extraction/projection version: current trace, transaction, scheduler, and action validation code;
+  - source provenance: actor-known context and proposal/failure ancestry.
+- Sampling/exhaustiveness scope: finite blocker fixture family named by ORD-LIFE-10.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-10`.
+
+### `0042-ORD10-LIVENESS-DETECTOR`
+
+- Evidence item ID: `0042-ORD10-LIVENESS-DETECTOR`
+- Requirement IDs: `ORD-LIFE-10`, `ORD-LIFE-PASS-06`, `ORD-LIFE-PASS-08`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed scheduler detector tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test golden_scenarios` and `cargo test --locked -p tracewake-core --test generative_lock` passed. `routine_stuck_diagnostics_use_actor_window_and_progress_boundaries` constructs multiple routine executions and verifies only the past-expected-progress and repeated-idle cases produce diagnostics, while waiting-with-future-boundary, boundary-only, expected-at-start, progressed-at-expected, no-fallback wait, and other-actor cases do not collapse into stuck. `no_human_day_detects_routine_past_expected_progress_window` emits actual source `routine_expected_next_progress_stuck_detection`; `no_human_day_detects_repeated_idle_wait` emits actual source `routine_repeated_idle_wait_stuck_detection`.
+- Path under test and behavior witness:
+  - path under test: routine stuck detector, no-human day windows, expected progress boundary, repeated-idle detection;
+  - command/event/trigger/emitter/scheduler entry: no-human day windows and routine execution progress metadata;
+  - responsible layer: `scheduler`, `projection`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: waits are classified as modeled or stuck with explicit boundary/source, never merely "actor waited";
+  - live negative, mutation-style failure, or reason no negative is applicable: single legitimate wait and intermittent real progress are not classified as the same outcome as repeated-idle/no-progress;
+  - checked facts or invariants: no silent liveness assumption, exactly targeted typed stuck episode detection.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: scheduler stuck diagnostic event IDs and actual-source payloads;
+  - replay artifact or serialized-log reference: golden scenarios and generative locks passed;
+  - seed, randomness, content version, or ruleset version: committed scheduler unit scenarios and generated cases;
+  - extraction/projection version: current scheduler detector and routine execution code;
+  - source provenance: routine execution IDs, actor IDs, window IDs, expected-next-progress ticks, last progress ticks.
+- Sampling/exhaustiveness scope: finite detector matrix plus generated no-human samples.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-10`.
+
+### `0042-ORD10-REPLAY-ATTRIBUTION`
+
+- Evidence item ID: `0042-ORD10-REPLAY-ATTRIBUTION`
+- Requirement IDs: `ORD-LIFE-10`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed replay and scheduler tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test event_schema_replay_gates` and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. `scheduler_cannot_rewrite_wait_reason_after_transaction` proves a no-human wait reason remains `actor_decision_reevaluation`, does not gain `no_human_day:` or window ID content, and does not include the scheduler window in effects summary. `no_human_metrics_replay_diagnostic_classification_survives_replay` records a typed local-planning stuck diagnostic, verifies `planner_failures == 1`, and verifies serialized metric equality after canonical log deserialize/replay.
+- Path under test and behavior witness:
+  - path under test: scheduler post-processing, stuck diagnostic payload serialization, no-human metrics replay classification;
+  - command/event/trigger/emitter/scheduler entry: actor transaction wait outcome, scheduler day window, replayed log metrics;
+  - responsible layer: `scheduler`, `projection`, `replay`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: scheduler may not rewrite transaction reason, blocker, or layer after the actor decision;
+  - live negative, mutation-style failure, or reason no negative is applicable: display/debug prose changes do not alter typed semantics, while typed blocker/layer/status feed semantic metrics;
+  - checked facts or invariants: replay reconstructs blocker code, responsible layer, resulting status, source events, and metric classification.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `ActorWaited`, `StuckDiagnosticRecorded`, `NoHumanDayCompleted`, replayed metric log;
+  - replay artifact or serialized-log reference: event schema replay gates passed;
+  - seed, randomness, content version, or ruleset version: committed replay gate and no-human fixtures;
+  - extraction/projection version: current scheduler, trace serialization, metrics projection, and replay code;
+  - source provenance: actor decision transaction reason, typed diagnostic payloads, event log source fields.
+- Sampling/exhaustiveness scope: finite replay/attribution fixtures and content suite named by ORD-LIFE-10.
+- Pending or historical handling: code-level `ResponsibleLayer` is narrower than the review vocabulary; this evidence records concrete diagnostic/stuck attribution while broader document/test layers remain represented in report responsible-layer fields.
+- Certification use: counted as certifying pass for `ORD-LIFE-10`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -1085,7 +1169,22 @@ Canonical recovery and replay witnesses:
 
 ## ORD-LIFE-10: typed stuck diagnostics, blocker taxonomy, and cross-tick no-progress detection
 
-Pending; owned by `0042ORDLIFCER-011`.
+Result: `pass` for the ORD-LIFE-10 local audit point.
+
+Typed diagnostic witnesses:
+
+- `routine_blocked_diagnostic_001`, `food_unavailable_replan_001`, and `severe_safety_without_known_exit_waits_with_knowledge_blocker_001` cover blocked affordance, resource failure, missing knowledge, and local-planning responsible layer.
+- Planner-budget/fallback and no-human capstone paths keep typed blocker/layer/status fields in trace and diagnostic payloads.
+
+Liveness detector witnesses:
+
+- `routine_stuck_diagnostics_use_actor_window_and_progress_boundaries` keeps past-expected-progress, repeated-idle, future-boundary wait, boundary-only, progressed-at-expected, no-fallback wait, and other-actor cases distinct.
+- No-human day detector tests emit `routine_expected_next_progress_stuck_detection` and `routine_repeated_idle_wait_stuck_detection` actual-source payloads.
+
+Replay and attribution witnesses:
+
+- Scheduler wait post-processing preserves the transaction reason `actor_decision_reevaluation` and does not inject no-human window IDs.
+- Typed local-planning stuck metric classification survives canonical log deserialize/replay with identical serialized metrics.
 
 ## ORD-LIFE-11: scheduler no-direct-dispatch, sealed proposal ancestry, and forged/stale validation rejection
 
