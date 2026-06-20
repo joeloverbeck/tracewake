@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-016: Acceptance capstone — per-seam verdict tables, replay/provenance & mutation packages, staged abstraction, EMERGE-OBS, and aggregate ORD-LIFE-CERT verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — consolidates the audit-point / generated-evidence / mutation evidence into the §9.3 verdict tables, assembles the §9.5–§9.7 replay-provenance and mutation packages, the §9.8 staged-abstraction declaration, and the §9.10 EMERGE-OBS slot, and renders the §9.11 aggregate verdict; introduces no production logic.
@@ -71,3 +71,17 @@ Add the §9.10 EMERGE-OBS member as `status = observer-only` (summarizing emerge
 ### Commands
 
 1. `cargo test --workspace --locked`
+
+## Outcome
+
+Completed: 2026-06-20
+
+The acceptance artifact now contains the §9.3 capstone verdict tables for `ORD-LIFE-01` through `ORD-LIFE-12`, the ten live pass conditions, and the seven mandatory fixture families. Each row names the responsible layer, certifying evidence item IDs, negative controls, mutation entries, and a result computed from certifying evidence. Local ordinary-life rows are recorded as `pass` or `pass-local`, while aggregate certification is blocked by the mutation floor.
+
+The artifact also assembles the §9.5 ordinary-life behavior-witness package, §9.6 replay/provenance package, §9.7 mutation package cross-referencing `reports/0042_ord_life_cert_mutation_triage_register.md`, §9.8 staged-abstraction declaration, §9.10 `EMERGE-OBS` observer-only slot, and §9.11 aggregate verdict.
+
+Final verdict: `ORD-LIFE-CERT scoped remediation`. `ORD-LIFE-CERT passed` is not rendered because ticket `0042ORDLIFCER-015` recorded an incomplete configured mutation lane plus three missed `need_accounting.rs` mutants mapped to `ORD-LIFE-01`, `ORD-LIFE-08`, and `ORD-LIFE-12`. Remediation is routed to a later separately-numbered ORD-LIFE-CERT mutation remediation/replacement spec. `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, and `SECOND-PROOF-ENTRY` remain blocked.
+
+Verification:
+
+- `cargo test --workspace --locked`: passed after the final capstone artifact edits (`/tmp/0042-016-workspace-test.txt`, 79722 bytes, SHA-256 `ff6b65988c81d3645451d917257e9c0098b75316c48631e85468bd35f1809a09`).

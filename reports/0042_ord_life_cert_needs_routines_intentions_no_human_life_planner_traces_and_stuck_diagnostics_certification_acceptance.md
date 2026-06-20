@@ -22,7 +22,7 @@
   - `archive/reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md`: `EPI-CERT passed` only for the scoped 0041 mutation remediation line stated by that artifact.
 - In-scope audit surface: needs, routines, intentions, no-human life, planner traces, stuck diagnostics, and the actor-known ordinary-life transaction.
 - Excluded/downstream scope: FIRST-PROOF-CERT, PHASE-4-ENTRY, SECOND-PROOF-ENTRY, institutions, notices, travel, regional scale, LOD, LLM/speech surfaces, story-sifting, broad economy expansion, and production remediation of any failed in-scope seam.
-- Placeholder aggregate verdict, owned by `0042ORDLIFCER-016`: `pending`.
+- Aggregate verdict: `ORD-LIFE-CERT scoped remediation`.
 
 ## Environment
 
@@ -208,51 +208,51 @@ These commands were run for `0042ORDLIFCER-014` against commit `9516c32b4dc0f687
 
 ## Per-requirement acceptance evidence
 
-Rows record completed local audit-point evidence as the series advances. Aggregate certification remains pending until `0042ORDLIFCER-016` computes the capstone verdict from these rows, generated/metamorphic evidence, mutation evidence, and staged-abstraction review.
+Rows record completed local audit-point evidence plus the capstone verdict computation from generated/metamorphic evidence, mutation evidence, replay/provenance evidence, and staged-abstraction review. Local rows may pass while the aggregate ORD-LIFE-CERT verdict remains scoped remediation because the mutation floor is not clean.
 
 ### ORD-LIFE-01 through ORD-LIFE-12
 
-| Requirement | Responsible layer | Evidence item IDs | Result from certifying evidence |
-|---|---|---|---|
-| `ORD-LIFE-01` | needs/accounting/event ledger | `0042-ORD01-LEDGER`, `0042-ORD01-NEGATIVE`, `0042-ORD01-REPLAY` | `pass` |
-| `ORD-LIFE-02` | actor-known candidate generation | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | `pass` |
-| `ORD-LIFE-03` | intention lifecycle | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | `pass` |
-| `ORD-LIFE-04` | routines/HTN/fallback | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | `pass` |
-| `ORD-LIFE-05` | routine temporal premises | `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE`, `0042-ORD05-STALE-REPLAY` | `pass` |
-| `ORD-LIFE-06` | method selection/local planner | `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-BUDGET-PROVENANCE`, `0042-ORD06-FALLBACK-NEGATIVES` | `pass` |
-| `ORD-LIFE-07` | planner and decision trace/debug | `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE`, `0042-ORD07-FEEDBACK-NEGATIVES` | `pass` |
-| `ORD-LIFE-08` | ordinary actions/movement/durations | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS` | `pass` |
-| `ORD-LIFE-09` | no-human orchestration/metrics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD09-CANONICAL-REPLAY` | `pass` |
-| `ORD-LIFE-10` | stuck diagnostics/no-progress | `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR`, `0042-ORD10-REPLAY-ATTRIBUTION` | `pass` |
-| `ORD-LIFE-11` | scheduler/proposal ancestry | `0042-ORD11-AUTHORITY-CHAIN`, `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`, `0042-ORD11-FORGED-STALE` | `pass` |
-| `ORD-LIFE-12` | replay-derived projections/phase lock | `0042-ORD12-REPLAY-DERIVATION`, `0042-ORD12-FIRST-DIVERGENCE`, `0042-ORD12-PHASE-LOCK` | `pass` |
+| Requirement | Responsible layer | Certifying evidence item IDs | Negative controls | Mutation entries | Result from certifying evidence |
+|---|---|---|---|---|---|
+| `ORD-LIFE-01` | needs/accounting/event ledger | `0042-ORD01-LEDGER`, `0042-ORD01-NEGATIVE`, `0042-ORD01-REPLAY` | duplicate need charge, duplicate duration terminal, generated duplicate-key rejection | missed `need_accounting.rs` duration interval mutants; routed remediation | `pass-local; aggregate blocked by mutation floor` |
+| `ORD-LIFE-02` | actor-known candidate generation | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | hidden food/route/workplace truth exclusion and unproven source rejection | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-03` | intention lifecycle | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | illegal transition, wrong status, possession reset, continue-routine tamper | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-04` | routines/HTN/fallback | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | missing template machinery, routine block/no-teleport, malformed routine replay/content | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-05` | routine temporal premises | `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE`, `0042-ORD05-STALE-REPLAY` | unseen workplace/scheduler-truth exclusion, stale premise diagnostic, replay source tamper | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-06` | method selection/local planner | `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-BUDGET-PROVENANCE`, `0042-ORD06-FALLBACK-NEGATIVES` | budget exhaustion, hidden-truth planning, source-free fallback rejection | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-07` | planner and decision trace/debug | `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE`, `0042-ORD07-FEEDBACK-NEGATIVES` | debug truth quarantine, feedback/provenance omission, trace completeness failures | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-08` | ordinary actions/movement/durations | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS` | no-teleport, missing sleep affordance, duplicate duration terminal, reservation release | missed `need_accounting.rs` duration interval mutants; routed remediation | `pass-local; aggregate blocked by mutation floor` |
+| `ORD-LIFE-09` | no-human orchestration/metrics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD09-CANONICAL-REPLAY` | controller/hidden-truth leak absence, marker-only no-progress, Mara hidden recovery exclusion | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-10` | stuck diagnostics/no-progress | `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR`, `0042-ORD10-REPLAY-ATTRIBUTION` | missing knowledge/resource blockers, legitimate wait not stuck, replay attribution tamper | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-11` | scheduler/proposal ancestry | `0042-ORD11-AUTHORITY-CHAIN`, `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`, `0042-ORD11-FORGED-STALE` | direct dispatch guard, forged source context, stale proposal/context hash rejection | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-12` | replay-derived projections/phase lock | `0042-ORD12-REPLAY-DERIVATION`, `0042-ORD12-FIRST-DIVERGENCE`, `0042-ORD12-PHASE-LOCK` | replay prefix/suffix tamper, duplicate/malformed payloads, phase ladder overclaim wording guard | missed `need_accounting.rs` duration interval mutants plus incomplete configured lane; routed remediation | `pass-local; aggregate blocked by mutation floor` |
 
 ### Ten live pass conditions
 
-| Requirement | Responsible layer | Evidence item IDs | Result from certifying evidence |
-|---|---|---|---|
-| `ORD-LIFE-PASS-01` | ordinary-life replay/event ancestry | `pending` | `pending` |
-| `ORD-LIFE-PASS-02` | actor-known cognition | `pending` | `pending` |
-| `ORD-LIFE-PASS-03` | durable intentions | `pending` | `pending` |
-| `ORD-LIFE-PASS-04` | routine machinery | `pending` | `pending` |
-| `ORD-LIFE-PASS-05` | bounded local planning | `pending` | `pending` |
-| `ORD-LIFE-PASS-06` | ordinary action affordances | `pending` | `pending` |
-| `ORD-LIFE-PASS-07` | no-human ordinary life | `pending` | `pending` |
-| `ORD-LIFE-PASS-08` | stuck diagnostics | `pending` | `pending` |
-| `ORD-LIFE-PASS-09` | no-direct-dispatch/proposal ancestry | `pending` | `pending` |
-| `ORD-LIFE-PASS-10` | replay-derived metrics/projections | `pending` | `pending` |
+| Requirement | Responsible layer | Certifying evidence item IDs | Negative controls | Mutation entries | Result from certifying evidence |
+|---|---|---|---|---|---|
+| `ORD-LIFE-PASS-01` | ordinary-life replay/event ancestry | `0042-ORD01-REPLAY`, `0042-ORD03-REPLAY-NEGATIVES`, `0042-ORD04-REPLAY-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS`, `0042-ORD12-REPLAY-DERIVATION` | duplicate charges, malformed routine/intention events, prefix/suffix replay tamper | duration interval survivors mapped through `ORD-LIFE-01/08/12`; routed remediation | `pass-local; aggregate blocked by mutation floor` |
+| `ORD-LIFE-PASS-02` | actor-known cognition | `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE` | hidden truth, scheduler truth, stale premise rejection | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-03` | durable intentions | `0042-ORD03-LIFECYCLE`, `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD06-GOAL-CENSUS` | illegal lifecycle transition, missing routine machinery, unsupported planner goal closure | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-04` | routine machinery | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD11-AUTHORITY-CHAIN` | no-teleport, sleep affordance rejection, proposal ancestry enforcement | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-05` | bounded local planning | `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-FALLBACK-NEGATIVES`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD11-FORGED-STALE` | budget exhaustion, hidden route/food, stale forged proposal | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-06` | ordinary action affordances | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR` | marker-only no-progress, typed blocker classification, legitimate wait exclusion | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-07` | no-human ordinary life | `0042-ORD02-CANDIDATES`, `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE` | hidden-truth/debug exclusion and trace completeness failures | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-08` | stuck diagnostics | `0042-ORD01-LEDGER`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR` | duplicate ledger rows, metric inflation, missing blocker taxonomy | duration interval survivors touch derived accounting confidence; routed remediation | `pass-local; aggregate blocked by mutation floor` |
+| `ORD-LIFE-PASS-09` | no-direct-dispatch/proposal ancestry | `0042-ORD02-PROVENANCE`, `0042-ORD05-STALE-REPLAY`, `0042-ORD07-FEEDBACK-NEGATIVES`, `0042-ORD11-DIRECT-DISPATCH-NEGATIVES`, `0042-ORD11-FORGED-STALE` | debug-only feedback, direct dispatch, forged/stale source context | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ORD-LIFE-PASS-10` | replay-derived metrics/projections | `0042-ORD09-CANONICAL-REPLAY`, `0042-ORD12-REPLAY-DERIVATION`, `0042-ORD12-FIRST-DIVERGENCE`, `0042-ORD12-PHASE-LOCK` | hidden recovery exclusion, replay tamper, phase wording guard | duration interval survivors mapped through replay-derived accounting; routed remediation | `pass-local; aggregate blocked by mutation floor` |
 
 ### Seven mandatory fixture families
 
-| Fixture family | Responsible layer | Evidence item IDs | Result from certifying evidence |
-|---|---|---|---|
-| `need-accounting-and-duration-ledger` | needs/actions/replay | `pending` | `pending` |
-| `actor-known-candidate-hidden-truth` | agent/actor-known | `pending` | `pending` |
-| `intention-lifecycle-possession-neutrality` | agent/intention/controller | `pending` | `pending` |
-| `routine-template-htn-fallback` | content/agent/routine | `pending` | `pending` |
-| `ordinary-action-affordance-movement-duration` | actions/pipeline/state | `pending` | `pending` |
-| `no-human-progress-stuck-metrics` | scheduler/no-human/diagnostics | `pending` | `pending` |
-| `replay-provenance-phase-lock` | replay/projections/reports | `pending` | `pending` |
+| Fixture family | Responsible layer | Certifying evidence item IDs | Negative controls | Mutation entries | Result from certifying evidence |
+|---|---|---|---|---|---|
+| `need-accounting-and-duration-ledger` | needs/actions/replay | `0042-ORD01-LEDGER`, `0042-ORD01-NEGATIVE`, `0042-ORD08-DURATION-TERMINALS` | duplicate need charge and duplicate duration terminal poison replay | three `need_accounting.rs` missed mutants; routed remediation | `pass-local; aggregate blocked by mutation floor` |
+| `actor-known-candidate-hidden-truth` | agent/actor-known | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | hidden food/route/workplace truth exclusion and unproven-source audit | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `intention-lifecycle-possession-neutrality` | agent/intention/controller | `0042-ORD03-LIFECYCLE`, `0042-ORD03-POSSESSION`, `0042-ORD03-REPLAY-NEGATIVES` | illegal lifecycle transition, possession reset, continue-routine tamper | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `routine-template-htn-fallback` | content/agent/routine | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | missing template machinery, routine block, no-teleport, routine replay/content negatives | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `ordinary-action-affordance-movement-duration` | actions/pipeline/state | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS`, `0042-ORD11-AUTHORITY-CHAIN` | no-teleport, sleep affordance rejection, duplicate duration terminal, proposal ancestry | three `need_accounting.rs` missed mutants; routed remediation | `pass-local; aggregate blocked by mutation floor` |
+| `no-human-progress-stuck-metrics` | scheduler/no-human/diagnostics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD10-TYPED-DIAGNOSTICS`, `0042-ORD10-LIVENESS-DETECTOR` | controller/hidden-truth leak absence, marker-only no-progress, legitimate wait not stuck | no row-specific survivor mapped; global mutation lane incomplete | `pass` |
+| `replay-provenance-phase-lock` | replay/projections/reports | `0042-ORD09-CANONICAL-REPLAY`, `0042-ORD10-REPLAY-ATTRIBUTION`, `0042-ORD12-REPLAY-DERIVATION`, `0042-ORD12-FIRST-DIVERGENCE`, `0042-ORD12-PHASE-LOCK` | replay prefix/suffix tamper, hidden recovery exclusion, wording/doc guard | duration interval survivors plus incomplete configured mutation lane; routed remediation | `pass-local; aggregate blocked by mutation floor` |
 
 ## Evidence item ledger
 
@@ -302,7 +302,7 @@ Rows record completed local audit-point evidence as the series advances. Aggrega
   - source provenance: committed fixture constructors and event log payload fields, not display text.
 - Sampling/exhaustiveness scope: finite named fixture matrix required by spec §5 ORD-LIFE-01 plus integrated no-human corpus coverage in the content golden fixture suite.
 - Pending or historical handling: none for this row.
-- Certification use: counted as certifying pass for `ORD-LIFE-01`; capstone rows for live pass conditions and fixture-family aggregate coverage remain pending until `0042ORDLIFCER-016`.
+- Certification use: counted as certifying pass-local for `ORD-LIFE-01`; capstone rows map this evidence into pass-local live-condition and fixture-family coverage, with aggregate certification blocked by the mutation floor.
 
 ### `0042-ORD01-NEGATIVE`
 
@@ -350,7 +350,7 @@ Rows record completed local audit-point evidence as the series advances. Aggrega
   - source provenance: committed test and fixture code.
 - Sampling/exhaustiveness scope: named no-human/golden scenarios plus the committed generated sample set in `generative_lock`.
 - Pending or historical handling: none.
-- Certification use: counted as certifying pass for `ORD-LIFE-01`; broader generated/metamorphic package remains pending until `0042ORDLIFCER-014`.
+- Certification use: counted as certifying pass-local for `ORD-LIFE-01`; broader generated/metamorphic package is recorded in its own section and does not replace mutation closure.
 
 ### `0042-ORD02-CANDIDATES`
 
@@ -372,9 +372,9 @@ Rows record completed local audit-point evidence as the series advances. Aggrega
   - seed, randomness, content version, or ruleset version: committed fixture registry and content version in the content test harness;
   - extraction/projection version: current candidate generation and decision trace code;
   - source provenance: `ActorKnownFact::observed_now`, `SourceEventIds::checked`, and decision trace `actor_known_inputs`.
-- Sampling/exhaustiveness scope: finite named fixture and unit-test set required for ORD-LIFE-02; broader generated/metamorphic package remains pending until `0042ORDLIFCER-014`.
+- Sampling/exhaustiveness scope: finite named fixture and unit-test set required for ORD-LIFE-02; broader generated/metamorphic package is recorded in its own section and is sampled, not exhaustive.
 - Pending or historical handling: none for this row.
-- Certification use: counted as certifying pass for `ORD-LIFE-02`; capstone aggregate rows remain pending.
+- Certification use: counted as certifying pass-local for `ORD-LIFE-02`; capstone rows map this evidence into live-condition and fixture-family coverage.
 
 ### `0042-ORD02-HIDDEN-TRUTH`
 
@@ -446,7 +446,7 @@ Rows record completed local audit-point evidence as the series advances. Aggrega
   - source provenance: typed event payload fields and decision trace IDs.
 - Sampling/exhaustiveness scope: lifecycle enum variants and transition matrix covered by unit/workspace baseline plus named integration replay tests.
 - Pending or historical handling: none.
-- Certification use: counted as certifying pass for `ORD-LIFE-03`; capstone aggregate rows remain pending.
+- Certification use: counted as certifying pass-local for `ORD-LIFE-03`; capstone rows map this evidence into live-condition and fixture-family coverage.
 
 ### `0042-ORD03-POSSESSION`
 
@@ -1365,6 +1365,31 @@ Property-family witnesses:
 - Debug/possession non-interference: `no_human_capstone_debug_and_replay_perturbation_are_non_interfering` renders debug event-log output without changing no-human metrics, keeps controller/debug streams out of the no-human log, and asserts previous-possessed/debug-omniscience knowledge is absent from the no-human run.
 - Replay prefix/suffix perturbation with first-divergence attribution: `no_human_capstone_debug_and_replay_perturbation_are_non_interfering` removes a committed food-consumed event and requires replay mismatch with a first-divergence or responsible replay failure; generated terminal and payload perturbations poison replay rather than converging by normalization.
 
+## Ordinary-life behavior-witness package
+
+Result: `pass-local`, subject to the mutation floor recorded below. The behavior-witness package is the union of the `ORD-LIFE-01` through `ORD-LIFE-12` evidence rows, the generated/metamorphic package, and the no-human capstone. It proves finite, named witnesses for the ordinary-life seams rather than relying on static inspection or final-state snapshots.
+
+Included witness families:
+
+- Needs/accounting: no duplicate actor/need/tick charges; duration starts and terminals are event-backed; duplicate terminals poison replay.
+- Actor-known cognition: hidden food, hidden route, true workplace assignment, and scheduler day windows do not become candidate/proposal evidence without modeled actor-known provenance.
+- Intentions/routines: durable lifecycle transitions, possession neutrality, routine template machinery, method selection, interruptors, fallback, and routine replay negatives are all represented by named tests and fixtures.
+- Ordinary actions: eat, sleep, work, wait, continue-routine, and movement paths pass through proposal construction, action validation, event append/apply, and replay; no row accepts direct state mutation or final-state-only proof.
+- No-human ordinary life: the no-human capstone and content fixtures prove multi-actor no-human progression, typed waits/failures/stuck diagnostics, metric honesty, and controller/debug/hidden-truth quarantine.
+
+## Replay/provenance package
+
+Result: `pass-local`, subject to the mutation floor recorded below. Replay/provenance evidence is distributed across the command ledgers and evidence-item ledger, with exact transcript byte counts and SHA-256 digests recorded for each ticket wave.
+
+Package members:
+
+- Exact log/projection scope: no-human capstone, content golden fixtures, event schema replay gates, golden scenarios, emergence ledger, and generated-lock suites; transcript fingerprints are recorded in the command ledgers above.
+- Replay handling census: clean replay equality, duplicate-charge rejection, duplicate duration terminal poisoning, malformed routine/intention payload rejection, first-divergence attribution, context-hash rebuild, and replay-derived metric/projection checks.
+- Applied event range and content identity: named finite fixtures, generated ordinary-life seeds, and current workspace content registry under the pinned Rust/Cargo toolchain.
+- Actor-known source-event table: decision trace actor-known inputs, source-event IDs, source class/provenance fields, holder-known context ID/hash/frontier, stale/superseded premise handling, and source-free/dangling provenance diagnostics.
+- Metric and stuck diagnostic derivation: no-human metrics are derived from committed event-log classifications; stuck diagnostics carry typed blocker category, responsible layer, actor/window/routine identity, and replay attribution.
+- Non-certifying exclusions: observer-only emergence rows, static survey observations, historical Phase-3A prose, branch-relative repository context, and sampled-only generated coverage do not independently certify any row.
+
 ## Mutation package
 
 Result: `scoped remediation`, not `pass`. The checked-in cargo-mutants perimeter was expanded additively for ORD-LIFE §7.2 and the census commands prove the required union is present, but the configured full mutation lane did not complete and the partial exact run exposed actionable missed mutants. The survivor/tool-failure floor is recorded in `reports/0042_ord_life_cert_mutation_triage_register.md` and routes the aggregate result toward `ORD-LIFE-CERT scoped remediation` unless a later remediation spec replaces this evidence with a complete clean configured rerun.
@@ -1397,20 +1422,47 @@ Mutation survivor/tool-failure floor:
 
 ## Staged-abstraction declaration
 
-Pending; owned by `0042ORDLIFCER-016`.
+Status: `accepted for scoped remediation verdict`.
+
+- Proven now: finite named ordinary-life evidence for ORD-LIFE-01 through ORD-LIFE-12, ten live pass conditions, seven mandatory fixture families, generated/metamorphic sampled coverage, replay/provenance ancestry, and the explicit mutation posture.
+- Abstracted: unbounded authored content, all possible wall-clock schedules, all actor rosters, all regional/LOD/institutional second-proof behavior, and exhaustive generative search beyond the recorded sampled seeds.
+- Must not fake: actor-known cognition from hidden truth, scheduler windows as actor premises, fixture prose as simulation facts, debug/observer streams as causal inputs, direct-dispatch ordinary actions, final-state-only replay proof, or mutation score as certification.
+- Must not block: observer-only emergence rows, convention-only residual observations, historical Phase-3A prose, and downstream success-recovery/temporal-cascade variants are recorded but do not block local row evidence.
+- Broken vs abstracted vs overclaimed: the mutation package is `broken/remediation-routed`, not abstracted; temporal-cascade and success-recovery variants are `downstream deferred`; `ORD-LIFE-CERT passed`, `FIRST-PROOF-CERT`, and `PHASE-4-ENTRY` would be overclaims from this evidence.
 
 ## Residual convention-only items
 
-Pending; owned by `0042ORDLIFCER-016`.
+No residual convention-only item is used as pass evidence. Static/code-shape observations, archived Phase-3A history, source-discipline notes, and branch/commit context are retained only as review context. They do not substitute for replay/provenance evidence, generated/metamorphic evidence, or mutation closure.
 
 ## EMERGE-OBS handling
 
-Pending; owned by `0042ORDLIFCER-016`. Any observer-only material included here must remain non-gating and cannot become a phase gate, pass/fail threshold, scheduler objective, scenario goal, mutation substitute, or code-quality score.
+Status: `observer-only`.
+
+`EMERGE-OBS` summarizes observer-derived patterns from the no-human and generated emergence evidence, including actor variety, causal surprises, and replay-byte-identical derived ledgers. It is explicitly non-gating: it is not a phase gate, pass/fail threshold, scheduler objective, scenario goal, mutation substitute, code-quality score, or remediation blocker. It can contextualize ordinary-life review, but it cannot turn a failed mutation floor into a pass or add simulation facts to the causal log.
 
 ## Aggregate verdict
 
-Pending; owned by `0042ORDLIFCER-016`. `ORD-LIFE-CERT passed` may be rendered only if every condition in spec §9.11 is satisfied by certifying evidence; otherwise the result must be `ORD-LIFE-CERT scoped remediation` naming the failed rows, evidence gaps, mutation survivors, and remediation route.
+`ORD-LIFE-CERT scoped remediation`.
+
+The aggregate verdict is not `passed` because the mutation package fails the §9.11 all-conditions rule. The configured mutation perimeter was expanded and its file/mutant census passed, but the full configured `cargo mutants --workspace --no-shuffle` lane did not complete, the deterministic rerun did not complete, and the partial exact run exposed three actionable missed mutants in `crates/tracewake-core/src/need_accounting.rs`.
+
+Failed or remediation-routed rows/layers:
+
+- `ORD-LIFE-01`, `ORD-LIFE-08`, and `ORD-LIFE-12`: local behavioral/replay evidence passes, but the `need_accounting.rs` duration interval mutants are mapped to these rows and remain missed.
+- `ORD-LIFE-PASS-01`, `ORD-LIFE-PASS-08`, and `ORD-LIFE-PASS-10`: local evidence passes, but replay/accounting confidence is mutation-remediation-routed.
+- Fixture families `need-accounting-and-duration-ledger`, `ordinary-action-affordance-movement-duration`, and `replay-provenance-phase-lock`: local evidence passes, but the mapped mutation survivors and incomplete configured lane prevent aggregate certification.
+- Mutation infrastructure: exact configured lane and deterministic rerun are incomplete/tool-failure evidence, not accepted certification evidence.
+
+Remediation route: later separately-numbered ORD-LIFE-CERT mutation remediation/replacement spec. Required replacement evidence includes killing or rigorously proving equivalent/unreachable the three `need_accounting.rs` survivors, completing the configured `--no-shuffle` perimeter, and replacing this aggregate verdict only after a clean full mutation floor plus workspace gates.
+
+Phase posture: `FIRST-PROOF-CERT`, `PHASE-4-ENTRY`, and `SECOND-PROOF-ENTRY` remain blocked. Predecessor `P0-CERT`, `SPINE-CERT`, and `EPI-CERT` citations remain scoped to their archived acceptance artifacts and are not re-certified here.
+
+Capstone verification:
+
+| Command | Result | Evidence |
+|---|---|---|
+| `cargo test --workspace --locked` | passed, `2026-06-20T15:00:36+02:00` to `2026-06-20T15:00:42+02:00` | `/tmp/0042-016-workspace-test.txt`, 79722 bytes, SHA-256 `ff6b65988c81d3645451d917257e9c0098b75316c48631e85468bd35f1809a09` |
 
 ## Scoped certification wording
 
-Current wording: `ORD-LIFE-CERT pending for exact tested commit f7d8d666a8baa220b87d5e037e3eb50c8bf088c5; this scaffold only records the clean baseline and report structure. It does not certify ORD-LIFE-CERT, latest main, FIRST-PROOF-CERT, PHASE-4-ENTRY, SECOND-PROOF-ENTRY, or the full project.`
+Current wording: `ORD-LIFE-CERT scoped remediation for the exact evidence package recorded in reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md and reports/0042_ord_life_cert_mutation_triage_register.md. Local ORD-LIFE-01 through ORD-LIFE-12 evidence is recorded as pass-local, but ORD-LIFE-CERT is not passed because the configured mutation lane did not complete and three need_accounting.rs mutants remain missed. This does not certify latest main, FIRST-PROOF-CERT, PHASE-4-ENTRY, SECOND-PROOF-ENTRY, or the full project.`
