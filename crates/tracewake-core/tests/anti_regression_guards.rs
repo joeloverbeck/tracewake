@@ -4,6 +4,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
 use support::{AgentSeed, PhysicalSeed};
+use tracewake_core::events::log::EventLog;
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::ids::{ActionId, ActorId, ContentManifestId, EventId, ProposalId};
+use tracewake_core::need_accounting::{
+    classify_actor_tick_regimes, classify_actor_tick_regimes_with_start, TickRegimeCounts,
+};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
+use tracewake_core::time::SimTick;
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
@@ -2133,6 +2141,18 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     MetaLockCensusExemption {
         test_name: "mutation_perimeter_matches_duration_action_rationale_and_ci_filters",
         rationale: "Mutation perimeter governance test covered separately by lock_id mutation_perimeter_logical_line_swallow_scan and sibling mutation-CI meta-lock entries.",
+    },
+    MetaLockCensusExemption {
+        test_name: "need_accounting_duration_body_start_is_exclusive_and_terminal_is_inclusive",
+        rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for the need_accounting.rs duration-boundary survivor.",
+    },
+    MetaLockCensusExemption {
+        test_name: "need_accounting_current_start_requires_subject_actor_and_absent_log_identity",
+        rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for subject actor and duplicate-current-start ownership survivors.",
+    },
+    MetaLockCensusExemption {
+        test_name: "need_accounting_current_start_identity_ignores_unrelated_log_events",
+        rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for event-id membership over unrelated log events.",
     },
     MetaLockCensusExemption {
         test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
@@ -4624,6 +4644,224 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .any(|violation| violation.contains("wait.rs")),
         "synthetic non-perimeter mutation rationale must fail"
     );
+}
+
+#[test]
+fn need_accounting_duration_body_start_is_exclusive_and_terminal_is_inclusive() {
+    let actor = ord_life_actor("actor_duration_subject");
+    let mut log = EventLog::new();
+    let sleep_start = ord_life_duration_event(
+        EventKind::SleepStarted,
+        &actor,
+        "event_duration_subject_sleep_started",
+        12,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_sleep").unwrap(),
+        )],
+    );
+    let sleep_done = ord_life_duration_event(
+        EventKind::SleepCompleted,
+        &actor,
+        "event_duration_subject_sleep_completed",
+        15,
+        vec![EventCause::Event(sleep_start.event_id.clone())],
+    );
+    log.append(sleep_start).unwrap();
+    log.append(sleep_done).unwrap();
+
+    let counts = classify_actor_tick_regimes(&log, &actor, SimTick::new(10), SimTick::new(15));
+
+    assert_eq!(
+        counts,
+        TickRegimeCounts {
+            awake_ticks: 2,
+            asleep_ticks: 3,
+            working_ticks: 0,
+        },
+        "ticks 11 and 12 stay awake; only body ticks 13..=15 are asleep"
+    );
+
+    let boundary_control =
+        classify_actor_tick_regimes(&log, &actor, SimTick::new(12), SimTick::new(15));
+    assert_eq!(
+        boundary_control,
+        TickRegimeCounts {
+            awake_ticks: 0,
+            asleep_ticks: 3,
+            working_ticks: 0,
+        },
+        "starting the window at the duration start still charges body ticks 13..=15"
+    );
+}
+
+#[test]
+fn need_accounting_current_start_requires_subject_actor_and_absent_log_identity() {
+    let subject = ord_life_actor("actor_duration_subject");
+    let other = ord_life_actor("actor_duration_other");
+    let other_current = ord_life_duration_event(
+        EventKind::WorkBlockStarted,
+        &other,
+        "event_duration_other_work_started",
+        10,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_other_work").unwrap(),
+        )],
+    );
+    let empty_log = EventLog::new();
+
+    let subject_counts = classify_actor_tick_regimes_with_start(
+        &empty_log,
+        &subject,
+        SimTick::new(10),
+        SimTick::new(12),
+        Some(&other_current),
+    );
+    let other_counts = classify_actor_tick_regimes_with_start(
+        &empty_log,
+        &other,
+        SimTick::new(10),
+        SimTick::new(12),
+        Some(&other_current),
+    );
+
+    assert_eq!(
+        subject_counts,
+        TickRegimeCounts {
+            awake_ticks: 2,
+            asleep_ticks: 0,
+            working_ticks: 0,
+        },
+        "another actor's current duration start must not charge the subject"
+    );
+    assert_eq!(
+        other_counts,
+        TickRegimeCounts {
+            awake_ticks: 0,
+            asleep_ticks: 0,
+            working_ticks: 2,
+        },
+        "the same current start remains non-vacuous for its owning actor"
+    );
+
+    let mut logged = EventLog::new();
+    let logged_start = ord_life_duration_event(
+        EventKind::WorkBlockStarted,
+        &subject,
+        "event_duration_subject_work_started",
+        10,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_work").unwrap(),
+        )],
+    );
+    let duplicate_current = logged_start.clone();
+    let logged_terminal = ord_life_duration_event(
+        EventKind::WorkBlockCompleted,
+        &subject,
+        "event_duration_subject_work_completed",
+        12,
+        vec![EventCause::Event(logged_start.event_id.clone())],
+    );
+    logged.append(logged_start).unwrap();
+    logged.append(logged_terminal).unwrap();
+
+    let counts_with_logged_current = classify_actor_tick_regimes_with_start(
+        &logged,
+        &subject,
+        SimTick::new(10),
+        SimTick::new(14),
+        Some(&duplicate_current),
+    );
+    assert_eq!(
+        counts_with_logged_current,
+        TickRegimeCounts {
+            awake_ticks: 2,
+            asleep_ticks: 0,
+            working_ticks: 2,
+        },
+        "a current start already present in the log must not create a second open owner"
+    );
+}
+
+#[test]
+fn need_accounting_current_start_identity_ignores_unrelated_log_events() {
+    let subject = ord_life_actor("actor_duration_subject");
+    let mut log = EventLog::new();
+    log.append(ord_life_duration_event(
+        EventKind::ActorWaited,
+        &subject,
+        "event_duration_subject_unrelated_wait",
+        9,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_wait").unwrap(),
+        )],
+    ))
+    .unwrap();
+    let current_start = ord_life_duration_event(
+        EventKind::WorkBlockStarted,
+        &subject,
+        "event_duration_subject_current_work_started",
+        10,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_current_work").unwrap(),
+        )],
+    );
+
+    let counts = classify_actor_tick_regimes_with_start(
+        &log,
+        &subject,
+        SimTick::new(10),
+        SimTick::new(12),
+        Some(&current_start),
+    );
+
+    assert_eq!(
+        counts,
+        TickRegimeCounts {
+            awake_ticks: 0,
+            asleep_ticks: 0,
+            working_ticks: 2,
+        },
+        "unrelated log events must not suppress a legitimate absent current start"
+    );
+}
+
+fn ord_life_actor(id: &str) -> ActorId {
+    ActorId::new(id).unwrap()
+}
+
+fn ord_life_duration_event(
+    kind: EventKind,
+    actor: &ActorId,
+    id: &str,
+    tick: u64,
+    causes: Vec<EventCause>,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(id).unwrap(),
+        kind,
+        0,
+        0,
+        SimTick::new(tick),
+        ord_life_ordering_key(tick, actor, kind.stable_id()),
+        ContentManifestId::new("phase3a_manifest").unwrap(),
+        causes,
+    )
+    .unwrap();
+    event.actor_id = Some(actor.clone());
+    event.payload = vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)];
+    event
+}
+
+fn ord_life_ordering_key(tick: u64, actor: &ActorId, action_id: &str) -> OrderingKey {
+    OrderingKey::new(
+        SimTick::new(tick),
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor.clone()),
+        ProposalSequence::new(0),
+        ActionId::new(action_id).unwrap(),
+        Vec::new(),
+        action_id,
+    )
 }
 
 #[test]

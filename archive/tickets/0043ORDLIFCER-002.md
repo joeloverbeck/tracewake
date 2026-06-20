@@ -1,6 +1,6 @@
 # 0043ORDLIFCER-002: Kill the three need_accounting.rs duration-accounting seed survivors with event-backed behavior witnesses
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new behavior/property witnesses in `tracewake-core` (test-additions by default; production correction in `need_accounting.rs` only if a survivor reveals a real defect).
@@ -98,3 +98,45 @@ Add a witness family (per spec §5.1) with member-specific retained cases that: 
 1. `cargo test --locked -p tracewake-core --test anti_regression_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked`
 3. Targeted kill proof: `cargo mutants -f 'crates/tracewake-core/src/need_accounting.rs' --no-shuffle` — confirm `contains_tick` `<`→`<=`, `duration_intervals` `&&`→`||`, and `duration_intervals` `==`→`!=` are each `caught`. The full configured posture is -004's scope.
+
+## Outcome
+
+Completed: 2026-06-20
+
+Added event-log-backed public behavior witnesses in
+`crates/tracewake-core/tests/anti_regression_guards.rs` for the three
+`need_accounting.rs` seed survivors:
+
+- `need_accounting_duration_body_start_is_exclusive_and_terminal_is_inclusive`
+  proves a duration start tick remains body-exclusive while the terminal tick is
+  included in the charged duration body.
+- `need_accounting_current_start_requires_subject_actor_and_absent_log_identity`
+  proves a current start must belong to the subject actor and must not already
+  be represented in the event log, including a duplicate-current-start control.
+- `need_accounting_current_start_identity_ignores_unrelated_log_events` proves
+  event-id membership is specific to the current start and is not suppressed by
+  unrelated log events.
+
+The witnesses use the public `classify_actor_tick_regimes` /
+`classify_actor_tick_regimes_with_start` event-log seam and do not add a second
+production accounting owner. No production logic changed.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test anti_regression_guards need_accounting_` — passed.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace --locked` — passed.
+- `cargo mutants --workspace --no-shuffle -F 'crates/tracewake-core/src/need_accounting\.rs' --list` — confirmed the focused regex lists only `need_accounting.rs` mutants, including the three historical identities.
+- `cargo mutants --workspace --no-shuffle -F 'crates/tracewake-core/src/need_accounting\.rs'` — completed with `42 mutants tested in 3m: 36 caught, 6 unviable`; `mutants.out/missed.txt` and `mutants.out/timeout.txt` were empty.
+- `rg -n '88:25: replace < with <=|106:13: replace && with \|\||109:45: replace == with !=' mutants.out/caught.txt` — confirmed all three historical seed identities were caught.
+
+Command-shape note: the literal ticket command
+`cargo mutants -f 'crates/tracewake-core/src/need_accounting.rs' --no-shuffle`
+was attempted first, but cargo-mutants 27.1.0 combined `-f` with the checked-in
+`.cargo/mutants.toml` standing config and reported the full 2877-mutant
+denominator. That full-denominator attempt was interrupted before mutant
+interpretation because it belongs to `0043ORDLIFCER-004`, not this ticket. The
+focused `-F` command above supplied the ticket-local seed-kill proof without
+shrinking or laundering the configured denominator.
