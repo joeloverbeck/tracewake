@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-009: ORD-LIFE-08 — ordinary action affordances, causal movement, durations, terminals, and no-teleport behavior
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -69,6 +69,22 @@ Record the §5 adversarial cases: `routine_no_teleport_001`, `sleep_rejects_curr
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test acceptance_gates`
+2. `cargo test --locked -p tracewake-core --test anti_regression_guards`
+3. `cargo test --locked -p tracewake-core --test golden_scenarios`
+4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-08 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, and `0042-ORD08-DURATION-TERMINALS`.
+
+The evidence records legal sleep/eat/move/work ancestry, no-teleport and sleep-affordance negatives, displacement/hidden-route/direct-dispatch guards, and duplicate-terminal replay poisoning. No ORD-LIFE-08 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test acceptance_gates`
 2. `cargo test --locked -p tracewake-core --test anti_regression_guards`
