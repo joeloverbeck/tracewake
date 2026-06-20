@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-010: ORD-LIFE-09 — no-human orchestration, canonical recovery, meaningful progress, and metric honesty
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -69,6 +69,22 @@ Record the §5 adversarial cases: windows containing only `continue_routine` / s
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test no_human_capstone`
+2. `cargo test --locked -p tracewake-core --test emergence_ledger`
+3. `cargo test --locked -p tracewake-core --test golden_scenarios`
+4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-09 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, and `0042-ORD09-CANONICAL-REPLAY`.
+
+The evidence records no-human per-actor/window orchestration through ordinary transactions, independent event-log metric classification, marker-only `continue_routine` exclusion, replay-derived metrics, observer-only `EMERGE-OBS`, and the canonical `fail_only_empty_food_source` Mara recovery. The success-recovery variant remains staged to Phase 3B as documented; no ORD-LIFE-09 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test no_human_capstone`
 2. `cargo test --locked -p tracewake-core --test emergence_ledger`

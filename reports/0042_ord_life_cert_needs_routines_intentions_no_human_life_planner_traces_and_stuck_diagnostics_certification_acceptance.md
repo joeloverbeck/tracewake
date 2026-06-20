@@ -145,6 +145,18 @@ These commands were run for `0042ORDLIFCER-009` against commit `4703bfb9bfb44917
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:21:50+02:00` to `2026-06-20T12:21:50+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-009-event-schema-replay-gates.txt` | 2692 | `26e25c040c0b5f2de0803aa056d28d84a7729f0d441cc0c4739bf72bca4cfe15` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:21:57+02:00` to `2026-06-20T12:21:58+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-009-golden-fixtures-run.txt` | 3008 | `c594c58519951a33cb8273eafc224d5cfa60e697cf3fe96b57babfe23f222cfa` |
 
+### ORD-LIFE-09 command ledger
+
+These commands were run for `0042ORDLIFCER-010` against commit `04fc5ae5ce37a5ea0bec98a48d3dffe787cf96b5` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:24:40+02:00` to `2026-06-20T12:24:41+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
+| `cargo test --locked -p tracewake-core --test emergence_ledger` | `2026-06-20T12:24:50+02:00` to `2026-06-20T12:24:50+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-emergence-ledger.txt` | 351 | `2ccd1940434874fa876a18d634418ddd03d4ca50e1f9df2884fe54a4092c0ffe` |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | `2026-06-20T12:24:59+02:00` to `2026-06-20T12:24:59+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-golden-scenarios.txt` | 1273 | `e3cbd0a68cad65f86f2a618331e564372d5fbe494e86c1a7598ff44a36c36456` |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T12:25:06+02:00` to `2026-06-20T12:25:06+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-event-schema-replay-gates.txt` | 2692 | `16ff3e0666479b7a5b27ccf1268e0a79ca48a4a12b5f960cda38773b2204ea86` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:25:12+02:00` to `2026-06-20T12:25:13+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-010-golden-fixtures-run.txt` | 3008 | `80159b6c6e46642506abf164dced261494e2a1426eafe8aa9548af881e7138ad` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -161,7 +173,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-06` | method selection/local planner | `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-BUDGET-PROVENANCE`, `0042-ORD06-FALLBACK-NEGATIVES` | `pass` |
 | `ORD-LIFE-07` | planner and decision trace/debug | `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE`, `0042-ORD07-FEEDBACK-NEGATIVES` | `pass` |
 | `ORD-LIFE-08` | ordinary actions/movement/durations | `0042-ORD08-POSITIVE-ANCESTRY`, `0042-ORD08-AFFORDANCE-NEGATIVES`, `0042-ORD08-DURATION-TERMINALS` | `pass` |
-| `ORD-LIFE-09` | no-human orchestration/metrics | `pending` | `pending` |
+| `ORD-LIFE-09` | no-human orchestration/metrics | `0042-ORD09-ORCHESTRATION`, `0042-ORD09-METRIC-HONESTY`, `0042-ORD09-CANONICAL-REPLAY` | `pass` |
 | `ORD-LIFE-10` | stuck diagnostics/no-progress | `pending` | `pending` |
 | `ORD-LIFE-11` | scheduler/proposal ancestry | `pending` | `pending` |
 | `ORD-LIFE-12` | replay-derived projections/phase lock | `pending` | `pending` |
@@ -805,6 +817,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-08`.
 
+### `0042-ORD09-ORCHESTRATION`
+
+- Evidence item ID: `0042-ORD09-ORCHESTRATION`
+- Requirement IDs: `ORD-LIFE-09`, `ORD-LIFE-PASS-06`, `ORD-LIFE-PASS-08`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed no-human capstone and content tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test no_human_capstone`, `cargo test --locked -p tracewake-core --test golden_scenarios`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. The no-human capstone verifies actor decision order, day-window IDs, start tick `0`, final tick `32`, ordinary pipeline events above the initial actor count, required ordinary-life event families, proposal ancestry for no-human ordinary events, decision/intention/routine ancestry, absence of controller/hidden-truth leak, and `no_human_day_metrics_v1`. `no_human_day_001` verifies roster activity for Anna, Elena, Mara, and Tomas through no-human ordinary actions.
+- Path under test and behavior witness:
+  - path under test: `run_no_human_day`, `advance_no_human`, sealed actor-known transaction, proposal pipeline, metrics projection;
+  - command/event/trigger/emitter/scheduler entry: no-human day windows and per-actor scheduled decisions;
+  - responsible layer: `fixture_contract`, `holder_known_context`, `candidate_generation`, `scheduler`, `action_validation`, `projection`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: multiple actors progress without human commands through the same transaction/proposal/validation paths;
+  - live negative, mutation-style failure, or reason no negative is applicable: controller and hidden-truth leak checks remain empty;
+  - checked facts or invariants: start/end markers, actor/window order, proposal ancestry, ordinary action/wait/failure events, no-human metrics.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `NoHumanDayStarted`, `NoHumanDayCompleted`, `DecisionTraceRecorded`, ordinary action events, wait/failure records;
+  - replay artifact or serialized-log reference: no-human capstone and golden scenarios passed;
+  - seed, randomness, content version, or ruleset version: committed capstone fixture and `no_human_day_001`;
+  - extraction/projection version: current scheduler, actor transaction, action pipeline, and projection code;
+  - source provenance: no-human process ordering keys, proposal IDs, actor/window IDs.
+- Sampling/exhaustiveness scope: finite integrated no-human day fixtures required by ORD-LIFE-09.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-09`.
+
+### `0042-ORD09-METRIC-HONESTY`
+
+- Evidence item ID: `0042-ORD09-METRIC-HONESTY`
+- Requirement IDs: `ORD-LIFE-09`, `ORD-LIFE-PASS-06`, `ORD-LIFE-PASS-08`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed metric projection and acceptance tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test no_human_capstone` and `cargo test --locked -p tracewake-core --test golden_scenarios` passed. `no_human_day_metrics_are_independent_event_log_counts` builds a log with food consumed, eat failed, sleep completed/interrupted, work completed/failed, routine events, typed planner failures, stuck diagnostics, replay failures, and player-conditioned events, then checks every metric against independent event-log classification. `continue_routine_marker_alone_counts_as_no_behavioral_progress` and `continue_routine_marker_alone_is_not_behavioral_progress` prove marker-only `continue_routine` contributes no routine/meals/sleep/work progress, while follow-on real progress survives replay.
+- Path under test and behavior witness:
+  - path under test: `no_human_day_metrics`, scheduler progress counting, continue-routine action, metric serialization;
+  - command/event/trigger/emitter/scheduler entry: accepted event log and no-human metrics projection;
+  - responsible layer: `scheduler`, `projection`, `replay`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: only committed ordinary actions, duration terminals, typed waits, and typed stuck/failure outcomes count as behavior;
+  - live negative, mutation-style failure, or reason no negative is applicable: trace/debug/projection markers, scheduler awakenings, and marker-only continue routine do not inflate progress;
+  - checked facts or invariants: closed progress classification exactly matches metric fields.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `FoodConsumed`, `EatFailed`, `SleepCompleted`, `SleepInterrupted`, `WorkBlockCompleted`, `WorkBlockFailed`, `StuckDiagnosticRecorded`, `ContinueRoutineProposed`;
+  - replay artifact or serialized-log reference: golden scenarios and metric replay tests passed;
+  - seed, randomness, content version, or ruleset version: committed projection and acceptance tests;
+  - extraction/projection version: current `NoHumanDayMetrics` projection code;
+  - source provenance: event IDs and responsible-layer/blocker payloads for stuck/failure counts.
+- Sampling/exhaustiveness scope: finite metric matrix and no-human fixtures required by ORD-LIFE-09.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-09`.
+
+### `0042-ORD09-CANONICAL-REPLAY`
+
+- Evidence item ID: `0042-ORD09-CANONICAL-REPLAY`
+- Requirement IDs: `ORD-LIFE-09`, `ORD-LIFE-PASS-09`, `ORD-LIFE-PASS-10`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed content, replay, and emergence tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test emergence_ledger`, `cargo test --locked -p tracewake-core --test event_schema_replay_gates`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. `no_human_day_001` preserves canonical Mara recovery as `fail_only_empty_food_source`: Mara records no-human `EatFailed`, does not consume food, does not move toward Tomas's home, and does not target Tomas's stew; synthetic contract flips or injected Mara consumption fail the behavior binding. `emerge_obs_ledger_is_observer_only_and_replay_byte_identical` derives observer-only emergence rows from generated no-human runs, rederives them from the same log and deserialized replay log, and asserts byte-identical ledgers.
+- Path under test and behavior witness:
+  - path under test: no-human canonical fixture, hidden-resource boundary, replay, observer-only emergence ledger;
+  - command/event/trigger/emitter/scheduler entry: canonical no-human day and generated no-human cases;
+  - responsible layer: `fixture_contract`, `scheduler`, `projection`, `replay`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: canonical empty-food failure remains a typed ordinary-life failure, not hidden recovery;
+  - live negative, mutation-style failure, or reason no negative is applicable: hidden fallback food and Tomas resources cannot create Mara recovery without modeled knowledge;
+  - checked facts or invariants: replay-derived metrics, no hidden recovery, observer-only emergence evidence.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: Mara `EatFailed`, absence of Mara `FoodConsumed`/Tomas food targeting, `ReplayProjectionRebuilt`, emergence ledger rows;
+  - replay artifact or serialized-log reference: event schema replay and emergence ledger replay equality passed;
+  - seed, randomness, content version, or ruleset version: committed `no_human_day_001` and generated emergence seeds;
+  - extraction/projection version: current fixture runner, scheduler, replay, and emergence derivation code;
+  - source provenance: fixture contract `canonical_mara_recovery_resolution=fail_only_empty_food_source` and no-human log events.
+- Sampling/exhaustiveness scope: canonical no-human day plus generated observer-only emergence samples.
+- Pending or historical handling: success-recovery variant remains staged to Phase 3B; this row certifies only fail-only canonical recovery and metric honesty.
+- Certification use: counted as certifying pass for `ORD-LIFE-09`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -980,7 +1064,24 @@ Duration terminal witnesses:
 
 ## ORD-LIFE-09: no-human orchestration, canonical recovery, meaningful progress, and metric honesty
 
-Pending; owned by `0042ORDLIFCER-010`.
+Result: `pass` for the ORD-LIFE-09 local audit point.
+
+No-human orchestration witnesses:
+
+- No-human capstone verifies actor order, window IDs, start/final ticks, proposal ancestry, decision/intention/routine ancestry, required ordinary-life event families, and `no_human_day_metrics_v1`.
+- `no_human_day_001` proves Anna, Elena, Mara, and Tomas all produce no-human ordinary action/failure/wait events through the ordinary pipeline.
+
+Metric-honesty witnesses:
+
+- `no_human_day_metrics_are_independent_event_log_counts` checks metrics against an independently constructed event-log classification.
+- `continue_routine` marker-only cases do not count as routine/meals/sleep/work progress; follow-on real progress survives replay.
+- Trace/debug/projection markers and scheduler markers do not substitute for behavioral progress.
+
+Canonical recovery and replay witnesses:
+
+- `no_human_day_001` remains `fail_only_empty_food_source`: Mara gets a no-human `EatFailed`, consumes no food, does not move toward Tomas's home, and does not target Tomas's food.
+- Synthetic contract flips or injected Mara consumption fail the canonical-recovery behavior binding.
+- `EMERGE-OBS` is observer-only and replay byte-identical; it is evidence, not a gate or objective.
 
 ## ORD-LIFE-10: typed stuck diagnostics, blocker taxonomy, and cross-tick no-progress detection
 
