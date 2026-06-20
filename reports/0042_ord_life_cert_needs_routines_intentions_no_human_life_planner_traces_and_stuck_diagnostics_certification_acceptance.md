@@ -59,6 +59,18 @@ These commands were run for `0042ORDLIFCER-002` against commit `785d56758a002472
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | `2026-06-20T11:52:38+02:00` to `2026-06-20T11:52:38+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-002-event-schema-replay-gates.txt` | 2692 | `0711d1073bb568ebf3fca4742aeca7bda4b792c7c4db5324e3ed0e0ab6e2573d` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T11:52:43+02:00` to `2026-06-20T11:52:44+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-002-golden-fixtures-run.txt` | 3008 | `58218bfdd0ffa2ca31234c5869f6fdb6fd37b2b1687d07c2f738c6e6957bd8b8` |
 
+### ORD-LIFE-02 command ledger
+
+These commands were run for `0042ORDLIFCER-003` against commit `689d712de31dd96b798bbb1b99ce079f95a207a3` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts. Candidate-generation unit tests in `crates/tracewake-core/src/agent/generation.rs` were covered by the green `cargo test --workspace --locked` scaffold baseline; the targeted commands below are the integration evidence required by this ticket.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | `2026-06-20T11:54:55+02:00` to `2026-06-20T11:54:55+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-hidden-truth-gates.txt` | 1434 | `c372bc821c22530daef14401c12b9599948f51eb84cd891c42d7e4416c3753ba` |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | `2026-06-20T11:55:00+02:00` to `2026-06-20T11:55:01+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-acceptance-gates.txt` | 1102 | `e4d1a58a9270b85b1207621ef1dede7a787bf27a9b56e6631feca3981d6fff0c` |
+| `cargo test --locked -p tracewake-core --test generative_lock` | `2026-06-20T11:55:06+02:00` to `2026-06-20T11:55:06+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-generative-lock.txt` | 419 | `e71a584cc1ea58adaa1a6ed0467a220afad808e9c879920b326e47d2ee8d1ee3` |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T11:55:14+02:00` to `2026-06-20T11:55:14+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-no-human-capstone.txt` | 343 | `f7cca53a3a0cf9e654433e531ab7a7c0eceeedd62441e00e53f5b82f195f85b9` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T11:55:22+02:00` to `2026-06-20T11:55:23+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-003-golden-fixtures-run.txt` | 3008 | `f3597867089f948ea34487873520f8614604de0cc33587e65c0191be2a92a802` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -68,7 +80,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | Requirement | Responsible layer | Evidence item IDs | Result from certifying evidence |
 |---|---|---|---|
 | `ORD-LIFE-01` | needs/accounting/event ledger | `0042-ORD01-LEDGER`, `0042-ORD01-NEGATIVE`, `0042-ORD01-REPLAY` | `pass` |
-| `ORD-LIFE-02` | actor-known candidate generation | `pending` | `pending` |
+| `ORD-LIFE-02` | actor-known candidate generation | `0042-ORD02-CANDIDATES`, `0042-ORD02-HIDDEN-TRUTH`, `0042-ORD02-PROVENANCE` | `pass` |
 | `ORD-LIFE-03` | intention lifecycle | `pending` | `pending` |
 | `ORD-LIFE-04` | routines/HTN/fallback | `pending` | `pending` |
 | `ORD-LIFE-05` | routine temporal premises | `pending` | `pending` |
@@ -205,6 +217,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-01`; broader generated/metamorphic package remains pending until `0042ORDLIFCER-014`.
 
+### `0042-ORD02-CANDIDATES`
+
+- Evidence item ID: `0042-ORD02-CANDIDATES`
+- Requirement IDs: `ORD-LIFE-02`, `ORD-LIFE-PASS-02`, `ORD-LIFE-PASS-07`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-content --test golden_fixtures_run`, `cargo test --locked -p tracewake-core --test no_human_capstone`, and the `0042-BASELINE-001` workspace run passed. The content suite includes `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, which generates candidate goals from actor-known facts, records selected/rejected candidates, asserts selected `GoalKind::Eat`, and verifies hidden-truth audit results remain actor-known-only. The workspace baseline covers generation unit tests including `candidate_generation_is_deterministic`, `generated_candidates_carry_actor_known_fact_notes`, and `rising_hunger_adds_eat_candidate_without_erasing_active_intention`.
+- Path under test and behavior witness:
+  - path under test: `crates/tracewake-core/src/agent/generation.rs`, `crates/tracewake-core/src/agent/decision.rs`, `crates/tracewake-content/tests/golden_fixtures_run.rs`;
+  - command/event/trigger/emitter/scheduler entry: `generate_candidate_goals`, `select_goal_and_trace`, no-human decision trace recording;
+  - responsible layer: `candidate_generation`, `holder_known_context`, `intention_lifecycle`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: selected and rejected candidate goals are recorded in decision traces with actor-known inputs;
+  - live negative, mutation-style failure, or reason no negative is applicable: generation unit tests prove hidden true food is not used without actor belief, while `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit` records an unproven source as not actor-known-only;
+  - checked facts or invariants: deterministic candidate ordering, selected/rejected candidate traceability, and actor-known source notes.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: planner-trace fixture uses `event_planner_trace_food`; no-human capstone records decision trace actor-known inputs and context hashes;
+  - replay artifact or serialized-log reference: no-human capstone and generated lock commands passed;
+  - seed, randomness, content version, or ruleset version: committed fixture registry and content version in the content test harness;
+  - extraction/projection version: current candidate generation and decision trace code;
+  - source provenance: `ActorKnownFact::observed_now`, `SourceEventIds::checked`, and decision trace `actor_known_inputs`.
+- Sampling/exhaustiveness scope: finite named fixture and unit-test set required for ORD-LIFE-02; broader generated/metamorphic package remains pending until `0042ORDLIFCER-014`.
+- Pending or historical handling: none for this row.
+- Certification use: counted as certifying pass for `ORD-LIFE-02`; capstone aggregate rows remain pending.
+
+### `0042-ORD02-HIDDEN-TRUTH`
+
+- Evidence item ID: `0042-ORD02-HIDDEN-TRUTH`
+- Requirement IDs: `ORD-LIFE-02`, `ORD-LIFE-PASS-02`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates` and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. The content suite includes `no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`, which loads `no_hidden_truth_planning_001`, verifies hidden physical food exists in authoritative state, generates hunger candidates with no actor-known food facts, selects `GoalKind::FindFood`, verifies planner inputs omit `food_hidden_pantry`, and rejects a direct plan to eat the hidden pantry food with `food source is not actor-known`.
+- Path under test and behavior witness:
+  - path under test: hidden-truth fixtures and actor-known context projection;
+  - command/event/trigger/emitter/scheduler entry: candidate generation and local planning from a sealed actor-known context;
+  - responsible layer: `holder_known_context` and `candidate_generation`;
+  - accepted/rejected action or validation stage witnessed: hidden-food direct target is rejected before it can become a selected goal/proposal/event;
+  - live negative, mutation-style failure, or reason no negative is applicable: hidden authoritative food and route/workplace truth are not admitted until legal source evidence exists;
+  - checked facts or invariants: no telepathy, no validation-truth planning, no fixture-prose target synthesis.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: actor-known context proof sources and source-event-backed facts where present;
+  - replay artifact or serialized-log reference: hidden-truth gates and content fixture replay paths passed;
+  - seed, randomness, content version, or ruleset version: committed hidden-truth fixtures;
+  - extraction/projection version: current actor-known projection/context builders;
+  - source provenance: actor-known context facts, not authoritative hidden state.
+- Sampling/exhaustiveness scope: finite hidden-truth fixture set named by the spec/ticket, including `no_hidden_truth_planning_001`, `hidden_food_unknown_route_001`, and related hidden food/workplace provenance cases covered by the content and hidden-truth suites.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-02`.
+
+### `0042-ORD02-PROVENANCE`
+
+- Evidence item ID: `0042-ORD02-PROVENANCE`
+- Requirement IDs: `ORD-LIFE-02`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript.
+- Evidence summary: `cargo test --locked -p tracewake-core --test acceptance_gates`, `cargo test --locked -p tracewake-core --test generative_lock`, and `cargo test --locked -p tracewake-core --test no_human_capstone` passed. The report also relies on the `0042-BASELINE-001` workspace run for embedded unit tests that source classes and candidate generation are deterministic.
+- Path under test and behavior witness:
+  - path under test: `ActorKnownInputRef`, `ActorKnownInputSourceClass`, decision trace serialization, generated ordinary-life sequences;
+  - command/event/trigger/emitter/scheduler entry: acceptance gates, no-human decision trace events, and generated sequence replay;
+  - responsible layer: `holder_known_context`, `candidate_generation`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: source context and actor-known input references are retained in traces; forbidden inputs remain excluded or marked non-actor-known-only;
+  - live negative, mutation-style failure, or reason no negative is applicable: unproven source refs in planner trace produce a failed actor-known-only audit note rather than an admitted source;
+  - checked facts or invariants: source class/source-event discipline, fail-closed provenance handling, same-input determinism.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: decision trace source-event IDs and no-human capstone decision trace records;
+  - replay artifact or serialized-log reference: no-human capstone and generated lock passed;
+  - seed, randomness, content version, or ruleset version: current test fixtures and generated lock seeds;
+  - extraction/projection version: current decision trace and actor-known context hashing code;
+  - source provenance: actor-known input refs and checked source-event IDs.
+- Sampling/exhaustiveness scope: finite command set plus generation unit tests from the workspace baseline.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-02`; not counted as a substitute for the later mutation or capstone packages.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -229,7 +313,23 @@ Ownership/delegation boundary:
 
 ## ORD-LIFE-02: actor-known candidate generation, deterministic priority, and hidden-target exclusion
 
-Pending; owned by `0042ORDLIFCER-003`.
+Result: `pass` for the ORD-LIFE-02 local audit point.
+
+Positive witnesses:
+
+- Candidate generation and selection are traced from actor-known facts in `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`; selected and rejected candidates are present, selection chooses `GoalKind::Eat` only with actor-known food-source evidence, and the hidden-truth audit remains actor-known-only.
+- The scaffold baseline's full workspace test run covered `agent/generation.rs` unit tests for deterministic generation, candidate source notes, hunger pressure without erasing active intention, and hidden true food exclusion without actor belief.
+- No-human capstone evidence records actor-known context and candidate arbitration fields in the no-human decision trace path.
+
+Adversarial and fail-closed witnesses:
+
+- `no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs` proves authoritative hidden food exists while the selected goal remains `FindFood`, planner inputs omit `food_hidden_pantry`, actor-known food sources exclude it, and a direct plan to eat it fails with `food source is not actor-known`.
+- Hidden-truth gate commands passed for actor-known context unforgeability, debug truth exclusion, hidden food/route exclusion, context injection rejection, and workplace provenance requirements.
+- Provenance negatives with unproven actor-known facts are surfaced as failed actor-known-only audit notes, not admitted as valid source refs.
+
+Projection/replay note:
+
+- Candidate generation itself has no dedicated projection field that certifies target selection by path existence alone. The certifying surface is the typed candidate/decision trace output from identical actor-known/event inputs plus no-human/replay suites that preserve the trace and context hashes. This avoids replacing relational hidden-truth proof with string or golden-byte scans.
 
 ## ORD-LIFE-03: durable intention lifecycle, typed ancestry, replacement semantics, and possession neutrality
 

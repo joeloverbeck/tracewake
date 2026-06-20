@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-003: ORD-LIFE-02 — actor-known candidate generation, deterministic priority, and hidden-target exclusion
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -75,3 +75,21 @@ Exercise the §5 adversarial fixtures (`no_hidden_truth_planning_001`, `hidden_f
 3. `cargo test --locked -p tracewake-core --test generative_lock`
 4. `cargo test --locked -p tracewake-core --test no_human_capstone`
 5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Populated the ORD-LIFE-02 section of `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with command transcript fingerprints, actor-known candidate witnesses, hidden-truth exclusion evidence, provenance handling, and a local `pass` result. The report explicitly records that candidate-generation unit tests in `crates/tracewake-core/src/agent/generation.rs` were covered by the `0042ORDLIFCER-001` `cargo test --workspace --locked` baseline, while this ticket's targeted commands provide the integration evidence.
+
+The evidence cites `planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`, `no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs`, hidden-truth gate coverage, no-human decision trace coverage, generated sequence replay coverage, and acceptance-gate source-context coverage. It records that candidate generation has no standalone projection field; the certifying surface is typed candidate/decision trace output from actor-known/event inputs plus no-human/replay preservation, not string or golden-byte scans.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates` — passed.
+- `cargo test --locked -p tracewake-core --test acceptance_gates` — passed.
+- `cargo test --locked -p tracewake-core --test generative_lock` — passed.
+- `cargo test --locked -p tracewake-core --test no_human_capstone` — passed.
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run` — passed.
+
+No production or engine code changed. No remediation was needed or performed.
