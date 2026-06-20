@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/adversarial_gates.rs (target/debug/deps/adversarial_gates-c7f10057767876ea)
+     Running tests/command_loop_session.rs (target/debug/deps/command_loop_session-211f71b53b1023dd)
+     Running tests/embodied_flow.rs (target/debug/deps/embodied_flow-96bef0b4b3474bda)
+     Running tests/readme_sample_session.rs (target/debug/deps/readme_sample_session-265e101ddcf5966e)
+     Running tests/transcript_snapshot.rs (target/debug/deps/transcript_snapshot-abc605adb6846784)
+     Running tests/tui_acceptance.rs (target/debug/deps/tui_acceptance-e59d79fb3ad76767)
+     Running tests/tui_seam_conformance.rs (target/debug/deps/tui_seam_conformance-b1b70e3371b0f5c5)

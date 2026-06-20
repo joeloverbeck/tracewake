@@ -4,6 +4,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
 use support::{AgentSeed, PhysicalSeed};
+use tracewake_core::events::log::EventLog;
+use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::ids::{ActionId, ActorId, ContentManifestId, EventId, ProposalId};
+use tracewake_core::need_accounting::{
+    classify_actor_tick_regimes, classify_actor_tick_regimes_with_start, TickRegimeCounts,
+};
+use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
+use tracewake_core::time::SimTick;
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
@@ -2133,6 +2141,26 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     MetaLockCensusExemption {
         test_name: "mutation_perimeter_matches_duration_action_rationale_and_ci_filters",
         rationale: "Mutation perimeter governance test covered separately by lock_id mutation_perimeter_logical_line_swallow_scan and sibling mutation-CI meta-lock entries.",
+    },
+    MetaLockCensusExemption {
+        test_name: "need_accounting_duration_body_start_is_exclusive_and_terminal_is_inclusive",
+        rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for the need_accounting.rs duration-boundary survivor.",
+    },
+    MetaLockCensusExemption {
+        test_name: "need_accounting_current_start_requires_subject_actor_and_absent_log_identity",
+        rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for subject actor and duplicate-current-start ownership survivors.",
+    },
+    MetaLockCensusExemption {
+        test_name: "need_accounting_current_start_identity_ignores_unrelated_log_events",
+        rationale: "0043ORDLIFCER-002 ticket-owned mutation witness for event-id membership over unrelated log events.",
+    },
+    MetaLockCensusExemption {
+        test_name: "movement_door_endpoint_mismatch_rejects_partial_connections",
+        rationale: "0043ORDLIFCER-006 ticket-owned mutation witness for exact unordered movement-door endpoint matching.",
+    },
+    MetaLockCensusExemption {
+        test_name: "user_origin_wait_keeps_candidate_goal_reevaluation_false",
+        rationale: "0043ORDLIFCER-007 ticket-owned mutation witness for user-origin wait autonomy classification; scan-shaped payload checks are covered by lock_id guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass.",
     },
     MetaLockCensusExemption {
         test_name: "mutation_baseline_misses_are_pinned_and_ledgered",
@@ -4580,8 +4608,8 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
     );
 
     let missing_eat_in_diff = CI_YML.replace(
-        "actions/defs/(eat|sleep|work)\\.rs",
-        "actions/defs/(sleep|work)\\.rs",
+        "actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
+        "actions/defs/(need_events|sleep|work|wait|continue_routine|movement)\\.rs",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_eat_in_diff)
@@ -4592,7 +4620,7 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
 
     let decoy_in_diff = CI_YML.replace(
         "          if git diff --name-only \"$guarded_range\" | grep -E",
-        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(eat|sleep|work)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
+        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_in_diff)
@@ -4624,6 +4652,224 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .any(|violation| violation.contains("wait.rs")),
         "synthetic non-perimeter mutation rationale must fail"
     );
+}
+
+#[test]
+fn need_accounting_duration_body_start_is_exclusive_and_terminal_is_inclusive() {
+    let actor = ord_life_actor("actor_duration_subject");
+    let mut log = EventLog::new();
+    let sleep_start = ord_life_duration_event(
+        EventKind::SleepStarted,
+        &actor,
+        "event_duration_subject_sleep_started",
+        12,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_sleep").unwrap(),
+        )],
+    );
+    let sleep_done = ord_life_duration_event(
+        EventKind::SleepCompleted,
+        &actor,
+        "event_duration_subject_sleep_completed",
+        15,
+        vec![EventCause::Event(sleep_start.event_id.clone())],
+    );
+    log.append(sleep_start).unwrap();
+    log.append(sleep_done).unwrap();
+
+    let counts = classify_actor_tick_regimes(&log, &actor, SimTick::new(10), SimTick::new(15));
+
+    assert_eq!(
+        counts,
+        TickRegimeCounts {
+            awake_ticks: 2,
+            asleep_ticks: 3,
+            working_ticks: 0,
+        },
+        "ticks 11 and 12 stay awake; only body ticks 13..=15 are asleep"
+    );
+
+    let boundary_control =
+        classify_actor_tick_regimes(&log, &actor, SimTick::new(12), SimTick::new(15));
+    assert_eq!(
+        boundary_control,
+        TickRegimeCounts {
+            awake_ticks: 0,
+            asleep_ticks: 3,
+            working_ticks: 0,
+        },
+        "starting the window at the duration start still charges body ticks 13..=15"
+    );
+}
+
+#[test]
+fn need_accounting_current_start_requires_subject_actor_and_absent_log_identity() {
+    let subject = ord_life_actor("actor_duration_subject");
+    let other = ord_life_actor("actor_duration_other");
+    let other_current = ord_life_duration_event(
+        EventKind::WorkBlockStarted,
+        &other,
+        "event_duration_other_work_started",
+        10,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_other_work").unwrap(),
+        )],
+    );
+    let empty_log = EventLog::new();
+
+    let subject_counts = classify_actor_tick_regimes_with_start(
+        &empty_log,
+        &subject,
+        SimTick::new(10),
+        SimTick::new(12),
+        Some(&other_current),
+    );
+    let other_counts = classify_actor_tick_regimes_with_start(
+        &empty_log,
+        &other,
+        SimTick::new(10),
+        SimTick::new(12),
+        Some(&other_current),
+    );
+
+    assert_eq!(
+        subject_counts,
+        TickRegimeCounts {
+            awake_ticks: 2,
+            asleep_ticks: 0,
+            working_ticks: 0,
+        },
+        "another actor's current duration start must not charge the subject"
+    );
+    assert_eq!(
+        other_counts,
+        TickRegimeCounts {
+            awake_ticks: 0,
+            asleep_ticks: 0,
+            working_ticks: 2,
+        },
+        "the same current start remains non-vacuous for its owning actor"
+    );
+
+    let mut logged = EventLog::new();
+    let logged_start = ord_life_duration_event(
+        EventKind::WorkBlockStarted,
+        &subject,
+        "event_duration_subject_work_started",
+        10,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_work").unwrap(),
+        )],
+    );
+    let duplicate_current = logged_start.clone();
+    let logged_terminal = ord_life_duration_event(
+        EventKind::WorkBlockCompleted,
+        &subject,
+        "event_duration_subject_work_completed",
+        12,
+        vec![EventCause::Event(logged_start.event_id.clone())],
+    );
+    logged.append(logged_start).unwrap();
+    logged.append(logged_terminal).unwrap();
+
+    let counts_with_logged_current = classify_actor_tick_regimes_with_start(
+        &logged,
+        &subject,
+        SimTick::new(10),
+        SimTick::new(14),
+        Some(&duplicate_current),
+    );
+    assert_eq!(
+        counts_with_logged_current,
+        TickRegimeCounts {
+            awake_ticks: 2,
+            asleep_ticks: 0,
+            working_ticks: 2,
+        },
+        "a current start already present in the log must not create a second open owner"
+    );
+}
+
+#[test]
+fn need_accounting_current_start_identity_ignores_unrelated_log_events() {
+    let subject = ord_life_actor("actor_duration_subject");
+    let mut log = EventLog::new();
+    log.append(ord_life_duration_event(
+        EventKind::ActorWaited,
+        &subject,
+        "event_duration_subject_unrelated_wait",
+        9,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_wait").unwrap(),
+        )],
+    ))
+    .unwrap();
+    let current_start = ord_life_duration_event(
+        EventKind::WorkBlockStarted,
+        &subject,
+        "event_duration_subject_current_work_started",
+        10,
+        vec![EventCause::Proposal(
+            ProposalId::new("proposal_duration_subject_current_work").unwrap(),
+        )],
+    );
+
+    let counts = classify_actor_tick_regimes_with_start(
+        &log,
+        &subject,
+        SimTick::new(10),
+        SimTick::new(12),
+        Some(&current_start),
+    );
+
+    assert_eq!(
+        counts,
+        TickRegimeCounts {
+            awake_ticks: 0,
+            asleep_ticks: 0,
+            working_ticks: 2,
+        },
+        "unrelated log events must not suppress a legitimate absent current start"
+    );
+}
+
+fn ord_life_actor(id: &str) -> ActorId {
+    ActorId::new(id).unwrap()
+}
+
+fn ord_life_duration_event(
+    kind: EventKind,
+    actor: &ActorId,
+    id: &str,
+    tick: u64,
+    causes: Vec<EventCause>,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(id).unwrap(),
+        kind,
+        0,
+        0,
+        SimTick::new(tick),
+        ord_life_ordering_key(tick, actor, kind.stable_id()),
+        ContentManifestId::new("phase3a_manifest").unwrap(),
+        causes,
+    )
+    .unwrap();
+    event.actor_id = Some(actor.clone());
+    event.payload = vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)];
+    event
+}
+
+fn ord_life_ordering_key(tick: u64, actor: &ActorId, action_id: &str) -> OrderingKey {
+    OrderingKey::new(
+        SimTick::new(tick),
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Actor(actor.clone()),
+        ProposalSequence::new(0),
+        ActionId::new(action_id).unwrap(),
+        Vec::new(),
+        action_id,
+    )
 }
 
 #[test]
@@ -6386,6 +6632,258 @@ fn accepted_action_appends_before_authoritative_apply() {
     let synthetic_direct_apply =
         "Adding apply_event(&mut authoritative_state, event) outside actions/pipeline, events, or replay must fail the source scan.";
     assert!(synthetic_direct_apply.contains("must fail"));
+}
+
+#[test]
+fn movement_door_endpoint_mismatch_rejects_partial_connections() {
+    use tracewake_core::actions::defs::movement::build_move_event;
+    use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
+    use tracewake_core::actions::ReasonCode;
+    use tracewake_core::ids::{DoorId, PlaceId};
+    use tracewake_core::state::{ActorBody, DoorState, PhysicalState, PlaceState};
+
+    fn ids() -> (ActorId, PlaceId, PlaceId, PlaceId) {
+        (
+            ActorId::new("actor_tomas").unwrap(),
+            PlaceId::new("shop_front").unwrap(),
+            PlaceId::new("back_room").unwrap(),
+            PlaceId::new("side_room").unwrap(),
+        )
+    }
+
+    fn proposal() -> Proposal {
+        let (actor_id, _, to_place_id, _) = ids();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_move_door_endpoint_guard").unwrap(),
+            ProposalOrigin::Test,
+            Some(actor_id),
+            ActionId::new("move").unwrap(),
+            SimTick::ZERO,
+        );
+        proposal.target_ids.push(to_place_id.to_string());
+        proposal
+    }
+
+    fn ordering_key(target_id: &PlaceId) -> OrderingKey {
+        let (actor_id, _, _, _) = ids();
+        OrderingKey::new(
+            SimTick::ZERO,
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id),
+            ProposalSequence::new(0),
+            ActionId::new("move").unwrap(),
+            vec![target_id.to_string()],
+            "door-endpoint-guard",
+        )
+    }
+
+    fn state_with_door(endpoint_a: &PlaceId, endpoint_b: &PlaceId) -> PhysicalState {
+        let (actor_id, from_place_id, to_place_id, side_place_id) = ids();
+        let mut seed = PhysicalSeed::default();
+        seed.places_mut().insert(
+            from_place_id.clone(),
+            PlaceState::new(from_place_id.clone(), "Shop front"),
+        );
+        seed.places_mut().insert(
+            to_place_id.clone(),
+            PlaceState::new(to_place_id.clone(), "Back room"),
+        );
+        seed.places_mut().insert(
+            side_place_id.clone(),
+            PlaceState::new(side_place_id, "Side room"),
+        );
+        seed.actors_mut()
+            .insert(actor_id.clone(), ActorBody::new(actor_id, from_place_id));
+        let mut door = DoorState::new(
+            DoorId::new("door_under_test").unwrap(),
+            endpoint_a.clone(),
+            endpoint_b.clone(),
+        );
+        door.is_open = true;
+        seed.doors_mut().insert(door.door_id.clone(), door);
+        seed.build()
+    }
+
+    fn rejection_reason_for_door(endpoint_a: &PlaceId, endpoint_b: &PlaceId) -> ReasonCode {
+        let (_, _, to_place_id, _) = ids();
+        build_move_event(
+            &state_with_door(endpoint_a, endpoint_b),
+            &proposal(),
+            &ordering_key(&to_place_id),
+            &ContentManifestId::new("phase1_manifest").unwrap(),
+        )
+        .unwrap_err()
+        .reason_code
+    }
+
+    let (_, from_place_id, to_place_id, side_place_id) = ids();
+
+    assert_eq!(
+        rejection_reason_for_door(&from_place_id, &side_place_id),
+        ReasonCode::NotAdjacent,
+        "a door sharing only the origin endpoint must not authorize movement to another destination"
+    );
+    assert_eq!(
+        rejection_reason_for_door(&side_place_id, &to_place_id),
+        ReasonCode::NotAdjacent,
+        "a door sharing only the destination endpoint must not authorize movement from another origin"
+    );
+    assert_eq!(
+        rejection_reason_for_door(&side_place_id, &from_place_id),
+        ReasonCode::NotAdjacent,
+        "a reverse-branch door sharing only the origin endpoint must not authorize movement"
+    );
+    assert_eq!(
+        rejection_reason_for_door(&to_place_id, &side_place_id),
+        ReasonCode::NotAdjacent,
+        "a reverse-branch door sharing only the destination endpoint must not authorize movement"
+    );
+
+    for (endpoint_a, endpoint_b) in [
+        (&from_place_id, &to_place_id),
+        (&to_place_id, &from_place_id),
+    ] {
+        let event = build_move_event(
+            &state_with_door(endpoint_a, endpoint_b),
+            &proposal(),
+            &ordering_key(&to_place_id),
+            &ContentManifestId::new("phase1_manifest").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(event.event_type, EventKind::ActorMoved);
+        assert_eq!(event.proposal_id, Some(proposal().proposal_id));
+        assert!(event.participants.contains(&from_place_id.to_string()));
+        assert!(event.participants.contains(&to_place_id.to_string()));
+    }
+}
+
+#[test]
+fn user_origin_wait_keeps_candidate_goal_reevaluation_false() {
+    use tracewake_core::actions::defs::wait::build_wait_events;
+    use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
+    use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+    use tracewake_core::ids::PlaceId;
+    use tracewake_core::state::ActorBody;
+
+    let actor_id = ActorId::new("actor_tomas").unwrap();
+    let place_id = PlaceId::new("shop_front").unwrap();
+    let mut physical_seed = PhysicalSeed::default();
+    physical_seed
+        .actors_mut()
+        .insert(actor_id.clone(), ActorBody::new(actor_id.clone(), place_id));
+    let physical_state = physical_seed.build();
+
+    let mut agent_seed = AgentSeed::default();
+    agent_seed.needs_by_actor_mut().insert(
+        actor_id.clone(),
+        BTreeMap::from([
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 249, NeedChangeCause::TickDelta),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::TickDelta),
+            ),
+        ]),
+    );
+    let agent_state = agent_seed.build();
+
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_human_wait_threshold").unwrap(),
+        ProposalOrigin::Human,
+        Some(actor_id.clone()),
+        ActionId::new("wait").unwrap(),
+        SimTick::new(4),
+    );
+    proposal
+        .parameters
+        .insert("ticks".to_string(), "1".to_string());
+    proposal
+        .parameters
+        .insert("reason".to_string(), "taking a moment".to_string());
+    let ordering_key = OrderingKey::new(
+        SimTick::new(4),
+        SchedulePhase::HumanCommand,
+        SchedulerSourceId::Actor(actor_id.clone()),
+        ProposalSequence::new(0),
+        ActionId::new("wait").unwrap(),
+        vec!["1_tick".to_string()],
+        "human-wait-origin-guard",
+    );
+
+    let events = build_wait_events(
+        &physical_state,
+        &agent_state,
+        &proposal,
+        &ordering_key,
+        &ContentManifestId::new("phase1_manifest").unwrap(),
+    )
+    .unwrap();
+
+    let wait_event = events
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorWaited)
+        .expect("wait event emitted");
+    assert!(wait_event
+        .payload
+        .iter()
+        .any(|field| field.key == "candidate_goal_reevaluation" && field.value == "false"));
+    assert_eq!(wait_event.proposal_id, Some(proposal.proposal_id.clone()));
+    assert!(events
+        .iter()
+        .any(|event| event.event_type == EventKind::NeedThresholdCrossed));
+    assert!(events.iter().all(|event| event
+        .causes
+        .iter()
+        .any(|cause| cause == &EventCause::Proposal(proposal.proposal_id.clone()))));
+
+    let mut low_pressure_agent_seed = AgentSeed::default();
+    low_pressure_agent_seed.needs_by_actor_mut().insert(
+        actor_id.clone(),
+        BTreeMap::from([
+            (
+                NeedKind::Hunger,
+                NeedState::initial(NeedKind::Hunger, 10, NeedChangeCause::TickDelta),
+            ),
+            (
+                NeedKind::Fatigue,
+                NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::TickDelta),
+            ),
+        ]),
+    );
+    let mut autonomous_proposal = proposal.clone();
+    autonomous_proposal.proposal_id =
+        ProposalId::new("proposal_scheduler_wait_no_threshold").unwrap();
+    autonomous_proposal.origin = ProposalOrigin::Scheduler;
+    let autonomous_events = build_wait_events(
+        &physical_state,
+        &low_pressure_agent_seed.build(),
+        &autonomous_proposal,
+        &ordering_key,
+        &ContentManifestId::new("phase1_manifest").unwrap(),
+    )
+    .unwrap();
+    let autonomous_wait = autonomous_events
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorWaited)
+        .expect("autonomous wait event emitted");
+
+    assert!(autonomous_wait
+        .payload
+        .iter()
+        .any(|field| field.key == "candidate_goal_reevaluation" && field.value == "false"));
+    assert!(!autonomous_events
+        .iter()
+        .any(|event| event.event_type == EventKind::NeedThresholdCrossed));
+    assert_eq!(
+        autonomous_events
+            .iter()
+            .filter(|event| event.event_type == EventKind::NeedDeltaApplied)
+            .count(),
+        2
+    );
 }
 
 #[test]

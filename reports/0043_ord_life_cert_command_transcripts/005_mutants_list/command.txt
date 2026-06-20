@@ -1,0 +1,2 @@
+cwd=/home/joeloverbeck/projects/tracewake
+command=cargo mutants --workspace --no-shuffle --list

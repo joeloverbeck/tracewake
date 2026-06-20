@@ -1,0 +1,2 @@
+cwd=/home/joeloverbeck/projects/tracewake
+command=bash -lc printf\ stall-start\;\ sleep\ 5\;\ printf\ stall-end

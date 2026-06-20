@@ -1,0 +1,3 @@
+   Compiling tracewake-content v0.1.0 (/home/joeloverbeck/projects/tracewake/crates/tracewake-content)
+   Compiling tracewake-tui v0.1.0 (/home/joeloverbeck/projects/tracewake/crates/tracewake-tui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.32s

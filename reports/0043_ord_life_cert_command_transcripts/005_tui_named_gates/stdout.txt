@@ -1,0 +1,79 @@
+
+running 15 tests
+test adversarial_gates_forged_privileged_semantic_id_is_not_current_action ... ok
+test adversarial_gates_typed_diagnostics_are_independent_of_display_text ... ok
+test adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target ... ok
+test adversarial_gates_public_tui_boundary_rejects_direct_dispatch_shape ... ok
+test adversarial_gates_debug_truth_does_not_enter_actor_surfaces ... ok
+test adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not ... ok
+test debug_command_strings_are_not_embodied_commands ... ok
+test adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts ... ok
+test adversarial_gates_stale_view_token_fails_after_state_change ... ok
+test adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth ... ok
+test debug_panel_does_not_change_embodied_affordances ... ok
+test tui_transcript_marks_debug_sections_non_diegetic ... ok
+test adversarial_gates_rendering_does_not_change_typed_order_or_replay ... ok
+test tui_current_view_submission_rejects_stale_selection ... ok
+test adversarial_gates_no_human_operator_output_stays_debug_only ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 7 tests
+test malformed_debug_actor_id_is_typed_error ... ok
+test wait_command_executes_current_view_wait_action ... ok
+test numeric_selection_executes_stable_semantic_action_id ... ok
+test debug_item_does_not_leak_to_following_view_or_change_checksum ... ok
+test top_level_no_human_day_command_is_not_a_play_verb ... ok
+test scripted_session_exercises_actual_binary_loop ... ok
+test no_human_day_command_loop_renders_phase3a_behavior_rows ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+
+running 6 tests
+test embodied_view_omits_raw_workplace_assignment_without_context ... ok
+test embodied_workplace_availability_reflects_belief_not_truth ... ok
+test source_scan_smoke_tui_does_not_call_event_applier ... ok
+test embodied_workplace_believed_open_truth_closed ... ok
+test phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth ... ok
+test bind_render_submit_rerender_and_show_why_not ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test readme_documented_commands_are_live_against_binary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test tui_transcript_snapshot_remains_byte_stable ... ok
+test phase3a_debug_snapshot_is_byte_identical_across_runs ... ok
+test transcript_snapshot_is_byte_identical_across_runs ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 11 tests
+test tui_selects_semantic_action_id_not_menu_index ... ok
+test debug_truth_does_not_enter_embodied_view ... ok
+test leakage_debug_truth_does_not_enter_embodied_view ... ok
+test tui_playability_reaches_action_rejection_wait_and_debug ... ok
+test phase3a_debug_surfaces_render_deterministically_and_read_only ... ok
+test phase2a_tui_transcript_discovers_absence_without_culprit_leak ... ok
+test tui_sources_do_not_call_event_application_directly ... ok
+test tui_transcript_is_deterministic ... ok
+test phase3a_possess_continue_and_debug_transcript_is_deterministic ... ok
+test positive_proof_fixtures_emit_typed_artifacts_first ... ok
+test tui_runs_no_human_day_and_inspects_real_post_run_panels ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+
+running 2 tests
+test tui_seam_conformance_maps_tui_spine_requirements_to_named_tests ... ok
+test tui_epistemic_debug_uses_core_builder_not_raw_projection_storage ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

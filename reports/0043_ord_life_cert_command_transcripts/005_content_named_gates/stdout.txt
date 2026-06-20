@@ -1,0 +1,122 @@
+
+running 34 tests
+test every_fixture_declares_contract_actions_reports_and_assertions ... ok
+test fixture_validation_rejects_ambiguous_actor_assignment_suffix_collision ... ok
+test fixture_validation_rejects_tied_active_intention_derivation ... ok
+test fixture_validation_rejects_duplicate_routine_assignment_family ... ok
+test all_fixtures_author_explicit_need_seeds_for_every_actor ... ok
+test fixture_fingerprint_reprices_raw_primary_bytes_with_same_parsed_fixture ... ok
+test fixture_fingerprint_reprices_secondary_file_bytes ... ok
+test fixtures_load_phase3a_duplicate_and_dangling_references_are_rejected ... ok
+test fixture_scope_raw_lines_drive_loader_registry_and_fail_closed ... ok
+test fixtures_load_location_embedded_marker_id_rejected_001 ... ok
+test fixtures_load_forbidden_top_level_key_rejected_001 ... ok
+test fixtures_load_phase3a_missing_need_model_is_rejected ... ok
+test fixtures_load_phase3a_missing_sleep_tuning_fields_are_rejected ... ok
+test fixtures_load_phase3a_unknown_fields_are_rejected_by_default ... ok
+test fixtures_load_place_visibility_default_is_required ... ok
+test fixtures_load_schema_v1_golden_bytes_load ... ok
+test known_food_contract_denial_is_rejected ... ok
+test hidden_truth_fixture_contracts_match_authored_known_food_edges ... ok
+test fixtures_load_phase3a_fixture_into_core_shapes_with_canonical_ordering ... ok
+test no_human_day_fixture_declares_validated_acceptance_contract ... ok
+test possession_parity_contains_mara_as_ordinary_actor ... ok
+test fixtures_load_raw_line_prose_born_fact_rejected_001 ... ok
+test fixtures_load_unsupported_schema_version_rejected_001 ... ok
+test strongbox_fixture_preserves_spec_0001_roster_and_physical_coin ... ok
+test source_ref_cause_uses_stable_typed_canonical_encoding ... ok
+test valid_epistemic_seed_validates_and_round_trips_canonically ... ok
+test stale_workplace_notice_superseded_by_newer_001 ... ok
+test fixtures_declare_scope_and_phase1_registry_excludes_later_actions ... ok
+test phase3a_load_emits_authored_prehistory_seed_events ... ok
+test seed_event_log_order_and_projection_provenance_are_causal_and_stable ... ok
+test seeded_food_source_unknown_to_all_actors_omits_seed_belief_and_actor_known_food ... ok
+test phase2a_fixtures_are_registered_and_script_free ... ok
+test known_food_source_blanket_helper_call_sites_are_allowlisted ... ok
+test all_fixtures_load_deterministically_and_validate ... ok
+
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 24 tests
+test forbidden_content_empty_event_log_serialization_is_not_nonempty_replay_witness ... ok
+test content_prose_born_fact_rejected ... ok
+test content_new_field_requires_typed_validation_and_canonical_serialization_metadata ... ok
+test content_serialization_is_canonical_independent_of_authoring_order ... ok
+test forbidden_content_hidden_truth_source_cannot_seed_actor_known_planner_input ... ok
+test forbidden_content_malformed_epistemic_seed_fields_are_rejected ... ok
+test forbidden_content_no_human_contract_text_only_and_manual_ambiguity_are_rejected ... ok
+test forbidden_content_acceptance_gaming_debug_labels_are_rejected ... ok
+test forbidden_content_marker_bearing_id_is_rejected_001 ... ok
+test forbidden_content_phase3a_teleport_and_refill_shortcuts_are_blocking_errors ... ok
+test forbidden_content_serialization_truncated_and_malformed_lists_fail_loudly ... ok
+test forbidden_content_routine_template_without_typed_family_is_blocking_error ... ok
+test forbidden_content_quest_reward_player_and_script_constructs_are_blocking_errors ... ok
+test forbidden_content_phase1_rejects_routine_step_smuggling_later_phase_action ... ok
+test forbidden_content_serialization_unknown_tokens_fail_loudly ... ok
+test forbidden_content_outcome_chain_routine_markers_are_rejected ... ok
+test forbidden_content_shortcut_truth_fields_are_blocking_errors ... ok
+test forbidden_content_player_conditioned_ordinary_life_markers_are_rejected ... ok
+test forbidden_content_planner_intended_initial_facts_require_provenance ... ok
+test forbidden_content_unknown_behavior_looking_routine_field_is_blocking_error ... ok
+test forbidden_content_success_implying_routine_step_names_are_rejected ... ok
+test forbidden_content_epistemic_seed_reference_duplicate_and_version_failures_are_blocking ... ok
+test forbidden_content_phase1_rejects_each_later_phase_action_family ... ok
+test validator_branch_matrix_locks_fail_closed_validate_rs_guards ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 42 tests
+test fixture_initial_beliefs_construct_epistemic_projection ... ok
+test aged_food_record_surfaces_as_remembered_belief ... ok
+test continue_routine_tamper_kind_flip_poisons_replay ... ok
+test food_unavailable_fixture_records_typed_failure_without_refill ... ok
+test continue_routine_tamper_reason_rewrite_poisons_replay ... ok
+test no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs ... ok
+test episode_tamper_output_tag_poisons_replay ... ok
+test no_human_sleep_knowledge_requires_observation_or_record_channel ... ok
+test no_human_workplace_knowledge_requires_notice_channel ... ok
+test no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash ... ok
+test ordinary_workday_fixture_moves_before_work_completion ... ok
+test partial_food_source_knowledge_seeds_only_authored_actor_edge ... ok
+test phase2a_initial_beliefs_are_holder_and_source_backed ... ok
+test phase2a_validation_rejects_shortcut_truth_fields ... ok
+test planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit ... ok
+test rejects_missing_ids_and_bad_references ... ok
+test rejects_nondeterministic_ordering_hazards ... ok
+test rejects_player_only_verbs ... ok
+test rejects_quest_and_script_content ... ok
+test rejects_unsupported_action_targets ... ok
+test possession_fixture_preserves_intention_needs_and_can_continue ... ok
+test routine_blocked_fixture_records_access_failure_without_silent_loop ... ok
+test serialization_round_trips_spine_variant_matrix ... ok
+test routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry ... ok
+test phase2a_golden_fixtures_have_contracts_and_validate ... ok
+test severe_safety_without_known_exit_is_local_knowledge_blocker ... ok
+test severe_safety_with_known_exit_produces_move_and_replays ... ok
+test llm_disabled_phase1_still_passes ... ok
+test sleep_eat_work_fixture_logs_need_effects_and_replays ... ok
+test phase3a_golden_fixtures_have_contracts_and_validate ... ok
+test serialized_event_log_replays_to_identical_state ... ok
+test wait_then_window_passive_charges_each_tick_once ... ok
+test sleep_without_authored_affordance_rejects_with_typed_reason ... ok
+test episode_tamper_proration_poisons_replay ... ok
+test sleep_spanning_window_boundary_charges_each_tick_once ... ok
+test work_block_failed_then_sleep_succeeds_fixture_closes_reservation ... ok
+test fixture_fingerprints_match_frozen_goldens ... ok
+test no_human_need_ledger_has_no_duplicate_regime_charges ... ok
+test loads_fixtures_deterministically ... ok
+test no_human_day_fixture_has_roster_activity_and_metrics_envelope ... ok
+test no_human_decision_context_hash_gate_fails_when_source_evidence_tampered ... ok
+test no_human_day_real_run_replays_metrics_and_trace_projection ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+
+running 3 tests
+test schema_conformance_maps_content_spine_requirements_to_named_tests ... ok
+test fixture_scope_is_registered_and_canonicalized ... ok
+test routine_assignment_start_tick_boundaries_select_authoritative_active_intention ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

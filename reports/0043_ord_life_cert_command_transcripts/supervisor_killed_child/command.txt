@@ -1,0 +1,2 @@
+cwd=/home/joeloverbeck/projects/tracewake
+command=bash -lc printf\ kill-start\;\ kill\ -TERM\ \$\$\;\ sleep\ 1
