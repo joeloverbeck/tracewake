@@ -1,0 +1,8 @@
+Found 2877 mutants to test
+ok       Unmutated baseline in 11s build + 33s test
+MISSED   crates/tracewake-core/src/actions/defs/movement.rs:77:43: replace && with || in build_move_event in 2s build + 16s test
+MISSED   crates/tracewake-core/src/actions/defs/movement.rs:78:50: replace && with || in build_move_event in 2s build + 13s test
+MISSED   crates/tracewake-core/src/actions/defs/movement.rs:78:33: replace == with != in build_move_event in 2s build + 13s test
+MISSED   crates/tracewake-core/src/actions/defs/movement.rs:78:69: replace == with != in build_move_event in 2s build + 13s test
+MISSED   crates/tracewake-core/src/actions/defs/wait.rs:169:5: replace is_autonomous_wait -> bool with true in 2s build + 14s test
+2877 mutants tested in 2h: 5 missed, 2257 caught, 615 unviable

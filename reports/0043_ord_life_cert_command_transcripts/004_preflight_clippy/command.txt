@@ -1,0 +1,2 @@
+cwd=/home/joeloverbeck/projects/tracewake
+command=cargo clippy --workspace --all-targets -- -D warnings

@@ -1,0 +1,254 @@
+
+running 6 tests
+test acceptance_artifact_forbidden_overclaim_phrase_fails ... ok
+test acceptance_artifact_missing_scoped_phrase_fails ... ok
+test phase2a_acceptance_artifact_uses_scoped_exact_commit_wording ... ok
+test acceptance_artifact_template_requires_scoped_exact_commit_wording ... ok
+test p0_cert_0037_acceptance_artifact_uses_scoped_exact_commit_wording ... ok
+test spine_cert_0039_acceptance_artifact_uses_scoped_exact_commit_wording ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 12 tests
+test blocked_movement_returns_structured_rejection ... ok
+test closed_container_take_returns_structured_rejection ... ok
+test continue_routine_marker_alone_is_not_behavioral_progress ... ok
+test event_append_order_is_deterministic ... ok
+test out_of_active_scope_action_rejects_at_phase_boundary ... ok
+test phase2a_epistemic_event_kinds_are_nonphysical_and_versioned ... ok
+test human_and_nonhuman_proposals_share_validation_path ... ok
+test phase3a_event_kinds_are_streamed_versioned_and_replay_visible ... ok
+test phase3a_agent_events_apply_live_and_replay_to_same_agent_checksum ... ok
+test sleep_proposals_share_pipeline_across_human_and_nonhuman_origins ... ok
+test no_human_day_runner_smoke_uses_no_controller_and_pipeline_events ... ok
+test integrated_no_human_day_capstone_emerges_from_one_autonomous_run ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+
+running 83 tests
+test acceptance_artifact_0023_maps_spec_section_7_items_to_report_anchors ... ok
+test adding_event_schema_version_requires_migrator_registration ... ok
+test agent_world_noop_allowlist_is_explicit_and_excludes_materialized_episode_state ... ok
+test acceptance_artifact_0021_maps_spec_section_7_items_to_report_anchors ... ok
+test acceptance_artifact_0024_maps_spec_section_7_items_to_report_anchors ... ok
+test agent_stream_event_kinds_have_explicit_agent_apply_arms ... ok
+test accepted_action_appends_before_authoritative_apply ... ok
+test event_kind_metadata_is_total ... ok
+test acceptance_artifact_0025_maps_spec_section_7_items_to_report_anchors ... ok
+test checksum_coverage_is_total_for_authoritative_state ... ok
+test embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance ... ok
+test forged_or_stale_source_context_rejected_by_reason_code ... ok
+test guard_001_actor_known_context_has_no_public_arbitrary_constructor ... ok
+test acceptance_artifact_0022_maps_spec_section_7_items_to_report_anchors ... ok
+test guard_001_mutation_capability_is_private_to_event_application ... ok
+test generative_lock_cannot_fabricate_duration_terminals ... ok
+test guard_001_hidden_truth_audit_is_derived_from_provenance_not_tags ... ok
+test generative_lock_source_uses_two_sided_recorded_floors ... ok
+test guard_0021_actor_known_projection_policy_table_has_production_callers ... ok
+test guard_001_authoritative_state_fields_are_not_publicly_mutable ... ok
+test guard_002_agent_state_keeps_typed_trace_and_diagnostic_records ... ok
+test guard_006_continue_routine_marker_alone_is_not_behavioral_progress ... ok
+test guard_0021_hidden_truth_gates_use_event_log_provenance ... ok
+test guard_003_work_eat_sleep_validators_do_not_read_need_values_from_proposal_parameters ... ok
+test embodied_view_option_and_collection_fields_have_reachable_producers ... ok
+test guard_006_scheduler_has_no_routine_family_to_primitive_dispatch ... ok
+test guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts ... ok
+test guard_008_action_registry_uses_typed_scopes_not_phase1_boolean ... ok
+test guard_008_phase1_loader_does_not_register_later_phase_actions ... ok
+test guard_008_phase1_loader_source_guard_has_mutation_self_coverage ... ok
+test guard_011_no_human_day_runner_only_evidence ... ok
+test guard_014_decision_hidden_truth_audit_uses_typed_input_refs ... ok
+test guard_001_no_production_seed_mutation_outside_state_definition ... ok
+test diagnostics_never_assert_display_label_as_authority ... ok
+test guard_006_scheduler_does_not_fabricate_empty_epistemic_projection ... ok
+test guard_0021_fabricated_visible_local_event_id_is_retired ... ok
+test guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass ... ok
+test guard_006_duration_need_deltas_route_through_shared_emitter ... ok
+test guard_014_phase3a_semantic_actions_do_not_use_literal_true_availability ... ok
+test guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition ... ok
+test guard_014_transaction_has_no_silent_method_fallback_scan ... ok
+test guard_014_sleep_validation_requires_modeled_affordance ... ok
+test guard_014_embodied_projection_source_has_no_physical_state_field ... ok
+test guard_015_hidden_truth_audit_fails_closed_in_transaction ... ok
+test guard_015_ordinary_life_tuning_comes_from_authored_state ... ok
+test guard_018_actor_known_facts_require_source_event_witness ... ok
+test guard_018_witness_kind_no_human_fact_stable_ids_have_explicit_arms ... ok
+test guard_014_perception_visibility_uses_typed_place_visibility ... ok
+test guard_014_no_human_metrics_do_not_scan_display_text ... ok
+test materialized_agent_payload_records_keep_payload_fields ... ok
+test guard_0021_actor_known_context_producers_are_projection_backed ... ok
+test action_emitted_event_kinds_have_cause_disposition ... ok
+test mutation_baseline_misses_are_pinned_and_ledgered ... ok
+test need_accounting_current_start_identity_ignores_unrelated_log_events ... ok
+test need_accounting_current_start_requires_subject_actor_and_absent_log_identity ... ok
+test need_accounting_duration_body_start_is_exclusive_and_terminal_is_inclusive ... ok
+test new_authoritative_field_without_canonical_checksum_line_fails ... ok
+test new_authoritative_field_without_checksum_registry_fails ... ok
+test cognition_inputs_are_context_backed ... ok
+test non_world_stream_cannot_change_physical_checksum ... ok
+test materialized_agent_apply_arms_require_payload_schema_version ... ok
+test guarded_layer_entries_are_exactly_the_workspace_guarded_classifications ... ok
+test physical_mutating_event_kinds_have_explicit_world_apply_arms ... ok
+test replay_physical_state_diff_covers_checksum_families ... ok
+test guard_014_embodied_projection_workplaces_are_context_backed ... ok
+test privileged_tui_proposal_requires_current_view_source_context ... ok
+test source_guard_discovers_new_nested_production_file ... ok
+test guarded_layer_source_census_matches_module_tree ... ok
+test source_guard_does_not_silently_skip_production_after_cfg_test ... ok
+test scheduler_apply_and_completion_paths_do_not_panic_on_log_derived_data ... ok
+test workspace_dependency_posture_matches_allowlist ... ok
+test validation_report_keeps_typed_provenance_and_actor_debug_split ... ok
+test mutation_perimeter_matches_duration_action_rationale_and_ci_filters ... ok
+test scheduler_never_direct_dispatches_primitive_action ... ok
+test event_apply_remains_only_post_seed_mutation_path ... ok
+test guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_truth ... ok
+test guard_001_no_direct_state_collection_insert_outside_event_application ... ok
+test workspace_source_classification_census_matches_production_tree ... ok
+test typed_column_closure_exemptions_are_rationale_bearing_and_live ... ok
+test no_direct_apply_event_outside_event_replay_or_pipeline ... ok
+test guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed ... ok
+test nondeterminism_api_gate ... ok
+test meta_lock_registry_covers_structural_locks_and_negatives ... ok
+
+test result: ok. 83 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+
+
+running 1 test
+test ci_workflow_guards_cover_workflow_integrity ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 4 tests
+test spec_finding_without_invariants_fails_linter ... ok
+test spec_requirement_without_invariants_fails_linter ... ok
+test undefined_invariant_reference_fails_linter ... ok
+test doc_invariant_references_are_live ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test emerge_obs_ledger_is_observer_only_and_replay_byte_identical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 32 tests
+test agent_noop_allowlist_remains_narrow_and_behavioral ... ok
+test agent_apply_matrix_observes_parser_arms_transitions_and_causality ... ok
+test every_epistemic_event_kind_is_registered_and_replay_routed ... ok
+test duplicate_duration_terminal_poisons_rebuild_001 ... ok
+test duplicate_need_tick_charge_rejects_live_and_replay_001 ... ok
+test forged_trace_and_diagnostic_schema_versions_are_rejected_for_materialized_agent_replay_001 ... ok
+test checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints ... ok
+test missing_role_assignment_access_open_rejects_live_and_replay_001 ... ok
+test missing_intention_continued_current_step_rejects_live_and_replay_001 ... ok
+test malformed_elapsed_ticks_rejects_live_and_replay_001 ... ok
+test intention_transition_wrong_status_rejects_before_state_change ... ok
+test missing_routine_step_progress_tick_rejects_live_and_replay_001 ... ok
+test belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay ... ok
+test random_draw_deserialization_rejects_malformed_and_bad_hex_records ... ok
+test legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults ... ok
+test non_world_event_cannot_change_physical_checksum ... ok
+test no_human_metrics_rebuild_from_typed_diagnostic_fields ... ok
+test stream_mismatch_replay_rejected ... ok
+test unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied ... ok
+test forged_payload_schema_version_rejected_for_every_materialized_agent_kind_001 ... ok
+test unsupported_event_schema_append_rejected ... ok
+test unsupported_event_schema_replay_rejected ... ok
+test typed_diagnostic_hidden_truth_true_is_validated_and_replayed ... ok
+test world_item_apply_matrix_observes_state_and_precondition_failures ... ok
+test envelope_identity_round_trips_stream_phase_source_cause_and_random_draws ... ok
+test epistemic_apply_matrix_preserves_fields_and_rejects_unknown_tokens ... ok
+test world_boolean_preconditions_reject_payload_lies_before_state_change ... ok
+test replay_report_match_mismatch_pair_exposes_semantic_fingerprints ... ok
+test observation_confidence_debug_evidence_crosses_low_boundary_and_replays ... ok
+test replay_rebuild_checksum_matches_original_after_no_human_day ... ok
+test starting_observation_and_contradiction_events_survive_replay_with_sources ... ok
+test deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 5 tests
+test generated_evidence_package_metadata_is_explicit_and_sampled ... ok
+test duration_terminal_targeted_tamper_requires_duration_terminal ... ok
+test generated_progress_classification_and_lifecycle_properties_are_relational ... ok
+test generated_runs_are_deterministic_under_seed_order_permutation ... ok
+test generated_sequences_replay_and_satisfy_metamorphic_locks ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 16 tests
+test debug_rejection_report_names_failed_stage ... ok
+test controller_binding_is_not_world_state ... ok
+test accepted_actions_append_versioned_events ... ok
+test check_container_records_observation_but_open_alone_does_not ... ok
+test debug_item_location_reports_last_location_event ... ok
+test expected_absence_check_creates_contradiction_and_missing_belief ... ok
+test no_human_advance_requires_no_controller ... ok
+test possession_controller_binding_is_not_world_state ... ok
+test phase3a_agent_state_replay_projection_is_deterministic ... ok
+test missing_property_belief_does_not_support_truthful_accusation ... ok
+test projection_rebuild_matches_live_state ... ok
+test replay_detects_missing_or_reordered_event ... ok
+test no_human_epistemic_check_records_evidence_without_controller ... ok
+test replay_checksum_matches ... ok
+test sound_uncertainty_records_low_confidence_evidence_without_culprit_knowledge ... ok
+test phase3a_no_human_metrics_are_byte_identical_after_log_replay ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 17 tests
+test actor_known_context_unforgeable_from_truth ... ok
+test actor_known_local_actor_reaches_embodied_view_model_with_context_provenance ... ok
+test debug_omniscience_facts_are_excluded_from_planner_context ... ok
+test embodied_place_label_is_captured_before_truth_preflight ... ok
+test debug_truth_never_enters_holder_known_context_hash ... ok
+test context_rejects_hidden_counterpart_injection ... ok
+test hidden_route_edge_absent_from_actor_context_blocks_route_plan ... ok
+test embodied_affordances_exclude_hidden_food_in_closed_container ... ok
+test hidden_food_closed_container_is_not_actor_known_food_source ... ok
+test planner_hidden_truth_fixture_witness_fails_on_empty_adversarial_context ... ok
+test holder_known_fact_family_report_fingerprint_covers_keys_fields_and_audit ... ok
+test hidden_food_unknown_route_does_not_become_transaction_target ... ok
+test workplace_requires_assignment_or_observation_provenance ... ok
+test hidden_truth_metamorphism_and_provenance_deletion_are_relational ... ok
+test epistemic_event_fields_survive_into_sealed_context_and_replay ... ok
+test epistemic_context_projection_and_records_remain_sealed ... ok
+test epistemic_confidence_paths_do_not_use_raw_floats_or_hash_ordering ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 5 tests
+test clippy_ban_entries_have_proving_negative_fixtures ... ok
+test registered_negative_fixtures_match_directory_census ... ok
+test phase1_loader_registration_guard_negative_fixture_fires_on_mutation ... ok
+test debug_report_construction_without_capability_compile_fails ... ok
+test banned_api_negative_fixtures_fail_with_expected_lints ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s
+
+
+running 2 tests
+test no_human_capstone_debug_and_replay_perturbation_are_non_interfering ... ok
+test no_human_capstone_proves_typed_ancestry_and_replay ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+
+running 6 tests
+test conformance_entry_without_evidence_kind_fails ... ok
+test conformance_entry_string_presence_only_rejected_for_high_risk_gate ... ok
+test conformance_matrix_requires_negative_evidence_for_no_direct_and_debug_quarantine ... ok
+test scoped_acceptance_artifact_present ... ok
+test spine_conformance_reports_every_responsible_layer ... ok
+test spine_conformance_maps_every_spine_requirement_to_named_evidence ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
