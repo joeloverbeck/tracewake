@@ -1,6 +1,6 @@
 # 0042ORDLIFCER-008: ORD-LIFE-07 — planner and decision trace honesty, rejected alternatives, and debug quarantine
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add test-only instrumentation per spec §2 (evidence instrumentation, not production remediation).
@@ -69,6 +69,23 @@ Record the §5 adversarial cases: `debug_omniscience_excluded_001`, `debug_attac
 1. `None — evidence-only ticket; the gate's existing suites below are the verification surface. Any test-only instrumentation added under spec §2 stays observer-only / non-diegetic.`
 
 ### Commands
+
+1. `cargo test --locked -p tracewake-core --test no_human_capstone`
+2. `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+3. `cargo test --locked -p tracewake-core --test acceptance_gates`
+4. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+5. `cargo test --locked -p tracewake-tui --test adversarial_gates`
+6. `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+
+## Outcome
+
+Completed: 2026-06-20
+
+Recorded ORD-LIFE-07 as a certifying pass in `reports/0042_ord_life_cert_needs_routines_intentions_no_human_life_planner_traces_and_stuck_diagnostics_certification_acceptance.md` with evidence rows `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE`, and `0042-ORD07-FEEDBACK-NEGATIVES`.
+
+The evidence records planner/decision trace completeness, debug-on/read non-interference for TUI and core debug surfaces, and live negatives proving debug truth and debug command strings do not enter actor-known cognition or embodied actions. EPI-CERT debug-capability authority was consumed per the ticket and spec, not re-audited. No ORD-LIFE-07 member was deferred or dropped.
+
+Verification commands run and passed:
 
 1. `cargo test --locked -p tracewake-core --test no_human_capstone`
 2. `cargo test --locked -p tracewake-core --test hidden_truth_gates`

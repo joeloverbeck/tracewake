@@ -120,6 +120,19 @@ These commands were run for `0042ORDLIFCER-007` against commit `4a4245ec4192ebac
 | `cargo test --locked -p tracewake-core --test golden_scenarios` | `2026-06-20T12:13:40+02:00` to `2026-06-20T12:13:40+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-golden-scenarios.txt` | 1273 | `9af5b1eaae17a746974eba0de9b1809b2ebafdadd1a62bcae07021baefed78ba` |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:13:48+02:00` to `2026-06-20T12:13:49+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-007-golden-fixtures-run.txt` | 3008 | `470937860a45a0c9aa612ee6e745557fec296107e54eca79a3070ee575ee557e` |
 
+### ORD-LIFE-07 command ledger
+
+These commands were run for `0042ORDLIFCER-008` against commit `a16d658e0808b6509ae4460611314c2e12cbd6d0` plus the uncommitted report edits created by that ticket. Transcript files are `/tmp` evidence files and are not committed artifacts.
+
+| Command | Run window | Exit | Transcript fingerprint scope | Transcript bytes | SHA-256 |
+|---|---:|---:|---|---:|---|
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | `2026-06-20T12:17:51+02:00` to `2026-06-20T12:17:51+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-008-no-human-capstone.txt` | 343 | `a8912d26b6db69d4a44c6b57a81965194660bc10c4e284745b6f63d0854f7594` |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | `2026-06-20T12:17:58+02:00` to `2026-06-20T12:17:58+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-008-hidden-truth-gates.txt` | 1434 | `d0dbbcc09d38c1c76a8fadb834cfdf97f57a90cbd9c10a7dd8f5cfe4a720cc0a` |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | `2026-06-20T12:18:03+02:00` to `2026-06-20T12:18:04+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-008-acceptance-gates.txt` | 1102 | `530d6c8ce301e63c47c6ff61e043c18c7251089c88ac84c8893fc072da500d01` |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | `2026-06-20T12:18:10+02:00` to `2026-06-20T12:18:11+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-008-golden-fixtures-run.txt` | 3008 | `5688a13e70b723b27ae41c6ad9be5a1d80d983f5d647ea57ae2a79d9faebdc1e` |
+| `cargo test --locked -p tracewake-tui --test adversarial_gates` | `2026-06-20T12:18:19+02:00` to `2026-06-20T12:18:19+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-008-tui-adversarial-gates.txt` | 1496 | `b473f921fb46bd678f9bcaf2f46836fce2170d77617eed8caa2413c900205c87` |
+| `cargo test --locked -p tracewake-tui --test tui_seam_conformance` | `2026-06-20T12:18:32+02:00` to `2026-06-20T12:18:32+02:00` | 0 | full captured stdout/stderr bytes in `/tmp/0042-008-tui-seam-conformance.txt` | 535 | `c4d3521a1267887f5185b2c7494e96273d8cabd8b0986c88219b7ac49269dce6` |
+
 ## Per-requirement acceptance evidence
 
 Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until then, every row remains `pending` and cannot be cited as a certifying pass.
@@ -134,7 +147,7 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 | `ORD-LIFE-04` | routines/HTN/fallback | `0042-ORD04-TEMPLATE-CENSUS`, `0042-ORD04-ROUTINE-BEHAVIOR`, `0042-ORD04-REPLAY-NEGATIVES` | `pass` |
 | `ORD-LIFE-05` | routine temporal premises | `0042-ORD05-PREMISE-PROVENANCE`, `0042-ORD05-SCHEDULER-NEGATIVE`, `0042-ORD05-STALE-REPLAY` | `pass` |
 | `ORD-LIFE-06` | method selection/local planner | `0042-ORD06-GOAL-CENSUS`, `0042-ORD06-BUDGET-PROVENANCE`, `0042-ORD06-FALLBACK-NEGATIVES` | `pass` |
-| `ORD-LIFE-07` | planner and decision trace/debug | `pending` | `pending` |
+| `ORD-LIFE-07` | planner and decision trace/debug | `0042-ORD07-TRACE-COMPLETE`, `0042-ORD07-DEBUG-QUARANTINE`, `0042-ORD07-FEEDBACK-NEGATIVES` | `pass` |
 | `ORD-LIFE-08` | ordinary actions/movement/durations | `pending` | `pending` |
 | `ORD-LIFE-09` | no-human orchestration/metrics | `pending` | `pending` |
 | `ORD-LIFE-10` | stuck diagnostics/no-progress | `pending` | `pending` |
@@ -636,6 +649,78 @@ Rows are initialized now and must be completed by `0042ORDLIFCER-016`. Until the
 - Pending or historical handling: none.
 - Certification use: counted as certifying pass for `ORD-LIFE-06`.
 
+### `0042-ORD07-TRACE-COMPLETE`
+
+- Evidence item ID: `0042-ORD07-TRACE-COMPLETE`
+- Requirement IDs: `ORD-LIFE-07`, `ORD-LIFE-PASS-07`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed planner-trace and no-human tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test no_human_capstone`, `cargo test --locked -p tracewake-core --test acceptance_gates`, and `cargo test --locked -p tracewake-content --test golden_fixtures_run` passed. `planner_trace_001` verifies generated candidate count, selected `GoalKind::Eat`, rejected goals, selected method ID, rejected methods, hidden-truth audit actor-known-only state, and actor-known proof sources. No-human decision traces record actor-known inputs and hidden-truth audit fields.
+- Path under test and behavior witness:
+  - path under test: `DecisionTrace`, `LocalPlanTrace`, method-selection trace, decision trace records, no-human trace event payloads;
+  - command/event/trigger/emitter/scheduler entry: candidate generation, selected/rejected goals and methods, planner request, proposal or stuck result;
+  - responsible layer: `candidate_generation`, `local_planning`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: a plausible final action is not treated as sufficient unless rejected alternatives, budget/blocker fields, and actor-known inputs are present;
+  - live negative, mutation-style failure, or reason no negative is applicable: unproven actor-known planner input flips the hidden-truth audit away from actor-known-only;
+  - checked facts or invariants: trace completeness, actor-known input refs, selected/rejected alternatives, budget/failure fields.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: `DecisionTraceRecorded`, no-human trace payloads, planner trace records;
+  - replay artifact or serialized-log reference: no-human capstone and acceptance gates passed;
+  - seed, randomness, content version, or ruleset version: committed `planner_trace_001` and no-human fixtures;
+  - extraction/projection version: current decision, method, planner, and trace code;
+  - source provenance: actor-known input refs and source-event-backed facts.
+- Sampling/exhaustiveness scope: finite planner-trace and no-human trace fixture families named by ORD-LIFE-07.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-07`.
+
+### `0042-ORD07-DEBUG-QUARANTINE`
+
+- Evidence item ID: `0042-ORD07-DEBUG-QUARANTINE`
+- Requirement IDs: `ORD-LIFE-07`, `ORD-LIFE-PASS-07`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed TUI adversarial tests.
+- Evidence summary: `cargo test --locked -p tracewake-tui --test adversarial_gates` and `cargo test --locked -p tracewake-tui --test tui_seam_conformance` passed. `adversarial_gates_debug_truth_does_not_enter_actor_surfaces` renders debug item location, projection, epistemics, planner, and replay panels, verifies `DEBUG NON-DIEGETIC` markers, verifies the physical checksum is unchanged, and proves actor surfaces omit hidden pantry/debug strings. `debug_panel_does_not_change_embodied_affordances` verifies semantic actions, holder-known context ID/hash/frontier/source summary, and physical checksum are unchanged after debug panels are rendered.
+- Path under test and behavior witness:
+  - path under test: TUI debug panels, core debug views/reports, embodied view rendering, transcript rendering;
+  - command/event/trigger/emitter/scheduler entry: debug render/read path and current embodied view path;
+  - responsible layer: `debug_quarantine`, `view_model`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: debug rendering is read-only and cannot become an action/proposal/event;
+  - live negative, mutation-style failure, or reason no negative is applicable: debug truth never appears in semantic actions, notebook, actor view, holder-known context source summary, or physical checksum;
+  - checked facts or invariants: debug-on/read/non-read non-interference for actor surfaces and state fingerprints.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: no accepted event is emitted by debug reads; event count/checksum remains unchanged where tested;
+  - replay artifact or serialized-log reference: TUI seam conformance maps runtime negatives and replay determinism tests to named evidence;
+  - seed, randomness, content version, or ruleset version: `debug_omniscience_excluded_001` and representative transcript fixtures;
+  - extraction/projection version: current TUI app, debug panels, render, transcript, and core debug view code;
+  - source provenance: authorized debug capability path and holder-known context metadata.
+- Sampling/exhaustiveness scope: finite TUI debug quarantine tests named by ORD-LIFE-07.
+- Pending or historical handling: EPI-CERT debug-capability authority is consumed, not re-audited here.
+- Certification use: counted as certifying pass for `ORD-LIFE-07`.
+
+### `0042-ORD07-FEEDBACK-NEGATIVES`
+
+- Evidence item ID: `0042-ORD07-FEEDBACK-NEGATIVES`
+- Requirement IDs: `ORD-LIFE-07`, `ORD-LIFE-PASS-07`, `ORD-LIFE-PASS-09`
+- Evidence status: `pass`
+- Fingerprint scope: command transcript plus parsed semantic content from committed hidden-truth, content, and TUI tests.
+- Evidence summary: `cargo test --locked -p tracewake-core --test hidden_truth_gates`, `cargo test --locked -p tracewake-content --test golden_fixtures_run`, and the two TUI gates passed. `debug_omniscience_facts_are_excluded_from_planner_context` proves `debug_omniscience` is absent from proof sources and unproven debug-hidden-food input fails the actor-known audit. `debug_command_strings_are_not_embodied_commands` renders a debug item command, rejects `do debug.item.food_hidden_pantry` as no current action, and verifies semantic actions, context ID/hash/frontier, physical checksum, and event count are unchanged. `tui_epistemic_debug_uses_core_builder_not_raw_projection_storage` forbids direct raw projection storage reads and writes in the TUI debug path.
+- Path under test and behavior witness:
+  - path under test: actor-known proof-source audit, command loop, semantic action submission, TUI seam conformance;
+  - command/event/trigger/emitter/scheduler entry: debug command string, hidden-truth audit, unproven actor-known fact, TUI debug epistemic view;
+  - responsible layer: `debug_quarantine`, `candidate_generation`, `local_planning`, `test_oracle`;
+  - accepted/rejected action or validation stage witnessed: prior trace/debug/rendered strings and hidden-truth debug tokens are rejected or kept outside current embodied commands;
+  - live negative, mutation-style failure, or reason no negative is applicable: debug-only strings cannot enter actor-known packet, planning, proposal, metrics, embodied view, or future memory;
+  - checked facts or invariants: no trace-to-cognition feedback and typed/API boundaries fail closed.
+- Replay/provenance ancestry:
+  - event-log segment or event identifiers: rejected semantic action path with unchanged event count/checksum;
+  - replay artifact or serialized-log reference: TUI seam conformance and content fixture gates passed;
+  - seed, randomness, content version, or ruleset version: `debug_omniscience_excluded_001`, `debug_attach_001`, and `hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001` are in the fixture registry and golden fixture run;
+  - extraction/projection version: current actor-known audit, TUI command loop, and debug seam code;
+  - source provenance: absence from holder-known proof sources plus explicit debug-only markers.
+- Sampling/exhaustiveness scope: mandatory ORD-LIFE-07 fixture families: Planner trace and Hidden-truth planning, plus TUI debug negative suite.
+- Pending or historical handling: none.
+- Certification use: counted as certifying pass for `ORD-LIFE-07`.
+
 ## ORD-LIFE-01: bounded event-sourced needs, single-owner accounting, and single-charge ledgers
 
 Result: `pass` for the ORD-LIFE-01 local audit point.
@@ -768,7 +853,25 @@ Fallback and validation witnesses:
 
 ## ORD-LIFE-07: planner and decision trace honesty, rejected alternatives, and debug quarantine
 
-Pending; owned by `0042ORDLIFCER-008`.
+Result: `pass` for the ORD-LIFE-07 local audit point.
+
+Trace-completeness witnesses:
+
+- `planner_trace_001` records candidate count, selected and rejected goals, selected and rejected methods, actor-known proof sources, and hidden-truth audit state.
+- No-human capstone trace records carry actor-known inputs and hidden-truth audit payload fields.
+- Unproven planner input produces an actor-known audit failure rather than a trace that looks complete by final action alone.
+
+Debug quarantine witnesses:
+
+- TUI adversarial gates render debug item-location, projection, epistemics, planner, replay, and transcript sections with `DEBUG NON-DIEGETIC` markers.
+- Reading debug panels leaves semantic actions, holder-known context ID/hash/frontier/source summary, physical checksum, and event count unchanged.
+- Actor-facing embodied view, notebook, why-not, semantic actions, and transcript embodied sections omit debug-only hidden truth.
+
+Feedback-negative witnesses:
+
+- `debug_omniscience` is absent from actor-known proof sources, and unproven debug-hidden-food facts fail actor-known audit.
+- `do debug.item.food_hidden_pantry` is rejected as no current action and does not change semantic actions, context, checksum, or event count.
+- TUI seam conformance forbids raw projection storage access in the debug path and maps debug non-interference to named runtime/static evidence.
 
 ## ORD-LIFE-08: ordinary action affordances, causal movement, durations, terminals, and no-teleport behavior
 
