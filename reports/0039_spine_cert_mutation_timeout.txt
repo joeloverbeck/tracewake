@@ -1,3 +1,0 @@
-crates/tracewake-core/src/agent/perception.rs:201:42: replace && with || in current_place_perception_events
-crates/tracewake-core/src/agent/perception.rs:548:38: delete ! in visible_item_payload
-crates/tracewake-core/src/epistemics/projection.rs:292:9: replace EpistemicProjectionChecksum::as_str -> &str with ""
