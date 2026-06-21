@@ -90,6 +90,11 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-content --test schema_conformance` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-03 schema witness command. |
 | `cargo test --locked -p tracewake-content --test forbidden_content` | pass | Exit 0; 24 passed, 0 failed. FIRST-PROOF-03 fail-closed content witness command. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-03 fixture/provenance witness command rerun. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-04 witness command rerun. |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | pass | Exit 0; 16 passed, 0 failed. FIRST-PROOF-04 witness command rerun. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-04 witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-04 fixture witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-04 TUI adversarial witness command. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -120,25 +125,25 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay` | pending full integrated point evidence |
-| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative` | pending full integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance` | pending full integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation` | pending full integrated point evidence |
+| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative` | pending full integrated point evidence |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance` | pending full integrated point evidence |
+| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay` | pending full integrated point evidence |
-| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative` | pending full integrated point evidence |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation` | pending full integrated point evidence |
+| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative` | pending full integrated point evidence |
 
 ## Scenario Family Results
 
 | Scenario family | Evidence item IDs | Result |
 |---|---|---|
 | Physical custody baseline | `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-002-embodied-view` | pass for FIRST-PROOF-02 scope |
-| Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative` | pending `FIRST-PROOF-04` through `FIRST-PROOF-06` |
+| Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative` | pending `FIRST-PROOF-05` and `FIRST-PROOF-06` |
 | Possession parity | `E-0044-001-census` | pending `FIRST-PROOF-08` |
 | Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance` | pending downstream point evidence |
-| No-hidden-truth planning | `E-0044-001-census` | pending point evidence |
+| No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative` | pending downstream point evidence |
 | No-human ordinary day | `E-0044-001-census` | pending `FIRST-PROOF-09` |
 | Routine blocking | `E-0044-001-census` | pending `FIRST-PROOF-09`, `FIRST-PROOF-13`, `FIRST-PROOF-16` |
 | Replay rebuild | `E-0044-001-census` | pending `FIRST-PROOF-10` |
@@ -260,7 +265,35 @@ from live actor observation by content schema and fixture validation tests.
 
 ### FIRST-PROOF-04 - Absence is discovered by modeled observation, not authoritative truth
 
-**Result**: pending `0044FIRPROCER-004`.
+**Result**: pass for FIRST-PROOF-04 scope.
+
+**Positive evidence**: The modeled-observation command set passed at the current
+audit tree. `checkcontainer.rs::observation_event_is_caused_by_check_event`
+proves `ObservationRecorded` events carry the `ContainerChecked` event as their
+cause and source event. `golden_scenarios::check_container_records_observation_but_open_alone_does_not`
+proves open alone does not create a false observation, while
+`golden_scenarios::expected_absence_check_creates_contradiction_and_missing_belief`
+proves the missing-property absence path begins with a modeled check event and
+then records observation and contradiction events. `event_schema_replay_gates`
+proves observation source fields, projection application, and replay equality.
+
+**Adversarial evidence**: Closed/opaque and locked checks reject before
+observation emission in `checkcontainer.rs`; hidden food/route/workplace tests
+in `hidden_truth_gates` prove unobserved truth does not become actor-known input
+or a transaction target; `golden_fixtures_run` covers hidden-food, unknown-route,
+and actor-known source-event checks; `adversarial_gates` proves debug and TUI
+surfaces do not turn hidden/debug truth into actor-visible affordances or
+semantic commands.
+
+**Event/replay/projection evidence**: The passing tests record the chain
+`ContainerChecked` -> `ObservationRecorded`, including actor, container/place,
+channel, observed tick, `source_event_id`, and holder-scoped projection
+application. Rejected checks produce no observation event; live/replay
+epistemic projections and debug observation views remain deterministic.
+
+**Responsible layers**: `holder_known_context`, `candidate_generation`,
+`proposal_construction`, `action_validation`, `event_append`,
+`event_application`, `projection`, `replay`.
 
 ### FIRST-PROOF-05 - Event-sourced expectation contradiction and belief update
 
@@ -438,6 +471,45 @@ from live actor observation by content schema and fixture validation tests.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-03
   negative commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-03.
+
+### E-0044-004-observation
+
+- Requirement IDs: `FIRST-PROOF-04`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `hidden_truth_gates`, `golden_scenarios`,
+  `event_schema_replay_gates`, and `golden_fixtures_run` passed, covering legal
+  check/inspect observation, source-event closure, holder-scoped projection,
+  context hashes, and replay equality.
+- Path under test and behavior witness: `agent/perception.rs`,
+  `epistemics/observation.rs`, `epistemics/knowledge_context.rs`,
+  `epistemics/projection.rs`, `actions/defs/checkcontainer.rs`,
+  `actions/defs/inspect.rs`, `actions/proposal.rs`, `actions/pipeline.rs`,
+  `events/apply.rs`, and `expectation_contradiction_001`.
+- Replay/provenance ancestry: `ContainerChecked` causes
+  `ObservationRecorded`; observation payload records actor/container/place,
+  channel, observed tick, and `source_event_id`; replay preserves the
+  holder-scoped epistemic projection.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-04
+  observation commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-04.
+
+### E-0044-004-truth-negative
+
+- Requirement IDs: `FIRST-PROOF-04`
+- Evidence status: pass
+- Fingerprint scope: command transcript; parsed semantic content
+- Evidence summary: closed/locked/nonlocal/hidden/debug paths rejected or stayed
+  actor-illegible in `hidden_truth_gates`, `golden_scenarios`,
+  `golden_fixtures_run`, and `adversarial_gates`.
+- Path under test and behavior witness: `checkcontainer.rs`,
+  `hidden_food_closed_container_001`, `hidden_food_unknown_route_001`,
+  `hidden_route_edge_001`, and TUI adversarial surfaces.
+- Replay/provenance ancestry: rejected checks have no accepted observation
+  event; debug/validator/replay truth does not synthesize actor-known absence.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-04
+  negative commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-04.
 
 ## Replay Package
 

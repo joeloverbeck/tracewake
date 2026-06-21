@@ -1,6 +1,6 @@
 # 0044FIRPROCER-004: FIRST-PROOF-04 — absence is discovered by modeled observation, not authoritative truth
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -75,3 +75,31 @@ Record the §7 adversarial cases: no observation is created for an inaccessible,
 3. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 4. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 5. `cargo test --locked -p tracewake-tui --test adversarial_gates`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Updated
+`reports/0044_first_proof_cert_missing_property_coherent_gate_set_temporal_bundle_and_integrated_acceptance_certification_acceptance.md`
+to mark `FIRST-PROOF-04` passed for its modeled-observation scope. The artifact
+records positive witnesses for the `ContainerChecked` -> `ObservationRecorded`
+causal chain, source-event closure, holder-scoped observation projection, and
+live/replay epistemic equality. It also records adversarial evidence for
+closed/locked/nonlocal/unperformed checks, hidden food/route truth, and
+debug/TUI surfaces that must not synthesize actor-known absence.
+
+No production code, fixtures, schemas, tests, or mutation configuration changed.
+No audit-only instrumentation was needed.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test golden_scenarios`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test adversarial_gates`
+
+All required commands passed. The artifact remains pending for downstream
+contradiction formation, no-culprit-truth, truth-firewall integration, full
+mutation execution, and the final FIRST-PROOF-CERT verdict.
