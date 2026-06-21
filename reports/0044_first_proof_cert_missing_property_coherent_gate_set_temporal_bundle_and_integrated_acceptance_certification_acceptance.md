@@ -78,6 +78,12 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-tui --test tui_seam_conformance` | pass | Exit 0; 2 passed, 0 failed. |
 | `cargo mutants --workspace --no-shuffle --list-files` | pass | Exit 0; 60 protected files listed. |
 | `cargo mutants --workspace --no-shuffle --list` | pass | Exit 0; 2,878 mutant rows listed. Full mutation execution is owned by `0044FIRPROCER-018`. |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | pass | Exit 0; 16 passed, 0 failed. FIRST-PROOF-02 witness command. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-02 witness command. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-02 witness command. |
+| `cargo test --locked -p tracewake-tui --test embodied_flow` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-02 witness command. |
+| `cargo test --locked -p tracewake-tui --test command_loop_session` | pass | Exit 0; 7 passed, 0 failed. FIRST-PROOF-02 witness command. |
+| `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-02 witness command. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -108,21 +114,21 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay` | pending full integrated point evidence |
 | `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay` | pending full integrated point evidence |
 | `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 
 ## Scenario Family Results
 
 | Scenario family | Evidence item IDs | Result |
 |---|---|---|
-| Physical custody baseline | `E-0044-001-census` | pending `FIRST-PROOF-02` |
+| Physical custody baseline | `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-002-embodied-view` | pass for FIRST-PROOF-02 scope |
 | Expectation contradiction | `E-0044-001-census` | pending `FIRST-PROOF-03` through `FIRST-PROOF-06` |
 | Possession parity | `E-0044-001-census` | pending `FIRST-PROOF-08` |
 | Epistemic filtering | `E-0044-001-census` | pending point evidence |
@@ -160,7 +166,53 @@ pending in the relevant downstream point sections.
 
 ### FIRST-PROOF-02 - Physical custody baseline in EVENT, embodied play, and replay
 
-**Result**: pending `0044FIRPROCER-002`.
+**Result**: pass for FIRST-PROOF-02 scope.
+
+**Positive evidence**: The physical custody, action pipeline, replay, fixture,
+and TUI witness commands all passed at the current audit tree. The evidence
+covers a legal check/open/take/place/inspect substrate through:
+
+- `golden_scenarios::accepted_actions_append_versioned_events`, proving accepted
+  actions append versioned events;
+- `golden_scenarios::check_container_records_observation_but_open_alone_does_not`,
+  proving check-container observation behavior is event-backed while open alone
+  is not a false observation;
+- `golden_scenarios::projection_rebuild_matches_live_state`,
+  `replay_checksum_matches`, and `phase3a_agent_state_replay_projection_is_deterministic`,
+  proving live/replay physical and agent projection agreement;
+- `golden_fixtures_run::serialized_event_log_replays_to_identical_state`,
+  `fixture_fingerprints_match_frozen_goldens`, and the fixture-family load tests
+  for the canonical fixture registry;
+- TUI `embodied_flow`, `command_loop_session`, and `transcript_snapshot` tests,
+  proving embodied local affordances, command-loop execution, debug separation,
+  and deterministic transcript fingerprints.
+
+**Adversarial evidence**: The same command set exercised locked/closed/nonlocal
+and replay-tamper negatives through:
+
+- unit and integration witnesses in `checkcontainer.rs`, `openclose.rs`, and
+  `takeplace.rs` for locked, closed, wrong-source, nonlocal, and not-carried
+  rejections with no accepted mutation event;
+- `event_schema_replay_gates::world_item_apply_matrix_observes_state_and_precondition_failures`
+  for item take/place event application and precondition failure behavior;
+- `event_schema_replay_gates::replay_report_match_mismatch_pair_exposes_semantic_fingerprints`
+  and `checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints`
+  for localized divergence and item-location checksum scope;
+- `golden_scenarios::replay_detects_missing_or_reordered_event`;
+- `golden_fixtures_run::routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry`;
+- `command_loop_session::debug_item_does_not_leak_to_following_view_or_change_checksum`
+  and `transcript_snapshot` deterministic debug/embodied split tests.
+
+**Event/replay/projection evidence**: The relevant event kinds are
+`ContainerChecked`, `ItemTakenFromPlace`, `ItemRemovedFromContainer`,
+`ItemPlacedInPlace`, `ItemPlacedInContainer`, open/close events, and typed
+non-world inspect responses. The passing replay tests compare physical
+checksums, agent checksums, event-log serialization, projection rebuild output,
+and first-divergence/diff fields for deliberate perturbations.
+
+**Responsible layers**: `fixture_contract`, `proposal_construction`,
+`action_validation`, `event_append`, `event_application`, `projection`,
+`replay`, `view_model`, `tui_input_binding`.
 
 ### FIRST-PROOF-03 - Source-backed expectation provenance
 
@@ -266,6 +318,44 @@ pending in the relevant downstream point sections.
 - Replay/provenance ancestry: not applicable.
 - Sampling/exhaustiveness scope: exhaustive over the command-selected inventory; mutation full-run outcomes are pending `0044FIRPROCER-018`.
 - Certification use: counted as certifying pass for FIRST-PROOF-01 census scope only.
+
+### E-0044-002-physical-replay
+
+- Requirement IDs: `FIRST-PROOF-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `golden_scenarios`, `event_schema_replay_gates`, and
+  `golden_fixtures_run` passed, covering event-backed physical custody,
+  take/place/open/check behavior, projection rebuilds, replay checksums,
+  fixture fingerprints, and replay divergence localization.
+- Path under test and behavior witness: `location.rs`, `state.rs`,
+  `actions/defs/openclose.rs`, `actions/defs/takeplace.rs`,
+  `actions/defs/checkcontainer.rs`, `actions/defs/inspect.rs`,
+  `events/apply.rs`, `projections.rs`, `replay/rebuild.rs`, and the positive
+  physical-custody fixture family.
+- Replay/provenance ancestry: event-log serialization, live/replay physical and
+  agent checksums, first-divergence reports, and fixture fingerprints from the
+  passing commands.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-02 test
+  commands; not a substitute for later cross-gate capstone coverage.
+- Certification use: counted as certifying pass for FIRST-PROOF-02.
+
+### E-0044-002-embodied-view
+
+- Requirement IDs: `FIRST-PROOF-02`
+- Evidence status: pass
+- Fingerprint scope: command transcript; transcript snapshot; view-model output
+- Evidence summary: `embodied_flow`, `command_loop_session`, and
+  `transcript_snapshot` passed, covering actor-legible local affordances,
+  debug-item non-leakage, semantic command execution, and deterministic TUI
+  transcript fingerprints.
+- Path under test and behavior witness: `view_models.rs`, TUI `input.rs`,
+  `render.rs`, `run.rs`, and `transcript.rs`.
+- Replay/provenance ancestry: transcript and checksum witnesses from the
+  passing TUI tests; debug rows remain non-diegetic.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-02 TUI
+  commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-02.
 
 ## Replay Package
 

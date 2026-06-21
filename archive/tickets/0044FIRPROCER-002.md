@@ -1,6 +1,6 @@
 # 0044FIRPROCER-002: FIRST-PROOF-02 — physical custody baseline in EVENT, embodied play, and replay
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -76,3 +76,31 @@ Record the §7 adversarial cases: locked/inaccessible/nonlocal container operati
 4. `cargo test --locked -p tracewake-tui --test embodied_flow`
 5. `cargo test --locked -p tracewake-tui --test command_loop_session`
 6. `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Updated
+`reports/0044_first_proof_cert_missing_property_coherent_gate_set_temporal_bundle_and_integrated_acceptance_certification_acceptance.md`
+to mark `FIRST-PROOF-02` passed for its physical-custody, embodied-view, and
+replay scope. The artifact records positive witnesses for event-backed
+check/open/take/place/inspect behavior, live/replay projection agreement,
+fixture fingerprints, and TUI actor-legible local affordances. It also records
+adversarial witnesses for locked/closed/nonlocal/wrong-source rejection,
+no-teleport behavior, replay tamper divergence, and debug item non-leakage.
+
+No production code, fixtures, schemas, tests, or mutation configuration changed.
+No audit-only instrumentation was needed.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test golden_scenarios`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+- `cargo test --locked -p tracewake-tui --test command_loop_session`
+- `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+
+All required commands passed. The artifact remains pending for the downstream
+audit points, full mutation execution, and final FIRST-PROOF-CERT verdict.
