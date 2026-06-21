@@ -7,6 +7,9 @@ const P0_CERT_0037_ARTIFACT: &str = include_str!(
 const SPINE_CERT_0039_ARTIFACT: &str = include_str!(
     "../../../archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md"
 );
+const FIRST_PROOF_CERT_0045_ARTIFACT: &str = include_str!(
+    "../../../archive/reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md"
+);
 
 const REQUIRED_PHASE1_SCOPED_WORDING: &str =
     "Phase 1 / Phase 1A third hardening and lock-layer remediation accepted for exact commit";
@@ -16,6 +19,8 @@ const REQUIRED_P0_CERT_SCOPED_WORDING: &str =
     "P0-CERT post-0008 baseline mutation remediation accepted for exact commit";
 const REQUIRED_SPINE_CERT_SCOPED_WORDING: &str =
     "SPINE-CERT mutation remediation accepted for exact commit";
+const REQUIRED_FIRST_PROOF_CERT_SCOPED_WORDING: &str =
+    "FIRST-PROOF-CERT mutation remediation and replacement certification accepted for exact commit";
 
 const FORBIDDEN_WORDING_HEADING: &str = "Forbidden wording:";
 
@@ -64,6 +69,19 @@ fn spine_cert_0039_acceptance_artifact_uses_scoped_exact_commit_wording() {
 }
 
 #[test]
+fn first_proof_cert_0045_acceptance_artifact_uses_scoped_exact_commit_wording() {
+    validate_acceptance_artifact_wording(FIRST_PROOF_CERT_0045_ARTIFACT)
+        .expect("0045 FIRST-PROOF-CERT artifact wording is scoped");
+    assert!(
+        FIRST_PROOF_CERT_0045_ARTIFACT.contains("Exact implementation/evidence commit under test")
+    );
+    assert!(FIRST_PROOF_CERT_0045_ARTIFACT.contains("9a071b6e32ebc5b6126645a9db257d453399c028"));
+    assert!(FIRST_PROOF_CERT_0045_ARTIFACT.contains("Verdict: FIRST-PROOF-CERT passed"));
+    assert!(FIRST_PROOF_CERT_0045_ARTIFACT
+        .contains("Certification use: not counted as certifying evidence"));
+}
+
+#[test]
 fn acceptance_artifact_forbidden_overclaim_phrase_fails() {
     let artifact =
         format!("{REQUIRED_PHASE1_SCOPED_WORDING} `<commit>`.\n\nTracewake is fully certified.");
@@ -87,6 +105,7 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
         && !text.contains(REQUIRED_PHASE2A_SCOPED_WORDING)
         && !text.contains(REQUIRED_P0_CERT_SCOPED_WORDING)
         && !text.contains(REQUIRED_SPINE_CERT_SCOPED_WORDING)
+        && !text.contains(REQUIRED_FIRST_PROOF_CERT_SCOPED_WORDING)
     {
         return Err("missing scoped exact-commit wording".to_string());
     }

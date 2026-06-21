@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/golden_fixtures_run.rs (target/debug/deps/golden_fixtures_run-610b3edd51eafa49)

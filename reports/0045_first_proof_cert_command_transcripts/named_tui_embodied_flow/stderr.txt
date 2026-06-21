@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/embodied_flow.rs (target/debug/deps/embodied_flow-96bef0b4b3474bda)

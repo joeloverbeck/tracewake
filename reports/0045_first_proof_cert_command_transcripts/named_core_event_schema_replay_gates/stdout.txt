@@ -1,0 +1,36 @@
+
+running 32 tests
+test agent_noop_allowlist_remains_narrow_and_behavioral ... ok
+test agent_apply_matrix_observes_parser_arms_transitions_and_causality ... ok
+test duplicate_need_tick_charge_rejects_live_and_replay_001 ... ok
+test duplicate_duration_terminal_poisons_rebuild_001 ... ok
+test every_epistemic_event_kind_is_registered_and_replay_routed ... ok
+test forged_trace_and_diagnostic_schema_versions_are_rejected_for_materialized_agent_replay_001 ... ok
+test checksum_identity_distinguishes_location_routine_status_and_replay_fingerprints ... ok
+test malformed_elapsed_ticks_rejects_live_and_replay_001 ... ok
+test missing_intention_continued_current_step_rejects_live_and_replay_001 ... ok
+test intention_transition_wrong_status_rejects_before_state_change ... ok
+test belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay ... ok
+test legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults ... ok
+test non_world_event_cannot_change_physical_checksum ... ok
+test missing_role_assignment_access_open_rejects_live_and_replay_001 ... ok
+test missing_routine_step_progress_tick_rejects_live_and_replay_001 ... ok
+test stream_mismatch_replay_rejected ... ok
+test typed_diagnostic_hidden_truth_true_is_validated_and_replayed ... ok
+test forged_payload_schema_version_rejected_for_every_materialized_agent_kind_001 ... ok
+test unsupported_event_schema_append_rejected ... ok
+test random_draw_deserialization_rejects_malformed_and_bad_hex_records ... ok
+test unsupported_event_schema_replay_rejected ... ok
+test envelope_identity_round_trips_stream_phase_source_cause_and_random_draws ... ok
+test epistemic_apply_matrix_preserves_fields_and_rejects_unknown_tokens ... ok
+test no_human_metrics_rebuild_from_typed_diagnostic_fields ... ok
+test unsupported_epistemic_payload_schema_replay_is_loud_and_not_applied ... ok
+test world_boolean_preconditions_reject_payload_lies_before_state_change ... ok
+test starting_observation_and_contradiction_events_survive_replay_with_sources ... ok
+test world_item_apply_matrix_observes_state_and_precondition_failures ... ok
+test observation_confidence_debug_evidence_crosses_low_boundary_and_replays ... ok
+test replay_rebuild_checksum_matches_original_after_no_human_day ... ok
+test replay_report_match_mismatch_pair_exposes_semantic_fingerprints ... ok
+test deterministic_rebuild_context_hash_uses_causal_and_latest_witnesses ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s

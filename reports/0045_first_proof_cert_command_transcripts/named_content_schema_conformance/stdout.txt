@@ -1,0 +1,7 @@
+
+running 3 tests
+test schema_conformance_maps_content_spine_requirements_to_named_tests ... ok
+test fixture_scope_is_registered_and_canonicalized ... ok
+test routine_assignment_start_tick_boundaries_select_authoritative_active_intention ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

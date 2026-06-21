@@ -1,0 +1,15 @@
+
+running 11 tests
+test debug_truth_does_not_enter_embodied_view ... ok
+test tui_selects_semantic_action_id_not_menu_index ... ok
+test leakage_debug_truth_does_not_enter_embodied_view ... ok
+test phase3a_debug_surfaces_render_deterministically_and_read_only ... ok
+test phase2a_tui_transcript_discovers_absence_without_culprit_leak ... ok
+test tui_sources_do_not_call_event_application_directly ... ok
+test tui_playability_reaches_action_rejection_wait_and_debug ... ok
+test phase3a_possess_continue_and_debug_transcript_is_deterministic ... ok
+test tui_transcript_is_deterministic ... ok
+test positive_proof_fixtures_emit_typed_artifacts_first ... ok
+test tui_runs_no_human_day_and_inspects_real_post_run_panels ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s

@@ -1,0 +1,2 @@
+Found 360 mutants to test
+360 mutants tested in 15m: 286 caught, 74 unviable

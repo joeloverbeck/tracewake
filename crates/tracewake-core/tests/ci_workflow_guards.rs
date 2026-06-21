@@ -17,6 +17,7 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/agent/**",
     "crates/tracewake-core/src/need_accounting.rs",
     "crates/tracewake-core/src/scheduler.rs",
+    "crates/tracewake-core/src/time.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
     "crates/tracewake-core/src/actions/registry.rs",
@@ -27,6 +28,7 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/wait.rs",
     "crates/tracewake-core/src/actions/defs/continue_routine.rs",
     "crates/tracewake-core/src/actions/defs/movement.rs",
+    "crates/tracewake-core/src/actions/defs/checkcontainer.rs",
     "crates/tracewake-core/src/events/**",
     "crates/tracewake-core/src/replay/**",
     "crates/tracewake-core/src/checksum.rs",
@@ -55,10 +57,11 @@ const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/agent/",
     "crates/tracewake-core/src/need_accounting\\.rs",
     "crates/tracewake-core/src/scheduler\\.rs",
+    "crates/tracewake-core/src/time\\.rs",
     "crates/tracewake-core/src/projections\\.rs",
     "crates/tracewake-core/src/actions/pipeline\\.rs",
     "crates/tracewake-core/src/actions/registry\\.rs",
-    "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
+    "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
     "crates/tracewake-core/src/events/",
     "crates/tracewake-core/src/replay/",
     "crates/tracewake-core/src/checksum\\.rs",
@@ -155,6 +158,47 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "synthetic scheduled mutation -f perimeter must fail"
     );
 
+    let dropped_scheduled_shard = CI_YML.replace(
+        "shard: [0, 1, 2, 3, 4, 5, 6, 7]",
+        "shard: [0, 1, 2, 3, 4, 5]",
+    );
+    assert!(
+        ci_workflow_guard_errors(&dropped_scheduled_shard, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("scheduled mutation matrix must enumerate shard indices")),
+        "synthetic scheduled mutation matrix with a dropped shard must fail"
+    );
+
+    let fail_fast_scheduled_shards = CI_YML.replace("fail-fast: false", "fail-fast: true");
+    assert!(
+        ci_workflow_guard_errors(&fail_fast_scheduled_shards, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("scheduled mutation matrix must set fail-fast: false")),
+        "synthetic scheduled mutation matrix with fail-fast true must fail"
+    );
+
+    let missing_reconcile_job = CI_YML.replace(
+        "  mutants-lock-layer-reconcile:",
+        "  mutants-lock-layer-reconcile-missing:",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_reconcile_job, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("scheduled mutation lane missing reconciliation job")),
+        "synthetic scheduled mutation lane without reconciliation job must fail"
+    );
+
+    let missing_shard_upload = CI_YML.replace(
+        "cargo-mutants-lock-layer-shard-${{ matrix.shard }}-of-8",
+        "cargo-mutants-lock-layer-shard-missing",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_shard_upload, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("scheduled mutation lane missing shard artifact")),
+        "synthetic scheduled mutation lane without shard upload must fail"
+    );
+
     let missing_test_workspace = MUTANTS_TOML.replace("test_workspace = true", "");
     assert!(
         ci_workflow_guard_errors(CI_YML, &missing_test_workspace, DOC10)
@@ -180,6 +224,29 @@ fn ci_workflow_guards_cover_workflow_integrity() {
             .any(|error| error.contains("does not cover standing perimeter path")),
         "synthetic in-diff trigger missing a standing path must fail"
     );
+
+    let missing_time_trigger = CI_YML.replace("crates/tracewake-core/src/time\\.rs|", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_time_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains(
+                "does not cover standing perimeter path crates/tracewake-core/src/time.rs"
+            )),
+        "synthetic in-diff trigger missing time.rs must fail"
+    );
+
+    let missing_checkcontainer_trigger = CI_YML.replace(
+        "(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
+        "(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_checkcontainer_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains(
+                "does not cover standing perimeter path crates/tracewake-core/src/actions/defs/checkcontainer.rs"
+            )),
+        "synthetic in-diff trigger missing checkcontainer.rs must fail"
+    );
 }
 
 fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
@@ -192,6 +259,7 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(doc_workflow_parity_errors(workflow, doc10));
     errors.extend(doc_flag_posture_errors(doc10));
     errors.extend(mutation_perimeter_errors(workflow, mutants_config));
+    errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
 }
 
@@ -359,7 +427,7 @@ fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String
     {
         errors.push("divergent scheduled mutation perimeter uses -f filters".to_string());
     }
-    for forbidden in ["--no-config", "--baseline=skip"] {
+    for forbidden in ["--no-config"] {
         if workflow.contains(forbidden) {
             errors.push(format!(
                 "mutation workflow uses forbidden option: {forbidden}"
@@ -372,13 +440,66 @@ fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String
         ".cargo/mutants-baseline-misses.txt",
         "comm -23",
         "actions/upload-artifact@v4",
-        "path: mutants.out",
     ] {
         if !workflow.contains(required) {
             errors.push(format!(
                 "mutation workflow missing enforcement text: {required}"
             ));
         }
+    }
+    errors
+}
+
+fn scheduled_mutation_lane_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "mutants-lock-layer-baseline:",
+        "mutants-lock-layer:",
+        "mutants-lock-layer-reconcile:",
+        "needs: mutants-lock-layer-baseline",
+        "timeout-minutes: 130",
+        "fail-fast: false",
+        "shard: [0, 1, 2, 3, 4, 5, 6, 7]",
+        r#"MUTANTS_JOBS: "2""#,
+        r#"MUTANTS_SHARDS: "8""#,
+        r#"MUTANTS_WALL_SECONDS: "7200""#,
+        r#"MUTANTS_GRACE_SECONDS: "120""#,
+        r#"MUTANTS_TEST_TIMEOUT: "183""#,
+        "cargo mutants --workspace --no-shuffle --list-files",
+        "cargo mutants --workspace --no-shuffle --list",
+        "tools/supervise-command.sh",
+        r#"--shard "${shard_id}/${MUTANTS_SHARDS}""#,
+        r#"--jobs "$MUTANTS_JOBS""#,
+        "--baseline=skip",
+        r#"--timeout "$MUTANTS_TEST_TIMEOUT""#,
+        "assigned-mutants.json",
+        r#"cp -R "$out_dir/mutants.out" "$shard_dir/mutants.out""#,
+        "actions/download-artifact@v4",
+        "pattern: cargo-mutants-lock-layer-*",
+        "python3 tools/merge-mutation-shards.py",
+        "--canonical-list",
+        "--expected-shards 8",
+        "--out-md reports/0045_first_proof_cert_mutation_completion_manifest.md",
+        "--out-json reports/0045_first_proof_cert_mutation_completion_manifest.json",
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!(
+                "scheduled mutation lane missing required text: {required}"
+            ));
+        }
+    }
+    if !workflow.contains("cargo-mutants-lock-layer-shard-${{ matrix.shard }}-of-8") {
+        errors.push("scheduled mutation lane missing shard artifact upload".to_string());
+    }
+    if !workflow.contains("mutants-lock-layer-reconcile:") {
+        errors.push("scheduled mutation lane missing reconciliation job".to_string());
+    }
+    if !workflow.contains("shard: [0, 1, 2, 3, 4, 5, 6, 7]") {
+        errors
+            .push("scheduled mutation matrix must enumerate shard indices 0 through 7".to_string());
+    }
+    if workflow.contains("fail-fast: true") {
+        errors.push("scheduled mutation matrix must set fail-fast: false".to_string());
     }
     errors
 }
@@ -392,6 +513,7 @@ fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
         "crates/tracewake-core/src/scheduler.rs" => {
             "crates/tracewake-core/src/scheduler\\.rs"
         }
+        "crates/tracewake-core/src/time.rs" => "crates/tracewake-core/src/time\\.rs",
         "crates/tracewake-core/src/projections.rs" => {
             "crates/tracewake-core/src/projections\\.rs"
         }
@@ -407,8 +529,9 @@ fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
         | "crates/tracewake-core/src/actions/defs/work.rs"
         | "crates/tracewake-core/src/actions/defs/wait.rs"
         | "crates/tracewake-core/src/actions/defs/continue_routine.rs"
-        | "crates/tracewake-core/src/actions/defs/movement.rs" => {
-            "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs"
+        | "crates/tracewake-core/src/actions/defs/movement.rs"
+        | "crates/tracewake-core/src/actions/defs/checkcontainer.rs" => {
+            "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs"
         }
         "crates/tracewake-core/src/events/**" => "crates/tracewake-core/src/events/",
         "crates/tracewake-core/src/replay/**" => "crates/tracewake-core/src/replay/",

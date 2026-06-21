@@ -112,7 +112,7 @@ jobs:
           else
             guarded_range="HEAD^..HEAD"
           fi
-          if git diff --name-only "$guarded_range" | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/need_accounting\.rs|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs|crates/tracewake-core/src/actions/registry\.rs|crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\.rs|crates/tracewake-core/src/events/|crates/tracewake-core/src/replay/|crates/tracewake-core/src/checksum\.rs|crates/tracewake-core/src/state\.rs|crates/tracewake-core/src/actions/(proposal|report)\.rs|crates/tracewake-core/src/view_models\.rs|crates/tracewake-core/src/debug_capability\.rs|crates/tracewake-core/src/controller\.rs|crates/tracewake-core/src/debug_reports\.rs|crates/tracewake-core/src/epistemics/|crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\.rs|crates/tracewake-tui/src/(app|debug_panels|render|transcript)\.rs)' >/dev/null; then
+          if git diff --name-only "$guarded_range" | grep -E '^(crates/tracewake-core/src/agent/|crates/tracewake-core/src/need_accounting\.rs|crates/tracewake-core/src/scheduler\.rs|crates/tracewake-core/src/time\.rs|crates/tracewake-core/src/projections\.rs|crates/tracewake-core/src/actions/pipeline\.rs|crates/tracewake-core/src/actions/registry\.rs|crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\.rs|crates/tracewake-core/src/events/|crates/tracewake-core/src/replay/|crates/tracewake-core/src/checksum\.rs|crates/tracewake-core/src/state\.rs|crates/tracewake-core/src/actions/(proposal|report)\.rs|crates/tracewake-core/src/view_models\.rs|crates/tracewake-core/src/debug_capability\.rs|crates/tracewake-core/src/controller\.rs|crates/tracewake-core/src/debug_reports\.rs|crates/tracewake-core/src/epistemics/|crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\.rs|crates/tracewake-tui/src/(app|debug_panels|render|transcript)\.rs)' >/dev/null; then
             echo "run_mutants=true" >> "$GITHUB_OUTPUT"
             echo "guarded_range=$guarded_range" >> "$GITHUB_OUTPUT"
           else
@@ -174,10 +174,11 @@ jobs:
           fi
           echo "All in-diff misses are accepted baseline entries; gate passes."
 
-  mutants-lock-layer:
-    name: mutation baseline (lock layer)
+  mutants-lock-layer-baseline:
+    name: mutation baseline and census (lock layer)
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Cache cargo
@@ -191,55 +192,142 @@ jobs:
           restore-keys: ${{ runner.os }}-mutants-
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --version 27.1.0 --locked
-      - name: Run guarded-layer mutation baseline
-        id: scheduled_mutants
+      - name: Run unmutated baseline and canonical census
         run: |
-          set +e
-          cargo mutants --workspace --no-shuffle
-          mutants_status=$?
-          set -e
-          echo "mutants_status=$mutants_status" >> "$GITHUB_OUTPUT"
-          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ]; then
-            echo "cargo-mutants failed with status $mutants_status; this is a tool/run failure, not a passing mutation gate."
-            find mutants.out -maxdepth 2 -type f -print || true
-            exit "$mutants_status"
-          fi
-      - name: Check missed-mutant baseline
-        if: always() && steps.scheduled_mutants.outcome != 'skipped'
-        run: |
-          if [ "${{ steps.scheduled_mutants.outputs.mutants_status }}" = "0" ] && [ ! -f mutants.out/missed.txt ]; then
-            echo "cargo-mutants exited 0 and produced no missed mutants; scheduled mutation baseline is clean."
-            exit 0
-          fi
-          if [ ! -f mutants.out/missed.txt ]; then
-            echo "cargo-mutants did not produce mutants.out/missed.txt; inspect artifact before updating the baseline."
-            find mutants.out -maxdepth 2 -type f -print || true
-            exit 1
-          fi
-          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$1" | sort -u; }
-          strip .cargo/mutants-baseline-misses.txt > "$RUNNER_TEMP/mutants-baseline.normalized.txt"
-          strip mutants.out/missed.txt > "$RUNNER_TEMP/mutants-missed.normalized.txt"
-          comm -23 "$RUNNER_TEMP/mutants-missed.normalized.txt" "$RUNNER_TEMP/mutants-baseline.normalized.txt" > "$RUNNER_TEMP/mutants-new-misses.txt"
-          if [ -s "$RUNNER_TEMP/mutants-new-misses.txt" ]; then
-            echo "New missed mutants outside accepted baseline:"
-            cat "$RUNNER_TEMP/mutants-new-misses.txt"
-            {
-              echo "### New missed mutants outside accepted baseline"
-              echo
-              echo '```'
-              cat "$RUNNER_TEMP/mutants-new-misses.txt"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
+          mkdir -p mutation-input
           {
-            echo "### Mutation baseline ratchet"
-            echo
-            echo "No new missed mutants outside the accepted normalized baseline."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload mutation baseline output
+            echo "commit=$(git rev-parse HEAD)"
+            echo "config_fingerprint=$(sha256sum .cargo/mutants.toml | cut -d ' ' -f1)"
+            echo "toolchain_fingerprint=$(sha256sum rust-toolchain.toml Cargo.lock Cargo.toml | sha256sum | cut -d ' ' -f1)"
+          } > mutation-input/fingerprints.env
+          cargo test --workspace --locked
+          cargo mutants --workspace --no-shuffle --list-files > mutation-input/canonical-list-files.txt
+          cargo mutants --workspace --no-shuffle --list > mutation-input/canonical-list.txt
+      - name: Upload mutation baseline input
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cargo-mutants-lock-layer
-          path: mutants.out
+          name: cargo-mutants-lock-layer-baseline
+          path: mutation-input
+
+  mutants-lock-layer:
+    name: mutation shard ${{ matrix.shard }}/8 (lock layer)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    needs: mutants-lock-layer-baseline
+    timeout-minutes: 130
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      MUTANTS_JOBS: "2"
+      MUTANTS_SHARDS: "8"
+      MUTANTS_WALL_SECONDS: "7200"
+      MUTANTS_GRACE_SECONDS: "120"
+      MUTANTS_TEST_TIMEOUT: "183"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-mutants-${{ hashFiles('rust-toolchain.toml', '**/Cargo.toml', '**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-mutants-
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --version 27.1.0 --locked
+      - name: Run supervised mutation shard
+        run: |
+          shard_id="${{ matrix.shard }}"
+          shard_dir="reports/0045_first_proof_cert_command_transcripts/mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}"
+          out_dir="reports/0045_first_proof_cert_mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}.out"
+          commit="$(git rev-parse HEAD)"
+          config_fingerprint="$(sha256sum .cargo/mutants.toml | cut -d ' ' -f1)"
+          toolchain_fingerprint="$(sha256sum rust-toolchain.toml Cargo.lock Cargo.toml | sha256sum | cut -d ' ' -f1)"
+          set +e
+          tools/supervise-command.sh "$shard_dir" "$MUTANTS_WALL_SECONDS" "$MUTANTS_GRACE_SECONDS" -- \
+            cargo mutants --workspace --no-shuffle \
+              --shard "${shard_id}/${MUTANTS_SHARDS}" \
+              --jobs "$MUTANTS_JOBS" \
+              --baseline=skip \
+              --timeout "$MUTANTS_TEST_TIMEOUT" \
+              -o "$out_dir"
+          supervisor_status=$?
+          set -e
+          {
+            echo "shard_index=$shard_id"
+            echo "shard_total=$MUTANTS_SHARDS"
+            echo "commit=$commit"
+            echo "config_fingerprint=$config_fingerprint"
+            echo "toolchain_fingerprint=$toolchain_fingerprint"
+          } > "$shard_dir/shard.env"
+          if [ -f "$out_dir/mutants.out/mutants.json" ]; then
+            cp "$out_dir/mutants.out/mutants.json" "$shard_dir/assigned-mutants.json"
+          fi
+          if [ -d "$out_dir/mutants.out" ]; then
+            cp -R "$out_dir/mutants.out" "$shard_dir/mutants.out"
+          fi
+          exit "$supervisor_status"
+      - name: Upload mutation shard output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-mutants-lock-layer-shard-${{ matrix.shard }}-of-8
+          path: |
+            reports/0045_first_proof_cert_command_transcripts/mutation_shard_${{ matrix.shard }}_of_8
+            reports/0045_first_proof_cert_mutation_shard_${{ matrix.shard }}_of_8.out
+
+  mutants-lock-layer-reconcile:
+    name: mutation shard reconciliation (lock layer)
+    runs-on: ubuntu-latest
+    if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+    needs:
+      - mutants-lock-layer-baseline
+      - mutants-lock-layer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download mutation artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: mutation-artifacts
+          pattern: cargo-mutants-lock-layer-*
+      - name: Reconcile shard union
+        run: |
+          mkdir -p reports
+          baseline_dir="$(find mutation-artifacts/cargo-mutants-lock-layer-baseline -type f -name fingerprints.env -printf '%h\n' | sort | head -n 1)"
+          if [ -z "$baseline_dir" ]; then
+            echo "Missing mutation baseline artifact input."
+            find mutation-artifacts -maxdepth 3 -type f -print || true
+            exit 1
+          fi
+          source "$baseline_dir/fingerprints.env"
+          mapfile -t shard_dirs < <(find mutation-artifacts -type f -path '*/status.env' -printf '%h\n' | sort)
+          if [ "${#shard_dirs[@]}" -ne 8 ]; then
+            echo "Expected 8 shard status directories, found ${#shard_dirs[@]}"
+            printf '%s\n' "${shard_dirs[@]}"
+            exit 1
+          fi
+          args=()
+          for shard_dir in "${shard_dirs[@]}"; do
+            args+=(--shard "$shard_dir")
+          done
+          python3 tools/merge-mutation-shards.py \
+            --canonical-list "$baseline_dir/canonical-list.txt" \
+            --expected-shards 8 \
+            --commit "$commit" \
+            --config-fingerprint "$config_fingerprint" \
+            --toolchain-fingerprint "$toolchain_fingerprint" \
+            --out-md reports/0045_first_proof_cert_mutation_completion_manifest.md \
+            --out-json reports/0045_first_proof_cert_mutation_completion_manifest.json \
+            "${args[@]}"
+      - name: Upload mutation reconciliation output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-mutants-lock-layer-reconciliation
+          path: |
+            reports/0045_first_proof_cert_mutation_completion_manifest.md
+            reports/0045_first_proof_cert_mutation_completion_manifest.json

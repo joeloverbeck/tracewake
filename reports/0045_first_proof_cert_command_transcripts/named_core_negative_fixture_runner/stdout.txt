@@ -1,0 +1,9 @@
+
+running 5 tests
+test clippy_ban_entries_have_proving_negative_fixtures ... ok
+test registered_negative_fixtures_match_directory_census ... ok
+test phase1_loader_registration_guard_negative_fixture_fires_on_mutation ... ok
+test debug_report_construction_without_capability_compile_fails ... ok
+test banned_api_negative_fixtures_fail_with_expected_lints ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s

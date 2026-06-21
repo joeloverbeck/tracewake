@@ -1,0 +1,9 @@
+
+running 5 tests
+test generated_evidence_package_metadata_is_explicit_and_sampled ... ok
+test duration_terminal_targeted_tamper_requires_duration_terminal ... ok
+test generated_progress_classification_and_lifecycle_properties_are_relational ... ok
+test generated_runs_are_deterministic_under_seed_order_permutation ... ok
+test generated_sequences_replay_and_satisfy_metamorphic_locks ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s

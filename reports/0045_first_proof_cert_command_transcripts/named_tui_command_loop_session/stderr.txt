@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/command_loop_session.rs (target/debug/deps/command_loop_session-211f71b53b1023dd)

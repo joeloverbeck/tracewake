@@ -3282,9 +3282,15 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
         violations.push("mutants.toml omits test_workspace = true".to_string());
     }
 
-    let scheduled_block =
-        yaml_step_run_block(ci_yml, "Run guarded-layer mutation baseline").unwrap_or_default();
-    let scheduled_effective_lines = non_comment_lines(scheduled_block).join("\n");
+    let scheduled_baseline_block =
+        yaml_step_run_block(ci_yml, "Run unmutated baseline and canonical census")
+            .unwrap_or_default();
+    let scheduled_baseline_effective_lines = non_comment_lines(scheduled_baseline_block).join("\n");
+    let scheduled_shard_block =
+        yaml_step_run_block(ci_yml, "Run supervised mutation shard").unwrap_or_default();
+    let scheduled_shard_effective_lines = non_comment_lines(scheduled_shard_block).join("\n");
+    let scheduled_reconcile_block =
+        yaml_step_run_block(ci_yml, "Reconcile shard union").unwrap_or_default();
     let in_diff_block = yaml_step_run_block(ci_yml, "Check guarded-layer diff").unwrap_or_default();
     let in_diff_filter_lines = non_comment_lines(in_diff_block)
         .into_iter()
@@ -3302,18 +3308,23 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
     let in_diff_filter_line = in_diff_filter_lines.first().copied().unwrap_or_default();
 
-    if !scheduled_effective_lines.contains("cargo mutants --workspace --no-shuffle") {
+    if !scheduled_baseline_effective_lines.contains("cargo mutants --workspace --no-shuffle --list")
+        || !scheduled_shard_effective_lines.contains("cargo mutants --workspace --no-shuffle")
+    {
         violations.push(
-            "scheduled mutation baseline does not use checked-in cargo-mutants config command"
+            "scheduled mutation lane does not use checked-in cargo-mutants config command"
                 .to_string(),
         );
     }
-    if scheduled_effective_lines.contains(" -f ")
-        || scheduled_effective_lines.contains(" --file ")
-        || scheduled_effective_lines.contains("--no-config")
+    if scheduled_baseline_effective_lines
+        .lines()
+        .chain(scheduled_shard_effective_lines.lines())
+        .filter(|line| line.contains("cargo mutants"))
+        .any(|line| {
+            line.contains(" -f ") || line.contains(" --file ") || line.contains("--no-config")
+        })
     {
-        violations
-            .push("scheduled mutation baseline declares a divergent file perimeter".to_string());
+        violations.push("scheduled mutation lane declares a divergent file perimeter".to_string());
     }
 
     let examine_globs = parse_examine_globs(mutants_toml);
@@ -3388,17 +3399,28 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
     for block in yaml_step_blocks_with_cargo_mutants(ci_yml) {
         let effective_lines = non_comment_lines(block);
-        let mutants_invocations = effective_lines
+        if effective_lines
             .iter()
-            .filter(|line| line.contains("cargo mutants"))
-            .count();
-        let status_captures = effective_lines
-            .iter()
-            .filter(|line| line.contains("mutants_status=$?"))
-            .count();
-        if status_captures < mutants_invocations {
+            .any(|line| line.contains("cargo mutants --in-diff"))
+            && !effective_lines
+                .iter()
+                .any(|line| line.contains("mutants_status=$?"))
+        {
             violations.push(
-                "cargo-mutants step does not capture status in the same step block".to_string(),
+                "in-diff cargo-mutants step does not capture status in the same step block"
+                    .to_string(),
+            );
+        }
+        if effective_lines
+            .iter()
+            .any(|line| line.contains("tools/supervise-command.sh"))
+            && !effective_lines
+                .iter()
+                .any(|line| line.contains("supervisor_status=$?"))
+        {
+            violations.push(
+                "supervised cargo-mutants shard does not capture supervisor status in the same step block"
+                    .to_string(),
             );
         }
     }
@@ -3413,14 +3435,14 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     if !ci_yml.contains("[ ! -d mutants.out ]") {
         violations.push("in-diff mutation job does not require output artifacts".to_string());
     }
-    if !scheduled_block.contains("echo \"mutants_status=$mutants_status\" >> \"$GITHUB_OUTPUT\"") {
+    if !scheduled_shard_block.contains("exit \"$supervisor_status\"") {
         violations
-            .push("scheduled cargo-mutants status is not exposed to baseline check".to_string());
+            .push("scheduled cargo-mutants shard status is not exposed to job status".to_string());
     }
-    if !ci_yml.contains("if: always() && steps.scheduled_mutants.outcome != 'skipped'") {
-        violations.push(
-            "scheduled mutation baseline check does not run after accepted misses".to_string(),
-        );
+    if !ci_yml.contains("mutants-lock-layer-reconcile:")
+        || !scheduled_reconcile_block.contains("python3 tools/merge-mutation-shards.py")
+    {
+        violations.push("scheduled mutation reconciliation job is missing".to_string());
     }
     if !ci_yml.contains("github.event_name != 'schedule'")
         || !ci_yml.contains("github.event_name != 'workflow_dispatch'")
@@ -4563,10 +4585,8 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic comment-only status capture must fail the perimeter guard"
     );
 
-    let missing_scheduled_capture = CI_YML.replace(
-        "          mutants_status=$?\n          set -e\n          echo \"mutants_status=$mutants_status\" >> \"$GITHUB_OUTPUT\"\n",
-        "",
-    );
+    let missing_scheduled_capture =
+        CI_YML.replace("          supervisor_status=$?\n          set -e\n", "");
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_scheduled_capture)
             .iter()
@@ -4608,8 +4628,8 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
     );
 
     let missing_eat_in_diff = CI_YML.replace(
-        "actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
-        "actions/defs/(need_events|sleep|work|wait|continue_routine|movement)\\.rs",
+        "actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
+        "actions/defs/(need_events|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_eat_in_diff)
@@ -4620,7 +4640,7 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
 
     let decoy_in_diff = CI_YML.replace(
         "          if git diff --name-only \"$guarded_range\" | grep -E",
-        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
+        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_in_diff)
