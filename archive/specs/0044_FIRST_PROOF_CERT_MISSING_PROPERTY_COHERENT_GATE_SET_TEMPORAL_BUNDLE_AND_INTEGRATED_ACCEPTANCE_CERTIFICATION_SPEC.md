@@ -6,7 +6,7 @@ Archive path on accepted closeout: archive/specs/0044_FIRST_PROOF_CERT_MISSING_P
 Target repository: joeloverbeck/tracewake
 Target commit: 1541da274180ecd40f52583d86704990cb55e74c
 Spec series: numbered staging spec 0044; archived to archive/specs/ on accepted closeout
-Status: STAGING — non-executable certification audit specification; no verdict rendered
+Status: COMPLETED — implementing session rendered scoped-remediation verdict
 Work posture: Certification
 Admissibility posture: consumes P0-CERT passed from archive/reports/0037_p0_cert_mutation_remediation_replacement_certification_acceptance.md, SPINE-CERT passed from archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md, EPI-CERT passed from archive/reports/0041_epi_cert_mutation_remediation_replacement_certification_acceptance.md, and ORD-LIFE-CERT passed from archive/reports/0043_ord_life_cert_mutation_remediation_replacement_certification_acceptance.md
 Consumed certified building blocks: P0-CERT; SPINE-CERT; EPI-CERT; ORD-LIFE-CERT
@@ -1757,3 +1757,38 @@ This document commissions one non-executable audit. The implementing session mus
 2. produce an evidence-complete failed/scoped artifact naming the failing points and responsible layers, with `FIRST-PROOF-CERT scoped remediation` where an actionable mutation or implementation floor remains.
 
 No result from this specification authoring session is a pass/fail verdict. No remediation spec is included here.
+
+## Outcome
+
+Completed: 2026-06-21
+
+The `0044FIRPROCER` ticket series produced the FIRST-PROOF-CERT acceptance
+artifact and supporting mutation package:
+
+- `reports/0044_first_proof_cert_missing_property_coherent_gate_set_temporal_bundle_and_integrated_acceptance_certification_acceptance.md`
+- `reports/0044_first_proof_cert_mutation_triage_register.md`
+- `reports/0044_first_proof_cert_mutation_list_files.txt`
+- `reports/0044_first_proof_cert_mutation_list.txt`
+- supervisor transcripts under `reports/0044_first_proof_cert_mutation_*.supervisor/`
+
+The implementing session rendered `FIRST-PROOF-CERT scoped remediation`, not
+`FIRST-PROOF-CERT passed`. Behavioral audit points, gates, scenario families,
+and the temporal bundle were reconciled as passing for their behavioral scope,
+and the focused mutation campaign completed with 719 mutants tested, 600 caught,
+119 unviable, 0 missed, and 0 timeouts. The configured standing mutation
+campaign timed out after classifying 2384 of 2901 mutants, so the mutation-floor
+evidence did not complete. Per this spec's section 10, section 12.9, and section
+17, that incomplete configured campaign blocks a pass verdict and routes to a
+later separately numbered FIRST-PROOF-CERT mutation remediation/replacement
+campaign.
+
+Verification results recorded by the capstone ticket:
+
+- `cargo test --locked -p tracewake-core --test acceptance_gates`
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
+- `cargo test --locked -p tracewake-core --test emergence_ledger`
+- `cargo test --workspace --locked`
+
+All four verification commands passed on 2026-06-21. The result is exact-commit
+scoped to the documented artifact baseline and does not certify latest main,
+Phase 4 entry, second-proof entry, or future feature surfaces.
