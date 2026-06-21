@@ -24,6 +24,13 @@ fn mutation_completion_merger_reconciles_sets_and_fails_closed() {
         "successful merge must emit both manifest shapes"
     );
 
+    let list_case = SyntheticCase::create("canonical_list");
+    let list_output = run_merger_with_canonical_list(&root, &list_case.dir, &list_case.shards);
+    assert_success(
+        &list_output,
+        "canonical list mode used by CI must reconcile display names",
+    );
+
     let line_drift = SyntheticCase::create("line_column_drift").with_line_column_drift();
     assert_success(
         &run_merger(&root, &line_drift.dir, &line_drift.shards),
@@ -114,12 +121,38 @@ fn repo_root() -> PathBuf {
 }
 
 fn run_merger(root: &Path, case_dir: &Path, shards: &[PathBuf]) -> Output {
+    run_merger_with_canonical_arg(
+        root,
+        case_dir,
+        shards,
+        "--canonical",
+        case_dir.join("canonical-mutants.json"),
+    )
+}
+
+fn run_merger_with_canonical_list(root: &Path, case_dir: &Path, shards: &[PathBuf]) -> Output {
+    run_merger_with_canonical_arg(
+        root,
+        case_dir,
+        shards,
+        "--canonical-list",
+        case_dir.join("canonical-list.txt"),
+    )
+}
+
+fn run_merger_with_canonical_arg(
+    root: &Path,
+    case_dir: &Path,
+    shards: &[PathBuf],
+    canonical_arg: &str,
+    canonical_path: PathBuf,
+) -> Output {
     let mut command = Command::new("python3");
     command
         .current_dir(root)
         .arg(root.join("tools/merge-mutation-shards.py"))
-        .arg("--canonical")
-        .arg(case_dir.join("canonical-mutants.json"))
+        .arg(canonical_arg)
+        .arg(canonical_path)
         .arg("--expected-shards")
         .arg("2")
         .arg("--commit")
@@ -170,6 +203,11 @@ impl SyntheticCase {
             format!("[{}]\n", mutants.join(",")),
         )
         .expect("write canonical mutants");
+        let canonical_names = mutants
+            .iter()
+            .map(|mutant| extract_name(mutant))
+            .collect::<Vec<_>>();
+        write_lines(&dir.join("canonical-list.txt"), &canonical_names);
 
         let shard0 = dir.join("shard-0");
         let shard1 = dir.join("shard-1");

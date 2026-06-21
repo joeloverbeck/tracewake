@@ -328,11 +328,14 @@ Workflow-level posture:
 | `test` | Runs `cargo build --workspace --all-targets --locked` and `cargo test --workspace --locked`; the locked test invocation is the documented CI superset of the local `cargo test --workspace` completion gate. |
 | `lock-layer-gates` | Runs the named lock-layer integration targets with `--locked`, including anti-regression, hidden-truth, replay, content, and TUI seam gates. |
 | `mutants-in-diff` | Runs standing certification-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, with accepted baseline misses normalized by file, mutation, and function. |
-| `mutants-lock-layer` | Runs the scheduled or manual standing certification-perimeter mutation baseline through `.cargo/mutants.toml` and uploads `mutants.out` while failing on new misses outside the accepted baseline. |
+| `mutants-lock-layer-baseline` | Runs the scheduled or manual unmutated baseline and canonical standing-perimeter mutation census through `.cargo/mutants.toml`, recording commit, config, and toolchain fingerprints for shard reconciliation. |
+| `mutants-lock-layer` | Runs the scheduled or manual standing-perimeter mutation matrix as eight supervised shards after the baseline job, using `--baseline=skip`, two cargo-mutants jobs per shard, a 7200 second supervisor wall, 120 second grace, explicit 183 second mutant timeout, 130 minute GitHub timeout, and always-uploaded per-shard transcripts and mutation output. |
+| `mutants-lock-layer-reconcile` | Downloads the scheduled or manual baseline and shard artifacts, invokes `tools/merge-mutation-shards.py`, and fails closed for missing shards, non-normal supervisor status, tool failure, survivor floor, overlap, fingerprint drift, or a shard union that does not equal the canonical denominator. |
 
 Phase-entry mutation rule: clearing a scheduled-mutation `pending` status, or
 making any `ORD-LIFE-CERT` readiness claim that depends on the lock layer,
-requires a dated green scheduled mutation run. A report may record pending
+requires a dated green scheduled mutation run where the baseline job, every
+scheduled shard, and reconciliation job are green. A report may record pending
 status honestly, but pending is not a pass and does not satisfy certification
 readiness.
 

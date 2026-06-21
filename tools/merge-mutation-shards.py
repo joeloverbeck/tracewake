@@ -126,6 +126,17 @@ def load_mutant_list(path: Path) -> tuple[dict[str, dict], dict[str, str]]:
     return by_key, name_to_key
 
 
+def load_canonical_names(path: Path) -> set[str]:
+    try:
+        return {
+            normalize_text(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if normalize_text(line)
+        }
+    except OSError as exc:
+        raise MergeError(f"cannot read {path}: {exc}") from exc
+
+
 def outcome_name_and_key(outcome: dict, path: Path) -> tuple[str, str, str]:
     fields = set(outcome)
     unknown = fields - EXPECTED_OUTCOME_FIELDS
@@ -159,7 +170,7 @@ def text_outcome_names(mutants_out: Path, filename: str) -> set[str]:
     }
 
 
-def load_shard(shard_dir: Path, canonical_keys: set[str]) -> dict:
+def load_shard(shard_dir: Path, canonical_members: set[str], identity_mode: str) -> dict:
     shard_env = read_env(shard_dir / "shard.env")
     status = read_env(shard_dir / "status.env")
     if status.get("supervisor_result") != "child_exit_0":
@@ -204,9 +215,10 @@ def load_shard(shard_dir: Path, canonical_keys: set[str]) -> dict:
         name, key, summary = outcome_name_and_key(outcome, outcomes_path)
         if key in outcome_keys:
             raise MergeError(f"{shard_dir}: duplicate outcome identity: {key}")
-        if key not in canonical_keys:
+        identity = key if identity_mode == "structured" else name
+        if identity not in canonical_members:
             raise MergeError(f"{shard_dir}: outcome identity not in canonical set: {name}")
-        outcome_keys[key] = summary
+        outcome_keys[identity] = summary
         json_names_by_file[SUMMARY_TO_TEXT[summary]].add(name)
 
     mutants_out = shard_dir / "mutants.out"
@@ -220,7 +232,14 @@ def load_shard(shard_dir: Path, canonical_keys: set[str]) -> dict:
         if not name:
             raise MergeError(f"{shard_dir}: blank text outcome name")
 
-    assigned_keys = set(assigned)
+    if identity_mode == "structured":
+        assigned_keys = set(assigned)
+    else:
+        assigned_keys = {
+            normalize_text(mutant.get("name"))
+            for mutant in assigned.values()
+            if normalize_text(mutant.get("name"))
+        }
     final_keys = set(outcome_keys)
     if assigned_keys != final_keys:
         missing = sorted(assigned_keys - final_keys)
@@ -248,11 +267,12 @@ def load_shard(shard_dir: Path, canonical_keys: set[str]) -> dict:
     }
 
 
-def write_outputs(args, canonical_keys: set[str], shards: list[dict], aggregate: dict) -> None:
+def write_outputs(args, canonical_members: set[str], shards: list[dict], aggregate: dict) -> None:
     machine = {
         "final_sha": args.commit,
-        "canonical_count": len(canonical_keys),
-        "canonical_fingerprint": fingerprint(canonical_keys),
+        "canonical_count": len(canonical_members),
+        "canonical_fingerprint": fingerprint(canonical_members),
+        "canonical_identity_mode": aggregate["identity_mode"],
         "shard_total": args.expected_shards,
         "shards": [
             {
@@ -281,8 +301,9 @@ def write_outputs(args, canonical_keys: set[str], shards: list[dict], aggregate:
         "# 0045 FIRST-PROOF-CERT mutation completion manifest",
         "",
         f"- Final SHA: `{args.commit}`",
-        f"- Canonical denominator count: {len(canonical_keys)}",
-        f"- Canonical fingerprint: `{fingerprint(canonical_keys)}`",
+        f"- Canonical denominator count: {len(canonical_members)}",
+        f"- Canonical fingerprint: `{fingerprint(canonical_members)}`",
+        f"- Canonical identity mode: `{aggregate['identity_mode']}`",
         f"- Shards received: {len(shards)} / {args.expected_shards}",
         f"- Pairwise intersection empty: {aggregate['pairwise_disjoint']}",
         f"- Union equals canonical: {aggregate['union_equals_canonical']}",
@@ -303,9 +324,14 @@ def write_outputs(args, canonical_keys: set[str], shards: list[dict], aggregate:
 
 
 def reconcile(args) -> None:
-    canonical, _canonical_name_to_key = load_mutant_list(args.canonical)
-    canonical_keys = set(canonical)
-    shards = [load_shard(path, canonical_keys) for path in args.shard]
+    if args.canonical:
+        canonical, _canonical_name_to_key = load_mutant_list(args.canonical)
+        canonical_members = set(canonical)
+        identity_mode = "structured"
+    else:
+        canonical_members = load_canonical_names(args.canonical_list)
+        identity_mode = "display-name"
+    shards = [load_shard(path, canonical_members, identity_mode) for path in args.shard]
 
     seen_indices: set[int] = set()
     all_assigned: set[str] = set()
@@ -345,8 +371,8 @@ def reconcile(args) -> None:
         missing = sorted(expected_indices - seen_indices)
         raise MergeError(f"missing shard indices: {missing}")
 
-    missing_canonical = canonical_keys - all_assigned
-    extra = all_assigned - canonical_keys
+    missing_canonical = canonical_members - all_assigned
+    extra = all_assigned - canonical_members
     if missing_canonical or extra:
         raise MergeError(
             f"union does not equal canonical missing={len(missing_canonical)} extra={len(extra)}"
@@ -355,10 +381,11 @@ def reconcile(args) -> None:
     aggregate = {
         **aggregate_counts,
         "pairwise_disjoint": pairwise_disjoint,
-        "union_equals_canonical": all_assigned == canonical_keys,
-        "count_equation": sum(aggregate_counts.values()) == len(canonical_keys),
-        "pass": all_assigned == canonical_keys
-        and sum(aggregate_counts.values()) == len(canonical_keys)
+        "union_equals_canonical": all_assigned == canonical_members,
+        "count_equation": sum(aggregate_counts.values()) == len(canonical_members),
+        "identity_mode": identity_mode,
+        "pass": all_assigned == canonical_members
+        and sum(aggregate_counts.values()) == len(canonical_members)
         and aggregate_counts["missed"] == 0
         and aggregate_counts["timeout"] == 0,
     }
@@ -368,12 +395,14 @@ def reconcile(args) -> None:
         )
     if not aggregate["pass"]:
         raise MergeError("aggregate count equation failed")
-    write_outputs(args, canonical_keys, shards, aggregate)
+    write_outputs(args, canonical_members, shards, aggregate)
 
 
 def parse_args(argv: list[str]):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--canonical", type=Path, required=True)
+    canonical = parser.add_mutually_exclusive_group(required=True)
+    canonical.add_argument("--canonical", type=Path)
+    canonical.add_argument("--canonical-list", type=Path)
     parser.add_argument("--expected-shards", type=int, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--config-fingerprint", required=True)

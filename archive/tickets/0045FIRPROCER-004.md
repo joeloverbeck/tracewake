@@ -1,6 +1,6 @@
 # 0045FIRPROCER-004: Deterministic sharded scheduled/manual mutation completion lane (CI matrix + reconciliation job)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — CI workflow (`.github/workflows/ci.yml`) sharded matrix + reconciliation job and the core CI guard test (`crates/tracewake-core/tests/ci_workflow_guards.rs`); no production/simulation logic change.
@@ -91,3 +91,24 @@ If `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.m
 1. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked`
 3. `actionlint .github/workflows/ci.yml` (where available) to confirm the matrix/reconciliation YAML is valid; if `actionlint` is absent on the runner, substitute a YAML-parse check and state the substitution as the reason.
+
+## Outcome
+
+Completed: 2026-06-21
+
+Implemented the scheduled/manual mutation completion lane as a baseline job, eight-shard supervised matrix, and trailing reconciliation job. The lane now records commit/config/toolchain fingerprints, runs shards under `tools/supervise-command.sh` with `MUTANTS_SHARDS=8`, `MUTANTS_JOBS=2`, `MUTANTS_WALL_SECONDS=7200`, `MUTANTS_GRACE_SECONDS=120`, `MUTANTS_TEST_TIMEOUT=183`, `timeout-minutes: 130`, `fail-fast: false`, `--baseline=skip`, and unique `always()` shard artifacts. The reconciliation job downloads the baseline and shard artifacts, discovers the baseline directory robustly, and invokes `tools/merge-mutation-shards.py` with `--canonical-list`, expected shard count, fingerprints, and manifest output paths.
+
+Updated the merger to accept either structured canonical JSON or the human canonical list produced by `cargo mutants --list`, and added synthetic coverage for the canonical-list path used by CI. Updated `ci_workflow_guards.rs` and the existing anti-regression mutation-perimeter guard to assert the new scheduled lane shape, including synthetic negatives for dropped shard index, `fail-fast: true`, missing reconciliation job, and missing shard artifact upload. Updated Doc 10 to describe the new baseline/shard/reconcile CI job set and phase-entry rule.
+
+Verification:
+
+- `python3 -m py_compile tools/merge-mutation-shards.py`
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards`
+- `cargo test --locked -p tracewake-core --test mutation_completion_merge`
+- `cargo test --locked -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters`
+- `python3 -c 'import yaml, sys; yaml.safe_load(open(".github/workflows/ci.yml", encoding="utf-8")); print("yaml ok")'` (`actionlint` was absent from this environment)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo test --workspace --locked`

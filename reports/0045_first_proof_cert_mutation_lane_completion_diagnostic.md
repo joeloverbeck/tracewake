@@ -167,9 +167,9 @@ per-shard supervisor wall. The topology also reduces local contention by using
 two cargo-mutants jobs per shard instead of trying to intensify the already
 12-task single host run.
 
-This topology is still non-certifying until `0045FIRPROCER-004` wires it and
-`0045FIRPROCER-005` runs the complete campaign at the final implementation /
-evidence commit.
+This topology is wired by archived ticket `0045FIRPROCER-004`, but remains
+non-certifying until `0045FIRPROCER-005` runs the complete campaign at the final
+implementation / evidence commit.
 
 ## Completion Risk Calculation
 
