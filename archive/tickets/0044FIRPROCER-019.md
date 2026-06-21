@@ -1,6 +1,6 @@
 # 0044FIRPROCER-019: Acceptance capstone — gate/scenario/audit-point/temporal tables, packages, EMERGE-OBS, and FIRST-PROOF-CERT verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — acceptance-only capstone; reconciles the prior tickets' recorded evidence into the verdict. Introduces no production logic and no new tests.
@@ -74,3 +74,24 @@ Assemble the §12.4 mandatory behavior witnesses (all sixteen), the §12.5 repla
 2. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
 3. `cargo test --locked -p tracewake-core --test emergence_ledger`
 4. `cargo test --workspace --locked`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Reconciled the shared acceptance artifact's capstone surfaces:
+
+- Converted gate and scenario-family tables from staged pending language to
+  behavioral pass rows based on the cited per-ticket evidence items.
+- Replaced the staged-abstraction, EMERGE-OBS, checklist, and verdict sections
+  with capstone wording.
+- Rendered the required non-pass verdict:
+  `FIRST-PROOF-CERT scoped remediation`.
+
+The failing point/layer is `FIRST-PROOF-18` / mutation-floor tooling and
+evidence completion. `0044FIRPROCER-018` recorded a completed focused mutation
+campaign with no missed or timeout rows, but the standing checked-in mutation
+perimeter timed out after classifying 2384 of 2901 mutants. Because the spec
+requires configured mutation campaigns to complete, this capstone does not claim
+`FIRST-PROOF-CERT passed` and routes to a later separately numbered mutation
+remediation/replacement-certification campaign.

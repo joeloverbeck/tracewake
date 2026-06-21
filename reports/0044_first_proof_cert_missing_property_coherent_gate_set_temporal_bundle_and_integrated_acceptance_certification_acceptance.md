@@ -206,15 +206,15 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
-| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
-| `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative`, `E-0044-017-cross-gate-relations` | pending integrated point evidence |
-| `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending integrated point evidence |
-| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit`, `E-0044-017-cross-gate-relations` | pending full integrated point evidence |
-| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative`, `E-0044-017-cross-gate-relations` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
-| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination`, `E-0044-017-cross-gate-relations` | pending full integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pass for behavioral gate scope |
+| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pass for behavioral gate scope |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pass for behavioral gate scope |
+| `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative`, `E-0044-017-cross-gate-relations` | pass for behavioral gate scope |
+| `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pass for behavioral gate scope |
+| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit`, `E-0044-017-cross-gate-relations` | pass for behavioral gate scope |
+| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative`, `E-0044-017-cross-gate-relations` | pass for behavioral gate scope |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pass for behavioral gate scope |
+| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination`, `E-0044-017-cross-gate-relations` | pass for behavioral gate scope |
 
 ## Scenario Family Results
 
@@ -226,7 +226,7 @@ required command set and passed at `U`.
 | Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-014-embodied-temporal` | pass for FIRST-PROOF-07 actor-known/firewall, FIRST-PROOF-08 possession, and FIRST-PROOF-14 embodied temporal scope |
 | No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-07 non-interference and FIRST-PROOF-12 temporal-firewall scope |
 | No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
-| Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-09 and FIRST-PROOF-13 scope; pending temporal diagnostics in `FIRST-PROOF-16` |
+| Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative`, `E-0044-016-temporal-diagnostics` | pass for FIRST-PROOF-09, FIRST-PROOF-13, and temporal diagnostic scope |
 | Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-012-temporal-firewall`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative`, `E-0044-015-temporal-fixture-pairing` | pass for FIRST-PROOF-10, FIRST-PROOF-12, FIRST-PROOF-13, and FIRST-PROOF-15 replay-ancestry scope |
 | Content rejection | `E-0044-001-census`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-anti-contamination` | pass for FIRST-PROOF-11 and FIRST-PROOF-15 scope |
 
@@ -924,10 +924,10 @@ threshold, source category, gate code, or status enum.
 - Requirement IDs: `FIRST-PROOF-01`
 - Evidence status: pass
 - Fingerprint scope: raw bytes; mutation file list; mutation row list
-- Evidence summary: fixture/test/negative-fixture fingerprints captured; mutation list-files reports 60 files; mutation list reports 2,878 rows.
-- Path under test and behavior witness: section 6 inventory families plus mutation census; behavior witnesses are pending downstream point sections.
+- Evidence summary: fixture/test/negative-fixture fingerprints captured; mutation list-files reports 62 files; mutation list reports 2,901 rows.
+- Path under test and behavior witness: section 6 inventory families plus mutation census; behavior witnesses are reconciled in the point sections below.
 - Replay/provenance ancestry: not applicable.
-- Sampling/exhaustiveness scope: exhaustive over the command-selected inventory; mutation full-run outcomes are pending `0044FIRPROCER-018`.
+- Sampling/exhaustiveness scope: exhaustive over the command-selected inventory; mutation full-run posture is recorded by `0044FIRPROCER-018`.
 - Certification use: counted as certifying pass for FIRST-PROOF-01 census scope only.
 
 ### E-0044-002-physical-replay
@@ -1648,15 +1648,18 @@ not complete.
 
 ## Staged-Abstraction Declaration
 
-This artifact currently proves only that the baseline, command ledger, fixture
-inventory, test inventory, mutation census, and report anchors exist at one
-clean `U`. It deliberately abstracts the downstream behavioral witnesses until
-their owning tickets append positive, adversarial, replay/projection,
-diagnostic, and command evidence.
+The per-point behavioral sections are no longer staged abstractions: tickets
+`0044FIRPROCER-002` through `0044FIRPROCER-017` appended positive,
+adversarial, replay/projection, diagnostic, and command evidence, and the
+gate/scenario/temporal tables above reconcile those items as behavioral passes.
 
-This scaffold must not be read as a FIRST-PROOF-CERT pass. Pending sections
-cannot count as certification evidence, and observer-only/debug/emergence rows
-cannot become scheduler objectives, quality thresholds, or actor-known facts.
+The remaining non-passing surface is not a staged abstraction. It is the
+standing mutation campaign recorded by `0044FIRPROCER-018`, which timed out
+before all 2,901 mutants were classified. That incomplete mutation floor
+prevents a `FIRST-PROOF-CERT passed` verdict.
+
+Observer-only/debug/emergence rows cannot become scheduler objectives, quality
+thresholds, actor-known facts, or substitutes for the mutation floor.
 
 Failure diagnostics distinguish:
 
@@ -1669,18 +1672,47 @@ Failure diagnostics distinguish:
 
 ## EMERGE-OBS Package
 
-Pending capstone packaging. Any `EMERGE-OBS` row added later must remain
-observer-only and non-certifying unless a future upstream spec changes that
-doctrine.
+| Observer row | Evidence item IDs | Scope | Certification use |
+|---|---|---|---|
+| `EMERGE-OBS` diagnostic posture | `E-0044-016-temporal-diagnostics`, `E-0044-017-sampled-metamorphic-posture` | Retrospective, event-ancestry-backed observation of emergent relation coverage and diagnostics. | Observer-only; does not pass or fail any gate, scenario family, temporal source, mutation row, scheduler objective, or actor-known fact. |
+
+`EMERGE-OBS` is present only as a review/diagnostic label. It is not a mutation
+score, quality threshold, fixture oracle, planner input, or substitute for a
+failed certification floor.
+
+## Completion Checklist
+
+| Item | Result | Notes |
+|---|---|---|
+| FIRST-PROOF-01..17 behavioral audit points | pass | Each point section records certifying evidence and responsible layers. |
+| Nine gates | pass for behavioral scope | Gate table rows resolve to pass on cited evidence-item IDs. |
+| Nine scenario families | pass for behavioral scope | Scenario-family table rows resolve to pass on cited evidence-item IDs. |
+| Five-source temporal bundle | pass | Consolidated temporal acceptance line links all five routed sources. |
+| Mandatory workspace/core/content/TUI/replay commands | pass | Command ledger records passing workspace and named-suite commands. |
+| Mutation census | pass | 62 files and 2,901 mutants listed after make-honest perimeter edit. |
+| Focused mutation campaign | pass | 719 mutants tested; 600 caught, 119 unviable, 0 missed, 0 timeouts. |
+| Standing mutation campaign | fail/blocking | Supervisor wall timeout after 2,384 of 2,901 mutants; no survivor observed, but campaign incomplete. |
+| Observer-only `EMERGE-OBS` | pass for doctrine | Present and non-certifying. |
 
 ## Verdict
 
-`FIRST-PROOF-CERT` verdict: pending. `FIRST-PROOF-01` scaffold and
-baseline-freeze scope passed at `U`; all other audit points and mutation
-execution remain pending their owning tickets.
+`FIRST-PROOF-CERT` verdict: scoped remediation.
+
+Failing point/layer: `FIRST-PROOF-18` / mutation-floor tooling and evidence
+completion. The standing checked-in mutation perimeter did not complete under
+supervision (`wrapper_wall_timeout`, exit 124) and classified only 2,384 of
+2,901 mutants. No actionable survivor was observed in the completed focused
+campaign or the interrupted standing partial results, but spec §12.9 and §17
+require configured mutation campaigns to complete with no actionable floor.
+
+This artifact therefore does not claim `FIRST-PROOF-CERT passed`. The scoped
+remediation route is a later separately numbered mutation-remediation /
+replacement-certification campaign that completes or replaces the standing
+mutation evidence contract. This verdict is exact-commit-scoped to the
+documented `U`; it makes no latest-main, Phase-4, or second-proof claim.
 
 ## Residual Convention-Only Items
 
 Manual review remains required to confirm downstream narrative wording does not
-overclaim beyond evidence status. The current scaffold intentionally uses
-`pending` for all not-yet-owned sections.
+overclaim beyond evidence status. The known residual certification blocker is
+the incomplete standing mutation campaign.
