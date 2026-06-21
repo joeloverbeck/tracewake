@@ -32,8 +32,9 @@ Local orientation environment observed while authoring this diagnostic:
 - memory: 19 GiB total, 15 GiB available at measurement time
 - repository filesystem: 1007 GiB total, 627 GiB available at measurement time
 
-These local measurements are development context only. The certifying run in
-`0045FIRPROCER-005` must record its own final-run environment.
+These local measurements are development context only. The certifying run
+completed by archived ticket `0045FIRPROCER-005` records its own final-run
+environment under `reports/0045_first_proof_cert_command_transcripts/`.
 
 ## 0044 Symptom Record
 
@@ -167,9 +168,10 @@ per-shard supervisor wall. The topology also reduces local contention by using
 two cargo-mutants jobs per shard instead of trying to intensify the already
 12-task single host run.
 
-This topology is wired by archived ticket `0045FIRPROCER-004`, but remains
-non-certifying until `0045FIRPROCER-005` runs the complete campaign at the final
-implementation / evidence commit.
+This topology is wired by archived ticket `0045FIRPROCER-004` and was exercised
+by archived ticket `0045FIRPROCER-005` at final evidence SHA
+`9a071b6e32ebc5b6126645a9db257d453399c028`; see
+`reports/0045_first_proof_cert_mutation_completion_manifest.md`.
 
 ## Completion Risk Calculation
 

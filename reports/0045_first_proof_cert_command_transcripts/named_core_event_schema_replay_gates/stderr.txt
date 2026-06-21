@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/event_schema_replay_gates.rs (target/debug/deps/event_schema_replay_gates-8c5811824ca46a92)

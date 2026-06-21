@@ -1,0 +1,46 @@
+
+running 42 tests
+test fixture_initial_beliefs_construct_epistemic_projection ... ok
+test aged_food_record_surfaces_as_remembered_belief ... ok
+test food_unavailable_fixture_records_typed_failure_without_refill ... ok
+test continue_routine_tamper_reason_rewrite_poisons_replay ... ok
+test continue_routine_tamper_kind_flip_poisons_replay ... ok
+test episode_tamper_output_tag_poisons_replay ... ok
+test no_hidden_truth_fixture_keeps_hidden_food_out_of_planner_inputs ... ok
+test no_human_workplace_knowledge_requires_notice_channel ... ok
+test no_human_sleep_knowledge_requires_observation_or_record_channel ... ok
+test no_human_decision_actor_known_inputs_cite_log_events_and_recompute_hash ... ok
+test phase2a_initial_beliefs_are_holder_and_source_backed ... ok
+test partial_food_source_knowledge_seeds_only_authored_actor_edge ... ok
+test ordinary_workday_fixture_moves_before_work_completion ... ok
+test planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit ... ok
+test phase2a_golden_fixtures_have_contracts_and_validate ... ok
+test rejects_missing_ids_and_bad_references ... ok
+test rejects_nondeterministic_ordering_hazards ... ok
+test rejects_player_only_verbs ... ok
+test rejects_quest_and_script_content ... ok
+test rejects_unsupported_action_targets ... ok
+test possession_fixture_preserves_intention_needs_and_can_continue ... ok
+test routine_blocked_fixture_records_access_failure_without_silent_loop ... ok
+test routine_no_teleport_fixture_fails_remote_work_without_movement_ancestry ... ok
+test serialization_round_trips_spine_variant_matrix ... ok
+test phase2a_validation_rejects_shortcut_truth_fields ... ok
+test severe_safety_without_known_exit_is_local_knowledge_blocker ... ok
+test severe_safety_with_known_exit_produces_move_and_replays ... ok
+test phase3a_golden_fixtures_have_contracts_and_validate ... ok
+test sleep_without_authored_affordance_rejects_with_typed_reason ... ok
+test sleep_eat_work_fixture_logs_need_effects_and_replays ... ok
+test wait_then_window_passive_charges_each_tick_once ... ok
+test llm_disabled_phase1_still_passes ... ok
+test work_block_failed_then_sleep_succeeds_fixture_closes_reservation ... ok
+test serialized_event_log_replays_to_identical_state ... ok
+test episode_tamper_proration_poisons_replay ... ok
+test sleep_spanning_window_boundary_charges_each_tick_once ... ok
+test fixture_fingerprints_match_frozen_goldens ... ok
+test no_human_need_ledger_has_no_duplicate_regime_charges ... ok
+test loads_fixtures_deterministically ... ok
+test no_human_day_fixture_has_roster_activity_and_metrics_envelope ... ok
+test no_human_decision_context_hash_gate_fails_when_source_evidence_tampered ... ok
+test no_human_day_real_run_replays_metrics_and_trace_projection ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s

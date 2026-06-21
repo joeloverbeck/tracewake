@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/doc_invariant_references.rs (target/debug/deps/doc_invariant_references-491d4df5b12f3d3b)

@@ -1,6 +1,6 @@
 # 0045FIRPROCER-005: Run the complete configured campaign to completion — census, completion-union proof, and triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — evidence-collection ticket; it runs the certifying campaign and produces reports. Any production/test/fixture correction a survivor demands is routed to a reserved follow-up ticket, not made here.
@@ -95,3 +95,47 @@ Create/maintain `reports/0045_first_proof_cert_mutation_triage_register.md` per 
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace --locked` then each named suite, e.g. `cargo test --locked -p tracewake-core --test acceptance_gates` … `--test doc_invariant_references`, `cargo test --locked -p tracewake-content --test forbidden_content` …, `cargo test --locked -p tracewake-tui --test tui_acceptance` … (the full §4.9 list).
 2. `cargo mutants --workspace --no-shuffle --list-files > reports/0045_first_proof_cert_mutation_list_files.txt` and `cargo mutants --workspace --no-shuffle --list > reports/0045_first_proof_cert_mutation_list.txt`, then the dedicated baseline + sharded campaign (`cargo mutants --workspace --no-shuffle --shard K/N …` per -004) and the -003 merger over the retained shard set. (Heavy certifying commands; they run the live campaign and are not dry-runnable — that is the stated reason they are executed in full, not pre-listed.)
 3. `wc -c reports/0045_first_proof_cert_mutation_final_missed.txt reports/0045_first_proof_cert_mutation_final_timeout.txt .cargo/mutants-baseline-misses.txt` — confirm the certifying manifests are empty and the baseline-miss file is unchanged at 0 bytes.
+
+## Outcome
+
+Completed: 2026-06-21
+
+Completed the configured mutation campaign at final evidence SHA `9a071b6e32ebc5b6126645a9db257d453399c028` from a clean `/tmp` worktree. The preflight gates, all named first-proof suites, canonical census, and eight deterministic shards ran at that SHA. The final census matched the authoring baseline exactly: 62 selected files and 2,901 mutant identities.
+
+The shard merger proved a complete display-name identity union:
+
+- canonical denominator: 2,901
+- shards received: 8 / 8
+- pairwise disjoint: true
+- union equals canonical: true
+- caught: 2,277
+- unviable: 624
+- missed: 0
+- timeout: 0
+
+Produced the required concise evidence reports:
+
+- `reports/0045_first_proof_cert_mutation_list_files.txt`
+- `reports/0045_first_proof_cert_mutation_list.txt`
+- `reports/0045_first_proof_cert_mutation_census.md`
+- `reports/0045_first_proof_cert_mutation_completion_manifest.md`
+- `reports/0045_first_proof_cert_mutation_completion_manifest.json`
+- `reports/0045_first_proof_cert_mutation_final_missed.txt`
+- `reports/0045_first_proof_cert_mutation_final_timeout.txt`
+- `reports/0045_first_proof_cert_mutation_triage_register.md`
+- `reports/0045_first_proof_cert_command_transcripts/` compact command/status metadata
+
+The raw per-mutant build logs and diffs were retained only in the temporary evidence worktree during the run and intentionally not copied into the repository because they were approximately 700 MB. The committed transcript set contains command lines, metadata, environments, stdout/stderr, statuses, shard envs, and supervisor exit files; the completion manifest records the reconciled union proof and fingerprints.
+
+Verification:
+
+- `cargo fmt --all --check` at `9a071b6e32ebc5b6126645a9db257d453399c028`
+- `cargo clippy --workspace --all-targets -- -D warnings` at `9a071b6e32ebc5b6126645a9db257d453399c028`
+- `cargo build --workspace --all-targets --locked` at `9a071b6e32ebc5b6126645a9db257d453399c028`
+- `cargo test --workspace --locked` at `9a071b6e32ebc5b6126645a9db257d453399c028`
+- all named first-proof suite commands listed in this ticket at `9a071b6e32ebc5b6126645a9db257d453399c028`
+- `cargo mutants --workspace --no-shuffle --list-files`
+- `cargo mutants --workspace --no-shuffle --list`
+- eight `cargo mutants --workspace --no-shuffle --shard K/8 --jobs 2 --baseline=skip --timeout 183` shard runs under `tools/supervise-command.sh`
+- `python3 tools/merge-mutation-shards.py ... --expected-shards 8`
+- `wc -c reports/0045_first_proof_cert_mutation_final_missed.txt reports/0045_first_proof_cert_mutation_final_timeout.txt .cargo/mutants-baseline-misses.txt` reported all three files at 0 bytes

@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/tui_seam_conformance.rs (target/debug/deps/tui_seam_conformance-b1b70e3371b0f5c5)

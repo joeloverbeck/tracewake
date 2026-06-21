@@ -1,0 +1,6 @@
+
+running 2 tests
+test tui_seam_conformance_maps_tui_spine_requirements_to_named_tests ... ok
+test tui_epistemic_debug_uses_core_builder_not_raw_projection_storage ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

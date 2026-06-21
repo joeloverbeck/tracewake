@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/schema_conformance.rs (target/debug/deps/schema_conformance-ee205ba5b312c3a8)

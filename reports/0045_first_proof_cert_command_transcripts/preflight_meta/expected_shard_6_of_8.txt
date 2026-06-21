@@ -1,0 +1,363 @@
+crates/tracewake-core/src/epistemics/proposition.rs:267:13: delete match arm (Proposition::ItemCarriedByActor{item_id, actor_id}, Proposition::ItemMissingFromExpectedLocation{item_id:missing_item_id, expected_location:Location::CarriedBy(expected_actor_id),},) in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:259:45: replace && with || in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:259:26: replace == with != in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:259:61: replace == with != in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:266:45: replace && with || in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:266:26: replace == with != in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:266:57: replace == with != in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:273:45: replace && with || in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:273:26: replace == with != in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:273:57: replace == with != in Proposition::contradicts_one_way
+crates/tracewake-core/src/epistemics/proposition.rs:281:9: replace <impl fmt::Display for Proposition>::fmt -> fmt::Result with Ok(Default::default())
+crates/tracewake-core/src/epistemics/proposition.rs:289:9: replace <impl FromStr for Proposition>::from_str -> Result<Self, Self::Err> with Ok(Default::default())
+crates/tracewake-core/src/epistemics/proposition.rs:291:13: delete match arm ["item_located_in_container", item_id, container_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:297:13: delete match arm ["item_located_at_place", item_id, place_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:301:13: delete match arm ["item_carried_by_actor", item_id, actor_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:305:13: delete match arm ["container_contents_observed", container_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:310:13: delete match arm ["item_missing_from_expected_location", item_id, expected_location] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:316:13: delete match arm ["sound_heard_near_place", place_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:319:13: delete match arm ["possible_movement_near_place", place_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:322:13: delete match arm ["actor_was_near_place", actor_id, place_id] in <impl FromStr for Proposition>::from_str
+crates/tracewake-core/src/epistemics/proposition.rs:334:5: replace serialize_location -> String with String::new()
+crates/tracewake-core/src/epistemics/proposition.rs:334:5: replace serialize_location -> String with "xyzzy".into()
+crates/tracewake-core/src/epistemics/proposition.rs:344:5: replace deserialize_location -> Result<Location, PropositionParseError> with Ok(Default::default())
+crates/tracewake-core/src/epistemics/proposition.rs:349:9: delete match arm "at_place" in deserialize_location
+crates/tracewake-core/src/epistemics/proposition.rs:350:9: delete match arm "in_container" in deserialize_location
+crates/tracewake-core/src/epistemics/proposition.rs:351:9: delete match arm "carried_by" in deserialize_location
+crates/tracewake-core/src/epistemics/proposition.rs:357:5: replace render_location -> String with String::new()
+crates/tracewake-core/src/epistemics/proposition.rs:357:5: replace render_location -> String with "xyzzy".into()
+crates/tracewake-core/src/epistemics/proposition.rs:370:5: replace validate_location -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/epistemics/proposition.rs:381:5: replace require_actor -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/epistemics/proposition.rs:392:5: replace require_place -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/epistemics/proposition.rs:403:5: replace require_container -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/epistemics/proposition.rs:416:5: replace require_item -> Result<(), PropositionReferenceError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:48:5: replace apply_event_stream -> Result<ApplyOutcome, EventApplicationError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:48:21: replace != with == in apply_event_stream
+crates/tracewake-core/src/events/apply.rs:137:5: replace apply_event -> Result<ApplyOutcome, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:146:5: replace apply_event_with_capability -> Result<ApplyOutcome, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:146:8: delete ! in apply_event_with_capability
+crates/tracewake-core/src/events/apply.rs:152:21: replace != with == in apply_event_with_capability
+crates/tracewake-core/src/events/apply.rs:156:21: replace != with == in apply_event_with_capability
+crates/tracewake-core/src/events/apply.rs:160:42: replace && with || in apply_event_with_capability
+crates/tracewake-core/src/events/apply.rs:203:5: replace apply_epistemic_event -> Result<ApplyOutcome, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:203:8: delete ! in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:209:21: replace != with == in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:213:21: replace != with == in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:217:42: replace && with || in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:223:31: replace != with == in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:230:9: delete match arm EventKind::InitialBeliefSeeded | EventKind::BeliefUpdated in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:235:9: delete match arm EventKind::ObservationRecorded in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:241:9: delete match arm EventKind::RoleAssignmentNoticeRecorded in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:270:9: delete match arm EventKind::StartingBeliefRecorded in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:285:9: delete match arm EventKind::ExpectationContradicted in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:290:9: delete match arm EventKind::ContainerChecked in apply_epistemic_event
+crates/tracewake-core/src/events/apply.rs:299:5: replace apply_agent_event -> Result<ApplyOutcome, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:308:5: replace apply_agent_event_with_capability -> Result<ApplyOutcome, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:308:8: delete ! in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:314:21: replace != with == in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:318:21: replace != with == in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:322:42: replace && with || in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:328:9: delete match arm EventKind::NeedDeltaApplied in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:331:9: delete match arm EventKind::IntentionStarted in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:334:9: delete match arm EventKind::IntentionSuspended | EventKind::IntentionResumed | EventKind::IntentionCompleted | EventKind::IntentionFailed | EventKind::IntentionAbandoned | EventKind::IntentionInterrupted | EventKind::IntentionContinued in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:344:9: delete match arm EventKind::RoutineStepStarted | EventKind::RoutineStepCompleted | EventKind::RoutineStepFailed in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:350:9: delete match arm EventKind::DecisionTraceRecorded in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:378:9: delete match arm EventKind::StuckDiagnosticRecorded in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:408:9: delete match arm EventKind::NeedThresholdCrossed in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:460:9: delete match arm EventKind::SleepStarted | EventKind::SleepCompleted | EventKind::SleepInterrupted | EventKind::FoodServiceUsed | EventKind::EatFailed | EventKind::WorkBlockStarted | EventKind::WorkBlockCompleted | EventKind::WorkBlockFailed in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:492:9: delete match arm EventKind::CandidateGoalsEvaluated in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:509:9: delete match arm EventKind::ContinueRoutineProposed | EventKind::ContinueRoutineAccepted | EventKind::ContinueRoutineRejected in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:528:17: replace match guard AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) with true in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:528:17: replace match guard AGENT_WORLD_NOOP_ALLOWLIST.contains(&kind) with false in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:368:32: replace != with == in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:398:37: replace != with == in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:481:29: delete match arm EventCause::Event(event_id) in apply_agent_event_with_capability
+crates/tracewake-core/src/events/apply.rs:534:5: replace caused_event_ids -> Vec<EventId> with vec![]
+crates/tracewake-core/src/events/apply.rs:534:5: replace caused_event_ids -> Vec<EventId> with vec![Default::default()]
+crates/tracewake-core/src/events/apply.rs:538:13: delete match arm EventCause::Event(event_id) in caused_event_ids
+crates/tracewake-core/src/events/apply.rs:545:5: replace payload_fields -> Vec<(String, String)> with vec![]
+crates/tracewake-core/src/events/apply.rs:545:5: replace payload_fields -> Vec<(String, String)> with vec![(String::new(), String::new())]
+crates/tracewake-core/src/events/apply.rs:545:5: replace payload_fields -> Vec<(String, String)> with vec![(String::new(), "xyzzy".into())]
+crates/tracewake-core/src/events/apply.rs:545:5: replace payload_fields -> Vec<(String, String)> with vec![("xyzzy".into(), String::new())]
+crates/tracewake-core/src/events/apply.rs:545:5: replace payload_fields -> Vec<(String, String)> with vec![("xyzzy".into(), "xyzzy".into())]
+crates/tracewake-core/src/events/apply.rs:558:5: replace reject_duplicate_duration_terminal -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:558:8: delete ! in reject_duplicate_duration_terminal
+crates/tracewake-core/src/events/apply.rs:562:9: delete match arm EventCause::Event(event_id) in reject_duplicate_duration_terminal
+crates/tracewake-core/src/events/apply.rs:572:15: replace && with || in reject_duplicate_duration_terminal
+crates/tracewake-core/src/events/apply.rs:575:30: replace == with != in reject_duplicate_duration_terminal
+crates/tracewake-core/src/events/apply.rs:590:5: replace validate_typed_diagnostic_payload -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:596:19: replace != with == in validate_typed_diagnostic_payload
+crates/tracewake-core/src/events/apply.rs:609:19: replace != with == in validate_typed_diagnostic_payload
+crates/tracewake-core/src/events/apply.rs:618:13: delete match arm "true" in validate_typed_diagnostic_payload
+crates/tracewake-core/src/events/apply.rs:619:13: delete match arm "false" in validate_typed_diagnostic_payload
+crates/tracewake-core/src/events/apply.rs:627:19: replace != with == in validate_typed_diagnostic_payload
+crates/tracewake-core/src/events/apply.rs:640:23: replace != with == in validate_typed_diagnostic_payload
+crates/tracewake-core/src/events/apply.rs:652:5: replace payload_map -> BTreeMap<&str, &str> with BTreeMap::new()
+crates/tracewake-core/src/events/apply.rs:652:5: replace payload_map -> BTreeMap<&str, &str> with BTreeMap::from_iter([("", "")])
+crates/tracewake-core/src/events/apply.rs:652:5: replace payload_map -> BTreeMap<&str, &str> with BTreeMap::from_iter([("", "xyzzy")])
+crates/tracewake-core/src/events/apply.rs:652:5: replace payload_map -> BTreeMap<&str, &str> with BTreeMap::from_iter([("xyzzy", "")])
+crates/tracewake-core/src/events/apply.rs:652:5: replace payload_map -> BTreeMap<&str, &str> with BTreeMap::from_iter([("xyzzy", "xyzzy")])
+crates/tracewake-core/src/events/apply.rs:662:5: replace required -> Result<&'a str, ApplyError> with Ok("")
+crates/tracewake-core/src/events/apply.rs:662:5: replace required -> Result<&'a str, ApplyError> with Ok("xyzzy")
+crates/tracewake-core/src/events/apply.rs:673:5: replace require_payload_version -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:674:15: replace == with != in require_payload_version
+crates/tracewake-core/src/events/apply.rs:688:5: replace required_epistemic -> Result<&'a str, EpistemicApplyError> with Ok("")
+crates/tracewake-core/src/events/apply.rs:688:5: replace required_epistemic -> Result<&'a str, EpistemicApplyError> with Ok("xyzzy")
+crates/tracewake-core/src/events/apply.rs:698:5: replace parse_actor_id_epistemic -> Result<ActorId, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:709:5: replace parse_belief_id -> Result<BeliefId, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:720:5: replace parse_observation_id -> Result<ObservationId, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:731:5: replace parse_contradiction_id -> Result<ContradictionId, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:742:5: replace parse_place_id_epistemic -> Result<PlaceId, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:753:5: replace parse_event_id_epistemic -> Result<EventId, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:764:5: replace parse_tick -> Result<SimTick, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:778:5: replace parse_optional_tick -> Result<Option<SimTick>, EpistemicApplyError> with Ok(None)
+crates/tracewake-core/src/events/apply.rs:778:5: replace parse_optional_tick -> Result<Option<SimTick>, EpistemicApplyError> with Ok(Some(Default::default()))
+crates/tracewake-core/src/events/apply.rs:785:5: replace parse_confidence -> Result<Confidence, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:799:5: replace parse_stance -> Result<Stance, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:801:9: delete match arm "believes_true" in parse_stance
+crates/tracewake-core/src/events/apply.rs:802:9: delete match arm "believes_false" in parse_stance
+crates/tracewake-core/src/events/apply.rs:803:9: delete match arm "expects_true" in parse_stance
+crates/tracewake-core/src/events/apply.rs:804:9: delete match arm "plausible" in parse_stance
+crates/tracewake-core/src/events/apply.rs:805:9: delete match arm "doubts" in parse_stance
+crates/tracewake-core/src/events/apply.rs:806:9: delete match arm "unknown_or_unresolved" in parse_stance
+crates/tracewake-core/src/events/apply.rs:815:5: replace parse_channel -> Result<Channel, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:817:9: delete match arm "direct_sight" in parse_channel
+crates/tracewake-core/src/events/apply.rs:818:9: delete match arm "touch_or_search" in parse_channel
+crates/tracewake-core/src/events/apply.rs:819:9: delete match arm "simple_sound" in parse_channel
+crates/tracewake-core/src/events/apply.rs:820:9: delete match arm "absence_marker" in parse_channel
+crates/tracewake-core/src/events/apply.rs:821:9: delete match arm "reading_placeholder_schema_only" in parse_channel
+crates/tracewake-core/src/events/apply.rs:833:5: replace parse_proposition -> Result<Proposition, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:841:5: replace parse_belief_payload -> Result<Belief, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:873:5: replace parse_observation_ids -> Result<Vec<ObservationId>, EpistemicApplyError> with Ok(vec![])
+crates/tracewake-core/src/events/apply.rs:873:5: replace parse_observation_ids -> Result<Vec<ObservationId>, EpistemicApplyError> with Ok(vec![Default::default()])
+crates/tracewake-core/src/events/apply.rs:875:24: delete ! in parse_observation_ids
+crates/tracewake-core/src/events/apply.rs:886:5: replace parse_contradiction_ids -> Result<Vec<ContradictionId>, EpistemicApplyError> with Ok(vec![])
+crates/tracewake-core/src/events/apply.rs:886:5: replace parse_contradiction_ids -> Result<Vec<ContradictionId>, EpistemicApplyError> with Ok(vec![Default::default()])
+crates/tracewake-core/src/events/apply.rs:888:24: delete ! in parse_contradiction_ids
+crates/tracewake-core/src/events/apply.rs:901:5: replace parse_observation_payload -> Result<Observation, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:941:5: replace parse_alternatives -> std::collections::BTreeSet<String> with BTreeSet::new()
+crates/tracewake-core/src/events/apply.rs:941:5: replace parse_alternatives -> std::collections::BTreeSet<String> with BTreeSet::from_iter([String::new()])
+crates/tracewake-core/src/events/apply.rs:941:5: replace parse_alternatives -> std::collections::BTreeSet<String> with BTreeSet::from_iter(["xyzzy".into()])
+crates/tracewake-core/src/events/apply.rs:943:24: delete ! in parse_alternatives
+crates/tracewake-core/src/events/apply.rs:951:5: replace parse_contradiction_payload -> Result<Contradiction, EpistemicApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:964:5: replace parse_actor_id -> Result<ActorId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:975:5: replace parse_place_id -> Result<PlaceId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:983:5: replace parse_door_id -> Result<DoorId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:991:5: replace parse_container_id -> Result<ContainerId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:999:5: replace parse_item_id -> Result<ItemId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1007:5: replace parse_food_supply_id -> Result<FoodSupplyId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1018:5: replace parse_intention_id -> Result<IntentionId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1028:5: replace parse_routine_execution_id -> Result<RoutineExecutionId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1036:5: replace parse_need_kind -> Result<NeedKind, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1038:9: delete match arm "hunger" in parse_need_kind
+crates/tracewake-core/src/events/apply.rs:1039:9: delete match arm "fatigue" in parse_need_kind
+crates/tracewake-core/src/events/apply.rs:1040:9: delete match arm "safety" in parse_need_kind
+crates/tracewake-core/src/events/apply.rs:1049:5: replace parse_i32 -> Result<i32, ApplyError> with Ok(0)
+crates/tracewake-core/src/events/apply.rs:1049:5: replace parse_i32 -> Result<i32, ApplyError> with Ok(1)
+crates/tracewake-core/src/events/apply.rs:1049:5: replace parse_i32 -> Result<i32, ApplyError> with Ok(-1)
+crates/tracewake-core/src/events/apply.rs:1057:5: replace parse_u32 -> Result<u32, ApplyError> with Ok(0)
+crates/tracewake-core/src/events/apply.rs:1057:5: replace parse_u32 -> Result<u32, ApplyError> with Ok(1)
+crates/tracewake-core/src/events/apply.rs:1068:5: replace parse_action_id_for_agent -> Result<ActionId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1076:5: replace parse_need_change_cause -> Result<NeedChangeCause, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1078:9: delete match arm "fixture_initial" in parse_need_change_cause
+crates/tracewake-core/src/events/apply.rs:1079:9: delete match arm "tick_delta" in parse_need_change_cause
+crates/tracewake-core/src/events/apply.rs:1080:9: delete match arm "action_effect" in parse_need_change_cause
+crates/tracewake-core/src/events/apply.rs:1084:9: delete match arm "routine_effect" in parse_need_change_cause
+crates/tracewake-core/src/events/apply.rs:1095:5: replace parse_intention_status -> Result<IntentionStatus, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1097:9: delete match arm "active" in parse_intention_status
+crates/tracewake-core/src/events/apply.rs:1098:9: delete match arm "suspended" in parse_intention_status
+crates/tracewake-core/src/events/apply.rs:1099:9: delete match arm "completed" in parse_intention_status
+crates/tracewake-core/src/events/apply.rs:1100:9: delete match arm "failed" in parse_intention_status
+crates/tracewake-core/src/events/apply.rs:1101:9: delete match arm "abandoned" in parse_intention_status
+crates/tracewake-core/src/events/apply.rs:1102:9: delete match arm "interrupted" in parse_intention_status
+crates/tracewake-core/src/events/apply.rs:1111:5: replace parse_intention_source -> Result<IntentionSource, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1113:9: delete match arm "need_pressure" in parse_intention_source
+crates/tracewake-core/src/events/apply.rs:1114:9: delete match arm "routine_duty" in parse_intention_source
+crates/tracewake-core/src/events/apply.rs:1115:9: delete match arm "candidate_goal_selection" in parse_intention_source
+crates/tracewake-core/src/events/apply.rs:1116:9: delete match arm "safety_interruption" in parse_intention_source
+crates/tracewake-core/src/events/apply.rs:1117:9: delete match arm "fixture_routine_assignment" in parse_intention_source
+crates/tracewake-core/src/events/apply.rs:1118:9: delete match arm "fallback" in parse_intention_source
+crates/tracewake-core/src/events/apply.rs:1129:5: replace parse_candidate_goal_id -> Result<crate::ids::CandidateGoalId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1139:5: replace parse_decision_trace_id -> Result<crate::ids::DecisionTraceId, ApplyError> with Ok(Default::default())
+crates/tracewake-core/src/events/apply.rs:1149:5: replace parse_optional_routine_template_id -> Result<Option<crate::ids::RoutineTemplateId>, ApplyError> with Ok(None)
+crates/tracewake-core/src/events/apply.rs:1149:5: replace parse_optional_routine_template_id -> Result<Option<crate::ids::RoutineTemplateId>, ApplyError> with Ok(Some(Default::default()))
+crates/tracewake-core/src/events/apply.rs:1164:5: replace parse_u8 -> Result<u8, ApplyError> with Ok(0)
+crates/tracewake-core/src/events/apply.rs:1164:5: replace parse_u8 -> Result<u8, ApplyError> with Ok(1)
+crates/tracewake-core/src/events/apply.rs:1172:5: replace parse_u64_agent -> Result<u64, ApplyError> with Ok(0)
+crates/tracewake-core/src/events/apply.rs:1172:5: replace parse_u64_agent -> Result<u64, ApplyError> with Ok(1)
+crates/tracewake-core/src/events/apply.rs:1184:5: replace apply_need_delta -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1216:5: replace assert_single_tick_delta_charge -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1222:22: replace == with != in assert_single_tick_delta_charge
+crates/tracewake-core/src/events/apply.rs:1228:8: delete ! in assert_single_tick_delta_charge
+crates/tracewake-core/src/events/apply.rs:1240:12: delete ! in assert_single_tick_delta_charge
+crates/tracewake-core/src/events/apply.rs:1255:5: replace apply_intention_started -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1258:15: replace != with == in apply_intention_started
+crates/tracewake-core/src/events/apply.rs:1290:5: replace apply_intention_transition -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1299:9: delete match arm EventKind::IntentionContinued | EventKind::IntentionResumed in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1300:9: delete match arm EventKind::IntentionSuspended in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1301:9: delete match arm EventKind::IntentionCompleted in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1302:9: delete match arm EventKind::IntentionFailed in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1303:9: delete match arm EventKind::IntentionAbandoned in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1304:9: delete match arm EventKind::IntentionInterrupted in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1307:15: replace != with == in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1316:9: delete match arm EventKind::IntentionContinued in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1330:9: delete match arm EventKind::IntentionResumed in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1338:9: delete match arm EventKind::IntentionSuspended in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1346:9: delete match arm EventKind::IntentionCompleted in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1354:9: delete match arm EventKind::IntentionFailed in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1362:9: delete match arm EventKind::IntentionAbandoned in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1370:9: delete match arm EventKind::IntentionInterrupted in apply_intention_transition
+crates/tracewake-core/src/events/apply.rs:1388:5: replace apply_routine_step_transition -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1402:9: delete match arm EventKind::RoutineStepStarted in apply_routine_step_transition
+crates/tracewake-core/src/events/apply.rs:1412:9: delete match arm EventKind::RoutineStepCompleted in apply_routine_step_transition
+crates/tracewake-core/src/events/apply.rs:1413:9: delete match arm EventKind::RoutineStepFailed in apply_routine_step_transition
+crates/tracewake-core/src/events/apply.rs:1427:19: replace == with != in apply_routine_step_transition
+crates/tracewake-core/src/events/apply.rs:1438:5: replace expect_bool -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1440:9: delete match arm "true" in expect_bool
+crates/tracewake-core/src/events/apply.rs:1441:9: delete match arm "false" in expect_bool
+crates/tracewake-core/src/events/apply.rs:1449:15: replace == with != in expect_bool
+crates/tracewake-core/src/events/apply.rs:1464:5: replace apply_actor_moved -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1468:8: delete ! in apply_actor_moved
+crates/tracewake-core/src/events/apply.rs:1471:8: delete ! in apply_actor_moved
+crates/tracewake-core/src/events/apply.rs:1479:31: replace != with == in apply_actor_moved
+crates/tracewake-core/src/events/apply.rs:1503:5: replace apply_door_open_state -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1510:21: replace != with == in apply_door_open_state
+crates/tracewake-core/src/events/apply.rs:1527:5: replace apply_container_open_state -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1534:26: replace != with == in apply_container_open_state
+crates/tracewake-core/src/events/apply.rs:1549:5: replace apply_item_taken_from_place -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1576:5: replace apply_item_removed_from_container -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1586:8: delete ! in apply_item_removed_from_container
+crates/tracewake-core/src/events/apply.rs:1611:5: replace apply_item_placed_in_place -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1616:8: delete ! in apply_item_placed_in_place
+crates/tracewake-core/src/events/apply.rs:1640:5: replace apply_item_placed_in_container -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1645:8: delete ! in apply_item_placed_in_container
+crates/tracewake-core/src/events/apply.rs:1669:5: replace apply_food_consumed -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1673:58: replace != with == in apply_food_consumed
+crates/tracewake-core/src/events/apply.rs:1687:22: replace != with == in apply_food_consumed
+crates/tracewake-core/src/events/apply.rs:1699:5: replace require_actor -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1711:5: replace require_item_location -> Result<(), ApplyError> with Ok(())
+crates/tracewake-core/src/events/apply.rs:1715:22: replace == with != in require_item_location
+crates/tracewake-core/src/events/envelope.rs:34:9: replace EventSchemaVersion::all -> &'static[EventSchemaVersion] with Vec::leak(Vec::new())
+crates/tracewake-core/src/events/envelope.rs:34:9: replace EventSchemaVersion::all -> &'static[EventSchemaVersion] with Vec::leak(vec![Default::default()])
+crates/tracewake-core/src/events/envelope.rs:38:9: replace EventSchemaVersion::as_str -> &'static str with ""
+crates/tracewake-core/src/events/envelope.rs:38:9: replace EventSchemaVersion::as_str -> &'static str with "xyzzy"
+crates/tracewake-core/src/events/envelope.rs:44:9: replace EventSchemaVersion::to_schema_version -> SchemaVersion with Default::default()
+crates/tracewake-core/src/events/envelope.rs:48:9: replace EventSchemaVersion::from_schema_version -> Option<Self> with None
+crates/tracewake-core/src/events/envelope.rs:48:9: replace EventSchemaVersion::from_schema_version -> Option<Self> with Some(Default::default())
+crates/tracewake-core/src/events/envelope.rs:50:50: replace == with != in EventSchemaVersion::from_schema_version
+crates/tracewake-core/src/events/envelope.rs:56:5: replace event_schema_registry -> &'static[EventSchemaRegistryEntry] with Vec::leak(Vec::new())
+crates/tracewake-core/src/events/envelope.rs:56:5: replace event_schema_registry -> &'static[EventSchemaRegistryEntry] with Vec::leak(vec![Default::default()])
+crates/tracewake-core/src/events/envelope.rs:62:5: replace event_schema_registry_entry -> Option<&'static EventSchemaRegistryEntry> with None
+crates/tracewake-core/src/events/envelope.rs:62:5: replace event_schema_registry_entry -> Option<&'static EventSchemaRegistryEntry> with Some(Box::leak(Box::new(Default::default())))
+crates/tracewake-core/src/events/envelope.rs:64:46: replace == with != in event_schema_registry_entry
+crates/tracewake-core/src/events/envelope.rs:139:9: replace EventKind::all -> &'static[EventKind] with Vec::leak(Vec::new())
+crates/tracewake-core/src/events/envelope.rs:139:9: replace EventKind::all -> &'static[EventKind] with Vec::leak(vec![Default::default()])
+crates/tracewake-core/src/events/envelope.rs:200:9: replace EventKind::registry -> Vec<EventKindMetadata> with vec![]
+crates/tracewake-core/src/events/envelope.rs:200:9: replace EventKind::registry -> Vec<EventKindMetadata> with vec![Default::default()]
+crates/tracewake-core/src/events/envelope.rs:204:9: replace EventKind::metadata -> EventKindMetadata with Default::default()
+crates/tracewake-core/src/events/envelope.rs:215:9: replace EventKind::stream -> EventStream with Default::default()
+crates/tracewake-core/src/events/envelope.rs:277:9: replace EventKind::physical_mutating -> bool with true
+crates/tracewake-core/src/events/envelope.rs:277:9: replace EventKind::physical_mutating -> bool with false
+crates/tracewake-core/src/events/envelope.rs:295:9: replace EventKind::stable_id -> &'static str with ""
+crates/tracewake-core/src/events/envelope.rs:295:9: replace EventKind::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/events/envelope.rs:356:9: replace EventKind::from_stable_id -> Option<Self> with None
+crates/tracewake-core/src/events/envelope.rs:356:9: replace EventKind::from_stable_id -> Option<Self> with Some(Default::default())
+crates/tracewake-core/src/events/envelope.rs:359:43: replace == with != in EventKind::from_stable_id
+crates/tracewake-core/src/events/envelope.rs:364:5: replace is_duration_terminal -> bool with true
+crates/tracewake-core/src/events/envelope.rs:364:5: replace is_duration_terminal -> bool with false
+crates/tracewake-core/src/events/envelope.rs:426:9: replace EventKind::requires_cause -> bool with true
+crates/tracewake-core/src/events/envelope.rs:426:9: replace EventKind::requires_cause -> bool with false
+crates/tracewake-core/src/events/envelope.rs:430:9: replace EventKind::cause_required -> bool with true
+crates/tracewake-core/src/events/envelope.rs:430:9: replace EventKind::cause_required -> bool with false
+crates/tracewake-core/src/events/envelope.rs:511:9: replace EventReplayHandling::for_stream -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:529:9: replace InitialBeliefSourceKind::stable_id -> &'static str with ""
+crates/tracewake-core/src/events/envelope.rs:529:9: replace InitialBeliefSourceKind::stable_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/events/envelope.rs:544:9: replace InitialBeliefSeededPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:563:9: replace RoleAssignmentNoticeRecordedPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:590:9: replace StartingBeliefRecordedPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:609:9: replace ObservationRecordedPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:624:9: replace BeliefUpdatedPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:639:9: replace ExpectationContradictedPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:662:9: replace ContainerCheckedPayload::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:749:9: replace EventEnvelope::new_v1 -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:773:9: replace EventEnvelope::has_supported_schema_version -> bool with true
+crates/tracewake-core/src/events/envelope.rs:773:9: replace EventEnvelope::has_supported_schema_version -> bool with false
+crates/tracewake-core/src/events/envelope.rs:787:9: replace EventEnvelope::new_caused_v1 -> Result<Self, EventEnvelopeBuildError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:787:40: replace && with || in EventEnvelope::new_caused_v1
+crates/tracewake-core/src/events/envelope.rs:805:9: replace EventEnvelope::serialize_canonical -> Vec<u8> with vec![]
+crates/tracewake-core/src/events/envelope.rs:805:9: replace EventEnvelope::serialize_canonical -> Vec<u8> with vec![0]
+crates/tracewake-core/src/events/envelope.rs:805:9: replace EventEnvelope::serialize_canonical -> Vec<u8> with vec![1]
+crates/tracewake-core/src/events/envelope.rs:885:9: replace EventEnvelope::deserialize_canonical -> Result<Self, EventEnvelopeParseError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:979:9: replace <impl From<crate::ids::IdError> for EventEnvelopeParseError>::from -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:985:9: replace <impl From<std::num::ParseIntError> for EventEnvelopeParseError>::from -> Self with Default::default()
+crates/tracewake-core/src/events/envelope.rs:993:5: replace required -> Result<&'a str, EventEnvelopeParseError> with Ok("")
+crates/tracewake-core/src/events/envelope.rs:993:5: replace required -> Result<&'a str, EventEnvelopeParseError> with Ok("xyzzy")
+crates/tracewake-core/src/events/envelope.rs:999:5: replace stream_id -> &'static str with ""
+crates/tracewake-core/src/events/envelope.rs:999:5: replace stream_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/events/envelope.rs:1010:5: replace stream_from_id -> Option<EventStream> with None
+crates/tracewake-core/src/events/envelope.rs:1010:5: replace stream_from_id -> Option<EventStream> with Some(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1011:9: delete match arm "world" in stream_from_id
+crates/tracewake-core/src/events/envelope.rs:1012:9: delete match arm "agent" in stream_from_id
+crates/tracewake-core/src/events/envelope.rs:1013:9: delete match arm "epistemic" in stream_from_id
+crates/tracewake-core/src/events/envelope.rs:1014:9: delete match arm "diagnostic" in stream_from_id
+crates/tracewake-core/src/events/envelope.rs:1015:9: delete match arm "controller" in stream_from_id
+crates/tracewake-core/src/events/envelope.rs:1016:9: delete match arm "replay_debug" in stream_from_id
+crates/tracewake-core/src/events/envelope.rs:1022:5: replace serialize_ordering_key -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1022:5: replace serialize_ordering_key -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1038:5: replace deserialize_ordering_key -> Result<OrderingKey, EventEnvelopeParseError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1042:20: replace != with == in deserialize_ordering_key
+crates/tracewake-core/src/events/envelope.rs:1062:5: replace schedule_phase_id -> &'static str with ""
+crates/tracewake-core/src/events/envelope.rs:1062:5: replace schedule_phase_id -> &'static str with "xyzzy"
+crates/tracewake-core/src/events/envelope.rs:1071:5: replace schedule_phase_from_id -> Option<SchedulePhase> with None
+crates/tracewake-core/src/events/envelope.rs:1071:5: replace schedule_phase_from_id -> Option<SchedulePhase> with Some(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1072:9: delete match arm "human_command" in schedule_phase_from_id
+crates/tracewake-core/src/events/envelope.rs:1073:9: delete match arm "no_human_process" in schedule_phase_from_id
+crates/tracewake-core/src/events/envelope.rs:1074:9: delete match arm "deferred_process" in schedule_phase_from_id
+crates/tracewake-core/src/events/envelope.rs:1075:9: delete match arm "replay" in schedule_phase_from_id
+crates/tracewake-core/src/events/envelope.rs:1081:5: replace serialize_source_id -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1081:5: replace serialize_source_id -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1089:5: replace deserialize_source_id -> Result<SchedulerSourceId, EventEnvelopeParseError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1093:9: delete match arm "actor" in deserialize_source_id
+crates/tracewake-core/src/events/envelope.rs:1094:9: delete match arm "controller" in deserialize_source_id
+crates/tracewake-core/src/events/envelope.rs:1095:9: delete match arm "process" in deserialize_source_id
+crates/tracewake-core/src/events/envelope.rs:1101:5: replace serialize_cause -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1101:5: replace serialize_cause -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1110:5: replace deserialize_cause -> Result<EventCause, EventEnvelopeParseError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1114:9: delete match arm "event" in deserialize_cause
+crates/tracewake-core/src/events/envelope.rs:1115:9: delete match arm "proposal" in deserialize_cause
+crates/tracewake-core/src/events/envelope.rs:1116:9: delete match arm "validation_report" in deserialize_cause
+crates/tracewake-core/src/events/envelope.rs:1119:9: delete match arm "process" in deserialize_cause
+crates/tracewake-core/src/events/envelope.rs:1125:5: replace serialize_random_draw -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1125:5: replace serialize_random_draw -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1133:5: replace deserialize_random_draw -> Result<RandomDrawRef, EventEnvelopeParseError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1137:20: replace != with == in deserialize_random_draw
+crates/tracewake-core/src/events/envelope.rs:1144:5: replace serialize_payload -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1144:5: replace serialize_payload -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1148:5: replace deserialize_payload -> Result<PayloadField, EventEnvelopeParseError> with Ok(Default::default())
+crates/tracewake-core/src/events/envelope.rs:1155:5: replace encode_opt -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1155:5: replace encode_opt -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1159:5: replace decode_opt -> Result<Option<String>, EventEnvelopeParseError> with Ok(None)
+crates/tracewake-core/src/events/envelope.rs:1159:5: replace decode_opt -> Result<Option<String>, EventEnvelopeParseError> with Ok(Some(String::new()))
+crates/tracewake-core/src/events/envelope.rs:1159:5: replace decode_opt -> Result<Option<String>, EventEnvelopeParseError> with Ok(Some("xyzzy".into()))
+crates/tracewake-core/src/events/envelope.rs:1167:5: replace encode_vec -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1167:5: replace encode_vec -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1175:5: replace decode_vec -> Result<Vec<String>, EventEnvelopeParseError> with Ok(vec![])
+crates/tracewake-core/src/events/envelope.rs:1175:5: replace decode_vec -> Result<Vec<String>, EventEnvelopeParseError> with Ok(vec![String::new()])
+crates/tracewake-core/src/events/envelope.rs:1175:5: replace decode_vec -> Result<Vec<String>, EventEnvelopeParseError> with Ok(vec!["xyzzy".into()])
+crates/tracewake-core/src/events/envelope.rs:1183:5: replace encode -> String with String::new()
+crates/tracewake-core/src/events/envelope.rs:1183:5: replace encode -> String with "xyzzy".into()
+crates/tracewake-core/src/events/envelope.rs:1191:5: replace decode -> Result<String, EventEnvelopeParseError> with Ok(String::new())
+crates/tracewake-core/src/events/envelope.rs:1191:5: replace decode -> Result<String, EventEnvelopeParseError> with Ok("xyzzy".into())
+crates/tracewake-core/src/events/envelope.rs:1191:8: delete ! in decode
+crates/tracewake-core/src/events/log.rs:24:9: replace EventLog::append -> Result<EventEnvelope, EventLogError> with Ok(Default::default())
+crates/tracewake-core/src/events/log.rs:24:12: delete ! in EventLog::append
+crates/tracewake-core/src/events/log.rs:34:48: replace == with != in EventLog::append
+crates/tracewake-core/src/events/log.rs:44:9: replace EventLog::append_deserialized -> Result<EventEnvelope, EventLogError> with Ok(Default::default())
+crates/tracewake-core/src/events/log.rs:44:12: delete ! in EventLog::append_deserialized
+crates/tracewake-core/src/events/log.rs:50:31: replace != with == in EventLog::append_deserialized
+crates/tracewake-core/src/events/log.rs:59:48: replace == with != in EventLog::append_deserialized
+crates/tracewake-core/src/events/log.rs:61:34: replace != with == in EventLog::append_deserialized
+crates/tracewake-core/src/events/log.rs:72:9: replace EventLog::events -> &[EventEnvelope] with Vec::leak(Vec::new())
+crates/tracewake-core/src/events/log.rs:72:9: replace EventLog::events -> &[EventEnvelope] with Vec::leak(vec![Default::default()])
+crates/tracewake-core/src/events/log.rs:81:9: replace EventLog::serialize_canonical -> Vec<u8> with vec![]
+crates/tracewake-core/src/events/log.rs:81:9: replace EventLog::serialize_canonical -> Vec<u8> with vec![0]

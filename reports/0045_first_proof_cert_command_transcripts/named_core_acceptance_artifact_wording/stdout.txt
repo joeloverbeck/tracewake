@@ -1,0 +1,10 @@
+
+running 6 tests
+test acceptance_artifact_forbidden_overclaim_phrase_fails ... ok
+test acceptance_artifact_missing_scoped_phrase_fails ... ok
+test acceptance_artifact_template_requires_scoped_exact_commit_wording ... ok
+test phase2a_acceptance_artifact_uses_scoped_exact_commit_wording ... ok
+test p0_cert_0037_acceptance_artifact_uses_scoped_exact_commit_wording ... ok
+test spine_cert_0039_acceptance_artifact_uses_scoped_exact_commit_wording ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

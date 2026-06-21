@@ -1,0 +1,145 @@
+{
+  "aggregate": {
+    "caught": 2277,
+    "count_equation": true,
+    "identity_mode": "display-name",
+    "missed": 0,
+    "pairwise_disjoint": true,
+    "pass": true,
+    "timeout": 0,
+    "union_equals_canonical": true,
+    "unviable": 624
+  },
+  "canonical_count": 2901,
+  "canonical_fingerprint": "c4bf4c6ae9d0184e6b3328db79218bf04e9c7ff1db0e7fd41a872c4627255425",
+  "canonical_identity_mode": "display-name",
+  "certification_disposition": "complete-union",
+  "final_sha": "9a071b6e32ebc5b6126645a9db257d453399c028",
+  "merger": {
+    "command": "tools/merge-mutation-shards.py",
+    "version": "0045FIRPROCER-003"
+  },
+  "shard_total": 8,
+  "shards": [
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "8e1afe093de25bd3b5d6bc933c8952003ceea437c95baef2cc97d07be5cd74e1",
+      "counts": {
+        "caught": 322,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 41
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_0_of_8",
+      "index": "0",
+      "outcome_count": 363,
+      "outcome_fingerprint": "8e1afe093de25bd3b5d6bc933c8952003ceea437c95baef2cc97d07be5cd74e1",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "777e734b62508daf30b7030dc8e96491d174c98bfd8abf4ce15c797d74f07f59",
+      "counts": {
+        "caught": 291,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 72
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_1_of_8",
+      "index": "1",
+      "outcome_count": 363,
+      "outcome_fingerprint": "777e734b62508daf30b7030dc8e96491d174c98bfd8abf4ce15c797d74f07f59",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "2caddb75869b8b75fe4d74bbe0c7166a561dc815355fafcb12e94f4481298386",
+      "counts": {
+        "caught": 277,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 86
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_2_of_8",
+      "index": "2",
+      "outcome_count": 363,
+      "outcome_fingerprint": "2caddb75869b8b75fe4d74bbe0c7166a561dc815355fafcb12e94f4481298386",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "88d04270591550abc6c4278d845e1aea7c194aa6f40ea5ba129a6335bc1d96fc",
+      "counts": {
+        "caught": 277,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 86
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_3_of_8",
+      "index": "3",
+      "outcome_count": 363,
+      "outcome_fingerprint": "88d04270591550abc6c4278d845e1aea7c194aa6f40ea5ba129a6335bc1d96fc",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "236254d5053dab303db95cfea635a68c9eba72161597fdca4899c54e768ec657",
+      "counts": {
+        "caught": 290,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 73
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_4_of_8",
+      "index": "4",
+      "outcome_count": 363,
+      "outcome_fingerprint": "236254d5053dab303db95cfea635a68c9eba72161597fdca4899c54e768ec657",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "b8caf7078e282232814decadf40302dba6d84baaaca53ac14c89bc888a79c6b0",
+      "counts": {
+        "caught": 250,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 113
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_5_of_8",
+      "index": "5",
+      "outcome_count": 363,
+      "outcome_fingerprint": "b8caf7078e282232814decadf40302dba6d84baaaca53ac14c89bc888a79c6b0",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 363,
+      "assigned_fingerprint": "a9b3b7a1c724294081dccf92b1d820c5a95fa09cdcacc01f88a4a68e14cd50fc",
+      "counts": {
+        "caught": 284,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 79
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_6_of_8",
+      "index": "6",
+      "outcome_count": 363,
+      "outcome_fingerprint": "a9b3b7a1c724294081dccf92b1d820c5a95fa09cdcacc01f88a4a68e14cd50fc",
+      "supervisor_result": "child_exit_0"
+    },
+    {
+      "assigned_count": 360,
+      "assigned_fingerprint": "b413c9d3a42bd57648a3770c8d376a1b96dc44a093c840d08cb92eec23aa91d2",
+      "counts": {
+        "caught": 286,
+        "missed": 0,
+        "timeout": 0,
+        "unviable": 74
+      },
+      "dir": "reports/0045_first_proof_cert_command_transcripts/mutation_shard_7_of_8",
+      "index": "7",
+      "outcome_count": 360,
+      "outcome_fingerprint": "b413c9d3a42bd57648a3770c8d376a1b96dc44a093c840d08cb92eec23aa91d2",
+      "supervisor_result": "child_exit_0"
+    }
+  ]
+}

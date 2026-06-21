@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/generative_lock.rs (target/debug/deps/generative_lock-09150f468fc8e1f3)

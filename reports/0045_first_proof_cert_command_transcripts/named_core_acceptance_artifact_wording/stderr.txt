@@ -1,0 +1,2 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/acceptance_artifact_wording.rs (target/debug/deps/acceptance_artifact_wording-97b23da759a1271d)
