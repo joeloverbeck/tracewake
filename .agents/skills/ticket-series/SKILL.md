@@ -90,6 +90,11 @@ For each ticket:
    incomplete run into a pass. Deterministic reruns or narrower variants may be
    useful supplemental evidence, but they do not replace the exact required
    command unless the ticket/spec explicitly allows that substitution.
+   For filtered mutation campaigns, verify the selected denominator before the
+   expensive run. Repository mutation config can widen or override CLI filters;
+   run the corresponding `--list` or `--list-files` command with the same
+   selection flags, record the expected count/scope in the ticket or report,
+   and make any deliberate `--no-config` or config override explicit.
 5. Update the ticket with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
    The archived ticket outcome must use the canonical heading and completion
