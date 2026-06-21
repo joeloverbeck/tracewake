@@ -76,8 +76,8 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-core --test acceptance_gates --test anti_regression_guards --test ci_workflow_guards --test doc_invariant_references --test spine_conformance` | pass | Exit 0; ran the five named core tests with 12, 85, 1, 4, and 6 passing tests respectively. |
 | `cargo test --locked -p tracewake-content --test fixtures_load` | pass | Exit 0; 34 passed, 0 failed. |
 | `cargo test --locked -p tracewake-tui --test tui_seam_conformance` | pass | Exit 0; 2 passed, 0 failed. |
-| `cargo mutants --workspace --no-shuffle --list-files` | pass | Exit 0; 60 protected files listed. |
-| `cargo mutants --workspace --no-shuffle --list` | pass | Exit 0; 2,878 mutant rows listed. Full mutation execution is owned by `0044FIRPROCER-018`. |
+| `cargo mutants --workspace --no-shuffle --list-files` | pass | Exit 0; 62 protected files listed after the `0044FIRPROCER-018` make-honest mutation perimeter edit. |
+| `cargo mutants --workspace --no-shuffle --list` | pass | Exit 0; 2,901 mutant rows listed. Full mutation execution is owned by `0044FIRPROCER-018`. |
 | `cargo test --locked -p tracewake-core --test golden_scenarios` | pass | Exit 0; 16 passed, 0 failed. FIRST-PROOF-02 witness command. |
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-02 witness command. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-02 witness command. |
@@ -194,8 +194,8 @@ checksums, and responsible layers under their point sections.
 | Content integration tests | 4 named content integration tests plus committed golden data | Test sources are fingerprinted; content production carriers are mutation targets | `FIRST-PROOF-01`, `FIRST-PROOF-03`, `FIRST-PROOF-06`, `FIRST-PROOF-11`, `FIRST-PROOF-15` | Workspace and named `fixtures_load` test passed. |
 | TUI integration tests | 7 named TUI integration tests | Test sources are fingerprinted; TUI production carriers are mutation targets | `FIRST-PROOF-01`, `FIRST-PROOF-02`, `FIRST-PROOF-08`, `FIRST-PROOF-14`, `FIRST-PROOF-17` | Workspace and named `tui_seam_conformance` test passed. |
 | Negative fixtures | compile-fail and banned-API fixture tree | Fixture/test boundary, not production mutation target | `FIRST-PROOF-03`, `FIRST-PROOF-05`, `FIRST-PROOF-11` | Fingerprints captured; workspace tests passed. |
-| Production mutation file census | 60 files from `cargo mutants --workspace --no-shuffle --list-files` | Included in checked-in mutation perimeter | `FIRST-PROOF-01`, `FIRST-PROOF-18` | Census captured; full execution deferred to `0044FIRPROCER-018`. |
-| Mutation row census | 2,878 rows from `cargo mutants --workspace --no-shuffle --list` | Candidate mutants for standing perimeter | `FIRST-PROOF-18` | Census captured; survivor outcome not claimed here. |
+| Production mutation file census | 62 files from `cargo mutants --workspace --no-shuffle --list-files` | Included in checked-in mutation perimeter | `FIRST-PROOF-01`, `FIRST-PROOF-18` | Census captured; full execution deferred to `0044FIRPROCER-018`. |
+| Mutation row census | 2,901 rows from `cargo mutants --workspace --no-shuffle --list` | Candidate mutants for standing perimeter | `FIRST-PROOF-18` | Census captured; survivor outcome not claimed here. |
 
 Cross-crate dependency direction is mechanically guarded by
 `crates/tracewake-core/tests/anti_regression_guards.rs::workspace_dependency_posture_matches_allowlist`
@@ -1626,9 +1626,25 @@ outside the commands already listed.
 
 ## Command And Mutation Package
 
-The command ledger above is the current package for `0044FIRPROCER-001`.
-Mutation execution, output directories, survivor triage, and replacement verdict
-posture are owned by `0044FIRPROCER-018` and the capstone ticket.
+`0044FIRPROCER-018` produced the mutation census and triage package.
+
+| Package item | Result | Evidence |
+|---|---|---|
+| Standing perimeter census | pass | `reports/0044_first_proof_cert_mutation_list_files.txt` lists 62 files; `reports/0044_first_proof_cert_mutation_list.txt` lists 2,901 mutants. |
+| Standing perimeter campaign | blocking incomplete | `reports/0044_first_proof_cert_mutation_full.supervisor/status.env` records `supervisor_result=wrapper_wall_timeout`, `exit_status=124`; partial outcomes: 1,869 caught, 515 unviable, 0 missed, 0 mutant-level timeouts, 2,384 classified of 2,901. |
+| Focused FIRST-PROOF campaign | pass | `reports/0044_first_proof_cert_mutation_focused.supervisor/status.env` records `supervisor_result=child_exit_0`; 719 mutants tested in 30m: 600 caught, 119 unviable, 0 missed, 0 timeouts. |
+| Triage register | blocking incomplete standing wave | `reports/0044_first_proof_cert_mutation_triage_register.md` records every focused non-caught outcome by stable line identity and classifies the standing wall timeout as certification-blocking. |
+
+The focused campaign required `--no-config` because the checked-in
+`.cargo/mutants.toml` `examine_globs` unioned with command-line `-f` filters and
+kept the focused list at 2,901 mutants. The invalid attempt was preserved under
+`reports/0044_first_proof_cert_mutation_focused.invalid_filter.*`; the corrected
+run used `--no-config --workspace --test-workspace true -C --locked` with the
+seven-file `-f` list and confirmed `Found 719 mutants to test`.
+
+Mutation posture: no actionable survivors were observed, but
+`FIRST-PROOF-CERT` remains blocked because the standing perimeter campaign did
+not complete.
 
 ## Staged-Abstraction Declaration
 

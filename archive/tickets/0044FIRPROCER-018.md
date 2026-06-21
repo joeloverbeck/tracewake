@@ -1,6 +1,6 @@
 # 0044FIRPROCER-018: §10 mutation posture — census, standing perimeter, focused FIRST-PROOF wave, and survivor triage register
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes (conditional) — modifies `.cargo/mutants.toml` only if the `--list-files` census shows a §10.2 minimum-union file is absent from `examine_globs`; otherwise None. Creates mutation output artifacts + survivor triage register. A configuration change becomes part of `U` (spec §10.1).
@@ -80,3 +80,37 @@ Run the complete checked-in perimeter (`cargo mutants --workspace --no-shuffle -
 2. `cargo mutants --workspace --no-shuffle --list > reports/0044_first_proof_cert_mutation_list.txt`
 3. `tools/supervise-command.sh cargo mutants --workspace --no-shuffle -o reports/0044_first_proof_cert_mutation_full.out`
 4. `tools/supervise-command.sh cargo mutants --workspace --no-shuffle -f 'crates/tracewake-core/src/epistemics/contradiction.rs' -f 'crates/tracewake-core/src/epistemics/projection.rs' -f 'crates/tracewake-core/src/agent/perception.rs' -f 'crates/tracewake-core/src/actions/defs/checkcontainer.rs' -f 'crates/tracewake-core/src/events/apply.rs' -f 'crates/tracewake-core/src/replay/rebuild.rs' -f 'crates/tracewake-content/src/validate.rs' -o reports/0044_first_proof_cert_mutation_focused.out`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Implemented the make-honest perimeter option for the two reassessed §10.2
+standing-census gaps by adding `crates/tracewake-core/src/time.rs` and
+`crates/tracewake-core/src/actions/defs/checkcontainer.rs` to
+`.cargo/mutants.toml`.
+
+Evidence produced:
+
+- `cargo mutants --workspace --no-shuffle --list-files > reports/0044_first_proof_cert_mutation_list_files.txt`
+  - Exit 0; 62 files.
+- `cargo mutants --workspace --no-shuffle --list > reports/0044_first_proof_cert_mutation_list.txt`
+  - Exit 0; 2901 mutant rows.
+- `tools/supervise-command.sh reports/0044_first_proof_cert_mutation_full.supervisor 7200 30 -- cargo mutants --workspace --no-shuffle -o reports/0044_first_proof_cert_mutation_full.out`
+  - Exit 124; `supervisor_result=wrapper_wall_timeout`.
+  - Baseline passed (`21s build + 36s test`).
+  - Partial classified outcomes: 1869 caught, 515 unviable, 0 missed, 0 timeout, 2384 total of 2901.
+  - Blocking: standing perimeter campaign incomplete.
+- Initial focused command with checked-in config was stopped and preserved under
+  `reports/0044_first_proof_cert_mutation_focused.invalid_filter.*` because the
+  config `examine_globs` unioned with `-f` filters and still listed 2901 mutants.
+- Corrected focused command:
+  `tools/supervise-command.sh reports/0044_first_proof_cert_mutation_focused.supervisor 7200 30 -- cargo mutants --no-config --workspace --test-workspace true -C --locked --no-shuffle -f crates/tracewake-core/src/epistemics/contradiction.rs -f crates/tracewake-core/src/epistemics/projection.rs -f crates/tracewake-core/src/agent/perception.rs -f crates/tracewake-core/src/actions/defs/checkcontainer.rs -f crates/tracewake-core/src/events/apply.rs -f crates/tracewake-core/src/replay/rebuild.rs -f crates/tracewake-content/src/validate.rs -o reports/0044_first_proof_cert_mutation_focused.out`
+  - Exit 0; `supervisor_result=child_exit_0`.
+  - Baseline passed (`9s build + 29s test`).
+  - 719 mutants tested in 30m: 600 caught, 119 unviable, 0 missed, 0 timeout.
+
+Created `reports/0044_first_proof_cert_mutation_triage_register.md` and updated
+the shared acceptance artifact's Command And Mutation Package. No actionable
+survivor was observed. `FIRST-PROOF-CERT` remains blocked by the incomplete
+standing perimeter campaign, not by a focused-wave survivor.
