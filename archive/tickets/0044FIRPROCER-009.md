@@ -1,6 +1,6 @@
 # 0044FIRPROCER-009: FIRST-PROOF-09 — no-human ordinary-life and no-direct-dispatch participation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -76,3 +76,22 @@ Record the §7 adversarial cases: the scheduler cannot dispatch a primitive acti
 4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 6. `cargo test --locked -p tracewake-tui --test tui_acceptance`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-09 in the shared acceptance artifact as passed for its
+no-human ordinary-life and no-direct-dispatch scope. The evidence packet now
+includes command-ledger rows, gate/scenario references, a FIRST-PROOF-09 audit
+section, and two evidence ledger items: `E-0044-009-no-human-progress` and
+`E-0044-009-no-direct-dispatch`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test no_human_capstone` -> pass, 2 passed.
+2. `cargo test --locked -p tracewake-core --test acceptance_gates` -> pass, 12 passed.
+3. `cargo test --locked -p tracewake-core --test spine_conformance` -> pass, 6 passed.
+4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` -> pass, 32 passed.
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
+6. `cargo test --locked -p tracewake-tui --test tui_acceptance` -> pass, 11 passed.

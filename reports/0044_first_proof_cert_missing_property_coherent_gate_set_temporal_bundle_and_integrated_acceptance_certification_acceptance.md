@@ -118,6 +118,12 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-tui --test embodied_flow` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-08 embodied view witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-08 TUI possession/debug acceptance witness command. |
 | `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-08 transcript determinism witness command rerun. |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | pass | Exit 0; 2 passed, 0 failed. FIRST-PROOF-09 no-human capstone witness command. |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | pass | Exit 0; 12 passed, 0 failed. FIRST-PROOF-09 pipeline/no-marker witness command rerun. |
+| `cargo test --locked -p tracewake-core --test spine_conformance` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-09 no-direct-dispatch conformance witness command rerun. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-09 replay/event ancestry witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-09 fixture/progress witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-09 TUI no-human/debug witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -148,14 +154,14 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending full integrated point evidence |
 | `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
 | `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
-| `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
+| `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending integrated point evidence |
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending full integrated point evidence |
 | `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative` | pending full integrated point evidence |
 
 ## Scenario Family Results
@@ -167,9 +173,9 @@ required command set and passed at `U`.
 | Possession parity | `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pass for FIRST-PROOF-08 scope |
 | Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity` | pass for FIRST-PROOF-07 actor-known/firewall and FIRST-PROOF-08 possession scope |
 | No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pass for FIRST-PROOF-07 non-interference scope |
-| No-human ordinary day | `E-0044-001-census` | pending `FIRST-PROOF-09` |
-| Routine blocking | `E-0044-001-census` | pending `FIRST-PROOF-09`, `FIRST-PROOF-13`, `FIRST-PROOF-16` |
-| Replay rebuild | `E-0044-001-census` | pending `FIRST-PROOF-10` |
+| No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
+| Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope; pending temporal/routine capstone in `FIRST-PROOF-13`/`FIRST-PROOF-16` |
+| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending `FIRST-PROOF-10` |
 | Content rejection | `E-0044-001-census`, `E-0044-006-content-negative` | pending consolidated `FIRST-PROOF-11` |
 
 ## Audit Point Results
@@ -469,7 +475,44 @@ custody, create a special action, or mutate authoritative world state.
 
 ### FIRST-PROOF-09 - No-human ordinary-life and no-direct-dispatch participation
 
-**Result**: pending `0044FIRPROCER-009`.
+**Result**: pass for FIRST-PROOF-09 scope.
+
+**Positive evidence**: The no-human ordinary-life command set passed at the
+current audit tree. `no_human_capstone` proved typed ancestry and replay for the
+capstone run and proved debug/replay perturbations are non-interfering.
+`acceptance_gates` proved the no-human day runner uses no controller and
+pipeline events, the integrated no-human day emerges from one autonomous run,
+human and nonhuman proposals share the validation path, sleep proposals share
+the pipeline, and `continue_routine` markers alone are not behavioral progress.
+`golden_fixtures_run` proved no-human decision inputs cite log events and
+recompute context hashes, no-human workplace and sleep knowledge require notice
+or observation channels, no-human day metrics and need-ledger outputs validate,
+and the no-human day real run replays metrics and trace projection.
+
+**Adversarial evidence**: `spine_conformance` proved the conformance matrix
+requires negative evidence for no-direct and debug quarantine, and maps spine
+requirements to named evidence. `event_schema_replay_gates` proved agent no-op
+allowlists remain narrow, materialized agent events reject forged schemas,
+duration/need/routine tamper rejects live and replay, no-human metrics rebuild
+from typed diagnostic fields, and no-human replay checksums match originals.
+`golden_fixtures_run` also covered routine blocked diagnostics, no-teleport
+remote work rejection, food-unavailable typed failure without refill, and
+continue-routine tamper poisoning. `tui_acceptance` proved no-human day runs
+through the TUI and inspects real post-run panels while debug surfaces remain
+read-only.
+
+**Event/replay/projection evidence**: The passing tests cover ordinary
+transactions, modeled wait/stuck/failure outcomes, need-accounting ledgers,
+intention/routine events, typed diagnostics, no-human metrics, projection
+checksums, event-log replay, and localized tamper rejection. Progress is a real
+accepted action, modeled wait, or typed blocked/failure outcome; scheduler and
+routine labels do not author primitive state deltas or count marker-only output
+as progress.
+
+**Responsible layers**: `scheduler`, `candidate_generation`,
+`proposal_construction`, `action_validation`, `event_append`,
+`event_application`, `need_accounting`, `projection`, `replay`,
+`view_model`, `debug_adapter`, `test_oracle`.
 
 ### FIRST-PROOF-10 - Composite replay, projection rebuild, deterministic diagnostics, and divergence localization
 
@@ -831,6 +874,50 @@ custody, create a special action, or mutate authoritative world state.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-08
   debug/adversarial commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-08.
+
+### E-0044-009-no-human-progress
+
+- Requirement IDs: `FIRST-PROOF-09`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `no_human_capstone`, `acceptance_gates`,
+  `event_schema_replay_gates`, `golden_fixtures_run`, and `tui_acceptance`
+  passed, covering no-controller ordinary-life progress, shared action
+  pipeline validation, typed need/routine/wait/blocker outcomes, no-human
+  metrics, projection checksums, and replay equality.
+- Path under test and behavior witness: `scheduler.rs`, `time.rs`,
+  `need_accounting.rs`, `agent/no_human_surface.rs`, `agent/need.rs`,
+  `agent/routine.rs`, `agent/intention.rs`, `agent/planner.rs`,
+  `agent/trace.rs`, `actions/pipeline.rs`, ordinary action defs,
+  `no_human_day_001`, `no_human_advance_001`, `food_unavailable_replan_001`,
+  `routine_blocked_diagnostic_001`, and `routine_no_teleport_001`.
+- Replay/provenance ancestry: ordinary no-human actions append typed events,
+  need/routine/intention records, diagnostics, and metrics that replay to
+  matching checksums and trace projections.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-09
+  no-human/progress commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-09.
+
+### E-0044-009-no-direct-dispatch
+
+- Requirement IDs: `FIRST-PROOF-09`
+- Evidence status: pass
+- Fingerprint scope: command transcript; parsed semantic content; replay artifact
+- Evidence summary: `acceptance_gates`, `spine_conformance`,
+  `event_schema_replay_gates`, `golden_fixtures_run`, and `tui_acceptance`
+  passed, covering no scheduler primitive dispatch, no marker-only progress,
+  shared validation paths, typed blocked/failure diagnostics, no teleport,
+  no silent starvation/spin, and debug read-only behavior.
+- Path under test and behavior witness: scheduler and action-pipeline guards,
+  conformance evidence matrix, event replay gates, continue-routine tamper
+  fixtures, no-teleport and routine-blocked fixtures, no-human TUI acceptance,
+  and replay checksum/diagnostic surfaces.
+- Replay/provenance ancestry: invalid or marker-only progress paths produce no
+  accepted primitive state delta; tampered or malformed no-human events reject
+  live and replay before state change.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-09
+  no-direct-dispatch and negative commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-09.
 
 ## Replay Package
 
