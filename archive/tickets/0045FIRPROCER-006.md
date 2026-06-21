@@ -1,6 +1,6 @@
 # 0045FIRPROCER-006: Capstone — live FIRST-PROOF-01…17 re-proof, nine-gate / nine-family / five-source temporal bundle, EMERGE-OBS, and replacement acceptance artifact superseding 0044
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: None — acceptance-only capstone; it composes and re-proves the work of the prior tickets and authors the replacement evidence artifacts. No new production/simulation logic.
@@ -86,3 +86,34 @@ Create `reports/0045_first_proof_cert_mutation_remediation_replacement_certifica
 1. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` and the full §4.9 named-suite set re-run at `U` (core/content/TUI), as the capstone's integrated re-proof.
 2. `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test hidden_truth_gates --test no_human_capstone --test emergence_ledger` (replay/first-divergence, truth-firewall non-interference, no-human progress, observer-only emergence) — the integrated coherence surfaces.
 3. Template-conformance review of `reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md` against `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` (manual review is the correct boundary for evidence-honesty/field-completeness, which no `cargo` target asserts).
+
+## Outcome
+
+Completed: 2026-06-21
+
+Implemented the acceptance-only capstone by adding
+`reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md`
+with verdict `FIRST-PROOF-CERT passed` for exact implementation/evidence commit
+`9a071b6e32ebc5b6126645a9db257d453399c028`. The artifact explicitly supersedes
+the 0044 scoped-remediation artifact for current FIRST-PROOF-CERT citation use,
+scopes the claim away from latest `main`, Phase-4, second-proof, and deferred
+surfaces, and computes the verdict from certifying evidence only.
+
+Added `reports/0045_first_proof_cert_emerge_obs.md` as an observer-only
+companion with `Certification use: not counted as certifying evidence`, and
+extended `crates/tracewake-core/tests/acceptance_artifact_wording.rs` so the new
+replacement artifact is mechanically checked for scoped exact-commit wording.
+
+Verification:
+
+- `cargo fmt --all --check` passed.
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
+  passed after adding the 0045 replacement-artifact guard.
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test hidden_truth_gates --test no_human_capstone --test emergence_ledger`
+  passed, covering replay/first-divergence, truth-firewall, no-human, and
+  observer-only emergence surfaces.
+
+Deviation: no production or simulation logic changed. The capstone uses the
+compact 0045 transcript and structured mutation evidence committed by
+`0045FIRPROCER-005`; raw per-mutant logs/diffs remain intentionally excluded
+from the repository-size evidence package.
