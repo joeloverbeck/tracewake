@@ -1,6 +1,6 @@
 # 0044FIRPROCER-001: Acceptance-artifact scaffold + baseline freeze, command ledger, and FIRST-PROOF-01
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — creates the acceptance-artifact scaffold and records baseline/command evidence. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, never production remediation).
@@ -82,3 +82,48 @@ Record: one baseline identity + before/after clean-worktree record; the command 
 6. `cargo test --locked -p tracewake-core --test acceptance_gates --test anti_regression_guards --test ci_workflow_guards --test doc_invariant_references --test spine_conformance`
 7. `cargo test --locked -p tracewake-content --test fixtures_load`
 8. `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Created the shared acceptance artifact
+`reports/0044_first_proof_cert_missing_property_coherent_gate_set_temporal_bundle_and_integrated_acceptance_certification_acceptance.md`
+with the `FIRST-PROOF-01` baseline-freeze evidence, command ledger,
+configuration hashes, fixture/test/negative-fixture fingerprint command record,
+mutation census counts, and pending anchors for `FIRST-PROOF-02` through
+`FIRST-PROOF-17`, the nine gates, the nine scenario families, the five routed
+temporal sources, the replay package, mutation package, staged-abstraction
+declaration, and `EMERGE-OBS` package.
+
+The unified baseline for this ticket is
+`9b4ac95fb5f967f545b4733911f3a3ff7a8a075c`. The worktree was clean before the
+evidence run and clean after the required command set. No production code,
+fixtures, schemas, tests, or mutation configuration were modified by this
+ticket, and no predecessor certification command output was counted as current
+FIRST-PROOF-CERT evidence.
+
+Verification run:
+
+- `git rev-parse HEAD`
+- `git status --porcelain=v1`
+- `rustc --version --verbose`
+- `cargo --version --verbose`
+- `cargo mutants --version`
+- `sha256sum Cargo.toml Cargo.lock rust-toolchain.toml .cargo/mutants.toml .github/workflows/ci.yml`
+- `find crates/tracewake-content/src/fixtures -type f -name '*.rs' -print | sort | xargs sha256sum`
+- `find crates/tracewake-core/tests crates/tracewake-content/tests crates/tracewake-tui/tests -maxdepth 2 -type f \( -name '*.rs' -o -name '*.serialized' \) -print | sort | xargs sha256sum`
+- `find tests/negative-fixtures -type f -name '*.rs' -print | sort | xargs sha256sum`
+- `cargo mutants --workspace --no-shuffle --list-files` (60 files)
+- `cargo mutants --workspace --no-shuffle --list` (2,878 rows)
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
+- `cargo test --locked -p tracewake-core --test acceptance_gates --test anti_regression_guards --test ci_workflow_guards --test doc_invariant_references --test spine_conformance`
+- `cargo test --locked -p tracewake-content --test fixtures_load`
+- `cargo test --locked -p tracewake-tui --test tui_seam_conformance`
+
+All required commands passed. Full mutation execution, survivor triage, and the
+final FIRST-PROOF-CERT verdict remain pending their owning tickets
+(`0044FIRPROCER-018` and `0044FIRPROCER-019`).
