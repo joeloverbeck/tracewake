@@ -84,6 +84,12 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-tui --test embodied_flow` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-02 witness command. |
 | `cargo test --locked -p tracewake-tui --test command_loop_session` | pass | Exit 0; 7 passed, 0 failed. FIRST-PROOF-02 witness command. |
 | `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-02 witness command. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-03 witness command. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-03 witness command rerun. |
+| `cargo test --locked -p tracewake-core --test negative_fixture_runner` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-03 compile-fail/negative-fixture witness command. |
+| `cargo test --locked -p tracewake-content --test schema_conformance` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-03 schema witness command. |
+| `cargo test --locked -p tracewake-content --test forbidden_content` | pass | Exit 0; 24 passed, 0 failed. FIRST-PROOF-03 fail-closed content witness command. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-03 fixture/provenance witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -115,23 +121,23 @@ required command set and passed at `U`.
 | Gate | Evidence item IDs | Result |
 |---|---|---|
 | `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay` | pending full integrated point evidence |
-| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
+| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative` | pending full integrated point evidence |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
+| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay` | pending full integrated point evidence |
-| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
+| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative` | pending full integrated point evidence |
 
 ## Scenario Family Results
 
 | Scenario family | Evidence item IDs | Result |
 |---|---|---|
 | Physical custody baseline | `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-002-embodied-view` | pass for FIRST-PROOF-02 scope |
-| Expectation contradiction | `E-0044-001-census` | pending `FIRST-PROOF-03` through `FIRST-PROOF-06` |
+| Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative` | pending `FIRST-PROOF-04` through `FIRST-PROOF-06` |
 | Possession parity | `E-0044-001-census` | pending `FIRST-PROOF-08` |
-| Epistemic filtering | `E-0044-001-census` | pending point evidence |
+| Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance` | pending downstream point evidence |
 | No-hidden-truth planning | `E-0044-001-census` | pending point evidence |
 | No-human ordinary day | `E-0044-001-census` | pending `FIRST-PROOF-09` |
 | Routine blocking | `E-0044-001-census` | pending `FIRST-PROOF-09`, `FIRST-PROOF-13`, `FIRST-PROOF-16` |
@@ -216,7 +222,41 @@ and first-divergence/diff fields for deliberate perturbations.
 
 ### FIRST-PROOF-03 - Source-backed expectation provenance
 
-**Result**: pending `0044FIRPROCER-003`.
+**Result**: pass for FIRST-PROOF-03 scope.
+
+**Positive evidence**: The provenance command set passed at the current audit
+tree. The canonical expectation path is covered by
+`expectation_contradiction_001`, whose fixture metadata states that Tomas has
+only a source-backed authored-prehistory expectation before absence discovery.
+`golden_fixtures_run::phase2a_initial_beliefs_are_holder_and_source_backed`
+checks holder and source-backed seed belief construction, and
+`event_schema_replay_gates::starting_observation_and_contradiction_events_survive_replay_with_sources`
+plus `belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay`
+prove source-event preservation through projection/debug/replay surfaces.
+`hidden_truth_gates::epistemic_event_fields_survive_into_sealed_context_and_replay`,
+`actor_known_local_actor_reaches_embodied_view_model_with_context_provenance`,
+and `epistemic_context_projection_and_records_remain_sealed` cover the sealed
+holder-known/actor-known context behavior and exclusion of unrelated/debug data.
+
+**Adversarial evidence**: `forbidden_content` passed fail-closed tests for
+malformed/missing epistemic seed fields, hidden-truth source seeding,
+planner-intended initial facts without provenance, and prose-born facts.
+`negative_fixture_runner` passed the compile-fail boundary registry including
+`external_crate_cannot_construct_belief_literal` and
+`external_crate_cannot_mutate_belief_source_or_scope`. `hidden_truth_gates`
+also passed debug and hidden-truth non-contamination tests, including
+`debug_truth_never_enters_holder_known_context_hash` and
+`hidden_truth_metamorphism_and_provenance_deletion_are_relational`.
+
+**Event/replay/projection evidence**: The passing tests record expectation
+belief source refs, holder identities, source-event IDs, acquisition/frontier
+data, context hashes, projection checksums, canonical serialization, and replay
+equality for epistemic events. Seed authoring provenance remains distinguished
+from live actor observation by content schema and fixture validation tests.
+
+**Responsible layers**: `content_schema`, `content_validation`,
+`fixture_contract`, `event_append`, `event_application`, `projection`,
+`holder_known_context`, `replay`.
 
 ### FIRST-PROOF-04 - Absence is discovered by modeled observation, not authoritative truth
 
@@ -356,6 +396,48 @@ and first-divergence/diff fields for deliberate perturbations.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-02 TUI
   commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-02.
+
+### E-0044-003-provenance
+
+- Requirement IDs: `FIRST-PROOF-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript; parsed semantic content; replay artifact
+- Evidence summary: `hidden_truth_gates`, `event_schema_replay_gates`, and
+  `golden_fixtures_run` passed, covering source-backed expectation records,
+  holder-known context sealing, context hashes/frontiers, projection/replay
+  equality, and hidden-truth/debug exclusion.
+- Path under test and behavior witness: `epistemics/belief.rs`,
+  `epistemics/proposition.rs`, `epistemics/knowledge_basis.rs`,
+  `epistemics/knowledge_context.rs`, `epistemics/projection.rs`,
+  `agent/actor_known.rs`, `agent/transaction.rs`, `events/apply.rs`, and
+  `expectation_contradiction_001`.
+- Replay/provenance ancestry: source-event IDs, holder IDs, belief/proposition
+  fields, context hash/frontier, projection checksums, and replay equality from
+  the passing commands.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-03
+  provenance commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-03.
+
+### E-0044-003-content-negative
+
+- Requirement IDs: `FIRST-PROOF-03`
+- Evidence status: pass
+- Fingerprint scope: command transcript; compile-fail boundary; parsed semantic content
+- Evidence summary: `negative_fixture_runner`, `schema_conformance`, and
+  `forbidden_content` passed, covering missing/dangling/prose/hidden-truth
+  provenance rejection and public-API compile-fail guards against raw belief
+  construction or source/scope mutation.
+- Path under test and behavior witness: content `schema.rs`, `serialization.rs`,
+  `validate.rs`, `forbidden_provenance_input_fails_closed_001`,
+  `prose_born_fact_rejected_001`, and negative fixtures
+  `external_crate_cannot_construct_belief_literal` /
+  `external_crate_cannot_mutate_belief_source_or_scope`.
+- Replay/provenance ancestry: rejected content produces no accepted runtime
+  projection state; compile-fail boundaries prove protected belief records are
+  not forgeable through public APIs.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-03
+  negative commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-03.
 
 ## Replay Package
 

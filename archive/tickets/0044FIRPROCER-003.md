@@ -1,6 +1,6 @@
 # 0044FIRPROCER-003: FIRST-PROOF-03 — source-backed expectation provenance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -76,3 +76,34 @@ Record the §7 adversarial cases: absent, dangling, wrong-holder, wrong-kind, fu
 4. `cargo test --locked -p tracewake-content --test schema_conformance`
 5. `cargo test --locked -p tracewake-content --test forbidden_content`
 6. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Updated
+`reports/0044_first_proof_cert_missing_property_coherent_gate_set_temporal_bundle_and_integrated_acceptance_certification_acceptance.md`
+to mark `FIRST-PROOF-03` passed for its source-backed expectation provenance
+scope. The artifact records positive witnesses for typed holder/source-backed
+expectation records, sealed actor-known context inclusion/exclusion, context
+hash/frontier preservation, projection/replay equality, and seed authoring
+provenance distinct from live observation. It also records fail-closed
+adversarial evidence for missing/malformed/prose/hidden-truth provenance and
+compile-fail public-API boundaries that prevent raw belief construction or
+source/scope mutation.
+
+No production code, fixtures, schemas, tests, or mutation configuration changed.
+No audit-only instrumentation was needed.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-content --test schema_conformance`
+- `cargo test --locked -p tracewake-content --test forbidden_content`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+All required commands passed. The artifact remains pending for downstream
+absence-observation, contradiction, no-culprit-truth, full mutation execution,
+and the final FIRST-PROOF-CERT verdict.
