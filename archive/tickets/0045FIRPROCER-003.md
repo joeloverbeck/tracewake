@@ -1,6 +1,6 @@
 # 0045FIRPROCER-003: Set-union mutation-completion merger tool + synthetic-negative suite
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — a new mutation-completion merger tool plus its synthetic-negative test suite; no production/simulation logic change.
@@ -89,3 +89,55 @@ Add the merger's own unit/integration negatives covering, at minimum: synthetic 
 1. `cargo test --locked -p tracewake-core --test mutation_completion_merge` — runs the merger's complete-set and negative cases. (New target created by this ticket; it cannot be `--list`-dry-run before creation — that is the stated reason it is not pre-listed.)
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked`
 3. A direct merger invocation over a checked-in synthetic-fixture shard set (the narrower verification boundary), asserting exit zero on the complete set and non-zero on each tampered fixture — exact command per the recorded merger CLI.
+
+## Outcome
+
+Completed: 2026-06-21
+
+Implemented the merger as `tools/merge-mutation-shards.py` (Python 3,
+version label `0045FIRPROCER-003`) and recorded that language/path choice here.
+The CLI accepts a canonical configured mutant list, repeated shard directories,
+expected shard count, commit/config/toolchain fingerprints, and output paths for
+both manifest shapes:
+
+```text
+python3 tools/merge-mutation-shards.py \
+  --canonical <canonical-mutants.json> \
+  --expected-shards <N> \
+  --commit <sha> \
+  --config-fingerprint <fingerprint> \
+  --toolchain-fingerprint <fingerprint> \
+  --out-md <completion_manifest.md> \
+  --out-json <completion_manifest.json> \
+  --shard <shard-dir> ...
+```
+
+Each shard directory is expected to contain `shard.env`, `status.env`,
+`assigned-mutants.json`, and `mutants.out/outcomes.json` plus the four text
+outcome files. The merger normalizes identities on path, enclosing function,
+mutation genre, replacement, and normalized diff text while treating
+`line:column` as advisory. It emits both human and machine manifests on success
+and fails closed on missing/duplicate shards, overlapping identities,
+mismatched commit/config/toolchain fingerprints, malformed JSON, non-normal
+supervisor status, assigned/outcome mismatch, text/JSON disagreement, and any
+final missed/timeout survivor floor.
+
+Added `crates/tracewake-core/tests/mutation_completion_merge.rs`, which
+generates synthetic cargo-mutants-like shard fixtures at test time and invokes
+the checked-in merger CLI. The suite covers a complete successful union,
+line/column-only drift reconciliation, and synthetic negatives for missing
+shard, duplicate shard index, overlapping identity, mismatched commit,
+mismatched config, mismatched toolchain, truncated JSON, non-normal supervisor,
+text-vs-JSON disagreement, and survivor floor.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test mutation_completion_merge` — passed.
+- `python3 -m py_compile tools/merge-mutation-shards.py` — passed; generated `tools/__pycache__/` was removed afterward.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace --locked` — passed.
+- `git diff --check` — passed.
+
+No production/simulation logic, mutation denominator, CI workflow, or baseline
+miss file was changed.
