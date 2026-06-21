@@ -146,6 +146,12 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-13 accounting/determinism witness command rerun. |
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-13 accounting/replay witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-13 routine fixture witness command rerun. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-14 embodied temporal source witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-14 embodied temporal fixture witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-14 debug/clock quarantine witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test embodied_flow` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-14 embodied view witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-14 deterministic transcript witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-14 TUI possession/debug witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -179,10 +185,10 @@ required command set and passed at `U`.
 | `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
 | `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pending full integrated point evidence |
 | `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pending full integrated point evidence |
-| `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
+| `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pending integrated point evidence |
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
-| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
+| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pending integrated point evidence |
 | `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
 | `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail` | pending full integrated point evidence |
 
@@ -192,8 +198,8 @@ required command set and passed at `U`.
 |---|---|---|
 | Physical custody baseline | `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-002-embodied-view` | pass for FIRST-PROOF-02 scope |
 | Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-005-contradiction-replay`, `E-0044-005-contradiction-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative` | pass for expectation/absence/contradiction/no-culprit scope |
-| Possession parity | `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pass for FIRST-PROOF-08 scope |
-| Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity` | pass for FIRST-PROOF-07 actor-known/firewall and FIRST-PROOF-08 possession scope |
+| Possession parity | `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pass for FIRST-PROOF-08 and FIRST-PROOF-14 scope |
+| Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-014-embodied-temporal` | pass for FIRST-PROOF-07 actor-known/firewall, FIRST-PROOF-08 possession, and FIRST-PROOF-14 embodied temporal scope |
 | No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-07 non-interference and FIRST-PROOF-12 temporal-firewall scope |
 | No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
 | Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-09 and FIRST-PROOF-13 scope; pending temporal diagnostics in `FIRST-PROOF-16` |
@@ -691,7 +697,40 @@ accounting.
 
 ### FIRST-PROOF-14 - Embodied temporal rendering, possession neutrality, and debug quarantine
 
-**Result**: pending `0044FIRPROCER-014`.
+**Result**: pass for FIRST-PROOF-14 scope.
+
+**Positive evidence**: The embodied temporal command set passed at the current
+audit tree. `hidden_truth_gates` proved actor-known local context reaches the
+embodied view model with context provenance, embodied affordances exclude hidden
+food, debug truth does not enter holder-known context hashes, and place labels
+are captured before truth preflight. `golden_fixtures_run` proved aged food
+records surface as remembered belief, no-human workplace/sleep knowledge
+requires modeled notice or observation, possession preserves intention/needs,
+and no-human decision context hashes cite log events. `embodied_flow` proved
+workplace availability reflects belief rather than truth, raw workplace
+assignment is omitted without context, and bind/render/submit/rerender/why-not
+flows stay embodied.
+
+**Adversarial evidence**: `adversarial_gates` proved debug truth does not enter
+actor surfaces, debug command strings are not embodied commands, debug panels
+do not change embodied affordances, stale/forged TUI input rejects, possession
+rebind does not transfer debug truth or rejection why-not state, and rendering
+does not change typed order or replay. `tui_acceptance` proved debug truth does
+not enter embodied views, debug surfaces render deterministically and read-only,
+possession/debug transcripts are deterministic, and absence discovery does not
+leak culprit truth. `transcript_snapshot` proved byte-identical debug and TUI
+snapshots across runs.
+
+**Event/replay/projection evidence**: The passing tests cover holder-known
+context IDs/hashes/frontiers, source events, view-model fields, semantic action
+IDs, debug-only rows, deterministic transcript snapshots, and replay output.
+Raw clock/queue/true-schedule/debug timestamp changes without modeled
+actor-known sources do not become embodied temporal labels or affordances;
+possession preserves the same temporal context and freshness.
+
+**Responsible layers**: `holder_known_context`, `projection`, `view_model`,
+`controller_binding`, `tui_input_binding`, `debug_adapter`, `replay`,
+`test_oracle`.
 
 ### FIRST-PROOF-15 - Temporal positive/adversarial fixture families and replay pairing
 
@@ -711,7 +750,7 @@ accounting.
 |---|---|---|
 | `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-12 temporal-firewall source scope |
 | `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-13 routine temporal source scope |
-| `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | pending | pending `FIRST-PROOF-14` |
+| `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pass for FIRST-PROOF-14 embodied temporal source scope |
 | `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | pending | pending `FIRST-PROOF-15` |
 | `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` | pending | pending `FIRST-PROOF-16` |
 
@@ -1254,6 +1293,51 @@ accounting.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-13
   negative/accounting commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-13.
+
+### E-0044-014-embodied-temporal
+
+- Requirement IDs: `FIRST-PROOF-14`
+- Evidence status: pass
+- Fingerprint scope: command transcript; view-model output; replay artifact
+- Evidence summary: `hidden_truth_gates`, `golden_fixtures_run`,
+  `embodied_flow`, `tui_acceptance`, and `transcript_snapshot` passed, covering
+  source-backed embodied temporal labels/affordances, modeled information-event
+  updates, possession-neutral temporal context, deterministic TUI transcripts,
+  and replay/output stability.
+- Path under test and behavior witness: `view_models.rs`, `controller.rs`,
+  `debug_reports.rs`, TUI `render.rs`, `debug_panels.rs`, `app.rs`,
+  `input.rs`, `run.rs`, `transcript.rs`,
+  `embodied_menu_lags_truth_change_without_perception_001`,
+  `embodied_workplace_believed_open_truth_closed_commit_fails_001`,
+  `stale_workplace_notice_superseded_by_newer_001`, and
+  `possession_parity_001`.
+- Replay/provenance ancestry: embodied temporal labels and affordances retain
+  holder-known source ancestry or documented non-temporal derivation, context
+  hash/frontier, view-model fields, semantic action IDs, and deterministic
+  transcript fingerprints.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-14
+  positive embodied/TUI commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-14.
+
+### E-0044-014-debug-clock-negative
+
+- Requirement IDs: `FIRST-PROOF-14`
+- Evidence status: pass
+- Fingerprint scope: command transcript; debug/view output; replay artifact
+- Evidence summary: `adversarial_gates`, `tui_acceptance`,
+  `transcript_snapshot`, `hidden_truth_gates`, and `embodied_flow` passed,
+  covering debug/clock non-interference, stale/forged semantic input rejection,
+  possession non-refresh, debug non-diegetic marking, debug-output
+  non-authority, and byte-stable transcript snapshots.
+- Path under test and behavior witness: debug panel and TUI adversarial tests,
+  `debug_omniscience_excluded_001`, possession parity fixtures, stale view
+  token tests, debug command string tests, and transcript snapshots.
+- Replay/provenance ancestry: raw clock, queue, true schedule, debug timestamp,
+  possession bind/unbind, and debug rows do not refresh or reinterpret
+  actor-known temporal facts or alter semantic input choices.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-14
+  negative/debug-quarantine commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-14.
 
 ## Replay Package
 
