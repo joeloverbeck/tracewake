@@ -159,6 +159,14 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-content --test forbidden_content` | pass | Exit 0; 24 passed, 0 failed. FIRST-PROOF-15 temporal anti-contamination witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-15 behavioral fixture/replay witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-15 transcript determinism witness command rerun. |
+| `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-16 acceptance wording witness command. |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | pass | Exit 0; 12 passed, 0 failed. FIRST-PROOF-16 diagnostic/pipeline witness command rerun. |
+| `cargo test --locked -p tracewake-core --test emergence_ledger` | pass | Exit 0; 1 passed, 0 failed. FIRST-PROOF-16 observer-only emergence witness command. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-16 replay diagnostic witness command rerun. |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | pass | Exit 0; 2 passed, 0 failed. FIRST-PROOF-16 capstone diagnostic witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-16 fixture diagnostic witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-16 transcript/replay diagnostic witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-16 TUI diagnostic witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -779,7 +787,40 @@ are sampled by the existing `generative_lock` suite.
 
 ### FIRST-PROOF-16 - Temporal diagnostics and consolidated five-source acceptance line
 
-**Result**: pending `0044FIRPROCER-016`.
+**Result**: pass for FIRST-PROOF-16 scope.
+
+**Positive evidence**: The temporal diagnostic/bundle command set passed at the
+current audit tree. `acceptance_artifact_wording` proved scoped exact-commit
+wording and forbidden-overclaim guards. `acceptance_gates` proved structured
+rejections, shared validation paths, deterministic event append order,
+no-controller pipeline events, and no marker-only progress. `emergence_ledger`
+proved `EMERGE-OBS` output is observer-only and replay byte-identical.
+`event_schema_replay_gates` proved typed diagnostic hidden-truth records
+validate and replay, replay reports expose semantic fingerprints, no-human
+metrics rebuild from typed diagnostic fields, and replay mismatch reports
+localize divergence. `no_human_capstone`, `golden_fixtures_run`,
+`transcript_snapshot`, and `tui_acceptance` proved capstone, fixture, transcript,
+and TUI diagnostics are deterministic and debug/read-only output is quarantined.
+
+**Adversarial evidence**: The passing command set rejects unsupported schemas,
+forged payload schemas, stream mismatches, malformed elapsed ticks,
+missing/duplicate duration and need records, source-evidence tamper, debug
+truth leakage into embodied views, and unscoped acceptance overclaims. A generic
+or unlinked temporal diagnostic is non-certifying for this artifact; counted
+evidence must name responsible layer, component, actor/holder or diagnostic
+subject, source IDs where applicable, stage, expected/actual relation, and first
+divergence for replay mismatch cases.
+
+**Event/replay/projection evidence**: The consolidated temporal row below links
+source event, holder-known premise, routine behavior, embodied rendering,
+fixture coverage, diagnostic/replay record, and observer-only proof at the same
+artifact baseline. Validator-only time and holder-known temporal premises remain
+distinguished, and no temporal metric or `EMERGE-OBS` value is counted as a
+scheduler objective or threshold.
+
+**Responsible layers**: `test_oracle`, `event_append`, `event_application`,
+`projection`, `replay`, `view_model`, `debug_adapter`, `scheduler`,
+`documentation status`.
 
 ### FIRST-PROOF-17 - Cross-gate relational, property-based, metamorphic, and integration closure
 
@@ -793,7 +834,22 @@ are sampled by the existing `generative_lock` suite.
 | `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-13 routine temporal source scope |
 | `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pass for FIRST-PROOF-14 embodied temporal source scope |
 | `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination` | pass for FIRST-PROOF-15 temporal fixture/replay source scope |
-| `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` | pending | pending `FIRST-PROOF-16` |
+| `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` | `E-0044-016-temporal-diagnostics`, `E-0044-016-five-source-bundle` | pass for FIRST-PROOF-16 diagnostic/bundle source scope |
+
+### Consolidated Temporal Acceptance Line
+
+| Link in temporal chain | Routed source | Evidence item IDs | Linked result |
+|---|---|---|---|
+| Source premise and anti-contamination | `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | Holder-known temporal premises remain source-backed and raw/validator/debug time cannot become cognition. |
+| Routine behavior and accounting | `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | The same modeled premise can drive ordinary wait/action/stuck behavior with single-charge accounting and replay equality. |
+| Embodied rendering and debug quarantine | `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | The premise becomes actor-legible only through holder-known view output; possession/debug do not refresh or reinterpret it. |
+| Fixture pairing and replay | `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination` | Positive/adversarial temporal fixtures are registry-reachable, behaviorally exercised, replayable, and scoped as exhaustive over the declared registry. |
+| Diagnostic and observer-only proof | `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` | `E-0044-016-temporal-diagnostics`, `E-0044-016-five-source-bundle` | Diagnostics distinguish holder-known premise from validator-only time, name responsible layers, preserve replay ancestry, and keep observer metrics non-authoritative. |
+
+The five rows above are counted as one linked FIRST-PROOF-16 temporal bundle:
+source -> routine behavior -> embodied rendering -> fixture/replay coverage ->
+diagnostic/replay record. The bundle does not introduce a temporal unit,
+threshold, source category, gate code, or status enum.
 
 ## Evidence Item Ledger
 
@@ -1427,6 +1483,49 @@ are sampled by the existing `generative_lock` suite.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-15
   anti-contamination commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-15.
+
+### E-0044-016-temporal-diagnostics
+
+- Requirement IDs: `FIRST-PROOF-16`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; debug/view output
+- Evidence summary: `acceptance_artifact_wording`, `acceptance_gates`,
+  `emergence_ledger`, `event_schema_replay_gates`, `no_human_capstone`,
+  `golden_fixtures_run`, `transcript_snapshot`, and `tui_acceptance` passed,
+  covering scoped wording, typed diagnostics, responsible-layer evidence,
+  validator-only versus holder-known distinction, deterministic replay
+  diagnostics, first-divergence identity, debug quarantine, and observer-only
+  emergence outputs.
+- Path under test and behavior witness: `actions/report.rs`,
+  `agent/trace.rs`, `debug_reports.rs`, `replay/report.rs`,
+  `acceptance_artifact_wording.rs`, `emergence_ledger.rs`, replay gates,
+  no-human capstone, fixture runner, transcript snapshots, TUI acceptance, and
+  `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`.
+- Replay/provenance ancestry: diagnostic records preserve responsible layer,
+  component, actor/holder or diagnostic subject, source IDs where applicable,
+  expected/actual relation, accepted/rejected stage, and first-divergence
+  identity for replay mismatch cases.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-16
+  diagnostic commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-16.
+
+### E-0044-016-five-source-bundle
+
+- Requirement IDs: `FIRST-PROOF-16`
+- Evidence status: pass
+- Fingerprint scope: acceptance artifact linkage; command transcript
+- Evidence summary: the consolidated temporal acceptance line links all five
+  routed sources `04`, `06`, `07`, `09`, and `10` through the evidence items
+  produced by FIRST-PROOF-12 through FIRST-PROOF-16; staged abstractions and
+  pending rows are not counted as pass.
+- Path under test and behavior witness: this acceptance artifact's temporal
+  source table and consolidated temporal acceptance line.
+- Replay/provenance ancestry: the linked chain reconciles source event,
+  holder-known temporal premise, routine behavior, embodied rendering, fixture
+  result, diagnostic, and replay record at the same artifact baseline.
+- Sampling/exhaustiveness scope: exhaustive over the five routed temporal source
+  rows named in spec section 8.5 for this FIRST-PROOF-CERT bundle.
+- Certification use: counted as certifying pass for FIRST-PROOF-16.
 
 ## Replay Package
 
