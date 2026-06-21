@@ -130,6 +130,12 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-core --test no_human_capstone` | pass | Exit 0; 2 passed, 0 failed. FIRST-PROOF-10 integrated capstone replay witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-10 fixture replay/determinism witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-10 deterministic transcript witness command rerun. |
+| `cargo test --locked -p tracewake-core --test negative_fixture_runner` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-11 compile-fail/negative-fixture witness command rerun. |
+| `cargo test --locked -p tracewake-core --test anti_regression_guards` | pass | Exit 0; 85 passed, 0 failed. FIRST-PROOF-11 structural guard witness command rerun. |
+| `cargo test --locked -p tracewake-content --test fixtures_load` | pass | Exit 0; 34 passed, 0 failed. FIRST-PROOF-11 fixture load/canonicalization witness command rerun. |
+| `cargo test --locked -p tracewake-content --test forbidden_content` | pass | Exit 0; 24 passed, 0 failed. FIRST-PROOF-11 semantic rejection witness command rerun. |
+| `cargo test --locked -p tracewake-content --test schema_conformance` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-11 schema conformance witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-11 golden fixture/corpus witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -168,7 +174,7 @@ required command set and passed at `U`.
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
 | `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
-| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative` | pending full integrated point evidence |
+| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail` | pending full integrated point evidence |
 
 ## Scenario Family Results
 
@@ -182,7 +188,7 @@ required command set and passed at `U`.
 | No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
 | Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope; pending temporal/routine capstone in `FIRST-PROOF-13`/`FIRST-PROOF-16` |
 | Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pass for FIRST-PROOF-10 scope |
-| Content rejection | `E-0044-001-census`, `E-0044-006-content-negative` | pending consolidated `FIRST-PROOF-11` |
+| Content rejection | `E-0044-001-census`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail` | pass for FIRST-PROOF-11 scope |
 
 ## Audit Point Results
 
@@ -563,7 +569,41 @@ not repair missing actor-known facts from current truth.
 
 ### FIRST-PROOF-11 - Fixture-negative, schema, compile-fail, and semantic content rejection
 
-**Result**: pending `0044FIRPROCER-011`.
+**Result**: pass for FIRST-PROOF-11 scope.
+
+**Positive evidence**: The fixture-negative/schema command set passed at the
+current audit tree. `fixtures_load` proved all fixtures declare contracts,
+scope, action/report/assertion metadata, and explicit need seeds; all fixtures
+load deterministically and validate; authored prehistory seed events are
+emitted; source refs use stable typed canonical encoding; raw and secondary
+fixture bytes reprice fingerprints; and valid epistemic seeds validate and
+round-trip canonically. `schema_conformance` proved fixture scope registration
+and content-spine requirements map to named tests. `golden_fixtures_run` proved
+the canonical fixture corpus validates, rejects missing IDs/bad references, and
+keeps fixture fingerprints frozen.
+
+**Adversarial evidence**: `forbidden_content` passed fail-closed tests for
+prose-born facts, malformed epistemic seed fields, hidden-truth source seeding,
+planner-intended facts without provenance, shortcut truth fields, quest/reward
+player/script constructs, outcome-chain routine markers, debug-label
+acceptance gaming, unknown tokens, truncated serialization, and validator
+branch-matrix guards. `fixtures_load` passed unsupported schema, forbidden
+top-level key, unknown field, prose-born raw-line, duplicate/dangling reference,
+missing need/tuning, blanket known-food helper, ambiguous assignment, and
+contract denial rejections. `negative_fixture_runner` proved registered
+compile-fail fixtures and banned API negative fixtures fail as expected, while
+`anti_regression_guards` kept protected state mutation, hidden-truth audit,
+actor-known construction, and source-guard boundaries live.
+
+**Event/replay/projection evidence**: The passing tests distinguish raw-byte,
+canonical-content, fixture-registry, behavior, compile-fail, and replay
+fingerprint scopes. Rejected content produces no accepted event log,
+authoritative state, projection, or actor-known fact; compile-fail fixtures
+prove external callers cannot forge protected belief, observation,
+contradiction, or debug records.
+
+**Responsible layers**: `content_schema`, `content_validation`,
+`fixture_contract`, `event_append`, `projection`, `replay`, `test_oracle`.
 
 ### FIRST-PROOF-12 - Temporal firewall: modeled temporal premises, ancestry, freshness, and non-contamination
 
@@ -1005,6 +1045,51 @@ not repair missing actor-known facts from current truth.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-10
   negative/tamper commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-10.
+
+### E-0044-011-load-schema-canonicalization
+
+- Requirement IDs: `FIRST-PROOF-11`
+- Evidence status: pass
+- Fingerprint scope: raw bytes; canonical content; fixture registry; behavior
+- Evidence summary: `fixtures_load`, `schema_conformance`, and
+  `golden_fixtures_run` passed, covering canonical fixture registry loading,
+  supported schema/scope declarations, deterministic fixture load and
+  validation, source-backed epistemic seed canonicalization, fixture fingerprint
+  repricing, and frozen golden fixture fingerprints.
+- Path under test and behavior witness: content `schema.rs`, `validate.rs`,
+  `load.rs`, `serialization.rs`, the fixture registry, `fixtures_load.rs`,
+  `schema_conformance.rs`, `golden_fixtures_run.rs`, and first-proof fixture
+  families.
+- Replay/provenance ancestry: accepted fixture content produces deterministic
+  canonical seeds, authored prehistory events, source refs, behavior
+  fingerprints, and replayable fixture outputs.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-11
+  positive load/schema/canonicalization commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-11.
+
+### E-0044-011-semantic-rejection-compilefail
+
+- Requirement IDs: `FIRST-PROOF-11`
+- Evidence status: pass
+- Fingerprint scope: command transcript; compile-fail boundary; parsed semantic content
+- Evidence summary: `forbidden_content`, `fixtures_load`,
+  `negative_fixture_runner`, `anti_regression_guards`, and
+  `golden_fixtures_run` passed, covering semantic rejection of forbidden
+  authority data, unsupported/unknown schema and field rejection, prose-born and
+  hidden-truth-source rejection, quest/script/outcome-chain rejection, and
+  external compile-fail boundaries for protected records.
+- Path under test and behavior witness: content validation/serialization
+  guards, `prose_born_fact_rejected_001`,
+  `forbidden_provenance_input_fails_closed_001`,
+  `hidden_truth_audit_rejects_typed_unproven_fact_without_banned_words_001`,
+  compile-fail fixtures for protected belief/observation/contradiction/debug
+  records, and anti-regression source guards.
+- Replay/provenance ancestry: rejected fixtures and forged public-API paths
+  produce no accepted event, log, projection, actor-known fact, or partial
+  runtime state.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-11
+  negative and compile-fail commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-11.
 
 ## Replay Package
 

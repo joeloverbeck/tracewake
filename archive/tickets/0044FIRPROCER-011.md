@@ -1,6 +1,6 @@
 # 0044FIRPROCER-011: FIRST-PROOF-11 — fixture-negative, schema, compile-fail, and semantic content rejection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -76,3 +76,23 @@ Record the §7 adversarial cases: reject culprit/suspect/clue/quest/outcome-chai
 4. `cargo test --locked -p tracewake-content --test forbidden_content`
 5. `cargo test --locked -p tracewake-content --test schema_conformance`
 6. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-11 in the shared acceptance artifact as passed for its
+fixture-negative, schema, semantic rejection, and compile-fail scope. The
+evidence packet now includes command-ledger rows, gate/scenario references, a
+FIRST-PROOF-11 audit section, and two evidence ledger items:
+`E-0044-011-load-schema-canonicalization` and
+`E-0044-011-semantic-rejection-compilefail`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test negative_fixture_runner` -> pass, 5 passed.
+2. `cargo test --locked -p tracewake-core --test anti_regression_guards` -> pass, 85 passed.
+3. `cargo test --locked -p tracewake-content --test fixtures_load` -> pass, 34 passed.
+4. `cargo test --locked -p tracewake-content --test forbidden_content` -> pass, 24 passed.
+5. `cargo test --locked -p tracewake-content --test schema_conformance` -> pass, 3 passed.
+6. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
