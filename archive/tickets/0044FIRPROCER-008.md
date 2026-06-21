@@ -1,6 +1,6 @@
 # 0044FIRPROCER-008: FIRST-PROOF-08 — possession parity, embodied view, and debug split in the missing-property run
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -77,3 +77,23 @@ Record the §7 adversarial cases: possession does not refresh stale belief, add 
 5. `cargo test --locked -p tracewake-tui --test embodied_flow`
 6. `cargo test --locked -p tracewake-tui --test tui_acceptance`
 7. `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-08 in the shared acceptance artifact as passed for its
+possession-parity and embodied/debug split scope. The evidence packet now
+includes command-ledger rows, gate/scenario references, a FIRST-PROOF-08 audit
+section, and two evidence ledger items: `E-0044-008-possession-parity` and
+`E-0044-008-debug-split`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test hidden_truth_gates` -> pass, 17 passed.
+2. `cargo test --locked -p tracewake-core --test golden_scenarios` -> pass, 16 passed.
+3. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
+4. `cargo test --locked -p tracewake-tui --test adversarial_gates` -> pass, 15 passed.
+5. `cargo test --locked -p tracewake-tui --test embodied_flow` -> pass, 6 passed.
+6. `cargo test --locked -p tracewake-tui --test tui_acceptance` -> pass, 11 passed.
+7. `cargo test --locked -p tracewake-tui --test transcript_snapshot` -> pass, 3 passed.
