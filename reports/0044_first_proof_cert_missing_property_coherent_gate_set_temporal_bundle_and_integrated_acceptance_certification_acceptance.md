@@ -95,6 +95,11 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-04 witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-04 fixture witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-04 TUI adversarial witness command. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-05 witness command rerun. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-05 witness command rerun. |
+| `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-05 deterministic/generative witness command. |
+| `cargo test --locked -p tracewake-core --test negative_fixture_runner` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-05 compile-fail witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-05 fixture/replay witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -125,14 +130,14 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation` | pending full integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
 | `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative` | pending full integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation` | pending full integrated point evidence |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation` | pending full integrated point evidence |
+| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation` | pending full integrated point evidence |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
 | `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative` | pending full integrated point evidence |
 
 ## Scenario Family Results
@@ -140,7 +145,7 @@ required command set and passed at `U`.
 | Scenario family | Evidence item IDs | Result |
 |---|---|---|
 | Physical custody baseline | `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-002-embodied-view` | pass for FIRST-PROOF-02 scope |
-| Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative` | pending `FIRST-PROOF-05` and `FIRST-PROOF-06` |
+| Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-005-contradiction-replay`, `E-0044-005-contradiction-negative` | pending `FIRST-PROOF-06` |
 | Possession parity | `E-0044-001-census` | pending `FIRST-PROOF-08` |
 | Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance` | pending downstream point evidence |
 | No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative` | pending downstream point evidence |
@@ -297,7 +302,38 @@ epistemic projections and debug observation views remain deterministic.
 
 ### FIRST-PROOF-05 - Event-sourced expectation contradiction and belief update
 
-**Result**: pending `0044FIRPROCER-005`.
+**Result**: pass for FIRST-PROOF-05 scope.
+
+**Positive evidence**: The contradiction-path command set passed at the current
+audit tree. `epistemics/contradiction.rs` unit tests prove contradiction records
+link the prior expectation belief and contradicting observation, require matching
+holder and expectation stance, and require relevant item/container absence.
+`event_schema_replay_gates::starting_observation_and_contradiction_events_survive_replay_with_sources`
+proves the ordered expectation -> observation -> contradiction segment applies
+through normal event application and survives replay with source refs intact.
+`event_schema_replay_gates::belief_stale_frontier_and_witness_links_survive_projection_debug_and_replay`
+proves the resulting belief links, contradiction IDs, debug rendering, checksum
+input, and replay projection remain stable. `hidden_truth_gates` also proves the
+holder-known/debug projection boundary for contradiction records.
+
+**Adversarial evidence**: The contradiction unit tests cover wrong holder,
+wrong stance, wrong container/place, present item, and absent expectation cases
+returning no detection. `negative_fixture_runner` covers the
+`external_crate_cannot_mutate_contradiction_links` compile-fail boundary, so
+external code cannot mutate the private prior-expectation or observation links.
+`generative_lock` passed deterministic ordering/replay metamorphic checks, and
+`golden_fixtures_run` passed replay tamper, source-event tamper, and fixture
+determinism checks around the same epistemic/event substrate.
+
+**Event/replay/projection evidence**: The passing tests record event IDs for the
+source expectation, observation, contradiction, and updated belief; event causes
+and payload versions; holder IDs; prior expectation and contradicting
+observation IDs; projection checksum lines containing contradiction links; debug
+belief/contradiction rows; and replay equality from a rebuilt projection. Replay
+tamper tests provide localized first-divergence evidence for perturbed logs.
+
+**Responsible layers**: `event_append`, `event_application`, `projection`,
+`holder_known_context`, `replay`, `test_oracle`.
 
 ### FIRST-PROOF-06 - No culprit, suspect, clue, theft, quest, or story-sifting truth
 
@@ -510,6 +546,47 @@ epistemic projections and debug observation views remain deterministic.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-04
   negative commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-04.
+
+### E-0044-005-contradiction-replay
+
+- Requirement IDs: `FIRST-PROOF-05`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `event_schema_replay_gates`, `hidden_truth_gates`, and
+  `golden_fixtures_run` passed, covering event-sourced contradiction creation,
+  linked belief/observation records, holder-scoped projections, debug rendering,
+  replay equality, and localized replay divergence for tampered logs.
+- Path under test and behavior witness: `epistemics/contradiction.rs`,
+  `epistemics/belief.rs`, `epistemics/observation.rs`,
+  `epistemics/proposition.rs`, `epistemics/projection.rs`, `events/envelope.rs`,
+  `events/log.rs`, `events/apply.rs`, `replay/rebuild.rs`, `replay/report.rs`,
+  `checksum.rs`, and `expectation_contradiction_001`.
+- Replay/provenance ancestry: source expectation event, observation event,
+  contradiction event, and updated belief event IDs/causes are applied and then
+  replayed from serialized event-log input with stable projection checksums.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-05
+  event/replay commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-05.
+
+### E-0044-005-contradiction-negative
+
+- Requirement IDs: `FIRST-PROOF-05`
+- Evidence status: pass
+- Fingerprint scope: command transcript; compile-fail boundary; parsed semantic content
+- Evidence summary: `generative_lock` and `negative_fixture_runner` passed,
+  while contradiction unit tests covered wrong-holder, wrong-stance,
+  wrong-target, present-item, absent-expectation, determinism, and link-forgery
+  rejection.
+- Path under test and behavior witness: `epistemics/contradiction.rs`,
+  `tests/negative-fixtures/external_crate_cannot_mutate_contradiction_links/src/lib.rs`,
+  generative replay/order tests, and golden fixture tamper tests.
+- Replay/provenance ancestry: invalid or unrelated premises produce no accepted
+  contradiction; external mutation of private contradiction links fails at
+  compile time; deterministic generated runs and replay tamper checks preserve
+  stable semantics.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-05
+  negative/generative commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-05.
 
 ## Replay Package
 

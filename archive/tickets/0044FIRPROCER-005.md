@@ -1,6 +1,6 @@
 # 0044FIRPROCER-005: FIRST-PROOF-05 — event-sourced expectation contradiction and belief update
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -75,3 +75,34 @@ Record the §7 adversarial cases: wrong holder, wrong item, wrong container/plac
 3. `cargo test --locked -p tracewake-core --test generative_lock`
 4. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
 5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Updated
+`reports/0044_first_proof_cert_missing_property_coherent_gate_set_temporal_bundle_and_integrated_acceptance_certification_acceptance.md`
+to mark `FIRST-PROOF-05` passed for its event-sourced contradiction and belief
+update scope. The artifact records positive witnesses for expectation ->
+observation -> contradiction event application, stable holder-scoped
+prior-expectation / contradicting-observation links, debug rendering,
+projection checksums, replay equality, and localized divergence on tampered
+logs. It also records adversarial evidence for wrong holder, wrong stance,
+wrong target, present item, absent expectation, deterministic duplicate/order
+behavior, and the compile-fail boundary preventing external mutation of
+contradiction links.
+
+No production code, fixtures, schemas, tests, or mutation configuration changed.
+No audit-only instrumentation was needed.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
+- `cargo test --locked -p tracewake-core --test hidden_truth_gates`
+- `cargo test --locked -p tracewake-core --test generative_lock`
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+All required commands passed. The artifact remains pending for no-culprit-truth,
+truth-firewall integration, possession/no-human/replay/fixture-negative
+capstones, full mutation execution, and the final FIRST-PROOF-CERT verdict.
