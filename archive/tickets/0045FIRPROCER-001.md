@@ -1,6 +1,6 @@
 # 0045FIRPROCER-001: Converge the in-diff mutation trigger + CI guard on the standing FIRST-PROOF perimeter (drift-proof)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — CI workflow (`.github/workflows/ci.yml`) and the core CI guard test (`crates/tracewake-core/tests/ci_workflow_guards.rs`); no production/simulation logic change.
@@ -92,3 +92,33 @@ Confirm `.cargo/mutants.toml` still expands to the standing 62-file seam (no shr
 1. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked`
 3. `grep -nE 'time\.rs|checkcontainer' .github/workflows/ci.yml` — confirm both carriers now appear in the in-diff trigger expression; `wc -c .cargo/mutants-baseline-misses.txt` — confirm `0` bytes (no laundering).
+
+## Outcome
+
+Completed: 2026-06-21
+
+The `mutants-in-diff` guarded-path regex now covers both FIRST-PROOF standing
+perimeter additions: `crates/tracewake-core/src/time.rs` and
+`crates/tracewake-core/src/actions/defs/checkcontainer.rs`. The core CI workflow
+guard now includes both paths in `STANDING_MUTATION_PERIMETER`, includes the
+matching trigger fragments, maps each perimeter path to its trigger coverage,
+and has synthetic removal negatives for both new carriers.
+
+During verification, the existing anti-regression mutation-perimeter guard also
+proved to model the grouped `actions/defs` regex. Its synthetic regression
+literals were updated to the widened group so that guard continues to test the
+live CI expression instead of a stale pre-0045 shape.
+
+No mutation denominator shrinkage or survivor laundering was performed:
+`.cargo/mutants.toml` still contains both carriers, and
+`.cargo/mutants-baseline-misses.txt` remains `0` bytes.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards` — passed.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards mutation_perimeter_matches_duration_action_rationale_and_ci_filters` — passed after the stale synthetic literals were corrected.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace --locked` — passed.
+- `grep -nE 'time\.rs|checkcontainer' .github/workflows/ci.yml crates/tracewake-core/tests/ci_workflow_guards.rs .cargo/mutants.toml` — confirmed the CI trigger, guard, and standing config all name the carriers.
+- `wc -c .cargo/mutants-baseline-misses.txt` — reported `0`.

@@ -17,6 +17,7 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/agent/**",
     "crates/tracewake-core/src/need_accounting.rs",
     "crates/tracewake-core/src/scheduler.rs",
+    "crates/tracewake-core/src/time.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
     "crates/tracewake-core/src/actions/registry.rs",
@@ -27,6 +28,7 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/actions/defs/wait.rs",
     "crates/tracewake-core/src/actions/defs/continue_routine.rs",
     "crates/tracewake-core/src/actions/defs/movement.rs",
+    "crates/tracewake-core/src/actions/defs/checkcontainer.rs",
     "crates/tracewake-core/src/events/**",
     "crates/tracewake-core/src/replay/**",
     "crates/tracewake-core/src/checksum.rs",
@@ -55,10 +57,11 @@ const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/agent/",
     "crates/tracewake-core/src/need_accounting\\.rs",
     "crates/tracewake-core/src/scheduler\\.rs",
+    "crates/tracewake-core/src/time\\.rs",
     "crates/tracewake-core/src/projections\\.rs",
     "crates/tracewake-core/src/actions/pipeline\\.rs",
     "crates/tracewake-core/src/actions/registry\\.rs",
-    "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
+    "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
     "crates/tracewake-core/src/events/",
     "crates/tracewake-core/src/replay/",
     "crates/tracewake-core/src/checksum\\.rs",
@@ -179,6 +182,29 @@ fn ci_workflow_guards_cover_workflow_integrity() {
             .iter()
             .any(|error| error.contains("does not cover standing perimeter path")),
         "synthetic in-diff trigger missing a standing path must fail"
+    );
+
+    let missing_time_trigger = CI_YML.replace("crates/tracewake-core/src/time\\.rs|", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_time_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains(
+                "does not cover standing perimeter path crates/tracewake-core/src/time.rs"
+            )),
+        "synthetic in-diff trigger missing time.rs must fail"
+    );
+
+    let missing_checkcontainer_trigger = CI_YML.replace(
+        "(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
+        "(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_checkcontainer_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains(
+                "does not cover standing perimeter path crates/tracewake-core/src/actions/defs/checkcontainer.rs"
+            )),
+        "synthetic in-diff trigger missing checkcontainer.rs must fail"
     );
 }
 
@@ -392,6 +418,7 @@ fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
         "crates/tracewake-core/src/scheduler.rs" => {
             "crates/tracewake-core/src/scheduler\\.rs"
         }
+        "crates/tracewake-core/src/time.rs" => "crates/tracewake-core/src/time\\.rs",
         "crates/tracewake-core/src/projections.rs" => {
             "crates/tracewake-core/src/projections\\.rs"
         }
@@ -407,8 +434,9 @@ fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
         | "crates/tracewake-core/src/actions/defs/work.rs"
         | "crates/tracewake-core/src/actions/defs/wait.rs"
         | "crates/tracewake-core/src/actions/defs/continue_routine.rs"
-        | "crates/tracewake-core/src/actions/defs/movement.rs" => {
-            "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs"
+        | "crates/tracewake-core/src/actions/defs/movement.rs"
+        | "crates/tracewake-core/src/actions/defs/checkcontainer.rs" => {
+            "crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs"
         }
         "crates/tracewake-core/src/events/**" => "crates/tracewake-core/src/events/",
         "crates/tracewake-core/src/replay/**" => "crates/tracewake-core/src/replay/",

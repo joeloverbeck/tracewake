@@ -4608,8 +4608,8 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
     );
 
     let missing_eat_in_diff = CI_YML.replace(
-        "actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs",
-        "actions/defs/(need_events|sleep|work|wait|continue_routine|movement)\\.rs",
+        "actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
+        "actions/defs/(need_events|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_eat_in_diff)
@@ -4620,7 +4620,7 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
 
     let decoy_in_diff = CI_YML.replace(
         "          if git diff --name-only \"$guarded_range\" | grep -E",
-        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
+        "          echo \"git diff --name-only decoy\" | grep -E '^(crates/tracewake-core/src/actions/defs/(need_events|eat|sleep|work|wait|continue_routine|movement|checkcontainer)\\.rs)'\n          if git diff --name-only \"$guarded_range\" | grep -E",
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &decoy_in_diff)
