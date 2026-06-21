@@ -90,9 +90,10 @@ Create `reports/0045_first_proof_cert_mutation_remediation_replacement_certifica
 ## Outcome
 
 Completed: 2026-06-21
+Outcome amended: 2026-06-21
 
 Implemented the acceptance-only capstone by adding
-`reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md`
+`archive/reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md`
 with verdict `FIRST-PROOF-CERT passed` for exact implementation/evidence commit
 `9a071b6e32ebc5b6126645a9db257d453399c028`. The artifact explicitly supersedes
 the 0044 scoped-remediation artifact for current FIRST-PROOF-CERT citation use,

@@ -5,11 +5,11 @@
 **Target repository:** `joeloverbeck/tracewake`  
 **Target commit / authoring and reassessment baseline:** `fd5ae94ff3225d2f989262b95ed8272945861516`  
 **Spec series:** numbered staging spec `0045`, staged under `specs/`, archived by plain rename on accepted closeout  
-**Status:** PROPOSED — NON-EXECUTED REMEDIATION CONTRACT  
+**Status:** COMPLETED
 **Future-spec posture:** `Remediation`  
-**Admissibility posture:** `FIRST-PROOF-CERT scoped remediation`  
+**Admissibility posture:** `FIRST-PROOF-CERT passed` after accepted closeout
 **Consumed predecessor gates:** `P0-CERT passed` through the 0037 replacement artifact; `SPINE-CERT passed` through the 0039 replacement artifact; `EPI-CERT passed` through the 0041 replacement artifact; `ORD-LIFE-CERT passed` through the 0043 replacement artifact  
-**Certification-line effect:** successful execution must publish a replacement acceptance artifact rendering `FIRST-PROOF-CERT passed` and explicitly superseding the 0044 FIRST-PROOF-CERT acceptance artifact  
+**Certification-line effect:** replacement acceptance artifact published; `FIRST-PROOF-CERT passed` rendered for the exact scoped implementation/evidence commit and the 0044 FIRST-PROOF-CERT acceptance artifact superseded for current citation use
 **Assumption:** stage under `specs/`; archive to the path above on accepted closeout; do not promote this staging-series spec into `docs/4-specs/`  
 **Execution character:** this is a non-executable specification; it prescribes implementation, execution, evidence, review, and packaging work but performs none of it
 
@@ -111,16 +111,18 @@ Neither the authoring baseline nor the final implementation/evidence SHA may be 
 
 ### 1.5 Admissibility lock
 
-Until the passing replacement artifact lands:
+After accepted closeout, later specs may cite `FIRST-PROOF-CERT passed` only
+through
+`archive/reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md`
+and only for its exact scoped implementation/evidence commit. This package does
+not by itself certify `PHASE-4-ENTRY`, `SECOND-PROOF-ENTRY`, latest `main`,
+institutions, records, wrong-suspicion, notices, travel, regional scale, LOD,
+story-sifting, LLM dialogue, or future feature surfaces.
 
-- no later spec may cite `FIRST-PROOF-CERT passed`;
-- `PHASE-4-ENTRY` remains locked;
-- `SECOND-PROOF-ENTRY` remains locked;
-- institutions, records, wrong-suspicion, notices, travel, regional scale, LOD, story-sifting, and LLM dialogue remain outside this package;
-- a focused run, partial run, partial shard set, high mutation percentage, zero misses observed so far, or empty baseline-miss file cannot substitute for completion; and
-- no implementation convenience may weaken the nine gates, the nine scenario families, the temporal bundle, replay determinism, or the standing mutation denominator.
-
-On accepted closeout, archive this staging spec by plain rename, archive the passing replacement report under the corresponding numbered report path, preserve 0044 as historical audit evidence, and update `docs/4-specs/SPEC_LEDGER.md` according to repository convention.
+The accepted closeout archived this staging spec by plain rename, archived the
+passing replacement report under the corresponding numbered report path,
+preserved 0044 as historical audit evidence, and updated
+`docs/4-specs/SPEC_LEDGER.md` according to repository convention.
 
 ---
 
@@ -2102,9 +2104,11 @@ The implementing session must execute 0045 in this order:
 
 ---
 
-## 14. Outcome prescribed by this specification
+## 14. Outcome
 
-0045 prescribes one admissible transition:
+Completed: 2026-06-21
+
+0045 completed the prescribed transition:
 
 ```text
 FIRST-PROOF-CERT scoped remediation
@@ -2115,7 +2119,32 @@ FIRST-PROOF-CERT scoped remediation
 FIRST-PROOF-CERT passed
 ```
 
-This document does not assert that the transition has occurred. Until the implementing session supplies the required live evidence and an accepted replacement artifact, the standing state remains `FIRST-PROOF-CERT scoped remediation`, and `PHASE-4-ENTRY` plus all downstream expansion remain locked.
+The accepted replacement artifact is
+`archive/reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md`.
+It renders `FIRST-PROOF-CERT passed` for exact implementation/evidence commit
+`9a071b6e32ebc5b6126645a9db257d453399c028`, explicitly supersedes the 0044
+scoped-remediation artifact for current FIRST-PROOF-CERT citation use, and does
+not certify latest `main`, Phase-4 entry, second-proof entry, institutions,
+notices, travel, regional scale, LOD, story-sifting, LLM/speech, or future
+feature surfaces.
+
+The 0045 series completed and archived tickets `0045FIRPROCER-001` through
+`0045FIRPROCER-006`. The configured mutation campaign reconciled 2,901 canonical
+identities across eight deterministic shards with 2,277 caught, 624 unviable,
+zero missed, zero timeout, pairwise-disjoint shards, and canonical-union
+equality. `reports/0045_first_proof_cert_emerge_obs.md` remains observer-only
+and is not counted as certifying evidence.
+
+Verification recorded by the final ticket included:
+
+- `cargo fmt --all --check`
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
+- `cargo test --locked -p tracewake-core --test event_schema_replay_gates --test hidden_truth_gates --test no_human_capstone --test emergence_ledger`
+
+The broader §4.9 named first-proof suite set, workspace preflight gates, and
+complete mutation evidence are retained under
+`reports/0045_first_proof_cert_command_transcripts/` and the 0045 mutation
+completion reports.
 
 ---
 
@@ -2292,4 +2321,3 @@ External sources are decision support only. They do not assert what exists in Tr
 [^property-mutation]: Ezio Bartocci, Leonardo Mariani, Dejan Nickovic, and Drishti Yadav, [Property-Based Mutation Testing](https://arxiv.org/abs/2301.13615), 2023.
 [^metamorphic-review]: Nasser Alzahrani, Maria Spichkova, and James Harland, [Application of property-based testing tools for metamorphic testing](https://arxiv.org/abs/2211.12003), 2022.
 [^goodhart]: David Manheim, [Multiparty Dynamics and Failure Modes for Machine Learning and Artificial Intelligence](https://arxiv.org/abs/1810.10862), 2018; used only as general specification-gaming/Goodhart framing, not as repository evidence.
-

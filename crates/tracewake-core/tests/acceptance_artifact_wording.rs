@@ -8,7 +8,7 @@ const SPINE_CERT_0039_ARTIFACT: &str = include_str!(
     "../../../archive/reports/0039_spine_cert_mutation_remediation_replacement_certification_acceptance.md"
 );
 const FIRST_PROOF_CERT_0045_ARTIFACT: &str = include_str!(
-    "../../../reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md"
+    "../../../archive/reports/0045_first_proof_cert_mutation_remediation_replacement_certification_acceptance.md"
 );
 
 const REQUIRED_PHASE1_SCOPED_WORDING: &str =
