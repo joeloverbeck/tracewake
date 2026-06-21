@@ -167,6 +167,15 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-16 fixture diagnostic witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-16 transcript/replay diagnostic witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-16 TUI diagnostic witness command rerun. |
+| `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-17 generated/metamorphic witness command rerun. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-17 hidden-truth relation witness command rerun. |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | pass | Exit 0; 12 passed, 0 failed. FIRST-PROOF-17 acceptance/pipeline relation witness command rerun. |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | pass | Exit 0; 16 passed, 0 failed. FIRST-PROOF-17 scenario relation witness command rerun. |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | pass | Exit 0; 2 passed, 0 failed. FIRST-PROOF-17 composite capstone witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-17 cross-fixture determinism witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-17 TUI adversarial relation witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test embodied_flow` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-17 embodied relation witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-17 transcript relation witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -197,15 +206,15 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
-| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pending full integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pending full integrated point evidence |
-| `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pending integrated point evidence |
-| `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pending integrated point evidence |
-| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
-| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
-| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination` | pending full integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
+| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
+| `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative`, `E-0044-017-cross-gate-relations` | pending integrated point evidence |
+| `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending integrated point evidence |
+| `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit`, `E-0044-017-cross-gate-relations` | pending full integrated point evidence |
+| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative`, `E-0044-017-cross-gate-relations` | pending integrated point evidence |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-017-cross-gate-relations`, `E-0044-017-sampled-metamorphic-posture` | pending full integrated point evidence |
+| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination`, `E-0044-017-cross-gate-relations` | pending full integrated point evidence |
 
 ## Scenario Family Results
 
@@ -824,7 +833,42 @@ scheduler objective or threshold.
 
 ### FIRST-PROOF-17 - Cross-gate relational, property-based, metamorphic, and integration closure
 
-**Result**: pending `0044FIRPROCER-017`.
+**Result**: pass for FIRST-PROOF-17 scope.
+
+**Positive evidence**: The cross-gate command set passed at the current audit
+tree without requiring new test-harness code. `generative_lock` proved generated
+sequence replay, seed-order determinism, duration-terminal tamper, progress and
+lifecycle relational locks, and explicit sampled metadata. `hidden_truth_gates`,
+`golden_scenarios`, and `no_human_capstone` proved source-backed expectation,
+hidden-custody and debug non-interference, legal observation/check, presence and
+absence paths, contradiction creation, no-human advancement, and replay rebuild
+through runtime paths. `golden_fixtures_run` proved cross-fixture determinism,
+fixture fingerprints, source-evidence tamper, hidden-truth planner exclusion,
+duration/window fixtures, and no-human trace replay. TUI `adversarial_gates`,
+`embodied_flow`, and `transcript_snapshot` proved possession/debug/view
+non-interference and transcript determinism.
+
+**Adversarial evidence**: The same suites covered hidden-truth/debug/human
+privilege non-interference, premise deletion/substitution, source-evidence
+tamper, collection/order and replay perturbations, marker-only progress
+exclusion, no-teleport routine blocking, stale/forged TUI input rejection,
+debug-output quarantine, and deterministic generated replay. No additional
+assertion was added because every required relation has a reachable witness in
+the existing suites named above; sampled generated relations are recorded as
+evidence amplifiers beside direct certifying witnesses, not as exhaustive proof.
+
+**Event/replay/projection evidence**: The passing tests compare actor-known
+contexts, decisions, embodied views, proposals, event sequences, physical and
+agent checksums, epistemic projections, diagnostics, fixture fingerprints,
+transcript snapshots, and first-divergence reports. The §9 composite family is
+covered by the combined `golden_scenarios`, `no_human_capstone`,
+`golden_fixtures_run`, and TUI adversarial/embodied witnesses at the current
+tree.
+
+**Responsible layers**: `test_oracle`, `holder_known_context`,
+`candidate_generation`, `proposal_construction`, `action_validation`,
+`event_append`, `event_application`, `projection`, `replay`, `view_model`,
+`debug_adapter`, `tui_input_binding`, `fixture_contract`.
 
 ## Temporal Source Results
 
@@ -1526,6 +1570,53 @@ threshold, source category, gate code, or status enum.
 - Sampling/exhaustiveness scope: exhaustive over the five routed temporal source
   rows named in spec section 8.5 for this FIRST-PROOF-CERT bundle.
 - Certification use: counted as certifying pass for FIRST-PROOF-16.
+
+### E-0044-017-cross-gate-relations
+
+- Requirement IDs: `FIRST-PROOF-17`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content; view/debug output
+- Evidence summary: `generative_lock`, `hidden_truth_gates`,
+  `acceptance_gates`, `golden_scenarios`, `no_human_capstone`,
+  `golden_fixtures_run`, `adversarial_gates`, `embodied_flow`, and
+  `transcript_snapshot` passed, covering cross-gate hidden-truth/debug/human
+  non-interference, legal observation intervention, presence/absence paths,
+  contradiction creation, possession/debug toggles, ordinary no-human
+  advancement, replay rebuild, fixture determinism, and TUI/debug quarantine.
+- Path under test and behavior witness: existing generative/metamorphic suites,
+  hidden-truth gates, golden scenarios, no-human capstone, content golden
+  fixtures, TUI adversarial/embodied/transcript suites, and public/runtime paths
+  only.
+- Replay/provenance ancestry: compared artifacts include actor-known contexts,
+  decisions, views, proposals, event logs, physical/agent/epistemic checksums,
+  diagnostics, fixture fingerprints, transcript snapshots, and replay
+  first-divergence reports.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-17
+  command set; generated/metamorphic inputs remain sampled by the existing
+  `generative_lock` suite.
+- Certification use: counted as certifying pass for FIRST-PROOF-17.
+
+### E-0044-017-sampled-metamorphic-posture
+
+- Requirement IDs: `FIRST-PROOF-17`
+- Evidence status: pass
+- Fingerprint scope: command transcript; generated evidence metadata
+- Evidence summary: `generative_lock` passed its explicit sampled metadata,
+  seed-order determinism, generated sequence replay, progress/lifecycle
+  relation, and duration-terminal tamper tests. No new harness assertion was
+  needed because branch reachability is covered by existing runtime-path
+  witnesses in the named suites.
+- Path under test and behavior witness: `crates/tracewake-core/tests/generative_lock.rs`
+  and `crates/tracewake-core/tests/support/generative.rs` as exercised by the
+  existing test suite; no production code or fixture files were changed.
+- Replay/provenance ancestry: generated/metamorphic evidence supports direct
+  scenario and fixture witnesses; it is not presented as finite-exhaustive over
+  all possible worlds or schedules.
+- Sampling/exhaustiveness scope: sampled generated/metamorphic relation checks;
+  finite fixture and command coverage remain separately scoped in their owning
+  evidence items.
+- Certification use: counted as certifying pass for FIRST-PROOF-17 sampled
+  posture only.
 
 ## Replay Package
 

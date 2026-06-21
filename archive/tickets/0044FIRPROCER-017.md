@@ -1,6 +1,6 @@
 # 0044FIRPROCER-017: FIRST-PROOF-17 — cross-gate relational, property-based, metamorphic, and integration closure
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-harness only. May add metamorphic/relational assertions to existing certification suites per spec §5.4/§9 when a §7 relation lacks a reachable witness; adds no production logic.
@@ -83,3 +83,27 @@ For any §7 relation whose intended branch is not already exercised by an existi
 7. `cargo test --locked -p tracewake-tui --test adversarial_gates`
 8. `cargo test --locked -p tracewake-tui --test embodied_flow`
 9. `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-17 in the shared acceptance artifact as passed for its
+cross-gate relational, property-based, metamorphic, and integration closure
+scope. Existing runtime-path suites covered the required relations, so no
+test-harness code change was needed. The evidence packet now includes
+command-ledger rows, gate references, a FIRST-PROOF-17 audit section, and two
+evidence ledger items: `E-0044-017-cross-gate-relations` and
+`E-0044-017-sampled-metamorphic-posture`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test generative_lock` -> pass, 5 passed.
+2. `cargo test --locked -p tracewake-core --test hidden_truth_gates` -> pass, 17 passed.
+3. `cargo test --locked -p tracewake-core --test acceptance_gates` -> pass, 12 passed.
+4. `cargo test --locked -p tracewake-core --test golden_scenarios` -> pass, 16 passed.
+5. `cargo test --locked -p tracewake-core --test no_human_capstone` -> pass, 2 passed.
+6. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
+7. `cargo test --locked -p tracewake-tui --test adversarial_gates` -> pass, 15 passed.
+8. `cargo test --locked -p tracewake-tui --test embodied_flow` -> pass, 6 passed.
+9. `cargo test --locked -p tracewake-tui --test transcript_snapshot` -> pass, 3 passed.
