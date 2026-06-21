@@ -90,6 +90,11 @@ For each ticket:
    incomplete run into a pass. Deterministic reruns or narrower variants may be
    useful supplemental evidence, but they do not replace the exact required
    command unless the ticket/spec explicitly allows that substitution.
+   Capture source/config/test/fixture cleanliness before creating transcript or
+   output directories when the evidence package needs a clean-start claim. If
+   transcript or output directories already exist, record generated-evidence
+   dirtiness separately from source-tree cleanliness instead of collapsing both
+   into a single "not clean" status.
    For filtered mutation campaigns, verify the selected denominator before the
    expensive run. Repository mutation config can widen or override CLI filters;
    run the corresponding `--list` or `--list-files` command with the same
@@ -173,7 +178,13 @@ deviations in the ticket and spec outcomes.
      controls unless the user explicitly says not to archive the reference spec.
 2. Update the spec with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
-3. Archive the spec to `archive/specs/`.
+3. Archive any spec-required acceptance reports or replacement artifacts before
+   archiving the spec when the spec names an `archive/reports/` closeout path.
+   Prefer `git mv` for tracked reports. Retarget compiled references, tests,
+   docs, ledgers, and report links from the live `reports/` path to the archived
+   path in the same change. If a ticket `Outcome` recorded the pre-archive
+   report path as the final path, amend that outcome before closeout.
+4. Archive the spec to `archive/specs/`.
    - Create `archive/specs/` if absent.
    - Prefer `git mv` for tracked specs.
    - Use plain `mv` only for untracked specs.
@@ -190,7 +201,7 @@ deviations in the ticket and spec outcomes.
    Run Git index-mutating commands serially; do not parallelize `git add`,
    `git mv`, `git commit`, or related staging commands. If `.git/index.lock`
    appears, check for active Git processes, then retry serially.
-4. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
+5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
    Use separate concrete sweeps for stale live paths and expected archive
    provenance. First run a strict stale-live-path sweep for the exact live spec
@@ -232,7 +243,7 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    files only when they are required summary evidence. Leave bulky per-case
    logs, diffs, caches, and scratch outputs untracked unless the ticket/spec
    explicitly requires archiving them.
-5. Run the relevant final gates after the last tracked closeout edit. The gate
+6. Run the relevant final gates after the last tracked closeout edit. The gate
    evidence must cover the exact closeout tree that will be claimed complete.
    Either:
    - run the gates before the final commit, then confirm no tracked or generated
@@ -259,7 +270,12 @@ cargo test --workspace
    run the exact required gate when possible. Then rerun a lower-output
    equivalent only as supplemental confirmation, and record both the exact gate
    and the supplemental command truthfully.
-6. Re-read updated ticket/spec outcomes and reports after the final verification
+   Do not mark the series complete if any required full-completion gate from
+   `AGENTS.md` or other repository guidance lacks post-closeout evidence unless
+   the exact skipped or changed command and the reason are recorded in both the
+   spec `Outcome` and the final response. Treat this as a hard stop before
+   goal completion, not a formatting preference.
+7. Re-read updated ticket/spec outcomes and reports after the final verification
    run. Confirm the recorded commands, paths, statuses, and skipped/deviated
    checks match what actually happened. If a report originally recorded a
    deferral that was completed later in the same series, amend the report so the
@@ -302,9 +318,9 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    from prior intent. Check whether the process is still running, then rerun the
    exact required gate if completion evidence is unavailable.
 
-7. Run a final status/diff check and commit the spec archive/truthing work if it
+8. Run a final status/diff check and commit the spec archive/truthing work if it
    has not already been committed before the final gates.
-8. Before sending the final response or marking a `/goal` complete, confirm:
+9. Before sending the final response or marking a `/goal` complete, confirm:
    - no matching active ticket paths remain under `tickets/`;
    - the reference spec no longer exists under `specs/` or `docs/4-specs/`;
    - the archived spec exists under `archive/specs/`;
@@ -320,9 +336,11 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    - each required final gate from `AGENTS.md` or other repository guidance has
      a literal matching command in the run evidence, or any flag/command
      difference is recorded in the spec `Outcome` and final response.
+   - the final answer has been drafted using the `## Reporting` scaffold below
+     with every field present and explicit `None` values where applicable.
    - the final response has been checked against the `## Reporting` bullets
      below.
-9. If a `/goal` is active, mark it complete only after implementation,
+10. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
    checks, and required commits are done. On a resumed `/goal` turn, re-run the
    active-path, archive-path, reference, status, and final-commit audit against
@@ -354,8 +372,11 @@ These fields may be embedded in concise prose, but the final answer must make
 each answer explicit. Before calling the goal completion tool or sending the
 final response, draft or mentally check the final answer against this list with
 literal labels and `None` values where applicable; do not omit a field because
-it seems obvious from the prose. For active `/goal` runs, include the goal-tool
-usage summary after marking the goal complete.
+it seems obvious from the prose. For active `/goal` runs, draft the final
+response from the scaffold before calling the goal-completion tool; if any
+field cannot be answered, do not mark the goal complete until the missing
+evidence is gathered or the deviation is recorded. Include the goal-tool usage
+summary after marking the goal complete.
 
 Use this scaffold for final responses unless the user requested a narrower
 status-only reply:
