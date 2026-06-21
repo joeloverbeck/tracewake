@@ -137,7 +137,7 @@ def load_canonical_names(path: Path) -> set[str]:
         raise MergeError(f"cannot read {path}: {exc}") from exc
 
 
-def outcome_name_and_key(outcome: dict, path: Path) -> tuple[str, str, str]:
+def outcome_name_and_identity(outcome: dict, path: Path, identity_mode: str) -> tuple[str, str, str]:
     fields = set(outcome)
     unknown = fields - EXPECTED_OUTCOME_FIELDS
     missing = EXPECTED_OUTCOME_FIELDS - fields
@@ -151,12 +151,14 @@ def outcome_name_and_key(outcome: dict, path: Path) -> tuple[str, str, str]:
     if not isinstance(scenario, dict) or not isinstance(scenario.get("Mutant"), dict):
         raise MergeError(f"{path}: outcome scenario is not a Mutant object")
     mutant = scenario["Mutant"]
-    key = identity_key(mutant, path)
     name = normalize_text(mutant.get("name"))
+    if not name:
+        raise MergeError(f"{path}: outcome mutant has blank name")
+    identity = identity_key(mutant, path) if identity_mode == "structured" else name
     summary = normalize_text(outcome.get("summary"))
     if summary not in SUMMARY_TO_TEXT:
         raise MergeError(f"{path}: unsupported outcome summary: {summary}")
-    return name, key, summary
+    return name, identity, summary
 
 
 def text_outcome_names(mutants_out: Path, filename: str) -> set[str]:
@@ -212,10 +214,9 @@ def load_shard(shard_dir: Path, canonical_members: set[str], identity_mode: str)
     for outcome in outcome_rows:
         if not isinstance(outcome, dict):
             raise MergeError(f"{outcomes_path}: outcome entry is not an object")
-        name, key, summary = outcome_name_and_key(outcome, outcomes_path)
-        if key in outcome_keys:
-            raise MergeError(f"{shard_dir}: duplicate outcome identity: {key}")
-        identity = key if identity_mode == "structured" else name
+        name, identity, summary = outcome_name_and_identity(outcome, outcomes_path, identity_mode)
+        if identity in outcome_keys:
+            raise MergeError(f"{shard_dir}: duplicate outcome identity: {identity}")
         if identity not in canonical_members:
             raise MergeError(f"{shard_dir}: outcome identity not in canonical set: {name}")
         outcome_keys[identity] = summary

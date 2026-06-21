@@ -24,7 +24,7 @@ fn mutation_completion_merger_reconciles_sets_and_fails_closed() {
         "successful merge must emit both manifest shapes"
     );
 
-    let list_case = SyntheticCase::create("canonical_list");
+    let list_case = SyntheticCase::create("canonical_list").without_outcome_diff_fields();
     let list_output = run_merger_with_canonical_list(&root, &list_case.dir, &list_case.shards);
     assert_success(
         &list_output,
@@ -293,6 +293,20 @@ impl SyntheticCase {
             &[drifted_alpha, mutant("bravo", 20)],
             &["CaughtMutant", "Unviable"],
         );
+        self
+    }
+
+    fn without_outcome_diff_fields(self) -> Self {
+        for shard in &self.shards {
+            let path = shard.join("mutants.out/outcomes.json");
+            let old = fs::read_to_string(&path).expect("read outcomes");
+            let filtered = old
+                .lines()
+                .filter(|line| !line.trim_start().starts_with(r#""diff": "#))
+                .collect::<Vec<_>>()
+                .join("\n");
+            fs::write(path, format!("{filtered}\n")).expect("write outcomes without diff fields");
+        }
         self
     }
 }
