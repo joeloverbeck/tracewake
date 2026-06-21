@@ -244,14 +244,9 @@ jobs:
           shard_id="${{ matrix.shard }}"
           shard_dir="reports/0045_first_proof_cert_command_transcripts/mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}"
           out_dir="reports/0045_first_proof_cert_mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}.out"
-          mkdir -p "$shard_dir"
-          {
-            echo "shard_index=$shard_id"
-            echo "shard_total=$MUTANTS_SHARDS"
-            echo "commit=$(git rev-parse HEAD)"
-            echo "config_fingerprint=$(sha256sum .cargo/mutants.toml | cut -d ' ' -f1)"
-            echo "toolchain_fingerprint=$(sha256sum rust-toolchain.toml Cargo.lock Cargo.toml | sha256sum | cut -d ' ' -f1)"
-          } > "$shard_dir/shard.env"
+          commit="$(git rev-parse HEAD)"
+          config_fingerprint="$(sha256sum .cargo/mutants.toml | cut -d ' ' -f1)"
+          toolchain_fingerprint="$(sha256sum rust-toolchain.toml Cargo.lock Cargo.toml | sha256sum | cut -d ' ' -f1)"
           set +e
           tools/supervise-command.sh "$shard_dir" "$MUTANTS_WALL_SECONDS" "$MUTANTS_GRACE_SECONDS" -- \
             cargo mutants --workspace --no-shuffle \
@@ -262,6 +257,13 @@ jobs:
               -o "$out_dir"
           supervisor_status=$?
           set -e
+          {
+            echo "shard_index=$shard_id"
+            echo "shard_total=$MUTANTS_SHARDS"
+            echo "commit=$commit"
+            echo "config_fingerprint=$config_fingerprint"
+            echo "toolchain_fingerprint=$toolchain_fingerprint"
+          } > "$shard_dir/shard.env"
           if [ -f "$out_dir/mutants.out/mutants.json" ]; then
             cp "$out_dir/mutants.out/mutants.json" "$shard_dir/assigned-mutants.json"
           fi
