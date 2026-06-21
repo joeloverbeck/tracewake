@@ -136,6 +136,11 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-content --test forbidden_content` | pass | Exit 0; 24 passed, 0 failed. FIRST-PROOF-11 semantic rejection witness command rerun. |
 | `cargo test --locked -p tracewake-content --test schema_conformance` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-11 schema conformance witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-11 golden fixture/corpus witness command rerun. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-12 temporal firewall witness command rerun. |
+| `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-12 raw-time non-contamination witness command rerun. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-12 temporal replay ancestry witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-12 temporal fixture witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-12 debug/validator-time quarantine witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -167,8 +172,8 @@ required command set and passed at `U`.
 | Gate | Evidence item IDs | Result |
 |---|---|---|
 | `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
-| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
+| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pending full integrated point evidence |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending integrated point evidence |
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
@@ -184,10 +189,10 @@ required command set and passed at `U`.
 | Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-005-contradiction-replay`, `E-0044-005-contradiction-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative` | pass for expectation/absence/contradiction/no-culprit scope |
 | Possession parity | `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pass for FIRST-PROOF-08 scope |
 | Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity` | pass for FIRST-PROOF-07 actor-known/firewall and FIRST-PROOF-08 possession scope |
-| No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pass for FIRST-PROOF-07 non-interference scope |
+| No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-07 non-interference and FIRST-PROOF-12 temporal-firewall scope |
 | No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
 | Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope; pending temporal/routine capstone in `FIRST-PROOF-13`/`FIRST-PROOF-16` |
-| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pass for FIRST-PROOF-10 scope |
+| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-012-temporal-firewall` | pass for FIRST-PROOF-10 and FIRST-PROOF-12 replay-ancestry scope |
 | Content rejection | `E-0044-001-census`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail` | pass for FIRST-PROOF-11 scope |
 
 ## Audit Point Results
@@ -607,7 +612,40 @@ contradiction, or debug records.
 
 ### FIRST-PROOF-12 - Temporal firewall: modeled temporal premises, ancestry, freshness, and non-contamination
 
-**Result**: pending `0044FIRPROCER-012`.
+**Result**: pass for FIRST-PROOF-12 scope.
+
+**Positive evidence**: The temporal-firewall command set passed at the current
+audit tree. `hidden_truth_gates` proved actor-known contexts, holder-known
+context hashes, and embodied views remain source/provenance backed rather than
+raw truth backed. `event_schema_replay_gates` proved belief stale frontier and
+witness links survive projection/debug/replay, deterministic rebuild context
+hashes use causal and latest witnesses, observation confidence/debug evidence
+replays, and temporal need/routine/intention malformed or missing records
+reject live and replay. `golden_fixtures_run` proved aged food records surface
+as remembered belief, stale workplace and no-human workplace knowledge require
+modeled notice/observation channels, no-human decision context hashes cite log
+events, and serialized logs replay identically.
+
+**Adversarial evidence**: `generative_lock` passed deterministic seed-order,
+generated sequence replay, progress/lifecycle relational locks, and
+duration-terminal tamper checks. `golden_fixtures_run` passed source-evidence
+tamper, continue-routine reason/kind tamper, proration tamper, no-hidden-truth
+fixture, no-teleport routine, and unsupported/quest/script rejection tests.
+`adversarial_gates` proved debug truth and debug command strings do not enter
+actor surfaces, typed why-not facts remain non-leaking, stale/forged TUI input
+rejects, and rendering/debug output does not change typed order or replay.
+
+**Event/replay/projection evidence**: The passing tests cover source-event
+chains, acquisition/observation ticks, stale frontiers, latest-witness context
+hashes, holder-known projections, accepted/rejected proposal evidence, and
+live/replay temporal fields. Validator time and debug/replay timestamps remain
+validation or diagnostic surfaces; they do not become actor cognition authority
+or silently refresh stale content.
+
+**Responsible layers**: `holder_known_context`, `candidate_generation`,
+`proposal_construction`, `action_validation`, `event_append`,
+`event_application`, `projection`, `replay`, `view_model`, `debug_adapter`,
+`test_oracle`.
 
 ### FIRST-PROOF-13 - Routine temporal premises and adaptation in the integrated no-human run
 
@@ -633,7 +671,7 @@ contradiction, or debug records.
 
 | Routed execution source | Evidence item IDs | Result |
 |---|---|---|
-| `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | pending | pending `FIRST-PROOF-12` |
+| `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-12 temporal-firewall source scope |
 | `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | pending | pending `FIRST-PROOF-13` |
 | `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | pending | pending `FIRST-PROOF-14` |
 | `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | pending | pending `FIRST-PROOF-15` |
@@ -1090,6 +1128,50 @@ contradiction, or debug records.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-11
   negative and compile-fail commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-11.
+
+### E-0044-012-temporal-firewall
+
+- Requirement IDs: `FIRST-PROOF-12`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `hidden_truth_gates`, `event_schema_replay_gates`,
+  `golden_fixtures_run`, and `adversarial_gates` passed, covering
+  source-backed temporal premises, stale frontiers, latest-witness context
+  hashes, modeled notice/observation channels, actor-known temporal evidence,
+  and replay preservation of temporal ancestry.
+- Path under test and behavior witness: `time.rs`, `scheduler.rs`,
+  `agent/actor_known.rs`, `agent/transaction.rs`, `agent/decision.rs`,
+  epistemic belief/observation/knowledge files, `actions/proposal.rs`,
+  `stale_workplace_notice_superseded_by_newer_001`,
+  `embodied_workplace_believed_open_truth_closed_commit_fails_001`, and
+  `aged_food_record_surfaces_as_remembered_belief_not_observation_001`.
+- Replay/provenance ancestry: actor-legible temporal premises retain source
+  event/record/observation ancestry, acquisition or observation tick,
+  staleness/freshness representation, context hashes, frontiers, and replayed
+  projection fields.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-12
+  positive temporal-firewall commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-12.
+
+### E-0044-012-raw-time-negative
+
+- Requirement IDs: `FIRST-PROOF-12`
+- Evidence status: pass
+- Fingerprint scope: command transcript; parsed semantic content; debug/view output
+- Evidence summary: `generative_lock`, `event_schema_replay_gates`,
+  `golden_fixtures_run`, and `adversarial_gates` passed, covering raw/validator
+  time separation, tamper rejection, stale content non-restamping,
+  debug/possession non-refresh, and hidden/debug time non-contamination.
+- Path under test and behavior witness: deterministic/generative locks,
+  replay tamper gates, no-hidden-truth and source-evidence tamper fixtures,
+  stale/forged TUI input tests, debug-truth non-entry tests, and why-not/debug
+  diagnostic surfaces.
+- Replay/provenance ancestry: injected or changed raw clock, replay order,
+  debug timestamp, validator-only fact, or restamped stale content produces no
+  actor-known cognition update without a modeled information event.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-12
+  negative/raw-time commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-12.
 
 ## Replay Package
 
