@@ -1,6 +1,6 @@
 # 0044FIRPROCER-013: FIRST-PROOF-13 — routine temporal premises and adaptation in the integrated no-human run
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -75,3 +75,22 @@ Record the §7 adversarial cases: true schedule alone cannot select work or wake
 3. `cargo test --locked -p tracewake-core --test generative_lock`
 4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates`
 5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-13 in the shared acceptance artifact as passed for its
+routine-temporal and accounting/replay scope. The evidence packet now includes
+command-ledger rows, gate/scenario references, a FIRST-PROOF-13 audit section,
+temporal source `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`, and
+two evidence ledger items: `E-0044-013-routine-temporal` and
+`E-0044-013-accounting-negative`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test no_human_capstone` -> pass, 2 passed.
+2. `cargo test --locked -p tracewake-core --test acceptance_gates` -> pass, 12 passed.
+3. `cargo test --locked -p tracewake-core --test generative_lock` -> pass, 5 passed.
+4. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` -> pass, 32 passed.
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
