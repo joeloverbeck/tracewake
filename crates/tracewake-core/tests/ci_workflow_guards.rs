@@ -473,6 +473,7 @@ fn scheduled_mutation_lane_errors(workflow: &str) -> Vec<String> {
         "--baseline=skip",
         r#"--timeout "$MUTANTS_TEST_TIMEOUT""#,
         "assigned-mutants.json",
+        r#"cp -R "$out_dir/mutants.out" "$shard_dir/mutants.out""#,
         "actions/download-artifact@v4",
         "pattern: cargo-mutants-lock-layer-*",
         "python3 tools/merge-mutation-shards.py",

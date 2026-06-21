@@ -265,6 +265,9 @@ jobs:
           if [ -f "$out_dir/mutants.out/mutants.json" ]; then
             cp "$out_dir/mutants.out/mutants.json" "$shard_dir/assigned-mutants.json"
           fi
+          if [ -d "$out_dir/mutants.out" ]; then
+            cp -R "$out_dir/mutants.out" "$shard_dir/mutants.out"
+          fi
           exit "$supervisor_status"
       - name: Upload mutation shard output
         if: always()
