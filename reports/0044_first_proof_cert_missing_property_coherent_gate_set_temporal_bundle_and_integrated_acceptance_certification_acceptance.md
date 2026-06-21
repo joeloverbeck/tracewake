@@ -152,6 +152,13 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-tui --test embodied_flow` | pass | Exit 0; 6 passed, 0 failed. FIRST-PROOF-14 embodied view witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-14 deterministic transcript witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-14 TUI possession/debug witness command rerun. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-15 temporal replay pairing witness command rerun. |
+| `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-15 generated temporal/tamper witness command rerun. |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | pass | Exit 0; 2 passed, 0 failed. FIRST-PROOF-15 capstone fixture/replay witness command rerun. |
+| `cargo test --locked -p tracewake-content --test fixtures_load` | pass | Exit 0; 34 passed, 0 failed. FIRST-PROOF-15 fixture registry reachability witness command rerun. |
+| `cargo test --locked -p tracewake-content --test forbidden_content` | pass | Exit 0; 24 passed, 0 failed. FIRST-PROOF-15 temporal anti-contamination witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-15 behavioral fixture/replay witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-15 transcript determinism witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -190,7 +197,7 @@ required command set and passed at `U`.
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split`, `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pending integrated point evidence |
 | `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
-| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail` | pending full integrated point evidence |
+| `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination` | pending full integrated point evidence |
 
 ## Scenario Family Results
 
@@ -203,8 +210,8 @@ required command set and passed at `U`.
 | No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-07 non-interference and FIRST-PROOF-12 temporal-firewall scope |
 | No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
 | Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-09 and FIRST-PROOF-13 scope; pending temporal diagnostics in `FIRST-PROOF-16` |
-| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-012-temporal-firewall`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-10, FIRST-PROOF-12, and FIRST-PROOF-13 replay-ancestry scope |
-| Content rejection | `E-0044-001-census`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail` | pass for FIRST-PROOF-11 scope |
+| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence`, `E-0044-012-temporal-firewall`, `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative`, `E-0044-015-temporal-fixture-pairing` | pass for FIRST-PROOF-10, FIRST-PROOF-12, FIRST-PROOF-13, and FIRST-PROOF-15 replay-ancestry scope |
+| Content rejection | `E-0044-001-census`, `E-0044-006-content-negative`, `E-0044-011-load-schema-canonicalization`, `E-0044-011-semantic-rejection-compilefail`, `E-0044-015-temporal-anti-contamination` | pass for FIRST-PROOF-11 and FIRST-PROOF-15 scope |
 
 ## Audit Point Results
 
@@ -734,7 +741,41 @@ possession preserves the same temporal context and freshness.
 
 ### FIRST-PROOF-15 - Temporal positive/adversarial fixture families and replay pairing
 
-**Result**: pending `0044FIRPROCER-015`.
+**Result**: pass for FIRST-PROOF-15 scope.
+
+**Positive evidence**: The temporal fixture/replay command set passed at the
+current audit tree. `fixtures_load` proved fixture registry reachability,
+deterministic load/validation, scope declaration, schema rejection, canonical
+ordering, fingerprint repricing, and the named stale-workplace fixture.
+`golden_fixtures_run` behaviorally exercised aged food, no-human workplace and
+sleep knowledge, wait/window passive charging, sleep window charging,
+food-unavailable replan, routine blocked diagnostics, routine no-teleport,
+serialized event-log replay, fixture fingerprints, and no-human day replay
+metrics. `event_schema_replay_gates` and `no_human_capstone` proved per-scenario
+and capstone replay, projection checksums, first-divergence reports, and typed
+diagnostic rebuilds.
+
+**Adversarial evidence**: `forbidden_content` rejected hidden-truth source
+seeding, malformed/missing epistemic seed fields, shortcut truth fields,
+planner-intended facts without provenance, outcome-chain markers, generated or
+prose-like forbidden authority, debug-label acceptance gaming, and unknown or
+truncated serialized tokens. `event_schema_replay_gates`, `generative_lock`,
+and `golden_fixtures_run` covered duplicate/missing/malformed duration and need
+records, stream mismatch, payload lies, source-evidence tamper,
+continue-routine tamper, episode/proration tamper, and deterministic generated
+sequence replay. `transcript_snapshot` proved byte-stable transcript/debug
+snapshots.
+
+**Event/replay/projection evidence**: The passing tests cover registry IDs,
+semantic fixture fingerprints, triggers, source provenance, event sequences,
+projection fields, diagnostics, live/replay checksums, first-divergence reports,
+and transcript snapshots. Coverage is exhaustive over the declared finite
+fixture registry exercised by the named commands; generated/metamorphic checks
+are sampled by the existing `generative_lock` suite.
+
+**Responsible layers**: `content_schema`, `content_validation`,
+`fixture_contract`, `holder_known_context`, `projection`, `replay`,
+`debug_adapter`, `test_oracle`.
 
 ### FIRST-PROOF-16 - Temporal diagnostics and consolidated five-source acceptance line
 
@@ -751,7 +792,7 @@ possession preserves the same temporal context and freshness.
 | `04_TRUTH_FIREWALL_ACTOR_KNOWN_AND_ANTI_CONTAMINATION_GATES.md` | `E-0044-012-temporal-firewall`, `E-0044-012-raw-time-negative` | pass for FIRST-PROOF-12 temporal-firewall source scope |
 | `06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` | `E-0044-013-routine-temporal`, `E-0044-013-accounting-negative` | pass for FIRST-PROOF-13 routine temporal source scope |
 | `07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` | `E-0044-014-embodied-temporal`, `E-0044-014-debug-clock-negative` | pass for FIRST-PROOF-14 embodied temporal source scope |
-| `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | pending | pending `FIRST-PROOF-15` |
+| `09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` | `E-0044-015-temporal-fixture-pairing`, `E-0044-015-temporal-anti-contamination` | pass for FIRST-PROOF-15 temporal fixture/replay source scope |
 | `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` | pending | pending `FIRST-PROOF-16` |
 
 ## Evidence Item Ledger
@@ -1338,6 +1379,54 @@ possession preserves the same temporal context and freshness.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-14
   negative/debug-quarantine commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-14.
+
+### E-0044-015-temporal-fixture-pairing
+
+- Requirement IDs: `FIRST-PROOF-15`
+- Evidence status: pass
+- Fingerprint scope: raw bytes; canonical content; fixture registry; behavior; replay artifact
+- Evidence summary: `fixtures_load`, `golden_fixtures_run`,
+  `event_schema_replay_gates`, `no_human_capstone`, and `transcript_snapshot`
+  passed, covering registry-reachable temporal fixtures, positive temporal
+  premise/staleness/supersession/duration/wait/adaptation families,
+  per-scenario and capstone replay, projection/diagnostic equality, and
+  deterministic transcript snapshots.
+- Path under test and behavior witness: fixture registry and runner,
+  `stale_workplace_notice_superseded_by_newer_001`,
+  `embodied_workplace_believed_open_truth_closed_commit_fails_001`,
+  `aged_food_record_surfaces_as_remembered_belief_not_observation_001`,
+  `sleep_spanning_window_boundary_charges_each_tick_once_001`,
+  `wait_then_window_passive_charges_each_tick_once_001`,
+  `routine_blocked_diagnostic_001`, temporal hidden-truth/TUI fixtures, replay
+  gates, no-human capstone, and transcript snapshots.
+- Replay/provenance ancestry: fixture IDs, semantic fingerprints, triggers,
+  source provenance, event sequences, projection fields, diagnostics, and
+  live/replay checksums are exercised by the named commands.
+- Sampling/exhaustiveness scope: exhaustive over the declared finite fixture
+  registry exercised by the named commands; generated/metamorphic checks remain
+  sampled by `generative_lock`.
+- Certification use: counted as certifying pass for FIRST-PROOF-15.
+
+### E-0044-015-temporal-anti-contamination
+
+- Requirement IDs: `FIRST-PROOF-15`
+- Evidence status: pass
+- Fingerprint scope: command transcript; parsed semantic content; replay artifact
+- Evidence summary: `forbidden_content`, `event_schema_replay_gates`,
+  `generative_lock`, `golden_fixtures_run`, and `transcript_snapshot` passed,
+  covering raw-clock/debug/queue/replay-index and source-restamp style
+  rejection, source-free temporal claim rejection, marker-only wait/progress
+  exclusion, tampered order/payload first divergence, and deterministic output.
+- Path under test and behavior witness: content validation anti-contamination
+  tests, replay tamper gates, generated sequence locks, source-evidence and
+  continue-routine tamper fixtures, episode/proration tamper fixtures, and
+  transcript snapshots.
+- Replay/provenance ancestry: invalid or tampered temporal inputs produce no
+  accepted source-free actor-known temporal fact; replay either rejects before
+  state change or localizes the first divergence.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-15
+  anti-contamination commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-15.
 
 ## Replay Package
 
