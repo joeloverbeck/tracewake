@@ -1,6 +1,6 @@
 # 0045FIRPROCER-002: Mutation-lane completion diagnostic + transport-honest supervisor retention
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — supervisor tooling (`tools/supervise-command.sh`) and a new mutation-lane completion diagnostic report; no production/simulation logic change.
@@ -91,3 +91,40 @@ Include spec §9.5's rough scalar (≈0.331 classified mutants/s from the retain
 1. `bash tools/supervise-command.sh "$(mktemp -d)" 5 2 -- sh -c 'echo hi; exit 7'` then inspect the output dir — confirm stdout/stderr + `status.env` with `child_nonzero_exit` are retained.
 2. `bash tools/supervise-command.sh "$(mktemp -d)" 1 1 -- sh -c 'sleep 30'` — confirm `wrapper_wall_timeout` is recorded distinctly and any partial output is retained.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --locked` — workspace unaffected. (A `shellcheck tools/supervise-command.sh` pass is recommended where `shellcheck` is available; state its absence as the reason if it is not installed on the runner.)
+
+## Outcome
+
+Completed: 2026-06-21
+
+`tools/supervise-command.sh` now supervises the child command as its own process
+group instead of delegating process handling to GNU `timeout`. It keeps the
+existing CLI contract, records command/cwd/environment/timestamps/PIDs/status
+fields, separates supervisor result from child exit/signal fields, sends a
+graceful group termination before a forced kill on wall timeout, preserves raw
+stdout/stderr/status and current-command mutation output when present, and
+allocates a non-overwriting `.attempt-N` directory when the requested output
+path is already populated.
+
+Created
+`reports/0045_first_proof_cert_mutation_lane_completion_diagnostic.md`. The
+diagnostic records the retained 0044 full-run symptom (`exit_status=124`,
+`supervisor_result=wrapper_wall_timeout`, 2,384 of 2,901 identities classified,
+517 unclassified), focused-run context (719 classified, 0 missed/timeouts),
+baseline and per-file timing summaries derived from retained `outcomes.json`,
+local resource context, the selected `N = 8` / `MUTANTS_JOBS = 2` sharded
+topology for -004, and the supervisor/merger acceptance contract. It explicitly
+labels itself non-certifying.
+
+Verification run:
+
+- `bash -n tools/supervise-command.sh` — passed.
+- Supervisor nonzero smoke (`sh -c 'echo hi; echo err >&2; mkdir -p mutants.out; echo mutant > mutants.out/caught.txt; exit 7'`) — returned status `7`, retained stdout/stderr/status, recorded `supervisor_result=child_nonzero_exit`, and copied partial mutation output.
+- Supervisor wall-timeout smoke (`sh -c 'echo start; mkdir -p mutants.out; echo partial > mutants.out/caught.txt; sleep 30'` with `1` second wall and `1` second grace) — returned status `124`, recorded `supervisor_result=wrapper_wall_timeout`, `child_exit_status=143`, `child_signal=15`, and copied partial mutation output.
+- Supervisor non-overwrite smoke against a populated output directory — left the original file in place and wrote the new run under `.attempt-1`.
+- `command -v shellcheck || true` — no `shellcheck` path was available, so shell verification used `bash -n` plus the smoke tests above.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace --locked` — passed.
+
+No production/simulation logic, mutation denominator, or baseline-miss file was
+changed.
