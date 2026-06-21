@@ -1,6 +1,6 @@
 # 0044FIRPROCER-007: FIRST-PROOF-07 — truth-firewall and actor-known participation across the combined corpus
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -75,3 +75,21 @@ Record the §7 adversarial cases: paired runs vary only hidden food, route, work
 3. `cargo test --locked -p tracewake-core --test generative_lock`
 4. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 5. `cargo test --locked -p tracewake-tui --test adversarial_gates`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-07 in the shared acceptance artifact as passed for its
+actor-known/truth-firewall scope. The evidence packet now includes
+command-ledger rows, gate/scenario references, a FIRST-PROOF-07 audit section,
+and two evidence ledger items: `E-0044-007-actor-known-noninterference` and
+`E-0044-007-validation-fail-closed`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test hidden_truth_gates` -> pass, 17 passed.
+2. `cargo test --locked -p tracewake-core --test acceptance_gates` -> pass, 12 passed.
+3. `cargo test --locked -p tracewake-core --test generative_lock` -> pass, 5 passed.
+4. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
+5. `cargo test --locked -p tracewake-tui --test adversarial_gates` -> pass, 15 passed.

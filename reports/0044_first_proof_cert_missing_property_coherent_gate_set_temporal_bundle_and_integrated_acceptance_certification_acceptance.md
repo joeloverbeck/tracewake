@@ -106,6 +106,11 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-content --test schema_conformance` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-06 schema mapping witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-06 fixture/hidden-truth witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-06 debug/TUI quarantine witness command rerun. |
+| `cargo test --locked -p tracewake-core --test hidden_truth_gates` | pass | Exit 0; 17 passed, 0 failed. FIRST-PROOF-07 actor-known/firewall witness command rerun. |
+| `cargo test --locked -p tracewake-core --test acceptance_gates` | pass | Exit 0; 12 passed, 0 failed. FIRST-PROOF-07 action-pipeline/replay witness command. |
+| `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-07 determinism/metamorphic witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-07 fixture/context-hash witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test adversarial_gates` | pass | Exit 0; 15 passed, 0 failed. FIRST-PROOF-07 debug-on/off quarantine witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -137,12 +142,12 @@ required command set and passed at `U`.
 | Gate | Evidence item IDs | Result |
 |---|---|---|
 | `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
-| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative` | pending full integrated point evidence |
-| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
+| `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
+| `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census` | pending integrated point evidence |
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
-| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit` | pending integrated point evidence |
+| `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending integrated point evidence |
 | `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay` | pending full integrated point evidence |
 | `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative` | pending full integrated point evidence |
 
@@ -153,8 +158,8 @@ required command set and passed at `U`.
 | Physical custody baseline | `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-002-embodied-view` | pass for FIRST-PROOF-02 scope |
 | Expectation contradiction | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-005-contradiction-replay`, `E-0044-005-contradiction-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative` | pass for expectation/absence/contradiction/no-culprit scope |
 | Possession parity | `E-0044-001-census` | pending `FIRST-PROOF-08` |
-| Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance` | pending downstream point evidence |
-| No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative` | pending downstream point evidence |
+| Epistemic filtering | `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pass for FIRST-PROOF-07 actor-known/firewall scope |
+| No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pass for FIRST-PROOF-07 non-interference scope |
 | No-human ordinary day | `E-0044-001-census` | pending `FIRST-PROOF-09` |
 | Routine blocking | `E-0044-001-census` | pending `FIRST-PROOF-09`, `FIRST-PROOF-13`, `FIRST-PROOF-16` |
 | Replay rebuild | `E-0044-001-census` | pending `FIRST-PROOF-10` |
@@ -381,7 +386,42 @@ actor-known and provenance-backed rather than an authoritative guilt fact.
 
 ### FIRST-PROOF-07 - Truth-firewall and actor-known participation across the combined corpus
 
-**Result**: pending `0044FIRPROCER-007`.
+**Result**: pass for FIRST-PROOF-07 scope.
+
+**Positive evidence**: The actor-known/truth-firewall command set passed at the
+current audit tree. `hidden_truth_gates` proved actor-known contexts are
+unforgeable from hidden truth, debug omniscience is excluded from planner
+contexts, hidden food and hidden routes do not become transaction targets or
+route plans, workplaces require assignment or observation provenance, and
+epistemic event fields survive into sealed context and replay. `acceptance_gates`
+proved accepted proposals append deterministic versioned events, rejected
+physical proposals return structured rejections, human/nonhuman proposals share
+validation paths, and Phase-3A agent events apply live and replay to the same
+agent checksum. `golden_fixtures_run` proved no-human decision inputs cite log
+events and recompute context hashes, source-evidence tamper fails the decision
+context-hash gate, and no-hidden-truth fixture planner inputs stay actor-known.
+
+**Adversarial evidence**: `generative_lock` passed deterministic seed-order,
+replay, and metamorphic locks. `hidden_truth_gates` passed hidden-truth
+metamorphism/provenance-deletion, hidden-route, hidden-food, debug-truth, and
+sealed-context negatives. `adversarial_gates` passed debug-truth non-entry,
+typed non-leaking why-not facts, hidden-food TUI rule-inference rejection,
+stale/forged privileged input rejection, debug-panel no-mutation, and
+debug-output quarantine tests. Validation truth therefore rejects stale or
+impossible proposals without authoring a fallback goal or revealing
+actor-illegible alternatives.
+
+**Event/replay/projection evidence**: The passing tests cover sealed context
+IDs/hashes/frontiers, source-event refs, candidate/proposal provenance,
+structured rejection records, accepted events, replay checksums, fixture
+fingerprints, and debug/TUI outputs. A modeled observation or notice can legally
+change a later decision; hidden truth, debug rows, or validator-only data do not
+change pre-observation actor-known outputs.
+
+**Responsible layers**: `holder_known_context`, `candidate_generation`,
+`proposal_construction`, `action_validation`, `event_append`,
+`event_application`, `projection`, `replay`, `view_model`, `debug_adapter`,
+`test_oracle`.
 
 ### FIRST-PROOF-08 - Possession parity, embodied view, and debug split in the missing-property run
 
@@ -667,6 +707,50 @@ actor-known and provenance-backed rather than an authoritative guilt fact.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-06
   content/schema/fixture commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-06.
+
+### E-0044-007-actor-known-noninterference
+
+- Requirement IDs: `FIRST-PROOF-07`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `hidden_truth_gates`, `acceptance_gates`,
+  `generative_lock`, `golden_fixtures_run`, and `adversarial_gates` passed,
+  covering sealed actor-known context hashes/frontiers, context-backed
+  transaction inputs, deterministic proposal/replay behavior, and debug-on/off
+  quarantine.
+- Path under test and behavior witness: `agent/actor_known.rs`,
+  `agent/transaction.rs`, `agent/decision.rs`, `agent/candidate.rs`,
+  `agent/generation.rs`, `agent/planner.rs`, `agent/trace.rs`,
+  `epistemics/knowledge_context.rs`, `epistemics/knowledge_basis.rs`,
+  `actions/proposal.rs`, `actions/pipeline.rs`, and the hidden-food,
+  hidden-route, workplace, no-human, and planner-trace fixture families.
+- Replay/provenance ancestry: actor-known contexts enumerate source-backed
+  facts, source refs, context hashes, and frontiers; accepted decisions append
+  versioned events and replay to matching checksums.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-07
+  actor-known/non-interference commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-07.
+
+### E-0044-007-validation-fail-closed
+
+- Requirement IDs: `FIRST-PROOF-07`
+- Evidence status: pass
+- Fingerprint scope: command transcript; parsed semantic content; debug/view output
+- Evidence summary: `hidden_truth_gates`, `acceptance_gates`,
+  `generative_lock`, `golden_fixtures_run`, and `adversarial_gates` passed,
+  covering forged/stale context rejection, hidden-truth provenance-deletion
+  failure, structured proposal rejection, source-evidence tamper rejection, and
+  non-leaking actor-visible diagnostics.
+- Path under test and behavior witness: action validation and proposal
+  pipeline tests, hidden-truth/provenance deletion gates, no-human context-hash
+  tamper tests, stale TUI selection and forged privileged semantic ID tests,
+  debug rendering, and why-not diagnostic surfaces.
+- Replay/provenance ancestry: invalid or stale inputs produce structured
+  rejections or no accepted event; debug/validator truth does not create a
+  fallback goal, hidden alternative, actor-known fact, or replayed event.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-07
+  fail-closed/debug-quarantine commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-07.
 
 ## Replay Package
 
