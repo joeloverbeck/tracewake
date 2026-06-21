@@ -1,6 +1,6 @@
 # 0044FIRPROCER-010: FIRST-PROOF-10 — composite replay, projection rebuild, deterministic diagnostics, and divergence localization
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only; runs existing tests/fixtures and records witnesses. May add audit-only instrumentation per spec §5.4 (evidence instrumentation, not production remediation).
@@ -76,3 +76,22 @@ Record the §7 adversarial cases: unknown/duplicate/wrong-version event, broken 
 4. `cargo test --locked -p tracewake-core --test no_human_capstone`
 5. `cargo test --locked -p tracewake-content --test golden_fixtures_run`
 6. `cargo test --locked -p tracewake-tui --test transcript_snapshot`
+
+## Outcome
+
+Completed: 2026-06-21
+
+Recorded FIRST-PROOF-10 in the shared acceptance artifact as passed for its
+composite replay, deterministic diagnostics, and controlled-divergence scope.
+The evidence packet now includes command-ledger rows, gate/scenario references,
+a FIRST-PROOF-10 audit section, and two evidence ledger items:
+`E-0044-010-composite-replay` and `E-0044-010-controlled-divergence`.
+
+Verification run:
+
+1. `cargo test --locked -p tracewake-core --test event_schema_replay_gates` -> pass, 32 passed.
+2. `cargo test --locked -p tracewake-core --test generative_lock` -> pass, 5 passed.
+3. `cargo test --locked -p tracewake-core --test golden_scenarios` -> pass, 16 passed.
+4. `cargo test --locked -p tracewake-core --test no_human_capstone` -> pass, 2 passed.
+5. `cargo test --locked -p tracewake-content --test golden_fixtures_run` -> pass, 42 passed.
+6. `cargo test --locked -p tracewake-tui --test transcript_snapshot` -> pass, 3 passed.

@@ -124,6 +124,12 @@ boundary fixtures.
 | `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-09 replay/event ancestry witness command rerun. |
 | `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-09 fixture/progress witness command rerun. |
 | `cargo test --locked -p tracewake-tui --test tui_acceptance` | pass | Exit 0; 11 passed, 0 failed. FIRST-PROOF-09 TUI no-human/debug witness command rerun. |
+| `cargo test --locked -p tracewake-core --test event_schema_replay_gates` | pass | Exit 0; 32 passed, 0 failed. FIRST-PROOF-10 event/replay witness command rerun. |
+| `cargo test --locked -p tracewake-core --test generative_lock` | pass | Exit 0; 5 passed, 0 failed. FIRST-PROOF-10 deterministic/metamorphic witness command rerun. |
+| `cargo test --locked -p tracewake-core --test golden_scenarios` | pass | Exit 0; 16 passed, 0 failed. FIRST-PROOF-10 scenario replay witness command rerun. |
+| `cargo test --locked -p tracewake-core --test no_human_capstone` | pass | Exit 0; 2 passed, 0 failed. FIRST-PROOF-10 integrated capstone replay witness command rerun. |
+| `cargo test --locked -p tracewake-content --test golden_fixtures_run` | pass | Exit 0; 42 passed, 0 failed. FIRST-PROOF-10 fixture replay/determinism witness command rerun. |
+| `cargo test --locked -p tracewake-tui --test transcript_snapshot` | pass | Exit 0; 3 passed, 0 failed. FIRST-PROOF-10 deterministic transcript witness command rerun. |
 
 The clippy command briefly waited for Cargo's build-directory lock while another
 read-only Cargo command finished. No tracked or generated content changed.
@@ -154,14 +160,14 @@ required command set and passed at `U`.
 
 | Gate | Evidence item IDs | Result |
 |---|---|---|
-| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending full integrated point evidence |
+| `EVENT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
 | `TRUTH-FIREWALL` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-003-content-negative`, `E-0044-004-observation`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
 | `ACTOR-KNOWN` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pending full integrated point evidence |
 | `POSSESSION-PARITY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
 | `NO-HUMAN-ORDINARY-LIFE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending integrated point evidence |
 | `MISSING-PROPERTY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-provenance`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-006-no-culprit` | pending full integrated point evidence |
 | `VIEW-DEBUG-SPLIT` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-006-no-culprit`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed`, `E-0044-008-possession-parity`, `E-0044-008-debug-split` | pending integrated point evidence |
-| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending full integrated point evidence |
+| `REPLAY` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-002-physical-replay`, `E-0044-004-observation`, `E-0044-005-contradiction-replay`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pending full integrated point evidence |
 | `FIXTURE-NEGATIVE` | `E-0044-001-command-ledger`, `E-0044-001-census`, `E-0044-003-content-negative`, `E-0044-004-truth-negative`, `E-0044-006-content-negative` | pending full integrated point evidence |
 
 ## Scenario Family Results
@@ -175,7 +181,7 @@ required command set and passed at `U`.
 | No-hidden-truth planning | `E-0044-001-census`, `E-0044-004-truth-negative`, `E-0044-006-no-culprit`, `E-0044-006-content-negative`, `E-0044-007-actor-known-noninterference`, `E-0044-007-validation-fail-closed` | pass for FIRST-PROOF-07 non-interference scope |
 | No-human ordinary day | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope |
 | Routine blocking | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pass for FIRST-PROOF-09 scope; pending temporal/routine capstone in `FIRST-PROOF-13`/`FIRST-PROOF-16` |
-| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch` | pending `FIRST-PROOF-10` |
+| Replay rebuild | `E-0044-001-census`, `E-0044-009-no-human-progress`, `E-0044-009-no-direct-dispatch`, `E-0044-010-composite-replay`, `E-0044-010-controlled-divergence` | pass for FIRST-PROOF-10 scope |
 | Content rejection | `E-0044-001-census`, `E-0044-006-content-negative` | pending consolidated `FIRST-PROOF-11` |
 
 ## Audit Point Results
@@ -516,7 +522,44 @@ as progress.
 
 ### FIRST-PROOF-10 - Composite replay, projection rebuild, deterministic diagnostics, and divergence localization
 
-**Result**: pending `0044FIRPROCER-010`.
+**Result**: pass for FIRST-PROOF-10 scope.
+
+**Positive evidence**: The composite replay command set passed at the current
+audit tree. `event_schema_replay_gates` proved event-envelope identity,
+epistemic/materialized-agent event registration and replay routing,
+live/replay rejection parity, physical checksum partitioning, deterministic
+context hashes, replay report semantic fingerprints, no-human metric rebuilds,
+and no-human day checksum equality. `golden_scenarios` proved accepted actions
+append versioned events, projection rebuilds match live state, replay checksums
+match, Phase-3A agent projections are deterministic, and no-human metrics are
+byte-identical after log replay. `no_human_capstone` proved typed ancestry and
+replay for the integrated capstone and debug/replay perturbation
+non-interference. `golden_fixtures_run` proved serialized event logs replay to
+identical state, fixture fingerprints match frozen goldens, fixture loading is
+deterministic, and every golden fixture family validates and replays.
+
+**Adversarial evidence**: `event_schema_replay_gates` passed unsupported schema
+append/replay rejection, unsupported epistemic payload rejection, duplicate
+duration/need ticks, missing intention/routine progress, malformed elapsed
+ticks, stream mismatch, forged schema versions, payload lies, and replay
+mismatch first-divergence tests. `generative_lock` passed generated sequence
+replay, seed-order determinism, progress/lifecycle relational locks, and
+duration-terminal tamper checks. `golden_scenarios` passed missing/reordered
+event divergence, while `golden_fixtures_run` passed continuation, episode, and
+source-evidence tamper tests. `transcript_snapshot` proved byte-stable TUI and
+debug transcripts.
+
+**Event/replay/projection evidence**: The passing tests cover stable event IDs,
+causes, stream/phase metadata, schema versions, deterministic ordering,
+physical checksums, epistemic projection checksums, agent/routine/accounting
+checksums, no-human metrics, diagnostic fingerprints, serialized logs, replay
+reports, and transcript snapshots. Controlled perturbations reject or localize
+the first divergence; replay starts from declared fixture/content data and does
+not repair missing actor-known facts from current truth.
+
+**Responsible layers**: `event_append`, `event_application`, `projection`,
+`replay`, `checksum`, `fixture_contract`, `content_serialization`,
+`debug_adapter`, `view_model`, `test_oracle`.
 
 ### FIRST-PROOF-11 - Fixture-negative, schema, compile-fail, and semantic content rejection
 
@@ -918,6 +961,50 @@ as progress.
 - Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-09
   no-direct-dispatch and negative commands.
 - Certification use: counted as certifying pass for FIRST-PROOF-09.
+
+### E-0044-010-composite-replay
+
+- Requirement IDs: `FIRST-PROOF-10`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `event_schema_replay_gates`, `golden_scenarios`,
+  `no_human_capstone`, `golden_fixtures_run`, and `transcript_snapshot` passed,
+  covering scenario-by-scenario and integrated-capstone replay across physical,
+  epistemic, agent/routine/accounting, diagnostic, and view-support surfaces.
+- Path under test and behavior witness: `events/envelope.rs`, `events/log.rs`,
+  `events/apply.rs`, `events/mutation.rs`, `replay/rebuild.rs`,
+  `replay/report.rs`, `checksum.rs`, `projections.rs`, `need_accounting.rs`,
+  `debug_reports.rs`, `epistemics/projection.rs`, golden scenarios,
+  no-human capstone, golden fixtures, and transcript snapshots.
+- Replay/provenance ancestry: fixture/content inputs, ordered event logs,
+  event causes, schema versions, projection checksums, diagnostic fingerprints,
+  serialized logs, replay reports, and transcript snapshots are deterministic
+  for identical inputs.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-10
+  positive replay commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-10.
+
+### E-0044-010-controlled-divergence
+
+- Requirement IDs: `FIRST-PROOF-10`
+- Evidence status: pass
+- Fingerprint scope: command transcript; replay artifact; parsed semantic content
+- Evidence summary: `event_schema_replay_gates`, `generative_lock`,
+  `golden_scenarios`, and `golden_fixtures_run` passed, covering unsupported
+  schema rejection, malformed/duplicate/missing event rejection, stream
+  mismatch, payload lies, source-evidence tamper, omitted/reordered event
+  divergence, and generated metamorphic locks.
+- Path under test and behavior witness: replay parser/apply gates, event schema
+  guards, checksum/report comparators, golden scenario replay divergence tests,
+  no-human tamper tests, continuation/episode/source-evidence tamper fixtures,
+  and generated sequence replay locks.
+- Replay/provenance ancestry: controlled perturbations reject before state
+  change or produce localized first-divergence reports; equal final physical
+  state with different event/provenance history is not treated as equal
+  evidence.
+- Sampling/exhaustiveness scope: exhaustive over the named FIRST-PROOF-10
+  negative/tamper commands.
+- Certification use: counted as certifying pass for FIRST-PROOF-10.
 
 ## Replay Package
 
