@@ -1,0 +1,2 @@
+cwd=/home/joeloverbeck/projects/tracewake
+command=cargo mutants --workspace --no-shuffle -f crates/tracewake-core/src/epistemics/contradiction.rs -f crates/tracewake-core/src/epistemics/projection.rs -f crates/tracewake-core/src/agent/perception.rs -f crates/tracewake-core/src/actions/defs/checkcontainer.rs -f crates/tracewake-core/src/events/apply.rs -f crates/tracewake-core/src/replay/rebuild.rs -f crates/tracewake-content/src/validate.rs -o reports/0044_first_proof_cert_mutation_focused.out
