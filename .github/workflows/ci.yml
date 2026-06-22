@@ -64,6 +64,8 @@ jobs:
           restore-keys: ${{ runner.os }}-test-
       - name: Build workspace
         run: cargo build --workspace --all-targets --locked
+      - name: TUI playable-capability parity
+        run: cargo test -p tracewake-tui --test playable_capability_parity --locked
       - name: Run tests
         run: cargo test --workspace --locked
 

@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-008: Conformance suite + goldens in the ordinary CI evidence lane
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — CI workflow (`.github/workflows/ci.yml`); no crate code. Confirms the parity suite is an ordinary workspace test target, not a periodic audit.
@@ -106,3 +106,24 @@ Verify (and, if needed, correct) that the parity target and its goldens run unde
 1. `grep -nE "playable_capability_parity|parity|cargo test --workspace" .github/workflows/ci.yml`
 2. `cargo test -p tracewake-tui --test playable_capability_parity --locked`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+Completed: 2026-06-22
+
+## Outcome
+
+Added an explicitly named `TUI playable-capability parity` step to the CI `test` job. The step runs
+`cargo test -p tracewake-tui --test playable_capability_parity --locked` before the existing
+`cargo test --workspace --locked` lane and inherits the workflow-level `RUSTFLAGS: "-D warnings"`
+posture.
+
+Verification:
+
+1. `grep -nE "playable_capability_parity|parity|cargo test --workspace" .github/workflows/ci.yml`
+   showed the named parity step and the existing workspace test lane.
+2. `rg -n '#\[ignore\]|cfg\(|feature' crates/tracewake-tui/tests/playable_capability_parity.rs crates/tracewake-tui/tests/parity`
+   produced no matches, confirming the parity suite is not ignored or feature-gated.
+3. `cargo test -p tracewake-tui --test playable_capability_parity --locked` passed with 8 tests, 0 ignored.
+4. `cargo fmt --all --check` passed.
+5. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+6. `cargo build --workspace --all-targets --locked` passed.
+7. `cargo test --workspace` passed.
