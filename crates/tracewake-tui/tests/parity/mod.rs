@@ -1,3 +1,5 @@
+pub mod runner;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapabilityEntry {
     pub key: &'static str,
@@ -79,11 +81,11 @@ pub fn registry() -> Vec<CapabilityEntry> {
         fixture_ids: vec!["strongbox_001"],
         viewer_actor: "actor_tomas",
         setup_operation: SetupOperation::SubmitSemanticAction {
-            semantic_action_id: "wait",
+            semantic_action_id: "wait.1_tick",
         },
         typed_witness: Witness {
             kind: WitnessKind::TypedCausal,
-            assertion: "semantic_action_id=wait is present in the actor-filtered current view",
+            assertion: "semantic_action_id=wait.1_tick is present in the actor-filtered current view",
         },
         rendered_witness: Some(Witness {
             kind: WitnessKind::RenderedText,

@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-004: Conformance runner + deterministic coverage report
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new `tracewake-tui` test-support runner (`crates/tracewake-tui/tests/parity/runner.rs`), extends the registry module and its test target; no production-crate change.
@@ -122,3 +122,40 @@ call the runner over the registry and assert zero failures + byte-stable report 
 
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+Added `crates/tracewake-tui/tests/parity/runner.rs` with
+`run_conformance`, deterministic `CoverageReport` serialization, per-row
+pass/fail status, hard failures for malformed registry data, fixture resolution
+checks, live semantic-action presence checks through `TuiApp`, rendered-surface
+witness checks, anti-leak requirements for epistemic/notebook-shaped entries,
+and an embodied-render probe that uses the real TUI render path by default.
+`crates/tracewake-tui/tests/parity/mod.rs` now exposes the runner module and
+the seeded wait exemplar was corrected from the action id `wait` to the live
+semantic action id `wait.1_tick`.
+
+Extended `crates/tracewake-tui/tests/playable_capability_parity.rs` so the live
+registry passes conformance and emits byte-identical reports across consecutive
+runs. The test also exercises synthetic hard failures for duplicate keys,
+missing fixtures, unknown fixtures, missing rendered witnesses, missing
+anti-leak coverage, absent semantic actions, empty embodied render output, and
+uncovered registered actions.
+
+Verification:
+
+- `cargo test -p tracewake-tui --test playable_capability_parity` — passed
+- `cargo fmt --all --check` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
+
+Deviations:
+
+- Full live registered-action zero-uncovered enforcement is exposed through
+  `registered_action_coverage_failures` and proven with a synthetic missing
+  action, but it is not yet run against every current `ActionRegistry`
+  definition because tickets `0046TUISIMPLA-006` and `0046TUISIMPLA-007` own
+  the full action/family census population.
