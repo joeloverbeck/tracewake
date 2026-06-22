@@ -89,6 +89,45 @@ fn embodied_view_lists_each_container_once_after_opening_in_same_tick() {
 }
 
 #[test]
+fn carried_item_is_not_also_listed_among_place_items_in_same_tick() {
+    // Taking an item moves it from the container to the actor's inventory. Within
+    // the take tick the place still carries a stale "item in container" perception;
+    // the embodied view must not show the same item both in the place and in the
+    // inventory (an item has exactly one location).
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    for semantic in [
+        "open.container.strongbox_tomas",
+        "take.item.coin_stack_01.from.strongbox_tomas",
+    ] {
+        let id = SemanticActionId::new(semantic).unwrap();
+        let result = app.submit_semantic_action(&id).unwrap();
+        assert_eq!(
+            result.report.status,
+            ReportStatus::Accepted,
+            "{semantic} must be accepted"
+        );
+    }
+
+    let view = app.current_view().unwrap();
+    assert!(
+        view.carried_items
+            .iter()
+            .any(|item| item.item_id.as_str() == "coin_stack_01"),
+        "the coin must be in the inventory after being taken"
+    );
+    assert!(
+        view.visible_items
+            .iter()
+            .all(|item| item.item_id.as_str() != "coin_stack_01"),
+        "a carried item must not also appear in the place item list, got {:?}",
+        view.visible_items
+    );
+}
+
+#[test]
 fn embodied_menu_offers_each_food_source_once_when_known_via_belief_and_perception() {
     // actor_tomas both holds a seeded starting belief about food_breakfast_tomas
     // (servings unknown) and directly perceives the same supply (servings known).

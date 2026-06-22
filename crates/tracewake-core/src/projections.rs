@@ -632,6 +632,11 @@ pub fn build_embodied_view_model(
         .map(|item| item.item_id.clone())
         .collect::<Vec<_>>();
 
+    // An item has exactly one location: an item now carried must not also linger in
+    // the place's item list from a stale same-tick "item at place" perception (e.g.
+    // the tick an actor takes an item out of a container).
+    visible_items.retain(|item| !carried_item_ids.contains(&item.item_id));
+
     let mut local_actors = source
         .actor_known_local_actors
         .iter()
