@@ -129,6 +129,44 @@ fn placing_a_carried_item_at_the_current_place_is_accepted_and_moves_the_item() 
 }
 
 #[test]
+fn inspecting_a_visible_item_is_accepted_not_forged() {
+    // inspect_entity is a query-only affordance offered in the menu; selecting it
+    // must be accepted (the re-rendered view is the query result), not rejected as
+    // proposal_source_forged because its semantic token mismatches the action id.
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let open = SemanticActionId::new("open.container.strongbox_tomas").unwrap();
+    assert_eq!(
+        app.submit_semantic_action(&open).unwrap().report.status,
+        ReportStatus::Accepted
+    );
+
+    let view = app.current_view().unwrap();
+    let inspect = view
+        .semantic_actions
+        .iter()
+        .find(|entry| {
+            entry.action_id.as_str() == "inspect_entity"
+                && entry
+                    .target_ids
+                    .iter()
+                    .any(|target| target == "coin_stack_01")
+        })
+        .expect("an inspect affordance is offered for the now-visible coin")
+        .semantic_action_id
+        .clone();
+
+    let result = app.submit_semantic_action(&inspect).unwrap();
+    assert_eq!(
+        result.report.status,
+        ReportStatus::Accepted,
+        "inspecting a visible item must be accepted, got {:?}",
+        result.report
+    );
+}
+
+#[test]
 fn contradicted_belief_links_its_contradiction_in_the_notebook() {
     // After tomas checks a strongbox he expected to hold a coin, the absence is a
     // typed contradiction. The newly recorded "item missing" belief must carry that

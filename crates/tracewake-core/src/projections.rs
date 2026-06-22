@@ -1202,7 +1202,10 @@ fn semantic_actions(
         ));
         actions.push(with_validator_availability(
             SemanticActionEntry::new(
-                SemanticActionId::new(format!("inspect.item.{}", item.item_id.as_str())).unwrap(),
+                // Semantic token must dot-match its action id (inspect_entity) so the
+                // anti-forgery source check accepts it, mirroring inspect.place.* for
+                // inspect_place. `inspect.item.*` mismatched and was rejected forged.
+                SemanticActionId::new(format!("inspect.entity.{}", item.item_id.as_str())).unwrap(),
                 ActionId::new("inspect_entity").unwrap(),
                 vec![item.item_id.to_string()],
                 format!("Inspect {}", item.item_id.as_str()),

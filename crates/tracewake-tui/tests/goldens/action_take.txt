@@ -19,7 +19,7 @@ Actors:
 Actions:
 1. Check sample_bin [check.container.sample_bin]
 2. close sample_bin [close.container.sample_bin]
-3. Inspect sample_token_01 [inspect.item.sample_token_01]
+3. Inspect sample_token_01 [inspect.entity.sample_token_01]
 4. Move to store_room [move.to.store_room] disabled: The door is closed. reasons=door_closed_blocks_movement
 5. open door_market_store [open.door.door_market_store]
 6. Take sample_token_01 [take.item.sample_token_01.from.sample_bin]
