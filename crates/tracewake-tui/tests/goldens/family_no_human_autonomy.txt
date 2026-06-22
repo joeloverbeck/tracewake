@@ -1,8 +1,8 @@
 Actor: actor_tomas | Tick: 32
 Place: Tomas workshop (workshop_tomas)
 Needs:
-- fatigue: band=rising cause=action_effect:work_block
-- hunger: band=rising cause=action_effect:work_block
+- fatigue: band=rising cause=tick_delta
+- hunger: band=rising cause=tick_delta
 - safety: band=comfortable cause=fixture_initial
 Intention: active:routine_tomas_go_work:work_block
 Routine: routine:routine_tomas_go_work

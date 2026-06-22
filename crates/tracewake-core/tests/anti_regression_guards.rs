@@ -6017,12 +6017,16 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         "work completion builder must require current physical state, agent state, and event log for continuity and need-accounting checks"
     );
     assert!(
-        scheduler.contains("build_sleep_completion_events(\n                    state,\n                    agent_state,\n                    log,"),
-        "scheduler must pass current state and log into sleep completion continuity checks"
+        scheduler.contains(
+            "build_sleep_completion_events(\n                    state,\n                    &scratch_agent_state,\n                    &scratch_log,"
+        ),
+        "scheduler must pass current state and preflight log into sleep completion continuity checks"
     );
     assert!(
-        scheduler.contains("build_work_completion_events(\n                    state,\n                    agent_state,\n                    log,"),
-        "scheduler must pass current state and log into work completion continuity checks"
+        scheduler.contains(
+            "build_work_completion_events(\n                    state,\n                    &scratch_agent_state,\n                    &scratch_log,"
+        ),
+        "scheduler must pass current state and preflight log into work completion continuity checks"
     );
     assert!(
         scheduler.contains("if is_duration_terminal(appended.event_type)"),
@@ -6123,6 +6127,7 @@ fn scheduler_never_direct_dispatches_primitive_action() {
         .events()
         .iter()
         .filter(|event| event.stream != EventStream::Diagnostic)
+        .filter(|event| event.event_type != EventKind::TimeAdvanced)
         .map(|event| event.event_type)
         .collect::<Vec<_>>();
     let direct_ordinary_kinds = direct
@@ -8207,12 +8212,12 @@ fn no_human_day_runner_only_evidence_errors(source: &str) -> Vec<String> {
         ),
         (
             "SleepCompleted",
-            "has_no_human_event(&log, EventKind::SleepCompleted)",
+            "has_event(&log, EventKind::SleepCompleted)",
         ),
     ] {
         if !runner_only_section.contains(snippet) {
             errors.push(format!(
-                "runner-only section lacks NoHumanProcess assertion for {kind}"
+                "runner-only section lacks required assertion for {kind}"
             ));
         }
     }

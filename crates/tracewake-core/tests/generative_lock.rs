@@ -834,11 +834,24 @@ fn assert_single_need_charge_per_actor_tick_kind(log: &EventLog, seed: u64) {
             .map(|id| id.as_str().to_string())
             .unwrap_or_else(|| actor_id().as_str().to_string());
         let need_kind = payload_value(event, "need_kind").unwrap_or("unknown");
-        let key = (actor, event.sim_tick.value(), need_kind.to_string());
-        assert!(
-            seen.insert(key.clone()),
-            "seed={seed} duplicate need charge key={key:?}"
-        );
+        let elapsed_ticks = payload_value(event, "elapsed_ticks")
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        if elapsed_ticks == 0 {
+            continue;
+        }
+        let first_tick = event
+            .sim_tick
+            .value()
+            .saturating_sub(elapsed_ticks)
+            .saturating_add(1);
+        for tick in first_tick..=event.sim_tick.value() {
+            let key = (actor.clone(), tick, need_kind.to_string());
+            assert!(
+                seen.insert(key.clone()),
+                "seed={seed} duplicate need charge key={key:?}"
+            );
+        }
     }
 }
 

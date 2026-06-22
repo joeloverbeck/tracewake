@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-010: Refactor `run_no_human_day`/`advance_no_human` onto the coordinator
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `crates/tracewake-core` (`scheduler.rs` no-human runner refactor; remove duplicate pending-duration authority); regenerated golden traces/checksums across ~8 no-human test consumers
@@ -88,3 +88,17 @@ Update the no-human golden baselines and replay checksums in the ~8 consumer tes
 1. `cargo test -p tracewake-core`
 2. `cargo test --workspace`
 3. `grep -rn "pending_sleep_starts\|pending_work_starts" crates/tracewake-core/src/` — must return zero matches (removal proof). Full-workspace test is the correct boundary because the TUI parity scenario consumes the no-human runner.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Refactored both no-human runners onto the shared world-step coordinator and removed the batch-local pending-duration authority. Added a regression proving an independently started sleep duration completes through `advance_no_human`, updated no-human replay/golden/TUI expectations for coordinator-driven tick accounting, and kept runner reports/metrics intact.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo clippy -p tracewake-core --all-targets -- -D warnings`
+- `cargo test -p tracewake-core`
+- `rg -n "pending_sleep_starts|pending_work_starts" crates/tracewake-core/src/` returned no matches.
+- `cargo test --workspace`

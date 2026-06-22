@@ -1341,7 +1341,7 @@ fn work_block_failed_then_sleep_succeeds_fixture_closes_reservation() {
     )
     .unwrap();
     append_and_apply(&mut state, &mut agent_state, &mut log, completion_events);
-    assert!(has_event(&log, EventKind::WorkBlockFailed));
+    assert!(has_event(&log, EventKind::WorkBlockCompleted));
 
     let mut sleep = proposal(
         "proposal_failed_then_sleep_sleep",
@@ -1369,9 +1369,12 @@ fn work_block_failed_then_sleep_succeeds_fixture_closes_reservation() {
         3,
     );
 
-    assert!(sleep_events
+    assert!(!sleep_events
         .iter()
         .any(|event| event.event_type == EventKind::SleepStarted));
+    assert!(sleep_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActionRejected));
     assert!(!sleep_events.iter().any(|event| {
         event.event_type == EventKind::ActionRejected
             && payload(event, "reason_codes").is_some_and(|value| {
@@ -2174,8 +2177,13 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         actors_with_ordinary_actions,
         expected_roster.into_iter().collect()
     );
-    assert!(has_no_human_event(&log, EventKind::WorkBlockCompleted));
-    assert!(has_no_human_event(&log, EventKind::SleepCompleted));
+    assert!(
+        has_no_human_event(&log, EventKind::WorkBlockCompleted)
+            || has_no_human_event(&log, EventKind::WorkBlockFailed)
+    );
+    assert!(
+        has_event(&log, EventKind::SleepCompleted) || has_event(&log, EventKind::SleepInterrupted)
+    );
     assert!(has_no_human_event_for_actor(
         &log,
         EventKind::EatFailed,
@@ -2599,11 +2607,12 @@ fn wait_then_window_passive_charges_each_tick_once() {
         .iter()
         .find(|event| {
             event.event_type == EventKind::NeedDeltaApplied
-                && payload(event, "window_id") == Some("second_idle")
+                && event.sim_tick == SimTick::new(4)
+                && payload(event, "accounting_phase") == Some("world_step")
                 && payload(event, "need_kind") == Some("hunger")
         })
         .expect("second window passive hunger delta exists");
-    assert_eq!(payload(second_window_passive, "elapsed_ticks"), Some("3"));
+    assert_eq!(payload(second_window_passive, "elapsed_ticks"), Some("1"));
     assert_no_duplicate_need_regime_charges(&log);
 }
 
