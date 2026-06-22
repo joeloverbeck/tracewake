@@ -87,6 +87,14 @@ expressions; document 12 owns LOD temporal ancestry; and document 13 owns
 temporal observability and review evidence. This entry is a pointer to those
 contracts and does not define temporal mechanisms.
 
+Standing parity-completeness is a cross-architecture obligation. TUI-facing
+simulation capabilities must remain traceable from actor-filtered core
+contracts through rendered client surfaces and acceptance evidence. Document 10
+owns the client/view-model side of that two-hop boundary, including surface
+disposition and debug-truth exclusion. Document 13 owns evidence closure,
+including deterministic conformance-set reporting and acceptance failure for
+missing playable-capability witnesses.
+
 ## Phase 3A evented cognition conformance
 
 | Surface | Required allowed source | Required evidence |

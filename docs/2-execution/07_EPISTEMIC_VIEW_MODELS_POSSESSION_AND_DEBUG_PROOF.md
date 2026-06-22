@@ -116,6 +116,21 @@ policy must be proved with the same snapshot and parity discipline, and any
 bind-time perception must be a modeled channel for the actor, never a human
 knowledge transfer.
 
+## Playable-capability parity proof
+
+Every TUI-facing capability proof must include actor-known positive evidence
+and actor-known negative evidence. Positive evidence shows the viewed actor had
+the modeled knowledge, provenance, and freshness needed to see or attempt the
+capability. Negative evidence shows hidden, stale, validator-only, or
+debug-only truth did not become embodied affordance, notebook material, or
+actor-visible why-not output.
+
+Debug-quarantine evidence may explain why the validator accepted or rejected a
+capability, but it cannot satisfy embodied parity. A parity proof must keep the
+actor-known witness, the rendered actor-facing surface, and the debug witness
+separate enough that a reviewer can tell which facts the actor could know and
+which facts remained operator-only.
+
 ## Debug surface
 
 Debug output may expose truth only if it is clearly non-diegetic and structurally quarantined. Debug output must not be reused as actor-visible prose, acceptance truth, planner input, institution input, or content authoring source.

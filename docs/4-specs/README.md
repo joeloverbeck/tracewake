@@ -36,6 +36,9 @@ Future specs must:
 - use `holder-known context` as the system-wide term and `actor-known` for the actor case;
 - keep archived specs as history, not current certification;
 - preserve the source-discipline rule that manifests are path inventory only and branch/default-branch/code-search evidence is not proof of exact-commit content;
+- for every Expansion feature, include a parity-impact declaration that lists added or changed playable
+  capabilities, explains non-playable classifications, names required TUI/view-model/render/replay
+  evidence, and records passing parity evidence before acceptance;
 - avoid new files merely for symmetry.
 
 `P0-CERT` is named by the execution tier as the next major implementation audit. This directory is ready for that future work, but it does not contain that certification spec.

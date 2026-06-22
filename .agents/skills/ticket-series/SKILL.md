@@ -82,6 +82,12 @@ For each ticket:
    For acceptance-artifact or report tickets, run the checks the artifact claims
    after composing or amending it, unless intentionally combining that ticket
    with the spec archive/truthing commit and recording that choice.
+   Before archiving or committing a report ticket, ask whether any tracked report,
+   ticket, spec, ledger, or evidence file changed after the commands the report
+   claims. If yes, either rerun the exact claimed commands against the new tree or
+   record the earlier run as preliminary and state the skipped rerun plus reason
+   in the ticket `Outcome`, affected report, spec `Outcome` when applicable, and
+   final response.
    For required long-running evidence commands such as mutation, soak, or
    generator runs, preserve enough evidence to classify the result honestly:
    capture a transcript when practical, check process liveness before
@@ -100,6 +106,13 @@ For each ticket:
    run the corresponding `--list` or `--list-files` command with the same
    selection flags, record the expected count/scope in the ticket or report,
    and make any deliberate `--no-config` or config override explicit.
+   For controlled temporary-break evidence, such as compile-break transcripts,
+   keep the mutation bounded and reversible: capture the pre-break diff/status
+   for the files to be edited, apply the temporary change, run the expected
+   failing command, preserve the relevant error lines, revert the temporary
+   change, and verify the touched files have no remaining diff before recording
+   the transcript as evidence. Mark the transcript manual or non-CI when it
+   intentionally breaks the tree.
 5. Update the ticket with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
    The archived ticket outcome must use the canonical heading and completion
@@ -231,6 +244,14 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    Check active reports and acceptance artifacts for recorded deferrals, live
    ticket paths, live spec paths, and target-commit claims that became stale
    after the last ticket or spec archive.
+   When an acceptance artifact cannot self-reference the commit that contains the
+   artifact, use explicit commit roles instead of one ambiguous "exact commit":
+   `implementation baseline commit` for the code/docs state tested before the
+   report exists, `evidence/report commit` for the commit that adds the report or
+   capstone evidence, and `archive/truthing commit` for final spec/ledger moves.
+   Keep those labels consistent across the report, ticket outcome, spec outcome,
+   ledger row, and final response. If any surface intentionally names a different
+   role, say so instead of letting target-commit wording drift.
    If the series commits verifier baselines or generated outputs, run the exact
    comparison command that will be used later, inspect the generated file
    format, and refresh the committed baseline when that file is the intended

@@ -215,6 +215,26 @@ Quarantine (hard rules):
 `DIAG-CERT` interaction: none. `EMERGE-OBS` produces evidence; it certifies
 nothing and blocks nothing.
 
+## Playable-capability conformance evidence
+
+TUI-facing capability parity evidence must invoke the real proposal,
+validation, projection, view-model, render, and replay pipeline. Harness-only
+construction is useful only as a negative or fixture setup; the passing witness
+must come from the path under test.
+
+Assertions must be typed-before-rendered: first prove the causal,
+actor-known, availability, rejection, debug-quarantine, replay, and fixture-ID
+facts through structured records, then compare any checked-in render
+references. Golden stability is not determinism by itself. Determinism means
+the same inputs produce the same typed report and rendered reference; a golden
+reference means the accepted rendering is intentionally pinned.
+
+The ordinary CI command lane must run the conformance suite with the rest of
+the workspace evidence, and review artifacts must capture the command, report
+path or digest, capability entries, verdict, and any accepted non-playable
+classification. Report capture must be deterministic so reviewers can compare
+coverage changes without relying on display strings.
+
 ## General anti-vacuity and behavior witnesses
 
 Every lock, gate, and proof obligation must identify at least one live negative

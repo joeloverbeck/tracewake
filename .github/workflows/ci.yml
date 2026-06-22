@@ -64,6 +64,8 @@ jobs:
           restore-keys: ${{ runner.os }}-test-
       - name: Build workspace
         run: cargo build --workspace --all-targets --locked
+      - name: TUI playable-capability parity
+        run: cargo test -p tracewake-tui --test playable_capability_parity --locked
       - name: Run tests
         run: cargo test --workspace --locked
 
@@ -139,10 +141,14 @@ jobs:
           # scheduled job, but match on file+mutation+function (drop line:col)
           # so accepted baseline misses aren't re-flagged when lines shift.
           set +e
-          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle
+          # Pin an explicit per-mutant test timeout (matching the scheduled
+          # shard job's 183s) instead of cargo-mutants' fragile auto-set window
+          # (~20s for this workspace), which spuriously times out the growing
+          # workspace test suite and makes cargo-mutants exit 3 (TIMEOUT).
+          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle --timeout 183
           mutants_status=$?
           set -e
-          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ]; then
+          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ] && [ "$mutants_status" -ne 3 ]; then
             echo "cargo-mutants failed with status $mutants_status; this is a tool/run failure, not a passing mutation gate."
             find mutants.out -maxdepth 2 -type f -print || true
             exit "$mutants_status"
@@ -161,18 +167,34 @@ jobs:
             echo "cargo-mutants produced no output artifacts for a guarded diff."
             exit 1
           fi
-          if [ ! -f mutants.out/missed.txt ]; then
-            echo "No missed.txt produced and cargo-mutants exited 0; all in-diff mutants were caught."
-            exit 0
+          survivor_files=()
+          if [ -f mutants.out/missed.txt ]; then
+            survivor_files+=(mutants.out/missed.txt)
           fi
-          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$1" | sort -u; }
-          new_misses="$(comm -23 <(strip mutants.out/missed.txt) <(strip .cargo/mutants-baseline-misses.txt))"
-          if [ -n "$new_misses" ]; then
-            echo "New missed mutants on changed guarded-layer lines (not in accepted baseline):"
-            echo "$new_misses"
+          if [ -f mutants.out/timeout.txt ]; then
+            survivor_files+=(mutants.out/timeout.txt)
+          fi
+          if [ "${#survivor_files[@]}" -eq 0 ]; then
+            if [ "$mutants_status" -eq 0 ]; then
+              echo "No missed.txt or timeout.txt produced and cargo-mutants exited 0; all in-diff mutants were caught."
+              exit 0
+            fi
+            echo "cargo-mutants exited $mutants_status but produced no survivor artifacts (missed.txt or timeout.txt)."
+            find mutants.out -maxdepth 2 -type f -print || true
             exit 1
           fi
-          echo "All in-diff misses are accepted baseline entries; gate passes."
+          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$@" | sort -u; }
+          new_survivors="$(comm -23 <(strip "${survivor_files[@]}") <(strip .cargo/mutants-baseline-misses.txt))"
+          if [ -n "$new_survivors" ]; then
+            echo "New missed or timed-out mutants on changed guarded-layer lines (not in accepted baseline):"
+            echo "$new_survivors"
+            exit 1
+          fi
+          if [ "$mutants_status" -eq 3 ]; then
+            echo "All in-diff timeouts are accepted baseline entries; gate passes."
+            exit 0
+          fi
+          echo "All in-diff misses/timeouts are accepted baseline entries; gate passes."
 
   mutants-lock-layer-baseline:
     name: mutation baseline and census (lock layer)
@@ -242,11 +264,21 @@ jobs:
       - name: Run supervised mutation shard
         run: |
           shard_id="${{ matrix.shard }}"
-          shard_dir="reports/0045_first_proof_cert_command_transcripts/mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}"
-          out_dir="reports/0045_first_proof_cert_mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}.out"
+          # Recurring-lane scratch namespace: gitignored and never committed, so a
+          # fresh checkout never repopulates it. This lane used to reuse the
+          # committed 0045 proof-cert transcript paths, which the checkout restored;
+          # the supervisor then diverted this run's authoritative status.env to a
+          # sibling ".attempt-N" dir outside the uploaded/reconciled path, letting
+          # reconciliation read the stale committed status. The committed cert now
+          # stays untouched and this run writes fresh evidence here. The "rm -rf"
+          # keeps the step idempotent on a reused runner: the supervisor diverts on
+          # ANY non-empty target, so clear residue and write to the canonical path.
+          shard_dir="mutation-lane/mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}"
+          out_dir="mutation-lane/mutation_shard_${shard_id}_of_${MUTANTS_SHARDS}.out"
           commit="$(git rev-parse HEAD)"
           config_fingerprint="$(sha256sum .cargo/mutants.toml | cut -d ' ' -f1)"
           toolchain_fingerprint="$(sha256sum rust-toolchain.toml Cargo.lock Cargo.toml | sha256sum | cut -d ' ' -f1)"
+          rm -rf "$shard_dir" "$out_dir"
           set +e
           tools/supervise-command.sh "$shard_dir" "$MUTANTS_WALL_SECONDS" "$MUTANTS_GRACE_SECONDS" -- \
             cargo mutants --workspace --no-shuffle \
@@ -277,8 +309,8 @@ jobs:
         with:
           name: cargo-mutants-lock-layer-shard-${{ matrix.shard }}-of-8
           path: |
-            reports/0045_first_proof_cert_command_transcripts/mutation_shard_${{ matrix.shard }}_of_8
-            reports/0045_first_proof_cert_mutation_shard_${{ matrix.shard }}_of_8.out
+            mutation-lane/mutation_shard_${{ matrix.shard }}_of_8
+            mutation-lane/mutation_shard_${{ matrix.shard }}_of_8.out
 
   mutants-lock-layer-reconcile:
     name: mutation shard reconciliation (lock layer)
@@ -296,7 +328,7 @@ jobs:
           pattern: cargo-mutants-lock-layer-*
       - name: Reconcile shard union
         run: |
-          mkdir -p reports
+          mkdir -p mutation-lane
           baseline_dir="$(find mutation-artifacts/cargo-mutants-lock-layer-baseline -type f -name fingerprints.env -printf '%h\n' | sort | head -n 1)"
           if [ -z "$baseline_dir" ]; then
             echo "Missing mutation baseline artifact input."
@@ -320,8 +352,8 @@ jobs:
             --commit "$commit" \
             --config-fingerprint "$config_fingerprint" \
             --toolchain-fingerprint "$toolchain_fingerprint" \
-            --out-md reports/0045_first_proof_cert_mutation_completion_manifest.md \
-            --out-json reports/0045_first_proof_cert_mutation_completion_manifest.json \
+            --out-md mutation-lane/mutation_completion_manifest.md \
+            --out-json mutation-lane/mutation_completion_manifest.json \
             "${args[@]}"
       - name: Upload mutation reconciliation output
         if: always()
@@ -329,5 +361,5 @@ jobs:
         with:
           name: cargo-mutants-lock-layer-reconciliation
           path: |
-            reports/0045_first_proof_cert_mutation_completion_manifest.md
-            reports/0045_first_proof_cert_mutation_completion_manifest.json
+            mutation-lane/mutation_completion_manifest.md
+            mutation-lane/mutation_completion_manifest.json

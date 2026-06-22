@@ -2,12 +2,43 @@ use tracewake_core::debug_reports::{
     ActionRejectionDebugReport, ControllerBindingDebugReport, ItemLocationDebugReport,
     NoHumanDayDebugReport, Phase3ADebugReport, ProjectionRebuildDebugReport, ReplayDebugReport,
 };
-use tracewake_core::view_models::DebugEventLogView;
 use tracewake_core::view_models::{
     DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, DEBUG_EPISTEMICS_MARKER,
 };
+use tracewake_core::view_models::{DebugEventLogView, DebugViewModel};
 
 const DEBUG_MARKER: &str = "DEBUG NON-DIEGETIC";
+
+pub fn debug_view_model_panel_key(view: &DebugViewModel) -> Option<&'static str> {
+    match view {
+        DebugViewModel::ControllerBinding(view) => {
+            view.debug_only().then_some("debug:controller_binding")
+        }
+        DebugViewModel::EventLog(view) => view.debug_only().then_some("debug:event_log"),
+        DebugViewModel::ItemLocation(view) => view.debug_only().then_some("debug:item_location"),
+        DebugViewModel::ActionRejection(view) => {
+            view.debug_only().then_some("debug:action_rejection")
+        }
+        DebugViewModel::ProjectionRebuild(view) => {
+            view.debug_only().then_some("debug:projection_rebuild")
+        }
+        DebugViewModel::ReplayReport(view) => view.debug_only().then_some("debug:replay_report"),
+        // The epistemic-family views carry a hardcoded `non_diegetic_marker()`
+        // constant and no reachable non-debug constructor, so the marker
+        // equality and `debug_only()` checks are both structurally constant for
+        // any constructable view. The marker comparison is a `CONST == CONST`
+        // tautology that the `debug_only()` capability check already subsumes;
+        // keeping it only manufactured an equivalent `&&` mutant on the lock
+        // layer. Quarantine (INV-107/068/031) stays enforced by the view type
+        // and the `debug_only()` capability token.
+        DebugViewModel::Epistemics(view) => view.debug_only().then_some("debug:epistemics"),
+        DebugViewModel::Beliefs(view) => view.debug_only().then_some("debug:beliefs"),
+        DebugViewModel::Observations(view) => view.debug_only().then_some("debug:observations"),
+        DebugViewModel::TruthBeliefMismatch(view) => {
+            view.debug_only().then_some("debug:truth_belief_mismatch")
+        }
+    }
+}
 
 pub fn render_item_location_panel(report: &ItemLocationDebugReport) -> String {
     assert!(report.debug_only());
@@ -243,8 +274,17 @@ fn lines(title: &str, rows: Vec<String>) -> String {
 mod tests {
     use super::*;
     use crate::app::TuiApp;
-    use tracewake_core::actions::ReportStatus;
-    use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
+    use tracewake_core::actions::pipeline::PipelineStage;
+    use tracewake_core::actions::{ReasonCode, ReportStatus, ValidationReport};
+    use tracewake_core::events::EventStream;
+    use tracewake_core::ids::{
+        ActionId, ActorId, ItemId, ProposalId, SemanticActionId, ValidationReportId,
+    };
+    use tracewake_core::view_models::{
+        DebugActionRejectionView, DebugControllerBindingView, DebugEventSummary,
+        DebugItemLocationView, DebugProjectionRebuildView, DebugReplayReportView,
+        DebugTruthBeliefMismatchView,
+    };
 
     #[test]
     fn debug_panels_are_marked_non_diegetic_and_do_not_change_embodied_view_or_checksum() {
@@ -285,5 +325,129 @@ mod tests {
         assert!(panel.contains(DEBUG_MARKER));
         assert!(panel.contains("Action Rejection"));
         assert!(panel.contains(result.report.proposal_id.as_str()));
+    }
+
+    fn minted_validation_report() -> ValidationReport {
+        ValidationReport {
+            validation_report_id: ValidationReportId::new("validation_proposal_debug_rejection")
+                .unwrap(),
+            proposal_id: ProposalId::new("proposal_debug_rejection").unwrap(),
+            actor_id: None,
+            action_id: ActionId::new("eat").unwrap(),
+            target_ids: Vec::new(),
+            status: ReportStatus::Rejected,
+            failed_stage: Some(PipelineStage::PhysicalPreconditionValidation),
+            reason_codes: vec![ReasonCode::DoorClosedBlocksMovement],
+            checked_facts: Vec::new(),
+            actor_visible_facts: Vec::new(),
+            debug_only_facts: Vec::new(),
+            actor_visible_summary: "The door is closed.".to_string(),
+            debug_summary: "debug detail".to_string(),
+            would_mutate: false,
+            event_ids: Vec::new(),
+            checksum_before: None,
+            checksum_after: None,
+        }
+    }
+
+    /// One minted (debug-capable) view per `DebugViewModel` variant, paired with
+    /// the panel key `debug_view_model_panel_key` must emit for it. Mirrors the
+    /// core-side `minted_debug_views` helper so the TUI seam carries its own
+    /// behavior witness rather than relying on the source-text seam check.
+    fn minted_view_model_key_pairs() -> Vec<(DebugViewModel, &'static str)> {
+        vec![
+            (
+                DebugViewModel::ControllerBinding(DebugControllerBindingView::new(
+                    Some("controller_human->actor_tomas".to_string()),
+                    vec!["bound@0".to_string()],
+                )),
+                "debug:controller_binding",
+            ),
+            (
+                DebugViewModel::EventLog(DebugEventLogView::new(vec![DebugEventSummary {
+                    stream: EventStream::World,
+                    stream_position: 0,
+                    global_order: 0,
+                    event_type: "actor_waited".to_string(),
+                    actor_or_process: Some("actor_tomas".to_string()),
+                    participants: vec!["actor_tomas".to_string()],
+                }])),
+                "debug:event_log",
+            ),
+            (
+                DebugViewModel::ItemLocation(DebugItemLocationView::new(
+                    ItemId::new("coin_stack_01").unwrap(),
+                    "container:strongbox_tomas",
+                )),
+                "debug:item_location",
+            ),
+            (
+                DebugViewModel::ActionRejection(Box::new(DebugActionRejectionView::new(
+                    minted_validation_report(),
+                ))),
+                "debug:action_rejection",
+            ),
+            (
+                DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new(
+                    "projection rebuild matched",
+                )),
+                "debug:projection_rebuild",
+            ),
+            (
+                DebugViewModel::ReplayReport(DebugReplayReportView::new("replay matched")),
+                "debug:replay_report",
+            ),
+            (
+                DebugViewModel::Epistemics(DebugEpistemicsView::new(
+                    "debug",
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec!["controller_human->actor_tomas@2".to_string()],
+                    "epistemic_projection_v1",
+                )),
+                "debug:epistemics",
+            ),
+            (
+                DebugViewModel::Beliefs(DebugBeliefsView::new(
+                    ActorId::new("actor_tomas").unwrap(),
+                    Vec::new(),
+                )),
+                "debug:beliefs",
+            ),
+            (
+                DebugViewModel::Observations(DebugObservationsView::new(
+                    ActorId::new("actor_tomas").unwrap(),
+                    Vec::new(),
+                )),
+                "debug:observations",
+            ),
+            (
+                DebugViewModel::TruthBeliefMismatch(DebugTruthBeliefMismatchView::new(
+                    ItemId::new("coin_stack_01").unwrap(),
+                    "container:strongbox_tomas",
+                    "holder believes coin is missing",
+                    "truth and belief diverge",
+                )),
+                "debug:truth_belief_mismatch",
+            ),
+        ]
+    }
+
+    #[test]
+    fn debug_view_model_panel_key_maps_every_minted_variant_to_its_key() {
+        let pairs = minted_view_model_key_pairs();
+        assert_eq!(
+            pairs.len(),
+            10,
+            "every DebugViewModel variant must contribute a behavior witness",
+        );
+        for (view, expected_key) in pairs {
+            assert_eq!(
+                debug_view_model_panel_key(&view),
+                Some(expected_key),
+                "minted debug view must route to {expected_key}",
+            );
+        }
     }
 }

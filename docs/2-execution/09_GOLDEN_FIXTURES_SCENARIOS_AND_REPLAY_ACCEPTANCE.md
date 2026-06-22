@@ -104,6 +104,19 @@ Each adversarial fixture must include one tempting shortcut and prove it is unus
 - content field uses a renamed forbidden concept;
 - scheduler has an opportunity to shortcut but produces transaction trace or diagnostic instead.
 
+## Playable-capability fixture coverage
+
+TUI-facing capability parity uses focused golden scenarios as execution
+evidence. Fixture coverage must resolve each scenario by fixture ID, declare
+which playable capability or non-playable classification it covers, and include
+the hidden or stale counterpart when actor knowledge is the risk. A focused
+golden is not a broad screenshot sweep: it proves a specific real-pipeline
+capability surface, its actor-filtered inputs, and its forbidden shortcut.
+
+Fixture-ID resolution is part of the proof. A parity scenario that cannot name
+the fixture content it depends on, or that can be satisfied by a renamed or
+unregistered fixture, is not usable acceptance evidence.
+
 ## Fixture acceptance artifact
 
 Each fixture contract must record:

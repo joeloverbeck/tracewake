@@ -125,6 +125,7 @@ Use this block as a pointer to foundation `03` / `INV-112`, the architecture tem
 - Can the scenario run without a human controller and still produce ordinary life, needs, routines, interruptions, and consequences under `NO-HUMAN`?
 - Does the currently possessed actor remain ordinary, with no privileged action, knowledge, scheduling, plot gravity, or protected role under `POS-PARITY`?
 - Is the feature reachable and inspectable through the TUI or through stable view-model tests before it is considered accepted?
+- For every capability added or changed, where is its declared surface disposition and real-pipeline actor-filtered witness?
 - Are no-human runs, possession parity, holder-known view filtering, replay, fixture coverage, and debug explanation part of acceptance through the live execution gates?
 
 ### Institutions and social machinery

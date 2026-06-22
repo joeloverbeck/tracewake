@@ -205,12 +205,12 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
 
 ### R-15 — TUI-First Playability Erosion
 
-- **Why it matters:** The TUI is the first playable surface and early acceptance harness. If it becomes secondary, implementation drifts toward headless simulation, graphical ambition, or debug-only play.
-- **Symptoms:** Mechanics ship without TUI or view-model tests; debug commands substitute for embodied actions; future graphical assumptions shape data; the terminal UX cannot explain available actions, uncertainty, why-not reasons, or actor-known leads.
-- **Mitigation / guardrails:** Require semantic TUI action selection, actor-filtered view models, actor notebook, why-not explanations, transcript replay, debug/embodied separation, and playable or view-model-testable access in every runnable phase.
-- **Evidence to watch:** Headless features marked accepted, no stable semantic action IDs, UI code enforcing world rules, acceptance demos that require debug mode, user-visible summaries sourced from truth.
-- **Escalation trigger:** A feature is considered accepted while unreachable or uninspectable through embodied TUI/view-model surfaces appropriate to its gate.
-- **Retirement criteria:** TUI/view-model acceptance coverage for all ordinary-play features and stable boundaries for future clients.
+- **Why it matters:** The TUI is the first playable surface and early acceptance harness. If it becomes secondary, implementation drifts toward headless simulation, graphical ambition, debug-only play, or one-hop tests that miss the core-to-client handoff.
+- **Symptoms:** Mechanics ship without TUI or view-model tests; debug commands substitute for embodied actions; future graphical assumptions shape data; the terminal UX cannot explain available actions, uncertainty, why-not reasons, or actor-known leads. Projection blindness omits an actor-known fact or capability from the view model. Renderer blindness carries the fact or capability in the view model but drops it from the client surface.
+- **Mitigation / guardrails:** Require semantic TUI action selection, actor-filtered view models, actor notebook, why-not explanations, transcript replay, debug/embodied separation, declared surface disposition, real-pipeline actor-filtered witnesses, Hop-1 goldens over view-model/projection coverage, and Hop-2 compile/source guards over renderer coverage.
+- **Evidence to watch:** Headless features marked accepted, no stable semantic action IDs, UI code enforcing world rules, acceptance demos that require debug mode, user-visible summaries sourced from truth, view-model capability entries without rendered witnesses, rendered controls without typed actor-known witnesses, missing Hop-1 golden coverage, or weakened Hop-2 renderer guards.
+- **Escalation trigger:** A feature is considered accepted while unreachable or uninspectable through embodied TUI/view-model surfaces appropriate to its gate, or while either projection blindness or renderer blindness can hide a declared playable capability.
+- **Retirement criteria:** TUI/view-model acceptance coverage for all ordinary-play features, stable boundaries for future clients, standing Hop-1 golden coverage, Hop-2 compile/source guards, and acceptance artifacts that cite real-pipeline actor-filtered witnesses.
 - **Status / review cadence:** Watch. Review every feature acceptance claim.
 
 ### R-16 — No-Human Ordinary-Life Failure

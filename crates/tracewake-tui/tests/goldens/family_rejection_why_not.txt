@@ -1,0 +1,21 @@
+Actor: actor_sena | Tick: 0
+Place: Front hall (front_hall)
+Why-not: The door is closed. kind=access reasons=door_closed_blocks_movement
+Needs:
+- fatigue: band=comfortable cause=fixture_initial
+- hunger: band=comfortable cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: none
+Routine: none
+Exits:
+- back_room blocked: door door_front_back is closed
+Doors:
+- door_front_back open=false locked=false endpoints=front_hall<->back_room
+Containers:
+Items:
+Inventory:
+Actors:
+Actions:
+1. Move to back_room [move.to.back_room] disabled: The door is closed. reasons=door_closed_blocks_movement
+2. open door_front_back [open.door.door_front_back]
+3. Wait [wait.1_tick]

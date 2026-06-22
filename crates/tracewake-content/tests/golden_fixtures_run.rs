@@ -138,6 +138,7 @@ const FROZEN_FIXTURE_FINGERPRINTS: &[(&str, &str)] = &[
     ),
     ("ordinary_workday_001", "twf1-9759d1e7c395df11"),
     ("partial_food_source_knowledge_001", "twf1-db3392dae3200877"),
+    ("place_carried_item_001", "twf1-4dfecc00c36642db"),
     ("planner_trace_001", "twf1-f8a39fef166adb45"),
     (
         "possession_does_not_reset_intention_001",

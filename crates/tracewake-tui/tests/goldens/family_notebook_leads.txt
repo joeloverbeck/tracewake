@@ -1,0 +1,12 @@
+Notebook: actor_tomas
+Beliefs:
+- belief_tomas_expects_coin_stack_01_in_strongbox_tomas confidence=0900 source=event:prehistory_tomas_checked_strongbox_before_start tick=0 contradictions=none :: coin_stack_01 is in strongbox_tomas
+Observations:
+- obs.perception.event.perception.actor_tomas.0.current_place.house_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+- obs.perception.event.perception.actor_tomas.0.visible_container.strongbox_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+- obs.perception.event.perception.actor_tomas.0.visible_door.door_house_street channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+- obs.perception.event.perception.actor_tomas.0.visible_exit.street_lane channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+Contradictions:
+- none
+Leads:
+- none
