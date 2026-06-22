@@ -14,6 +14,8 @@ target
 **/mutants.out*/
 # Custom `-o mutants-<name>.out` run directories
 **/mutants-*.out/
+# Recurring CI mutation-lane scratch (regenerated each scheduled/manual run, never committed)
+mutation-lane/
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

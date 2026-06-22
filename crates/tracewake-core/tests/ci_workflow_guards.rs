@@ -480,8 +480,8 @@ fn scheduled_mutation_lane_errors(workflow: &str) -> Vec<String> {
         "python3 tools/merge-mutation-shards.py",
         "--canonical-list",
         "--expected-shards 8",
-        "--out-md reports/0045_first_proof_cert_mutation_completion_manifest.md",
-        "--out-json reports/0045_first_proof_cert_mutation_completion_manifest.json",
+        "--out-md mutation-lane/mutation_completion_manifest.md",
+        "--out-json mutation-lane/mutation_completion_manifest.json",
     ] {
         if !workflow.contains(required) {
             errors.push(format!(
