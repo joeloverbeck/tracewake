@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-003: Execution amendments (05/06/07/10)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — docs only: `docs/2-execution/{05,06,07,10}_*.md`
@@ -91,3 +91,51 @@ Execution-tier amendments require ordinary execution-owner approval before appli
 1. `for d in 05 06 07 10; do echo "== $d =="; grep -ciE "canonical step|equivalence|advance-until|anti-leak|transcript|no-direct-dispatch" docs/2-execution/${d}_*.md; done`
 2. `grep -niE "outside debug|unavailable" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
 3. Narrower command is correct: execution doc amendments are verified by landing greps + a manual `INV-091`/`INV-103`/`INV-024` alignment read (and confirming the corrected `07` posture), not by `cargo` tests — no code changes in this ticket.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Applied the execution-tier amendments in the existing execution homes:
+
+- `docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`
+  now defines the canonical world-step execution contract, including typed
+  request/result, deterministic phase contract, shared event append/application
+  route, log-derived due-duration scan, actor-transaction cadence, and the
+  no-direct-dispatch guard.
+- `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+  now extends ordinary-life proof to human-driven ticks and requires
+  human/no-human equivalence over the shared loaded-world step.
+- `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  now replaces the stale debug-only player-facing time-control posture with
+  embodied one-tick/advance-until proof, actor-known stop reasons, interval
+  summary source/visibility requirements, anti-leak evidence, and structurally
+  separate debug diagnostics while preserving the debug no-human-day quarantine.
+- `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  now requires a command/evidence matrix with transcripts, typed ledgers,
+  replay checksums, rebuild reports, hidden-truth negatives, differential
+  evidence, duration/accounting witnesses, reservation-conflict evidence, and
+  parity dispositions.
+
+The ticket's execution-owner precondition was satisfied by the user's active
+instruction to implement the `0047TUIAUTWOR` series against the referenced spec.
+No code changes, foundation/architecture/reference amendments, Rust type names,
+function signatures, or test names were introduced for this ticket.
+
+Verification:
+
+- `for d in 05 06 07 10; do echo "== $d =="; grep -ciE "canonical step|equivalence|advance-until|anti-leak|transcript|no-direct-dispatch" docs/2-execution/${d}_*.md; done`
+  returned nonzero counts for all four execution document prefixes.
+- `grep -niE "canonical step|no-direct-dispatch|phase" docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md`
+  showed canonical-step ownership and no-direct-dispatch guard language.
+- `grep -niE "human|equivalence|single charge|duration" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+  showed human-driven tick proof and human/no-human equivalence language.
+- `grep -niE "advance-until|interval summary|anti-leak|debug" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  showed embodied advance-until, interval-summary, anti-leak, and debug
+  quarantine evidence language.
+- `grep -niE "outside debug|unavailable" docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md`
+  printed no matches, confirming the stale live constraint was removed.
+- Manual `INV-091`/`INV-103`/`INV-024` alignment read: the amendments keep
+  no-human progression authoritative, preserve the no-direct-dispatch boundary,
+  and keep time-control stop/summary evidence actor-known while quarantining
+  debug-only exact details.

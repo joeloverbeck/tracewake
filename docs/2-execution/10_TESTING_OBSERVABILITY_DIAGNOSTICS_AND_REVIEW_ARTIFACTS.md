@@ -235,6 +235,16 @@ path or digest, capability entries, verdict, and any accepted non-playable
 classification. Report capture must be deterministic so reviewers can compare
 coverage changes without relying on display strings.
 
+Time-control and interval-summary acceptance artifacts must include a
+command/evidence matrix. The matrix records command transcripts, typed event
+ledgers, replay checksums, projection rebuild reports, stop reasons,
+hidden-truth negative witnesses, human/no-human differential evidence,
+duration-terminal/accounting witnesses, reservation-conflict evidence, and
+capability-parity dispositions. Each row must state whether the evidence is
+embodied, debug-only, replay, no-human, parity, or observer-only, and must
+identify the source event, proposal, projection, context, or transcript
+references that make it path-under-test evidence.
+
 ## General anti-vacuity and behavior witnesses
 
 Every lock, gate, and proof obligation must identify at least one live negative
