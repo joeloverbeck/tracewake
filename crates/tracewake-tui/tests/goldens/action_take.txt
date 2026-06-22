@@ -1,0 +1,26 @@
+Actor: actor_lina | Tick: 0
+Place: Market stall (market_stall)
+Needs:
+- fatigue: band=comfortable cause=fixture_initial
+- hunger: band=comfortable cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: none
+Routine: none
+Exits:
+- store_room blocked: door door_market_store is closed
+Doors:
+- door_market_store open=false locked=false endpoints=market_stall<->store_room
+Containers:
+- sample_bin open=true locked=false
+Items:
+- sample_token_01 portable=true source=container:sample_bin
+Inventory:
+Actors:
+Actions:
+1. Check sample_bin [check.container.sample_bin]
+2. close sample_bin [close.container.sample_bin]
+3. Inspect sample_token_01 [inspect.item.sample_token_01]
+4. Move to store_room [move.to.store_room] disabled: The door is closed. reasons=door_closed_blocks_movement
+5. open door_market_store [open.door.door_market_store]
+6. Take sample_token_01 [take.item.sample_token_01.from.sample_bin]
+7. Wait [wait.1_tick]

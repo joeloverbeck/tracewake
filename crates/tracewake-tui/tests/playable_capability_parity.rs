@@ -3,6 +3,7 @@ mod parity;
 use std::collections::BTreeSet;
 
 use parity::{
+    census_actions::registered_action_ids,
     registry,
     runner::run_conformance_with_render_probe,
     runner::{registered_action_coverage_failures, run_conformance},
@@ -35,6 +36,9 @@ fn playable_capability_registry_smoke_test() {
         assert!(!entry.disposition_rationale.trim().is_empty());
         assert!(!entry.fixture_ids.is_empty());
         assert!(!entry.viewer_actor.trim().is_empty());
+        if let Some(registry_action_id) = entry.registry_action_id {
+            assert!(!registry_action_id.trim().is_empty());
+        }
         assert!(!entry.typed_witness.assertion.trim().is_empty());
         assert!(!entry.actor_knowledge_witness.assertion.trim().is_empty());
         assert!(matches!(
@@ -61,6 +65,8 @@ fn playable_capability_registry_smoke_test() {
             entry.setup_operation,
             SetupOperation::BindViewer
                 | SetupOperation::SubmitSemanticAction { .. }
+                | SetupOperation::SubmitRegistryAction { .. }
+                | SetupOperation::ObserveQueryOnly { .. }
                 | SetupOperation::AdvanceNoHuman
         ));
         assert!(matches!(
@@ -154,9 +160,11 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::SubmitSemanticAction {
             semantic_action_id: "wait.1_tick",
         },
+        SetupOperation::SubmitRegistryAction { action_id: "wait" },
+        SetupOperation::ObserveQueryOnly { action_id: "look" },
         SetupOperation::AdvanceNoHuman,
     ];
-    assert_eq!(operations.len(), 3);
+    assert_eq!(operations.len(), 5);
 
     let witness_kinds = [
         WitnessKind::TypedCausal,
@@ -167,6 +175,42 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         WitnessKind::DebugQuarantine,
     ];
     assert_eq!(witness_kinds.len(), 6);
+}
+
+#[test]
+fn playable_capability_registry_covers_every_registered_action_definition() {
+    let entries = registry();
+    let action_ids = registered_action_ids();
+    assert_eq!(
+        action_ids,
+        vec![
+            "check_container",
+            "close",
+            "continue_routine",
+            "eat",
+            "inspect_entity",
+            "inspect_place",
+            "look",
+            "move",
+            "open",
+            "place",
+            "sleep",
+            "take",
+            "truthful_accuse_probe",
+            "wait",
+            "work_block",
+        ],
+        "current action registry count changed; update the census deliberately"
+    );
+
+    let failures = registered_action_coverage_failures(
+        &entries,
+        action_ids.iter().map(String::as_str).collect::<Vec<_>>(),
+    );
+    assert!(
+        failures.is_empty(),
+        "every registered action must have a capability disposition: {failures:#?}"
+    );
 }
 
 #[test]
@@ -270,12 +314,13 @@ fn playable_capability_runner_fails_closed_for_synthetic_gaps() {
         empty_render.failures
     );
 
-    let uncovered_actions = registered_action_coverage_failures(&complete, ["wait.1_tick", "move"]);
+    let uncovered_actions =
+        registered_action_coverage_failures(&complete, ["wait", "synthetic_missing_action"]);
     assert!(
         uncovered_actions
             .iter()
             .any(|failure| failure.code == "registered_action_uncovered"
-                && failure.key.as_deref() == Some("move")),
+                && failure.key.as_deref() == Some("synthetic_missing_action")),
         "missing registered action coverage must fail: {uncovered_actions:#?}"
     );
 }

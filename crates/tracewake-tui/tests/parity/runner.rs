@@ -1,5 +1,5 @@
 use tracewake_content::fixtures;
-use tracewake_core::ids::{ActorId, SemanticActionId};
+use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
 use tracewake_tui::app::TuiApp;
 
 use super::{
@@ -116,21 +116,19 @@ pub fn run_conformance_with_render_probe(
 
 pub fn registered_action_coverage_failures(
     entries: &[CapabilityEntry],
-    action_ids: impl IntoIterator<Item = &'static str>,
+    action_ids: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Vec<ConformanceFailure> {
     action_ids
         .into_iter()
-        .filter(|action_id| {
-            !entries.iter().any(|entry| {
-                matches!(
-                    entry.setup_operation,
-                    SetupOperation::SubmitSemanticAction { semantic_action_id }
-                        if semantic_action_id == *action_id
-                ) && !entry.fixture_ids.is_empty()
-            })
+        .filter_map(|action_id| {
+            let action_id = action_id.as_ref();
+            (!entries.iter().any(|entry| {
+                entry.registry_action_id == Some(action_id) && !entry.fixture_ids.is_empty()
+            }))
+            .then(|| action_id.to_string())
         })
         .map(|action_id| ConformanceFailure {
-            key: Some(action_id.to_string()),
+            key: Some(action_id.clone()),
             code: "registered_action_uncovered",
             message: format!("registered action {action_id} has no capability disposition"),
         })
@@ -234,11 +232,91 @@ fn validate_entry(
             "epistemic capability is missing anti-leak fixture coverage",
         ));
     }
-    if let SetupOperation::SubmitSemanticAction { semantic_action_id } = entry.setup_operation {
-        validate_semantic_action(entry, semantic_action_id, failures);
+    match entry.setup_operation {
+        SetupOperation::SubmitSemanticAction { semantic_action_id } => {
+            validate_semantic_action(entry, semantic_action_id, failures);
+        }
+        SetupOperation::SubmitRegistryAction { action_id } => {
+            validate_registry_action(entry, action_id, failures);
+        }
+        SetupOperation::ObserveQueryOnly { action_id } => {
+            validate_query_action(entry, action_id, failures);
+        }
+        SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {}
     }
     if matches!(entry.surface_disposition, SurfaceDisposition::Embodied) {
         validate_embodied_render(entry, failures, render_probe);
+    }
+}
+
+fn validate_registry_action(
+    entry: &CapabilityEntry,
+    action_id: &str,
+    failures: &mut Vec<ConformanceFailure>,
+) {
+    let Some(fixture_id) = entry.fixture_ids.first() else {
+        return;
+    };
+    let Some(golden) = fixtures::by_id(fixture_id) else {
+        return;
+    };
+    let Ok(mut app) = TuiApp::from_golden(golden) else {
+        failures.push(entry_failure(
+            &Some(entry.key.to_string()),
+            "fixture_load_failed",
+            format!("fixture {fixture_id} failed to load"),
+        ));
+        return;
+    };
+    let Ok(actor_id) = ActorId::new(entry.viewer_actor) else {
+        failures.push(entry_failure(
+            &Some(entry.key.to_string()),
+            "bad_viewer_actor",
+            format!("bad viewer actor {}", entry.viewer_actor),
+        ));
+        return;
+    };
+    if app.bind_actor(actor_id).is_err() {
+        failures.push(entry_failure(
+            &Some(entry.key.to_string()),
+            "viewer_bind_failed",
+            format!("viewer actor {} could not bind", entry.viewer_actor),
+        ));
+        return;
+    }
+    let Ok(action_id) = ActionId::new(action_id) else {
+        failures.push(entry_failure(
+            &Some(entry.key.to_string()),
+            "bad_registry_action_id",
+            "registry action id is malformed",
+        ));
+        return;
+    };
+    let action_present = app.current_view().is_ok_and(|view| {
+        view.semantic_actions
+            .iter()
+            .any(|action| action.action_id == action_id)
+    });
+    if !action_present {
+        failures.push(entry_failure(
+            &Some(entry.key.to_string()),
+            "declared_registry_action_absent",
+            "declared registry action is absent from the positive scenario",
+        ));
+    }
+}
+
+fn validate_query_action(
+    entry: &CapabilityEntry,
+    action_id: &str,
+    failures: &mut Vec<ConformanceFailure>,
+) {
+    if entry.registry_action_id != Some(action_id) {
+        failures.push(entry_failure(
+            &Some(entry.key.to_string()),
+            "query_action_mismatch",
+            "query-only setup action must match registry action id",
+        ));
     }
 }
 

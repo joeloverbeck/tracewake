@@ -1,6 +1,6 @@
 use tracewake_content::fixtures;
 use tracewake_core::actions::ReportStatus;
-use tracewake_core::ids::{ActorId, SemanticActionId};
+use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
 use tracewake_tui::app::{AppError, TuiApp};
 
 use super::{CapabilityEntry, SetupOperation};
@@ -46,33 +46,57 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
 
     let mut submitted_status = None;
     let mut rendered = app.render_current_view().map_err(ScenarioError::App)?;
-    if let SetupOperation::SubmitSemanticAction { semantic_action_id } = entry.setup_operation {
-        let semantic_action_id = SemanticActionId::new(semantic_action_id.to_string())
-            .map_err(|_| ScenarioError::BadSemanticAction(semantic_action_id.to_string()))?;
-        let action = view
-            .semantic_actions
-            .iter()
-            .find(|action| action.semantic_action_id == semantic_action_id)
-            .ok_or_else(|| ScenarioError::MissingSemanticAction(semantic_action_id.to_string()))?;
-        assert!(
-            rendered.contains(semantic_action_id.as_str()),
-            "{} rendered witness must include {} before submission",
-            entry.key,
-            semantic_action_id.as_str()
-        );
+    match entry.setup_operation {
+        SetupOperation::SubmitSemanticAction { semantic_action_id } => {
+            let semantic_action_id = SemanticActionId::new(semantic_action_id.to_string())
+                .map_err(|_| ScenarioError::BadSemanticAction(semantic_action_id.to_string()))?;
+            let action = view
+                .semantic_actions
+                .iter()
+                .find(|action| action.semantic_action_id == semantic_action_id)
+                .ok_or_else(|| {
+                    ScenarioError::MissingSemanticAction(semantic_action_id.to_string())
+                })?;
+            assert_render_contains_action(entry, &rendered, semantic_action_id.as_str());
 
-        let result = app
-            .submit_semantic_action(&semantic_action_id)
-            .map_err(ScenarioError::App)?;
-        submitted_status = Some(result.report.status);
-        if !action.availability.is_available() {
-            rendered = app.render_current_view().map_err(ScenarioError::App)?;
-            assert!(
-                rendered.contains("Why-not:"),
-                "{} disabled action must render actor-safe why-not after rejection",
+            let result = app
+                .submit_semantic_action(&semantic_action_id)
+                .map_err(ScenarioError::App)?;
+            submitted_status = Some(result.report.status);
+            if !action.availability.is_available() {
+                rendered = app.render_current_view().map_err(ScenarioError::App)?;
+                assert_actor_safe_why_not(entry, &rendered);
+            }
+        }
+        SetupOperation::SubmitRegistryAction { action_id } => {
+            let action_id = ActionId::new(action_id.to_string())
+                .map_err(|_| ScenarioError::BadRegistryAction(action_id.to_string()))?;
+            let action = view
+                .semantic_actions
+                .iter()
+                .find(|action| action.action_id == action_id)
+                .ok_or_else(|| ScenarioError::MissingRegistryAction(action_id.to_string()))?;
+            let semantic_action_id = action.semantic_action_id.clone();
+            assert_render_contains_action(entry, &rendered, semantic_action_id.as_str());
+
+            let result = app
+                .submit_semantic_action(&semantic_action_id)
+                .map_err(ScenarioError::App)?;
+            submitted_status = Some(result.report.status);
+            if !action.availability.is_available() {
+                rendered = app.render_current_view().map_err(ScenarioError::App)?;
+                assert_actor_safe_why_not(entry, &rendered);
+            }
+        }
+        SetupOperation::ObserveQueryOnly { action_id } => {
+            assert_eq!(
+                entry.registry_action_id,
+                Some(action_id),
+                "{} query-only witness must name the registered action",
                 entry.key
             );
         }
+        SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {}
     }
 
     if let Some(rendered_witness) = &entry.rendered_witness {
@@ -103,20 +127,42 @@ pub fn assert_matches_checked_in_golden(entry: &CapabilityEntry, rendered: &str)
     let Some(golden_path) = entry.golden_path else {
         return;
     };
-    let expected = match golden_path {
-        "crates/tracewake-tui/tests/goldens/base_epistemic_why_not_door_closed.txt" => {
-            include_str!("../goldens/base_epistemic_why_not_door_closed.txt")
-        }
-        "crates/tracewake-tui/tests/goldens/base_semantic_action_wait.txt" => {
-            include_str!("../goldens/base_semantic_action_wait.txt")
-        }
-        other => panic!("unregistered scenario golden path: {other}"),
-    };
+    let package_path = golden_path
+        .strip_prefix("crates/tracewake-tui/")
+        .unwrap_or(golden_path);
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "test-only parity harness compares rendered output against checked-in golden files"
+    )]
+    let expected = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(package_path),
+    )
+    .unwrap_or_else(|error| panic!("failed to read scenario golden {golden_path}: {error}"));
     let actual = format!("{rendered}\n");
     assert_eq!(
         expected, actual,
         "{} rendered witness must match checked-in golden {}",
         entry.key, golden_path
+    );
+}
+
+fn assert_render_contains_action(
+    entry: &CapabilityEntry,
+    rendered: &str,
+    semantic_action_id: &str,
+) {
+    assert!(
+        rendered.contains(semantic_action_id),
+        "{} rendered witness must include {semantic_action_id} before submission",
+        entry.key
+    );
+}
+
+fn assert_actor_safe_why_not(entry: &CapabilityEntry, rendered: &str) {
+    assert!(
+        rendered.contains("Why-not:"),
+        "{} disabled action must render actor-safe why-not after rejection",
+        entry.key
     );
 }
 
@@ -139,18 +185,25 @@ pub fn assert_actor_surface_does_not_leak(entry: &CapabilityEntry, rendered: &st
             entry.key
         );
     }
-    assert!(
-        rendered.contains("Why-not:") && rendered.contains("door_closed_blocks_movement"),
-        "{} anti-leak exemplar must keep an actor-safe why-not reason",
-        entry.key
-    );
+    if matches!(
+        entry.setup_operation,
+        SetupOperation::SubmitSemanticAction { .. } | SetupOperation::SubmitRegistryAction { .. }
+    ) {
+        assert!(
+            rendered.contains("Why-not:"),
+            "{} anti-leak exemplar must keep an actor-safe why-not reason",
+            entry.key
+        );
+    }
 }
 
 pub enum ScenarioError {
     MissingFixture,
     UnknownFixture(String),
     BadActor(String),
+    BadRegistryAction(String),
     BadSemanticAction(String),
+    MissingRegistryAction(String),
     MissingSemanticAction(String),
     App(AppError),
 }
@@ -167,8 +220,14 @@ impl std::fmt::Display for ScenarioError {
             Self::MissingFixture => write!(formatter, "missing fixture"),
             Self::UnknownFixture(fixture_id) => write!(formatter, "unknown fixture {fixture_id}"),
             Self::BadActor(actor_id) => write!(formatter, "bad actor id {actor_id}"),
+            Self::BadRegistryAction(action_id) => {
+                write!(formatter, "bad registry action id {action_id}")
+            }
             Self::BadSemanticAction(action_id) => {
                 write!(formatter, "bad semantic action id {action_id}")
+            }
+            Self::MissingRegistryAction(action_id) => {
+                write!(formatter, "missing registry action {action_id}")
             }
             Self::MissingSemanticAction(action_id) => {
                 write!(formatter, "missing semantic action {action_id}")

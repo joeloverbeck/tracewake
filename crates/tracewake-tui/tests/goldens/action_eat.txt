@@ -1,0 +1,21 @@
+Actor: actor_tomas | Tick: 0
+Place: Tomas home (home_tomas)
+Needs:
+- fatigue: band=rising cause=fixture_initial
+- hunger: band=urgent cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: active:routine_tomas_go_work:move
+Routine: routine:routine_tomas_go_work
+Exits:
+- commons
+Doors:
+Containers:
+Items:
+Inventory:
+Actors:
+Actions:
+1. Continue routine [continue.routine.intention_tomas_go_work]
+2. Eat food_stew_home_tomas [eat.food.food_stew_home_tomas]
+3. Eat food_stew_home_tomas [eat.food.food_stew_home_tomas]
+4. Move to commons [move.to.commons]
+5. Wait [wait.1_tick]

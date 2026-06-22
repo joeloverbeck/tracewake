@@ -1,0 +1,22 @@
+Actor: actor_tomas | Tick: 0
+Place: Tomas home (home_tomas)
+Needs:
+- fatigue: band=urgent cause=fixture_initial
+- hunger: band=rising cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: active:routine_tomas_sleep_night:sleep
+Routine: routine:routine_tomas_sleep_night
+Exits:
+- workshop_tomas
+Doors:
+Containers:
+Items:
+Inventory:
+Actors:
+Actions:
+1. Continue routine [continue.routine.intention_tomas_sleep]
+2. Eat food_breakfast_tomas [eat.food.food_breakfast_tomas]
+3. Eat food_breakfast_tomas [eat.food.food_breakfast_tomas]
+4. Move to workshop_tomas [move.to.workshop_tomas]
+5. Sleep here [sleep.here]
+6. Wait [wait.1_tick]

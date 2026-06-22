@@ -1,0 +1,19 @@
+Actor: actor_tomas | Tick: 0
+Place: Tomas workshop (workshop_tomas)
+Needs:
+- fatigue: band=comfortable cause=fixture_initial
+- hunger: band=comfortable cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: none
+Routine: none
+Exits:
+- home_tomas
+Doors:
+Containers:
+Items:
+Inventory:
+Actors:
+Actions:
+1. Move to home_tomas [move.to.home_tomas]
+2. Wait [wait.1_tick]
+3. Work at workplace_tomas [work.block.workplace_tomas]

@@ -1,0 +1,24 @@
+Actor: actor_tomas | Tick: 0
+Place: Tomas house (house_tomas)
+Needs:
+- fatigue: band=comfortable cause=fixture_initial
+- hunger: band=comfortable cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: none
+Routine: none
+Exits:
+- street_lane
+Doors:
+- door_house_street open=true locked=false endpoints=house_tomas<->street_lane
+Containers:
+- strongbox_tomas open=false locked=false
+Items:
+Inventory:
+Actors:
+- actor_elena
+Actions:
+1. Check strongbox_tomas [check.container.strongbox_tomas] disabled: The container is closed. reasons=container_closed
+2. close door_house_street [close.door.door_house_street]
+3. Move to street_lane [move.to.street_lane]
+4. open strongbox_tomas [open.container.strongbox_tomas]
+5. Wait [wait.1_tick]

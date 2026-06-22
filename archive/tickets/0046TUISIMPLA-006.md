@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-006: Baseline census — 15 registered action capabilities
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — new census module (`crates/tracewake-tui/tests/parity/census_actions.rs`), registry-module registration, and focused per-action goldens + any gap-filling fixtures in `tracewake-content`. No `tracewake-core` change.
@@ -124,3 +124,33 @@ action, add a focused `GoldenFixture` in `tracewake-content` and register it in 
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo test -p tracewake-content`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+- Added `parity::census_actions`, deriving the current base action set from the same
+  `ActionRegistry` registrar sequence used by `TuiApp`, and populated coverage for all 15 registered
+  action IDs: `check_container`, `close`, `continue_routine`, `eat`, `inspect_entity`,
+  `inspect_place`, `look`, `move`, `open`, `place`, `sleep`, `take`, `truthful_accuse_probe`,
+  `wait`, and `work_block`.
+- Extended the parity schema/runner with explicit `registry_action_id`, submit-by-action-id, and
+  query-only observation operations. The runner now fails if any live registered action lacks a
+  capability disposition and fixture coverage.
+- Added checked-in action goldens for the census entries and reused the ticket-005 wait/move goldens
+  where those entries already proved the same real-pipeline rendering.
+- Added the narrow additive `place_carried_item_001` fixture because no existing bind-time fixture
+  presented the `place` action from a carried item. The action is present and disabled with an
+  actor-safe validator why-not in the current projection; it is dispositioned rather than deferred.
+- Registered the new fixture in `fixtures::all`/`by_id`, updated its frozen fingerprint, and updated
+  the workspace source-classification census. Existing fixture IDs and shapes were not changed.
+
+Verification:
+
+- `cargo test -p tracewake-tui --test playable_capability_parity`
+- `cargo test -p tracewake-content`
+- `cargo test -p tracewake-core --test anti_regression_guards workspace_source_classification_census_matches_production_tree`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
