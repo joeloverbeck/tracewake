@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-015: Human work completion real-pipeline witness
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — test-only: real-pipeline human work-completion witness through the actual parser/app/core path
@@ -69,3 +69,17 @@ Add a witness that, through the actual parser/app/core path: starts a human work
 1. `cargo test -p tracewake-tui work_completion`
 2. `cargo test --workspace`
 3. The full-workspace boundary is appropriate for an integration witness spanning TUI → core → replay; `cargo test -p tracewake-tui work_completion` is the focused per-witness run.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Evidence:
+- Added `human_work_completion_real_pipeline_witness` in `crates/tracewake-tui/tests/embodied_flow.rs`.
+- The witness drives `do move.to.workshop_tomas`, `do work.block.workplace_tomas`, rejected ordinary `wait`, `continue`, `bind-debug actor_tomas`, and `debug replay` through `run_command_loop`; it asserts reservation conflict, possessed duration terminal, actor-known work completion summary, work need accounting, replay checksum parity, and absence of no-human-day witness text.
+- No work-interruption sub-case was exercised because work interruption is not modeled by a production builder.
+- Passed `cargo fmt --all --check`.
+- Passed `cargo test -p tracewake-tui human_work_completion_real_pipeline_witness`.
+- Passed `cargo test -p tracewake-tui work_completion`.
+- Passed `cargo clippy -p tracewake-tui --all-targets -- -D warnings`.
+- Passed `cargo test --workspace`.
