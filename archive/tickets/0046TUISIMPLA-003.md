@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-003: Test-side playable-capability registry
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new `tracewake-tui` integration-test support module
@@ -126,3 +126,39 @@ compilable + `cargo test`-runnable consumer.
 
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+Added the test-side playable-capability registry substrate under
+`crates/tracewake-tui/tests/parity/mod.rs`. The schema defines
+`CapabilityEntry` with stable keys, ownership scope, capability class, surface
+disposition plus rationale, fixture IDs, viewer actor, setup operation, typed
+and rendered witnesses, anti-leak fixtures, and replay/no-human evidence flags.
+Scope, class, disposition, setup operation, witness kind, and evidence status
+are closed enums. The registry is sorted deterministically and seeded with one
+base exemplar (`base.semantic_action.wait`) so downstream runner/golden/census
+tickets have a compiled contract to consume.
+
+Added `crates/tracewake-tui/tests/playable_capability_parity.rs` as the
+standalone consumer. It verifies the registry is non-empty, keys are unique and
+sorted, rationales and fixture references are present, every referenced fixture
+resolves through `tracewake_content::fixtures::by_id`, every closed enum variant
+is constructible for future entries, and the registry source does not consume
+authoritative event-application, scheduler, validation, or cognition APIs.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-tui --test playable_capability_parity` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
+- `rg -n 'tracewake-content|tracewake-tui' crates/tracewake-core/Cargo.toml Cargo.toml` — showed only workspace membership in root `Cargo.toml`; no `tracewake-core` dependency inversion was introduced.
+
+Deviations:
+
+- The registry is seeded with one exemplar rather than the full action/family
+  census. That is intentional ticket scope: tickets `0046TUISIMPLA-006` and
+  `0046TUISIMPLA-007` populate the full baseline matrix.
