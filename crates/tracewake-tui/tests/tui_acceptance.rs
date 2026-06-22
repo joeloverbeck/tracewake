@@ -42,6 +42,53 @@ impl PositiveProofArtifact {
 }
 
 #[test]
+fn embodied_view_lists_each_container_once_after_opening_in_same_tick() {
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let open = view
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.semantic_action_id.as_str() == "open.container.strongbox_tomas")
+        .expect("strongbox is openable from the initial view")
+        .semantic_action_id
+        .clone();
+
+    let result = app.submit_semantic_action(&open).unwrap();
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+
+    let view = app.current_view().unwrap();
+    let strongbox_entries: Vec<_> = view
+        .visible_containers
+        .iter()
+        .filter(|container| container.container_id.as_str() == "strongbox_tomas")
+        .collect();
+    assert_eq!(
+        strongbox_entries.len(),
+        1,
+        "a container observed twice in one tick must collapse to its latest known state, got {:?}",
+        view.visible_containers
+    );
+    assert!(
+        strongbox_entries[0].is_open,
+        "the surviving container entry must reflect the latest perceived (open) state"
+    );
+
+    let check_actions = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.semantic_action_id.as_str() == "check.container.strongbox_tomas")
+        .count();
+    assert_eq!(
+        check_actions, 1,
+        "duplicated container facts must not produce duplicated affordances, got {} check actions",
+        check_actions
+    );
+}
+
+#[test]
 fn tui_selects_semantic_action_id_not_menu_index() {
     let mut app = TuiApp::load_default().unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
